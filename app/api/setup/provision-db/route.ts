@@ -220,6 +220,36 @@ export async function POST(req: NextRequest) {
   if (!neonApiKey) {
     return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
   }
+
+  // Parse action from body.
+  let body: { action?: string; region?: string; projectId?: string } = {}
+  try {
+    body = (await req.json()) as typeof body
+  } catch {
+    // No body or invalid JSON — default to 'create'.
+  }
+  const action = body.action ?? 'create'
+
+  // ── Action: list ──────────────────────────────────────────────────────────
+  if (action === 'list') {
+    try {
+      const res = await fetch(`${NEON_API}/projects?limit=100`, {
+        headers: { Authorization: `Bearer ${neonApiKey}` },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        return NextResponse.json({ error: `Neon API error ${res.status}: ${text}` }, { status: 502 })
+      }
+      const data = (await res.json()) as NeonProjectListResponse
+      return NextResponse.json({ projects: data.projects?.map((p) => ({ id: p.id, name: p.name })) ?? [] })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+  }
+
+  // ── Actions that need Vercel credentials ─────────────────────────────────
   if (!vercelToken || !vercelProjectId) {
     return NextResponse.json(
       { error: 'VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required' },
@@ -238,16 +268,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'provisioned-redeploying' })
   }
 
-  // Parse region from body, default to aws-us-east-2.
-  let regionId: NeonRegionId = 'aws-us-east-2'
-  try {
-    const body = (await req.json()) as { region?: string }
-    const validRegions = NEON_REGIONS.map((r) => r.id) as string[]
-    if (body.region && validRegions.includes(body.region)) {
-      regionId = body.region as NeonRegionId
+  // ── Action: use-existing ──────────────────────────────────────────────────
+  if (action === 'use-existing') {
+    const existingProjectId = body.projectId
+    if (!existingProjectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
     }
-  } catch {
-    // No body or invalid JSON — use default region.
+    try {
+      const neonData = await getNeonProjectConnectionUri(neonApiKey, existingProjectId)
+      const pooledUrl = buildPooledUri(neonData)
+      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUrl, neonData.project.id)
+      await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      return NextResponse.json({ status: 'provisioned', neonProjectId: neonData.project.id })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return NextResponse.json({ status: 'error', error: message }, { status: 500 })
+    }
+  }
+
+  // ── Action: create (default) ──────────────────────────────────────────────
+
+  // Parse region, default to aws-us-east-2.
+  let regionId: NeonRegionId = 'aws-us-east-2'
+  const validRegions = NEON_REGIONS.map((r) => r.id) as string[]
+  if (body.region && validRegions.includes(body.region)) {
+    regionId = body.region as NeonRegionId
   }
 
   // Derive a stable, identifiable name for the Neon project so we can detect

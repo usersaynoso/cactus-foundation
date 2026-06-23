@@ -60,6 +60,9 @@ a:hover {
   color: #ffffff;
   border-bottom: 1px solid #1f2937;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .admin-sidebar nav a {
@@ -320,6 +323,22 @@ tbody tr:hover {
 }
 .pagination a:hover { background: #f9fafb; text-decoration: none; }
 .pagination .current { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+/* Spinner */
+@keyframes cactus-spin {
+  to { transform: rotate(360deg); }
+}
+.setup-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cactus-spin 0.7s linear infinite;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
 
 /* Setup wizard */
 .setup-shell {
