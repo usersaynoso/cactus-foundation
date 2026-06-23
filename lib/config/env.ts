@@ -16,40 +16,40 @@ export function getEnvStatus(): {
   const required: EnvVarStatus[] = [
     {
       name: 'DATABASE_URL',
-      description: 'PostgreSQL pooled connection string. Can be provisioned automatically if absent — see below.',
+      description: 'PostgreSQL pooled connection string. Can be provisioned automatically during setup.',
       required: true,
       set: !!process.env.DATABASE_URL,
     },
     {
-      name: 'SESSION_SECRET',
-      description: 'Secret for signing session tokens (min 32 characters)',
-      required: true,
-      set: !!process.env.SESSION_SECRET,
-    },
-    {
-      name: 'SITE_URL',
-      description:
-        'Canonical public domain — also used as the WebAuthn relying party ID. Cannot change after first passkey is registered.',
-      required: true,
-      set: !!process.env.SITE_URL,
-    },
-    {
       name: 'VERCEL_API_TOKEN',
       description:
-        'Vercel REST API token. Create at: Vercel dashboard → Account Settings → Tokens. Required for Edge Config writes, deployment status checks, and database provisioning.',
+        'Vercel REST API token. Entered during setup — used for writing env vars, triggering redeployments, and provisioning databases.',
       required: true,
       set: !!process.env.VERCEL_API_TOKEN,
     },
     {
       name: 'VERCEL_PROJECT_ID',
       description:
-        'Vercel project ID. Find it in: Vercel dashboard → your project → Settings → General. Must be added to your project\'s environment variables and a redeploy triggered before setup can proceed.',
+        'Vercel project ID. Selected during setup — identifies which project to configure.',
       required: true,
       set: !!process.env.VERCEL_PROJECT_ID,
     },
   ]
 
   const optional: EnvVarStatus[] = [
+    {
+      name: 'SESSION_SECRET',
+      description: 'Secret for signing session tokens (min 32 characters). Auto-generated during setup.',
+      required: false,
+      set: !!process.env.SESSION_SECRET,
+    },
+    {
+      name: 'SITE_URL',
+      description:
+        'Canonical public domain — also used as the WebAuthn relying party ID. Auto-detected from your Vercel project during setup.',
+      required: false,
+      set: !!process.env.SITE_URL,
+    },
     {
       name: 'BREVO_API_KEY',
       description: 'Brevo transactional email API key',
@@ -225,16 +225,29 @@ export function isTurnstileConfigured(): boolean {
 }
 
 export function getSiteUrl(): string {
-  const url = process.env.SITE_URL
+  const url =
+    process.env.SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
   if (!url) throw new Error('SITE_URL environment variable is not set')
   return url.replace(/\/$/, '')
+}
+
+export function getSiteUrlOrNull(): string | null {
+  try {
+    return getSiteUrl()
+  } catch {
+    return null
+  }
 }
 
 export function getWebAuthnRpId(): string {
   if (process.env.NODE_ENV === 'development') {
     return 'localhost'
   }
-  const siteUrl = getSiteUrl()
+  // Must use SITE_URL only — VERCEL_URL changes per deployment and would break
+  // passkey authentication after the first deployment.
+  const siteUrl = process.env.SITE_URL
+  if (!siteUrl) throw new Error('SITE_URL is required for WebAuthn')
   try {
     return new URL(siteUrl).hostname
   } catch {
@@ -246,7 +259,9 @@ export function getWebAuthnOrigin(): string {
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3000'
   }
-  return getSiteUrl()
+  const siteUrl = process.env.SITE_URL
+  if (!siteUrl) throw new Error('SITE_URL is required for WebAuthn')
+  return siteUrl.replace(/\/$/, '')
 }
 
 export function getSessionSecret(): string {

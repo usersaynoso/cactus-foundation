@@ -7,16 +7,20 @@ import { NEON_REGIONS } from '@/lib/config/neon-regions'
 
 type Step = 'env' | 'features' | 'account' | 'adminPath' | 'essentials' | 'recovery'
 
-// Sub-states within the 'env' step when DATABASE_URL is absent.
+// Sub-states within the 'env' step.
 type DbSubStep =
-  | 'loading'           // env-check in flight
-  | 'block'             // non-DB required var missing → hard block
-  | 'ready'             // all required vars set (DATABASE_URL present)
-  | 'db-choice'         // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
-  | 'db-manual'         // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
-  | 'db-provisioning'   // Neon API call in flight
-  | 'db-redeploying'    // env var written, waiting for Vercel redeploy + DB reachable
-  | 'db-error'          // Neon API call failed — show error + fall back to manual
+  | 'loading'              // env-check in flight
+  | 'vercel-config'        // VERCEL_API_TOKEN/PROJECT_ID not set → collect them
+  | 'vercel-listing'       // fetching project list from Vercel API
+  | 'vercel-configuring'   // writing bootstrap env vars to Vercel
+  | 'vercel-redeploying'   // waiting for redeploy after bootstrap vars written
+  | 'block'                // unexpected required var missing → hard block
+  | 'ready'                // all required vars set (DATABASE_URL present)
+  | 'db-choice'            // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
+  | 'db-manual'            // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
+  | 'db-provisioning'      // Neon API call in flight
+  | 'db-redeploying'       // DATABASE_URL written, waiting for Vercel redeploy + DB reachable
+  | 'db-error'             // Neon API call failed — show error + fall back to manual
 
 type EnvCheckData = {
   required: EnvVarStatus[]
@@ -24,7 +28,10 @@ type EnvCheckData = {
   missingRequired: string[]
   databaseState: DatabaseState
   neonAvailable: boolean
+  vercelConfigured: boolean
 }
+
+type VercelProject = { id: string; name: string; domains: string[] }
 
 // Polls /api/health until the database is reachable, then calls onReady.
 // Returns a cancel function.
@@ -56,6 +63,36 @@ function startHealthPolling(onReady: () => void): () => void {
   }
 }
 
+// Polls /api/setup/env-check until vercelConfigured is true, then calls onReady.
+// Returns a cancel function.
+function startVercelConfiguredPolling(onReady: () => void): () => void {
+  let cancelled = false
+  let timer: ReturnType<typeof setTimeout>
+
+  async function poll() {
+    if (cancelled) return
+    try {
+      const res = await fetch('/api/setup/env-check')
+      if (res.ok) {
+        const data = (await res.json()) as EnvCheckData
+        if (data.vercelConfigured) {
+          if (!cancelled) onReady(  )
+          return
+        }
+      }
+    } catch {
+      // Network error during redeploy is expected — keep polling.
+    }
+    if (!cancelled) timer = setTimeout(poll, 5_000)
+  }
+
+  timer = setTimeout(poll, 5_000)
+  return () => {
+    cancelled = true
+    clearTimeout(timer)
+  }
+}
+
 export default function SetupPage() {
   const [step, setStep] = useState<Step>('env')
   const [envData, setEnvData] = useState<EnvCheckData | null>(null)
@@ -70,6 +107,14 @@ export default function SetupPage() {
   const [provisionError, setProvisionError] = useState('')
   const [dbReady, setDbReady] = useState(false)
   const cancelPollingRef = useRef<(() => void) | null>(null)
+
+  // Vercel config
+  const [vercelToken, setVercelToken] = useState('')
+  const [vercelNeonKey, setVercelNeonKey] = useState('')
+  const [vercelProjects, setVercelProjects] = useState<VercelProject[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [vercelError, setVercelError] = useState('')
+  const [vercelConfiguring, setVercelConfiguring] = useState(false)
 
   // Features step
   const [featureFields, setFeatureFields] = useState<Record<string, string>>({})
@@ -107,9 +152,17 @@ export default function SetupPage() {
       .then((d: EnvCheckData) => {
         setEnvData(d)
 
-        // Non-DB required vars missing → hard block.
-        const nonDbMissing = d.missingRequired.filter((v) => v !== 'DATABASE_URL')
-        if (nonDbMissing.length > 0) {
+        // Vercel not configured → show vercel-config panel
+        if (!d.vercelConfigured) {
+          setDbSubStep('vercel-config')
+          return
+        }
+
+        // Any other required var missing that the wizard doesn't handle → hard block
+        const unexpectedMissing = d.missingRequired.filter(
+          (v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID'
+        )
+        if (unexpectedMissing.length > 0) {
           setDbSubStep('block')
           return
         }
@@ -117,7 +170,6 @@ export default function SetupPage() {
         if (d.databaseState === 'set') {
           setDbSubStep('ready')
         } else if (d.databaseState === 'provisioned-redeploying') {
-          // A previous provision wrote the env var; waiting for redeploy.
           setDbSubStep('db-redeploying')
           startRedeployPolling()
         } else if (d.neonAvailable) {
@@ -138,6 +190,83 @@ export default function SetupPage() {
     cancelPollingRef.current = startHealthPolling(() => {
       setDbReady(true)
     })
+  }
+
+  function startVercelRedeployPolling() {
+    cancelPollingRef.current?.()
+    cancelPollingRef.current = startVercelConfiguredPolling(() => {
+      // Vercel env vars are now in runtime — re-run the env check
+      setDbSubStep('loading')
+      setStep('env')
+    })
+  }
+
+  // ── Vercel config handlers ─────────────────────────────────────────────────
+
+  async function handleVercelListProjects() {
+    setVercelError('')
+    setDbSubStep('vercel-listing')
+    setVercelProjects([])
+    setSelectedProjectId('')
+    try {
+      const res = await fetch('/api/setup/vercel-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list-projects', token: vercelToken }),
+      })
+      const data = (await res.json()) as { projects?: VercelProject[]; error?: string }
+      if (!res.ok || data.error) {
+        setVercelError(data.error ?? 'Failed to list projects')
+        setDbSubStep('vercel-config')
+        return
+      }
+      setVercelProjects(data.projects ?? [])
+      setDbSubStep('vercel-config')
+      if ((data.projects ?? []).length === 1) {
+        setSelectedProjectId(data.projects![0].id)
+      }
+    } catch (err: unknown) {
+      setVercelError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('vercel-config')
+    }
+  }
+
+  async function handleVercelConfigure() {
+    if (!selectedProjectId) return
+    setVercelError('')
+    setVercelConfiguring(true)
+    setDbSubStep('vercel-configuring')
+    try {
+      const res = await fetch('/api/setup/vercel-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'configure',
+          token: vercelToken,
+          projectId: selectedProjectId,
+          neonApiKey: vercelNeonKey || undefined,
+        }),
+      })
+      const data = (await res.json()) as {
+        status?: string
+        siteUrl?: string
+        redeployTriggered?: boolean
+        error?: string
+      }
+      if (!res.ok || data.error) {
+        setVercelError(data.error ?? 'Failed to configure project')
+        setDbSubStep('vercel-config')
+        setVercelConfiguring(false)
+        return
+      }
+      setDbSubStep('vercel-redeploying')
+      startVercelRedeployPolling()
+    } catch (err: unknown) {
+      setVercelError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('vercel-config')
+    } finally {
+      setVercelConfiguring(false)
+    }
   }
 
   function setFeatureField(key: string, value: string) {
@@ -196,12 +325,10 @@ export default function SetupPage() {
       }
 
       if (data.status === 'already_set') {
-        // DATABASE_URL is already in runtime — continue normally.
         setDbSubStep('ready')
         return
       }
 
-      // status === 'provisioned' or 'provisioned-redeploying'
       setDbSubStep('db-redeploying')
       startRedeployPolling()
     } catch (err: unknown) {
@@ -359,18 +486,59 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Environment check</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Cactus needs a few environment variables before it can start.
+            Cactus needs to connect to your Vercel project before it can start.
           </p>
 
-          {/* Loading */}
           {dbSubStep === 'loading' && <p>Checking…</p>}
 
-          {/* Vars list (shown in all non-loading sub-steps) */}
-          {envData && dbSubStep !== 'loading' && (
+          {/* ── Vercel not yet configured ── */}
+          {(dbSubStep === 'vercel-config' || dbSubStep === 'vercel-listing') && (
+            <VercelConfigPanel
+              token={vercelToken}
+              setToken={setVercelToken}
+              neonApiKey={vercelNeonKey}
+              setNeonApiKey={setVercelNeonKey}
+              projects={vercelProjects}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
+              listing={dbSubStep === 'vercel-listing'}
+              error={vercelError}
+              onConnect={handleVercelListProjects}
+              onConfigure={handleVercelConfigure}
+            />
+          )}
+
+          {/* ── Writing Vercel env vars ── */}
+          {dbSubStep === 'vercel-configuring' && (
+            <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>⏳</span>
+              <span>Writing environment variables to your Vercel project…</span>
+            </div>
+          )}
+
+          {/* ── Waiting for Vercel redeploy after bootstrap ── */}
+          {dbSubStep === 'vercel-redeploying' && (
+            <div>
+              <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+                <strong>Vercel project configured.</strong> SESSION_SECRET, SITE_URL, and API credentials have been written to your project.
+              </div>
+              <div className="alert alert-info">
+                Your app is redeploying to pick up the new settings — this takes about a minute.
+                This page will continue automatically once the redeploy is complete.{' '}
+                <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+              </div>
+              <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '1rem' }}>
+                If this takes more than 3 minutes, trigger a manual redeploy from your{' '}
+                <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Vercel dashboard</a>.
+              </p>
+            </div>
+          )}
+
+          {/* Vars list (shown in all post-vercel sub-steps) */}
+          {envData && !['loading', 'vercel-config', 'vercel-listing', 'vercel-configuring', 'vercel-redeploying'].includes(dbSubStep) && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
               {envData.required.map((v) => {
-                // DATABASE_URL is shown differently depending on sub-step.
                 if (v.name === 'DATABASE_URL') return null
                 return (
                   <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -387,16 +555,20 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* Hard block: non-DB required vars missing */}
+          {/* Hard block */}
           {dbSubStep === 'block' && envData && (
             <div className="alert alert-danger">
-              Missing required variables:{' '}
-              <strong>{envData.missingRequired.filter((v) => v !== 'DATABASE_URL').join(', ')}</strong>.
-              Add them to your project&apos;s environment variables in the Vercel dashboard and redeploy.
+              Unexpected missing variables:{' '}
+              <strong>
+                {envData.missingRequired
+                  .filter((v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID')
+                  .join(', ')}
+              </strong>.
+              Add them to your Vercel project environment variables and redeploy.
             </div>
           )}
 
-          {/* All required vars set (DATABASE_URL is present) */}
+          {/* All required vars set */}
           {dbSubStep === 'ready' && envData && (
             <>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -423,7 +595,7 @@ export default function SetupPage() {
             </>
           )}
 
-          {/* DATABASE_URL absent, Neon available: offer auto-provision or manual */}
+          {/* DATABASE_URL absent, Neon available */}
           {dbSubStep === 'db-choice' && (
             <DbChoicePanel
               neonRegion={neonRegion}
@@ -433,15 +605,14 @@ export default function SetupPage() {
             />
           )}
 
-          {/* DATABASE_URL absent, no Neon key: manual instructions only */}
+          {/* DATABASE_URL absent, no Neon key */}
           {dbSubStep === 'db-manual' && (
             <DbManualPanel
-              neonAvailable={false}
+              neonAvailable={!!envData?.neonAvailable}
               onBack={envData?.neonAvailable ? () => setDbSubStep('db-choice') : undefined}
             />
           )}
 
-          {/* Neon API call in flight */}
           {dbSubStep === 'db-provisioning' && (
             <div>
               <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -451,12 +622,10 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* Neon call succeeded, Vercel redeploying */}
           {dbSubStep === 'db-redeploying' && (
             <DbRedeployingPanel dbReady={dbReady} onContinue={() => setStep('features')} />
           )}
 
-          {/* Neon call failed: show error + fall back to manual */}
           {dbSubStep === 'db-error' && (
             <div>
               <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
@@ -608,14 +777,6 @@ export default function SetupPage() {
             <div className="field">
               <label style={{ fontSize: '0.875rem' }}>SENTRY_DSN</label>
               <input value={featureFields['SENTRY_DSN'] ?? ''} onChange={(e) => setFeatureField('SENTRY_DSN', e.target.value)} placeholder="https://…@sentry.io/…" style={{ fontSize: '0.875rem' }} />
-            </div>
-          </FeatureSection>
-
-          {/* Neon */}
-          <FeatureSection title="Neon (automatic DB provisioning)" description="Lets future reinstalls create a Postgres database automatically.">
-            <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>NEON_API_KEY</label>
-              <input type="password" autoComplete="off" value={featureFields['NEON_API_KEY'] ?? ''} onChange={(e) => setFeatureField('NEON_API_KEY', e.target.value)} placeholder="Neon API key" style={{ fontSize: '0.875rem' }} />
             </div>
           </FeatureSection>
 
@@ -794,7 +955,137 @@ export default function SetupPage() {
   )
 }
 
-// ── Collapsible feature section for the optional features step ─────────────────
+// ── Vercel config panel ────────────────────────────────────────────────────────
+
+function VercelConfigPanel({
+  token, setToken,
+  neonApiKey, setNeonApiKey,
+  projects,
+  selectedProjectId, setSelectedProjectId,
+  listing,
+  error,
+  onConnect,
+  onConfigure,
+}: {
+  token: string
+  setToken: (v: string) => void
+  neonApiKey: string
+  setNeonApiKey: (v: string) => void
+  projects: VercelProject[]
+  selectedProjectId: string
+  setSelectedProjectId: (v: string) => void
+  listing: boolean
+  error: string
+  onConnect: () => void
+  onConfigure: () => void
+}) {
+  const hasProjects = projects.length > 0
+  const canConfigure = hasProjects && !!selectedProjectId
+
+  return (
+    <div>
+      <div className="alert alert-info" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        Cactus needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
+      </div>
+
+      <div className="field">
+        <label htmlFor="vercelToken">Vercel API token</label>
+        <input
+          id="vercelToken"
+          type="password"
+          autoComplete="off"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder="vcp_… or ve_…"
+          disabled={listing}
+        />
+        <span className="field-hint">
+          Create at:{' '}
+          <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+            Vercel dashboard → Account Settings → Tokens
+          </a>
+        </span>
+      </div>
+
+      <div className="field" style={{ marginBottom: '1rem' }}>
+        <label htmlFor="neonApiKey">
+          Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+        </label>
+        <input
+          id="neonApiKey"
+          type="password"
+          autoComplete="off"
+          value={neonApiKey}
+          onChange={(e) => setNeonApiKey(e.target.value)}
+          placeholder="napi_…"
+          disabled={listing}
+        />
+        <span className="field-hint">
+          Enables automatic database provisioning. Generate at:{' '}
+          <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+            Neon Console → Account → API Keys
+          </a>
+        </span>
+      </div>
+
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>
+      )}
+
+      {!hasProjects && (
+        <button
+          className="btn btn-primary"
+          style={{ width: '100%', marginBottom: '1rem' }}
+          disabled={!token || listing}
+          onClick={onConnect}
+        >
+          {listing ? 'Connecting…' : 'Connect to Vercel →'}
+        </button>
+      )}
+
+      {hasProjects && (
+        <>
+          <div className="field">
+            <label htmlFor="projectSelect">Select your Vercel project</label>
+            <select
+              id="projectSelect"
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+            >
+              <option value="">— choose a project —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}{p.domains.length > 0 ? ` (${p.domains[0]})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={onConnect}
+              disabled={listing}
+            >
+              {listing ? 'Refreshing…' : '↺ Refresh list'}
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 2 }}
+              disabled={!canConfigure}
+              onClick={onConfigure}
+            >
+              Configure project →
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Collapsible feature section ────────────────────────────────────────────────
 
 function FeatureSection({
   title,
@@ -838,7 +1129,7 @@ function FeatureSection({
   )
 }
 
-// ── Sub-components for the database provisioning flow ─────────────────────────
+// ── DB sub-components ──────────────────────────────────────────────────────────
 
 function DbChoicePanel({
   neonRegion,
@@ -861,7 +1152,6 @@ function DbChoicePanel({
         </div>
       </div>
 
-      {/* Option A: auto-provision */}
       <div style={{ border: '1px solid #16a34a', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#f0fdf4' }}>
         <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#15803d' }}>Create my database automatically</div>
         <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
@@ -887,7 +1177,6 @@ function DbChoicePanel({
         </button>
       </div>
 
-      {/* Option B: bring your own */}
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', background: '#f9fafb' }}>
         <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>I&apos;ll supply my own DATABASE_URL</div>
         <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
@@ -933,8 +1222,7 @@ function DbManualPanel({
 
       {!neonAvailable && (
         <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginBottom: '1rem' }}>
-          Tip: set <code>NEON_API_KEY</code> in your project env vars to let Cactus create a database for you automatically.{' '}
-          <a href="/wiki/Getting-started" style={{ color: '#16a34a' }}>See the Getting started guide.</a>
+          Tip: provide a Neon API key during Vercel configuration to let Cactus create a database automatically.
         </p>
       )}
 

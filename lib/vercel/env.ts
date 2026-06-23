@@ -14,6 +14,9 @@ const DEFAULT_TARGETS: VercelEnvTarget[] = ['production', 'preview', 'developmen
 
 // Encrypted type for sensitive keys; plain for everything else.
 const ENCRYPTED_KEYS = new Set([
+  'DATABASE_URL',
+  'SESSION_SECRET',
+  'VERCEL_API_TOKEN',
   'BREVO_API_KEY',
   'SMTP_PASS',
   'B2_APPLICATION_KEY',

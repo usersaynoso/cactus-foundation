@@ -1,29 +1,31 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
-import { getSiteUrl } from '@/lib/config/env'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = getSiteUrl()
+  const siteUrl = process.env.SITE_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
 
-  const pages = await prisma.infoPage.findMany({
-    where: { status: 'published' },
-    select: { slug: true, updatedAt: true },
-  })
+  if (!siteUrl) return []
 
-  const entries: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 1,
-    },
-    ...pages.map((p) => ({
-      url: `${baseUrl}/${p.slug}`,
-      lastModified: p.updatedAt,
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
-    })),
+  const base: MetadataRoute.Sitemap = [
+    { url: siteUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
   ]
 
-  return entries
+  try {
+    const pages = await prisma.infoPage.findMany({
+      where: { status: 'published' },
+      select: { slug: true, updatedAt: true },
+    })
+    return [
+      ...base,
+      ...pages.map((p) => ({
+        url: `${siteUrl}/${p.slug}`,
+        lastModified: p.updatedAt,
+        changeFrequency: 'monthly' as const,
+        priority: 0.8,
+      })),
+    ]
+  } catch {
+    return base
+  }
 }
