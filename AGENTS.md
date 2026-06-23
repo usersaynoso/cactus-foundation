@@ -28,7 +28,12 @@ If you find `PROGRESS.md` stale (last task marked in-progress but code looks com
 3. **Run the checks**: typecheck, lint, and any relevant automated tests. All must pass, not "mostly pass."
 4. **Re-read the exact spec bullets this task covers, line by line**, and confirm explicitly, in your own working notes, that each clause is actually satisfied, not just "looks about right." If the spec says draft pages 404 for non-admins, don't move on until you've actually verified that, not assumed it because the route exists.
 5. **If anything fails or doesn't match**: fix it, go back to step 3. This is the triple-check the build needs, it isn't a one-and-done lint pass, it's implement, verify, fix, re-verify, until the task is actually clean against both the automated checks and the spec text itself.
-6. **Once genuinely clean**: mark the task done in `PROGRESS.md` with a one-line verification note (what you checked, not just "done"), commit to git with a message referencing the spec section, then move to the next task.
+6. **Update the wiki — no exceptions, no deferrals.** Before committing, ask yourself: did this change affect any user-facing behaviour, environment variable, API endpoint, setup flow, or architectural detail? If yes, update the relevant `/wiki` page(s) right now, in the same commit. A task is not done until the docs match the code. Undocumented changes are incomplete changes.
+   - Changed or added an env var → update `Getting-started.md` table + `Configuration-reference.md` table.
+   - Changed the setup flow or a request lifecycle → update `Architecture-overview.md`.
+   - Changed a feature end-to-end → update the feature's own wiki page.
+   - Added a new top-level capability → add/extend the page, link it from `Home.md`.
+7. **Once genuinely clean**: mark the task done in `PROGRESS.md` with a one-line verification note (what you checked, not just "done"), commit to git with a message referencing the spec section, then move to the next task.
 
 ## When a check fails repeatedly
 
