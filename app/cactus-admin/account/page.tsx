@@ -70,6 +70,10 @@ export default function AccountPage() {
     try {
       const { startRegistration } = await import('@simplewebauthn/browser')
       const optRes = await fetch('/api/auth/passkey/register-options', { method: 'POST' })
+      if (!optRes.ok) {
+        const d = await optRes.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to get registration options')
+      }
       const opts = await optRes.json()
       const attestation = await startRegistration({ optionsJSON: opts })
       const verifyRes = await fetch('/api/auth/passkey/register-verify', {

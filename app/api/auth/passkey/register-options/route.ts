@@ -34,12 +34,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  const opts = await createRegistrationChallenge(
-    userId,
-    user.email,
-    user.username,
-    user.passkeys
-  )
-
-  return NextResponse.json(opts)
+  try {
+    const opts = await createRegistrationChallenge(
+      userId,
+      user.email,
+      user.username,
+      user.passkeys
+    )
+    return NextResponse.json(opts)
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to generate registration options' },
+      { status: 500 }
+    )
+  }
 }

@@ -471,7 +471,16 @@ export default function SetupPage() {
       setPasskeyRegistered(true)
       setStep('adminPath')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const msg = err instanceof Error ? err.message : 'Something went wrong'
+      // Safari stores passkeys device-side even when server verification fails.
+      // On re-setup the stale device credential can cause this obscure error.
+      if (msg === 'The string did not match the expected pattern.') {
+        setError(
+          'Passkey registration failed. If you previously started setup on this device, Safari may have saved a passkey that is now stale. Delete it from your device settings (Settings → Passwords → find this site) then try again, or try a different browser.'
+        )
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
