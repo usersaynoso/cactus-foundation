@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { generateSlug } from '@/lib/utils'
 
 export default function NewPagePage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const adminPath = pathname.split('/')[1] ?? ''
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
@@ -31,7 +33,7 @@ export default function NewPagePage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to create page')
-      router.push('/cactus-admin/pages')
+      router.push(`/${adminPath}/pages`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {

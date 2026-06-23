@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, usePathname } from 'next/navigation'
 import { generateSlug } from '@/lib/utils'
 
 export default function EditPagePage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const pathname = usePathname()
+  const adminPath = pathname.split('/')[1] ?? ''
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [body, setBody] = useState('')
@@ -55,7 +57,7 @@ export default function EditPagePage() {
         const d = await res.json()
         throw new Error(d.error ?? 'Failed to delete')
       }
-      router.push('/cactus-admin/pages')
+      router.push(`/${adminPath}/pages`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
       setLoading(false)

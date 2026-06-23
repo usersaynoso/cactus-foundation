@@ -11,7 +11,7 @@ type Props = {
 
 export default function AdminNav({ adminPath, userRole }: Props) {
   const pathname = usePathname()
-  const base = `/cactus-admin`
+  const base = `/${adminPath}`
 
   const links = [
     { href: `${base}`, label: 'Dashboard', icon: '◈' },
@@ -23,9 +23,6 @@ export default function AdminNav({ adminPath, userRole }: Props) {
     { href: `${base}/themes`, label: 'Themes', icon: '🎨' },
     { href: `${base}/config`, label: 'Settings', icon: '⚙️' },
   ]
-
-  // Links use the internal /cactus-admin path (never shown to the user).
-  // The browser sees the user's chosen admin path via the proxy rewrite.
 
   return (
     <nav>
