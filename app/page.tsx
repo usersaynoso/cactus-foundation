@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // Root page: forward to setup if not complete, otherwise serve the site homepage.
 // For an active site, this would render the active theme's homepage. For now,
 // info pages are the only public content, so we just return a minimal landing.
