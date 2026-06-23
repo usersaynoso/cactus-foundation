@@ -33,11 +33,18 @@ export async function createRegistrationChallenge(
     transports: pk.transports as AuthenticatorTransportFuture[],
   }))
 
+  // Encode userId as bytes so the WebAuthn user handle is stable for this user
+  // across multiple registration attempts. Without this, each attempt uses a fresh
+  // random user.id, which causes Safari (iCloud Keychain) to conflict with any
+  // previously stored passkey for the same rpId and user.name.
+  const userID = userId ? new TextEncoder().encode(userId) : undefined
+
   const opts = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: rpId,
     userName: email,
     userDisplayName: username,
+    userID,
     excludeCredentials,
     authenticatorSelection: {
       residentKey: 'preferred',

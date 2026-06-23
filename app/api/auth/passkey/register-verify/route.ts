@@ -36,14 +36,21 @@ export async function POST(request: NextRequest) {
     ) as { challenge?: string }
     const challenge = clientData.challenge ?? ''
 
-    const { verification } = await verifyRegistration(challenge, attestation)
+    const { verification, userId: challengeUserId } = await verifyRegistration(challenge, attestation)
 
     if (!verification.registrationInfo) {
       throw new Error('No registration info')
     }
 
+    // Use the userId from the stored challenge so it can't be spoofed via the request body.
+    // Fall back to resolvedUserId only during setup when challenge.userId may be null.
+    const targetUserId = challengeUserId ?? resolvedUserId
+    if (!targetUserId) {
+      throw new Error('Could not determine user for passkey registration')
+    }
+
     await savePasskey(
-      resolvedUserId,
+      targetUserId,
       verification.registrationInfo,
       ((attestation as { response?: { transports?: string[] } })?.response?.transports ?? []) as AuthenticatorTransportFuture[]
     )
