@@ -12,6 +12,7 @@ const Body = z.object({
   body: z.string().default(''),
   metaDescription: z.string().max(300).optional(),
   status: z.enum(['draft', 'published']).default('draft'),
+  bodyFormat: z.enum(['markdown', 'builder']).default('markdown'),
 })
 
 export async function GET(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { title, body, metaDescription, status } = parsed.data
+  const { title, body, metaDescription, status, bodyFormat } = parsed.data
   let { slug } = parsed.data
   if (!slug) slug = generateSlug(title)
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   }
 
   const page = await prisma.infoPage.create({
-    data: { title, slug, body, metaDescription, status, createdById: user.id },
+    data: { title, slug, body, metaDescription, status, bodyFormat, createdById: user.id },
   })
 
   if (status === 'published') revalidatePath(`/${slug}`)

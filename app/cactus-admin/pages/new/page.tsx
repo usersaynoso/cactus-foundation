@@ -14,6 +14,7 @@ export default function NewPagePage() {
   const [body, setBody] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
+  const [bodyFormat, setBodyFormat] = useState<'markdown' | 'builder'>('markdown')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -29,11 +30,15 @@ export default function NewPagePage() {
       const res = await fetch('/api/admin/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, slug, body, metaDescription, status }),
+        body: JSON.stringify({ title, slug, body, metaDescription, status, bodyFormat }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to create page')
-      router.push(`/${adminPath}/pages`)
+      if (bodyFormat === 'builder') {
+        router.push(`/${adminPath}/pages/${d.id}`)
+      } else {
+        router.push(`/${adminPath}/pages`)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
@@ -55,7 +60,7 @@ export default function NewPagePage() {
             <option value="published">Published</option>
           </select>
           <button className="btn btn-primary" disabled={!title || !slug || loading} onClick={handleSave}>
-            {loading ? 'Saving…' : 'Save'}
+            {loading ? 'Saving…' : bodyFormat === 'builder' ? 'Create & Open Builder' : 'Save'}
           </button>
         </div>
       </div>
@@ -78,20 +83,47 @@ export default function NewPagePage() {
       </div>
 
       <div className="field">
-        <label>Body (Markdown)</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={20}
-          placeholder="Write your page content in Markdown…"
-          style={{ fontFamily: 'monospace', fontSize: '0.9375rem' }}
-        />
+        <label>Editor</label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className={bodyFormat === 'markdown' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setBodyFormat('markdown')}
+          >
+            Markdown
+          </button>
+          <button
+            type="button"
+            className={bodyFormat === 'builder' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setBodyFormat('builder')}
+          >
+            Page Builder
+          </button>
+        </div>
+        {bodyFormat === 'builder' && (
+          <span className="field-hint">The page will be created and the visual builder will open immediately.</span>
+        )}
       </div>
 
-      <div className="field">
-        <label>Meta description</label>
-        <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Brief description for search engines (optional)" />
-      </div>
+      {bodyFormat === 'markdown' && (
+        <>
+          <div className="field">
+            <label>Body (Markdown)</label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={20}
+              placeholder="Write your page content in Markdown…"
+              style={{ fontFamily: 'monospace', fontSize: '0.9375rem' }}
+            />
+          </div>
+
+          <div className="field">
+            <label>Meta description</label>
+            <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Brief description for search engines (optional)" />
+          </div>
+        </>
+      )}
     </div>
   )
 }

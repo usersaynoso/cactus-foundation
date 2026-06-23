@@ -71,7 +71,7 @@ export default function EditPagePage() {
   useEffect(() => {
     Promise.all([
       fetch(`/api/admin/pages/${id}`).then((r) => r.json()),
-      fetch('/api/admin/pages/_perms').then((r) => r.ok ? r.json() : { canPublish: false }).catch(() => ({ canPublish: false })),
+      fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : { canPublish: false }).catch(() => ({ canPublish: false })),
     ]).then(([d, perms]) => {
       setPage(d)
       setBodyFormat(d.bodyFormat ?? 'markdown')
@@ -87,7 +87,7 @@ export default function EditPagePage() {
   // Re-check publish permission via a lightweight permissions endpoint.
   // (The pages API GET already returned data; we just need the perm flag.)
   useEffect(() => {
-    fetch('/api/admin/pages/_perms')
+    fetch('/api/admin/pages/perms')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setCanPublish(d.canPublish))
       .catch(() => null)

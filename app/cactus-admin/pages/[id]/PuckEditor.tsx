@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
-import '@puckeditor/core/puck.css'
+import '@puckeditor/core/no-external.css'
 import puckConfig from '@/lib/puck/config'
 import { OgImagePickerField, ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 
