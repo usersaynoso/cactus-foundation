@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
-import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -156,15 +155,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Trigger a redeploy so the new env vars take effect
-    const redeploy = await triggerVercelRedeploy(token, projectId)
-
-    return NextResponse.json({
-      status: 'configured',
-      siteUrl,
-      redeployTriggered: redeploy.triggered,
-      redeployError: redeploy.error ?? null,
-    })
+    // Do NOT redeploy here — we wait until DATABASE_URL is also configured so
+    // the single combined redeploy picks up all bootstrap vars at once.
+    return NextResponse.json({ status: 'configured', siteUrl })
   }
 
   return NextResponse.json({ error: `Unknown action: ${action ?? '(none)'}` }, { status: 400 })

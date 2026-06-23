@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { upsertVercelEnvVars } from '@/lib/vercel/env'
 
 const NEON_API = 'https://console.neon.tech/api/v2'
 const VERCEL_API = 'https://api.vercel.com'
@@ -26,9 +27,8 @@ type NeonProjectListResponse = {
   pagination?: { cursor?: string }
 }
 
-// Derives the pooled connection URI from the Neon response.
-// The pooled host is in connection_parameters.pooler_host.
-// We rebuild the URL with that host so we're definitely using PgBouncer.
+// Derives the pooled connection URI from a Neon create-project response.
+// Only used for freshly created projects where connection_parameters is present.
 function buildPooledUri(data: NeonProjectResponse): string {
   const params = data.connection_uris[0]?.connection_parameters
   if (!params) throw new Error('Neon response missing connection_parameters')
@@ -104,26 +104,26 @@ async function createNeonProject(
   return res.json() as Promise<NeonProjectResponse>
 }
 
-async function getNeonProjectConnectionUri(
+// Fetches the pooled connection URI for an existing Neon project using the
+// pooled=true parameter, which returns the PgBouncer connection string directly
+// without requiring connection_parameters in the response.
+async function getPooledUriForProject(
   apiKey: string,
   projectId: string
-): Promise<NeonProjectResponse> {
-  // Re-fetch the project to get fresh connection details.
-  const res = await fetch(`${NEON_API}/projects/${encodeURIComponent(projectId)}`, {
+): Promise<{ pooledUri: string; project: { id: string; name: string; region_id: string } }> {
+  const projectRes = await fetch(`${NEON_API}/projects/${encodeURIComponent(projectId)}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
     signal: AbortSignal.timeout(10_000),
   })
-  if (!res.ok) {
-    throw new Error(`Neon API error fetching project ${projectId}: ${res.status}`)
+  if (!projectRes.ok) {
+    throw new Error(`Neon API error fetching project: ${projectRes.status}`)
   }
-  // The single-project response wraps in { project } but doesn't include
-  // connection_uris directly. We need to list the project's branches/endpoints
-  // and reconstruct. Easiest path: list connection URIs via the connection endpoint.
-  const projectRes = await res.json() as { project: { id: string; name: string; region_id: string } }
+  const projectData = (await projectRes.json()) as {
+    project: { id: string; name: string; region_id: string }
+  }
 
-  // Fetch connection URIs for this project.
   const uriRes = await fetch(
-    `${NEON_API}/projects/${encodeURIComponent(projectId)}/connection_uri?database_name=neondb&role_name=neondb_owner`,
+    `${NEON_API}/projects/${encodeURIComponent(projectId)}/connection_uri?database_name=neondb&role_name=neondb_owner&pooled=true`,
     {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(10_000),
@@ -132,26 +132,15 @@ async function getNeonProjectConnectionUri(
   if (!uriRes.ok) {
     throw new Error(`Neon API error fetching connection URI: ${uriRes.status}`)
   }
-  type UriResponse = {
-    uri: string
-    connection_parameters: {
-      host: string
-      pooler_host: string
-      database: string
-      role: string
-      password: string
-    }
-  }
-  const uriData = (await uriRes.json()) as UriResponse
-  return {
-    project: projectRes.project,
-    connection_uris: [
-      {
-        connection_uri: uriData.uri,
-        connection_parameters: uriData.connection_parameters,
-      },
-    ],
-  }
+  const uriData = (await uriRes.json()) as { uri?: string }
+  if (!uriData.uri) throw new Error('Neon response missing connection URI')
+
+  // Ensure required query params for Neon pooler compatibility.
+  const url = new URL(uriData.uri)
+  if (!url.searchParams.has('sslmode')) url.searchParams.set('sslmode', 'require')
+  if (!url.searchParams.has('channel_binding')) url.searchParams.set('channel_binding', 'require')
+
+  return { pooledUri: url.toString(), project: projectData.project }
 }
 
 // Checks the Vercel project env vars to detect if DATABASE_URL is already written
@@ -169,28 +158,29 @@ async function vercelDbUrlExists(token: string, projectId: string): Promise<bool
   return data.envs?.some((e) => e.key === 'DATABASE_URL') ?? false
 }
 
-// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the Vercel project
-// env vars. Writing a new encrypted env var triggers a Vercel redeployment.
+// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the Vercel project env vars.
 async function writeVercelEnvVars(
   token: string,
   projectId: string,
   databaseUrl: string,
-  neonProjectId: string
+  neonProjectId?: string
 ): Promise<void> {
-  const vars = [
+  const vars: Array<{ key: string; value: string; type: string; target: string[] }> = [
     {
       key: 'DATABASE_URL',
       value: databaseUrl,
       type: 'encrypted',
       target: ['production', 'preview', 'development'],
     },
-    {
+  ]
+  if (neonProjectId) {
+    vars.push({
       key: 'NEON_PROJECT_ID',
       value: neonProjectId,
       type: 'plain',
       target: ['production', 'preview', 'development'],
-    },
-  ]
+    })
+  }
 
   const res = await fetch(
     `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env`,
@@ -213,7 +203,6 @@ async function writeVercelEnvVars(
 // Guard: only available before setup is complete.
 async function isSetupComplete(): Promise<boolean> {
   try {
-    // If DATABASE_URL is not yet set, Prisma can't connect, so setup is not complete.
     if (!process.env.DATABASE_URL) return false
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
@@ -226,21 +215,22 @@ async function isSetupComplete(): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
-  // Only available before setup is complete.
   if (await isSetupComplete()) {
     return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
   }
 
-  const neonApiKey = process.env.NEON_API_KEY
-  const vercelToken = process.env.VERCEL_API_TOKEN
-  const vercelProjectId = process.env.VERCEL_PROJECT_ID
-
-  if (!neonApiKey) {
-    return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
-  }
-
-  // Parse action from body.
-  let body: { action?: string; region?: string; projectId?: string } = {}
+  // Parse action and optional credential overrides from body.
+  // Credentials may be supplied in the body when the Vercel redeploy that picks
+  // them up as env vars hasn't happened yet (combined first-redeploy flow).
+  let body: {
+    action?: string
+    region?: string
+    projectId?: string
+    databaseUrl?: string
+    neonApiKey?: string
+    vercelToken?: string
+    vercelProjectId?: string
+  } = {}
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -248,8 +238,17 @@ export async function POST(req: NextRequest) {
   }
   const action = body.action ?? 'create'
 
+  // Resolve credentials: body params override env vars to support the single-redeploy
+  // setup flow where bootstrap vars haven't been picked up by a redeploy yet.
+  const neonApiKey = body.neonApiKey?.trim() || process.env.NEON_API_KEY
+  const vercelToken = body.vercelToken || process.env.VERCEL_API_TOKEN
+  const vercelProjectId = body.vercelProjectId || process.env.VERCEL_PROJECT_ID
+
   // ── Action: list ──────────────────────────────────────────────────────────
   if (action === 'list') {
+    if (!neonApiKey) {
+      return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+    }
     try {
       // New Neon accounts use org-scoped projects — fetch orgs first.
       const orgsRes = await fetch(`${NEON_API}/users/me/organizations`, {
@@ -303,6 +302,30 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // ── Action: save-url (user-supplied DATABASE_URL) ─────────────────────────
+  if (action === 'save-url') {
+    const { databaseUrl } = body
+    if (!databaseUrl) {
+      return NextResponse.json({ error: 'databaseUrl is required' }, { status: 400 })
+    }
+    if (!databaseUrl.startsWith('postgres://') && !databaseUrl.startsWith('postgresql://')) {
+      return NextResponse.json(
+        { error: 'Must be a PostgreSQL connection string (postgres:// or postgresql://)' },
+        { status: 400 }
+      )
+    }
+    try {
+      await upsertVercelEnvVars(vercelToken, vercelProjectId, [
+        { key: 'DATABASE_URL', value: databaseUrl, type: 'encrypted' },
+      ])
+      await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      return NextResponse.json({ status: 'provisioned' })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return NextResponse.json({ status: 'error', error: message }, { status: 500 })
+    }
+  }
+
   // If DATABASE_URL is already in runtime env, provisioning is not needed.
   if (process.env.DATABASE_URL) {
     return NextResponse.json({ status: 'already_set' })
@@ -314,6 +337,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'provisioned-redeploying' })
   }
 
+  // For Neon actions we need the API key.
+  if (!neonApiKey) {
+    return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+  }
+
   // ── Action: use-existing ──────────────────────────────────────────────────
   if (action === 'use-existing') {
     const existingProjectId = body.projectId
@@ -321,11 +349,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
     }
     try {
-      const neonData = await getNeonProjectConnectionUri(neonApiKey, existingProjectId)
-      const pooledUrl = buildPooledUri(neonData)
-      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUrl, neonData.project.id)
+      const { pooledUri, project } = await getPooledUriForProject(neonApiKey, existingProjectId)
+      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
       await triggerVercelRedeploy(vercelToken, vercelProjectId)
-      return NextResponse.json({ status: 'provisioned', neonProjectId: neonData.project.id })
+      return NextResponse.json({ status: 'provisioned', neonProjectId: project.id })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ status: 'error', error: message }, { status: 500 })
@@ -346,38 +373,26 @@ export async function POST(req: NextRequest) {
   const neonProjectName = `cactus-${vercelProjectId}`
 
   try {
-    // Get org_id — required for new Neon accounts (org-first model).
     const orgId = await getNeonOrgId(neonApiKey)
-
-    // Check whether a Neon project was already created for this Vercel project.
-    let neonData: NeonProjectResponse
     const existingId = await findExistingNeonProject(neonApiKey, neonProjectName, orgId)
 
     if (existingId) {
-      // Reuse the existing Neon project rather than creating a duplicate.
-      neonData = await getNeonProjectConnectionUri(neonApiKey, existingId)
-    } else {
-      // Create a new Neon project.
-      neonData = await createNeonProject(neonApiKey, neonProjectName, regionId, orgId)
+      // Reuse the existing project — fetch pooled URI via pooled=true endpoint.
+      const { pooledUri, project } = await getPooledUriForProject(neonApiKey, existingId)
+      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
+      await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      return NextResponse.json({
+        status: 'provisioned',
+        neonProjectId: project.id,
+        region: project.region_id,
+      })
     }
 
-    // Build the pooled connection string — this is what Cactus will use.
+    // Create a new Neon project — the create response includes connection_parameters.
+    const neonData = await createNeonProject(neonApiKey, neonProjectName, regionId, orgId)
     const pooledUrl = buildPooledUri(neonData)
-
-    // Write DATABASE_URL (and a NEON_PROJECT_ID marker for future idempotency
-    // checks) to the Vercel project. This triggers a Vercel redeployment, which
-    // will run prisma migrate deploy + module migrations in the build step.
-    await writeVercelEnvVars(
-      vercelToken,
-      vercelProjectId,
-      pooledUrl,
-      neonData.project.id
-    )
-
-    // Trigger a redeploy so the build runs migrations with the new DATABASE_URL.
-    // Best-effort — the health-check polling in the wizard handles the wait.
+    await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUrl, neonData.project.id)
     await triggerVercelRedeploy(vercelToken, vercelProjectId)
-
     return NextResponse.json({
       status: 'provisioned',
       neonProjectId: neonData.project.id,
@@ -385,12 +400,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json(
-      {
-        status: 'error',
-        error: message,
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({ status: 'error', error: message }, { status: 500 })
   }
 }

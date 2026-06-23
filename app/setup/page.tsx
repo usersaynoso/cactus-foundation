@@ -275,7 +275,6 @@ export default function SetupPage() {
       const data = (await res.json()) as {
         status?: string
         siteUrl?: string
-        redeployTriggered?: boolean
         error?: string
       }
       if (!res.ok || data.error) {
@@ -284,8 +283,9 @@ export default function SetupPage() {
         setVercelConfiguring(false)
         return
       }
-      setDbSubStep('vercel-redeploying')
-      startVercelRedeployPolling()
+      // Skip the intermediate redeploy — go directly to DB selection.
+      // The combined redeploy will happen once DATABASE_URL is also ready.
+      setDbSubStep(vercelNeonKey ? 'db-choice' : 'db-manual')
     } catch (err: unknown) {
       setVercelError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('vercel-config')
@@ -336,7 +336,13 @@ export default function SetupPage() {
       const res = await fetch('/api/setup/provision-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'use-existing', projectId }),
+        body: JSON.stringify({
+          action: 'use-existing',
+          projectId,
+          neonApiKey: vercelNeonKey || undefined,
+          vercelToken: vercelToken || undefined,
+          vercelProjectId: selectedProjectId || undefined,
+        }),
       })
       const data = (await res.json()) as { status?: string; error?: string }
       if (!res.ok || data.status === 'error') {
@@ -356,6 +362,34 @@ export default function SetupPage() {
     }
   }
 
+  async function handleManualDbSave(url: string) {
+    setProvisionError('')
+    setDbSubStep('db-provisioning')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save-url',
+          databaseUrl: url,
+          vercelToken: vercelToken || undefined,
+          vercelProjectId: selectedProjectId || undefined,
+        }),
+      })
+      const data = (await res.json()) as { status?: string; error?: string }
+      if (!res.ok || data.status === 'error') {
+        setProvisionError(data.error ?? 'Failed to save database URL')
+        setDbSubStep('db-error')
+        return
+      }
+      setDbSubStep('db-redeploying')
+      startRedeployPolling()
+    } catch (err: unknown) {
+      setProvisionError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('db-error')
+    }
+  }
+
   async function handleProvision() {
     setProvisionError('')
     setDbSubStep('db-provisioning')
@@ -363,7 +397,12 @@ export default function SetupPage() {
       const res = await fetch('/api/setup/provision-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ region: neonRegion }),
+        body: JSON.stringify({
+          region: neonRegion,
+          neonApiKey: vercelNeonKey || undefined,
+          vercelToken: vercelToken || undefined,
+          vercelProjectId: selectedProjectId || undefined,
+        }),
       })
       const data = (await res.json()) as {
         status?: string
@@ -595,8 +634,8 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* Vars list (shown in all post-vercel sub-steps) */}
-          {envData && !['loading', 'vercel-config', 'vercel-listing', 'vercel-configuring', 'vercel-redeploying'].includes(dbSubStep) && (
+          {/* Vars list (only shown once everything is confirmed set or blocked) */}
+          {envData && ['ready', 'block'].includes(dbSubStep) && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
               {envData.required.map((v) => {
@@ -663,14 +702,15 @@ export default function SetupPage() {
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
               onUseExisting={handleUseExistingNeon}
+              onSaveManualUrl={handleManualDbSave}
+              neonApiKey={vercelNeonKey}
             />
           )}
 
           {/* DATABASE_URL absent, no Neon key */}
           {dbSubStep === 'db-manual' && (
             <DbManualPanel
-              neonAvailable={!!envData?.neonAvailable}
-              onBack={envData?.neonAvailable ? () => setDbSubStep('db-choice') : undefined}
+              onSaveUrl={handleManualDbSave}
             />
           )}
 
@@ -678,7 +718,7 @@ export default function SetupPage() {
             <div>
               <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span className="setup-spinner" style={{ flexShrink: 0 }} />
-                <span>Creating your Neon database… this usually takes 5–10 seconds.</span>
+                <span>Configuring database… this usually takes a few seconds.</span>
               </div>
             </div>
           )}
@@ -698,8 +738,8 @@ export default function SetupPage() {
                 )}
               </div>
               <DbManualPanel
-                neonAvailable={!!envData?.neonAvailable}
-                onBack={() => setDbSubStep('db-choice')}
+                onSaveUrl={handleManualDbSave}
+                onBack={envData?.neonAvailable ? () => setDbSubStep('db-choice') : undefined}
               />
             </div>
           )}
@@ -1209,17 +1249,22 @@ function DbChoicePanel({
   setNeonRegion,
   onProvision,
   onUseExisting,
+  onSaveManualUrl,
+  neonApiKey,
 }: {
   neonRegion: string
   setNeonRegion: (r: string) => void
   onProvision: () => void
   onUseExisting: (projectId: string) => void
+  onSaveManualUrl: (url: string) => void
+  neonApiKey: string
 }) {
   const [selectedOption, setSelectedOption] = useState<null | 'create' | 'existing' | 'manual'>(null)
   const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [projectsError, setProjectsError] = useState('')
+  const [manualDbUrl, setManualDbUrl] = useState('')
 
   async function handleSelectExisting() {
     if (selectedOption === 'existing') {
@@ -1235,7 +1280,7 @@ function DbChoicePanel({
       const res = await fetch('/api/setup/provision-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list' }),
+        body: JSON.stringify({ action: 'list', neonApiKey: neonApiKey || undefined }),
       })
       const data = (await res.json()) as { projects?: { id: string; name: string }[]; error?: string }
       if (!res.ok || data.error) {
@@ -1353,7 +1398,7 @@ function DbChoicePanel({
         )}
       </div>
 
-      {/* Manual */}
+      {/* Supply own DATABASE_URL */}
       <div style={{ border: selectedOption === 'manual' ? '2px solid #9ca3af' : '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
         <button
           onClick={() => setSelectedOption(selectedOption === 'manual' ? null : 'manual')}
@@ -1361,22 +1406,36 @@ function DbChoicePanel({
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Add a PostgreSQL connection string to your Vercel env vars and redeploy.</div>
+            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Paste a PostgreSQL connection string — Cactus saves it to Vercel and redeploys.</div>
           </div>
           <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
         {selectedOption === 'manual' && (
           <div style={{ padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
-            <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-              <strong>Action required:</strong> Add a PostgreSQL pooled connection string as <code>DATABASE_URL</code> in your Vercel project environment variables, then redeploy. Setup will resume automatically once the database is reachable.
+            <div className="field" style={{ marginBottom: '0.75rem' }}>
+              <label htmlFor="manualDbUrl" style={{ fontSize: '0.875rem' }}>PostgreSQL connection string</label>
+              <input
+                id="manualDbUrl"
+                type="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={manualDbUrl}
+                onChange={(e) => setManualDbUrl(e.target.value)}
+                placeholder="postgresql://user:pass@host/db?sslmode=require"
+                style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
+              />
+              <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider.</span>
             </div>
-            <ol style={{ paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.7, margin: 0 }}>
-              <li>Create a Postgres database at <a href="https://neon.tech" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Neon</a>, <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Supabase</a>, or any provider.</li>
-              <li>Copy the <strong>pooled</strong> connection string (not the direct/unpooled URL).</li>
-              <li>In Vercel → your project → <strong>Settings → Environment Variables</strong>, add <code>DATABASE_URL</code>.</li>
-              <li>Trigger a redeploy — migrations run automatically during the build.</li>
-              <li>Return here; setup will continue automatically once the database is reachable.</li>
-            </ol>
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              disabled={!manualDbUrl.trim()}
+              onClick={() => onSaveManualUrl(manualDbUrl.trim())}
+            >
+              Save &amp; deploy →
+            </button>
           </div>
         )}
       </div>
@@ -1385,46 +1444,56 @@ function DbChoicePanel({
 }
 
 function DbManualPanel({
-  neonAvailable,
+  onSaveUrl,
   onBack,
 }: {
-  neonAvailable: boolean
+  onSaveUrl: (url: string) => void
   onBack?: () => void
 }) {
+  const [url, setUrl] = useState('')
+
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
         <span style={{ color: '#dc2626', fontWeight: 700, flexShrink: 0 }}>✗</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
+          <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Paste your PostgreSQL connection string below.</div>
         </div>
       </div>
 
-      <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-        <strong>Action required:</strong> Add a PostgreSQL pooled connection string as{' '}
-        <code>DATABASE_URL</code> in your Vercel project&apos;s environment variables, then redeploy.
-        Setup will resume automatically once the database is reachable.
+      <div className="field" style={{ marginBottom: '0.75rem' }}>
+        <label htmlFor="manualDbUrlPanel" style={{ fontSize: '0.875rem' }}>PostgreSQL connection string</label>
+        <input
+          id="manualDbUrlPanel"
+          type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="postgresql://user:pass@host/db?sslmode=require"
+          style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
+        />
+        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus saves it to Vercel and redeploys automatically.</span>
       </div>
 
-      <ol style={{ paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
-        <li>Create a Postgres database at <a href="https://neon.tech" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Neon</a>, <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Supabase</a>, or any provider.</li>
-        <li>Copy the <strong>pooled</strong> connection string (not the direct/unpooled URL).</li>
-        <li>In the Vercel dashboard → your project → <strong>Settings → Environment Variables</strong>, add <code>DATABASE_URL</code> with that value.</li>
-        <li>Trigger a redeploy (or push a commit). Migrations will run automatically during the build.</li>
-        <li>Return here once the redeploy completes — setup will continue from this step.</li>
-      </ol>
-
-      {!neonAvailable && (
-        <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginBottom: '1rem' }}>
-          Tip: provide a Neon API key during Vercel configuration to let Cactus create a database automatically.
-        </p>
-      )}
-
-      {onBack && (
-        <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={onBack}>
-          ← Back to options
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        {onBack && (
+          <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={onBack}>
+            ← Back
+          </button>
+        )}
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+          disabled={!url.trim()}
+          onClick={() => onSaveUrl(url.trim())}
+        >
+          Save &amp; deploy →
         </button>
-      )}
+      </div>
     </div>
   )
 }
