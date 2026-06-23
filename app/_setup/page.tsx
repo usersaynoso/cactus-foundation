@@ -224,7 +224,7 @@ export default function SetupPage() {
       setVercelProjects(projects)
       setDbSubStep('vercel-config')
       if (projects.length === 1) {
-        setSelectedProjectId(projects[0].id)
+        setSelectedProjectId(projects[0]?.id ?? '')
       }
     } catch (err: unknown) {
       setVercelError(err instanceof Error ? err.message : 'Network error')
