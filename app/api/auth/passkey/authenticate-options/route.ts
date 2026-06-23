@@ -26,6 +26,10 @@ export async function POST(request: NextRequest) {
     userId = user?.id
   }
 
-  const opts = await createAuthenticationChallenge(userId)
-  return NextResponse.json(opts)
+  try {
+    const opts = await createAuthenticationChallenge(userId)
+    return NextResponse.json(opts)
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate challenge' }, { status: 500 })
+  }
 }

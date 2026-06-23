@@ -12,18 +12,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const response = body.response ?? body
 
-    // Extract challenge from clientDataJSON
+    // Extract challenge from clientDataJSON — use the full assertion body, same
+    // pattern as register-verify (attestation.response.clientDataJSON).
     const clientData = JSON.parse(
       Buffer.from(
-        (response as { response?: { clientDataJSON?: string } })?.response?.clientDataJSON ?? '',
+        (body as { response?: { clientDataJSON?: string } })?.response?.clientDataJSON ?? '',
         'base64'
       ).toString('utf8')
     ) as { challenge?: string }
     const challenge = clientData.challenge ?? ''
 
-    const { user } = await verifyAuthentication(challenge, response)
+    const { user } = await verifyAuthentication(challenge, body)
 
     if (user.suspendedAt) {
       return NextResponse.json({ error: 'Account suspended' }, { status: 403 })

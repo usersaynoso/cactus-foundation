@@ -50,6 +50,10 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(email ? { email } : {}),
       })
+      if (!optRes.ok) {
+        const d = await optRes.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to get authentication options')
+      }
       const opts = await optRes.json()
       const assertion = await startAuthentication({ optionsJSON: opts })
 
@@ -246,7 +250,6 @@ export default function LoginPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{6}"
                 maxLength={6}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
