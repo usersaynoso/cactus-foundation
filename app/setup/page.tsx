@@ -17,6 +17,7 @@ type DbSubStep =
   | 'block'                // unexpected required var missing → hard block
   | 'ready'                // all required vars set (DATABASE_URL present)
   | 'db-choice'            // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
+  | 'db-existing'          // listing existing Neon projects to pick one
   | 'db-manual'            // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
   | 'db-provisioning'      // Neon API call in flight
   | 'db-redeploying'       // DATABASE_URL written, waiting for Vercel redeploy + DB reachable
@@ -107,6 +108,13 @@ export default function SetupPage() {
   const [provisionError, setProvisionError] = useState('')
   const [dbReady, setDbReady] = useState(false)
   const cancelPollingRef = useRef<(() => void) | null>(null)
+  // Existing Neon project selection
+  const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
+  const [selectedNeonProjectId, setSelectedNeonProjectId] = useState('')
+  const [neonListError, setNeonListError] = useState('')
+
+  // Counter to force re-run the env-check useEffect even when step is already 'env'
+  const [envCheckKey, setEnvCheckKey] = useState(0)
 
   // Vercel config
   const [vercelToken, setVercelToken] = useState('')
@@ -143,6 +151,7 @@ export default function SetupPage() {
   }, [])
 
   // ── Step 1: Environment check ──────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (step !== 'env') return
     setDbSubStep('loading')
@@ -182,8 +191,9 @@ export default function SetupPage() {
         setError('Failed to load environment status')
         setDbSubStep('block')
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step])
+  // envCheckKey is intentionally included so we can force a re-run after redeploy
+  // even when `step` is already 'env' (React won't re-fire if step value doesn't change)
+  }, [step, envCheckKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startRedeployPolling() {
     cancelPollingRef.current?.()
@@ -195,9 +205,11 @@ export default function SetupPage() {
   function startVercelRedeployPolling() {
     cancelPollingRef.current?.()
     cancelPollingRef.current = startVercelConfiguredPolling(() => {
-      // Vercel env vars are now in runtime — re-run the env check
+      // Vercel env vars are now in runtime — force the env-check useEffect to re-run.
+      // We can't just call setStep('env') because we're already on 'env'; instead
+      // we bump envCheckKey which is a dependency of that effect.
       setDbSubStep('loading')
-      setStep('env')
+      setEnvCheckKey((k) => k + 1)
     })
   }
 
@@ -223,7 +235,15 @@ export default function SetupPage() {
       const projects = data.projects ?? []
       setVercelProjects(projects)
       setDbSubStep('vercel-config')
-      if (projects.length === 1) {
+      // Auto-select: prefer the project whose domain matches the current hostname,
+      // otherwise fall back to selecting the only project if there's just one.
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const domainMatch = hostname
+        ? projects.find((p) => p.domains.some((d) => d === hostname || d.endsWith('.' + hostname) || hostname.endsWith('.' + d)))
+        : undefined
+      if (domainMatch) {
+        setSelectedProjectId(domainMatch.id)
+      } else if (projects.length === 1) {
         setSelectedProjectId(projects[0]?.id ?? '')
       }
     } catch (err: unknown) {
@@ -302,6 +322,56 @@ export default function SetupPage() {
       setFeatureError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setFeatureSaving(false)
+    }
+  }
+
+  async function handleListNeonProjects() {
+    setNeonListError('')
+    setNeonProjects([])
+    setSelectedNeonProjectId('')
+    setDbSubStep('db-existing')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list' }),
+      })
+      const data = (await res.json()) as { projects?: { id: string; name: string }[]; error?: string }
+      if (!res.ok || data.error) {
+        setNeonListError(data.error ?? 'Failed to list Neon projects')
+        return
+      }
+      setNeonProjects(data.projects ?? [])
+    } catch (err: unknown) {
+      setNeonListError(err instanceof Error ? err.message : 'Network error')
+    }
+  }
+
+  async function handleUseExistingNeon() {
+    if (!selectedNeonProjectId) return
+    setProvisionError('')
+    setDbSubStep('db-provisioning')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'use-existing', projectId: selectedNeonProjectId }),
+      })
+      const data = (await res.json()) as { status?: string; error?: string }
+      if (!res.ok || data.status === 'error') {
+        setProvisionError(data.error ?? 'Failed to configure database')
+        setDbSubStep('db-error')
+        return
+      }
+      if (data.status === 'already_set') {
+        setDbSubStep('ready')
+        return
+      }
+      setDbSubStep('db-redeploying')
+      startRedeployPolling()
+    } catch (err: unknown) {
+      setProvisionError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('db-error')
     }
   }
 
@@ -464,7 +534,8 @@ export default function SetupPage() {
   return (
     <div className="setup-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <div style={{ width: 36, height: 36, background: '#16a34a', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.25rem' }}>🌵</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/cactus.svg" alt="Cactus" style={{ width: 36, height: 36, background: '#f0fdf4', borderRadius: 8, padding: 3, flexShrink: 0 }} />
         <div>
           <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>Cactus Setup</div>
           <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Step {stepIndex + 1} of {steps.length}</div>
@@ -490,7 +561,12 @@ export default function SetupPage() {
             Cactus needs to connect to your Vercel project before it can start.
           </p>
 
-          {dbSubStep === 'loading' && <p>Checking…</p>}
+          {dbSubStep === 'loading' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', fontSize: '0.9375rem' }}>
+              <span className="setup-spinner" />
+              Checking…
+            </div>
+          )}
 
           {/* ── Vercel not yet configured ── */}
           {(dbSubStep === 'vercel-config' || dbSubStep === 'vercel-listing') && (
@@ -512,7 +588,7 @@ export default function SetupPage() {
           {/* ── Writing Vercel env vars ── */}
           {dbSubStep === 'vercel-configuring' && (
             <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>⏳</span>
+              <span className="setup-spinner" />
               <span>Writing environment variables to your Vercel project…</span>
             </div>
           )}
@@ -523,10 +599,13 @@ export default function SetupPage() {
               <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
                 <strong>Vercel project configured.</strong> SESSION_SECRET, SITE_URL, and API credentials have been written to your project.
               </div>
-              <div className="alert alert-info">
-                Your app is redeploying to pick up the new settings — this takes about a minute.
-                This page will continue automatically once the redeploy is complete.{' '}
-                <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+              <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
+                <span>
+                  Your app is redeploying to pick up the new settings — this takes about a minute.
+                  This page will continue automatically once the redeploy is complete.{' '}
+                  <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+                </span>
               </div>
               <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '1rem' }}>
                 If this takes more than 3 minutes, trigger a manual redeploy from your{' '}
@@ -602,7 +681,20 @@ export default function SetupPage() {
               neonRegion={neonRegion}
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
+              onUseExisting={handleListNeonProjects}
               onManual={() => setDbSubStep('db-manual')}
+            />
+          )}
+
+          {/* Use existing Neon project */}
+          {dbSubStep === 'db-existing' && (
+            <DbExistingPanel
+              projects={neonProjects}
+              selectedProjectId={selectedNeonProjectId}
+              setSelectedProjectId={setSelectedNeonProjectId}
+              error={neonListError}
+              onBack={() => setDbSubStep('db-choice')}
+              onUse={handleUseExistingNeon}
             />
           )}
 
@@ -617,7 +709,7 @@ export default function SetupPage() {
           {dbSubStep === 'db-provisioning' && (
             <div>
               <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>⏳</span>
+                <span className="setup-spinner" style={{ flexShrink: 0 }} />
                 <span>Creating your Neon database… this usually takes 5–10 seconds.</span>
               </div>
             </div>
@@ -994,7 +1086,8 @@ function VercelConfigPanel({
         <input
           id="vercelToken"
           type="password"
-          autoComplete="off"
+          autoComplete="new-password"
+          name="vercel-api-token"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="vcp_… or ve_…"
@@ -1015,7 +1108,8 @@ function VercelConfigPanel({
         <input
           id="neonApiKey"
           type="password"
-          autoComplete="off"
+          autoComplete="new-password"
+          name="neon-api-key"
           value={neonApiKey}
           onChange={(e) => setNeonApiKey(e.target.value)}
           placeholder="napi_…"
@@ -1136,11 +1230,13 @@ function DbChoicePanel({
   neonRegion,
   setNeonRegion,
   onProvision,
+  onUseExisting,
   onManual,
 }: {
   neonRegion: string
   setNeonRegion: (r: string) => void
   onProvision: () => void
+  onUseExisting: () => void
   onManual: () => void
 }) {
   return (
@@ -1154,7 +1250,7 @@ function DbChoicePanel({
       </div>
 
       <div style={{ border: '1px solid #16a34a', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#f0fdf4' }}>
-        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#15803d' }}>Create my database automatically</div>
+        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#15803d' }}>Create a fresh database automatically</div>
         <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
           Cactus will create a free Neon Postgres database in the region you choose and configure it automatically.
           Your app will redeploy once to pick up the connection — this takes about a minute.
@@ -1178,6 +1274,16 @@ function DbChoicePanel({
         </button>
       </div>
 
+      <div style={{ border: '1px solid #2563eb', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#eff6ff' }}>
+        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1d4ed8' }}>Use an existing Neon project</div>
+        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
+          Connect an existing Neon project from your account. Cactus will write the connection string to Vercel and redeploy.
+        </p>
+        <button className="btn btn-secondary" onClick={onUseExisting} style={{ fontSize: '0.875rem', width: '100%', borderColor: '#2563eb', color: '#1d4ed8' }}>
+          Browse my Neon projects →
+        </button>
+      </div>
+
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', background: '#f9fafb' }}>
         <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>I&apos;ll supply my own DATABASE_URL</div>
         <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
@@ -1185,6 +1291,77 @@ function DbChoicePanel({
         </p>
         <button className="btn btn-secondary" onClick={onManual} style={{ fontSize: '0.875rem' }}>
           Show instructions →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DbExistingPanel({
+  projects,
+  selectedProjectId,
+  setSelectedProjectId,
+  error,
+  onBack,
+  onUse,
+}: {
+  projects: { id: string; name: string }[]
+  selectedProjectId: string
+  setSelectedProjectId: (id: string) => void
+  error: string
+  onBack: () => void
+  onUse: () => void
+}) {
+  const loading = !error && projects.length === 0
+
+  return (
+    <div>
+      <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>Choose a Neon project</div>
+
+      {loading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', marginBottom: '1rem' }}>
+          <span className="setup-spinner" />
+          Loading your Neon projects…
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>
+      )}
+
+      {!loading && !error && projects.length === 0 && (
+        <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
+          No Neon projects found in your account.
+        </div>
+      )}
+
+      {projects.length > 0 && (
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="neonProjectSelect" style={{ fontSize: '0.875rem' }}>Neon project</label>
+          <select
+            id="neonProjectSelect"
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            style={{ fontSize: '0.875rem' }}
+          >
+            <option value="">— choose a project —</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <span className="field-hint">Cactus will read the default branch connection URI and write it to Vercel.</span>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onBack}>← Back</button>
+        <button
+          className="btn btn-primary"
+          style={{ flex: 2 }}
+          disabled={!selectedProjectId}
+          onClick={onUse}
+        >
+          Use this project →
         </button>
       </div>
     </div>
@@ -1254,12 +1431,15 @@ function DbRedeployingPanel({
       </div>
 
       {!dbReady ? (
-        <div className="alert alert-info">
-          <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
-          During the redeploy, the database schema migrations run automatically via the build script.
-          <br /><br />
-          This page will continue automatically once the database is reachable.{' '}
-          <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+        <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
+          <span>
+            <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
+            During the redeploy, the database schema migrations run automatically via the build script.
+            <br /><br />
+            This page will continue automatically once the database is reachable.{' '}
+            <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+          </span>
         </div>
       ) : (
         <>
