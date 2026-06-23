@@ -151,6 +151,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         const target = new URL(`${ADMIN_INTERNAL}${sub}`, request.url)
         const res = NextResponse.rewrite(target)
         res.headers.set('x-cactus-admin-path', adminPath)
+        res.headers.set('x-cactus-is-login', '1')
         return withSecurity(res)
       }
 

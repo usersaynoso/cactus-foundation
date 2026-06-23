@@ -16,8 +16,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // Secondary session check — proxy.ts is the primary gate, but server components
   // independently validate so a bypass of proxy.ts headers never opens the UI.
+  // Skip the redirect for the login page itself to avoid an infinite redirect loop.
+  const isLoginPage = headersList.get('x-cactus-is-login') === '1'
   const user = await getSessionFromCookie()
-  if (!user) {
+  if (!user && !isLoginPage) {
     redirect(`/${adminPath}/login`)
   }
 
