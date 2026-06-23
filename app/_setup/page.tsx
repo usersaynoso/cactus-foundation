@@ -1,23 +1,75 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { EnvVarStatus } from '@/lib/config/env'
+import type { DatabaseState } from '@/app/api/setup/env-check/route'
+import { NEON_REGIONS } from '@/lib/config/neon-regions'
 
 type Step = 'env' | 'account' | 'adminPath' | 'essentials' | 'recovery'
+
+// Sub-states within the 'env' step when DATABASE_URL is absent.
+type DbSubStep =
+  | 'loading'           // env-check in flight
+  | 'block'             // non-DB required var missing → hard block
+  | 'ready'             // all required vars set (DATABASE_URL present)
+  | 'db-choice'         // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
+  | 'db-manual'         // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
+  | 'db-provisioning'   // Neon API call in flight
+  | 'db-redeploying'    // env var written, waiting for Vercel redeploy + DB reachable
+  | 'db-error'          // Neon API call failed — show error + fall back to manual
 
 type EnvCheckData = {
   required: EnvVarStatus[]
   optional: EnvVarStatus[]
   missingRequired: string[]
+  databaseState: DatabaseState
+  neonAvailable: boolean
+}
+
+// Polls /api/health until the database is reachable, then calls onReady.
+// Returns a cancel function.
+function startHealthPolling(onReady: () => void): () => void {
+  let cancelled = false
+  let timer: ReturnType<typeof setTimeout>
+
+  async function poll() {
+    if (cancelled) return
+    try {
+      const res = await fetch('/api/health')
+      if (res.ok) {
+        const data = (await res.json()) as { database?: string }
+        if (data.database === 'connected') {
+          if (!cancelled) onReady()
+          return
+        }
+      }
+    } catch {
+      // Network error during redeploy is expected — keep polling.
+    }
+    if (!cancelled) timer = setTimeout(poll, 5_000)
+  }
+
+  timer = setTimeout(poll, 5_000)
+  return () => {
+    cancelled = true
+    clearTimeout(timer)
+  }
 }
 
 export default function SetupPage() {
   const [step, setStep] = useState<Step>('env')
   const [envData, setEnvData] = useState<EnvCheckData | null>(null)
+  const [dbSubStep, setDbSubStep] = useState<DbSubStep>('loading')
   const [adminPath, setAdminPath] = useState('')
   const [recoveryCode, setRecoveryCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Database provisioning
+  const [neonRegion, setNeonRegion] = useState('aws-us-east-2')
+  const [provisionError, setProvisionError] = useState('')
+  const [dbReady, setDbReady] = useState(false)
+  const cancelPollingRef = useRef<(() => void) | null>(null)
 
   // Account fields
   const [username, setUsername] = useState('')
@@ -32,22 +84,96 @@ export default function SetupPage() {
   const steps: Step[] = ['env', 'account', 'adminPath', 'essentials', 'recovery']
   const stepIndex = steps.indexOf(step)
 
+  // Clean up health poll on unmount.
+  useEffect(() => {
+    return () => {
+      cancelPollingRef.current?.()
+    }
+  }, [])
+
   // ── Step 1: Environment check ──────────────────────────────────────────────
   useEffect(() => {
-    if (step === 'env') {
-      fetch('/api/setup/env-check')
-        .then((r) => r.json())
-        .then((d: EnvCheckData) => setEnvData(d))
-        .catch(() => setError('Failed to load environment status'))
-    }
+    if (step !== 'env') return
+    setDbSubStep('loading')
+
+    fetch('/api/setup/env-check')
+      .then((r) => r.json())
+      .then((d: EnvCheckData) => {
+        setEnvData(d)
+
+        // Non-DB required vars missing → hard block.
+        const nonDbMissing = d.missingRequired.filter((v) => v !== 'DATABASE_URL')
+        if (nonDbMissing.length > 0) {
+          setDbSubStep('block')
+          return
+        }
+
+        if (d.databaseState === 'set') {
+          setDbSubStep('ready')
+        } else if (d.databaseState === 'provisioned-redeploying') {
+          // A previous provision wrote the env var; waiting for redeploy.
+          setDbSubStep('db-redeploying')
+          startRedeployPolling()
+        } else if (d.neonAvailable) {
+          setDbSubStep('db-choice')
+        } else {
+          setDbSubStep('db-manual')
+        }
+      })
+      .catch(() => {
+        setError('Failed to load environment status')
+        setDbSubStep('block')
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
+
+  function startRedeployPolling() {
+    cancelPollingRef.current?.()
+    cancelPollingRef.current = startHealthPolling(() => {
+      setDbReady(true)
+    })
+  }
+
+  async function handleProvision() {
+    setProvisionError('')
+    setDbSubStep('db-provisioning')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ region: neonRegion }),
+      })
+      const data = (await res.json()) as {
+        status?: string
+        error?: string
+      }
+
+      if (!res.ok || data.status === 'error') {
+        setProvisionError(data.error ?? 'Database provisioning failed')
+        setDbSubStep('db-error')
+        return
+      }
+
+      if (data.status === 'already_set') {
+        // DATABASE_URL is already in runtime — continue normally.
+        setDbSubStep('ready')
+        return
+      }
+
+      // status === 'provisioned' or 'provisioned-redeploying'
+      setDbSubStep('db-redeploying')
+      startRedeployPolling()
+    } catch (err: unknown) {
+      setProvisionError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('db-error')
+    }
+  }
 
   // ── Step 2: Register passkey ───────────────────────────────────────────────
   async function handleCreateAccount() {
     setError('')
     setLoading(true)
     try {
-      // 1. Create the admin user row
       const res = await fetch('/api/setup/create-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,7 +186,6 @@ export default function SetupPage() {
       const { userId: uid } = await res.json()
       setUserId(uid)
 
-      // 2. Register passkey
       const { startRegistration } = await import('@simplewebauthn/browser')
       const optRes = await fetch('/api/auth/passkey/register-options', {
         method: 'POST',
@@ -159,7 +284,6 @@ export default function SetupPage() {
       const res = await fetch('/api/setup/complete', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to complete setup')
       const { adminPath: ap } = await res.json()
-      // Redirect into the admin area
       window.location.href = `/${ap}`
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -196,48 +320,117 @@ export default function SetupPage() {
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             Cactus needs a few environment variables before it can start.
           </p>
-          {!envData ? (
-            <p>Checking…</p>
-          ) : (
-            <>
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
-                {envData.required.map((v) => (
+
+          {/* Loading */}
+          {dbSubStep === 'loading' && <p>Checking…</p>}
+
+          {/* Vars list (shown in all non-loading sub-steps) */}
+          {envData && dbSubStep !== 'loading' && (
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
+              {envData.required.map((v) => {
+                // DATABASE_URL is shown differently depending on sub-step.
+                if (v.name === 'DATABASE_URL') return null
+                return (
                   <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                     <span style={{ color: v.set ? '#16a34a' : '#dc2626', fontWeight: 700, flexShrink: 0 }}>{v.set ? '✓' : '✗'}</span>
                     <div>
                       <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
-                      <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{v.description}</div>
+                      {!v.set && (
+                        <div style={{ fontSize: '0.8125rem', color: '#dc2626' }}>{v.description}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Hard block: non-DB required vars missing */}
+          {dbSubStep === 'block' && envData && (
+            <div className="alert alert-danger">
+              Missing required variables:{' '}
+              <strong>{envData.missingRequired.filter((v) => v !== 'DATABASE_URL').join(', ')}</strong>.
+              Add them to your project&apos;s environment variables in the Vercel dashboard and redeploy.
+            </div>
+          )}
+
+          {/* All required vars set (DATABASE_URL is present) */}
+          {dbSubStep === 'ready' && envData && (
+            <>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                <span style={{ color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Optional</div>
+                {envData.optional.map((v) => (
+                  <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <span style={{ color: v.set ? '#16a34a' : '#9ca3af', flexShrink: 0 }}>{v.set ? '✓' : '○'}</span>
+                    <div>
+                      <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
+                      {!v.set && v.gates && (
+                        <div style={{ fontSize: '0.8125rem', color: '#d97706' }}>Disabled: {v.gates}</div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-              {envData.optional.length > 0 && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Optional</div>
-                  {envData.optional.map((v) => (
-                    <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <span style={{ color: v.set ? '#16a34a' : '#9ca3af', flexShrink: 0 }}>{v.set ? '✓' : '○'}</span>
-                      <div>
-                        <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
-                        {!v.set && v.gates && (
-                          <div style={{ fontSize: '0.8125rem', color: '#d97706' }}>Disabled: {v.gates}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {envData.missingRequired.length > 0 ? (
-                <div className="alert alert-danger">
-                  Missing required variables: <strong>{envData.missingRequired.join(', ')}</strong>. Add them to your <code>.env.local</code> file and restart.
-                </div>
-              ) : (
-                <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('account')}>
-                  Continue →
-                </button>
-              )}
+              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('account')}>
+                Continue →
+              </button>
             </>
+          )}
+
+          {/* DATABASE_URL absent, Neon available: offer auto-provision or manual */}
+          {dbSubStep === 'db-choice' && (
+            <DbChoicePanel
+              neonRegion={neonRegion}
+              setNeonRegion={setNeonRegion}
+              onProvision={handleProvision}
+              onManual={() => setDbSubStep('db-manual')}
+            />
+          )}
+
+          {/* DATABASE_URL absent, no Neon key: manual instructions only */}
+          {dbSubStep === 'db-manual' && (
+            <DbManualPanel
+              neonAvailable={false}
+              onBack={envData?.neonAvailable ? () => setDbSubStep('db-choice') : undefined}
+            />
+          )}
+
+          {/* Neon API call in flight */}
+          {dbSubStep === 'db-provisioning' && (
+            <div>
+              <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>⏳</span>
+                <span>Creating your Neon database… this usually takes 5–10 seconds.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Neon call succeeded, Vercel redeploying */}
+          {dbSubStep === 'db-redeploying' && (
+            <DbRedeployingPanel dbReady={dbReady} onContinue={() => setStep('account')} />
+          )}
+
+          {/* Neon call failed: show error + fall back to manual */}
+          {dbSubStep === 'db-error' && (
+            <div>
+              <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+                <strong>Database provisioning failed</strong>
+                {provisionError && (
+                  <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    {provisionError}
+                  </div>
+                )}
+              </div>
+              <DbManualPanel
+                neonAvailable={!!envData?.neonAvailable}
+                onBack={() => setDbSubStep('db-choice')}
+              />
+            </div>
           )}
         </div>
       )}
@@ -247,7 +440,7 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Create your admin account</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            You'll register a passkey (fingerprint, Face ID, or security key) as your primary login method.
+            You&apos;ll register a passkey (fingerprint, Face ID, or security key) as your primary login method.
           </p>
           {!passkeyRegistered ? (
             <>
@@ -281,7 +474,7 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Choose your admin path</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            This is the secret URL prefix for your admin area. Anyone who doesn't know it gets a plain 404.
+            This is the secret URL prefix for your admin area. Anyone who doesn&apos;t know it gets a plain 404.
           </p>
           <div className="field">
             <label htmlFor="adminPath">Admin path</label>
@@ -358,7 +551,7 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Save your recovery code</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            If you lose access to your passkey, this code is your only way back in. It's single-use. <strong>Save it somewhere safe offline before continuing.</strong>
+            If you lose access to your passkey, this code is your only way back in. It&apos;s single-use. <strong>Save it somewhere safe offline before continuing.</strong>
           </p>
           {!recoveryCode ? (
             <p>Generating…</p>
@@ -391,6 +584,154 @@ export default function SetupPage() {
             </>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Sub-components for the database provisioning flow ─────────────────────────
+
+function DbChoicePanel({
+  neonRegion,
+  setNeonRegion,
+  onProvision,
+  onManual,
+}: {
+  neonRegion: string
+  setNeonRegion: (r: string) => void
+  onProvision: () => void
+  onManual: () => void
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+        <span style={{ color: '#dc2626', fontWeight: 700, flexShrink: 0 }}>✗</span>
+        <div>
+          <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
+          <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>No database connected yet — choose an option below.</div>
+        </div>
+      </div>
+
+      {/* Option A: auto-provision */}
+      <div style={{ border: '1px solid #16a34a', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#f0fdf4' }}>
+        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#15803d' }}>Create my database automatically</div>
+        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
+          Cactus will create a free Neon Postgres database in the region you choose and configure it automatically.
+          Your app will redeploy once to pick up the connection — this takes about a minute.
+        </p>
+        <div className="field" style={{ marginBottom: '0.75rem' }}>
+          <label htmlFor="neonRegion" style={{ fontSize: '0.875rem' }}>Database region</label>
+          <select
+            id="neonRegion"
+            value={neonRegion}
+            onChange={(e) => setNeonRegion(e.target.value)}
+            style={{ fontSize: '0.875rem' }}
+          >
+            {NEON_REGIONS.map((r) => (
+              <option key={r.id} value={r.id}>{r.label}</option>
+            ))}
+          </select>
+          <span className="field-hint">Choose the region closest to your users.</span>
+        </div>
+        <button className="btn btn-primary" onClick={onProvision} style={{ width: '100%' }}>
+          Create database →
+        </button>
+      </div>
+
+      {/* Option B: bring your own */}
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', background: '#f9fafb' }}>
+        <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>I&apos;ll supply my own DATABASE_URL</div>
+        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
+          Add a pooled PostgreSQL connection string to your Vercel project env vars and redeploy.
+        </p>
+        <button className="btn btn-secondary" onClick={onManual} style={{ fontSize: '0.875rem' }}>
+          Show instructions →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DbManualPanel({
+  neonAvailable,
+  onBack,
+}: {
+  neonAvailable: boolean
+  onBack?: () => void
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+        <span style={{ color: '#dc2626', fontWeight: 700, flexShrink: 0 }}>✗</span>
+        <div>
+          <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
+        </div>
+      </div>
+
+      <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+        <strong>Action required:</strong> Add a PostgreSQL pooled connection string as{' '}
+        <code>DATABASE_URL</code> in your Vercel project&apos;s environment variables, then redeploy.
+        Setup will resume automatically once the database is reachable.
+      </div>
+
+      <ol style={{ paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
+        <li>Create a Postgres database at <a href="https://neon.tech" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Neon</a>, <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Supabase</a>, or any provider.</li>
+        <li>Copy the <strong>pooled</strong> connection string (not the direct/unpooled URL).</li>
+        <li>In the Vercel dashboard → your project → <strong>Settings → Environment Variables</strong>, add <code>DATABASE_URL</code> with that value.</li>
+        <li>Trigger a redeploy (or push a commit). Migrations will run automatically during the build.</li>
+        <li>Return here once the redeploy completes — setup will continue from this step.</li>
+      </ol>
+
+      {!neonAvailable && (
+        <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginBottom: '1rem' }}>
+          Tip: set <code>NEON_API_KEY</code> in your project env vars to let Cactus create a database for you automatically.{' '}
+          <a href="/wiki/Getting-started" style={{ color: '#16a34a' }}>See the Getting started guide.</a>
+        </p>
+      )}
+
+      {onBack && (
+        <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={onBack}>
+          ← Back to options
+        </button>
+      )}
+    </div>
+  )
+}
+
+function DbRedeployingPanel({
+  dbReady,
+  onContinue,
+}: {
+  dbReady: boolean
+  onContinue: () => void
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+        <span style={{ color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓</span>
+        <div>
+          <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
+          <div style={{ fontSize: '0.8125rem', color: '#16a34a' }}>Database created and connection string written</div>
+        </div>
+      </div>
+
+      {!dbReady ? (
+        <div className="alert alert-info">
+          <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
+          During the redeploy, the database schema migrations run automatically via the build script.
+          <br /><br />
+          This page will continue automatically once the database is reachable.{' '}
+          <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+        </div>
+      ) : (
+        <>
+          <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+            <strong>Database connected.</strong> The redeploy is complete and the schema is ready.
+          </div>
+          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={onContinue}>
+            Continue to account setup →
+          </button>
+        </>
       )}
     </div>
   )

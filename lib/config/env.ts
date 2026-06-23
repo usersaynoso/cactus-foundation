@@ -16,7 +16,7 @@ export function getEnvStatus(): {
   const required: EnvVarStatus[] = [
     {
       name: 'DATABASE_URL',
-      description: 'PostgreSQL connection string (pooled URL recommended)',
+      description: 'PostgreSQL pooled connection string. Can be provisioned automatically if absent — see below.',
       required: true,
       set: !!process.env.DATABASE_URL,
     },
@@ -32,6 +32,20 @@ export function getEnvStatus(): {
         'Canonical public domain — also used as the WebAuthn relying party ID. Cannot change after first passkey is registered.',
       required: true,
       set: !!process.env.SITE_URL,
+    },
+    {
+      name: 'VERCEL_API_TOKEN',
+      description:
+        'Vercel REST API token. Create at: Vercel dashboard → Account Settings → Tokens. Required for Edge Config writes, deployment status checks, and database provisioning.',
+      required: true,
+      set: !!process.env.VERCEL_API_TOKEN,
+    },
+    {
+      name: 'VERCEL_PROJECT_ID',
+      description:
+        'Vercel project ID. Find it in: Vercel dashboard → your project → Settings → General. Must be added to your project\'s environment variables and a redeploy triggered before setup can proceed.',
+      required: true,
+      set: !!process.env.VERCEL_PROJECT_ID,
     },
   ]
 
@@ -93,18 +107,12 @@ export function getEnvStatus(): {
       gates: 'Module and theme install/update',
     },
     {
-      name: 'VERCEL_API_TOKEN',
-      description: 'Vercel REST API token',
+      name: 'NEON_API_KEY',
+      description:
+        'Neon API key. Lets Cactus create a Postgres database for you automatically during setup. Leave unset if you are supplying your own DATABASE_URL. Generate from: Neon console → Account Settings → API keys.',
       required: false,
-      set: !!process.env.VERCEL_API_TOKEN,
-      gates: 'Edge Config writes, deployment status checks',
-    },
-    {
-      name: 'VERCEL_PROJECT_ID',
-      description: 'Vercel project ID',
-      required: false,
-      set: !!process.env.VERCEL_PROJECT_ID,
-      gates: 'Deployment status checks',
+      set: !!process.env.NEON_API_KEY,
+      gates: 'Automatic database provisioning during setup',
     },
     {
       name: 'EDGE_CONFIG',
@@ -179,6 +187,10 @@ export function isGitHubConfigured(): boolean {
 
 export function isVercelConfigured(): boolean {
   return !!(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID)
+}
+
+export function isNeonConfigured(): boolean {
+  return !!process.env.NEON_API_KEY
 }
 
 export function isEdgeConfigWritable(): boolean {

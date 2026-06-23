@@ -82,6 +82,18 @@ Two specific ways a multi-session build corrupts itself silently, both easy to p
 - **Use `prisma migrate dev` for every schema change that's meant to persist, never `prisma db push`.** `db push` doesn't create a migration file, so the migration folder and the actual database can silently drift apart, especially across an interruption. On resuming any session, run `prisma migrate status` *before* touching the schema again, to confirm your mental model of the database actually matches its real state rather than assuming it does.
 - **`prisma migrate deploy` only ever runs as part of the `build` script, executed by Vercel during its build step.** Never write code in an API route, server action, or any other runtime path that calls `prisma migrate deploy` or otherwise mutates the schema on demand. If a task seems to need that, the actual fix is committing the migration files so the next build picks them up, not running them from inside a request handler.
 
+## Wiki documentation — mandatory after every change
+
+**Every code change that affects user-facing behaviour, environment variables, API contracts, or architecture must be reflected in the `/wiki` docs before the task is marked complete.** This is not optional and is not something to catch up on later.
+
+Specifically:
+- If you add, remove, or rename an environment variable: update `Getting-started.md` (required/optional table), `Configuration-reference.md` (env var reference table), and any other wiki page that mentions it.
+- If you change the setup wizard flow, add a new API endpoint, or modify the request lifecycle: update `Architecture-overview.md`.
+- If you change how a feature works end-to-end (provisioning, modules, themes, auth, etc.): update the relevant wiki page so it describes what was actually built, not what was planned.
+- If you add a new top-level capability or concept: add or extend the appropriate page, and link it from `Home.md`.
+
+The phase 17 verification rule applies continuously, not just at the end: wiki docs must describe the real code at every commit, never a prior state.
+
 ## Git discipline
 
 Commit after every verified task, not in one giant commit at the end. Descriptive messages referencing the spec section they implement. This, alongside `PROGRESS.md`, is part of how this build survives interruption, git history is itself a checkpoint trail. Never commit `.env` or any secret value, ever, no exceptions for "just testing."
