@@ -20,7 +20,7 @@ export default async function RootPage() {
   }
 
   if (!setupCompleted) {
-    redirect('/_setup')
+    redirect('/setup')
   }
 
   // Setup is complete: render the site's public homepage.

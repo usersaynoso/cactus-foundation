@@ -2,9 +2,9 @@
 // Replaces middleware.ts; can use Prisma directly.
 //
 // Responsibilities:
-//   1. First-run redirect: send everything to /_setup until setupCompleted.
-//   2. Block direct access to the internal /_cactus_admin/* path.
-//   3. Admin path enforcement: rewrite /<adminPath>[/*] to /_cactus_admin[/*],
+//   1. First-run redirect: send everything to /setup until setupCompleted.
+//   2. Block direct access to the internal /cactus-admin/* path.
+//   3. Admin path enforcement: rewrite /<adminPath>[/*] to /cactus-admin[/*],
 //      checking authentication first. Anything that doesn't match the configured
 //      prefix just falls through — a plain 404 from Next.js, indistinguishable
 //      from any other missing route.
@@ -57,9 +57,9 @@ function withSecurity(res: NextResponse): NextResponse {
   return res
 }
 
-// Internal prefix that /_cactus_admin/* routes live under.
+// Internal prefix that /cactus-admin/* routes live under.
 // Requests are rewritten here from /<adminPath>/*; direct access is blocked.
-const ADMIN_INTERNAL = '/_cactus_admin'
+const ADMIN_INTERNAL = '/cactus-admin'
 
 // Paths that bypass every gate unconditionally.
 const ALWAYS_PASS = [
@@ -71,7 +71,7 @@ const ALWAYS_PASS = [
 
 // Paths allowed during first-run setup (before setupCompleted = true).
 const SETUP_PASS = [
-  '/_setup',
+  '/setup',
   '/api/setup',
   '/api/health',
   '/_next/',
@@ -128,7 +128,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     if (SETUP_PASS.some((p) => pathname.startsWith(p))) {
       return withSecurity(NextResponse.next())
     }
-    return withSecurity(NextResponse.redirect(new URL('/_setup', request.url)))
+    return withSecurity(NextResponse.redirect(new URL('/setup', request.url)))
   }
 
   // ── 2. Admin path enforcement ──────────────────────────────────────────────
@@ -197,8 +197,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
     const statusPage =
       status === 'comingSoon'
-        ? '/_status/coming-soon'
-        : '/_status/maintenance'
+        ? '/cactus-status/coming-soon'
+        : '/cactus-status/maintenance'
     return withSecurity(NextResponse.rewrite(new URL(statusPage, request.url)))
   }
 

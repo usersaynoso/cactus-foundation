@@ -40,7 +40,7 @@ export default async function PagesPage({ searchParams }: Props) {
       <div className="page-header">
         <h1 className="page-title">Info Pages</h1>
         {canWrite && (
-          <Link href="/_cactus_admin/pages/new" className="btn btn-primary">+ New page</Link>
+          <Link href="/cactus-admin/pages/new" className="btn btn-primary">+ New page</Link>
         )}
       </div>
 
@@ -75,7 +75,7 @@ export default async function PagesPage({ searchParams }: Props) {
                 </td>
                 <td>
                   {canWrite && (
-                    <Link href={`/_cactus_admin/pages/${p.id}`} className="btn btn-secondary btn-sm">Edit</Link>
+                    <Link href={`/cactus-admin/pages/${p.id}`} className="btn btn-secondary btn-sm">Edit</Link>
                   )}
                 </td>
               </tr>
