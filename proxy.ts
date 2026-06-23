@@ -137,6 +137,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return withSecurity(NextResponse.redirect(new URL('/setup', request.url)))
   }
 
+  // Setup is complete — /setup and /api/setup/* are dead paths (except /api/setup/reset,
+  // which is guarded at the route level and handles the "all users deleted" re-setup case).
+  if (pathname === '/setup' || pathname.startsWith('/setup/')) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   // ── 2. Admin path enforcement ──────────────────────────────────────────────
   const adminPath = await resolveAdminPath()
 

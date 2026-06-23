@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { parsePaginationParams } from '@/lib/utils'
 import { hasPermission } from '@/lib/permissions/check'
@@ -10,6 +11,8 @@ export const metadata: Metadata = { title: 'Pages — Admin' }
 type Props = { searchParams: Promise<Record<string, string>> }
 
 export default async function PagesPage({ searchParams }: Props) {
+  const headersList = await headers()
+  const adminPath = headersList.get('x-cactus-admin-path') ?? ''
   const user = await getSessionFromCookie()
   const canWrite = user ? await hasPermission(user, 'pages.write') : false
   const canPublish = user ? await hasPermission(user, 'pages.publish') : false
@@ -40,7 +43,7 @@ export default async function PagesPage({ searchParams }: Props) {
       <div className="page-header">
         <h1 className="page-title">Info Pages</h1>
         {canWrite && (
-          <Link href="/cactus-admin/pages/new" className="btn btn-primary">+ New page</Link>
+          <Link href={`/${adminPath}/pages/new`} className="btn btn-primary">+ New page</Link>
         )}
       </div>
 
@@ -75,7 +78,7 @@ export default async function PagesPage({ searchParams }: Props) {
                 </td>
                 <td>
                   {canWrite && (
-                    <Link href={`/cactus-admin/pages/${p.id}`} className="btn btn-secondary btn-sm">Edit</Link>
+                    <Link href={`/${adminPath}/pages/${p.id}`} className="btn btn-secondary btn-sm">Edit</Link>
                   )}
                 </td>
               </tr>

@@ -1,6 +1,9 @@
+import { headers } from 'next/headers'
 import { getEnvStatus } from '@/lib/config/env'
 
-export default function EnvBanner() {
+export default async function EnvBanner() {
+  const headersList = await headers()
+  const adminPath = headersList.get('x-cactus-admin-path') ?? ''
   const { optional } = getEnvStatus()
   const missing = optional.filter((v) => !v.set && v.gates)
 
@@ -27,7 +30,7 @@ export default function EnvBanner() {
           </span>
         ))}
         .{' '}
-        <a href="/cactus-admin/config" style={{ color: '#92400e', textDecoration: 'underline' }}>
+        <a href={`/${adminPath}/config`} style={{ color: '#92400e', textDecoration: 'underline' }}>
           Configure in Settings →
         </a>
       </span>
