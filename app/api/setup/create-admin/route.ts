@@ -38,6 +38,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Username "${username}" is reserved` }, { status: 400 })
   }
 
+  // Exact-match retry during partial setup: user was created but passkey registration
+  // failed (e.g. Safari iCloud Keychain conflict). Return the existing userId so the
+  // stable WebAuthn user handle from v0.1.16 is preserved, then clear any stale passkeys
+  // so excludeCredentials is empty on the next attempt.
+  const exactMatch = await prisma.user.findFirst({ where: { email, username } })
+  if (exactMatch && !cfg?.setupCompleted) {
+    await prisma.passkey.deleteMany({ where: { userId: exactMatch.id } })
+    return NextResponse.json({ userId: exactMatch.id })
+  }
+
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email }, { username }] },
   })

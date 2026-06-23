@@ -476,7 +476,7 @@ export default function SetupPage() {
       // On re-setup the stale device credential can cause this obscure error.
       if (msg === 'The string did not match the expected pattern.') {
         setError(
-          'Passkey registration failed. If you previously started setup on this device, Safari may have saved a passkey that is now stale. Delete it from your device settings (Settings → Passwords → find this site) then try again, or try a different browser.'
+          'Passkey registration failed (Safari conflict). Open Settings → Passwords, find this site, and delete any saved passkey or password entry. If you have multiple Apple devices on the same iCloud account, delete it on all of them. Then return here and try again — or use a different browser (Chrome, Firefox).'
         )
       } else {
         setError(msg)
