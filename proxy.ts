@@ -113,14 +113,19 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── 1. First-run gate ──────────────────────────────────────────────────────
+  // Also treat the site as not-set-up when setupCompleted is true but all
+  // user accounts were deleted — lets /api/setup/reset trigger a re-run.
   let setupCompleted = false
   try {
     const { prisma } = await import('@/lib/db/prisma')
-    const cfg = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    setupCompleted = cfg?.setupCompleted ?? false
+    const [cfg, userCount] = await Promise.all([
+      prisma.siteConfig.findUnique({
+        where: { id: 'singleton' },
+        select: { setupCompleted: true },
+      }),
+      prisma.user.count(),
+    ])
+    setupCompleted = (cfg?.setupCompleted ?? false) && userCount > 0
   } catch {
     setupCompleted = false
   }
