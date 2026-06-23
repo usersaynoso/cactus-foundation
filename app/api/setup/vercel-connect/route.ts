@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
     ]
 
     if (neonApiKey) {
-      vars.push({ key: 'NEON_API_KEY', value: neonApiKey, type: 'encrypted' })
+      vars.push({ key: 'NEON_API_KEY', value: neonApiKey.trim(), type: 'encrypted' })
     }
 
     try {
