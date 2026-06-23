@@ -9,7 +9,10 @@ export async function POST() {
   })
 
   if (cfg?.setupCompleted) {
-    return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
+    const userCount = await prisma.user.count()
+    if (userCount > 0) {
+      return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
+    }
   }
 
   if (!cfg?.adminPath) {

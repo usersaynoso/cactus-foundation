@@ -11,12 +11,13 @@ const Body = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  // Guard: setup must not already be complete
-  const cfg = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { setupCompleted: true },
-  })
-  if (cfg?.setupCompleted) {
+  // Guard: setup must not already be complete — unless all users were deleted
+  // (recovery path after /api/setup/reset was called).
+  const [cfg, existingUserCount] = await Promise.all([
+    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { setupCompleted: true } }),
+    prisma.user.count(),
+  ])
+  if (cfg?.setupCompleted && existingUserCount > 0) {
     return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
   }
 
