@@ -99,6 +99,59 @@ Specifically:
 
 The phase 17 verification rule applies continuously, not just at the end: wiki docs must describe the real code at every commit, never a prior state.
 
+## GitHub release notes — write for humans, not robots
+
+Every GitHub release needs a description. That description is read by site owners, not developers. They don't care that you refactored the middleware abstraction layer or resolved a race condition in the token refresh flow. They care whether their site is faster, whether a bug that was annoying them is fixed, and whether anything might break when they update. Write accordingly.
+
+**The golden rules:**
+
+1. **Lead with what changed for the user, not how you changed it.** "Logging in with a passkey is now faster" beats "optimised WebAuthn assertion verification latency." One of those is useful. The other is showing off.
+
+2. **Plain English only.** If a sentence contains the words "refactor", "abstraction", "middleware", "schema", "migration", "hydration", or any acronym that hasn't been spelled out, rewrite it. Pretend you're explaining the update to someone who runs a small business and just wants their website to work.
+
+3. **Be warm and a little bit funny.** Not stand-up-comedy funny — just human. A light touch goes a long way. Users notice when software feels like it was made by people who actually enjoy making it, and they remember it. Dry wit is fine. Dad jokes are acceptable at low doses. Puns: one maximum, and only if genuinely good.
+
+4. **Group by impact, not by code area.** Good headings: ✨ New stuff, 🐛 Fixed, 🔧 Under the hood. Don't write headings like "Auth subsystem changes" or "Prisma migration updates." Nobody knows what that means and nobody cares.
+
+5. **Every bug fix deserves one sentence explaining the symptom, not the cause.** "Fixed a bug where logging in on Safari would sometimes silently fail and leave you staring at the login page forever, wondering what you did wrong. (You did nothing wrong.)" That's far better than "Fixed WebAuthn assertion error on Safari due to rpId mismatch."
+
+6. **If something requires the user to do anything after updating** — clear their cache, run a script, change a setting — call it out loud and early, in bold, before they miss it and end up confused.
+
+7. **Mention the version number at the top, in plain language.** "This is version 1.4.2. It's a small but satisfying update." is fine. No need for elaborate preamble.
+
+8. **Don't list every commit.** If it wouldn't mean anything to someone who has never opened a terminal, leave it out. A tight, readable five-item list beats an exhaustive thirty-line changelog that nobody finishes.
+
+**Format to follow:**
+
+```markdown
+## What's new in vX.Y.Z
+
+One sentence summary of the release vibe — is this a big deal, a small fix, a quality-of-life release?
+
+### ✨ New stuff
+- **[Feature name]** — What it does for you, in one sentence. If it needs more explanation, add a second sentence. That's the limit.
+
+### 🐛 Fixed
+- **[The symptom, not the bug ID]** — What was going wrong, what it felt like from the user's side, and that it's now sorted.
+
+### 🔧 Under the hood
+- Brief mention of any infrastructure or performance work, translated into what the user actually notices (faster, more reliable, uses less memory, etc.). Skip it entirely if there's genuinely nothing user-noticeable.
+
+### ⚠️ Anything you need to do
+Bold, upfront, impossible to miss. If there's nothing, omit this section entirely — don't write "No action required", that's just noise.
+```
+
+**Examples of before/after rewrites:**
+
+| Too technical | Human-friendly |
+|---|---|
+| "Fixed race condition in session token refresh causing intermittent 401 errors" | "Fixed a bug where you'd randomly get logged out mid-session for no reason. Annoying. Now gone." |
+| "Resolved rpId mismatch in WebAuthn assertion on Safari" | "Fixed passkey login on Safari, which was mysteriously refusing to work. Mystery solved." |
+| "Refactored middleware to support per-route Edge Config cache invalidation" | "Pages now respond to config changes faster — no more waiting for things to catch up." |
+| "Migrated media storage provider abstraction layer" | "File uploads now go through a new backend. You won't notice any difference, which is exactly the point." |
+
+When in doubt: read the release note out loud. If it sounds like a GitHub commit message, rewrite it. If it sounds like something a friendly, slightly nerdy colleague would say over Slack, ship it.
+
 ## Git discipline
 
 Commit after every verified task, not in one giant commit at the end. Descriptive messages referencing the spec section they implement. This, alongside `PROGRESS.md`, is part of how this build survives interruption, git history is itself a checkpoint trail. Never commit `.env` or any secret value, ever, no exceptions for "just testing."

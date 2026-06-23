@@ -7,11 +7,13 @@ import { errorResponse } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 
 const Patch = z.object({
-  title: z.string().min(1).max(200).optional(),
-  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/).optional(),
-  body: z.string().optional(),
+  title:           z.string().min(1).max(200).optional(),
+  slug:            z.string().min(1).max(200).regex(/^[a-z0-9-]+$/).optional(),
+  body:            z.string().optional(),
   metaDescription: z.string().max(300).optional().nullable(),
-  status: z.enum(['draft', 'published']).optional(),
+  ogImageId:       z.string().optional().nullable(),
+  status:          z.enum(['draft', 'published']).optional(),
+  bodyFormat:      z.enum(['markdown', 'builder']).optional(),
 })
 
 type Params = { params: Promise<{ id: string }> }
@@ -70,7 +72,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const page = await prisma.infoPage.findUnique({ where: { id } })
   if (!page) return errorResponse('Not found', 404)
 
-  // Warn if referenced as a status or legal page
   const config = await prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
   const refs = [config?.comingSoonPageId, config?.maintenancePageId, config?.privacyPolicyPageId, config?.termsPageId]
   if (refs.includes(id)) {

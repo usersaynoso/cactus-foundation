@@ -82,6 +82,34 @@ Modules are git submodules living under `modules/<name>/`. Installing one:
 
 Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). They never touch Prisma's migration history. The core Prisma client knows nothing about module tables — modules query their own tables directly.
 
+## Info pages and the Puck builder
+
+Info pages (`InfoPage` model) support two authoring modes controlled by `bodyFormat`:
+
+- **`markdown`** (default): content stored in the `body` column, rendered through the sanitized-markdown pipeline (`marked` + `DOMPurify`).
+- **`builder`**: content stored in `builderData` (JSON), rendered via Puck's `<Render>` component (`@puckeditor/core/rsc`).
+
+### Editor
+
+The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers).
+
+### Reconciliation
+
+`InfoPage`'s real columns (`title`, `slug`, `status`, `metaDescription`, `ogImageId`) are canonical. `builderData.root.props` is a working copy. On every load, root props are overwritten from the DB row. On every save, those four fields are split back out and written to their real columns. This split happens in exactly one server-side location (the save handlers), never client-side.
+
+### Save / publish split
+
+| Endpoint | Required permission | Status |
+|---|---|---|
+| `POST /api/admin/pages/[id]/autosave` | `pages.write` | Always `draft` |
+| `POST /api/admin/pages/[id]/publish` | `pages.publish` | Always `published` |
+
+The autosave endpoint ignores any `status` field the client sends — it always writes `draft`. Only the publish endpoint can flip status to `published`, and it re-checks `pages.publish` on the server on every call.
+
+### Public render
+
+The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` — a server component. The editor bundle is never included in the public-page response.
+
 ## Theme system
 
 Themes live under `themes/<name>/`. Activating a theme is a pure database flag flip (`Theme.isActive`) with no redeploy. Installing a new theme follows the same submodule-commit pattern as a module.

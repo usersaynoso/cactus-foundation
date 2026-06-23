@@ -197,6 +197,10 @@ model InfoPage {
   slug            String     @unique
   title           String
   body            String     @db.Text
+  // 'markdown' uses body; 'builder' uses builderData
+  bodyFormat      BodyFormat @default(markdown)
+  // Puck Data JSON — only populated when bodyFormat = 'builder'
+  builderData     Json?
   status          PageStatus @default(draft)
   metaDescription String?
   // FK to Media.id — nullable, no Prisma-level relation to avoid circular ref
@@ -214,6 +218,11 @@ model InfoPage {
 enum PageStatus {
   draft
   published
+}
+
+enum BodyFormat {
+  markdown
+  builder
 }
 
 // ---------------------------------------------------------------------------
