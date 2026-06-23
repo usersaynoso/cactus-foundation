@@ -26,7 +26,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       rules: {
         userAgent: '*',
         allow: '/',
-        disallow: ['/_cactus_admin/', '/_setup/', '/_status/', '/api/'],
+        disallow: ['/cactus-admin/', '/setup/', '/cactus-status/', '/api/'],
       },
       sitemap: `${siteUrl}/sitemap.xml`,
     }

@@ -11,7 +11,7 @@ type Props = {
 
 export default function AdminNav({ adminPath, userRole }: Props) {
   const pathname = usePathname()
-  const base = `/_cactus_admin`
+  const base = `/cactus-admin`
 
   const links = [
     { href: `${base}`, label: 'Dashboard', icon: '◈' },
@@ -24,9 +24,8 @@ export default function AdminNav({ adminPath, userRole }: Props) {
     { href: `${base}/config`, label: 'Settings', icon: '⚙️' },
   ]
 
-  // The links above use the internal _cactus_admin path, but the user's browser
-  // sees the real admin path. We map for display purposes; Next.js Link uses the
-  // internal path since we're inside the rewritten context.
+  // Links use the internal /cactus-admin path (never shown to the user).
+  // The browser sees the user's chosen admin path via the proxy rewrite.
 
   return (
     <nav>

@@ -27,7 +27,7 @@ export default function EnvBanner() {
           </span>
         ))}
         .{' '}
-        <a href="/_cactus_admin/config" style={{ color: '#92400e', textDecoration: 'underline' }}>
+        <a href="/cactus-admin/config" style={{ color: '#92400e', textDecoration: 'underline' }}>
           Configure in Settings →
         </a>
       </span>
