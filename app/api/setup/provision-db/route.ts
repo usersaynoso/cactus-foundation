@@ -42,17 +42,34 @@ function buildPooledUri(data: NeonProjectResponse): string {
   return `postgresql://${role}:${encoded}@${pooler_host}/${database}?sslmode=require&channel_binding=require`
 }
 
-async function findExistingNeonProject(
-  apiKey: string,
-  projectName: string
-): Promise<string | null> {
-  const res = await fetch(
-    `${NEON_API}/projects?search=${encodeURIComponent(projectName)}&limit=10`,
-    {
+// Returns the first org_id for the authenticated user, or null for legacy personal accounts.
+async function getNeonOrgId(apiKey: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${NEON_API}/users/me/organizations`, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(10_000),
-    }
-  )
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { organizations?: Array<{ id: string }> }
+    return data.organizations?.[0]?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+async function findExistingNeonProject(
+  apiKey: string,
+  projectName: string,
+  orgId: string | null
+): Promise<string | null> {
+  const url = new URL(`${NEON_API}/projects`)
+  url.searchParams.set('search', encodeURIComponent(projectName))
+  url.searchParams.set('limit', '10')
+  if (orgId) url.searchParams.set('org_id', orgId)
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(10_000),
+  })
   if (!res.ok) return null
   const data = (await res.json()) as NeonProjectListResponse
   const match = data.projects?.find((p) => p.name === projectName)
@@ -62,21 +79,22 @@ async function findExistingNeonProject(
 async function createNeonProject(
   apiKey: string,
   projectName: string,
-  regionId: NeonRegionId
+  regionId: NeonRegionId,
+  orgId: string | null
 ): Promise<NeonProjectResponse> {
+  const projectBody: Record<string, unknown> = {
+    name: projectName,
+    region_id: regionId,
+    pg_version: 17,
+  }
+  if (orgId) projectBody.org_id = orgId
   const res = await fetch(`${NEON_API}/projects`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      project: {
-        name: projectName,
-        region_id: regionId,
-        pg_version: 17,
-      },
-    }),
+    body: JSON.stringify({ project: projectBody }),
     signal: AbortSignal.timeout(30_000),
   })
   if (!res.ok) {
@@ -233,6 +251,34 @@ export async function POST(req: NextRequest) {
   // ── Action: list ──────────────────────────────────────────────────────────
   if (action === 'list') {
     try {
+      // New Neon accounts use org-scoped projects — fetch orgs first.
+      const orgsRes = await fetch(`${NEON_API}/users/me/organizations`, {
+        headers: { Authorization: `Bearer ${neonApiKey}` },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (orgsRes.ok) {
+        const orgsData = (await orgsRes.json()) as { organizations?: Array<{ id: string; name: string }> }
+        const orgs = orgsData.organizations ?? []
+        if (orgs.length > 0) {
+          const projectLists = await Promise.all(
+            orgs.map(async (org) => {
+              try {
+                const r = await fetch(`${NEON_API}/projects?org_id=${encodeURIComponent(org.id)}&limit=100`, {
+                  headers: { Authorization: `Bearer ${neonApiKey}` },
+                  signal: AbortSignal.timeout(10_000),
+                })
+                if (!r.ok) return []
+                const d = (await r.json()) as NeonProjectListResponse
+                return d.projects?.map((p) => ({ id: p.id, name: p.name })) ?? []
+              } catch {
+                return []
+              }
+            })
+          )
+          return NextResponse.json({ projects: projectLists.flat() })
+        }
+      }
+      // Fallback for legacy personal accounts (no orgs).
       const res = await fetch(`${NEON_API}/projects?limit=100`, {
         headers: { Authorization: `Bearer ${neonApiKey}` },
         signal: AbortSignal.timeout(10_000),
@@ -300,16 +346,19 @@ export async function POST(req: NextRequest) {
   const neonProjectName = `cactus-${vercelProjectId}`
 
   try {
+    // Get org_id — required for new Neon accounts (org-first model).
+    const orgId = await getNeonOrgId(neonApiKey)
+
     // Check whether a Neon project was already created for this Vercel project.
     let neonData: NeonProjectResponse
-    const existingId = await findExistingNeonProject(neonApiKey, neonProjectName)
+    const existingId = await findExistingNeonProject(neonApiKey, neonProjectName, orgId)
 
     if (existingId) {
       // Reuse the existing Neon project rather than creating a duplicate.
       neonData = await getNeonProjectConnectionUri(neonApiKey, existingId)
     } else {
       // Create a new Neon project.
-      neonData = await createNeonProject(neonApiKey, neonProjectName, regionId)
+      neonData = await createNeonProject(neonApiKey, neonProjectName, regionId, orgId)
     }
 
     // Build the pooled connection string — this is what Cactus will use.

@@ -663,7 +663,6 @@ export default function SetupPage() {
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
               onUseExisting={handleUseExistingNeon}
-              onManual={() => setDbSubStep('db-manual')}
             />
           )}
 
@@ -1013,6 +1012,10 @@ export default function SetupPage() {
           )}
         </div>
       )}
+
+      <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#d1d5db', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
+        v{process.env.NEXT_PUBLIC_APP_VERSION}
+      </div>
     </div>
   )
 }
@@ -1050,56 +1053,53 @@ function VercelConfigPanel({
         Cactus needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
       </div>
 
-      {/* form[method=dialog] prevents browsers from offering to save these API tokens as passwords */}
-      <form method="dialog" onSubmit={(e) => e.preventDefault()} autoComplete="off">
-        <div className="field">
-          <label htmlFor="vercelToken">Vercel API token</label>
-          <input
-            id="vercelToken"
-            type="password"
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore=""
-            data-bwignore="true"
-            data-form-type="other"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="vcp_… or ve_…"
-            disabled={listing}
-          />
-          <span className="field-hint">
-            Create at:{' '}
-            <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
-              Vercel dashboard → Account Settings → Tokens
-            </a>
-          </span>
-        </div>
+      <div className="field">
+        <label htmlFor="vercelToken">Vercel API token</label>
+        <input
+          id="vercelToken"
+          type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder="vcp_… or ve_…"
+          disabled={listing}
+          style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+        />
+        <span className="field-hint">
+          Create at:{' '}
+          <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+            Vercel dashboard → Account Settings → Tokens
+          </a>
+        </span>
+      </div>
 
-        <div className="field" style={{ marginBottom: '1rem' }}>
-          <label htmlFor="neonApiKey">
-            Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
-          </label>
-          <input
-            id="neonApiKey"
-            type="password"
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore=""
-            data-bwignore="true"
-            data-form-type="other"
-            value={neonApiKey}
-            onChange={(e) => setNeonApiKey(e.target.value)}
-            placeholder="napi_…"
-            disabled={listing}
-          />
-          <span className="field-hint">
-            Enables automatic database provisioning. Generate at:{' '}
-            <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
-              Neon Console → Account → API Keys
-            </a>
-          </span>
-        </div>
-      </form>
+      <div className="field" style={{ marginBottom: '1rem' }}>
+        <label htmlFor="neonApiKey">
+          Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+        </label>
+        <input
+          id="neonApiKey"
+          type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={neonApiKey}
+          onChange={(e) => setNeonApiKey(e.target.value)}
+          placeholder="napi_…"
+          disabled={listing}
+          style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+        />
+        <span className="field-hint">
+          Enables automatic database provisioning. Generate at:{' '}
+          <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+            Neon Console → Account → API Keys
+          </a>
+        </span>
+      </div>
 
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>
@@ -1209,13 +1209,11 @@ function DbChoicePanel({
   setNeonRegion,
   onProvision,
   onUseExisting,
-  onManual,
 }: {
   neonRegion: string
   setNeonRegion: (r: string) => void
   onProvision: () => void
   onUseExisting: (projectId: string) => void
-  onManual: () => void
 }) {
   const [selectedOption, setSelectedOption] = useState<null | 'create' | 'existing' | 'manual'>(null)
   const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
@@ -1318,7 +1316,13 @@ function DbChoicePanel({
             {!loadingProjects && !projectsError && neonProjects.length === 0 && (
               <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>No Neon projects found in your account.</div>
             )}
-            {neonProjects.length > 0 && (
+            {neonProjects.length === 1 && (
+              <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#374151' }}>
+                Project: <strong>{neonProjects[0]?.name}</strong>
+                <span className="field-hint" style={{ display: 'block' }}>Cactus will read the default branch connection URI and write it to Vercel.</span>
+              </div>
+            )}
+            {neonProjects.length > 1 && (
               <div className="field" style={{ marginBottom: '1rem' }}>
                 <label htmlFor="neonProjectSelect" style={{ fontSize: '0.875rem' }}>Neon project</label>
                 <select
@@ -1339,8 +1343,8 @@ function DbChoicePanel({
               <button
                 className="btn btn-primary"
                 style={{ width: '100%' }}
-                disabled={!selectedProjectId}
-                onClick={() => onUseExisting(selectedProjectId)}
+                disabled={neonProjects.length > 1 && !selectedProjectId}
+                onClick={() => onUseExisting(neonProjects.length === 1 ? (neonProjects[0]?.id ?? '') : selectedProjectId)}
               >
                 Use this project →
               </button>
@@ -1352,19 +1356,29 @@ function DbChoicePanel({
       {/* Manual */}
       <div style={{ border: selectedOption === 'manual' ? '2px solid #9ca3af' : '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
         <button
-          onClick={() => {
-            if (selectedOption === 'manual') { onManual(); return }
-            setSelectedOption('manual')
-            onManual()
-          }}
-          style={{ width: '100%', background: '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+          onClick={() => setSelectedOption(selectedOption === 'manual' ? null : 'manual')}
+          style={{ width: '100%', background: selectedOption === 'manual' ? '#f3f4f6' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
             <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Add a PostgreSQL connection string to your Vercel env vars and redeploy.</div>
           </div>
-          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>→</span>
+          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
+        {selectedOption === 'manual' && (
+          <div style={{ padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
+            <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+              <strong>Action required:</strong> Add a PostgreSQL pooled connection string as <code>DATABASE_URL</code> in your Vercel project environment variables, then redeploy. Setup will resume automatically once the database is reachable.
+            </div>
+            <ol style={{ paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.7, margin: 0 }}>
+              <li>Create a Postgres database at <a href="https://neon.tech" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Neon</a>, <a href="https://supabase.com" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Supabase</a>, or any provider.</li>
+              <li>Copy the <strong>pooled</strong> connection string (not the direct/unpooled URL).</li>
+              <li>In Vercel → your project → <strong>Settings → Environment Variables</strong>, add <code>DATABASE_URL</code>.</li>
+              <li>Trigger a redeploy — migrations run automatically during the build.</li>
+              <li>Return here; setup will continue automatically once the database is reachable.</li>
+            </ol>
+          </div>
+        )}
       </div>
     </div>
   )
