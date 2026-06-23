@@ -1103,7 +1103,7 @@ function VercelConfigPanel({
           autoCapitalize="none"
           spellCheck={false}
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={(e) => setToken(e.target.value.trim())}
           placeholder="vcp_… or ve_…"
           disabled={listing}
           style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
@@ -1128,7 +1128,7 @@ function VercelConfigPanel({
           autoCapitalize="none"
           spellCheck={false}
           value={neonApiKey}
-          onChange={(e) => setNeonApiKey(e.target.value)}
+          onChange={(e) => setNeonApiKey(e.target.value.trim())}
           placeholder="napi_…"
           disabled={listing}
           style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
