@@ -17,7 +17,6 @@ type DbSubStep =
   | 'block'                // unexpected required var missing → hard block
   | 'ready'                // all required vars set (DATABASE_URL present)
   | 'db-choice'            // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
-  | 'db-existing'          // listing existing Neon projects to pick one
   | 'db-manual'            // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
   | 'db-provisioning'      // Neon API call in flight
   | 'db-redeploying'       // DATABASE_URL written, waiting for Vercel redeploy + DB reachable
@@ -64,9 +63,10 @@ function startHealthPolling(onReady: () => void): () => void {
   }
 }
 
-// Polls /api/setup/env-check until vercelConfigured is true, then calls onReady.
+// Polls /api/setup/env-check until vercelConfigured is true, then calls onReady
+// with the data from that same response (avoids a second fetch racing the old/new deployment).
 // Returns a cancel function.
-function startVercelConfiguredPolling(onReady: () => void): () => void {
+function startVercelConfiguredPolling(onReady: (data: EnvCheckData) => void): () => void {
   let cancelled = false
   let timer: ReturnType<typeof setTimeout>
 
@@ -77,7 +77,7 @@ function startVercelConfiguredPolling(onReady: () => void): () => void {
       if (res.ok) {
         const data = (await res.json()) as EnvCheckData
         if (data.vercelConfigured) {
-          if (!cancelled) onReady(  )
+          if (!cancelled) onReady(data)
           return
         }
       }
@@ -108,11 +108,6 @@ export default function SetupPage() {
   const [provisionError, setProvisionError] = useState('')
   const [dbReady, setDbReady] = useState(false)
   const cancelPollingRef = useRef<(() => void) | null>(null)
-  // Existing Neon project selection
-  const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
-  const [selectedNeonProjectId, setSelectedNeonProjectId] = useState('')
-  const [neonListError, setNeonListError] = useState('')
-
   // Counter to force re-run the env-check useEffect even when step is already 'env'
   const [envCheckKey, setEnvCheckKey] = useState(0)
 
@@ -204,12 +199,21 @@ export default function SetupPage() {
 
   function startVercelRedeployPolling() {
     cancelPollingRef.current?.()
-    cancelPollingRef.current = startVercelConfiguredPolling(() => {
-      // Vercel env vars are now in runtime — force the env-check useEffect to re-run.
-      // We can't just call setStep('env') because we're already on 'env'; instead
-      // we bump envCheckKey which is a dependency of that effect.
-      setDbSubStep('loading')
-      setEnvCheckKey((k) => k + 1)
+    cancelPollingRef.current = startVercelConfiguredPolling((data) => {
+      // Use the data from the response that confirmed vercelConfigured to avoid
+      // a second fetch that could race the old/new deployment boundary and show
+      // the vercel-config panel again.
+      setEnvData(data)
+      if (data.databaseState === 'set') {
+        setDbSubStep('ready')
+      } else if (data.databaseState === 'provisioned-redeploying') {
+        setDbSubStep('db-redeploying')
+        startRedeployPolling()
+      } else if (data.neonAvailable) {
+        setDbSubStep('db-choice')
+      } else {
+        setDbSubStep('db-manual')
+      }
     })
   }
 
@@ -325,37 +329,14 @@ export default function SetupPage() {
     }
   }
 
-  async function handleListNeonProjects() {
-    setNeonListError('')
-    setNeonProjects([])
-    setSelectedNeonProjectId('')
-    setDbSubStep('db-existing')
-    try {
-      const res = await fetch('/api/setup/provision-db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list' }),
-      })
-      const data = (await res.json()) as { projects?: { id: string; name: string }[]; error?: string }
-      if (!res.ok || data.error) {
-        setNeonListError(data.error ?? 'Failed to list Neon projects')
-        return
-      }
-      setNeonProjects(data.projects ?? [])
-    } catch (err: unknown) {
-      setNeonListError(err instanceof Error ? err.message : 'Network error')
-    }
-  }
-
-  async function handleUseExistingNeon() {
-    if (!selectedNeonProjectId) return
+  async function handleUseExistingNeon(projectId: string) {
     setProvisionError('')
     setDbSubStep('db-provisioning')
     try {
       const res = await fetch('/api/setup/provision-db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'use-existing', projectId: selectedNeonProjectId }),
+        body: JSON.stringify({ action: 'use-existing', projectId }),
       })
       const data = (await res.json()) as { status?: string; error?: string }
       if (!res.ok || data.status === 'error') {
@@ -681,20 +662,8 @@ export default function SetupPage() {
               neonRegion={neonRegion}
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
-              onUseExisting={handleListNeonProjects}
+              onUseExisting={handleUseExistingNeon}
               onManual={() => setDbSubStep('db-manual')}
-            />
-          )}
-
-          {/* Use existing Neon project */}
-          {dbSubStep === 'db-existing' && (
-            <DbExistingPanel
-              projects={neonProjects}
-              selectedProjectId={selectedNeonProjectId}
-              setSelectedProjectId={setSelectedNeonProjectId}
-              error={neonListError}
-              onBack={() => setDbSubStep('db-choice')}
-              onUse={handleUseExistingNeon}
             />
           )}
 
@@ -1081,47 +1050,56 @@ function VercelConfigPanel({
         Cactus needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
       </div>
 
-      <div className="field">
-        <label htmlFor="vercelToken">Vercel API token</label>
-        <input
-          id="vercelToken"
-          type="password"
-          autoComplete="new-password"
-          name="vercel-api-token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="vcp_… or ve_…"
-          disabled={listing}
-        />
-        <span className="field-hint">
-          Create at:{' '}
-          <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
-            Vercel dashboard → Account Settings → Tokens
-          </a>
-        </span>
-      </div>
+      {/* form[method=dialog] prevents browsers from offering to save these API tokens as passwords */}
+      <form method="dialog" onSubmit={(e) => e.preventDefault()} autoComplete="off">
+        <div className="field">
+          <label htmlFor="vercelToken">Vercel API token</label>
+          <input
+            id="vercelToken"
+            type="password"
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-bwignore="true"
+            data-form-type="other"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="vcp_… or ve_…"
+            disabled={listing}
+          />
+          <span className="field-hint">
+            Create at:{' '}
+            <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+              Vercel dashboard → Account Settings → Tokens
+            </a>
+          </span>
+        </div>
 
-      <div className="field" style={{ marginBottom: '1rem' }}>
-        <label htmlFor="neonApiKey">
-          Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
-        </label>
-        <input
-          id="neonApiKey"
-          type="password"
-          autoComplete="new-password"
-          name="neon-api-key"
-          value={neonApiKey}
-          onChange={(e) => setNeonApiKey(e.target.value)}
-          placeholder="napi_…"
-          disabled={listing}
-        />
-        <span className="field-hint">
-          Enables automatic database provisioning. Generate at:{' '}
-          <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
-            Neon Console → Account → API Keys
-          </a>
-        </span>
-      </div>
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label htmlFor="neonApiKey">
+            Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+          </label>
+          <input
+            id="neonApiKey"
+            type="password"
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore=""
+            data-bwignore="true"
+            data-form-type="other"
+            value={neonApiKey}
+            onChange={(e) => setNeonApiKey(e.target.value)}
+            placeholder="napi_…"
+            disabled={listing}
+          />
+          <span className="field-hint">
+            Enables automatic database provisioning. Generate at:{' '}
+            <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>
+              Neon Console → Account → API Keys
+            </a>
+          </span>
+        </div>
+      </form>
 
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>
@@ -1236,9 +1214,44 @@ function DbChoicePanel({
   neonRegion: string
   setNeonRegion: (r: string) => void
   onProvision: () => void
-  onUseExisting: () => void
+  onUseExisting: (projectId: string) => void
   onManual: () => void
 }) {
+  const [selectedOption, setSelectedOption] = useState<null | 'create' | 'existing' | 'manual'>(null)
+  const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [projectsError, setProjectsError] = useState('')
+
+  async function handleSelectExisting() {
+    if (selectedOption === 'existing') {
+      setSelectedOption(null)
+      return
+    }
+    setSelectedOption('existing')
+    setLoadingProjects(true)
+    setProjectsError('')
+    setNeonProjects([])
+    setSelectedProjectId('')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list' }),
+      })
+      const data = (await res.json()) as { projects?: { id: string; name: string }[]; error?: string }
+      if (!res.ok || data.error) {
+        setProjectsError(data.error ?? 'Failed to list Neon projects')
+        return
+      }
+      setNeonProjects(data.projects ?? [])
+    } catch (err: unknown) {
+      setProjectsError(err instanceof Error ? err.message : 'Network error')
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
@@ -1249,119 +1262,108 @@ function DbChoicePanel({
         </div>
       </div>
 
-      <div style={{ border: '1px solid #16a34a', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#f0fdf4' }}>
-        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#15803d' }}>Create a fresh database automatically</div>
-        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
-          Cactus will create a free Neon Postgres database in the region you choose and configure it automatically.
-          Your app will redeploy once to pick up the connection — this takes about a minute.
-        </p>
-        <div className="field" style={{ marginBottom: '0.75rem' }}>
-          <label htmlFor="neonRegion" style={{ fontSize: '0.875rem' }}>Database region</label>
-          <select
-            id="neonRegion"
-            value={neonRegion}
-            onChange={(e) => setNeonRegion(e.target.value)}
-            style={{ fontSize: '0.875rem' }}
-          >
-            {NEON_REGIONS.map((r) => (
-              <option key={r.id} value={r.id}>{r.label}</option>
-            ))}
-          </select>
-          <span className="field-hint">Choose the region closest to your users.</span>
-        </div>
-        <button className="btn btn-primary" onClick={onProvision} style={{ width: '100%' }}>
-          Create database →
-        </button>
-      </div>
-
-      <div style={{ border: '1px solid #2563eb', borderRadius: 8, padding: '1rem', marginBottom: '1rem', background: '#eff6ff' }}>
-        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1d4ed8' }}>Use an existing Neon project</div>
-        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
-          Connect an existing Neon project from your account. Cactus will write the connection string to Vercel and redeploy.
-        </p>
-        <button className="btn btn-secondary" onClick={onUseExisting} style={{ fontSize: '0.875rem', width: '100%', borderColor: '#2563eb', color: '#1d4ed8' }}>
-          Browse my Neon projects →
-        </button>
-      </div>
-
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', background: '#f9fafb' }}>
-        <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-        <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0 0 0.75rem' }}>
-          Add a pooled PostgreSQL connection string to your Vercel project env vars and redeploy.
-        </p>
-        <button className="btn btn-secondary" onClick={onManual} style={{ fontSize: '0.875rem' }}>
-          Show instructions →
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function DbExistingPanel({
-  projects,
-  selectedProjectId,
-  setSelectedProjectId,
-  error,
-  onBack,
-  onUse,
-}: {
-  projects: { id: string; name: string }[]
-  selectedProjectId: string
-  setSelectedProjectId: (id: string) => void
-  error: string
-  onBack: () => void
-  onUse: () => void
-}) {
-  const loading = !error && projects.length === 0
-
-  return (
-    <div>
-      <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>Choose a Neon project</div>
-
-      {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', marginBottom: '1rem' }}>
-          <span className="setup-spinner" />
-          Loading your Neon projects…
-        </div>
-      )}
-
-      {error && (
-        <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>
-      )}
-
-      {!loading && !error && projects.length === 0 && (
-        <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
-          No Neon projects found in your account.
-        </div>
-      )}
-
-      {projects.length > 0 && (
-        <div className="field" style={{ marginBottom: '1rem' }}>
-          <label htmlFor="neonProjectSelect" style={{ fontSize: '0.875rem' }}>Neon project</label>
-          <select
-            id="neonProjectSelect"
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            style={{ fontSize: '0.875rem' }}
-          >
-            <option value="">— choose a project —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <span className="field-hint">Cactus will read the default branch connection URI and write it to Vercel.</span>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
-        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onBack}>← Back</button>
+      {/* Create a fresh database */}
+      <div style={{ border: selectedOption === 'create' ? '2px solid #16a34a' : '1px solid #d1fae5', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
         <button
-          className="btn btn-primary"
-          style={{ flex: 2 }}
-          disabled={!selectedProjectId}
-          onClick={onUse}
+          onClick={() => setSelectedOption(selectedOption === 'create' ? null : 'create')}
+          style={{ width: '100%', background: selectedOption === 'create' ? '#f0fdf4' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
         >
-          Use this project →
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>Create a fresh database automatically</div>
+            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Cactus creates a free Neon Postgres database and configures it for you.</div>
+          </div>
+          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'create' ? '▲' : '▼'}</span>
+        </button>
+        {selectedOption === 'create' && (
+          <div style={{ padding: '1rem', borderTop: '1px solid #d1fae5', background: '#f0fdf4' }}>
+            <div className="field" style={{ marginBottom: '0.75rem' }}>
+              <label htmlFor="neonRegion" style={{ fontSize: '0.875rem' }}>Database region</label>
+              <select id="neonRegion" value={neonRegion} onChange={(e) => setNeonRegion(e.target.value)} style={{ fontSize: '0.875rem' }}>
+                {NEON_REGIONS.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+              <span className="field-hint">Choose the region closest to your users.</span>
+            </div>
+            <button className="btn btn-primary" onClick={onProvision} style={{ width: '100%' }}>
+              Create database →
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Use an existing Neon database */}
+      <div style={{ border: selectedOption === 'existing' ? '2px solid #2563eb' : '1px solid #dbeafe', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
+        <button
+          onClick={handleSelectExisting}
+          style={{ width: '100%', background: selectedOption === 'existing' ? '#eff6ff' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#1d4ed8' }}>Use an existing Neon database</div>
+            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Connect an existing Neon project from your account.</div>
+          </div>
+          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'existing' ? '▲' : '▼'}</span>
+        </button>
+        {selectedOption === 'existing' && (
+          <div style={{ padding: '1rem', borderTop: '1px solid #dbeafe', background: '#eff6ff' }}>
+            {loadingProjects && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', marginBottom: '1rem' }}>
+                <span className="setup-spinner" />
+                Loading your Neon projects…
+              </div>
+            )}
+            {projectsError && (
+              <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{projectsError}</div>
+            )}
+            {!loadingProjects && !projectsError && neonProjects.length === 0 && (
+              <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>No Neon projects found in your account.</div>
+            )}
+            {neonProjects.length > 0 && (
+              <div className="field" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="neonProjectSelect" style={{ fontSize: '0.875rem' }}>Neon project</label>
+                <select
+                  id="neonProjectSelect"
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  style={{ fontSize: '0.875rem' }}
+                >
+                  <option value="">— choose a project —</option>
+                  {neonProjects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <span className="field-hint">Cactus will read the default branch connection URI and write it to Vercel.</span>
+              </div>
+            )}
+            {neonProjects.length > 0 && (
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                disabled={!selectedProjectId}
+                onClick={() => onUseExisting(selectedProjectId)}
+              >
+                Use this project →
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Manual */}
+      <div style={{ border: selectedOption === 'manual' ? '2px solid #9ca3af' : '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        <button
+          onClick={() => {
+            if (selectedOption === 'manual') { onManual(); return }
+            setSelectedOption('manual')
+            onManual()
+          }}
+          style={{ width: '100%', background: '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+        >
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
+            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Add a PostgreSQL connection string to your Vercel env vars and redeploy.</div>
+          </div>
+          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>→</span>
         </button>
       </div>
     </div>
