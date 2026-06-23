@@ -451,6 +451,10 @@ export default function SetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: uid }),
       })
+      if (!optRes.ok) {
+        const d = await optRes.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to get passkey options')
+      }
       const opts = await optRes.json()
       const attestation = await startRegistration({ optionsJSON: opts })
 

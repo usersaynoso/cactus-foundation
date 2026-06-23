@@ -73,6 +73,7 @@ const ALWAYS_PASS = [
 const SETUP_PASS = [
   '/setup',
   '/api/setup',
+  '/api/auth/passkey/',
   '/api/health',
   '/_next/',
   '/favicon.ico',
