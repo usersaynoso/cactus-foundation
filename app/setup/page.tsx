@@ -428,6 +428,21 @@ export default function SetupPage() {
     }
   }
 
+  // Redirect to SITE_URL before passkey registration if the current origin doesn't
+  // match. WebAuthn rpId is derived from SITE_URL; a per-deployment Vercel URL
+  // (cactus-n6r9b3c3c.vercel.app) is a different origin from the stable alias
+  // (cactus.vercel.app) and Safari throws "The string did not match the expected
+  // pattern." when they differ.
+  useEffect(() => {
+    if (step !== 'account') return
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) return
+    const expectedOrigin = siteUrl.replace(/\/$/, '')
+    if (typeof window !== 'undefined' && window.location.origin !== expectedOrigin) {
+      window.location.replace(`${expectedOrigin}/setup`)
+    }
+  }, [step])
+
   // ── Step 2: Register passkey ───────────────────────────────────────────────
   async function handleCreateAccount() {
     setError('')
