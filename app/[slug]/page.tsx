@@ -43,20 +43,15 @@ export const revalidate = false // on-demand revalidation only (triggered by pub
 
 export default async function InfoPageRoute({ params }: Props) {
   const { slug } = await params
-  let page: Awaited<ReturnType<typeof prisma.infoPage.findUnique>> = null
-  try {
-    page = await prisma.infoPage.findUnique({
-      where: { slug },
-      select: {
-        id: true, title: true, body: true, status: true,
-        metaDescription: true, ogImageId: true,
-        createdBy: { select: { username: true, displayName: true } },
-        createdAt: true, updatedAt: true,
-      },
-    })
-  } catch {
-    notFound()
-  }
+  const page = await prisma.infoPage.findUnique({
+    where: { slug },
+    select: {
+      id: true, title: true, body: true, status: true,
+      metaDescription: true, ogImageId: true,
+      createdBy: { select: { username: true, displayName: true } },
+      createdAt: true, updatedAt: true,
+    },
+  }).catch(() => null)
 
   if (!page) notFound()
 
