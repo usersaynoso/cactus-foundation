@@ -9,39 +9,54 @@ type Props = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const page = await prisma.infoPage.findUnique({
-    where: { slug },
-    select: { title: true, metaDescription: true, status: true },
-  })
-  if (!page || page.status === 'draft') return {}
-  return {
-    title: page.title,
-    description: page.metaDescription ?? undefined,
+  try {
+    const page = await prisma.infoPage.findUnique({
+      where: { slug },
+      select: { title: true, metaDescription: true, status: true },
+    })
+    if (!page || page.status === 'draft') return {}
+    return {
+      title: page.title,
+      description: page.metaDescription ?? undefined,
+    }
+  } catch {
+    return {}
   }
 }
 
-// Static generation for published pages
+// Static generation for published pages. Returns empty on initial build (no DB yet);
+// subsequent deploys after setup fill this in so ISR works as intended.
 export async function generateStaticParams() {
-  const pages = await prisma.infoPage.findMany({
-    where: { status: 'published' },
-    select: { slug: true },
-  })
-  return pages.map((p) => ({ slug: p.slug }))
+  try {
+    const pages = await prisma.infoPage.findMany({
+      where: { status: 'published' },
+      select: { slug: true },
+    })
+    return pages.map((p) => ({ slug: p.slug }))
+  } catch {
+    return []
+  }
 }
 
+export const dynamicParams = true
 export const revalidate = false // on-demand revalidation only (triggered by publish/edit)
 
 export default async function InfoPageRoute({ params }: Props) {
   const { slug } = await params
-  const page = await prisma.infoPage.findUnique({
-    where: { slug },
-    select: {
-      id: true, title: true, body: true, status: true,
-      metaDescription: true, ogImageId: true,
-      createdBy: { select: { username: true, displayName: true } },
-      createdAt: true, updatedAt: true,
-    },
-  })
+  let page: Awaited<ReturnType<typeof prisma.infoPage.findUnique>> = null
+  try {
+    page = await prisma.infoPage.findUnique({
+      where: { slug },
+      select: {
+        id: true, title: true, body: true, status: true,
+        metaDescription: true, ogImageId: true,
+        createdBy: { select: { username: true, displayName: true } },
+        createdAt: true, updatedAt: true,
+      },
+    })
+  } catch {
+    notFound()
+  }
 
   if (!page) notFound()
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
+import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 
 const NEON_API = 'https://console.neon.tech/api/v2'
 const VERCEL_API = 'https://api.vercel.com'
@@ -278,6 +279,10 @@ export async function POST(req: NextRequest) {
       pooledUrl,
       neonData.project.id
     )
+
+    // Trigger a redeploy so the build runs migrations with the new DATABASE_URL.
+    // Best-effort — the health-check polling in the wizard handles the wait.
+    await triggerVercelRedeploy(vercelToken, vercelProjectId)
 
     return NextResponse.json({
       status: 'provisioned',

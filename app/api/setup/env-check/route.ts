@@ -36,6 +36,7 @@ export async function GET() {
   const { required, optional } = getEnvStatus()
   const missingRequired = requiredEnvMissing()
   const databaseState = await resolveDatabaseState()
+  const vercelConfigured = !!(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID)
 
   return NextResponse.json({
     required,
@@ -43,5 +44,6 @@ export async function GET() {
     missingRequired,
     databaseState,
     neonAvailable: !!process.env.NEON_API_KEY,
+    vercelConfigured,
   })
 }

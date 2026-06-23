@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma'
 import { markdownToHtml } from '@/lib/sanitize'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
 
 export default async function MaintenancePage() {
