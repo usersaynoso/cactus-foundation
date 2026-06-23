@@ -188,6 +188,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── 3. Site status gate for public routes ─────────────────────────────────
+  // API routes must always reach their handlers regardless of site status —
+  // blocking them would break authentication, passkey registration, and all
+  // other API functionality even for admins trying to log in.
+  if (pathname.startsWith('/api/')) {
+    return withSecurity(NextResponse.next())
+  }
+
   const status = await resolveSiteStatus()
 
   if (status && status !== 'live') {
