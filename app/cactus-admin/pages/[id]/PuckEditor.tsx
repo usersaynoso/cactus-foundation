@@ -95,6 +95,11 @@ export default function PuckEditor({ pageId, initialData, canPublish }: Props) {
   }, [pageId])
 
   const handlePublish = useCallback(async (data: Data) => {
+    // Cancel any pending autosave so it cannot overwrite published status after we set it
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
     setPublishError('')
     setPublishing(true)
     try {

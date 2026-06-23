@@ -23,18 +23,18 @@ export default function NewPagePage() {
     if (!slugEdited) setSlug(generateSlug(val))
   }
 
-  async function handleSave() {
+  async function handleSave(format = bodyFormat) {
     setError('')
     setLoading(true)
     try {
       const res = await fetch('/api/admin/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, slug, body, metaDescription, status, bodyFormat }),
+        body: JSON.stringify({ title, slug, body, metaDescription, status, bodyFormat: format }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to create page')
-      if (bodyFormat === 'builder') {
+      if (format === 'builder') {
         router.push(`/${adminPath}/pages/${d.id}`)
       } else {
         router.push(`/${adminPath}/pages`)
@@ -43,6 +43,13 @@ export default function NewPagePage() {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
       setLoading(false)
+    }
+  }
+
+  function handleBuilderClick() {
+    setBodyFormat('builder')
+    if (title && slug) {
+      handleSave('builder')
     }
   }
 
@@ -95,13 +102,18 @@ export default function NewPagePage() {
           <button
             type="button"
             className={bodyFormat === 'builder' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-            onClick={() => setBodyFormat('builder')}
+            onClick={handleBuilderClick}
+            disabled={bodyFormat === 'builder' && (!title || !slug || loading)}
           >
-            Page Builder
+            {bodyFormat === 'builder' && loading ? 'Creating…' : 'Page Builder'}
           </button>
         </div>
         {bodyFormat === 'builder' && (
-          <span className="field-hint">The page will be created and the visual builder will open immediately.</span>
+          <span className="field-hint">
+            {title && slug
+              ? 'Click Page Builder above to create the page and open the visual builder.'
+              : 'Enter a title above, then click Page Builder to create the page and open the visual builder.'}
+          </span>
         )}
       </div>
 

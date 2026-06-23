@@ -99,6 +99,10 @@ Specifically:
 
 The phase 17 verification rule applies continuously, not just at the end: wiki docs must describe the real code at every commit, never a prior state.
 
+## GitHub releases — versioning
+
+Default to a **patch increment** (e.g. `0.3.0` → `0.3.1`) for every release unless explicitly told otherwise. Only bump the minor version (e.g. `0.3.0` → `0.4.0`) when the user specifically asks for it. Never guess at minor or major bumps — when in doubt, patch.
+
 ## GitHub release notes — write for humans, not robots
 
 Every GitHub release needs a description. That description is read by site owners, not developers. They don't care that you refactored the middleware abstraction layer or resolved a race condition in the token refresh flow. They care whether their site is faster, whether a bug that was annoying them is fixed, and whether anything might break when they update. Write accordingly.
@@ -151,6 +155,46 @@ Bold, upfront, impossible to miss. If there's nothing, omit this section entirel
 | "Migrated media storage provider abstraction layer" | "File uploads now go through a new backend. You won't notice any difference, which is exactly the point." |
 
 When in doubt: read the release note out loud. If it sounds like a GitHub commit message, rewrite it. If it sounds like something a friendly, slightly nerdy colleague would say over Slack, ship it.
+
+---
+
+**A real example of what NOT to do — this was actually shipped and it was bad:**
+
+> Bug fixes
+>
+> Fix page builder 404 on permissions check: The _perms API route was invisible to Next.js App Router because folders prefixed with _ are treated as private (non-routable). Renamed to perms.
+> Fix page builder ChunkLoadError: Puck's default CSS (puck.css) imports Inter from an external CDN (rsms.me) which is blocked by the site's Content Security Policy and caused a CSS chunk load failure. Now using no-external.css which bundles all styles locally.
+> Add Page Builder option to new page form: Creating a new page now shows a Markdown / Page Builder toggle. Choosing Page Builder creates the page and opens the visual editor immediately.
+
+Every sentence in this is wrong. It explains file naming conventions, CSS chunk loading, CDN domains, and Content Security Policy to people who run websites, not debug them. Nobody reading a release note needs to know what `no-external.css` is. Nobody cares that a folder was renamed from `_perms` to `perms`. They care that the page builder was broken and is now fixed.
+
+The same release, done correctly:
+
+> ## What's new in v0.3.1
+>
+> A small patch release — the visual page builder had a couple of rough edges right out of the gate. Consider them smoothed.
+>
+> ### 🐛 Fixed
+> - **Page builder pages returning 404** — If you built a page with the visual editor and got a blank 404 when trying to view it, this is the one. Fixed.
+> - **Page builder failing to load entirely** — Some sites were hitting an error that stopped the page builder from opening at all, usually right after setup. That's now sorted.
+>
+> ### ✨ New stuff
+> - **Choose Page Builder when creating a new page** — The "new page" form now asks whether you want Markdown or the visual editor. Pick Page Builder and you'll land straight in the editor, ready to go.
+
+---
+
+**Mandatory self-check before publishing any release note:**
+
+Before you finalise and publish, answer every question below. If any answer is "yes", rewrite before shipping.
+
+1. Does any sentence explain *why* a bug happened technically (file paths, framework internals, naming conventions, error class names)? → **Rewrite.**
+2. Does it contain any of these words or phrases: `route`, `API`, `router`, `CDN`, `CSP`, `Content Security Policy`, `chunk`, `CSS`, `bundle`, `schema`, `migration`, `middleware`, `refactor`, `abstraction`, `hydration`, `prop`, `hook`, `component`, `endpoint`, `rpId`, `WebAuthn`, `token`, `JWT`, `OAuth`, or any filename ending in `.ts`, `.tsx`, `.js`, `.css`, `.json`? → **Rewrite.**
+3. Does it read like a list of commit messages with punctuation added? → **Rewrite.**
+4. Does it use the required format (version header, vibe sentence, labelled emoji sections)? → If not, **fix the format.**
+5. Is there at least one human moment — warmth, a light joke, a reassuring aside, anything that proves a person wrote this and not a deployment script? → If not, **add one.**
+6. Read it out loud. Would you be comfortable reading it to someone who runs a small business and has no idea what a CSS chunk is? → If not, **rewrite it.**
+
+All six checks must pass. This is not optional. A release note that fails these checks must not be published.
 
 ## Git discipline
 
