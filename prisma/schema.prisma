@@ -37,6 +37,7 @@ model User {
   recoveryRequests RecoveryRequest[]
   infoPages       InfoPage[]
   mediaItems      Media[]
+  templates       PageTemplate[]
 
   @@index([email])
   @@index([username])
@@ -182,6 +183,9 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
+  // FK to PageTemplate.id — nullable; when set, renders template instead of theme Nav/Footer
+  headerTemplateId       String?
+  footerTemplateId       String?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -209,6 +213,8 @@ model InfoPage {
   metaDescription String?
   // FK to Media.id — nullable, no Prisma-level relation to avoid circular ref
   ogImageId       String?
+  // FK to PageTemplate.id — nullable; when set, page uses this template (linked mode)
+  templateId      String?
   // Nullable so content survives if author deletes their account
   createdById     String?
   createdBy       User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -316,6 +322,31 @@ model DeployLock {
   lockedAt DateTime @default(now())
   // moduleId or themeId holding the lock
   lockedBy String
+}
+
+// ---------------------------------------------------------------------------
+// Page Templates
+// ---------------------------------------------------------------------------
+
+enum TemplateType {
+  HEADER
+  FOOTER
+  PAGE
+}
+
+model PageTemplate {
+  id          String       @id @default(cuid())
+  name        String
+  type        TemplateType
+  builderData Json?
+  status      PageStatus   @default(draft)
+  createdById String?
+  createdBy   User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([type])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------

@@ -14,10 +14,13 @@ type SiteConfig = {
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
   homepageId: string | null;
+  headerTemplateId: string | null;
+  footerTemplateId: string | null;
 }
 
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
+type TemplateOption = { id: string; name: string; type: string }
 
 const TABS = ['general', 'branding', 'access', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
@@ -138,6 +141,7 @@ export default function ConfigPage() {
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -157,10 +161,12 @@ export default function ConfigPage() {
       fetch('/api/admin/pages?perPage=100').then((r) => r.json()),
       fetch('/api/admin/env').then((r) => r.json()),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
-    ]).then(([cfg, pagesData, envData, menusData]) => {
+      fetch('/api/admin/templates').then((r) => r.ok ? r.json() : { templates: [] }).catch(() => ({ templates: [] })),
+    ]).then(([cfg, pagesData, envData, menusData, templatesData]) => {
       setConfig(cfg)
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
+      setTemplates((templatesData as { templates?: TemplateOption[] }).templates ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
       // Pre-select SMTP mode if SMTP_HOST is set but BREVO_API_KEY is not
       if ((envData as { vars?: Record<string, boolean> }).vars?.['SMTP_HOST'] && !(envData as { vars?: Record<string, boolean> }).vars?.['BREVO_API_KEY']) {
@@ -365,6 +371,32 @@ export default function ConfigPage() {
               </select>
             )}
             <span className="field-hint">The menu shown in the site header navigation.</span>
+          </div>
+          <div className="field">
+            <label>Site header template</label>
+            <select
+              value={config.headerTemplateId ?? ''}
+              onChange={(e) => set('headerTemplateId', e.target.value || null)}
+            >
+              <option value="">— Use theme default —</option>
+              {templates.filter((t) => t.type === 'HEADER').map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <span className="field-hint">When set, replaces the theme's built-in header. Only published Header templates appear on the live site.</span>
+          </div>
+          <div className="field">
+            <label>Site footer template</label>
+            <select
+              value={config.footerTemplateId ?? ''}
+              onChange={(e) => set('footerTemplateId', e.target.value || null)}
+            >
+              <option value="">— Use theme default —</option>
+              {templates.filter((t) => t.type === 'FOOTER').map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <span className="field-hint">When set, replaces the theme's built-in footer. Only published Footer templates appear on the live site.</span>
           </div>
           <div className="field">
             <label>Timezone</label>

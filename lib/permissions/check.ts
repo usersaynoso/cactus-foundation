@@ -15,6 +15,7 @@ export const CORE_PERMISSIONS = [
   { key: 'themes.manage', description: 'Install and activate themes' },
   { key: 'config.manage', description: 'Edit site configuration' },
   { key: 'menus.manage', description: 'Create and manage navigation menus' },
+  { key: 'templates.manage', description: 'Create and manage page templates' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']
