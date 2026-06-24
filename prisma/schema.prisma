@@ -180,6 +180,8 @@ model SiteConfig {
   recoveryCodeHash       String?
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
+  // FK to InfoPage.id — nullable; when set, that page is served at /
+  homepageId             String?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }

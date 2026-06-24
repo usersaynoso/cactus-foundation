@@ -7,9 +7,10 @@ import type { Role } from '@prisma/client'
 type Props = {
   adminPath: string
   userRole: Role
+  onNavClick?: () => void
 }
 
-export default function AdminNav({ adminPath, userRole }: Props) {
+export default function AdminNav({ adminPath, userRole, onNavClick }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
@@ -30,7 +31,7 @@ export default function AdminNav({ adminPath, userRole }: Props) {
       {links.map((link) => {
         const isActive = pathname === link.href || (link.href !== base && pathname.startsWith(link.href))
         return (
-          <Link key={link.href} href={link.href} className={isActive ? 'active' : ''}>
+          <Link key={link.href} href={link.href} className={isActive ? 'active' : ''} onClick={onNavClick}>
             <span style={{ width: 18, textAlign: 'center' }}>{link.icon}</span>
             {link.label}
           </Link>

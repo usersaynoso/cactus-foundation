@@ -25,7 +25,9 @@ export async function resolveMainMenu(): Promise<PublicMenuItem[]> {
       orderBy: { order: 'asc' },
     })
 
-    function resolveItem(item: (typeof items)[number]): PublicMenuItem | null {
+    type RawItem = (typeof items)[number]
+
+    function resolveItem(item: RawItem): PublicMenuItem | null {
       let label: string
       let href: string
 
@@ -46,26 +48,20 @@ export async function resolveMainMenu(): Promise<PublicMenuItem[]> {
       }
     }
 
-    // Build the nested structure: top-level items first, then attach children
-    const topLevel = items.filter((i) => i.parentId === null)
-    const result: PublicMenuItem[] = []
-
-    for (const item of topLevel) {
-      const resolved = resolveItem(item)
-      if (!resolved) continue
-
-      const childItems = items.filter((i) => i.parentId === item.id)
-      const children: PublicMenuItem[] = []
-      for (const child of childItems) {
-        const resolvedChild = resolveItem(child)
-        if (resolvedChild) children.push(resolvedChild)
+    function buildTree(parentId: string | null): PublicMenuItem[] {
+      const children = items.filter((i) => i.parentId === parentId)
+      const result: PublicMenuItem[] = []
+      for (const item of children) {
+        const resolved = resolveItem(item)
+        if (!resolved) continue
+        const nestedChildren = buildTree(item.id)
+        if (nestedChildren.length > 0) resolved.children = nestedChildren
+        result.push(resolved)
       }
-
-      if (children.length > 0) resolved.children = children
-      result.push(resolved)
+      return result
     }
 
-    return result
+    return buildTree(null)
   } catch {
     return []
   }

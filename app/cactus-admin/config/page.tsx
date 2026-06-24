@@ -13,6 +13,7 @@ type SiteConfig = {
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
+  homepageId: string | null;
 }
 
 type InfoPage = { id: string; title: string }
@@ -328,6 +329,19 @@ export default function ConfigPage() {
           <div className="field"><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
           <div className="field"><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
+          <div className="field">
+            <label>Homepage</label>
+            <select
+              value={config.homepageId ?? ''}
+              onChange={(e) => set('homepageId', e.target.value || null)}
+            >
+              <option value="">— Default (site name + tagline) —</option>
+              {pages.map((p) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <span className="field-hint">The info page shown at the root URL (/). Leave blank to use the default welcome screen.</span>
+          </div>
           <div className="field">
             <label>Main menu</label>
             {menus.length === 0 ? (

@@ -37,17 +37,14 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const { parentId } = parsed.data
 
-  // Nesting depth check: parentId must not itself have a parentId
+  // Validate parent belongs to this menu
   if (parentId) {
     const parentItem = await prisma.menuItem.findUnique({
       where: { id: parentId },
-      select: { parentId: true, menuId: true },
+      select: { menuId: true },
     })
     if (!parentItem || parentItem.menuId !== menuId) {
       return errorResponse('Invalid parent item', 400)
-    }
-    if (parentItem.parentId !== null) {
-      return errorResponse('Nesting is capped at one level', 400)
     }
   }
 

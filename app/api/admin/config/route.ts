@@ -46,6 +46,7 @@ const Patch = z.object({
   sessionPurgeAfterDays: z.number().int().min(1).max(365).optional(),
   recoveryPurgeAfterDays: z.number().int().min(1).max(30).optional(),
   mainMenuId: z.string().optional().nullable(),
+  homepageId: z.string().optional().nullable(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { adminPath, status, mainMenuId, ...rest } = parsed.data
+  const { adminPath, status, mainMenuId, homepageId, ...rest } = parsed.data
 
   if (adminPath && isBlocklisted(adminPath)) {
     return errorResponse(`"${adminPath}" is a reserved path`)
@@ -66,6 +67,7 @@ export async function PATCH(request: NextRequest) {
   if (adminPath) data.adminPath = adminPath
   if (status) data.status = status
   if (mainMenuId !== undefined) data.mainMenuId = mainMenuId
+  if (homepageId !== undefined) data.homepageId = homepageId
 
   const updated = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
 
