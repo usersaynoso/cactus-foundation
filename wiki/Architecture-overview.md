@@ -91,7 +91,7 @@ Info pages (`InfoPage` model) support two authoring modes controlled by `bodyFor
 
 ### Editor
 
-The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers).
+The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers, menu selector).
 
 ### Available blocks
 
@@ -117,8 +117,12 @@ All blocks are defined in `lib/puck/config.tsx` and are safe for server-side ren
 | **Stats** | Row of statistic items (value + label) |
 | **FeatureList** | List of features with emoji icon, title, and description |
 | **Embed** | Generic `<iframe>` embed (maps, forms, etc.) |
+| **SiteLogo** | Site logo or name — auto-reads `logoMediaId` from SiteConfig; falls back to site name text. Template block. |
+| **MenuBlock** | Navigation menu — pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
+| **Copyright** | Copyright line — auto-renders © current year + site name from SiteConfig. Template block. |
+| **LoginButton** | Auth-aware login/register buttons — shows "My Account" and "Sign out" when the visitor is logged in. Template block. |
 
-Blocks that need an image (ImageBlock, Card) use a custom media-picker field in the editor (`ImageUrlPickerField` from `lib/puck/MediaPickerField.tsx`); the field is declared as a plain `text` field in `config.tsx` and overridden with the custom renderer in `PuckEditor.tsx`.
+Blocks marked **Template block** are most useful in Header/Footer templates but are available everywhere. Blocks that need an image use a custom media-picker field in the editor; the MenuBlock uses a custom menu-selector field (`MenuSelectField`). These custom renderers are declared in `config.tsx` as plain fields and overridden with the full custom renderer in `PuckEditor.tsx` and `TemplateEditor.tsx`.
 
 ### Reconciliation
 
@@ -136,6 +140,43 @@ The autosave endpoint ignores any `status` field the client sends — it always 
 ### Public render
 
 The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` — a server component. The editor bundle is never included in the public-page response.
+
+If the page has a `templateId` (linked to a PAGE template), the template's blocks are resolved and rendered first, then the page's own blocks follow below.
+
+## Templates
+
+Templates (`PageTemplate` model) are reusable Puck layouts. Every template has a **type**:
+
+- **`HEADER`** — assigned as the site-wide header in Settings → General. Replaces the theme's built-in Nav component entirely when assigned and published.
+- **`FOOTER`** — assigned as the site-wide footer. Replaces the theme's built-in Footer component.
+- **`PAGE`** — available when creating a new info page. Can be used as a one-off copy (the page is independent immediately) or a live link (template updates propagate to the page automatically).
+
+Templates have the same draft/published workflow as pages: autosave always writes `draft`; publishing flips to `published` and triggers a full layout revalidation.
+
+### Dynamic data injection (`resolveTemplateData`)
+
+The template-specific blocks (SiteLogo, MenuBlock, Copyright, LoginButton) need live data at render time (site name, logo URL, resolved menu items, auth state). Puck's `<Render>` component is synchronous, so data is injected before the render call by `lib/puck/resolveTemplateData.ts`:
+
+1. The public layout (or page route) deep-clones the stored Puck JSON.
+2. For every `MenuBlock` in `content`, it fetches and injects `resolvedItems` using `resolveMenu(menuId)`.
+3. For `SiteLogo` and `Copyright` blocks, it injects `logoUrl`, `siteName`, and `year` from `SiteConfig`.
+4. For `LoginButton` blocks, it injects `isLoggedIn` and `adminPath` from the current request session.
+5. The mutated data is passed to `<Render config={puckTemplateConfig} data={resolvedData} />`.
+
+In the admin editor, the same blocks use client-side fetching via `MenuBlockEditorPreview` (live menu preview) and `MenuSelectField` (dropdown to pick a menu).
+
+### Header/Footer rendering in the public layout
+
+`app/(public)/layout.tsx` checks `SiteConfig.headerTemplateId` and `footerTemplateId`. When a template is assigned and its status is `published`:
+
+- The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with `puckTemplateConfig` (which uses a pass-through root render — no max-width wrapper, unlike the page config).
+- The theme's `Nav.tsx` / `Footer.tsx` components are skipped entirely.
+
+If no template is assigned, or the assigned template is still in draft, the theme components render as normal (fallback).
+
+### Template protection
+
+Deleting a template that is currently assigned as the active header or footer is blocked with a `409` error explaining which slot it occupies. The admin must reassign the slot in Settings → General first.
 
 ## Theme system
 

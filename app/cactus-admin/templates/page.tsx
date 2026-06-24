@@ -24,7 +24,7 @@ export default async function TemplatesPage() {
 
   return (
     <TemplatesClient
-      templates={templates}
+      templates={templates.map((t) => ({ ...t, updatedAt: t.updatedAt.toISOString() }))}
       adminPath={adminPath}
       headerTemplateId={config?.headerTemplateId ?? null}
       footerTemplateId={config?.footerTemplateId ?? null}

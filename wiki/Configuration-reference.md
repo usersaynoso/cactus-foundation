@@ -9,6 +9,10 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 | Site name | Displayed in the admin sidebar, browser title, emails | `My Cactus Site` |
 | Tagline | Short description, appears on the public homepage | — |
 | Description | Longer description, used in metadata | — |
+| Homepage | The info page served at the root URL (`/`) | — |
+| Main menu | The menu passed to the theme's built-in header Nav (used when no header template is assigned) | — |
+| Site header template | A published **Header**-type template that replaces the theme's built-in Nav. Falls back to the theme Nav if unset or if the template is still in draft. | — |
+| Site footer template | A published **Footer**-type template that replaces the theme's built-in Footer. Falls back to the theme Footer if unset or if the template is still in draft. | — |
 | Timezone | All UTC timestamps are displayed in this zone in the admin UI | `UTC` |
 | Locale | Sets the `lang` attribute and date formatting. Does not translate the UI. | `en-GB` |
 | Date format | Display format for dates (e.g. `DD/MM/YYYY`) | `DD/MM/YYYY` |
