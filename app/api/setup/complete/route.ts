@@ -31,12 +31,30 @@ export async function POST() {
     })
   }
 
+  // Seed a default Home page and Main Menu
+  const homePage = await prisma.infoPage.upsert({
+    where: { slug: 'home' },
+    create: { slug: 'home', title: 'Home', body: '', status: 'published' },
+    update: {},
+  })
+
+  const mainMenu = await prisma.menu.create({
+    data: {
+      name: 'Main Menu',
+      items: {
+        create: { type: 'PAGE', pageId: homePage.id, order: 0, parentId: null },
+      },
+    },
+  })
+
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: {
       setupCompleted: true,
       status: 'comingSoon',
       hideFromCrawlers: true,
+      homepageId: homePage.id,
+      mainMenuId: mainMenu.id,
     },
   })
 

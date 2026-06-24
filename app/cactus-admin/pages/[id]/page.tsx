@@ -217,9 +217,10 @@ export default function EditPagePage() {
           }}>
             <div style={{ background: '#fff', borderRadius: 8, padding: '2rem', maxWidth: 400, width: '90%' }}>
               <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Delete this page?</h3>
+              {error && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>}
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={() => setDeleteConfirm(false)}>Cancel</button>
-                <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+                <button className="btn btn-secondary" onClick={() => { setDeleteConfirm(false); setError('') }}>Cancel</button>
+                <button className="btn btn-danger" disabled={loading} onClick={handleDelete}>Delete</button>
               </div>
             </div>
           </div>

@@ -335,12 +335,12 @@ export default function ConfigPage() {
               value={config.homepageId ?? ''}
               onChange={(e) => set('homepageId', e.target.value || null)}
             >
-              <option value="">— Default (site name + tagline) —</option>
+              <option value="">— None —</option>
               {pages.map((p) => (
                 <option key={p.id} value={p.id}>{p.title}</option>
               ))}
             </select>
-            <span className="field-hint">The info page shown at the root URL (/). Leave blank to use the default welcome screen.</span>
+            <span className="field-hint">The info page shown at the root URL (/).</span>
           </div>
           <div className="field">
             <label>Main menu</label>
