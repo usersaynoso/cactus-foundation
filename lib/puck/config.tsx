@@ -550,6 +550,148 @@ function FeatureList(props: any) {
   )
 }
 
+// SiteLogo — logoUrl and siteName injected server-side; shows placeholder in editor
+function SiteLogo(props: any) {
+  const { logoUrl, siteName } = props as { logoUrl?: string; siteName?: string }
+  if (logoUrl) {
+    return (
+      <a href="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: 40, width: 'auto' }} />
+      </a>
+    )
+  }
+  return (
+    <a href="/" style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 700, fontSize: '1.25rem', color: '#111827', textDecoration: 'none', gap: '0.5rem' }}>
+      🌵 {siteName ?? 'Site Name'}
+    </a>
+  )
+}
+
+// Copyright — siteName and year injected server-side
+function Copyright(props: any) {
+  const { siteName, year } = props as { siteName?: string; year?: number }
+  return (
+    <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.875rem' }}>
+      © {year ?? new Date().getFullYear()} {siteName ?? 'My Site'}
+    </p>
+  )
+}
+
+// MenuBlock — resolvedItems injected server-side; shows placeholder otherwise
+function MenuBlock(props: any) {
+  const { resolvedItems, orientation, spacing } = props as {
+    resolvedItems?: Array<{ id: string; label: string; href: string; openInNewTab: boolean; children?: any[] }>
+    orientation: 'horizontal' | 'vertical'
+    spacing: 'tight' | 'normal' | 'wide'
+    showMobileToggle: string
+  }
+
+  if (!resolvedItems) {
+    return (
+      <div style={{ padding: '0.75rem 1rem', background: '#f3f4f6', borderRadius: 6, color: '#9ca3af', fontSize: '0.875rem' }}>
+        Menu — configure in editor
+      </div>
+    )
+  }
+
+  const gaps: Record<string, string> = { tight: '0.75rem', normal: '1.25rem', wide: '2rem' }
+  const gap = gaps[spacing] ?? '1.25rem'
+
+  if (orientation === 'vertical') {
+    return (
+      <nav>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap }}>
+          {resolvedItems.map((item) => (
+            <li key={item.id}>
+              <a
+                href={item.href}
+                target={item.openInNewTab ? '_blank' : undefined}
+                rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                style={{ textDecoration: 'none', color: '#374151', fontWeight: 500, fontSize: '0.9375rem' }}
+              >
+                {item.label}
+              </a>
+              {item.children && item.children.length > 0 && (
+                <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0 0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  {item.children.map((child: any) => (
+                    <li key={child.id}>
+                      <a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
+                        style={{ textDecoration: 'none', color: '#6b7280', fontSize: '0.875rem' }}>
+                        {child.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )
+  }
+
+  return (
+    <nav>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap }}>
+        {resolvedItems.map((item) => (
+          <li key={item.id} style={{ position: 'relative' }}>
+            <a
+              href={item.href}
+              target={item.openInNewTab ? '_blank' : undefined}
+              rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+              style={{ textDecoration: 'none', color: '#374151', fontWeight: 500, fontSize: '0.9375rem' }}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+// LoginButton — isLoggedIn and adminPath injected server-side
+function LoginButton(props: any) {
+  const { isLoggedIn, adminPath, loginLabel, registerLabel } = props as {
+    isLoggedIn?: boolean
+    adminPath?: string
+    loginLabel: string
+    registerLabel: string
+  }
+  const base = adminPath ? `/${adminPath}` : ''
+
+  if (isLoggedIn) {
+    return (
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <a href={`${base}/account`} style={{
+          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #d1d5db',
+          textDecoration: 'none', color: '#374151', fontSize: '0.875rem', fontWeight: 500,
+        }}>My Account</a>
+        <form action="/api/auth/logout" method="POST" style={{ margin: 0 }}>
+          <button type="submit" style={{
+            padding: '0.5rem 1rem', borderRadius: 6, background: 'none', border: '1px solid #d1d5db',
+            color: '#374151', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+          }}>Sign out</button>
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <a href={`${base}/login`} style={{
+        padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #d1d5db',
+        textDecoration: 'none', color: '#374151', fontSize: '0.875rem', fontWeight: 500,
+      }}>{loginLabel || 'Sign in'}</a>
+      <a href={`${base}/register`} style={{
+        padding: '0.5rem 1rem', borderRadius: 6, background: '#16a34a', border: '1px solid #16a34a',
+        textDecoration: 'none', color: '#fff', fontSize: '0.875rem', fontWeight: 500,
+      }}>{registerLabel || 'Register'}</a>
+    </div>
+  )
+}
+
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ---------------------------------------------------------------------------
@@ -961,8 +1103,86 @@ const puckConfig = {
       },
       render: FeatureList,
     },
+    SiteLogo: {
+      fields: {},
+      defaultProps: {},
+      render: SiteLogo,
+    },
+    Copyright: {
+      fields: {},
+      defaultProps: {},
+      render: Copyright,
+    },
+    MenuBlock: {
+      fields: {
+        menuId:   { type: 'text' as const, label: 'Menu ID (use the menu selector field in editor)' },
+        menuName: { type: 'text' as const, label: 'Menu name (display only)' },
+        orientation: {
+          type: 'select' as const,
+          label: 'Orientation',
+          options: [
+            { value: 'horizontal', label: 'Horizontal' },
+            { value: 'vertical',   label: 'Vertical' },
+          ],
+        },
+        spacing: {
+          type: 'select' as const,
+          label: 'Item spacing',
+          options: [
+            { value: 'tight',  label: 'Tight' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'wide',   label: 'Wide' },
+          ],
+        },
+        showDropdowns: {
+          type: 'select' as const,
+          label: 'Dropdowns open on',
+          options: [
+            { value: 'hover', label: 'Hover' },
+            { value: 'click', label: 'Click' },
+          ],
+        },
+        showMobileToggle: {
+          type: 'select' as const,
+          label: 'Mobile behaviour',
+          options: [
+            { value: 'collapse', label: 'Collapse to hamburger' },
+            { value: 'show',     label: 'Always show' },
+          ],
+        },
+      },
+      defaultProps: {
+        menuId:           '',
+        menuName:         '',
+        orientation:      'horizontal' as const,
+        spacing:          'normal' as const,
+        showDropdowns:    'hover',
+        showMobileToggle: 'collapse',
+      },
+      render: MenuBlock,
+    },
+    LoginButton: {
+      fields: {
+        loginLabel:    { type: 'text' as const, label: 'Login button label' },
+        registerLabel: { type: 'text' as const, label: 'Register button label' },
+      },
+      defaultProps: {
+        loginLabel:    'Sign in',
+        registerLabel: 'Register',
+      },
+      render: LoginButton,
+    },
   },
 } satisfies Config
 
 export default puckConfig
 export type PuckConfig = typeof puckConfig
+
+// Template config — same blocks as puckConfig but with a passthrough root render
+// (no max-width wrapper) so templates can control their own layout.
+export const puckTemplateConfig = {
+  ...puckConfig,
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  },
+}

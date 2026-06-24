@@ -25,6 +25,7 @@ type PageData = {
   ogImageId: string | null
   status: 'draft' | 'published'
   menuIds: string[]
+  templateId: string | null
 }
 
 function buildInitialPuckData(page: PageData): Data {
@@ -226,6 +227,18 @@ export default function EditPagePage() {
           </div>
         )}
 
+        {page.templateId && (
+          <div style={{
+            background: '#ede9fe', padding: '0.5rem 1rem',
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            fontSize: '0.875rem', color: '#5b21b6',
+            borderBottom: '1px solid #c4b5fd',
+          }}>
+            <span>This page is linked to a template.</span>
+            <a href={`/${adminPath}/templates/${page.templateId}`} style={{ color: '#7c3aed', fontWeight: 500 }}>Edit template →</a>
+          </div>
+        )}
+
         <PuckEditor
           pageId={id}
           initialData={initialData}
@@ -276,6 +289,19 @@ export default function EditPagePage() {
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
+
+      {page.templateId && (
+        <div style={{
+          background: '#ede9fe', padding: '0.5rem 1rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          fontSize: '0.875rem', color: '#5b21b6',
+          borderRadius: 6, marginBottom: '1rem',
+          border: '1px solid #c4b5fd',
+        }}>
+          <span>This page is linked to a template.</span>
+          <a href={`/${adminPath}/templates/${page.templateId}`} style={{ color: '#7c3aed', fontWeight: 500 }}>Edit template →</a>
+        </div>
+      )}
 
       {switchConfirm === 'builder' && (
         <div style={{

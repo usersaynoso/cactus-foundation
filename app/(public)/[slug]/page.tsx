@@ -5,6 +5,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
 import puckConfig from '@/lib/puck/config'
+import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -55,6 +56,7 @@ export default async function InfoPageRoute({ params }: Props) {
     select: {
       id: true, title: true, body: true, bodyFormat: true, builderData: true,
       status: true, metaDescription: true, ogImageId: true,
+      templateId: true,
       createdBy: { select: { username: true, displayName: true } },
       createdAt: true, updatedAt: true,
     },
@@ -86,6 +88,30 @@ export default async function InfoPageRoute({ params }: Props) {
         </div>
       )
     }
+    // Check for linked template
+    let templateData: Data | null = null
+    if (page.templateId) {
+      const tmpl = await prisma.pageTemplate.findFirst({
+        where: { id: page.templateId, status: 'published' },
+      }).catch(() => null)
+      if (tmpl?.builderData) {
+        const siteConfig = await prisma.siteConfig.findUnique({
+          where: { id: 'singleton' },
+          select: { siteName: true, adminPath: true, logoMediaId: true },
+        }).catch(() => null)
+        const logoMedia = siteConfig?.logoMediaId
+          ? await prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
+          : null
+        const pageUser = await getSessionFromCookie().catch(() => null)
+        templateData = await resolveTemplateData(tmpl.builderData, {
+          siteName: siteConfig?.siteName ?? '',
+          logoUrl: logoMedia?.url ?? null,
+          isLoggedIn: !!pageUser,
+          adminPath: siteConfig?.adminPath ?? '',
+        }).catch(() => null)
+      }
+    }
+
     return (
       <>
         {isDraft && (
@@ -96,6 +122,8 @@ export default async function InfoPageRoute({ params }: Props) {
             This page is a draft and is not visible to the public.
           </div>
         )}
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {templateData && <Render config={puckConfig as any} data={templateData} />}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Render config={puckConfig} data={data as any} />
       </>

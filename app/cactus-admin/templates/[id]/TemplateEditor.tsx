@@ -1,93 +1,53 @@
 'use client'
-
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
-import puckConfig from '@/lib/puck/config'
-import { OgImagePickerField, ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
-import { MenuCheckboxField } from '@/lib/puck/MenuCheckboxField'
+import { puckTemplateConfig } from '@/lib/puck/config'
+import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 
 type Props = {
-  pageId: string
+  templateId: string
+  templateName: string
   initialData: Data
-  canPublish: boolean
-  canManageMenus: boolean
+  initialStatus: 'draft' | 'published'
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
-export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus }: Props) {
+export default function TemplateEditor({ templateId, initialData, initialStatus }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [publishError, setPublishError] = useState('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const rootProps = initialData.root?.props as Record<string, unknown> | undefined
-  const [isPublished, setIsPublished] = useState(rootProps?.status === 'published')
+  const [isPublished, setIsPublished] = useState(initialStatus === 'published')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Build editor config inside the component so canManageMenus can gate menuIds field
   const editorConfig = useMemo(() => ({
-    ...puckConfig,
-    root: {
-      ...puckConfig.root,
-      fields: {
-        title:           { type: 'text' as const,     label: 'Title' },
-        slug:            { type: 'text' as const,     label: 'Slug' },
-        status:          {
-          type: 'select' as const,
-          label: 'Status',
-          options: [
-            { value: 'draft',     label: 'Draft' },
-            { value: 'published', label: 'Published (use Publish button)' },
-          ],
-        },
-        metaDescription: { type: 'textarea' as const, label: 'Meta description' },
-        ogImageId: {
-          type: 'custom' as const,
-          label: 'OG image',
-          render: OgImagePickerField,
-        },
-        ...(canManageMenus ? {
-          menuIds: {
-            type: 'custom' as const,
-            label: 'Show in menus',
-            render: MenuCheckboxField,
-          },
-        } : {}),
-      },
-    },
+    ...puckTemplateConfig,
     components: {
-      ...puckConfig.components,
+      ...puckTemplateConfig.components,
       ImageBlock: {
-        ...puckConfig.components.ImageBlock,
+        ...puckTemplateConfig.components.ImageBlock,
         fields: {
-          ...puckConfig.components.ImageBlock.fields,
-          mediaUrl: {
-            type: 'custom' as const,
-            label: 'Image',
-            render: ImageUrlPickerField,
-          },
+          ...puckTemplateConfig.components.ImageBlock.fields,
+          mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
         },
       },
       Card: {
-        ...puckConfig.components.Card,
+        ...puckTemplateConfig.components.Card,
         fields: {
-          ...puckConfig.components.Card.fields,
-          mediaUrl: {
-            type: 'custom' as const,
-            label: 'Image',
-            render: ImageUrlPickerField,
-          },
+          ...puckTemplateConfig.components.Card.fields,
+          mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
         },
       },
       MenuBlock: {
-        ...puckConfig.components.MenuBlock,
+        ...puckTemplateConfig.components.MenuBlock,
         fields: {
-          ...puckConfig.components.MenuBlock.fields,
+          ...puckTemplateConfig.components.MenuBlock.fields,
           menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,7 +62,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         ),
       },
     },
-  }), [canManageMenus])
+  }), [])
 
   const handleChange = useCallback((data: Data) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -110,15 +70,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       setSaveError('')
       setSaving(true)
       try {
-        const rootProps = data.root?.props as Record<string, unknown> | undefined
-        const menuIds = canManageMenus && Array.isArray(rootProps?.menuIds)
-          ? (rootProps.menuIds as string[])
-          : undefined
-
-        const res = await fetch(`/api/admin/pages/${pageId}/autosave`, {
+        const res = await fetch(`/api/admin/templates/${templateId}/autosave`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data, ...(menuIds !== undefined ? { menuIds } : {}) }),
+          body: JSON.stringify({ data }),
         })
         if (!res.ok) {
           const d = await res.json()
@@ -132,18 +87,14 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         setSaving(false)
       }
     }, AUTOSAVE_DEBOUNCE_MS)
-  }, [pageId])
+  }, [templateId])
 
   const handlePublish = useCallback(async (data: Data) => {
-    // Cancel any pending autosave so it cannot overwrite published status after we set it
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-      debounceRef.current = null
-    }
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
     setPublishError('')
     setPublishing(true)
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
+      const res = await fetch(`/api/admin/templates/${templateId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data }),
@@ -160,11 +111,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     } finally {
       setPublishing(false)
     }
-  }, [pageId])
+  }, [templateId])
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Status bar */}
+    <div style={{ height: 'calc(100vh - 53px)', display: 'flex', flexDirection: 'column' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '1rem',
         padding: '0.5rem 1rem',
@@ -189,18 +139,15 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           )}
         </span>
       </div>
-
-      {/* Puck editor — takes remaining height */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <Puck
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           config={editorConfig as any}
           data={initialData}
           onChange={handleChange}
-          onPublish={canPublish ? handlePublish : undefined}
+          onPublish={handlePublish}
         />
       </div>
-
       {publishing && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,

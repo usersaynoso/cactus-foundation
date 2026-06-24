@@ -47,6 +47,62 @@ export async function POST() {
     },
   })
 
+  // Seed default Header template (SiteLogo + MenuBlock)
+  const headerTemplate = await prisma.pageTemplate.upsert({
+    where: { id: 'seed-header' },
+    create: {
+      id: 'seed-header',
+      name: 'Default Header',
+      type: 'HEADER',
+      status: 'published',
+      builderData: {
+        content: [
+          {
+            type: 'SiteLogo',
+            props: { id: 'site-logo-1' },
+          },
+          {
+            type: 'MenuBlock',
+            props: {
+              id: 'main-menu-1',
+              menuId: mainMenu.id,
+              menuName: 'Main Menu',
+              orientation: 'horizontal',
+              spacing: 'normal',
+              showDropdowns: 'hover',
+              showMobileToggle: 'collapse',
+            },
+          },
+        ],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    update: {},
+  })
+
+  // Seed default Footer template (Copyright)
+  const footerTemplate = await prisma.pageTemplate.upsert({
+    where: { id: 'seed-footer' },
+    create: {
+      id: 'seed-footer',
+      name: 'Default Footer',
+      type: 'FOOTER',
+      status: 'published',
+      builderData: {
+        content: [
+          {
+            type: 'Copyright',
+            props: { id: 'copyright-1' },
+          },
+        ],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    update: {},
+  })
+
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: {
@@ -55,6 +111,8 @@ export async function POST() {
       hideFromCrawlers: true,
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
+      headerTemplateId: headerTemplate.id,
+      footerTemplateId: footerTemplate.id,
     },
   })
 

@@ -18,6 +18,10 @@ export default function NewPagePage() {
   const [menuIds, setMenuIds] = useState<string[]>([])
   const [menus, setMenus] = useState<{ id: string; name: string }[]>([])
   const [canManageMenus, setCanManageMenus] = useState(false)
+  const [canManageTemplates, setCanManageTemplates] = useState(false)
+  const [pageTemplates, setPageTemplates] = useState<{ id: string; name: string }[]>([])
+  const [templateId, setTemplateId] = useState('')
+  const [templateMode, setTemplateMode] = useState<'copy' | 'linked'>('copy')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -25,10 +29,18 @@ export default function NewPagePage() {
     Promise.all([
       fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : {}).catch(() => ({})),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
-    ]).then(([perms, menusData]) => {
+      fetch('/api/admin/templates').then((r) => ({ ok: r.ok, resp: r })).catch(() => ({ ok: false, resp: null })),
+    ]).then(async ([perms, menusData, templatesResult]) => {
       setCanManageMenus((perms as { canManageMenus?: boolean }).canManageMenus ?? false)
       setMenus((menusData as { menus?: { id: string; name: string }[] }).menus ?? [])
-    })
+      const { ok, resp } = templatesResult as { ok: boolean; resp: Response | null }
+      setCanManageTemplates(ok)
+      if (ok && resp) {
+        const d = await resp.json()
+        const allTemplates = (d as { templates?: { id: string; name: string; type: string }[] }).templates ?? []
+        setPageTemplates(allTemplates.filter((t) => t.type === 'PAGE'))
+      }
+    }).catch(() => {})
   }, [])
 
   function handleTitleChange(val: string) {
@@ -42,6 +54,7 @@ export default function NewPagePage() {
     try {
       const payload: Record<string, unknown> = { title, slug, body, metaDescription, status, bodyFormat: format }
       if (canManageMenus && menuIds.length > 0) payload.menuIds = menuIds
+      if (templateId) { payload.templateId = templateId; payload.templateMode = templateMode }
       const res = await fetch('/api/admin/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,6 +116,30 @@ export default function NewPagePage() {
         />
         <span className="field-hint">URL: <code>/{slug}</code></span>
       </div>
+
+      {canManageTemplates && pageTemplates.length > 0 && (
+        <div className="field">
+          <label>Start from template (optional)</label>
+          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+            <option value="">— Start blank —</option>
+            {pageTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          {templateId && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
+                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <input type="radio" name="templateMode" value="copy" checked={templateMode === 'copy'} onChange={() => setTemplateMode('copy')} />
+                  Copy — paste the template layout in, then edit freely
+                </label>
+                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <input type="radio" name="templateMode" value="linked" checked={templateMode === 'linked'} onChange={() => setTemplateMode('linked')} />
+                  Live link — template blocks update automatically when the template changes
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="field">
         <label>Editor</label>
