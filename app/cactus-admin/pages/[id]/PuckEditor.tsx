@@ -71,6 +71,17 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           },
         },
       },
+      Card: {
+        ...puckConfig.components.Card,
+        fields: {
+          ...puckConfig.components.Card.fields,
+          mediaUrl: {
+            type: 'custom' as const,
+            label: 'Image',
+            render: ImageUrlPickerField,
+          },
+        },
+      },
     },
   }), [canManageMenus])
 
