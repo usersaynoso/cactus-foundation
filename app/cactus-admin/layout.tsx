@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
-import AdminNav from '@/components/admin/AdminNav'
-import EnvBanner from '@/components/admin/EnvBanner'
+import AdminShell from '@/components/admin/AdminShell'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -34,21 +33,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   })
 
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-sidebar-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cactus.svg" alt="Cactus" style={{ width: 28, height: 28, background: '#fff', borderRadius: 4, padding: 2, flexShrink: 0 }} />
-          {config?.siteName ?? 'Cactus'}
-        </div>
-        <AdminNav adminPath={adminPath} userRole={user.role} />
-      </aside>
-      <div className="admin-main">
-        <EnvBanner />
-        <div className="admin-content">
-          {children}
-        </div>
-      </div>
-    </div>
+    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus'}>
+      {children}
+    </AdminShell>
   )
 }

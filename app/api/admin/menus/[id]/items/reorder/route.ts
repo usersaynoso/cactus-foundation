@@ -42,15 +42,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!validIds.has(item.id)) return errorResponse(`Item ${item.id} not in this menu`, 400)
   }
 
-  // Check nesting depth: any item with a parentId must have a parent that itself has no parentId
-  const parentIds = new Set(items.filter((i) => i.parentId).map((i) => i.parentId as string))
-  for (const pid of parentIds) {
-    const parentInList = items.find((i) => i.id === pid)
-    if (parentInList && parentInList.parentId !== null) {
-      return errorResponse('Nesting is capped at one level', 400)
-    }
-  }
-
   await prisma.$transaction(
     items.map((item) =>
       prisma.menuItem.update({

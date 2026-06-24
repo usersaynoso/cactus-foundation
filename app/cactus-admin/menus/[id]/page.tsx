@@ -30,6 +30,32 @@ function effectiveLabel(item: MenuItemFull): string {
   return item.label ?? '(no label)'
 }
 
+function getDescendantIds(itemId: string, items: MenuItemFull[]): Set<string> {
+  const ids = new Set<string>()
+  const queue = [itemId]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    for (const child of items.filter((i) => i.parentId === id)) {
+      if (!ids.has(child.id)) {
+        ids.add(child.id)
+        queue.push(child.id)
+      }
+    }
+  }
+  return ids
+}
+
+function getItemDepth(itemId: string, items: MenuItemFull[]): number {
+  let depth = 0
+  let current = items.find((i) => i.id === itemId)
+  while (current?.parentId) {
+    depth++
+    current = items.find((i) => i.id === current!.parentId)
+    if (depth > 50) break // guard against cycles
+  }
+  return depth
+}
+
 export default function MenuDetailPage() {
   const { id: menuId } = useParams<{ id: string }>()
   const pathname = usePathname()
@@ -201,7 +227,7 @@ export default function MenuDetailPage() {
     if (!menu) return
     setSaving(true)
     try {
-      const items = menu.items.map((i, idx) => ({
+      const items = menu.items.map((i) => ({
         id: i.id,
         parentId: i.id === itemId ? parentId : i.parentId,
         order: i.order,
@@ -219,6 +245,14 @@ export default function MenuDetailPage() {
     }
   }
 
+  async function promoteItem(itemId: string) {
+    if (!menu) return
+    const item = menu.items.find((i) => i.id === itemId)
+    if (!item?.parentId) return
+    const parent = menu.items.find((i) => i.id === item.parentId)
+    await nestUnder(itemId, parent?.parentId ?? null)
+  }
+
   // Drag-and-drop reorder
   async function handleDrop(targetId: string) {
     if (!menu || !dragId.current || dragId.current === targetId) {
@@ -232,7 +266,6 @@ export default function MenuDetailPage() {
     const target = flatItems.find((i) => i.id === targetId)
     if (!dragged || !target) { setDragOver(null); dragId.current = null; return }
 
-    // Build new order: remove dragged, insert before target
     const without = flatItems.filter((i) => i.id !== dragId.current)
     const targetIdx = without.findIndex((i) => i.id === targetId)
     without.splice(targetIdx, 0, dragged)
@@ -266,10 +299,12 @@ export default function MenuDetailPage() {
 
   const topLevel = [...menu.items].filter((i) => !i.parentId).sort((a, b) => a.order - b.order)
 
-  function ItemRow({ item, isChild = false }: { item: MenuItemFull; isChild?: boolean }) {
+  function ItemRow({ item, depth = 0 }: { item: MenuItemFull; depth?: number }) {
     const children = menu!.items.filter((c) => c.parentId === item.id).sort((a, b) => a.order - b.order)
     const isEditing = editingId === item.id
     const isDeleting = deleteId === item.id
+    const descendants = getDescendantIds(item.id, menu!.items)
+    const potentialParents = menu!.items.filter((i) => i.id !== item.id && !descendants.has(i.id))
 
     return (
       <>
@@ -285,7 +320,7 @@ export default function MenuDetailPage() {
             opacity: dragId.current === item.id ? 0.5 : 1,
           }}
         >
-          <td style={{ paddingLeft: isChild ? '2.5rem' : '0.75rem' }}>
+          <td style={{ paddingLeft: `${depth * 2 + 0.75}rem` }}>
             {isEditing ? (
               <div>
                 <input
@@ -316,13 +351,14 @@ export default function MenuDetailPage() {
                 </div>
               </div>
             ) : (
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                {depth > 0 && <span style={{ color: '#d1d5db', userSelect: 'none' }}>{'└'.padStart(depth, '·')}</span>}
                 <span style={{ fontWeight: 500 }}>{effectiveLabel(item)}</span>
                 {item.label && item.type === 'PAGE' && (
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.5rem' }}>(label override)</span>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>(label override)</span>
                 )}
                 {item.openInNewTab && (
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '0.5rem' }}>↗ new tab</span>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>↗ new tab</span>
                 )}
               </div>
             )}
@@ -342,28 +378,25 @@ export default function MenuDetailPage() {
               {!isEditing && !isDeleting && (
                 <>
                   <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item)}>Edit</button>
-                  {/* Nest under / promote controls */}
-                  {!isChild && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setAddParentId(item.id)}
+                    title="Add child item"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    + Child
+                  </button>
+                  {depth > 0 && (
                     <button
                       className="btn btn-secondary btn-sm"
-                      onClick={() => setAddParentId(item.id)}
-                      title="Add child item"
-                      style={{ fontSize: '0.75rem' }}
-                    >
-                      + Child
-                    </button>
-                  )}
-                  {isChild && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => nestUnder(item.id, null)}
-                      title="Promote to top level"
+                      onClick={() => promoteItem(item.id)}
+                      title="Move up one level"
                       style={{ fontSize: '0.75rem' }}
                     >
                       ↑ Promote
                     </button>
                   )}
-                  {!isChild && topLevel.filter((t) => t.id !== item.id).length > 0 && (
+                  {potentialParents.length > 0 && (
                     <select
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) nestUnder(item.id, e.target.value) }}
@@ -371,9 +404,13 @@ export default function MenuDetailPage() {
                       title="Nest under…"
                     >
                       <option value="" disabled>Nest under…</option>
-                      {topLevel.filter((t) => t.id !== item.id).map((t) => (
-                        <option key={t.id} value={t.id}>{effectiveLabel(t)}</option>
-                      ))}
+                      {potentialParents.map((p) => {
+                        const d = getItemDepth(p.id, menu!.items)
+                        const prefix = '  '.repeat(d)
+                        return (
+                          <option key={p.id} value={p.id}>{prefix}{effectiveLabel(p)}</option>
+                        )
+                      })}
                     </select>
                   )}
                   <button
@@ -394,9 +431,8 @@ export default function MenuDetailPage() {
             </div>
           </td>
         </tr>
-        {/* Child rows */}
         {children.map((child) => (
-          <ItemRow key={child.id} item={child} isChild />
+          <ItemRow key={child.id} item={child} depth={depth + 1} />
         ))}
       </>
     )
@@ -464,7 +500,7 @@ export default function MenuDetailPage() {
       )}
 
       <p style={{ fontSize: '0.8125rem', color: '#9ca3af', marginTop: '1rem' }}>
-        Drag rows to reorder. Items shown indented are nested under the item above them.
+        Drag rows to reorder. Use &quot;+ Child&quot; to add nested items, &quot;↑ Promote&quot; to move an item up one level, or &quot;Nest under…&quot; to re-parent.
       </p>
 
       {/* Add item modal */}
