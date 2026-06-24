@@ -17,6 +17,7 @@ export default function AdminNav({ adminPath, userRole, onNavClick }: Props) {
   const links = [
     { href: `${base}`, label: 'Dashboard', icon: '◈' },
     { href: `${base}/pages`, label: 'Pages', icon: '📄' },
+    { href: `${base}/templates`, label: 'Templates', icon: '📐' },
     { href: `${base}/menus`, label: 'Menus', icon: '☰' },
     { href: `${base}/media`, label: 'Media', icon: '🖼' },
     { href: `${base}/users`, label: 'Users', icon: '👥' },
