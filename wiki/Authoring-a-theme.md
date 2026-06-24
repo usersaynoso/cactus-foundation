@@ -55,20 +55,23 @@ The component names are a convention, not enforced by the framework. What matter
 
 ### Layout.tsx
 
-Must accept and render `children`:
+Must accept and render `children`. The `mainMenu` prop carries the resolved navigation items (see [Nav contract](#nav-contract-and-mainmenu) below):
 
 ```tsx
+import type { PublicMenuItem } from '@/lib/menu/resolve'
+
 type LayoutProps = {
   children: React.ReactNode
   siteName?: string
   privacyPolicySlug?: string | null
   termsSlug?: string | null
+  mainMenu?: PublicMenuItem[]
 }
 
-export default function Layout({ children, siteName, privacyPolicySlug, termsSlug }: LayoutProps) {
+export default function Layout({ children, siteName, privacyPolicySlug, termsSlug, mainMenu = [] }: LayoutProps) {
   return (
     <div className="midnight-shell">
-      <Nav siteName={siteName ?? 'My Site'} />
+      <Nav siteName={siteName ?? 'My Site'} mainMenu={mainMenu} />
       <main>{children}</main>
       <Footer siteName={siteName ?? 'My Site'} privacyPolicySlug={privacyPolicySlug} termsSlug={termsSlug} />
     </div>
@@ -78,9 +81,16 @@ export default function Layout({ children, siteName, privacyPolicySlug, termsSlu
 
 ### Nav.tsx
 
+Receives the resolved `mainMenu` array and renders it however the theme's design calls for. An empty array means no menu has been configured — render nothing, not an error:
+
 ```tsx
-type NavProps = { siteName: string }
-export default function Nav({ siteName }: NavProps) { ... }
+import type { PublicMenuItem } from '@/lib/menu/resolve'
+
+type NavProps = {
+  siteName: string
+  mainMenu?: PublicMenuItem[]
+}
+export default function Nav({ siteName, mainMenu = [] }: NavProps) { ... }
 ```
 
 ### Footer.tsx
@@ -93,6 +103,31 @@ type FooterProps = {
 }
 export default function Footer({ siteName, privacyPolicySlug, termsSlug }: FooterProps) { ... }
 ```
+
+### Nav contract and `mainMenu`
+
+The `mainMenu` prop is resolved server-side on every public request before being passed to the theme. Its shape:
+
+```ts
+type PublicMenuItem = {
+  id: string
+  label: string        // either the label override or the page's title
+  href: string         // resolved URL: /slug for pages, raw URL for external links
+  openInNewTab: boolean
+  children?: PublicMenuItem[]  // one level of children only; never nested further
+}
+```
+
+**Resolution rules the theme can rely on:**
+
+- Draft pages are filtered out. An item whose linked page is unpublished is simply absent from the array — the theme never needs to check draft status itself.
+- If `mainMenuId` is unset, or the menu has zero visible items, `mainMenu` is `[]`. Always handle the empty-array case: render nothing, not an error state.
+- Children are one level deep only. A child never has its own `children` property.
+- `href` for page-linked items is always the page's public path (`/slug`). For external items it is the URL exactly as entered by the admin.
+
+**Theme responsibilities:**
+
+The theme decides the visual form — flat bar, hamburger on mobile, dropdowns for children, whatever suits its design. The contract only promises the data shape.
 
 ## Design tokens
 
@@ -182,21 +217,24 @@ Here's a complete minimal theme you can copy-paste as a starting point:
 ```tsx
 import Nav from './Nav'
 import Footer from './Footer'
+import type { PublicMenuItem } from '@/lib/menu/resolve'
 
 export default function Layout({
   children,
   siteName = 'My Site',
   privacyPolicySlug,
   termsSlug,
+  mainMenu = [],
 }: {
   children: React.ReactNode
   siteName?: string
   privacyPolicySlug?: string | null
   termsSlug?: string | null
+  mainMenu?: PublicMenuItem[]
 }) {
   return (
     <>
-      <Nav siteName={siteName} />
+      <Nav siteName={siteName} mainMenu={mainMenu} />
       <main style={{ maxWidth: 800, margin: '0 auto', padding: '2rem 1rem' }}>
         {children}
       </main>
@@ -209,12 +247,27 @@ export default function Layout({
 **`components/Nav.tsx`:**
 ```tsx
 import Link from 'next/link'
-export default function Nav({ siteName }: { siteName: string }) {
+import type { PublicMenuItem } from '@/lib/menu/resolve'
+
+type Props = { siteName: string; mainMenu?: PublicMenuItem[] }
+
+export default function Nav({ siteName, mainMenu = [] }: Props) {
   return (
-    <header style={{ borderBottom: '1px solid #e5e7eb', padding: '1rem' }}>
+    <header style={{ borderBottom: '1px solid #e5e7eb', padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
       <Link href="/" style={{ fontWeight: 700, textDecoration: 'none', color: 'inherit' }}>
         {siteName}
       </Link>
+      {mainMenu.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          target={item.openInNewTab ? '_blank' : undefined}
+          rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
+          {item.label}
+        </Link>
+      ))}
     </header>
   )
 }

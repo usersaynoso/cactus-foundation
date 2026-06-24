@@ -12,9 +12,11 @@ type SiteConfig = {
   comingSoonPageId: string; maintenancePageId: string;
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
+  mainMenuId: string | null;
 }
 
 type InfoPage = { id: string; title: string }
+type MenuOption = { id: string; name: string }
 
 const TABS = ['general', 'branding', 'access', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
@@ -134,6 +136,7 @@ export default function ConfigPage() {
   const [tab, setTab] = useState<Tab>('general')
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
+  const [menus, setMenus] = useState<MenuOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -152,9 +155,11 @@ export default function ConfigPage() {
       fetch('/api/admin/config').then((r) => r.json()),
       fetch('/api/admin/pages?perPage=100').then((r) => r.json()),
       fetch('/api/admin/env').then((r) => r.json()),
-    ]).then(([cfg, pagesData, envData]) => {
+      fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
+    ]).then(([cfg, pagesData, envData, menusData]) => {
       setConfig(cfg)
       setPages(pagesData.pages ?? [])
+      setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
       // Pre-select SMTP mode if SMTP_HOST is set but BREVO_API_KEY is not
       if ((envData as { vars?: Record<string, boolean> }).vars?.['SMTP_HOST'] && !(envData as { vars?: Record<string, boolean> }).vars?.['BREVO_API_KEY']) {
@@ -323,6 +328,30 @@ export default function ConfigPage() {
           <div className="field"><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
           <div className="field"><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
+          <div className="field">
+            <label>Main menu</label>
+            {menus.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <select disabled style={{ flex: 1 }}>
+                  <option>No menus created yet</option>
+                </select>
+                <a href={`/${config.adminPath ?? ''}/menus`} style={{ fontSize: '0.875rem', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+                  Create a menu first
+                </a>
+              </div>
+            ) : (
+              <select
+                value={config.mainMenuId ?? ''}
+                onChange={(e) => set('mainMenuId', e.target.value || null)}
+              >
+                <option value="">— None (header will be empty) —</option>
+                {menus.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+            <span className="field-hint">The menu shown in the site header navigation.</span>
+          </div>
           <div className="field">
             <label>Timezone</label>
             <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>

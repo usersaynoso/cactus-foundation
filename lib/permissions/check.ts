@@ -14,6 +14,7 @@ export const CORE_PERMISSIONS = [
   { key: 'modules.manage', description: 'Install, update, and disable modules' },
   { key: 'themes.manage', description: 'Install and activate themes' },
   { key: 'config.manage', description: 'Edit site configuration' },
+  { key: 'menus.manage', description: 'Create and manage navigation menus' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']

@@ -33,7 +33,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-// Static generation for published pages.
 export async function generateStaticParams() {
   try {
     const pages = await prisma.infoPage.findMany({
@@ -47,7 +46,7 @@ export async function generateStaticParams() {
 }
 
 export const dynamicParams = true
-export const revalidate = false // on-demand revalidation only (triggered by publish/edit)
+export const revalidate = false
 
 export default async function InfoPageRoute({ params }: Props) {
   const { slug } = await params
@@ -63,7 +62,7 @@ export default async function InfoPageRoute({ params }: Props) {
 
   if (!page) notFound()
 
-  // Draft gate — one check, upstream of the format branch. Both formats respect it.
+  // Draft gate — one check, upstream of the format branch.
   if (page.status === 'draft') {
     const user = await getSessionFromCookie()
     if (!user || !isAdmin(user)) notFound()
@@ -72,13 +71,10 @@ export default async function InfoPageRoute({ params }: Props) {
   const isDraft = page.status === 'draft'
 
   if (page.bodyFormat === 'builder') {
-    // Builder format — use Puck's RSC Render. No markdown pipeline, no sanitization needed:
-    // builderData only ever contains props from the registered component schema.
     const data = page.builderData as Data | null
     if (!data) {
-      // Page switched to builder but has no content yet
       return (
-        <main style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
           {isDraft && (
             <div className="alert alert-warning" style={{ marginBottom: '1.5rem' }}>
               This page is a draft and is not visible to the public.
@@ -87,7 +83,7 @@ export default async function InfoPageRoute({ params }: Props) {
           <p style={{ color: '#9ca3af', textAlign: 'center', padding: '4rem 0' }}>
             This page has no builder content yet.
           </p>
-        </main>
+        </div>
       )
     }
     return (
@@ -106,11 +102,10 @@ export default async function InfoPageRoute({ params }: Props) {
     )
   }
 
-  // Markdown format — existing sanitized-markdown pipeline unchanged.
   const html = markdownToHtml(page.body)
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
       {isDraft && (
         <div className="alert alert-warning" style={{ marginBottom: '1.5rem' }}>
           This page is a draft and is not visible to the public.
@@ -126,6 +121,6 @@ export default async function InfoPageRoute({ params }: Props) {
           style={{ lineHeight: 1.75, color: '#374151' }}
         />
       </article>
-    </main>
+    </div>
   )
 }

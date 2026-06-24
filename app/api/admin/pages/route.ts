@@ -13,6 +13,7 @@ const Body = z.object({
   metaDescription: z.string().max(300).optional(),
   status: z.enum(['draft', 'published']).default('draft'),
   bodyFormat: z.enum(['markdown', 'builder']).default('markdown'),
+  menuIds: z.array(z.string()).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { title, body, metaDescription, status, bodyFormat } = parsed.data
+  const { title, body, metaDescription, status, bodyFormat, menuIds } = parsed.data
   let { slug } = parsed.data
   if (!slug) slug = generateSlug(title)
 
@@ -51,8 +52,32 @@ export async function POST(request: NextRequest) {
     return errorResponse('You do not have permission to publish pages', 403)
   }
 
-  const page = await prisma.infoPage.create({
-    data: { title, slug, body, metaDescription, status, bodyFormat, createdById: user.id },
+  const canManageMenus = menuIds && menuIds.length > 0 && await hasPermission(user, 'menus.manage')
+
+  const page = await prisma.$transaction(async (tx) => {
+    const created = await tx.infoPage.create({
+      data: { title, slug, body, metaDescription, status, bodyFormat, createdById: user.id },
+    })
+
+    if (canManageMenus && menuIds) {
+      for (const menuId of menuIds) {
+        const maxOrder = await tx.menuItem.aggregate({
+          where: { menuId, parentId: null },
+          _max: { order: true },
+        })
+        await tx.menuItem.create({
+          data: {
+            menuId,
+            pageId: created.id,
+            type: 'PAGE',
+            parentId: null,
+            order: (maxOrder._max.order ?? -1) + 1,
+          },
+        })
+      }
+    }
+
+    return created
   })
 
   if (status === 'published') revalidatePath(`/${slug}`)

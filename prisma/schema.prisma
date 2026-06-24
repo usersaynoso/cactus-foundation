@@ -178,6 +178,8 @@ model SiteConfig {
   recoveryPurgeAfterDays Int        @default(7)
   // Hashed recovery code for the admin account
   recoveryCodeHash       String?
+  // FK to Menu.id — nullable until admin creates and assigns a menu
+  mainMenuId             String?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -210,6 +212,8 @@ model InfoPage {
   createdBy       User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+
+  menuItems  MenuItem[]
 
   @@index([slug])
   @@index([status])
@@ -310,6 +314,45 @@ model DeployLock {
   lockedAt DateTime @default(now())
   // moduleId or themeId holding the lock
   lockedBy String
+}
+
+// ---------------------------------------------------------------------------
+// Menu Management
+// ---------------------------------------------------------------------------
+
+enum MenuItemType {
+  PAGE
+  EXTERNAL
+}
+
+model Menu {
+  id        String     @id @default(cuid())
+  name      String
+  items     MenuItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  menuId       String
+  menu         Menu         @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       MenuItem?    @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MenuItem[]   @relation("MenuItemChildren")
+  type         MenuItemType
+  pageId       String?
+  page         InfoPage?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  label        String?
+  url          String?
+  openInNewTab Boolean      @default(false)
+  order        Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([menuId, pageId])
+  @@index([menuId])
+  @@index([pageId])
 }
 
 // ---------------------------------------------------------------------------

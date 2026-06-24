@@ -1,65 +1,23 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import puckConfig from '@/lib/puck/config'
 import { OgImagePickerField, ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
-
-// Build the editor config by extending the base config with custom field renderers.
-// root.fields includes the four reconciled columns (title, slug, status, metaDescription,
-// ogImageId). These are also written back to real DB columns on every save —
-// the values in root.props are a working copy, never the source of truth.
-const editorConfig = {
-  ...puckConfig,
-  root: {
-    ...puckConfig.root,
-    fields: {
-      title:           { type: 'text' as const,     label: 'Title' },
-      slug:            { type: 'text' as const,     label: 'Slug' },
-      status:          {
-        type: 'select' as const,
-        label: 'Status',
-        options: [
-          { value: 'draft',     label: 'Draft' },
-          { value: 'published', label: 'Published (use Publish button)' },
-        ],
-      },
-      metaDescription: { type: 'textarea' as const, label: 'Meta description' },
-      ogImageId: {
-        type: 'custom' as const,
-        label: 'OG image',
-        render: OgImagePickerField,
-      },
-    },
-  },
-  components: {
-    ...puckConfig.components,
-    // Override ImageBlock to use the media picker for the mediaUrl field
-    ImageBlock: {
-      ...puckConfig.components.ImageBlock,
-      fields: {
-        ...puckConfig.components.ImageBlock.fields,
-        mediaUrl: {
-          type: 'custom' as const,
-          label: 'Image',
-          render: ImageUrlPickerField,
-        },
-      },
-    },
-  },
-}
+import { MenuCheckboxField } from '@/lib/puck/MenuCheckboxField'
 
 type Props = {
   pageId: string
   initialData: Data
   canPublish: boolean
+  canManageMenus: boolean
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
-export default function PuckEditor({ pageId, initialData, canPublish }: Props) {
+export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -69,16 +27,68 @@ export default function PuckEditor({ pageId, initialData, canPublish }: Props) {
   const [isPublished, setIsPublished] = useState(rootProps?.status === 'published')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Build editor config inside the component so canManageMenus can gate menuIds field
+  const editorConfig = useMemo(() => ({
+    ...puckConfig,
+    root: {
+      ...puckConfig.root,
+      fields: {
+        title:           { type: 'text' as const,     label: 'Title' },
+        slug:            { type: 'text' as const,     label: 'Slug' },
+        status:          {
+          type: 'select' as const,
+          label: 'Status',
+          options: [
+            { value: 'draft',     label: 'Draft' },
+            { value: 'published', label: 'Published (use Publish button)' },
+          ],
+        },
+        metaDescription: { type: 'textarea' as const, label: 'Meta description' },
+        ogImageId: {
+          type: 'custom' as const,
+          label: 'OG image',
+          render: OgImagePickerField,
+        },
+        ...(canManageMenus ? {
+          menuIds: {
+            type: 'custom' as const,
+            label: 'Show in menus',
+            render: MenuCheckboxField,
+          },
+        } : {}),
+      },
+    },
+    components: {
+      ...puckConfig.components,
+      ImageBlock: {
+        ...puckConfig.components.ImageBlock,
+        fields: {
+          ...puckConfig.components.ImageBlock.fields,
+          mediaUrl: {
+            type: 'custom' as const,
+            label: 'Image',
+            render: ImageUrlPickerField,
+          },
+        },
+      },
+    },
+  }), [canManageMenus])
+
   const handleChange = useCallback((data: Data) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       setSaveError('')
       setSaving(true)
       try {
+        const rootProps = data.root?.props as Record<string, unknown> | undefined
+        const menuIds = canManageMenus && Array.isArray(rootProps?.menuIds)
+          ? (rootProps.menuIds as string[])
+          : undefined
+
         const res = await fetch(`/api/admin/pages/${pageId}/autosave`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data }),
+          body: JSON.stringify({ data, ...(menuIds !== undefined ? { menuIds } : {}) }),
         })
         if (!res.ok) {
           const d = await res.json()

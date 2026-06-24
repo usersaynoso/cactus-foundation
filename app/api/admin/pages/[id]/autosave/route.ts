@@ -23,6 +23,7 @@ const Body = z.object({
     content: z.array(z.unknown()).optional(),
     zones: z.record(z.unknown()).optional(),
   }).passthrough(),
+  menuIds: z.array(z.string()).optional(),
 })
 
 type Params = { params: Promise<{ id: string }> }
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid builder data')
 
-  const { data } = parsed.data
+  const { data, menuIds } = parsed.data
   const rootProps = (data.root?.props ?? {}) as Record<string, unknown>
 
   // Extract reconciled fields from root.props
@@ -64,19 +65,55 @@ export async function POST(request: NextRequest, { params }: Params) {
     root: { ...data.root, props: { ...safeRootProps, title, slug, metaDescription, ogImageId } },
   }
 
-  const updated = await prisma.infoPage.update({
-    where: { id },
-    data: {
-      title,
-      slug,
-      metaDescription: metaDescription ?? null,
-      ogImageId: ogImageId ?? null,
-      status: 'draft',
-      bodyFormat: 'builder',
-      // Prisma Json field — unknown[] and Record<string,unknown> are compatible
-      // at runtime; we cast through unknown to satisfy the InputJsonValue constraint.
-      builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
-    },
+  const canManageMenus = menuIds !== undefined && await hasPermission(user, 'menus.manage')
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const up = await tx.infoPage.update({
+      where: { id },
+      data: {
+        title,
+        slug,
+        metaDescription: metaDescription ?? null,
+        ogImageId: ogImageId ?? null,
+        status: 'draft',
+        bodyFormat: 'builder',
+        builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      },
+    })
+
+    if (canManageMenus && menuIds !== undefined) {
+      const currentItems = await tx.menuItem.findMany({
+        where: { pageId: id },
+        select: { menuId: true, id: true },
+      })
+      const currentMenuIds = new Set(currentItems.map((i) => i.menuId))
+      const requestedMenuIds = new Set(menuIds)
+
+      const toAdd = menuIds.filter((mid) => !currentMenuIds.has(mid))
+      const toRemove = currentItems.filter((i) => !requestedMenuIds.has(i.menuId))
+
+      for (const menuId of toAdd) {
+        const maxOrder = await tx.menuItem.aggregate({
+          where: { menuId, parentId: null },
+          _max: { order: true },
+        })
+        await tx.menuItem.create({
+          data: {
+            menuId,
+            pageId: id,
+            type: 'PAGE',
+            parentId: null,
+            order: (maxOrder._max.order ?? -1) + 1,
+          },
+        })
+      }
+
+      for (const item of toRemove) {
+        await tx.menuItem.delete({ where: { id: item.id } })
+      }
+    }
+
+    return up
   })
 
   // Revalidate old slug if it changed (old slug may have been published)

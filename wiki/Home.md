@@ -4,7 +4,7 @@
 
 # Cactus CMS
 
-Cactus is a minimal, extensible, fast, and themeable CMS built on Next.js 16, PostgreSQL, and Prisma. It ships with everything you need to run a content site — authentication, site configuration, roles and permissions, info pages, user administration, themes, and a module registry — and nothing you don't.
+Cactus is a minimal, extensible, fast, and themeable CMS built on Next.js 16, PostgreSQL, and Prisma. It ships with everything you need to run a content site — authentication, site configuration, roles and permissions, info pages with a visual page builder, navigation menus, user administration, themes, and a module registry — and nothing you don't.
 
 ## Philosophy: core plus modules
 

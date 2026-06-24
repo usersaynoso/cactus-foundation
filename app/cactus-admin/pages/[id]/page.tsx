@@ -24,6 +24,7 @@ type PageData = {
   metaDescription: string | null
   ogImageId: string | null
   status: 'draft' | 'published'
+  menuIds: string[]
 }
 
 function buildInitialPuckData(page: PageData): Data {
@@ -41,6 +42,7 @@ function buildInitialPuckData(page: PageData): Data {
         status:          page.status,
         metaDescription: page.metaDescription ?? '',
         ogImageId:       page.ogImageId ?? '',
+        menuIds:         page.menuIds ?? [],
       },
     },
   } as Data
@@ -62,7 +64,10 @@ export default function EditPagePage() {
   const [metaDescription, setMetaDescription] = useState('')
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
 
+  const [menuIds, setMenuIds] = useState<string[]>([])
+  const [menus, setMenus]   = useState<{ id: string; name: string }[]>([])
   const [canPublish, setCanPublish] = useState(false)
+  const [canManageMenus, setCanManageMenus] = useState(false)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -71,8 +76,9 @@ export default function EditPagePage() {
   useEffect(() => {
     Promise.all([
       fetch(`/api/admin/pages/${id}`).then((r) => r.json()),
-      fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : { canPublish: false }).catch(() => ({ canPublish: false })),
-    ]).then(([d, perms]) => {
+      fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : { canPublish: false, canManageMenus: false }).catch(() => ({ canPublish: false, canManageMenus: false })),
+      fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
+    ]).then(([d, perms, menusData]) => {
       setPage(d)
       setBodyFormat(d.bodyFormat ?? 'markdown')
       setTitle(d.title ?? '')
@@ -80,27 +86,23 @@ export default function EditPagePage() {
       setBody(d.body ?? '')
       setMetaDescription(d.metaDescription ?? '')
       setStatus(d.status ?? 'draft')
+      setMenuIds(d.menuIds ?? [])
       setCanPublish(perms.canPublish ?? false)
+      setCanManageMenus(perms.canManageMenus ?? false)
+      setMenus((menusData as { menus?: { id: string; name: string }[] }).menus ?? [])
     }).catch(() => setError('Failed to load page'))
   }, [id])
-
-  // Re-check publish permission via a lightweight permissions endpoint.
-  // (The pages API GET already returned data; we just need the perm flag.)
-  useEffect(() => {
-    fetch('/api/admin/pages/perms')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setCanPublish(d.canPublish))
-      .catch(() => null)
-  }, [])
 
   async function handleMarkdownSave() {
     setError('')
     setLoading(true)
     try {
+      const body_payload: Record<string, unknown> = { title, slug, body, metaDescription, status }
+      if (canManageMenus) body_payload.menuIds = menuIds
       const res = await fetch(`/api/admin/pages/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, slug, body, metaDescription, status }),
+        body: JSON.stringify(body_payload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to save')
@@ -227,6 +229,7 @@ export default function EditPagePage() {
           pageId={id}
           initialData={initialData}
           canPublish={canPublish}
+          canManageMenus={canManageMenus}
         />
       </>
     )
@@ -314,6 +317,31 @@ export default function EditPagePage() {
         <label>Meta description</label>
         <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} />
       </div>
+
+      {canManageMenus && menus.length > 0 && (
+        <div className="field">
+          <label>Show in menus</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {menus.map((menu) => (
+              <label key={menu.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
+                <input
+                  type="checkbox"
+                  checked={menuIds.includes(menu.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setMenuIds((prev) => [...prev, menu.id])
+                    } else {
+                      setMenuIds((prev) => prev.filter((id) => id !== menu.id))
+                    }
+                  }}
+                />
+                {menu.name}
+              </label>
+            ))}
+          </div>
+          <span className="field-hint">Saves when you click Save above. Unchecking removes the page from that menu entirely.</span>
+        </div>
+      )}
     </div>
   )
 }

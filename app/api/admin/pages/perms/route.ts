@@ -8,13 +8,14 @@ export async function GET() {
   if (!user) return errorResponse('Not authenticated', 401)
 
   const perms = await hasPermissions(user, [
-    'pages.read', 'pages.write', 'pages.publish', 'pages.delete',
+    'pages.read', 'pages.write', 'pages.publish', 'pages.delete', 'menus.manage',
   ])
 
   return NextResponse.json({
-    canRead:    perms['pages.read']    ?? false,
-    canWrite:   perms['pages.write']   ?? false,
-    canPublish: perms['pages.publish'] ?? false,
-    canDelete:  perms['pages.delete']  ?? false,
+    canRead:         perms['pages.read']    ?? false,
+    canWrite:        perms['pages.write']   ?? false,
+    canPublish:      perms['pages.publish'] ?? false,
+    canDelete:       perms['pages.delete']  ?? false,
+    canManageMenus:  perms['menus.manage']  ?? false,
   })
 }

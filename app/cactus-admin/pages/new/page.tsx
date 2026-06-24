@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { generateSlug } from '@/lib/utils'
 
@@ -15,8 +15,21 @@ export default function NewPagePage() {
   const [metaDescription, setMetaDescription] = useState('')
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
   const [bodyFormat, setBodyFormat] = useState<'markdown' | 'builder'>('markdown')
+  const [menuIds, setMenuIds] = useState<string[]>([])
+  const [menus, setMenus] = useState<{ id: string; name: string }[]>([])
+  const [canManageMenus, setCanManageMenus] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : {}).catch(() => ({})),
+      fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
+    ]).then(([perms, menusData]) => {
+      setCanManageMenus((perms as { canManageMenus?: boolean }).canManageMenus ?? false)
+      setMenus((menusData as { menus?: { id: string; name: string }[] }).menus ?? [])
+    })
+  }, [])
 
   function handleTitleChange(val: string) {
     setTitle(val)
@@ -27,10 +40,12 @@ export default function NewPagePage() {
     setError('')
     setLoading(true)
     try {
+      const payload: Record<string, unknown> = { title, slug, body, metaDescription, status, bodyFormat: format }
+      if (canManageMenus && menuIds.length > 0) payload.menuIds = menuIds
       const res = await fetch('/api/admin/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, slug, body, metaDescription, status, bodyFormat: format }),
+        body: JSON.stringify(payload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to create page')
@@ -135,6 +150,31 @@ export default function NewPagePage() {
             <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Brief description for search engines (optional)" />
           </div>
         </>
+      )}
+
+      {canManageMenus && menus.length > 0 && (
+        <div className="field">
+          <label>Show in menus</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {menus.map((menu) => (
+              <label key={menu.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9375rem' }}>
+                <input
+                  type="checkbox"
+                  checked={menuIds.includes(menu.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setMenuIds((prev) => [...prev, menu.id])
+                    } else {
+                      setMenuIds((prev) => prev.filter((id) => id !== menu.id))
+                    }
+                  }}
+                />
+                {menu.name}
+              </label>
+            ))}
+          </div>
+          <span className="field-hint">The page will be added to the selected menus when saved.</span>
+        </div>
       )}
     </div>
   )
