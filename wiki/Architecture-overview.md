@@ -93,6 +93,33 @@ Info pages (`InfoPage` model) support two authoring modes controlled by `bodyFor
 
 The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers).
 
+### Available blocks
+
+All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs).
+
+| Block | Purpose |
+|---|---|
+| **Hero** | Large hero section with heading, sub-heading, and CTA button |
+| **Heading** | Standalone heading (H2–H5) with alignment and colour options |
+| **TextBlock** | Paragraph text with left / centre / right alignment |
+| **Quote** | Styled blockquote with optional attribution |
+| **Callout** | Alert/notice box — info, success, warning, or error |
+| **ButtonLink** | Standalone button link — primary, secondary, or outline style |
+| **Badge** | Small coloured pill label |
+| **Divider** | Horizontal rule — solid, dashed, or dotted; thin / medium / thick |
+| **Spacer** | Fixed vertical gap (8 px → 96 px) |
+| **ImageBlock** | Full-width image with alt text and optional caption |
+| **VideoEmbed** | YouTube or Vimeo embed (paste the watch URL; 16:9 / 4:3 / 1:1) |
+| **Card** | Image + heading + body text + optional CTA button |
+| **CTABanner** | Call-to-action banner — lighter than Hero; white / light-gray / brand background |
+| **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
+| **Accordion** | Collapsible FAQ using native `<details>`/`<summary>` — no JS required |
+| **Stats** | Row of statistic items (value + label) |
+| **FeatureList** | List of features with emoji icon, title, and description |
+| **Embed** | Generic `<iframe>` embed (maps, forms, etc.) |
+
+Blocks that need an image (ImageBlock, Card) use a custom media-picker field in the editor (`ImageUrlPickerField` from `lib/puck/MediaPickerField.tsx`); the field is declared as a plain `text` field in `config.tsx` and overridden with the custom renderer in `PuckEditor.tsx`.
+
 ### Reconciliation
 
 `InfoPage`'s real columns (`title`, `slug`, `status`, `metaDescription`, `ogImageId`) are canonical. `builderData.root.props` is a working copy. On every load, root props are overwritten from the DB row. On every save, those four fields are split back out and written to their real columns. This split happens in exactly one server-side location (the save handlers), never client-side.
