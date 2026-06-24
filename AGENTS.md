@@ -15,6 +15,23 @@ Instructions for any AI agent working in this repository. This file governs *how
    - Added a new top-level capability → add/extend the page, link it from `Home.md`.
 6. **Once genuinely clean**: commit to git with a descriptive message, then move to the next task.
 
+## Asking questions
+
+When you need to ask the user a question, follow this format:
+
+- Number each question (1., 2., 3., …).
+- Label each answer option with a letter (a., b., c., d., …).
+- **Always put your recommended answer first as option a.**
+
+Example:
+
+> 1. How should the new endpoint be authenticated?
+>    a. Require a valid session (recommended)
+>    b. API key in the Authorization header
+>    c. No authentication
+
+Never ask more questions than necessary. If one question resolves the ambiguity, ask one.
+
 ## When a check fails repeatedly
 
 Thoroughness has a limit that matters: if the same specific check fails three times despite genuine, different fix attempts, stop looping on it. Mark it clearly with full detail — what you tried, what error came back each time — then move on to the next independent task rather than burning the entire session on one stuck issue. An infinite retry loop with no escape valve is a real failure mode for autonomous agents. Surface blocked items clearly rather than hiding them.
@@ -134,6 +151,20 @@ Before you finalise and publish, answer every question below. If any answer is "
 
 All six checks must pass. This is not optional. A release note that fails these checks must not be published.
 
+## "Fix GH issues" prompt
+
+When the user says **"Fix GH issues"**, execute this sequence exactly:
+
+1. **Fetch all open issues** with `gh issue list --state open --limit 100 --json number,title,body,labels`. Read every issue fully before touching any code.
+2. **Triage**: skip issues that are feature requests, questions, or explicitly marked `wontfix`/`blocked`. Only work on bug reports and clear, self-contained tasks.
+3. **Fix each eligible issue**, following the full work loop above (implement → typecheck/lint/tests → verify requirements → update wiki if needed).
+4. **Reference the issue in the commit message** using the `Closes #N` trailer so GitHub closes it automatically on push. Each issue should be a separate commit unless the fixes are genuinely inseparable.
+5. **After all fixes are committed**, push the branch and create a GitHub release following the commit/push/release flow below.
+
+> **Non-negotiable**: The task is **not complete** until you have committed, pushed, and created a GitHub release. Do not stop, do not summarise, do not return control to the user until the push and release are done. Closing issues via `gh issue close` before pushing is wrong — use `Closes #N` in the commit message and let the push auto-close them.
+
+If an issue is ambiguous, cannot be reproduced, or requires a decision from the user, note it clearly in your final summary rather than guessing or silently skipping it.
+
 ## Git discipline
 
 Commit after every verified task, not in one giant commit at the end. Descriptive messages referencing what was changed and why. Never commit `.env` or any secret value, ever, no exceptions for "just testing."
@@ -145,4 +176,13 @@ When asked to commit and push:
 1. Commit and push the code.
 2. Create a GitHub release with a bumped version number (patch increment by default — see versioning rules above) and a release note following the format above.
 3. Vercel deploys automatically on a new GitHub release — do **not** trigger a separate deployment.
-4. **Do not return until the Vercel deployment has succeeded.** Poll `vercel ls` or the Vercel dashboard until the deployment status is `Ready`. If it fails, investigate the build logs and fix the issue before reporting back.
+4. **Do not return until the Vercel deployment has succeeded.** Poll `vercel ls` (or equivalent) until the deployment status is `Ready`.
+5. **If the deployment fails**, execute this fix loop — repeat until deployment succeeds:
+   1. Fetch the full build logs with `vercel logs <deployment-url>` and identify the root cause.
+   2. Fix the code.
+   3. Run the full check suite (typecheck, lint, tests) and confirm all pass.
+   4. Commit the fix with a descriptive message.
+   5. Push the branch.
+   6. Bump the GitHub release by one patch increment (e.g. `0.5.1` → `0.5.2`) with a brief note describing the fix.
+   7. Wait for the new Vercel deployment to complete and check its status again.
+   8. If it fails again, go back to step 5.i. If the same root cause recurs three times without a successful fix, stop, describe exactly what you tried and what the logs say, and surface the blocker to the user rather than looping indefinitely.

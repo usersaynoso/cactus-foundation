@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { deleteSession, clearSessionCookie } from '@/lib/auth/session'
 
-export async function POST() {
+export async function POST(request: Request) {
   const cookieStore = await cookies()
   const token = cookieStore.get('cactus_session')?.value
 
@@ -11,5 +11,5 @@ export async function POST() {
   }
 
   await clearSessionCookie()
-  return NextResponse.json({ ok: true })
+  return NextResponse.redirect(new URL('/logged-out', request.url))
 }
