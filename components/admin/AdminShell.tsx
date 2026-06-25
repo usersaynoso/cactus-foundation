@@ -8,10 +8,11 @@ type Props = {
   adminPath: string
   userRole: Role
   siteName: string
+  version: string
   children: React.ReactNode
 }
 
-export default function AdminShell({ adminPath, userRole, siteName, children }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
@@ -53,7 +54,7 @@ export default function AdminShell({ adminPath, userRole, siteName, children }: 
             ×
           </button>
         </div>
-        <AdminNav adminPath={adminPath} userRole={userRole} onNavClick={() => setMobileOpen(false)} />
+        <AdminNav adminPath={adminPath} userRole={userRole} version={version} onNavClick={() => setMobileOpen(false)} />
       </aside>
 
       <div className="admin-main">
