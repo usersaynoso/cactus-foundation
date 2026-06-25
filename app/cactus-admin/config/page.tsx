@@ -30,7 +30,7 @@ type SiteConfig = {
 
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
-type TemplateOption = { id: string; name: string; type: string }
+type TemplateOption = { id: string; name: string; type: string; status: string }
 
 const TABS = ['general', 'branding', 'access', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
@@ -517,10 +517,10 @@ function ConfigPageInner() {
             >
               <option value="">— Use theme default —</option>
               {templates.filter((t) => t.type === 'HEADER').map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}{t.status !== 'published' ? ' (draft — publish it first)' : ''}</option>
               ))}
             </select>
-            <span className="field-hint">When set, replaces the theme's built-in header. Only published Header templates appear on the live site.</span>
+            <span className="field-hint">When set, replaces the theme&apos;s built-in header. The template must be <strong>published</strong> (use the Publish button inside the template editor) to appear on the live site.</span>
           </div>
           <div className="field">
             <label>Site footer template</label>
@@ -530,10 +530,10 @@ function ConfigPageInner() {
             >
               <option value="">— Use theme default —</option>
               {templates.filter((t) => t.type === 'FOOTER').map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}{t.status !== 'published' ? ' (draft — publish it first)' : ''}</option>
               ))}
             </select>
-            <span className="field-hint">When set, replaces the theme's built-in footer. Only published Footer templates appear on the live site.</span>
+            <span className="field-hint">When set, replaces the theme&apos;s built-in footer. The template must be <strong>published</strong> (use the Publish button inside the template editor) to appear on the live site.</span>
           </div>
           <div className="field">
             <label>Timezone</label>

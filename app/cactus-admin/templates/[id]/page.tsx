@@ -65,6 +65,7 @@ export default function EditTemplatePage() {
       <TemplateEditor
         templateId={id}
         templateName={template.name}
+        templateType={template.type}
         initialData={initialData}
         initialStatus={template.status}
       />

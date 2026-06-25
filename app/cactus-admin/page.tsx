@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { isMediaProviderConfigured } from '@/lib/config/env'
@@ -16,6 +17,8 @@ type FeatureItem = {
 }
 
 export default async function AdminDashboard() {
+  const headersList = await headers()
+  const adminPath = headersList.get('x-cactus-admin-path') ?? ''
   const user = await getSessionFromCookie()
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
@@ -158,7 +161,7 @@ export default async function AdminDashboard() {
                     </span>
                     {!f.configured && (
                       <a
-                        href={`config?tab=${f.settingsTab}`}
+                        href={`/${adminPath}/config?tab=${f.settingsTab}`}
                         style={{ fontSize: '0.8125rem', color: '#16a34a', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
                       >
                         Set up →
@@ -181,7 +184,7 @@ export default async function AdminDashboard() {
             <span style={{ fontSize: '1.125rem' }}>✓</span>
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>All features configured</div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Your site is fully set up. You can manage all settings in <a href="config" style={{ color: '#16a34a' }}>Settings</a>.</div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`} style={{ color: '#16a34a' }}>Settings</a>.</div>
             </div>
           </div>
         </div>

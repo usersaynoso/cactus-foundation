@@ -109,10 +109,10 @@ Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). Th
 
 ## Info pages and the Puck builder
 
-Info pages (`InfoPage` model) support two authoring modes controlled by `bodyFormat`:
+Info pages (`InfoPage` model) always use the Puck builder. `bodyFormat` is always `'builder'` for new pages — the admin UI offers no markdown option. Legacy rows with `bodyFormat: 'markdown'` are auto-migrated to `'builder'` the first time they are opened in the admin editor (a PATCH is sent in the background; the public render still falls back to the markdown pipeline for any rows that haven't been migrated yet).
 
-- **`markdown`** (default): content stored in the `body` column, rendered through the sanitized-markdown pipeline (`marked` + `DOMPurify`).
 - **`builder`**: content stored in `builderData` (JSON), rendered via Puck's `<Render>` component (`@puckeditor/core/rsc`).
+- **`markdown`** (legacy): content stored in `body`, rendered through the sanitized-markdown pipeline (`marked` + `DOMPurify`). No new pages are created in this mode.
 
 ### Editor
 
@@ -231,8 +231,11 @@ In the admin editor, the same blocks use client-side fetching via `MenuBlockEdit
 
 `app/(public)/layout.tsx` checks `SiteConfig.headerTemplateId` and `footerTemplateId`. When a template is assigned and its status is `published`:
 
-- The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with `puckTemplateConfig` (which uses a pass-through root render — no max-width wrapper, unlike the page config).
+- The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with **RSC-safe** type-specific configs (`puckHeaderTemplateRscConfig` / `puckFooterTemplateRscConfig` from `lib/puck/config.tsx`).
+  - These configs wrap the root render in the correct Prickly HTML shell (`<header class="prickly-header"><nav class="prickly-nav">` for HEADER; `<footer class="prickly-footer">` for FOOTER), so the blocks render identically to the default theme components.
+  - They replace the `richtext` field type with `textarea` to prevent `React.lazy` from being called during server rendering (Puck v0.21.3's RSC module calls `React.lazy` for any component with a `richtext` field, which throws in React 19 RSC).
 - The theme's `Nav.tsx` / `Footer.tsx` components are skipped entirely.
+- The `TemplateEditor` also uses type-specific configs for the Puck canvas: `puckHeaderTemplateConfig` for HEADER, `puckFooterTemplateConfig` for FOOTER, `puckTemplateConfig` for PAGE — so the editor preview matches the live frontend render.
 
 If no template is assigned, or the assigned template is still in draft, the theme components render as normal (fallback).
 

@@ -4,7 +4,7 @@ import { markdownToHtml } from '@/lib/sanitize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
-import puckConfig from '@/lib/puck/config'
+import { puckRscConfig } from '@/lib/puck/config'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
@@ -123,9 +123,9 @@ export default async function InfoPageRoute({ params }: Props) {
           </div>
         )}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {templateData && <Render config={puckConfig as any} data={templateData} />}
+        {templateData && <Render config={puckRscConfig as any} data={templateData} />}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <Render config={puckConfig} data={data as any} />
+        <Render config={puckRscConfig as any} data={data as any} />
       </>
     )
   }

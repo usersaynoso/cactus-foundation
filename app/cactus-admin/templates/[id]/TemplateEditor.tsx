@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
-import { puckTemplateConfig } from '@/lib/puck/config'
+import { puckTemplateConfig, puckHeaderTemplateConfig, puckFooterTemplateConfig } from '@/lib/puck/config'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
@@ -11,13 +11,14 @@ import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 type Props = {
   templateId: string
   templateName: string
+  templateType: 'HEADER' | 'FOOTER' | 'PAGE'
   initialData: Data
   initialStatus: 'draft' | 'published'
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
-export default function TemplateEditor({ templateId, initialData, initialStatus }: Props) {
+export default function TemplateEditor({ templateId, templateType, initialData, initialStatus }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -26,28 +27,34 @@ export default function TemplateEditor({ templateId, initialData, initialStatus 
   const [isPublished, setIsPublished] = useState(initialStatus === 'published')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const editorConfig = useMemo(() => ({
-    ...puckTemplateConfig,
+  const editorConfig = useMemo(() => {
+    const baseConfig = templateType === 'HEADER'
+      ? puckHeaderTemplateConfig
+      : templateType === 'FOOTER'
+      ? puckFooterTemplateConfig
+      : puckTemplateConfig
+    return {
+    ...baseConfig,
     components: {
-      ...puckTemplateConfig.components,
+      ...baseConfig.components,
       ImageBlock: {
-        ...puckTemplateConfig.components.ImageBlock,
+        ...baseConfig.components.ImageBlock,
         fields: {
-          ...puckTemplateConfig.components.ImageBlock.fields,
+          ...baseConfig.components.ImageBlock.fields,
           mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
         },
       },
       Card: {
-        ...puckTemplateConfig.components.Card,
+        ...baseConfig.components.Card,
         fields: {
-          ...puckTemplateConfig.components.Card.fields,
+          ...baseConfig.components.Card.fields,
           mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
         },
       },
       MenuBlock: {
-        ...puckTemplateConfig.components.MenuBlock,
+        ...baseConfig.components.MenuBlock,
         fields: {
-          ...puckTemplateConfig.components.MenuBlock.fields,
+          ...baseConfig.components.MenuBlock.fields,
           menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,7 +73,9 @@ export default function TemplateEditor({ templateId, initialData, initialStatus 
         ),
       },
     },
-  }), [])
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateType])
 
   const handleChange = useCallback((data: Data) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)

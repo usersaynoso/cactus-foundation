@@ -910,39 +910,37 @@ function MenuBlock(props: any) {
 
   const hGap = horizontalGaps[spacing] ?? '0'
   return (
-    <nav>
-      <ul className="prickly-menu" style={hGap ? { gap: hGap } : undefined}>
-        {resolvedItems.map((item) => (
-          <li key={item.id} className="prickly-menu-item">
-            <a
-              href={item.href}
-              target={item.openInNewTab ? '_blank' : undefined}
-              rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-              className="prickly-menu-link"
-              style={{ ...linkStyleOverride, ...(hoverBackground ? { '--prickly-hover-bg': hoverBackground } as React.CSSProperties : {}) }}
-            >
-              {item.label}
-              {item.children && item.children.length > 0 && (
-                <span className="prickly-dropdown-arrow" aria-hidden="true">▾</span>
-              )}
-            </a>
+    <ul className="prickly-menu" style={hGap ? { gap: hGap } : undefined}>
+      {resolvedItems.map((item) => (
+        <li key={item.id} className="prickly-menu-item">
+          <a
+            href={item.href}
+            target={item.openInNewTab ? '_blank' : undefined}
+            rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+            className="prickly-menu-link"
+            style={{ ...linkStyleOverride, ...(hoverBackground ? { '--prickly-hover-bg': hoverBackground } as React.CSSProperties : {}) }}
+          >
+            {item.label}
             {item.children && item.children.length > 0 && (
-              <ul className="prickly-dropdown" style={{ display: 'none' }}>
-                {item.children.map((child: any) => (
-                  <li key={child.id}>
-                    <a href={child.href} target={child.openInNewTab ? '_blank' : undefined}
-                      rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
-                      className="prickly-dropdown-link">
-                      {child.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <span className="prickly-dropdown-arrow" aria-hidden="true">▾</span>
             )}
-          </li>
-        ))}
-      </ul>
-    </nav>
+          </a>
+          {item.children && item.children.length > 0 && (
+            <ul className="prickly-dropdown" style={{ display: 'none' }}>
+              {item.children.map((child: any) => (
+                <li key={child.id}>
+                  <a href={child.href} target={child.openInNewTab ? '_blank' : undefined}
+                    rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
+                    className="prickly-dropdown-link">
+                    {child.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -1898,4 +1896,44 @@ export const puckFooterTemplateConfig = {
       </footer>
     ),
   },
+}
+
+// ---------------------------------------------------------------------------
+// RSC-safe config variants
+// Puck's RSC Render calls React.lazy for any component that has a `richtext`
+// field type. React.lazy is not supported in React Server Components and will
+// throw, causing a "server error" page. These variants replace the richtext
+// field type with textarea so the stored HTML is passed through as-is.
+// Use these configs for all public (server-rendered) Render calls.
+// ---------------------------------------------------------------------------
+
+const rscSafeComponents = {
+  ...puckConfig.components,
+  RichTextBlock: {
+    ...puckConfig.components.RichTextBlock,
+    fields: {
+      ...puckConfig.components.RichTextBlock.fields,
+      content: { type: 'textarea' as const, label: 'Content (HTML)' },
+    },
+  },
+}
+
+export const puckRscConfig = {
+  ...puckConfig,
+  components: rscSafeComponents,
+}
+
+export const puckHeaderTemplateRscConfig = {
+  ...puckHeaderTemplateConfig,
+  components: rscSafeComponents,
+}
+
+export const puckFooterTemplateRscConfig = {
+  ...puckFooterTemplateConfig,
+  components: rscSafeComponents,
+}
+
+export const puckTemplateRscConfig = {
+  ...puckTemplateConfig,
+  components: rscSafeComponents,
 }

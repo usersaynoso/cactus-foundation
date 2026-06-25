@@ -4,7 +4,7 @@ import { markdownToHtml } from '@/lib/sanitize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
-import puckConfig from '@/lib/puck/config'
+import { puckRscConfig } from '@/lib/puck/config'
 import type { Data } from '@puckeditor/core'
 
 export const dynamic = 'force-dynamic'
@@ -102,7 +102,7 @@ function renderPage(page: PageData, isDraft: boolean) {
           </div>
         )}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <Render config={puckConfig} data={data as any} />
+        <Render config={puckRscConfig as any} data={data as any} />
       </>
     )
   }

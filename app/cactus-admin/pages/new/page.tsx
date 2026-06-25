@@ -11,17 +11,13 @@ export default function NewPagePage() {
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
-  const [body, setBody] = useState('')
-  const [metaDescription, setMetaDescription] = useState('')
-  const [status, setStatus] = useState<'draft' | 'published'>('draft')
-  const [bodyFormat, setBodyFormat] = useState<'markdown' | 'builder'>('markdown')
-  const [menuIds, setMenuIds] = useState<string[]>([])
-  const [menus, setMenus] = useState<{ id: string; name: string }[]>([])
   const [canManageMenus, setCanManageMenus] = useState(false)
   const [canManageTemplates, setCanManageTemplates] = useState(false)
   const [pageTemplates, setPageTemplates] = useState<{ id: string; name: string }[]>([])
   const [templateId, setTemplateId] = useState('')
   const [templateMode, setTemplateMode] = useState<'copy' | 'linked'>('copy')
+  const [menuIds, setMenuIds] = useState<string[]>([])
+  const [menus, setMenus] = useState<{ id: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -48,11 +44,14 @@ export default function NewPagePage() {
     if (!slugEdited) setSlug(generateSlug(val))
   }
 
-  async function handleSave(format = bodyFormat) {
+  async function handleCreate() {
+    if (!title || !slug) return
     setError('')
     setLoading(true)
     try {
-      const payload: Record<string, unknown> = { title, slug, body, metaDescription, status, bodyFormat: format }
+      const payload: Record<string, unknown> = {
+        title, slug, bodyFormat: 'builder', status: 'draft',
+      }
       if (canManageMenus && menuIds.length > 0) payload.menuIds = menuIds
       if (templateId) { payload.templateId = templateId; payload.templateMode = templateMode }
       const res = await fetch('/api/admin/pages', {
@@ -62,11 +61,7 @@ export default function NewPagePage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to create page')
-      if (format === 'builder') {
-        router.push(`/${adminPath}/pages/${d.id}`)
-      } else {
-        router.push(`/${adminPath}/pages`)
-      }
+      router.push(`/${adminPath}/pages/${d.id}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create page')
     } finally {
@@ -74,30 +69,17 @@ export default function NewPagePage() {
     }
   }
 
-  function handleBuilderClick() {
-    setBodyFormat('builder')
-    if (title && slug) {
-      handleSave('builder')
-    }
-  }
-
   return (
     <div style={{ maxWidth: 800 }}>
       <div className="page-header">
         <h1 className="page-title">New Page</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as 'draft' | 'published')}
-            style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 6, fontFamily: 'inherit' }}
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-          <button className="btn btn-primary" disabled={!title || !slug || loading} onClick={() => handleSave()}>
-            {loading ? 'Saving…' : bodyFormat === 'builder' ? 'Create & Open Builder' : 'Save'}
-          </button>
-        </div>
+        <button
+          className="btn btn-primary"
+          disabled={!title || !slug || loading}
+          onClick={handleCreate}
+        >
+          {loading ? 'Creating…' : 'Create & Open Builder'}
+        </button>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -139,54 +121,6 @@ export default function NewPagePage() {
             </div>
           )}
         </div>
-      )}
-
-      <div className="field">
-        <label>Editor</label>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            type="button"
-            className={bodyFormat === 'markdown' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-            onClick={() => setBodyFormat('markdown')}
-          >
-            Markdown
-          </button>
-          <button
-            type="button"
-            className={bodyFormat === 'builder' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-            onClick={handleBuilderClick}
-            disabled={bodyFormat === 'builder' && (!title || !slug || loading)}
-          >
-            {bodyFormat === 'builder' && loading ? 'Creating…' : 'Page Builder'}
-          </button>
-        </div>
-        {bodyFormat === 'builder' && (
-          <span className="field-hint">
-            {title && slug
-              ? 'Click Page Builder above to create the page and open the visual builder.'
-              : 'Enter a title above, then click Page Builder to create the page and open the visual builder.'}
-          </span>
-        )}
-      </div>
-
-      {bodyFormat === 'markdown' && (
-        <>
-          <div className="field">
-            <label>Body (Markdown)</label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={20}
-              placeholder="Write your page content in Markdown…"
-              style={{ fontFamily: 'monospace', fontSize: '0.9375rem' }}
-            />
-          </div>
-
-          <div className="field">
-            <label>Meta description</label>
-            <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Brief description for search engines (optional)" />
-          </div>
-        </>
       )}
 
       {canManageMenus && menus.length > 0 && (

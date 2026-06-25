@@ -3,7 +3,7 @@ import { resolveMainMenu } from '@/lib/menu/resolve'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { Render } from '@puckeditor/core/rsc'
-import { puckHeaderTemplateConfig, puckFooterTemplateConfig } from '@/lib/puck/config'
+import { puckHeaderTemplateRscConfig, puckFooterTemplateRscConfig } from '@/lib/puck/config'
 import PricklyLayout from '@/themes/prickly/components/Layout'
 import Nav from '@/themes/prickly/components/Nav'
 import Footer from '@/themes/prickly/components/Footer'
@@ -88,13 +88,13 @@ export default async function PublicLayout({ children }: { children: React.React
     <div className="prickly-shell">
       {useCustomHeader
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={puckHeaderTemplateConfig as any} data={headerData as Data} />
+        ? <Render config={puckHeaderTemplateRscConfig as any} data={headerData as Data} />
         : <Nav siteName={config?.siteName ?? 'Cactus'} mainMenu={mainMenu} />
       }
       <main className="prickly-main">{children}</main>
       {useCustomFooter
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={puckFooterTemplateConfig as any} data={footerData as Data} />
+        ? <Render config={puckFooterTemplateRscConfig as any} data={footerData as Data} />
         : <Footer siteName={config?.siteName ?? 'Cactus'} privacyPolicySlug={privacyPage?.slug} termsSlug={termsPage?.slug} />
       }
     </div>
