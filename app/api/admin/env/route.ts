@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { getVercelEnvVarKeys, upsertVercelEnvVars } from '@/lib/vercel/env'
+import { getVercelEnvVarKeys, upsertVercelEnvVars, deleteVercelEnvVars } from '@/lib/vercel/env'
 import { errorResponse } from '@/lib/utils'
 
 // The env vars that can be managed via the UI.
@@ -91,5 +91,25 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return errorResponse(`Failed to write env vars: ${message}`, 502)
+  }
+}
+
+// DELETE — removes all managed env vars (factory reset).
+export async function DELETE() {
+  const user = await getSessionFromCookie()
+  if (!user) return errorResponse('Not authenticated', 401)
+
+  const token = process.env.VERCEL_API_TOKEN
+  const projectId = process.env.VERCEL_PROJECT_ID
+  if (!token || !projectId) {
+    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  }
+
+  try {
+    await deleteVercelEnvVars(token, projectId, [...ALLOWED_KEYS])
+    return NextResponse.json({ ok: true })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return errorResponse(`Failed to delete env vars: ${message}`, 502)
   }
 }
