@@ -710,37 +710,145 @@ function Logos(props: any) {
 // ---------------------------------------------------------------------------
 
 function SiteLogo(props: any) {
-  const { logoUrl, siteName } = props as { logoUrl?: string; siteName?: string }
+  const {
+    logoUrl, siteName,
+    logoHeight = 40,
+    showTextWithLogo = false,
+    textColor,
+    homeUrl = '/',
+    iconEmoji = '🌵',
+    showIcon = true,
+  } = props as {
+    logoUrl?: string; siteName?: string; logoHeight?: number;
+    showTextWithLogo?: boolean; textColor?: string; homeUrl?: string;
+    iconEmoji?: string; showIcon?: boolean;
+  }
+  const href = homeUrl || '/'
+  const colorStyle = textColor ? { color: textColor } : undefined
+  // Puck select fields return strings; support both boolean and string forms
+  const showTextBool = showTextWithLogo === true || (showTextWithLogo as unknown) === 'true'
+  const showIconBool = showIcon !== false && (showIcon as unknown) !== 'false'
+
   if (logoUrl) {
     return (
-      <a href="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+      <a href={href} className="prickly-logo" style={colorStyle}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: 40, width: 'auto' }} />
+        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
+        {showTextBool && siteName && (
+          <span style={{ marginLeft: '0.5rem' }}>{siteName}</span>
+        )}
       </a>
     )
   }
+
   return (
-    <a href="/" style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 700, fontSize: '1.25rem', color: '#111827', textDecoration: 'none', gap: '0.5rem' }}>
-      🌵 {siteName ?? 'Site Name'}
+    <a href={href} className="prickly-logo" style={colorStyle}>
+      {showIconBool && iconEmoji && <span aria-hidden="true">{iconEmoji}</span>}
+      {' '}{siteName ?? 'Site Name'}
     </a>
   )
 }
 
 function Copyright(props: any) {
-  const { siteName, year } = props as { siteName?: string; year?: number }
+  const {
+    siteName,
+    prefix = '©',
+    customPrefix = '',
+    yearFormat = 'current',
+    startYear,
+    showSiteName = true,
+    suffix = '',
+    alignment = 'left',
+    fontSize = 'small',
+    textColor = '#9ca3af',
+    privacyPolicyUrl = '',
+    privacyPolicyLabel = 'Privacy Policy',
+    termsUrl = '',
+    termsLabel = 'Terms of Service',
+    customLink1Url = '',
+    customLink1Label = '',
+    customLink2Url = '',
+    customLink2Label = '',
+  } = props as {
+    siteName?: string; prefix?: string; customPrefix?: string;
+    yearFormat?: string; startYear?: number; showSiteName?: boolean;
+    suffix?: string; alignment?: string; fontSize?: string; textColor?: string;
+    privacyPolicyUrl?: string; privacyPolicyLabel?: string;
+    termsUrl?: string; termsLabel?: string;
+    customLink1Url?: string; customLink1Label?: string;
+    customLink2Url?: string; customLink2Label?: string;
+  }
+
+  const currentYear = new Date().getFullYear()
+  const resolvedPrefix = prefix === 'custom' ? (customPrefix || '©') : prefix === 'none' ? '' : prefix
+
+  let yearText = ''
+  if (yearFormat === 'current') yearText = String(currentYear)
+  else if (yearFormat === 'range' && startYear) yearText = `${startYear}–${currentYear}`
+
+  const fontSizes: Record<string, string> = { small: '0.875rem', medium: '1rem', large: '1.125rem' }
+  const textSize = fontSizes[fontSize] ?? '0.875rem'
+
+  // Puck select fields return strings; support both boolean and string forms
+  const showSiteNameBool = showSiteName !== false && (showSiteName as unknown) !== 'false'
+
+  const parts = [
+    resolvedPrefix,
+    yearText,
+    showSiteNameBool ? (siteName ?? 'My Site') : '',
+    suffix,
+  ].filter(Boolean)
+  const copyrightText = parts.join(' ')
+
+  const links = [
+    privacyPolicyUrl ? { url: privacyPolicyUrl, label: privacyPolicyLabel || 'Privacy Policy' } : null,
+    termsUrl ? { url: termsUrl, label: termsLabel || 'Terms of Service' } : null,
+    customLink1Url ? { url: customLink1Url, label: customLink1Label || customLink1Url } : null,
+    customLink2Url ? { url: customLink2Url, label: customLink2Label || customLink2Url } : null,
+  ].filter(Boolean) as Array<{ url: string; label: string }>
+
+  const justifyContent =
+    alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'space-between'
+
   return (
-    <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.875rem' }}>
-      © {year ?? new Date().getFullYear()} {siteName ?? 'My Site'}
-    </p>
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+      justifyContent, gap: '1.5rem', width: '100%',
+    }}>
+      <span style={{ color: textColor, fontSize: textSize }}>
+        {copyrightText}
+      </span>
+      {links.length > 0 && (
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          {links.map((link) => (
+            <a key={link.url} href={link.url} style={{ color: textColor, fontSize: textSize, textDecoration: 'none' }}>
+              {link.label}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
 function MenuBlock(props: any) {
-  const { resolvedItems, orientation, spacing } = props as {
+  const {
+    resolvedItems, orientation, spacing,
+    itemFontSize = 'medium',
+    itemFontWeight = 'medium',
+    textTransform = 'none',
+    itemColor,
+    hoverBackground,
+  } = props as {
     resolvedItems?: Array<{ id: string; label: string; href: string; openInNewTab: boolean; children?: any[] }>
     orientation: 'horizontal' | 'vertical'
     spacing: 'tight' | 'normal' | 'wide'
     showMobileToggle: string
+    itemFontSize?: 'small' | 'medium' | 'large'
+    itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
+    textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
+    itemColor?: string
+    hoverBackground?: string
   }
 
   if (!resolvedItems) {
@@ -751,20 +859,31 @@ function MenuBlock(props: any) {
     )
   }
 
-  const gaps: Record<string, string> = { tight: '0.75rem', normal: '1.25rem', wide: '2rem' }
-  const gap = gaps[spacing] ?? '1.25rem'
+  const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
+  const horizontalGaps: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem' }
+
+  const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
+  const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
+
+  const linkStyleOverride: React.CSSProperties = {}
+  if (itemColor) linkStyleOverride.color = itemColor
+  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = fontSizeMap[itemFontSize]
+  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = fontWeightMap[itemFontWeight]
+  if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
 
   if (orientation === 'vertical') {
+    const vGap = verticalGaps[spacing] ?? '0.5rem'
     return (
       <nav>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: vGap }}>
           {resolvedItems.map((item) => (
             <li key={item.id}>
               <a
                 href={item.href}
                 target={item.openInNewTab ? '_blank' : undefined}
                 rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                style={{ textDecoration: 'none', color: '#374151', fontWeight: 500, fontSize: '0.9375rem' }}
+                className="prickly-menu-link"
+                style={linkStyleOverride}
               >
                 {item.label}
               </a>
@@ -773,7 +892,7 @@ function MenuBlock(props: any) {
                   {item.children.map((child: any) => (
                     <li key={child.id}>
                       <a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
-                        style={{ textDecoration: 'none', color: '#6b7280', fontSize: '0.875rem' }}>
+                        className="prickly-dropdown-link" style={itemColor ? { color: itemColor } : undefined}>
                         {child.label}
                       </a>
                     </li>
@@ -787,19 +906,37 @@ function MenuBlock(props: any) {
     )
   }
 
+  const hGap = horizontalGaps[spacing] ?? '0'
   return (
     <nav>
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap }}>
+      <ul className="prickly-menu" style={hGap ? { gap: hGap } : undefined}>
         {resolvedItems.map((item) => (
-          <li key={item.id} style={{ position: 'relative' }}>
+          <li key={item.id} className="prickly-menu-item">
             <a
               href={item.href}
               target={item.openInNewTab ? '_blank' : undefined}
               rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-              style={{ textDecoration: 'none', color: '#374151', fontWeight: 500, fontSize: '0.9375rem' }}
+              className="prickly-menu-link"
+              style={{ ...linkStyleOverride, ...(hoverBackground ? { '--prickly-hover-bg': hoverBackground } as React.CSSProperties : {}) }}
             >
               {item.label}
+              {item.children && item.children.length > 0 && (
+                <span className="prickly-dropdown-arrow" aria-hidden="true">▾</span>
+              )}
             </a>
+            {item.children && item.children.length > 0 && (
+              <ul className="prickly-dropdown" style={{ display: 'none' }}>
+                {item.children.map((child: any) => (
+                  <li key={child.id}>
+                    <a href={child.href} target={child.openInNewTab ? '_blank' : undefined}
+                      rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
+                      className="prickly-dropdown-link">
+                      {child.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
@@ -1510,14 +1647,118 @@ const puckConfig = {
     // ── Site ─────────────────────────────────────────────────────────────────
     SiteLogo: {
       label: 'Site Logo',
-      fields: {},
-      defaultProps: {},
+      fields: {
+        homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' },
+        logoHeight: { type: 'number' as const, label: 'Logo image height (px)' },
+        showTextWithLogo: {
+          type: 'select' as const,
+          label: 'Show site name with image',
+          options: [
+            { value: 'false', label: 'Image only' },
+            { value: 'true',  label: 'Image + site name' },
+          ],
+        },
+        showIcon: {
+          type: 'select' as const,
+          label: 'Show emoji icon (text logo)',
+          options: [
+            { value: 'true',  label: 'Yes' },
+            { value: 'false', label: 'No' },
+          ],
+        },
+        iconEmoji: { type: 'text' as const, label: 'Emoji / icon (text logo)' },
+        textColor: { type: 'text' as const, label: 'Text colour (hex or CSS value)' },
+      },
+      defaultProps: {
+        homeUrl: '/',
+        logoHeight: 40,
+        showTextWithLogo: 'false',
+        showIcon: 'true',
+        iconEmoji: '🌵',
+        textColor: '',
+      },
       render: SiteLogo,
     },
     Copyright: {
       label: 'Copyright',
-      fields: {},
-      defaultProps: {},
+      fields: {
+        prefix: {
+          type: 'select' as const,
+          label: 'Copyright symbol',
+          options: [
+            { value: '©',         label: '© (copyright symbol)' },
+            { value: 'Copyright', label: 'Copyright (word)' },
+            { value: 'none',      label: 'None' },
+            { value: 'custom',    label: 'Custom…' },
+          ],
+        },
+        customPrefix: { type: 'text' as const, label: 'Custom prefix (when "Custom" selected)' },
+        yearFormat: {
+          type: 'select' as const,
+          label: 'Year format',
+          options: [
+            { value: 'current', label: 'Current year (auto)' },
+            { value: 'range',   label: 'Year range (e.g. 2020–2025)' },
+            { value: 'none',    label: 'No year' },
+          ],
+        },
+        startYear: { type: 'number' as const, label: 'Range start year (e.g. 2020)' },
+        showSiteName: {
+          type: 'select' as const,
+          label: 'Show site name',
+          options: [
+            { value: 'true',  label: 'Yes' },
+            { value: 'false', label: 'No' },
+          ],
+        },
+        suffix: { type: 'text' as const, label: 'Suffix text (e.g. All rights reserved.)' },
+        alignment: {
+          type: 'select' as const,
+          label: 'Alignment',
+          options: [
+            { value: 'left',   label: 'Left (copyright / links split)' },
+            { value: 'center', label: 'Center' },
+            { value: 'right',  label: 'Right' },
+          ],
+        },
+        fontSize: {
+          type: 'select' as const,
+          label: 'Font size',
+          options: [
+            { value: 'small',  label: 'Small' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'large',  label: 'Large' },
+          ],
+        },
+        textColor: { type: 'text' as const, label: 'Text colour (hex or CSS value)' },
+        privacyPolicyUrl:   { type: 'text' as const, label: 'Privacy Policy URL' },
+        privacyPolicyLabel: { type: 'text' as const, label: 'Privacy Policy link label' },
+        termsUrl:           { type: 'text' as const, label: 'Terms of Service URL' },
+        termsLabel:         { type: 'text' as const, label: 'Terms of Service link label' },
+        customLink1Url:   { type: 'text' as const, label: 'Extra link 1 — URL' },
+        customLink1Label: { type: 'text' as const, label: 'Extra link 1 — label' },
+        customLink2Url:   { type: 'text' as const, label: 'Extra link 2 — URL' },
+        customLink2Label: { type: 'text' as const, label: 'Extra link 2 — label' },
+      },
+      defaultProps: {
+        prefix: '©',
+        customPrefix: '',
+        yearFormat: 'current',
+        startYear: new Date().getFullYear(),
+        showSiteName: 'true',
+        suffix: '',
+        alignment: 'left',
+        fontSize: 'small',
+        textColor: '#9ca3af',
+        privacyPolicyUrl: '',
+        privacyPolicyLabel: 'Privacy Policy',
+        termsUrl: '',
+        termsLabel: 'Terms of Service',
+        customLink1Url: '',
+        customLink1Label: '',
+        customLink2Url: '',
+        customLink2Label: '',
+      },
       render: Copyright,
     },
     MenuBlock: {
@@ -1542,6 +1783,36 @@ const puckConfig = {
             { value: 'wide',   label: 'Wide' },
           ],
         },
+        itemFontSize: {
+          type: 'select' as const,
+          label: 'Font size',
+          options: [
+            { value: 'small',  label: 'Small' },
+            { value: 'medium', label: 'Medium (default)' },
+            { value: 'large',  label: 'Large' },
+          ],
+        },
+        itemFontWeight: {
+          type: 'select' as const,
+          label: 'Font weight',
+          options: [
+            { value: 'normal',   label: 'Normal' },
+            { value: 'medium',   label: 'Medium (default)' },
+            { value: 'semibold', label: 'Semibold' },
+            { value: 'bold',     label: 'Bold' },
+          ],
+        },
+        textTransform: {
+          type: 'select' as const,
+          label: 'Text transform',
+          options: [
+            { value: 'none',       label: 'None (default)' },
+            { value: 'uppercase',  label: 'UPPERCASE' },
+            { value: 'capitalize', label: 'Capitalize' },
+            { value: 'lowercase',  label: 'lowercase' },
+          ],
+        },
+        itemColor: { type: 'text' as const, label: 'Link colour (hex or CSS value)' },
         showDropdowns: {
           type: 'select' as const,
           label: 'Dropdowns open on',
@@ -1564,6 +1835,10 @@ const puckConfig = {
         menuName:         '',
         orientation:      'horizontal' as const,
         spacing:          'normal' as const,
+        itemFontSize:     'medium' as const,
+        itemFontWeight:   'medium' as const,
+        textTransform:    'none' as const,
+        itemColor:        '',
         showDropdowns:    'hover',
         showMobileToggle: 'collapse',
       },
@@ -1593,5 +1868,34 @@ export const puckTemplateConfig = {
   ...puckConfig,
   root: {
     render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  },
+}
+
+// Header template config — wraps blocks in the Prickly header shell so the
+// Puck-rendered header matches the theme's sticky nav structure.
+export const puckHeaderTemplateConfig = {
+  ...puckConfig,
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => (
+      <header className="prickly-header">
+        <nav className="prickly-nav">
+          {children}
+        </nav>
+      </header>
+    ),
+  },
+}
+
+// Footer template config — wraps blocks in the Prickly footer shell.
+export const puckFooterTemplateConfig = {
+  ...puckConfig,
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => (
+      <footer className="prickly-footer">
+        <div className="prickly-footer-inner">
+          {children}
+        </div>
+      </footer>
+    ),
   },
 }
