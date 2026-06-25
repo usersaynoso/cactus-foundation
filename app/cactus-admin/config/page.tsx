@@ -169,6 +169,7 @@ export default function ConfigPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(false)
+  const [resetDeletedCount, setResetDeletedCount] = useState(0)
   const [resetPartialError, setResetPartialError] = useState('')
   const [resetError, setResetError] = useState('')
 
@@ -571,12 +572,13 @@ export default function ConfigPage() {
                       setResetError('')
                       try {
                         const res = await fetch('/api/admin/env', { method: 'DELETE' })
-                        const d = (await res.json()) as { ok?: boolean; error?: string; failed?: Array<{ key: string; error: string }> }
+                        const d = (await res.json()) as { ok?: boolean; error?: string; deleted?: number; failed?: Array<{ key: string; error: string }> }
                         if (!res.ok) throw new Error(d.error ?? 'Reset failed')
                         setEnvStatus({})
                         setShowResetConfirm(false)
+                        setResetDeletedCount(d.deleted ?? 0)
                         if (d.failed && d.failed.length > 0) {
-                          setResetPartialError(`${d.failed.length} variable(s) could not be deleted: ${d.failed.map((f) => f.key).join(', ')}`)
+                          setResetPartialError(`${d.failed.length} variable(s) could not be deleted: ${d.failed.map((f) => `${f.key} (${f.error})`).join(', ')}`)
                         }
                         setResetDone(true)
                       } catch (err: unknown) {
@@ -596,7 +598,11 @@ export default function ConfigPage() {
             )}
             {resetDone && (
               <div className="alert alert-info">
-                Environment variables removed. A redeployment has been triggered — your site will restart with factory settings in a few minutes.
+                {resetDeletedCount > 0
+                  ? `${resetDeletedCount} environment variable${resetDeletedCount === 1 ? '' : 's'} removed.`
+                  : 'No removable environment variables were found (they may have already been cleared).'
+                }{' '}
+                A redeployment has been triggered — your site will restart with factory settings in a few minutes.
                 {resetPartialError && (
                   <div style={{ marginTop: '0.5rem', color: '#b45309', fontSize: '0.875rem' }}>
                     Warning: {resetPartialError}
