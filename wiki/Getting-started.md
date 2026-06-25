@@ -39,8 +39,17 @@ cp .env.example .env.local
 |----------|-------|
 | `NEON_API_KEY` | Automatic database provisioning during setup. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | Email (password login, verification, recovery). Alternative: `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` |
-| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | Media uploads |
-| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | Media serving via Cloudflare Worker |
+| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | Media serving via Cloudflare Worker (required for all proxied providers) |
+| **Backblaze B2** — `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | Media uploads to B2 |
+| **Cloudflare R2** — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Media uploads to R2 |
+| **AWS S3** — `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | Media uploads to S3 |
+| **DigitalOcean Spaces** — `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | Media uploads to Spaces |
+| **Wasabi** — `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | Media uploads to Wasabi |
+| **MinIO** — `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | Media uploads to MinIO |
+| **Vercel Blob** — `BLOB_READ_WRITE_TOKEN` | Media uploads to Vercel Blob |
+| **Supabase Storage** — `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | Media uploads to Supabase Storage |
+| **Cloudinary** — `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Media uploads to Cloudinary (direct CDN, no Worker) |
+| **ImageKit** — `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | Media uploads to ImageKit (direct CDN, no Worker) |
 | `GITHUB_API_TOKEN` | Module and theme install/update (needs `repo` scope) |
 | `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | Fast Edge Config reads |
 | `VERCEL_WEBHOOK_SECRET` | Automatic deploy status (Pro/Enterprise only) |

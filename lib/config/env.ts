@@ -1,3 +1,11 @@
+import type { MediaProviderType } from '@prisma/client'
+import {
+  PROVIDER_ENV_VARS,
+  PROVIDER_LABELS,
+  envKeysForProvider,
+  isProxied,
+} from '@/lib/media/providers'
+
 export type EnvVarStatus = {
   name: string
   description: string
@@ -85,41 +93,17 @@ export function getEnvStatus(): {
       set: !!process.env.SMTP_PASS,
       gates: 'SMTP email sending',
     },
-    {
-      name: 'B2_APPLICATION_KEY_ID',
-      description: 'Backblaze B2 application key ID',
-      required: false,
-      set: !!process.env.B2_APPLICATION_KEY_ID,
-      gates: 'Media uploads (images, logo, favicon)',
-    },
-    {
-      name: 'B2_APPLICATION_KEY',
-      description: 'Backblaze B2 application key',
-      required: false,
-      set: !!process.env.B2_APPLICATION_KEY,
-      gates: 'Media uploads (images, logo, favicon)',
-    },
-    {
-      name: 'B2_BUCKET_NAME',
-      description: 'Backblaze B2 bucket name',
-      required: false,
-      set: !!process.env.B2_BUCKET_NAME,
-      gates: 'Media uploads (images, logo, favicon)',
-    },
-    {
-      name: 'B2_ENDPOINT',
-      description: 'Backblaze B2 S3-compatible endpoint URL',
-      required: false,
-      set: !!process.env.B2_ENDPOINT,
-      gates: 'Media uploads (images, logo, favicon)',
-    },
+    // Media provider credentials. One provider is active at a time (chosen in
+    // Settings → Media); all ten providers' vars are optional. See
+    // lib/media/providers.ts for the per-provider var sets.
     {
       name: 'CLOUDFLARE_WORKER_URL',
-      description: 'URL of the Cloudflare Worker that proxies B2 objects',
+      description: 'Shared URL of the Cloudflare Worker that proxies object-storage providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase)',
       required: false,
       set: !!process.env.CLOUDFLARE_WORKER_URL,
-      gates: 'Media serving via Cloudflare Worker',
+      gates: 'Media serving via Cloudflare Worker (proxied providers)',
     },
+    ...MEDIA_PROVIDER_ENV_STATUS(),
     {
       name: 'GITHUB_API_TOKEN',
       description: 'GitHub personal access token (repo-read + repo-write scopes)',
@@ -192,13 +176,52 @@ export function isEmailConfigured(): boolean {
   return !!(process.env.BREVO_API_KEY || process.env.SMTP_HOST)
 }
 
-export function isMediaConfigured(): boolean {
-  return !!(
-    process.env.B2_APPLICATION_KEY_ID &&
-    process.env.B2_APPLICATION_KEY &&
-    process.env.B2_BUCKET_NAME &&
-    process.env.B2_ENDPOINT &&
-    process.env.CLOUDFLARE_WORKER_URL
+// Per-provider env var statuses, flattened for the optional env list. Each var is
+// labelled with which provider it belongs to and that provider gates media uploads.
+function MEDIA_PROVIDER_ENV_STATUS(): EnvVarStatus[] {
+  const out: EnvVarStatus[] = []
+  for (const provider of Object.keys(PROVIDER_ENV_VARS) as MediaProviderType[]) {
+    for (const v of PROVIDER_ENV_VARS[provider]) {
+      out.push({
+        name: v.key,
+        description: `${PROVIDER_LABELS[provider]} — media storage`,
+        required: false,
+        set: !!process.env[v.key],
+        gates: `Media uploads when ${PROVIDER_LABELS[provider]} is the active provider`,
+      })
+    }
+  }
+  return out
+}
+
+// True when every env var the given provider needs is present. For proxied
+// providers this includes CLOUDFLARE_WORKER_URL.
+export function isMediaProviderConfigured(provider: MediaProviderType): boolean {
+  return envKeysForProvider(provider).every((k) => !!process.env[k])
+}
+
+// Resolves the active media provider from SiteConfig. Imported lazily to keep
+// this module free of a hard Prisma dependency at import time.
+export async function getActiveMediaProvider(): Promise<MediaProviderType | null> {
+  const { prisma } = await import('@/lib/db/prisma')
+  const config = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { mediaProvider: true },
+  })
+  return config?.mediaProvider ?? null
+}
+
+// True when a provider is selected AND fully configured. Used to gate uploads.
+export async function isMediaConfigured(): Promise<boolean> {
+  const provider = await getActiveMediaProvider()
+  return !!provider && isMediaProviderConfigured(provider)
+}
+
+// Worker-relevant: which proxied providers currently have credentials present.
+// The Worker must hold secrets for any proxied provider that still has rows.
+export function configuredProxiedProviders(): MediaProviderType[] {
+  return (Object.keys(PROVIDER_ENV_VARS) as MediaProviderType[]).filter(
+    (p) => isProxied(p) && isMediaProviderConfigured(p)
   )
 }
 

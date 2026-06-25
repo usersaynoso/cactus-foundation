@@ -56,18 +56,43 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 
 ## Media pipeline
 
+Cactus supports ten media providers across two shapes.
+
+### Proxied providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage)
+
+Private object storage. The Cloudflare Worker sits between the browser and the bucket, fetching, resizing, and caching the image. The Worker URL is the serving URL for every proxied item regardless of which bucket holds the bytes.
+
 ```
 Browser ──── Next.js <Image> ────▶ Custom loader (lib/media/loader.ts)
                                           │
-                                          │  builds URL: https://worker.example.com/<key>?w=<width>&q=<quality>
+                                          │  builds Worker URL: https://worker.example.com/<key>?w=<width>&q=<quality>
                                           ▼
                                Cloudflare Worker (workers/media-worker/)
                                           │
-                                          ├── validates key (must start with "media/")
-                                          ├── fetches from private B2 bucket
+                                          ├── key format: media/<PROVIDER>/<id>.ext
+                                          │   (legacy B2 keys: media/<id>.ext — no provider segment)
+                                          ├── resolves provider from key prefix
+                                          ├── fetches from the matching private bucket using stored secrets
                                           ├── applies Cloudflare Image Resizing (width, quality, format=auto)
                                           └── returns with cache headers (1 year, immutable)
 ```
+
+### Direct providers (Cloudinary, ImageKit)
+
+These have their own CDN and URL-based transformation systems. The Worker is never involved. The Next.js loader detects a Cloudinary or ImageKit URL and builds that provider's own transformation URL directly. Images go: browser → provider CDN.
+
+```
+Browser ──── Next.js <Image> ────▶ Custom loader (lib/media/loader.ts)
+                                          │
+                                          │  Cloudinary: inserts /w_N,q_N/ into /upload/ segment
+                                          │  ImageKit:   appends ?tr=w-N,q-N
+                                          ▼
+                               Provider CDN (res.cloudinary.com / ik.imagekit.io)
+```
+
+### Provider selection and migration
+
+The active provider is `SiteConfig.mediaProvider`. Changing it in Settings → Media affects new uploads immediately but does not move existing objects. `Media.provider` on each row records where that specific item actually lives. A `MediaMigrationJob` (cursor-based, batch-driven, admin-initiated) converges all rows onto the active provider. The Worker holds credentials for every proxied provider it has ever had configured so it can serve items that have not yet been migrated.
 
 **Why not proxy through Vercel?** Vercel bills GB-hours of serverless execution. A 10 MB image served through a Next.js route handler on every page view burns real money at scale. The Cloudflare Worker sits outside Vercel's billing, caches resized variants at Cloudflare's edge, and never touches Vercel's function runtime for image bytes.
 
