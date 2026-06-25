@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
+import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   })
 
   return (
-    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus'}>
+    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus'} version={pkg.version}>
       {children}
     </AdminShell>
   )

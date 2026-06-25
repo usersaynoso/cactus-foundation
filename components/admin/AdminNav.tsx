@@ -7,10 +7,11 @@ import type { Role } from '@prisma/client'
 type Props = {
   adminPath: string
   userRole: Role
+  version: string
   onNavClick?: () => void
 }
 
-export default function AdminNav({ adminPath, userRole, onNavClick }: Props) {
+export default function AdminNav({ adminPath, userRole, version, onNavClick }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
@@ -44,6 +45,7 @@ export default function AdminNav({ adminPath, userRole, onNavClick }: Props) {
             Sign out
           </button>
         </form>
+        <p style={{ color: '#4b5563', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>v{version}</p>
       </div>
     </nav>
   )
