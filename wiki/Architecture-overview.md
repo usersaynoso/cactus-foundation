@@ -120,34 +120,71 @@ The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to an
 
 ### Available blocks
 
-All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs).
+All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs). Most blocks expose a **Padding** field so editors can add breathing room without needing an extra Spacer block.
+
+Blocks are organised into categories that appear as collapsible groups in the Puck left panel.
+
+#### Layout
+
+| Block | Purpose |
+|---|---|
+| **Grid** | CSS grid container (2–4 columns) with configurable gap and padding; each column is a droppable slot |
+| **Flex** | Flexbox container with direction, justify, align, wrap, and gap controls; single droppable slot |
+| **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
+| **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px → 96 px) |
+| **Divider** | Horizontal rule — solid, dashed, or dotted; thin / medium / thick |
+
+#### Typography
+
+| Block | Purpose |
+|---|---|
+| **Heading** | Standalone heading (H2–H5) with alignment, colour, and padding |
+| **TextBlock** *(displayed as "Text")* | Paragraph text with left / centre / right alignment |
+| **RichTextBlock** *(displayed as "Rich Text")* | Full WYSIWYG rich text editor (bold, italic, lists, blockquote, links); stores HTML |
+| **Quote** | Styled blockquote with optional attribution |
+
+#### Actions
+
+| Block | Purpose |
+|---|---|
+| **ButtonLink** *(displayed as "Button")* | Standalone button link — primary, secondary, or outline style |
+| **CTABanner** | Call-to-action banner — white / light-gray / brand background |
+
+#### Media
+
+| Block | Purpose |
+|---|---|
+| **ImageBlock** *(displayed as "Image")* | Full-width image with alt text and optional caption |
+| **VideoEmbed** *(displayed as "Video")* | YouTube or Vimeo embed (paste the watch URL; 16:9 / 4:3 / 1:1) |
+| **Embed** | Generic `<iframe>` embed (maps, forms, etc.) |
+
+#### Content
 
 | Block | Purpose |
 |---|---|
 | **Hero** | Large hero section with heading, sub-heading, and CTA button |
-| **Heading** | Standalone heading (H2–H5) with alignment and colour options |
-| **TextBlock** | Paragraph text with left / centre / right alignment |
-| **Quote** | Styled blockquote with optional attribution |
-| **Callout** | Alert/notice box — info, success, warning, or error |
-| **ButtonLink** | Standalone button link — primary, secondary, or outline style |
-| **Badge** | Small coloured pill label |
-| **Divider** | Horizontal rule — solid, dashed, or dotted; thin / medium / thick |
-| **Spacer** | Fixed vertical gap (8 px → 96 px) |
-| **ImageBlock** | Full-width image with alt text and optional caption |
-| **VideoEmbed** | YouTube or Vimeo embed (paste the watch URL; 16:9 / 4:3 / 1:1) |
 | **Card** | Image + heading + body text + optional CTA button |
-| **CTABanner** | Call-to-action banner — lighter than Hero; white / light-gray / brand background |
-| **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
+| **Callout** | Alert/notice box — info, success, warning, or error |
+| **Badge** | Small coloured pill label |
 | **Accordion** | Collapsible FAQ using native `<details>`/`<summary>` — no JS required |
-| **Stats** | Row of statistic items (value + label) |
 | **FeatureList** | List of features with emoji icon, title, and description |
-| **Embed** | Generic `<iframe>` embed (maps, forms, etc.) |
+| **Stats** | Row of statistic items (value + label) |
+| **Logos** | Horizontal strip of logo images with configurable height and alignment |
+
+#### Site
+
+| Block | Purpose |
+|---|---|
 | **SiteLogo** | Site logo or name — auto-reads `logoMediaId` from SiteConfig; falls back to site name text. Template block. |
-| **MenuBlock** | Navigation menu — pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
+| **MenuBlock** *(displayed as "Menu")* | Navigation menu — pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
 | **Copyright** | Copyright line — auto-renders © current year + site name from SiteConfig. Template block. |
 | **LoginButton** | Auth-aware login/register buttons — shows "My Account" and "Sign out" when the visitor is logged in. Template block. |
 
 Blocks marked **Template block** are most useful in Header/Footer templates but are available everywhere. Blocks that need an image use a custom media-picker field in the editor; the MenuBlock uses a custom menu-selector field (`MenuSelectField`). These custom renderers are declared in `config.tsx` as plain fields and overridden with the full custom renderer in `PuckEditor.tsx` and `TemplateEditor.tsx`.
+
+### Admin sidebar
+
+The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button collapses it to icon-only mode (56 px wide), freeing horizontal space. The preference is persisted in `localStorage`. The sidebar **auto-collapses** whenever a page or template editor is opened, so the Puck canvas always has maximum width on load.
 
 ### Reconciliation
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
 import type { Role } from '@prisma/client'
 
@@ -12,8 +13,32 @@ type Props = {
   children: React.ReactNode
 }
 
+// Auto-collapse when a puck editor page is open to maximise canvas space
+const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/templates\/[^/]+$/
+
 export default function AdminShell({ adminPath, userRole, siteName, version, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const pathname = usePathname()
+
+  // Read persisted preference on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('cactus-sidebar-collapsed')
+    if (stored !== null) setCollapsed(stored === 'true')
+  }, [])
+
+  // Auto-collapse when navigating into a puck editor
+  useEffect(() => {
+    if (PUCK_EDITOR_RE.test(pathname)) {
+      setCollapsed(true)
+    }
+  }, [pathname])
+
+  const toggleCollapsed = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('cactus-sidebar-collapsed', String(next))
+  }
 
   return (
     <div className="admin-shell">
@@ -41,11 +66,19 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         />
       )}
 
-      <aside className={`admin-sidebar${mobileOpen ? ' admin-sidebar--open' : ''}`}>
+      <aside className={[
+        'admin-sidebar',
+        mobileOpen   ? 'admin-sidebar--open'      : '',
+        collapsed    ? 'admin-sidebar--collapsed'  : '',
+      ].filter(Boolean).join(' ')}>
         <div className="admin-sidebar-logo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cactus.svg" alt="Cactus" style={{ width: 28, height: 28, background: '#fff', borderRadius: 4, padding: 2, flexShrink: 0 }} />
-          {siteName}
+          <img
+            src="/cactus.svg"
+            alt="Cactus"
+            style={{ width: 28, height: 28, background: '#fff', borderRadius: 4, padding: 2, flexShrink: 0 }}
+          />
+          {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
           <button
             className="admin-sidebar-close"
             onClick={() => setMobileOpen(false)}
@@ -54,7 +87,23 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             ×
           </button>
         </div>
-        <AdminNav adminPath={adminPath} userRole={userRole} version={version} onNavClick={() => setMobileOpen(false)} />
+
+        <button
+          className="admin-sidebar-toggle"
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
+
+        <AdminNav
+          adminPath={adminPath}
+          userRole={userRole}
+          version={version}
+          collapsed={collapsed}
+          onNavClick={() => setMobileOpen(false)}
+        />
       </aside>
 
       <div className="admin-main">

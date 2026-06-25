@@ -8,24 +8,25 @@ type Props = {
   adminPath: string
   userRole: Role
   version: string
+  collapsed?: boolean
   onNavClick?: () => void
 }
 
-export default function AdminNav({ adminPath, userRole, version, onNavClick }: Props) {
+export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
   const links = [
-    { href: `${base}`, label: 'Dashboard', icon: '◈' },
-    { href: `${base}/pages`, label: 'Pages', icon: '📄' },
-    { href: `${base}/templates`, label: 'Templates', icon: '📐' },
-    { href: `${base}/menus`, label: 'Menus', icon: '☰' },
-    { href: `${base}/media`, label: 'Media', icon: '🖼' },
-    { href: `${base}/users`, label: 'Users', icon: '👥' },
-    { href: `${base}/roles`, label: 'Roles', icon: '🔑' },
-    { href: `${base}/modules`, label: 'Modules', icon: '🧩' },
-    { href: `${base}/themes`, label: 'Themes', icon: '🎨' },
-    { href: `${base}/config`, label: 'Settings', icon: '⚙️' },
+    { href: `${base}`,          label: 'Dashboard', icon: '◈' },
+    { href: `${base}/pages`,    label: 'Pages',     icon: '📄' },
+    { href: `${base}/templates`,label: 'Templates', icon: '📐' },
+    { href: `${base}/menus`,    label: 'Menus',     icon: '☰' },
+    { href: `${base}/media`,    label: 'Media',     icon: '🖼' },
+    { href: `${base}/users`,    label: 'Users',     icon: '👥' },
+    { href: `${base}/roles`,    label: 'Roles',     icon: '🔑' },
+    { href: `${base}/modules`,  label: 'Modules',   icon: '🧩' },
+    { href: `${base}/themes`,   label: 'Themes',    icon: '🎨' },
+    { href: `${base}/config`,   label: 'Settings',  icon: '⚙️' },
   ]
 
   return (
@@ -33,19 +34,37 @@ export default function AdminNav({ adminPath, userRole, version, onNavClick }: P
       {links.map((link) => {
         const isActive = pathname === link.href || (link.href !== base && pathname.startsWith(link.href))
         return (
-          <Link key={link.href} href={link.href} className={isActive ? 'active' : ''} onClick={onNavClick}>
-            <span style={{ width: 18, textAlign: 'center' }}>{link.icon}</span>
-            {link.label}
+          <Link
+            key={link.href}
+            href={link.href}
+            className={isActive ? 'active' : ''}
+            title={collapsed ? link.label : undefined}
+            onClick={onNavClick}
+          >
+            <span style={{ width: 18, textAlign: 'center', flexShrink: 0 }}>{link.icon}</span>
+            {!collapsed && <span className="admin-nav-label">{link.label}</span>}
           </Link>
         )
       })}
       <div style={{ marginTop: 'auto', borderTop: '1px solid #1f2937', paddingTop: '1rem' }}>
         <form action="/api/auth/logout" method="POST">
-          <button type="submit" style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.875rem', cursor: 'pointer', padding: '0.5rem 1.25rem', width: '100%', textAlign: 'left' }}>
-            Sign out
+          <button
+            type="submit"
+            title={collapsed ? 'Sign out' : undefined}
+            style={{
+              background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.875rem',
+              cursor: 'pointer', padding: collapsed ? '0.5rem' : '0.5rem 1.25rem',
+              width: '100%', textAlign: collapsed ? 'center' : 'left',
+            }}
+          >
+            {collapsed ? '⏻' : 'Sign out'}
           </button>
         </form>
-        <p style={{ color: '#4b5563', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>v{version}</p>
+        {!collapsed && (
+          <p style={{ color: '#4b5563', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>
+            v{version}
+          </p>
+        )}
       </div>
     </nav>
   )
