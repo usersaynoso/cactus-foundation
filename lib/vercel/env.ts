@@ -104,16 +104,17 @@ export async function upsertVercelEnvVar(
   }
 }
 
-// Deletes env vars by key. Silently skips keys that are not set.
+// Deletes env vars by key. Attempts all deletions via allSettled (one failure
+// does not abort the others). Returns lists of deleted and failed keys.
 export async function deleteVercelEnvVars(
   token: string,
   projectId: string,
   keys: string[]
-): Promise<void> {
+): Promise<{ deleted: string[]; failed: Array<{ key: string; error: string }> }> {
   const existing = await listVercelEnvVars(token, projectId)
-  const toDelete = existing.filter((v) => keys.includes(v.key))
+  const toDelete = existing.filter((v) => v.id && keys.includes(v.key))
 
-  await Promise.all(
+  const results = await Promise.allSettled(
     toDelete.map(async ({ id, key }) => {
       const res = await fetch(
         `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env/${id}`,
@@ -125,10 +126,23 @@ export async function deleteVercelEnvVars(
       )
       if (!res.ok) {
         const body = await res.text()
-        throw new Error(`Vercel DELETE env var "${key}" failed (${res.status}): ${body}`)
+        throw new Error(`${res.status}: ${body}`)
       }
+      return key
     })
   )
+
+  const deleted: string[] = []
+  const failed: Array<{ key: string; error: string }> = []
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      deleted.push(r.value)
+    } else {
+      failed.push({ key: toDelete[i]?.key ?? 'unknown', error: r.reason instanceof Error ? r.reason.message : String(r.reason) })
+    }
+  })
+
+  return { deleted, failed }
 }
 
 // Batch upsert. Fetches the var list once, then creates/updates each key.

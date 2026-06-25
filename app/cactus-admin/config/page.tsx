@@ -169,6 +169,8 @@ export default function ConfigPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(false)
+  const [resetRedeployed, setResetRedeployed] = useState(false)
+  const [resetRedeployError, setResetRedeployError] = useState('')
   const [resetError, setResetError] = useState('')
 
   // Media provider state
@@ -570,10 +572,12 @@ export default function ConfigPage() {
                       setResetError('')
                       try {
                         const res = await fetch('/api/admin/env', { method: 'DELETE' })
-                        const d = (await res.json()) as { ok?: boolean; error?: string }
+                        const d = (await res.json()) as { ok?: boolean; error?: string; redeployTriggered?: boolean; redeployError?: string; failed?: Array<{ key: string; error: string }> }
                         if (!res.ok) throw new Error(d.error ?? 'Reset failed')
                         setEnvStatus({})
                         setShowResetConfirm(false)
+                        setResetRedeployed(d.redeployTriggered ?? false)
+                        setResetRedeployError(d.redeployError ?? '')
                         setResetDone(true)
                       } catch (err: unknown) {
                         setResetError(err instanceof Error ? err.message : 'Reset failed')
@@ -592,7 +596,13 @@ export default function ConfigPage() {
             )}
             {resetDone && (
               <div className="alert alert-info">
-                All environment variables have been removed. To complete the factory reset, <strong>redeploy your project manually in Vercel</strong>.
+                All environment variables have been removed.{' '}
+                {resetRedeployed
+                  ? 'A redeployment has been triggered — your site will be live with factory settings in a few minutes.'
+                  : resetRedeployError
+                    ? <>Automatic redeploy failed ({resetRedeployError}). Please <strong>redeploy manually in Vercel</strong> for the changes to take effect.</>
+                    : <>Please <strong>redeploy manually in Vercel</strong> for the changes to take effect.</>
+                }
               </div>
             )}
           </div>
