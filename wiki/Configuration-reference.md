@@ -22,7 +22,7 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 
 ## Branding tab
 
-Upload a logo and favicon. Requires media to be configured (`B2_*` + `CLOUDFLARE_WORKER_URL`). Until set, generic Cactus placeholders are used.
+Upload a logo and favicon. Requires a media provider to be configured in the Media tab. Until set, generic Cactus placeholders are used.
 
 ## Auth & Access tab
 
@@ -44,7 +44,18 @@ Provider (Brevo or SMTP) is set by which credentials are present in environment 
 
 ## Media tab
 
-Shows which provider is configured. Currently only Backblaze B2 is supported. Credentials (`B2_*`, `CLOUDFLARE_WORKER_URL`) are environment variables, not editable here.
+Select the active media provider from a dropdown grouped by kind:
+
+- **Object storage (proxied via your Cloudflare Worker)**: B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage. Images are fetched from the private bucket by the Worker, resized, and served from `CLOUDFLARE_WORKER_URL`.
+- **Image CDN (direct)**: Cloudinary, ImageKit. Images are served straight from the provider's CDN; the Worker is not involved.
+
+Selecting a provider scopes the credentials checklist beneath it to only that provider's environment variables (✓/✗ per var). No credentials are stored in the database — they live in Vercel project environment variables.
+
+**Changing the active provider** opens a confirmation dialog showing how many existing media items live on other providers. You can either **Migrate now** (moves all items to the new provider in batches while the page is open) or **Switch without migrating** (new uploads go to the new provider; existing items keep serving from wherever they currently are until you run a migration later).
+
+The per-provider breakdown is always visible on the tab, along with a **Migrate now** action if any rows are on a provider other than the active one.
+
+**Worker secrets**: for proxied providers, the same credential values must also be configured as Cloudflare Worker secrets via `wrangler secret put`. See [Self-hosting and operations](Self-hosting-and-operations.md) for the exact commands. The app cannot push Worker secrets automatically.
 
 ## Site Status tab
 
@@ -89,8 +100,17 @@ These are read from environment variables. Values are never shown.
 | `NEON_API_KEY` | No | Neon API key for one-click DB provisioning during setup. Leave unset if supplying own `DATABASE_URL`. |
 | `BREVO_API_KEY` | No | Brevo email API key (gates email login, verification, recovery). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | SMTP fallback for email (alternative to Brevo). |
-| `B2_APPLICATION_KEY_ID` + `B2_APPLICATION_KEY` + `B2_BUCKET_NAME` + `B2_ENDPOINT` | No | Backblaze B2 media storage. |
-| `CLOUDFLARE_WORKER_URL` / `CLOUDFLARE_WORKER_HOSTNAME` | No | Cloudflare Worker for B2 media serving. |
+| `CLOUDFLARE_WORKER_URL` / `CLOUDFLARE_WORKER_HOSTNAME` | No | Shared Cloudflare Worker URL for all proxied media providers. |
+| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 — object storage. |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 — object storage. |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 — object storage. |
+| `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | No | DigitalOcean Spaces — object storage. |
+| `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | No | Wasabi — object storage. |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | No | MinIO — self-hosted object storage. |
+| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob — managed object storage. |
+| `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage — object storage. Use the service role key, not the anon key. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary — direct image CDN (no Worker involvement). |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit — direct image CDN (no Worker involvement). |
 | `GITHUB_API_TOKEN` | No | GitHub token (needs `repo` scope) for module/theme install and update. |
 | `EDGE_CONFIG` | No | Vercel Edge Config read connection string for fast path lookups. |
 | `VERCEL_EDGE_CONFIG_ID` | No | Edge Config ID for writes via Vercel REST API. |

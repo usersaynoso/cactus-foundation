@@ -1,6 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { MediaProviderType } from '@prisma/client'
+import {
+  PROVIDER_KIND,
+  PROVIDER_LABELS,
+  PROVIDER_ENV_VARS,
+  CLOUDFLARE_WORKER_VAR,
+  ALL_PROVIDERS,
+  envKeysForProvider,
+} from '@/lib/media/providers'
 
 type SiteConfig = {
   siteName: string; tagline: string; description: string;
@@ -8,7 +17,7 @@ type SiteConfig = {
   adminPath: string; status: string; hideFromCrawlers: boolean;
   publicRegistration: boolean; trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
-  imageProvider: string;
+  mediaProvider: MediaProviderType | null;
   comingSoonPageId: string; maintenancePageId: string;
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
@@ -54,17 +63,18 @@ const EMAIL_SMTP_SECTION: EnvSection = {
   ],
 }
 
-const MEDIA_SECTION: EnvSection = {
-  id: 'media',
-  label: 'Backblaze B2 + Cloudflare Worker',
-  description: 'Object storage for images, logo, and favicon',
-  keys: [
-    { key: 'B2_APPLICATION_KEY_ID', label: 'B2_APPLICATION_KEY_ID', placeholder: 'Key ID' },
-    { key: 'B2_APPLICATION_KEY', label: 'B2_APPLICATION_KEY', type: 'password', placeholder: 'Application key' },
-    { key: 'B2_BUCKET_NAME', label: 'B2_BUCKET_NAME', placeholder: 'my-bucket' },
-    { key: 'B2_ENDPOINT', label: 'B2_ENDPOINT', placeholder: 'https://s3.us-east-005.backblazeb2.com' },
-    { key: 'CLOUDFLARE_WORKER_URL', label: 'CLOUDFLARE_WORKER_URL', placeholder: 'https://media.example.com' },
-  ],
+// Provider dropdown options grouped by kind.
+const PROXIED_PROVIDERS = ALL_PROVIDERS.filter((p) => PROVIDER_KIND[p] === 'PROXIED')
+const DIRECT_PROVIDERS = ALL_PROVIDERS.filter((p) => PROVIDER_KIND[p] === 'DIRECT')
+
+type MigrationJob = {
+  id: string
+  toProvider: MediaProviderType
+  status: string
+  totalItems: number
+  migratedItems: number
+  failedItemIds: Array<{ id: string; error: string }>
+  cursor: string | null
 }
 
 const INTEGRATION_SECTIONS: EnvSection[] = [
@@ -155,6 +165,26 @@ export default function ConfigPage() {
   const [envError, setEnvError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
 
+  // Media provider state
+  const [breakdown, setBreakdown] = useState<Record<string, number>>({})
+  const [migrationJob, setMigrationJob] = useState<MigrationJob | null>(null)
+  const [migrationRunning, setMigrationRunning] = useState(false)
+  const [pendingProvider, setPendingProvider] = useState<MediaProviderType | null>(null)
+  const [mediaBusy, setMediaBusy] = useState(false)
+
+  const loadMediaState = useCallback(async () => {
+    const [bd, ms] = await Promise.all([
+      fetch('/api/admin/media/provider-breakdown').then((r) => (r.ok ? r.json() : { breakdown: {} })).catch(() => ({ breakdown: {} })),
+      fetch('/api/admin/media/migration-status').then((r) => (r.ok ? r.json() : { job: null })).catch(() => ({ job: null })),
+    ])
+    setBreakdown((bd as { breakdown?: Record<string, number> }).breakdown ?? {})
+    setMigrationJob((ms as { job?: MigrationJob | null }).job ?? null)
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'media' && !loading) loadMediaState()
+  }, [tab, loading, loadMediaState])
+
   useEffect(() => {
     Promise.all([
       fetch('/api/admin/config').then((r) => r.json()),
@@ -240,6 +270,102 @@ export default function ConfigPage() {
 
   function set(key: keyof SiteConfig, value: unknown) {
     setConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
+  // Drives the batch endpoint repeatedly until the job finishes or is cancelled,
+  // refreshing progress each round. The admin must keep this screen open.
+  const runMigrationLoop = useCallback(async () => {
+    setMigrationRunning(true)
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const res = await fetch('/api/admin/media/migration-batch', { method: 'POST' })
+        if (!res.ok) break
+        const result = (await res.json()) as { done: boolean; status: string }
+        await loadMediaState()
+        if (result.done || result.status === 'cancelled' || result.status === 'none') break
+        // Re-read job to honour a mid-flight cancel.
+        const status = await fetch('/api/admin/media/migration-status').then((r) => r.json()).catch(() => ({ job: null }))
+        if (!status.job || status.job.status === 'cancelled') break
+      }
+    } finally {
+      setMigrationRunning(false)
+      await loadMediaState()
+    }
+  }, [loadMediaState])
+
+  // Resume an already-running job if the admin reopens the tab.
+  useEffect(() => {
+    if (tab === 'media' && migrationJob && (migrationJob.status === 'running' || migrationJob.status === 'pending') && !migrationRunning) {
+      runMigrationLoop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [migrationJob?.status, tab])
+
+  async function persistProvider(provider: MediaProviderType): Promise<Record<string, number>> {
+    const res = await fetch('/api/admin/config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediaProvider: provider }),
+    })
+    const d = (await res.json()) as { ok?: boolean; breakdown?: Record<string, number>; error?: string }
+    if (!res.ok) throw new Error(d.error ?? 'Failed to save provider')
+    set('mediaProvider', provider)
+    return d.breakdown ?? {}
+  }
+
+  async function handleProviderSelect(provider: MediaProviderType) {
+    setEnvError('')
+    setMediaBusy(true)
+    try {
+      const bd = await persistProvider(provider)
+      setBreakdown(bd)
+      // Are there rows on a provider other than the one just selected?
+      const strays = Object.entries(bd).filter(([p, n]) => p !== provider && n > 0)
+      if (strays.length > 0) {
+        setPendingProvider(provider) // open the migrate / switch dialog
+      } else {
+        setPendingProvider(null)
+      }
+    } catch (err) {
+      setEnvError(err instanceof Error ? err.message : 'Failed to save provider')
+    } finally {
+      setMediaBusy(false)
+    }
+  }
+
+  async function confirmMigrateNow() {
+    setMediaBusy(true)
+    try {
+      const res = await fetch('/api/admin/media/migration-start', { method: 'POST' })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.error ?? 'Failed to start migration')
+      }
+      setPendingProvider(null)
+      await loadMediaState()
+      await runMigrationLoop()
+    } catch (err) {
+      setEnvError(err instanceof Error ? err.message : 'Failed to start migration')
+    } finally {
+      setMediaBusy(false)
+    }
+  }
+
+  async function cancelMigration() {
+    await fetch('/api/admin/media/migration-cancel', { method: 'POST' }).catch(() => {})
+    await loadMediaState()
+  }
+
+  async function retryMigration() {
+    setMediaBusy(true)
+    try {
+      await fetch('/api/admin/media/migration-retry', { method: 'POST' })
+      await loadMediaState()
+      await runMigrationLoop()
+    } finally {
+      setMediaBusy(false)
+    }
   }
 
   function setEnvField(key: string, value: string) {
@@ -517,18 +643,202 @@ export default function ConfigPage() {
 
       {tab === 'branding' && (
         <div className="alert alert-info">
-          Logo and favicon upload requires media (B2 + Cloudflare Worker) to be configured first. Set credentials in the Media tab.
+          Logo and favicon upload requires a media provider to be configured first. Choose one and add its credentials in the Media tab.
         </div>
       )}
 
-      {tab === 'media' && (
-        <div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
-            Media credentials are stored in your Vercel project environment variables and never saved to the database.
-          </p>
-          <EnvSectionCard section={MEDIA_SECTION} />
-        </div>
-      )}
+      {tab === 'media' && (() => {
+        const selected = config.mediaProvider ?? null
+        const isProxiedSel = selected ? PROVIDER_KIND[selected] === 'PROXIED' : false
+        const selectedVars = selected ? PROVIDER_ENV_VARS[selected] : []
+        const job = migrationJob
+        const jobActive = job && (job.status === 'running' || job.status === 'pending')
+        const jobFailed = job && job.status === 'failed'
+        const straysExist = Object.entries(breakdown).some(([p, n]) => p !== selected && n > 0)
+
+        return (
+          <div>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+              Choose where uploaded images are stored. Provider selection is saved to your site config; the credentials
+              themselves live only in your Vercel environment variables.
+            </p>
+
+            {envError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>{envError}</div>}
+
+            {/* Provider dropdown, grouped by kind */}
+            <div className="field">
+              <label>Media provider</label>
+              <select
+                value={selected ?? ''}
+                disabled={mediaBusy || !!jobActive}
+                onChange={(e) => { if (e.target.value) handleProviderSelect(e.target.value as MediaProviderType) }}
+              >
+                <option value="">— Select a provider —</option>
+                <optgroup label="Object storage (served via your Worker)">
+                  {PROXIED_PROVIDERS.map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Image CDN (served directly by the provider)">
+                  {DIRECT_PROVIDERS.map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <span className="field-hint">
+                Changing this only affects where new uploads land. Existing images stay put until you migrate them.
+              </span>
+            </div>
+
+            {/* Migrate / switch dialog after a change with stray rows */}
+            {pendingProvider && (
+              <div className="card" style={{ marginBottom: '1rem', borderColor: '#f59e0b' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Existing media on other providers</h3>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                  Some images still live on a different provider. You can move them onto {PROVIDER_LABELS[pendingProvider]} now,
+                  or switch for new uploads only and migrate later.
+                </p>
+                <ul style={{ fontSize: '0.875rem', margin: '0 0 0.75rem 1rem' }}>
+                  {Object.entries(breakdown).filter(([p, n]) => p !== pendingProvider && n > 0).map(([p, n]) => (
+                    <li key={p}>{PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}</li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>Migrate now</button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={() => setPendingProvider(null)}>Switch without migrating</button>
+                </div>
+              </div>
+            )}
+
+            {/* Env var checklist for the selected provider */}
+            {selected && (
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                  <div>
+                    <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{PROVIDER_LABELS[selected]} credentials</h3>
+                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                      Stored in your Vercel project environment variables — never in the database.
+                    </p>
+                  </div>
+                  <StatusBadge set={envKeysForProvider(selected).every((k) => envStatus[k])} />
+                </div>
+                {selectedVars.map((f) => (
+                  <div className="field" key={f.key}>
+                    <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <code>{f.key}</code>
+                      {envStatus[f.key] && <StatusBadge set />}
+                    </label>
+                    <input
+                      type={f.type ?? 'text'}
+                      autoComplete="off"
+                      value={envFields[f.key] ?? ''}
+                      onChange={(e) => setEnvField(f.key, e.target.value)}
+                      placeholder={envStatus[f.key] ? 'Enter new value to change' : (f.placeholder ?? '')}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {f.hint && <span className="field-hint">{f.hint}</span>}
+                  </div>
+                ))}
+                {isProxiedSel && (
+                  <>
+                    <div className="field">
+                      <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <code>{CLOUDFLARE_WORKER_VAR.key}</code>
+                        {envStatus[CLOUDFLARE_WORKER_VAR.key] && <StatusBadge set />}
+                      </label>
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        value={envFields[CLOUDFLARE_WORKER_VAR.key] ?? ''}
+                        onChange={(e) => setEnvField(CLOUDFLARE_WORKER_VAR.key, e.target.value)}
+                        placeholder={envStatus[CLOUDFLARE_WORKER_VAR.key] ? 'Enter new value to change' : CLOUDFLARE_WORKER_VAR.placeholder}
+                        style={{ fontSize: '0.875rem' }}
+                      />
+                      <span className="field-hint">{CLOUDFLARE_WORKER_VAR.hint}</span>
+                    </div>
+                    <div className="alert alert-info" style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+                      Also configure these same values as secrets on your Cloudflare Worker — see the{' '}
+                      <a href="https://github.com/your-org/cactus/wiki/Self-hosting-and-operations" target="_blank" rel="noreferrer">self-hosting docs</a>.
+                    </div>
+                  </>
+                )}
+                <button
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.875rem' }}
+                  disabled={savingEnvId === `media-${selected}` || !envKeysForProvider(selected).some((k) => envFields[k]?.trim())}
+                  onClick={() => handleSaveEnv(`media-${selected}`, envKeysForProvider(selected))}
+                >
+                  {savingEnvId === `media-${selected}` ? 'Saving…' : savedEnvId === `media-${selected}` ? '✓ Saved' : 'Save credentials'}
+                </button>
+                <span style={{ fontSize: '0.8125rem', color: '#6b7280', marginLeft: '1rem' }}>Takes effect on next deployment</span>
+              </div>
+            )}
+
+            {/* Per-provider breakdown */}
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Where your media lives</h3>
+              {Object.keys(breakdown).length === 0 ? (
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>No media uploaded yet.</p>
+              ) : (
+                <ul style={{ fontSize: '0.875rem', margin: '0 0 0.5rem 1rem' }}>
+                  {Object.entries(breakdown).map(([p, n]) => (
+                    <li key={p}>
+                      {PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}
+                      {p === selected && <span style={{ color: '#16a34a' }}> (active)</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {selected && straysExist && !jobActive && (
+                <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>
+                  Migrate everything to {PROVIDER_LABELS[selected]}
+                </button>
+              )}
+            </div>
+
+            {/* Live migration progress */}
+            {jobActive && job && (
+              <div className="card" style={{ marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>
+                  Migrating to {PROVIDER_LABELS[job.toProvider]}…
+                </h3>
+                <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                  {job.migratedItems} of {job.totalItems} migrated{migrationRunning ? '' : ' (paused)'}
+                </p>
+                <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                  <div style={{ height: '100%', width: `${job.totalItems ? Math.round((job.migratedItems / job.totalItems) * 100) : 0}%`, background: '#16a34a' }} />
+                </div>
+                {job.failedItemIds.length > 0 && (
+                  <details style={{ fontSize: '0.8125rem', marginBottom: '0.5rem' }}>
+                    <summary>{job.failedItemIds.length} failed item{job.failedItemIds.length === 1 ? '' : 's'}</summary>
+                    <ul style={{ margin: '0.5rem 0 0 1rem' }}>
+                      {job.failedItemIds.map((f) => <li key={f.id}><code>{f.id}</code>: {f.error}</li>)}
+                    </ul>
+                  </details>
+                )}
+                <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={cancelMigration}>Cancel</button>
+              </div>
+            )}
+
+            {/* Completed-with-failures retry */}
+            {jobFailed && job && (
+              <div className="card" style={{ marginBottom: '1rem', borderColor: '#dc2626' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Migration finished with failures</h3>
+                <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                  {job.migratedItems} of {job.totalItems} migrated, {job.failedItemIds.length} failed.
+                </p>
+                <details style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+                  <summary>Show failed items</summary>
+                  <ul style={{ margin: '0.5rem 0 0 1rem' }}>
+                    {job.failedItemIds.map((f) => <li key={f.id}><code>{f.id}</code>: {f.error}</li>)}
+                  </ul>
+                </details>
+                <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={retryMigration}>Retry failed items</button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {tab === 'integrations' && (
         <div>
