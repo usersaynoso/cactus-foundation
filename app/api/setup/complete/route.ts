@@ -47,7 +47,7 @@ export async function POST() {
     },
   })
 
-  // Seed default Header template (SiteLogo + MenuBlock)
+  // Seed default Header template (SiteLogo + MenuBlock styled for Prickly theme)
   const headerTemplate = await prisma.pageTemplate.upsert({
     where: { id: 'seed-header' },
     create: {
@@ -59,7 +59,15 @@ export async function POST() {
         content: [
           {
             type: 'SiteLogo',
-            props: { id: 'site-logo-1' },
+            props: {
+              id: 'site-logo-1',
+              homeUrl: '/',
+              logoHeight: 40,
+              showTextWithLogo: 'false',
+              showIcon: 'true',
+              iconEmoji: '🌵',
+              textColor: '',
+            },
           },
           {
             type: 'MenuBlock',
@@ -69,6 +77,10 @@ export async function POST() {
               menuName: 'Main Menu',
               orientation: 'horizontal',
               spacing: 'normal',
+              itemFontSize: 'medium',
+              itemFontWeight: 'medium',
+              textTransform: 'none',
+              itemColor: '',
               showDropdowns: 'hover',
               showMobileToggle: 'collapse',
             },
@@ -81,7 +93,7 @@ export async function POST() {
     update: {},
   })
 
-  // Seed default Footer template (Copyright)
+  // Seed default Footer template (Copyright with common options pre-filled)
   const footerTemplate = await prisma.pageTemplate.upsert({
     where: { id: 'seed-footer' },
     create: {
@@ -93,7 +105,26 @@ export async function POST() {
         content: [
           {
             type: 'Copyright',
-            props: { id: 'copyright-1' },
+            props: {
+              id: 'copyright-1',
+              prefix: '©',
+              customPrefix: '',
+              yearFormat: 'current',
+              startYear: new Date().getFullYear(),
+              showSiteName: 'true',
+              suffix: '',
+              alignment: 'left',
+              fontSize: 'small',
+              textColor: '#9ca3af',
+              privacyPolicyUrl: '',
+              privacyPolicyLabel: 'Privacy Policy',
+              termsUrl: '',
+              termsLabel: 'Terms of Service',
+              customLink1Url: '',
+              customLink1Label: '',
+              customLink2Url: '',
+              customLink2Label: '',
+            },
           },
         ],
         root: { props: {} },

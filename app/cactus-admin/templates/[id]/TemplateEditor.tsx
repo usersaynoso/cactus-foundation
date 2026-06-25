@@ -58,6 +58,10 @@ export default function TemplateEditor({ templateId, initialData, initialStatus 
             spacing={props.spacing ?? 'normal'}
             showDropdowns={props.showDropdowns ?? 'hover'}
             showMobileToggle={props.showMobileToggle ?? 'collapse'}
+            itemFontSize={props.itemFontSize ?? 'medium'}
+            itemFontWeight={props.itemFontWeight ?? 'medium'}
+            textTransform={props.textTransform ?? 'none'}
+            itemColor={props.itemColor ?? ''}
           />
         ),
       },
