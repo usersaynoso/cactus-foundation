@@ -81,13 +81,15 @@ Open http://localhost:3000. If the database is empty (no `SiteConfig` row), you'
 
 The wizard runs once, at `/_setup`, and completes in five steps:
 
-1. **Environment check** — confirms required variables are set. If `DATABASE_URL` is absent, you will be offered one of the three paths below.
+1. **Connect your project** — confirms required variables are set and your Vercel project is linked. If `DATABASE_URL` is absent, you will be offered one of the three paths below.
 2. **Admin account** — enter a username and email, then register a passkey (fingerprint, Face ID, or security key). No password at this step. The account is exempt from email verification.
 3. **Admin path** — choose a secret URL prefix for the admin area. A suggestion is pre-filled (e.g. `lemon-4f8a2c`). Anyone who doesn't know this path gets a plain 404.
-4. **Site essentials** — site name and timezone. Site URL is shown read-only (it comes from `SITE_URL`).
+4. **Name your site** — site name and timezone. Site URL is shown read-only (it comes from `SITE_URL`).
 5. **Recovery code** — a single-use offline recovery code is generated and shown **once**. Save it somewhere safe (password manager, printed paper). Only a hash is stored.
 
 When you click "I've saved it", the setup marks `setupCompleted = true` and redirects you to the admin dashboard.
+
+Optional features (email, image storage, bot protection, etc.) are not configured during setup. After setup, the dashboard shows an **Additional features** checklist with friendly descriptions and direct links to the relevant settings section.
 
 ## Database setup: three paths
 
@@ -147,7 +149,7 @@ The wizard also shows a hint that setting `NEON_API_KEY` would allow automatic p
 The site defaults to `comingSoon` status. To go live:
 
 1. Go to **Settings → Site Status** and set it to **Live**.
-2. Add optional credentials (email, media, GitHub) as needed — the dashboard shows a banner for each unconfigured feature.
+2. Add optional credentials (email, media, GitHub, etc.) via the **Additional features** checklist on the dashboard, or navigate directly to **Settings** and the relevant tab.
 
 ---
 

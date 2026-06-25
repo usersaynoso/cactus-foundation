@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import {
   PROVIDER_KIND,
@@ -146,8 +147,10 @@ function StatusBadge({ set }: { set: boolean }) {
   )
 }
 
-export default function ConfigPage() {
-  const [tab, setTab] = useState<Tab>('general')
+function ConfigPageInner() {
+  const searchParams = useSearchParams()
+  const initialTab = TABS.includes(searchParams.get('tab') as Tab) ? (searchParams.get('tab') as Tab) : 'general'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
@@ -928,5 +931,13 @@ export default function ConfigPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ConfigPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>}>
+      <ConfigPageInner />
+    </Suspense>
   )
 }
