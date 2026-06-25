@@ -20,6 +20,10 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 
 **Site URL** is shown read-only. It comes from the `SITE_URL` environment variable. Changing it requires updating the variable and redeploying — and registering new passkeys, since WebAuthn credentials are bound to the RP ID (the domain).
 
+### Danger zone — Reset Everything
+
+At the bottom of the General tab is a **Reset Everything** button. Pressing it shows a confirmation dialog; confirming will permanently delete all environment variables managed through the admin UI (email, media, integration credentials) from your Vercel project. Core infrastructure variables (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`) are **not** touched. After the reset you must **redeploy manually in Vercel** for the changes to take effect.
+
 ## Branding tab
 
 Upload a logo and favicon. Requires a media provider to be configured in the Media tab. Until set, generic Cactus placeholders are used.

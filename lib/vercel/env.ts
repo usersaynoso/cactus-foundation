@@ -104,6 +104,33 @@ export async function upsertVercelEnvVar(
   }
 }
 
+// Deletes env vars by key. Silently skips keys that are not set.
+export async function deleteVercelEnvVars(
+  token: string,
+  projectId: string,
+  keys: string[]
+): Promise<void> {
+  const existing = await listVercelEnvVars(token, projectId)
+  const toDelete = existing.filter((v) => keys.includes(v.key))
+
+  await Promise.all(
+    toDelete.map(async ({ id, key }) => {
+      const res = await fetch(
+        `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env/${id}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(15_000),
+        }
+      )
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`Vercel DELETE env var "${key}" failed (${res.status}): ${body}`)
+      }
+    })
+  )
+}
+
 // Batch upsert. Fetches the var list once, then creates/updates each key.
 export async function upsertVercelEnvVars(
   token: string,

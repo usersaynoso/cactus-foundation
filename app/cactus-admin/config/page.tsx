@@ -165,6 +165,12 @@ export default function ConfigPage() {
   const [envError, setEnvError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
 
+  // Reset Everything state
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
+  const [resetError, setResetError] = useState('')
+
   // Media provider state
   const [breakdown, setBreakdown] = useState<Record<string, number>>({})
   const [migrationJob, setMigrationJob] = useState<MigrationJob | null>(null)
@@ -534,6 +540,62 @@ export default function ConfigPage() {
           </div>
           <div className="field"><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
           <div className="field"><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: '#dc2626' }}>Danger zone</h2>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+              Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
+            </p>
+            {!showResetConfirm && !resetDone && (
+              <button className="btn btn-danger" onClick={() => setShowResetConfirm(true)}>
+                Reset Everything
+              </button>
+            )}
+            {showResetConfirm && !resetDone && (
+              <div className="card" style={{ borderColor: '#dc2626' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#dc2626' }}>Are you sure?</h3>
+                <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+                  This will <strong>permanently delete all environment variables</strong> from your Vercel project —
+                  email credentials, media provider keys, integrations, and everything else. Your site will stop
+                  working until you redeploy and reconfigure it from scratch.
+                </p>
+                {resetError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{resetError}</div>}
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    className="btn btn-danger"
+                    disabled={resetting}
+                    onClick={async () => {
+                      setResetting(true)
+                      setResetError('')
+                      try {
+                        const res = await fetch('/api/admin/env', { method: 'DELETE' })
+                        const d = (await res.json()) as { ok?: boolean; error?: string }
+                        if (!res.ok) throw new Error(d.error ?? 'Reset failed')
+                        setEnvStatus({})
+                        setShowResetConfirm(false)
+                        setResetDone(true)
+                      } catch (err: unknown) {
+                        setResetError(err instanceof Error ? err.message : 'Reset failed')
+                      } finally {
+                        setResetting(false)
+                      }
+                    }}
+                  >
+                    {resetting ? 'Resetting…' : 'Reset'}
+                  </button>
+                  <button className="btn btn-secondary" disabled={resetting} onClick={() => { setShowResetConfirm(false); setResetError('') }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            {resetDone && (
+              <div className="alert alert-info">
+                All environment variables have been removed. To complete the factory reset, <strong>redeploy your project manually in Vercel</strong>.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
