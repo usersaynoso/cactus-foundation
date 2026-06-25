@@ -118,7 +118,8 @@ export async function DELETE() {
   let failed: Array<{ key: string; error: string }> = []
 
   try {
-    const result = await deleteVercelEnvVars(token, projectId, [...ALLOWED_KEYS])
+    const allKeys = await getVercelEnvVarKeys(token, projectId)
+    const result = await deleteVercelEnvVars(token, projectId, allKeys)
     deleted = result.deleted
     failed = result.failed
     console.log(`[reset] deleted ${deleted.length} vars:`, deleted)
