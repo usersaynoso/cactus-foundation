@@ -440,7 +440,7 @@ export default function ConfigPage() {
   }
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div>
       <div className="page-header">
         <h1 className="page-title">Settings</h1>
         <button className="btn btn-primary" disabled={saving} onClick={handleSave}>

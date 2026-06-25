@@ -115,7 +115,9 @@ export default function Nav({ siteName, mainMenu = [] }: Props) {
     <header className="prickly-header">
       <nav className="prickly-nav">
         <Link href="/" className="prickly-logo">
-          🌵 {siteName}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
+          {siteName}
         </Link>
 
         {mainMenu.length > 0 && (

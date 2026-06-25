@@ -716,12 +716,11 @@ function SiteLogo(props: any) {
     showTextWithLogo = false,
     textColor,
     homeUrl = '/',
-    iconEmoji = '🌵',
     showIcon = true,
   } = props as {
     logoUrl?: string; siteName?: string; logoHeight?: number;
     showTextWithLogo?: boolean; textColor?: string; homeUrl?: string;
-    iconEmoji?: string; showIcon?: boolean;
+    showIcon?: boolean;
   }
   const href = homeUrl || '/'
   const colorStyle = textColor ? { color: textColor } : undefined
@@ -743,8 +742,11 @@ function SiteLogo(props: any) {
 
   return (
     <a href={href} className="prickly-logo" style={colorStyle}>
-      {showIconBool && iconEmoji && <span aria-hidden="true">{iconEmoji}</span>}
-      {' '}{siteName ?? 'Site Name'}
+      {showIconBool && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
+      )}
+      {siteName ?? 'Site Name'}
     </a>
   )
 }
@@ -1660,13 +1662,12 @@ const puckConfig = {
         },
         showIcon: {
           type: 'select' as const,
-          label: 'Show emoji icon (text logo)',
+          label: 'Show cactus icon (text logo)',
           options: [
             { value: 'true',  label: 'Yes' },
             { value: 'false', label: 'No' },
           ],
         },
-        iconEmoji: { type: 'text' as const, label: 'Emoji / icon (text logo)' },
         textColor: { type: 'text' as const, label: 'Text colour (hex or CSS value)' },
       },
       defaultProps: {
@@ -1674,7 +1675,6 @@ const puckConfig = {
         logoHeight: 40,
         showTextWithLogo: 'false',
         showIcon: 'true',
-        iconEmoji: '🌵',
         textColor: '',
       },
       render: SiteLogo,

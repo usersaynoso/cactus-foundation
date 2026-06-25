@@ -28,7 +28,8 @@ export default async function ComingSoonPage() {
       return (
         <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
           <div style={{ maxWidth: 480, textAlign: 'center' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🌵</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/cactus.svg" alt="Cactus" style={{ width: '4rem', height: '4rem', marginBottom: '1rem' }} />
             <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>{page.title}</h1>
             <div dangerouslySetInnerHTML={{ __html: html }} />
           </div>
@@ -40,7 +41,8 @@ export default async function ComingSoonPage() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
       <div style={{ maxWidth: 480, textAlign: 'center' }}>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🌵</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/cactus.svg" alt="Cactus" style={{ width: '4rem', height: '4rem', marginBottom: '1rem' }} />
         <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
           {config?.siteName ?? 'Coming Soon'}
         </h1>

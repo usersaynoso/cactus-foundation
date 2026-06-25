@@ -1342,6 +1342,9 @@ function DbChoicePanel({
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [projectsError, setProjectsError] = useState('')
   const [manualDbUrl, setManualDbUrl] = useState('')
+  const [checkingExistingData, setCheckingExistingData] = useState(false)
+  const [existingDataWarning, setExistingDataWarning] = useState(false)
+  const [pendingProjectId, setPendingProjectId] = useState('')
 
   async function handleSelectExisting() {
     if (selectedOption === 'existing') {
@@ -1353,6 +1356,8 @@ function DbChoicePanel({
     setProjectsError('')
     setNeonProjects([])
     setSelectedProjectId('')
+    setExistingDataWarning(false)
+    setPendingProjectId('')
     try {
       const res = await fetch('/api/setup/provision-db', {
         method: 'POST',
@@ -1369,6 +1374,30 @@ function DbChoicePanel({
       setProjectsError(err instanceof Error ? err.message : 'Network error')
     } finally {
       setLoadingProjects(false)
+    }
+  }
+
+  async function handleUseProjectClick(projectId: string) {
+    setExistingDataWarning(false)
+    setPendingProjectId(projectId)
+    setCheckingExistingData(true)
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check-existing', projectId, neonApiKey: neonApiKey || undefined }),
+      })
+      const data = (await res.json()) as { hasExistingData?: boolean }
+      if (data.hasExistingData) {
+        setExistingDataWarning(true)
+        return
+      }
+      onUseExisting(projectId)
+    } catch {
+      // If check fails, proceed anyway
+      onUseExisting(projectId)
+    } finally {
+      setCheckingExistingData(false)
     }
   }
 
@@ -1461,15 +1490,46 @@ function DbChoicePanel({
                 <span className="field-hint">Cactus will read the default branch connection URI and write it to Vercel.</span>
               </div>
             )}
-            {neonProjects.length > 0 && (
+            {neonProjects.length > 0 && !existingDataWarning && (
               <button
                 className="btn btn-primary"
                 style={{ width: '100%' }}
-                disabled={neonProjects.length > 1 && !selectedProjectId}
-                onClick={() => onUseExisting(neonProjects.length === 1 ? (neonProjects[0]?.id ?? '') : selectedProjectId)}
+                disabled={(neonProjects.length > 1 && !selectedProjectId) || checkingExistingData}
+                onClick={() => handleUseProjectClick(neonProjects.length === 1 ? (neonProjects[0]?.id ?? '') : selectedProjectId)}
               >
-                Use this project →
+                {checkingExistingData ? (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <span className="setup-spinner" />
+                    Checking for existing data…
+                  </span>
+                ) : 'Use this project →'}
               </button>
+            )}
+            {existingDataWarning && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
+                  <strong>⚠ This project already contains data.</strong>
+                  <div style={{ fontSize: '0.8125rem', marginTop: '0.375rem' }}>
+                    Connecting this Neon project to Cactus will run database migrations that may conflict with or overwrite existing schemas. All existing data in this project could be lost.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn"
+                    style={{ flex: 1, background: '#fff', border: '1px solid #d1d5db' }}
+                    onClick={() => { setExistingDataWarning(false); setPendingProjectId('') }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ flex: 1 }}
+                    onClick={() => { setExistingDataWarning(false); onUseExisting(pendingProjectId) }}
+                  >
+                    Yes, overwrite existing data →
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}

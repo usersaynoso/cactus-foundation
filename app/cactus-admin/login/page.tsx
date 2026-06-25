@@ -153,7 +153,8 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: '#f9fafb' }}>
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '2.5rem', width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🌵</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/cactus.svg" alt="Cactus" style={{ width: '2.5rem', height: '2.5rem', marginBottom: '0.5rem' }} />
           <h1 style={{ margin: 0, fontSize: '1.375rem', fontWeight: 700 }}>Sign in</h1>
         </div>
 

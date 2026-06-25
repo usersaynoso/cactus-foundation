@@ -106,7 +106,7 @@ export default function MenusPage() {
   if (loading) return <p>Loading…</p>
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div>
       <div className="page-header">
         <h1 className="page-title">Menus</h1>
         {!creating && (

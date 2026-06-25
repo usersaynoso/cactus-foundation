@@ -25,7 +25,7 @@ import { isEdgeConfigWritable } from '@/lib/config/env'
 // External image origins are added when CLOUDFLARE_WORKER_HOSTNAME is set.
 function buildCsp(): string {
   const workerHost = process.env.CLOUDFLARE_WORKER_HOSTNAME
-  const imgSrc = ['self', 'data:', 'blob:', workerHost ? `https://${workerHost}` : '']
+  const imgSrc = ["'self'", 'data:', 'blob:', workerHost ? `https://${workerHost}` : '']
     .filter(Boolean)
     .join(' ')
   return [

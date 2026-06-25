@@ -97,24 +97,38 @@ If `DATABASE_URL` is present in your environment, the wizard proceeds normally. 
 
 ### Path 2 — Automatic provisioning via Neon (recommended for new installs)
 
-If `DATABASE_URL` is **absent** and `NEON_API_KEY` is present, the wizard offers a **"Create database automatically"** button. When you click it:
+If `DATABASE_URL` is **absent** and `NEON_API_KEY` is present, the wizard offers three options:
+
+#### Option A — Create a fresh database automatically (recommended)
 
 1. Cactus calls the Neon API to create a new free-tier Neon Postgres project in your chosen region.
-2. The **pooled** connection string from the response is written as `DATABASE_URL` to your Vercel project's environment variables via the Vercel REST API.
+2. The **pooled** connection string is written as `DATABASE_URL` to your Vercel project's environment variables via the Vercel REST API.
 3. Writing that env var triggers a **Vercel redeployment**. During that build, `prisma migrate deploy` runs automatically and applies the database schema. **The wizard cannot continue in the same page load** — this is unavoidable.
-4. The wizard shows a "redeploying" state and polls `/api/health` every 5 seconds. Once the database is reachable, it advances you to the admin account step automatically. You do not need to manually refresh.
+4. The wizard shows a "redeploying" state and polls `/api/health` every 5 seconds. Once the database is reachable, it advances you automatically.
 
-> **Why does the page pause?** Vercel applies new environment variables only at redeploy time. There is no way to inject `DATABASE_URL` into a running deployment. The redeploy is the mechanism by which the build picks up the new variable and runs migrations. This is by design — the architecture guarantees migrations only ever run in the build step, never from the live app.
+**Idempotency:** if the page refreshes or the deployment fails mid-flight, the wizard detects the existing Neon project by name and reuses it. The project name follows the pattern `cactus-{VERCEL_PROJECT_ID}`.
 
-**To use this path:**
+#### Option B — Use an existing Neon project
+
+1. The wizard lists all Neon projects in your account. Select the one you want to connect.
+2. Before connecting, Cactus checks whether the selected project already has database tables. If it does, you'll see a warning — **all existing data could be overwritten** when Cactus runs its migrations. Confirm only if you are certain.
+3. Cactus fetches the pooled connection URI and writes it to Vercel, then redeploys (same flow as Option A).
+
+> **Warning:** connecting an existing Neon project that already contains data will run `prisma migrate deploy` against it. This may conflict with or drop existing schemas. Only proceed if you intend to use that project exclusively for Cactus.
+
+#### Option C — Supply your own `DATABASE_URL`
+
+Paste any PostgreSQL connection string. Cactus writes it to Vercel and triggers a redeploy.
+
+> **Why does the page pause?** Vercel applies new environment variables only at redeploy time. The redeploy is the mechanism by which the build picks up the new variable and runs migrations. This is by design — the architecture guarantees migrations only ever run in the build step, never from the live app.
+
+**To use Path 2:**
 
 1. Create a free Neon account at [console.neon.tech](https://console.neon.tech).
 2. Go to Account Settings → API keys and generate a key.
 3. Add `NEON_API_KEY` to your Vercel project's environment variables and redeploy (or add it before the initial deploy).
 4. Ensure `VERCEL_API_TOKEN` and `VERCEL_PROJECT_ID` are also set — they are required for Cactus to write `DATABASE_URL` back to your project.
-5. Visit `/_setup`. The wizard will offer the automatic provisioning button.
-
-**Idempotency:** if you click the button, the page refreshes, or the deployment fails mid-flight, clicking the button again (or reloading) will detect the existing Neon project by name and reuse it rather than creating a duplicate. The project name follows the pattern `cactus-{VERCEL_PROJECT_ID}`.
+5. Visit `/_setup`. The wizard will offer the three options above.
 
 ### Path 3 — Manual (no Neon API key)
 

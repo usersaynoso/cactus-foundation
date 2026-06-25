@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
+import { Client } from 'pg'
 
 const NEON_API = 'https://console.neon.tech/api/v2'
 const VERCEL_API = 'https://api.vercel.com'
@@ -85,7 +86,7 @@ async function createNeonProject(
   const projectBody: Record<string, unknown> = {
     name: projectName,
     region_id: regionId,
-    pg_version: 17,
+    pg_version: 18,
   }
   if (orgId) projectBody.org_id = orgId
   const res = await fetch(`${NEON_API}/projects`, {
@@ -201,6 +202,22 @@ async function writeVercelEnvVars(
 }
 
 // Guard: only available before setup is complete.
+// Connects to the given database URL and counts user-created tables.
+// Returns true if the database already has tables (i.e. existing data/schema).
+async function checkDatabaseHasExistingData(connectionUri: string): Promise<boolean> {
+  const client = new Client({ connectionString: connectionUri, connectionTimeoutMillis: 8_000, statement_timeout: 5_000 })
+  try {
+    await client.connect()
+    const res = await client.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM information_schema.tables
+       WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')`
+    )
+    return parseInt(res.rows[0]?.count ?? '0', 10) > 0
+  } finally {
+    await client.end().catch(() => {})
+  }
+}
+
 async function isSetupComplete(): Promise<boolean> {
   try {
     if (!process.env.DATABASE_URL) return false
@@ -340,6 +357,25 @@ export async function POST(req: NextRequest) {
   // For Neon actions we need the API key.
   if (!neonApiKey) {
     return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+  }
+
+  // ── Action: check-existing ────────────────────────────────────────────────
+  // Checks whether a Neon project's database already has tables (existing data).
+  // Called before 'use-existing' so the UI can warn the user if data is present.
+  if (action === 'check-existing') {
+    const existingProjectId = body.projectId
+    if (!existingProjectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
+    try {
+      const { pooledUri } = await getPooledUriForProject(neonApiKey, existingProjectId)
+      const hasExistingData = await checkDatabaseHasExistingData(pooledUri)
+      return NextResponse.json({ hasExistingData })
+    } catch (err: unknown) {
+      // If we can't connect, assume no data and let the user proceed.
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return NextResponse.json({ hasExistingData: false, warning: message })
+    }
   }
 
   // ── Action: use-existing ──────────────────────────────────────────────────

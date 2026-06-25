@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
 import type { Role } from '@prisma/client'
@@ -20,6 +20,8 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
+  // Track whether the sidebar was auto-collapsed by the editor so we can restore it on exit
+  const autoCollapsedRef = useRef(false)
 
   // Read persisted preference on mount
   useEffect(() => {
@@ -27,10 +29,17 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
     if (stored !== null) setCollapsed(stored === 'true')
   }, [])
 
-  // Auto-collapse when navigating into a puck editor
+  // Auto-collapse when entering puck editor; auto-expand when leaving
   useEffect(() => {
-    if (PUCK_EDITOR_RE.test(pathname)) {
+    const inEditor = PUCK_EDITOR_RE.test(pathname)
+    if (inEditor && !autoCollapsedRef.current) {
+      autoCollapsedRef.current = true
       setCollapsed(true)
+      localStorage.setItem('cactus-sidebar-collapsed', 'true')
+    } else if (!inEditor && autoCollapsedRef.current) {
+      autoCollapsedRef.current = false
+      setCollapsed(false)
+      localStorage.setItem('cactus-sidebar-collapsed', 'false')
     }
   }, [pathname])
 
@@ -38,6 +47,8 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
     const next = !collapsed
     setCollapsed(next)
     localStorage.setItem('cactus-sidebar-collapsed', String(next))
+    // Manual toggle clears auto-collapse tracking
+    autoCollapsedRef.current = false
   }
 
   return (
@@ -88,15 +99,6 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           </button>
         </div>
 
-        <button
-          className="admin-sidebar-toggle"
-          onClick={toggleCollapsed}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? '›' : '‹'}
-        </button>
-
         <AdminNav
           adminPath={adminPath}
           userRole={userRole}
@@ -104,6 +106,17 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           collapsed={collapsed}
           onNavClick={() => setMobileOpen(false)}
         />
+
+        {/* Desktop collapse/expand toggle — pinned to the bottom of the sidebar */}
+        <button
+          className="admin-sidebar-toggle"
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <span className="admin-sidebar-toggle-icon">{collapsed ? '›' : '‹'}</span>
+          {!collapsed && <span className="admin-sidebar-toggle-label">Collapse</span>}
+        </button>
       </aside>
 
       <div className="admin-main">

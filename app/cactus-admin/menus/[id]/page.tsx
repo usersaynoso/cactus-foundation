@@ -439,7 +439,7 @@ export default function MenuDetailPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900 }}>
+    <div>
       <div className="page-header">
         <div>
           <Link href={`/${adminPath}/menus`} style={{ fontSize: '0.875rem', color: '#6b7280', textDecoration: 'none', display: 'block', marginBottom: '0.25rem' }}>
