@@ -201,6 +201,23 @@ async function writeVercelEnvVars(
   }
 }
 
+// Drops all user-created objects by resetting the public schema.
+// Uses a direct (non-pooler) connection since DDL is not safe through pgBouncer.
+async function dropAllSchemas(connectionUri: string): Promise<void> {
+  const directUri = connectionUri.includes('-pooler.')
+    ? connectionUri.replace('-pooler.', '.')
+    : connectionUri
+  const client = new Client({ connectionString: directUri, connectionTimeoutMillis: 15_000, statement_timeout: 30_000 })
+  try {
+    await client.connect()
+    await client.query('DROP SCHEMA public CASCADE')
+    await client.query('CREATE SCHEMA public')
+    await client.query('GRANT ALL ON SCHEMA public TO PUBLIC')
+  } finally {
+    await client.end().catch(() => {})
+  }
+}
+
 // Guard: only available before setup is complete.
 // Connects to the given database URL and counts user-created tables.
 // Returns true if the database already has tables (i.e. existing data/schema).
@@ -244,6 +261,7 @@ export async function POST(req: NextRequest) {
     region?: string
     projectId?: string
     databaseUrl?: string
+    destroyData?: boolean
     neonApiKey?: string
     vercelToken?: string
     vercelProjectId?: string
@@ -388,6 +406,9 @@ export async function POST(req: NextRequest) {
     }
     try {
       const { pooledUri, project } = await getPooledUriForProject(neonApiKey, existingProjectId)
+      if (body.destroyData) {
+        await dropAllSchemas(pooledUri)
+      }
       await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
       await triggerVercelRedeploy(vercelToken, vercelProjectId)
       return NextResponse.json({ status: 'provisioned', neonProjectId: project.id })

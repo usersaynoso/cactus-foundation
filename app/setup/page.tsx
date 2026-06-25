@@ -298,7 +298,7 @@ export default function SetupPage() {
     }
   }
 
-  async function handleUseExistingNeon(projectId: string, preserveData = false) {
+  async function handleUseExistingNeon(projectId: string, preserveData = false, destroyFirst = false) {
     setUsingExistingData(preserveData)
     setProvisionError('')
     setDbSubStep('db-provisioning')
@@ -309,6 +309,7 @@ export default function SetupPage() {
         body: JSON.stringify({
           action: 'use-existing',
           projectId,
+          destroyData: destroyFirst,
           neonApiKey: vercelNeonKey || undefined,
           vercelToken: vercelToken || undefined,
           vercelProjectId: selectedProjectId || undefined,
@@ -756,6 +757,7 @@ export default function SetupPage() {
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
               onUseExisting={(id) => handleUseExistingNeon(id, false)}
+              onDestroyExisting={(id) => handleUseExistingNeon(id, false, true)}
               onUseExistingWithData={(id) => handleUseExistingNeon(id, true)}
               onSaveManualUrl={handleManualDbSave}
               neonApiKey={vercelNeonKey}
@@ -1118,6 +1120,7 @@ function DbChoicePanel({
   setNeonRegion,
   onProvision,
   onUseExisting,
+  onDestroyExisting,
   onUseExistingWithData,
   onSaveManualUrl,
   neonApiKey,
@@ -1126,6 +1129,7 @@ function DbChoicePanel({
   setNeonRegion: (r: string) => void
   onProvision: () => void
   onUseExisting: (projectId: string) => void
+  onDestroyExisting: (projectId: string) => void
   onUseExistingWithData: (projectId: string) => void
   onSaveManualUrl: (url: string) => void
   neonApiKey: string
@@ -1318,7 +1322,7 @@ function DbChoicePanel({
                   <button
                     className="btn btn-danger"
                     style={{ width: '100%' }}
-                    onClick={() => { setExistingDataWarning(false); onUseExisting(pendingProjectId) }}
+                    onClick={() => { setExistingDataWarning(false); onDestroyExisting(pendingProjectId) }}
                   >
                     Destroy all existing data
                   </button>

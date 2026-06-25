@@ -113,10 +113,12 @@ If `DATABASE_URL` is **absent** and `NEON_API_KEY` is present, the wizard offers
 #### Option B — Use an existing Neon project
 
 1. The wizard lists all Neon projects in your account. Select the one you want to connect.
-2. Before connecting, Cactus checks whether the selected project already has database tables. If it does, you'll see a warning — **all existing data could be overwritten** when Cactus runs its migrations. Confirm only if you are certain.
-3. Cactus fetches the pooled connection URI and writes it to Vercel, then redeploys (same flow as Option A).
+2. Before connecting, Cactus checks whether the selected project already has database tables. If it does, you'll see a warning with two choices:
+   - **Use existing data** — Cactus connects the project as-is. Any existing admin settings (site name, admin path, timezone) are pre-filled in the setup wizard. Prisma applies only pending migrations, leaving existing rows intact.
+   - **Destroy all existing data** — Cactus drops and recreates the `public` schema before connecting. This gives Prisma a clean slate and is the right choice if you want a fresh Cactus install in a project that previously held other data.
+3. Cactus fetches the pooled connection URI, (optionally drops the schema), writes it to Vercel, then redeploys.
 
-> **Warning:** connecting an existing Neon project that already contains data will run `prisma migrate deploy` against it. This may conflict with or drop existing schemas. Only proceed if you intend to use that project exclusively for Cactus.
+> **Warning:** "Destroy all existing data" is irreversible — it permanently deletes everything in the database's public schema. Only choose this if you are certain you no longer need the existing data.
 
 #### Option C — Supply your own `DATABASE_URL`
 
