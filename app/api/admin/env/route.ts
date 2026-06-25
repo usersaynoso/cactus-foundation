@@ -9,8 +9,8 @@ import { ALL_PROVIDERS, envKeysForProvider } from '@/lib/media/providers'
 export const maxDuration = 60
 
 // The env vars that can be managed via the UI.
-// Required infrastructure vars (DATABASE_URL, SESSION_SECRET, SITE_URL,
-// VERCEL_API_TOKEN, VERCEL_PROJECT_ID) are excluded — they're set at deploy time.
+// Strictly protected infra vars that must never be deleted:
+//   DATABASE_URL, SESSION_SECRET, SITE_URL, VERCEL_API_TOKEN, VERCEL_PROJECT_ID
 const ALLOWED_KEYS = new Set([
   // Email
   'BREVO_API_KEY',
@@ -29,6 +29,9 @@ const ALLOWED_KEYS = new Set([
   'TURNSTILE_SITE_KEY',
   'TURNSTILE_SECRET_KEY',
   'SENTRY_DSN',
+  // Setup-phase vars cleared on factory reset
+  'NEON_PROJECT_ID',
+  'NEXT_PUBLIC_SITE_URL',
 ])
 
 // GET — returns which vars are currently set (boolean only, never values).
@@ -118,8 +121,13 @@ export async function DELETE() {
     const result = await deleteVercelEnvVars(token, projectId, [...ALLOWED_KEYS])
     deleted = result.deleted
     failed = result.failed
+    console.log(`[reset] deleted ${deleted.length} vars:`, deleted)
+    if (failed.length > 0) {
+      console.error(`[reset] ${failed.length} vars failed to delete:`, JSON.stringify(failed))
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[reset] deleteVercelEnvVars threw:', message)
     return errorResponse(`Failed to delete env vars: ${message}`, 502)
   }
 
@@ -132,6 +140,7 @@ export async function DELETE() {
   return NextResponse.json({
     ok: true,
     deleted: deleted.length,
+    deletedKeys: deleted,
     failed,
     redeployTriggered: true,
   })
