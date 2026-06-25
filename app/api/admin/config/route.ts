@@ -38,7 +38,10 @@ const Patch = z.object({
   emailFromName: z.string().max(100).optional().nullable(),
   emailFromAddress: z.string().email().optional().nullable(),
   emailProvider: z.string().optional().nullable(),
-  imageProvider: z.string().optional().nullable(),
+  mediaProvider: z
+    .enum(['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT'])
+    .optional()
+    .nullable(),
   comingSoonPageId: z.string().optional().nullable(),
   maintenancePageId: z.string().optional().nullable(),
   privacyPolicyPageId: z.string().optional().nullable(),
@@ -82,6 +85,15 @@ export async function PATCH(request: NextRequest) {
   if (Object.keys(edgeUpdates).length > 0) {
     await syncToEdgeConfig(edgeUpdates).catch(() => {})
     invalidateSiteConfigCache()
+  }
+
+  // When the media provider changed, return a per-provider breakdown of existing
+  // rows so the UI can decide whether to prompt for a migration.
+  if (rest.mediaProvider !== undefined && updated.mediaProvider) {
+    const grouped = await prisma.media.groupBy({ by: ['provider'], _count: { _all: true } })
+    const breakdown: Record<string, number> = {}
+    for (const g of grouped) breakdown[g.provider] = g._count._all
+    return NextResponse.json({ ok: true, mediaProvider: updated.mediaProvider, breakdown })
   }
 
   return NextResponse.json({ ok: true })

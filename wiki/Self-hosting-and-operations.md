@@ -2,17 +2,76 @@
 
 ## Database backups
 
-Cactus is stateful in two places: PostgreSQL and your Backblaze B2 bucket. Back both up.
+Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up.
 
 **Recommended approach for PostgreSQL on Neon or Supabase:**
 
 - Enable Point-in-Time Recovery (PITR) — both providers offer it on paid plans. PITR lets you restore to any second in the past within your retention window, which is far more useful than a daily snapshot when debugging a bad migration.
 - For self-hosted Postgres: use `pg_dump` scheduled via cron, ship the dump to an off-server location (another cloud storage bucket), and test restores occasionally.
 
-**B2 media:**
+**Media backups:**
 
-- Backblaze B2 supports bucket replication to a second region. Enable it for production.
-- If you delete a media file via the admin, it's gone from B2 immediately. There's no soft-delete or trash. Your B2 backup is the recovery path.
+- Backblaze B2 and Cloudflare R2 support bucket replication. Enable it for production.
+- For other providers, use the provider's own snapshot or replication feature, or ship periodic exports to a secondary bucket.
+- If you delete a media file via the admin, it's deleted from the provider immediately. There's no soft-delete or trash. Your bucket backup is the recovery path.
+
+## Cloudflare Worker secrets
+
+The Cloudflare Worker that serves proxied media reads credentials from **Worker secrets**, not from Vercel environment variables. You must configure these manually whenever you add or change a proxied provider.
+
+```bash
+# Set secrets for the providers you use (run from the workers/media-worker/ directory):
+
+# Backblaze B2
+wrangler secret put B2_APPLICATION_KEY_ID
+wrangler secret put B2_APPLICATION_KEY
+wrangler secret put B2_BUCKET_NAME
+wrangler secret put B2_ENDPOINT
+
+# Cloudflare R2
+wrangler secret put R2_ACCOUNT_ID
+wrangler secret put R2_ACCESS_KEY_ID
+wrangler secret put R2_SECRET_ACCESS_KEY
+wrangler secret put R2_BUCKET_NAME
+
+# AWS S3
+wrangler secret put S3_ACCESS_KEY_ID
+wrangler secret put S3_SECRET_ACCESS_KEY
+wrangler secret put S3_BUCKET_NAME
+wrangler secret put S3_REGION
+
+# DigitalOcean Spaces
+wrangler secret put SPACES_ACCESS_KEY_ID
+wrangler secret put SPACES_SECRET_ACCESS_KEY
+wrangler secret put SPACES_BUCKET_NAME
+wrangler secret put SPACES_REGION
+
+# Wasabi
+wrangler secret put WASABI_ACCESS_KEY_ID
+wrangler secret put WASABI_SECRET_ACCESS_KEY
+wrangler secret put WASABI_BUCKET_NAME
+wrangler secret put WASABI_REGION
+
+# MinIO
+wrangler secret put MINIO_ENDPOINT
+wrangler secret put MINIO_ACCESS_KEY_ID
+wrangler secret put MINIO_SECRET_ACCESS_KEY
+wrangler secret put MINIO_BUCKET_NAME
+
+# Vercel Blob (BLOB_BASE_URL is the base URL of your blob store, e.g. https://xxxx.public.blob.vercel-storage.com)
+wrangler secret put BLOB_BASE_URL
+wrangler secret put BLOB_READ_WRITE_TOKEN
+
+# Supabase Storage
+wrangler secret put SUPABASE_STORAGE_PROJECT_URL
+wrangler secret put SUPABASE_STORAGE_SERVICE_ROLE_KEY
+wrangler secret put SUPABASE_STORAGE_BUCKET_NAME
+
+# Required for all proxied providers
+wrangler secret put ALLOWED_ORIGIN   # e.g. https://example.com
+```
+
+Configure only the secrets for the providers you actually have items on — unused secrets have no effect. When you switch providers and choose "Switch without migrating", keep the old provider's secrets in place until migration is complete so that existing items continue to serve correctly.
 
 ## Stale-row cleanup
 

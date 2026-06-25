@@ -1,14 +1,18 @@
-// Custom Next.js image loader that routes all image requests through the
-// Cloudflare Worker. The Worker performs resizing via Cloudflare Image Resizing,
-// so Next.js's own optimisation pipeline is bypassed entirely. This means images
-// are served directly from the Worker's edge to the browser — never proxied
-// through a Vercel serverless function — which is critical for cost and latency.
+// Custom Next.js image loader. It branches on the stored Media.url itself, since
+// it runs client-side and has no database access. The url already encodes which
+// provider serves the image:
 //
-// The loader and the Worker are designed together as one unit:
-//   - The loader builds URLs pointing at the Worker with width/quality params.
-//   - The Worker reads those params and applies Cloudflare Image Resizing.
-// Neither is optional; the loader without a resizing Worker would send full-size
-// originals to every device.
+//   - Proxied providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase)
+//     store a Cloudflare Worker url. The loader appends ?w=&q= for the Worker to
+//     drive Cloudflare Image Resizing — served from the Worker's edge, never a
+//     Vercel function.
+//   - Cloudinary (direct) stores a res.cloudinary.com url. The loader inserts a
+//     transformation segment into the /upload/ path: /upload/w_<width>,q_<quality>/
+//   - ImageKit (direct) stores an ik.imagekit.io url. The loader appends the
+//     ImageKit transformation query: ?tr=w-<width>,q-<quality>
+//
+// Direct-provider requests go straight to that provider's CDN; the Worker is
+// never involved.
 
 type LoaderParams = {
   src: string
@@ -16,19 +20,29 @@ type LoaderParams = {
   quality?: number
 }
 
-export default function cloudflareWorkerLoader({
-  src,
-  width,
-  quality = 80,
-}: LoaderParams): string {
-  const workerUrl =
-    process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
+export default function mediaLoader({ src, width, quality = 80 }: LoaderParams): string {
+  let hostname = ''
+  try {
+    hostname = new URL(src.startsWith('http') ? src : `https://placeholder/${src}`).hostname
+  } catch {
+    hostname = ''
+  }
 
-  // src is already the full worker URL (e.g. https://worker.example.com/media/abc.jpg)
-  // We append width/quality params that the Worker reads to drive Image Resizing.
-  const url = new URL(src.startsWith('http') ? src : `${workerUrl}/${src}`)
-  url.searchParams.set('w', String(width))
-  url.searchParams.set('q', String(quality))
+  // Cloudinary — insert transformation into the /upload/ path segment.
+  if (hostname.includes('cloudinary.com')) {
+    return src.replace('/upload/', `/upload/w_${width},q_${quality}/`)
+  }
 
-  return url.toString()
+  // ImageKit — append the transformation query.
+  if (hostname.includes('imagekit.io')) {
+    const separator = src.includes('?') ? '&' : '?'
+    return `${src}${separator}tr=w-${width},q-${quality}`
+  }
+
+  // Proxied providers — Worker url with width/quality params.
+  const workerUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
+  const out = new URL(src.startsWith('http') ? src : `${workerUrl}/${src}`)
+  out.searchParams.set('w', String(width))
+  out.searchParams.set('q', String(quality))
+  return out.toString()
 }

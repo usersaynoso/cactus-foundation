@@ -166,8 +166,9 @@ model SiteConfig {
   emailFromAddress       String?
   // 'brevo' | 'smtp'
   emailProvider          String?
-  // 'backblaze' — others added later
-  imageProvider          String?
+  // Active media provider for new uploads. Null until an admin selects one.
+  // MediaProviderKind (PROXIED/DIRECT) is a static app-code lookup, not a column.
+  mediaProvider          MediaProviderType?
   comingSoonPageId       String?
   maintenancePageId      String?
   privacyPolicyPageId    String?
@@ -241,10 +242,29 @@ enum BodyFormat {
 // Media
 // ---------------------------------------------------------------------------
 
+// Media provider enum. PROXIED providers (B2, R2, S3, SPACES, WASABI, MINIO,
+// VERCEL_BLOB, SUPABASE_STORAGE) are fetched and resized by the Cloudflare Worker.
+// DIRECT providers (CLOUDINARY, IMAGEKIT) serve and transform from their own CDN.
+// The PROXIED/DIRECT distinction lives in app code (lib/media/providers.ts), not here.
+enum MediaProviderType {
+  B2
+  R2
+  S3
+  SPACES
+  WASABI
+  MINIO
+  VERCEL_BLOB
+  SUPABASE_STORAGE
+  CLOUDINARY
+  IMAGEKIT
+}
+
 model Media {
-  id           String   @id @default(cuid())
-  key          String   @unique
-  provider     String   // 'backblaze'
+  id           String            @id @default(cuid())
+  key          String            @unique
+  // Which provider this item actually lives on right now. Set at upload time
+  // from the active provider; only changed by a completed migration.
+  provider     MediaProviderType
   url          String
   // Nullable so content survives if uploader deletes their account
   uploadedById String?
@@ -257,6 +277,27 @@ model Media {
 
   @@index([uploadedById])
   @@index([createdAt])
+  @@index([provider])
+}
+
+// A media migration job moves every Media row not already on `toProvider`
+// onto it. Exactly one job runs at a time (guarded by the global DeployLock-style
+// pattern). Processed in small batches triggered by repeated client-side calls
+// while the admin keeps the migration screen open — never a Cron job.
+model MediaMigrationJob {
+  id            String            @id @default(cuid())
+  toProvider    MediaProviderType
+  status        String            // pending | running | completed | failed | cancelled
+  totalItems    Int
+  migratedItems Int               @default(0)
+  failedItemIds Json              @default("[]")
+  cursor        String?
+  startedAt     DateTime          @default(now())
+  completedAt   DateTime?
+  lastError     String?
+
+  @@index([status])
+  @@index([startedAt])
 }
 
 // ---------------------------------------------------------------------------

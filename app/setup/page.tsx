@@ -4,6 +4,13 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
+import {
+  ALL_PROVIDERS,
+  PROVIDER_LABELS,
+  PROVIDER_ENV_VARS,
+  PROVIDER_KIND,
+  CLOUDFLARE_WORKER_VAR,
+} from '@/lib/media/providers'
 
 type Step = 'env' | 'features' | 'account' | 'adminPath' | 'essentials' | 'recovery'
 
@@ -124,6 +131,7 @@ export default function SetupPage() {
   const [featureSaving, setFeatureSaving] = useState(false)
   const [featureError, setFeatureError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
+  const [setupMediaProvider, setSetupMediaProvider] = useState<string>('')
 
   // Account fields
   const [username, setUsername] = useState('')
@@ -837,27 +845,68 @@ export default function SetupPage() {
           </FeatureSection>
 
           {/* Media */}
-          <FeatureSection title="Media (Backblaze B2)" description="Required for image uploads, logo, and favicon.">
+          <FeatureSection title="Media" description="Required for image uploads, logo, and favicon. Choose your storage provider below.">
             <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>B2_APPLICATION_KEY_ID</label>
-              <input value={featureFields['B2_APPLICATION_KEY_ID'] ?? ''} onChange={(e) => setFeatureField('B2_APPLICATION_KEY_ID', e.target.value)} placeholder="Key ID" style={{ fontSize: '0.875rem' }} />
+              <label style={{ fontSize: '0.875rem' }}>Storage provider</label>
+              <select
+                value={setupMediaProvider}
+                onChange={(e) => setSetupMediaProvider(e.target.value)}
+                style={{ fontSize: '0.875rem' }}
+              >
+                <option value="">— Select a provider —</option>
+                <optgroup label="Object storage (served via your Cloudflare Worker)">
+                  {ALL_PROVIDERS.filter((p) => PROVIDER_KIND[p] === 'PROXIED').map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Image CDN (served and resized by the provider directly)">
+                  {ALL_PROVIDERS.filter((p) => PROVIDER_KIND[p] === 'DIRECT').map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <span className="field-hint">You can change this later in Settings → Media.</span>
             </div>
-            <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>B2_APPLICATION_KEY</label>
-              <input type="password" autoComplete="off" value={featureFields['B2_APPLICATION_KEY'] ?? ''} onChange={(e) => setFeatureField('B2_APPLICATION_KEY', e.target.value)} placeholder="Application key" style={{ fontSize: '0.875rem' }} />
-            </div>
-            <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>B2_BUCKET_NAME</label>
-              <input value={featureFields['B2_BUCKET_NAME'] ?? ''} onChange={(e) => setFeatureField('B2_BUCKET_NAME', e.target.value)} placeholder="my-bucket" style={{ fontSize: '0.875rem' }} />
-            </div>
-            <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>B2_ENDPOINT</label>
-              <input value={featureFields['B2_ENDPOINT'] ?? ''} onChange={(e) => setFeatureField('B2_ENDPOINT', e.target.value)} placeholder="https://s3.us-east-005.backblazeb2.com" style={{ fontSize: '0.875rem' }} />
-            </div>
-            <div className="field">
-              <label style={{ fontSize: '0.875rem' }}>CLOUDFLARE_WORKER_URL</label>
-              <input value={featureFields['CLOUDFLARE_WORKER_URL'] ?? ''} onChange={(e) => setFeatureField('CLOUDFLARE_WORKER_URL', e.target.value)} placeholder="https://media.example.com" style={{ fontSize: '0.875rem' }} />
-            </div>
+
+            {setupMediaProvider && (() => {
+              const vars = PROVIDER_ENV_VARS[setupMediaProvider as keyof typeof PROVIDER_ENV_VARS] ?? []
+              const isProxiedProvider = PROVIDER_KIND[setupMediaProvider as keyof typeof PROVIDER_KIND] === 'PROXIED'
+              return (
+                <>
+                  {vars.map((f) => (
+                    <div className="field" key={f.key}>
+                      <label style={{ fontSize: '0.875rem' }}>{f.label}</label>
+                      <input
+                        type={f.type ?? 'text'}
+                        autoComplete="off"
+                        value={featureFields[f.key] ?? ''}
+                        onChange={(e) => setFeatureField(f.key, e.target.value)}
+                        placeholder={f.placeholder ?? ''}
+                        style={{ fontSize: '0.875rem' }}
+                      />
+                      {f.hint && <span className="field-hint">{f.hint}</span>}
+                    </div>
+                  ))}
+                  {isProxiedProvider && (
+                    <>
+                      <div className="field">
+                        <label style={{ fontSize: '0.875rem' }}>{CLOUDFLARE_WORKER_VAR.label}</label>
+                        <input
+                          value={featureFields[CLOUDFLARE_WORKER_VAR.key] ?? ''}
+                          onChange={(e) => setFeatureField(CLOUDFLARE_WORKER_VAR.key, e.target.value)}
+                          placeholder={CLOUDFLARE_WORKER_VAR.placeholder}
+                          style={{ fontSize: '0.875rem' }}
+                        />
+                        {CLOUDFLARE_WORKER_VAR.hint && <span className="field-hint">{CLOUDFLARE_WORKER_VAR.hint}</span>}
+                      </div>
+                      <div className="alert alert-info" style={{ fontSize: '0.8125rem', marginTop: '0.5rem' }}>
+                        These credentials must also be added as secrets on your Cloudflare Worker. See the self-hosting docs for the <code>wrangler secret put</code> steps.
+                      </div>
+                    </>
+                  )}
+                </>
+              )
+            })()}
           </FeatureSection>
 
           {/* GitHub */}

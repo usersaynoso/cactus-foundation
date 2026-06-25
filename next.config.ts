@@ -8,11 +8,15 @@ const config: NextConfig = {
   images: {
     remotePatterns: [
       {
-        // Cloudflare Worker URL for private B2 media
-        // Set CLOUDFLARE_WORKER_URL in environment variables
+        // Cloudflare Worker URL for proxied object-storage providers
+        // Set CLOUDFLARE_WORKER_HOSTNAME in environment variables
         protocol: 'https',
         hostname: process.env.CLOUDFLARE_WORKER_HOSTNAME ?? 'placeholder.workers.dev',
       },
+      // Direct providers serve straight from their own CDN domains.
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'ik.imagekit.io' },
+      { protocol: 'https', hostname: '*.imagekit.io' },
     ],
     loader: 'custom',
     loaderFile: './lib/media/loader.ts',
