@@ -31,6 +31,14 @@ type EnvCheckData = {
   vercelConfigured: boolean
 }
 
+type ExistingDbState = {
+  setupCompleted: boolean
+  adminPath: string | null
+  siteName: string | null
+  timezone: string | null
+  admin: { username: string; email: string } | null
+}
+
 type VercelProject = { id: string; name: string; domains: string[] }
 
 // Polls /api/health until the database is reachable, then calls onReady.
@@ -107,6 +115,8 @@ export default function SetupPage() {
   const [neonRegion, setNeonRegion] = useState('aws-us-east-2')
   const [provisionError, setProvisionError] = useState('')
   const [dbReady, setDbReady] = useState(false)
+  const [usingExistingData, setUsingExistingData] = useState(false)
+  const [adminAlreadyExists, setAdminAlreadyExists] = useState(false)
   const cancelPollingRef = useRef<(() => void) | null>(null)
   // Counter to force re-run the env-check useEffect even when step is already 'env'
   const [envCheckKey, setEnvCheckKey] = useState(0)
@@ -288,7 +298,8 @@ export default function SetupPage() {
     }
   }
 
-  async function handleUseExistingNeon(projectId: string) {
+  async function handleUseExistingNeon(projectId: string, preserveData = false) {
+    setUsingExistingData(preserveData)
     setProvisionError('')
     setDbSubStep('db-provisioning')
     try {
@@ -384,6 +395,42 @@ export default function SetupPage() {
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('db-error')
+    }
+  }
+
+  async function handleSmartContinue() {
+    if (!usingExistingData) {
+      setStep('account')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch('/api/setup/read-state', { method: 'POST' })
+      const data = (await res.json()) as ExistingDbState
+
+      if (data.setupCompleted && data.adminPath) {
+        window.location.href = `/${data.adminPath}`
+        return
+      }
+
+      if (data.adminPath) setAdminPath(data.adminPath)
+      if (data.siteName) setSiteName(data.siteName)
+      if (data.timezone) setTimezone(data.timezone)
+      if (data.admin) setAdminAlreadyExists(true)
+
+      if (!data.admin) {
+        setStep('account')
+      } else if (!data.adminPath) {
+        setStep('adminPath')
+      } else if (!data.siteName) {
+        setStep('essentials')
+      } else {
+        setStep('recovery')
+      }
+    } catch {
+      setStep('account')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -708,7 +755,8 @@ export default function SetupPage() {
               neonRegion={neonRegion}
               setNeonRegion={setNeonRegion}
               onProvision={handleProvision}
-              onUseExisting={handleUseExistingNeon}
+              onUseExisting={(id) => handleUseExistingNeon(id, false)}
+              onUseExistingWithData={(id) => handleUseExistingNeon(id, true)}
               onSaveManualUrl={handleManualDbSave}
               neonApiKey={vercelNeonKey}
             />
@@ -731,7 +779,7 @@ export default function SetupPage() {
           )}
 
           {dbSubStep === 'db-redeploying' && (
-            <DbRedeployingPanel dbReady={dbReady} onContinue={() => setStep('account')} />
+            <DbRedeployingPanel dbReady={dbReady} onContinue={handleSmartContinue} loading={loading} />
           )}
 
           {dbSubStep === 'db-error' && (
@@ -754,7 +802,21 @@ export default function SetupPage() {
       )}
 
       {/* ── Step: ADMIN ACCOUNT ── */}
-      {step === 'account' && (
+      {step === 'account' && adminAlreadyExists && (
+        <div>
+          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Admin account found</h2>
+          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+            An admin account already exists in this database.
+          </p>
+          <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>
+            <strong>Using existing admin account.</strong> Skipping account creation.
+          </div>
+          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('adminPath')}>
+            Continue →
+          </button>
+        </div>
+      )}
+      {step === 'account' && !adminAlreadyExists && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Create your admin account</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
@@ -1056,6 +1118,7 @@ function DbChoicePanel({
   setNeonRegion,
   onProvision,
   onUseExisting,
+  onUseExistingWithData,
   onSaveManualUrl,
   neonApiKey,
 }: {
@@ -1063,6 +1126,7 @@ function DbChoicePanel({
   setNeonRegion: (r: string) => void
   onProvision: () => void
   onUseExisting: (projectId: string) => void
+  onUseExistingWithData: (projectId: string) => void
   onSaveManualUrl: (url: string) => void
   neonApiKey: string
 }) {
@@ -1240,23 +1304,30 @@ function DbChoicePanel({
                 <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
                   <strong>⚠ This project already contains data.</strong>
                   <div style={{ fontSize: '0.8125rem', marginTop: '0.375rem' }}>
-                    Connecting this Neon project to Cactus will run database migrations that may conflict with or overwrite existing schemas. All existing data in this project could be lost.
+                    This Neon project has existing tables. How do you want to proceed?
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <button
-                    className="btn"
-                    style={{ flex: 1, background: '#fff', border: '1px solid #d1d5db' }}
-                    onClick={() => { setExistingDataWarning(false); setPendingProjectId('') }}
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => { setExistingDataWarning(false); onUseExistingWithData(pendingProjectId) }}
                   >
-                    Cancel
+                    Use existing data →
                   </button>
                   <button
                     className="btn btn-danger"
-                    style={{ flex: 1 }}
+                    style={{ width: '100%' }}
                     onClick={() => { setExistingDataWarning(false); onUseExisting(pendingProjectId) }}
                   >
-                    Yes, overwrite existing data →
+                    Destroy all existing data
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ width: '100%', background: '#fff', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                    onClick={() => { setExistingDataWarning(false); setPendingProjectId('') }}
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -1368,9 +1439,11 @@ function DbManualPanel({
 function DbRedeployingPanel({
   dbReady,
   onContinue,
+  loading = false,
 }: {
   dbReady: boolean
   onContinue: () => void
+  loading?: boolean
 }) {
   return (
     <div>
@@ -1398,8 +1471,13 @@ function DbRedeployingPanel({
           <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
             <strong>Database connected.</strong> The redeploy is complete and the schema is ready.
           </div>
-          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={onContinue}>
-            Continue →
+          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={onContinue}>
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <span className="setup-spinner" />
+                Detecting existing setup…
+              </span>
+            ) : 'Continue →'}
           </button>
         </>
       )}
