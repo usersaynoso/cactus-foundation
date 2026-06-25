@@ -311,6 +311,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Action: check-existing ────────────────────────────────────────────────
+  // Must be handled before any DATABASE_URL or Vercel credential guards, since
+  // it only needs the Neon API key and must not short-circuit on already_set.
+  if (action === 'check-existing') {
+    if (!neonApiKey) {
+      return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+    }
+    const existingProjectId = body.projectId
+    if (!existingProjectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
+    try {
+      const { pooledUri } = await getPooledUriForProject(neonApiKey, existingProjectId)
+      const hasExistingData = await checkDatabaseHasExistingData(pooledUri)
+      return NextResponse.json({ hasExistingData })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return NextResponse.json({ hasExistingData: false, warning: message })
+    }
+  }
+
   // ── Actions that need Vercel credentials ─────────────────────────────────
   if (!vercelToken || !vercelProjectId) {
     return NextResponse.json(
@@ -357,25 +378,6 @@ export async function POST(req: NextRequest) {
   // For Neon actions we need the API key.
   if (!neonApiKey) {
     return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
-  }
-
-  // ── Action: check-existing ────────────────────────────────────────────────
-  // Checks whether a Neon project's database already has tables (existing data).
-  // Called before 'use-existing' so the UI can warn the user if data is present.
-  if (action === 'check-existing') {
-    const existingProjectId = body.projectId
-    if (!existingProjectId) {
-      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
-    }
-    try {
-      const { pooledUri } = await getPooledUriForProject(neonApiKey, existingProjectId)
-      const hasExistingData = await checkDatabaseHasExistingData(pooledUri)
-      return NextResponse.json({ hasExistingData })
-    } catch (err: unknown) {
-      // If we can't connect, assume no data and let the user proceed.
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      return NextResponse.json({ hasExistingData: false, warning: message })
-    }
   }
 
   // ── Action: use-existing ──────────────────────────────────────────────────
