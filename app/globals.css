@@ -148,6 +148,14 @@ a:hover {
   overflow-y: auto;
 }
 
+/* Puck / template builder pages need zero padding and no outer scroll */
+.admin-content--puck {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Utility */
 .sr-only {
   position: absolute;

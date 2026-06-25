@@ -107,7 +107,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
       </aside>
 
       <div className="admin-main">
-        <div className="admin-content">
+        <div className={`admin-content${PUCK_EDITOR_RE.test(pathname) ? ' admin-content--puck' : ''}`}>
           {children}
         </div>
       </div>

@@ -114,7 +114,7 @@ export default function TemplateEditor({ templateId, initialData, initialStatus 
   }, [templateId])
 
   return (
-    <div style={{ height: 'calc(100vh - 53px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '1rem',
         padding: '0.5rem 1rem',

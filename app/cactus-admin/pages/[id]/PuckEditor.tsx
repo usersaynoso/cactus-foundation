@@ -163,7 +163,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   }, [pageId])
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {/* Status bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '1rem',
