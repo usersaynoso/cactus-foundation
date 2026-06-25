@@ -5,12 +5,12 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse, parsePaginationParams } from '@/lib/utils'
 import {
   validateUpload,
-  uploadToB2,
-  deleteFromB2,
+  uploadMedia,
+  deleteMedia,
   saveMediaRecord,
   getMediaReferences,
 } from '@/lib/media/upload'
-import { isMediaConfigured } from '@/lib/config/env'
+import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 
 export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'media.upload')) return errorResponse('Forbidden', 403)
 
-  if (!isMediaConfigured()) {
-    return errorResponse('Media storage is not configured. Add B2 and Cloudflare Worker credentials.', 503)
+  const provider = await getActiveMediaProvider()
+  if (!provider || !isMediaProviderConfigured(provider)) {
+    return errorResponse('Media storage is not configured. Select a provider and add its credentials in Settings → Media.', 503)
   }
 
   const formData = await request.formData()
@@ -62,9 +63,11 @@ export async function POST(request: NextRequest) {
   const isDecorative = formData.get('isDecorative') === 'true'
 
   try {
-    const result = await uploadToB2(buffer, file.type, file.name)
+    const result = await uploadMedia(buffer, file.type, provider, file.name)
     const record = await saveMediaRecord({
       key: result.key,
+      url: result.url,
+      provider,
       mimeType: result.mimeType,
       sizeBytes: result.sizeBytes,
       uploadedById: user.id,
@@ -101,7 +104,8 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  await deleteFromB2(media.key)
+  // Delete from the provider the row actually lives on (not the active selection).
+  await deleteMedia(media.provider, media.key)
   await prisma.media.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }
