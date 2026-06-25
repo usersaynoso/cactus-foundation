@@ -1,15 +1,25 @@
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
-import { getEnvStatus } from '@/lib/config/env'
+import { isMediaProviderConfigured } from '@/lib/config/env'
 import type { Metadata } from 'next'
+import type { MediaProviderType } from '@prisma/client'
 
 export const metadata: Metadata = { title: 'Dashboard — Admin' }
+
+type FeatureItem = {
+  id: string
+  name: string
+  description: string
+  configured: boolean
+  settingsTab: string
+  hint: string
+}
 
 export default async function AdminDashboard() {
   const user = await getSessionFromCookie()
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { siteName: true, status: true, timezone: true },
+    select: { siteName: true, status: true, timezone: true, mediaProvider: true },
   })
 
   const [pageCount, userCount, mediaCount] = await Promise.all([
@@ -18,8 +28,67 @@ export default async function AdminDashboard() {
     prisma.media.count(),
   ])
 
-  const { required, optional } = getEnvStatus()
-  const missingOptional = optional.filter((v) => !v.set && v.gates)
+  const emailConfigured = !!(process.env.BREVO_API_KEY || process.env.SMTP_HOST)
+  const activeProvider = config?.mediaProvider as MediaProviderType | null
+  const mediaConfigured = !!(activeProvider && isMediaProviderConfigured(activeProvider))
+  const botProtectionConfigured = !!(process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY)
+  const edgeConfigConfigured = !!(process.env.EDGE_CONFIG && process.env.VERCEL_EDGE_CONFIG_ID)
+  const githubConfigured = !!process.env.GITHUB_API_TOKEN
+  const sentryConfigured = !!process.env.SENTRY_DSN
+
+  const features: FeatureItem[] = [
+    {
+      id: 'media',
+      name: 'Image storage',
+      description: 'Upload images, set a logo, and add a favicon to your site.',
+      configured: mediaConfigured,
+      settingsTab: 'media',
+      hint: 'Connect a storage provider such as Backblaze B2, Cloudflare R2, or an image CDN.',
+    },
+    {
+      id: 'email',
+      name: 'Email',
+      description: 'Send password reset links, verification emails, and OTP codes.',
+      configured: emailConfigured,
+      settingsTab: 'email',
+      hint: 'Add a Brevo API key or SMTP credentials.',
+    },
+    {
+      id: 'bot',
+      name: 'Bot protection',
+      description: 'Guard public forms against spam with Cloudflare Turnstile.',
+      configured: botProtectionConfigured,
+      settingsTab: 'integrations',
+      hint: 'Add your Turnstile site key and secret key.',
+    },
+    {
+      id: 'edge',
+      name: 'Edge Config',
+      description: 'Instantly serve your admin URL and site status from Vercel\'s global edge network.',
+      configured: edgeConfigConfigured,
+      settingsTab: 'integrations',
+      hint: 'Link a Vercel Edge Config store for ultra-fast global reads.',
+    },
+    {
+      id: 'github',
+      name: 'GitHub integration',
+      description: 'Install and update modules and themes directly from GitHub.',
+      configured: githubConfigured,
+      settingsTab: 'integrations',
+      hint: 'Add a GitHub personal access token with repo read/write access.',
+    },
+    {
+      id: 'sentry',
+      name: 'Error monitoring',
+      description: 'Track errors and exceptions in Sentry rather than just Vercel function logs.',
+      configured: sentryConfigured,
+      settingsTab: 'integrations',
+      hint: 'Add your Sentry DSN.',
+    },
+  ]
+
+  const configuredCount = features.filter((f) => f.configured).length
+  const allConfigured = configuredCount === features.length
 
   return (
     <div>
@@ -43,19 +112,77 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      {missingOptional.length > 0 && (
-        <div className="card">
-          <h2 className="card-title">Optional features not yet configured</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {missingOptional.map((v) => (
-              <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.9375rem' }}>
-                <span style={{ color: '#d97706' }}>○</span>
-                <div>
-                  <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
-                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}> — {v.gates}</span>
+      {!allConfigured && (
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+            <h2 className="card-title" style={{ margin: 0 }}>Additional features</h2>
+            <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{configuredCount} of {features.length} set up</span>
+          </div>
+          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1.25rem' }}>
+            Your site is up and running. Set up these optional features whenever you&apos;re ready.
+          </p>
+
+          {/* Progress bar */}
+          <div style={{ height: 4, background: '#e5e7eb', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 2, background: '#16a34a',
+              width: `${(configuredCount / features.length) * 100}%`,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+            {features.map((f) => (
+              <div key={f.id} style={{
+                display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
+                padding: '0.875rem',
+                borderRadius: 8,
+                background: f.configured ? '#f0fdf4' : '#fff',
+                border: `1px solid ${f.configured ? '#bbf7d0' : '#f3f4f6'}`,
+                marginBottom: '0.5rem',
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: f.configured ? '#16a34a' : '#f3f4f6',
+                  fontSize: '0.8125rem', fontWeight: 700,
+                  color: f.configured ? '#fff' : '#9ca3af',
+                  marginTop: 1,
+                }}>
+                  {f.configured ? '✓' : '○'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: f.configured ? '#15803d' : '#111827' }}>
+                      {f.name}
+                    </span>
+                    {!f.configured && (
+                      <a
+                        href={`config?tab=${f.settingsTab}`}
+                        style={{ fontSize: '0.8125rem', color: '#16a34a', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+                      >
+                        Set up →
+                      </a>
+                    )}
+                  </div>
+                  <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.4 }}>
+                    {f.configured ? f.description : f.hint}
+                  </p>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {allConfigured && (
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <span style={{ fontSize: '1.125rem' }}>✓</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>All features configured</div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Your site is fully set up. You can manage all settings in <a href="config" style={{ color: '#16a34a' }}>Settings</a>.</div>
+            </div>
           </div>
         </div>
       )}

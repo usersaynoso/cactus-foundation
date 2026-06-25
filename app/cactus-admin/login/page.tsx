@@ -193,7 +193,14 @@ export default function LoginPage() {
           <div>
             <div className="field">
               <label>Email address (optional)</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Helps identify your passkey" autoComplete="email" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handlePasskeyLogin() }}
+                placeholder="Helps identify your passkey"
+                autoComplete="email"
+              />
             </div>
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={handlePasskeyLogin}>
               {loading ? 'Waiting for passkey…' : '🔑 Sign in with passkey'}
@@ -222,7 +229,13 @@ export default function LoginPage() {
             </div>
             <div className="field">
               <label>Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && email && password && !loading) handlePasswordLogin() }}
+                autoComplete="current-password"
+              />
             </div>
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!email || !password || loading} onClick={handlePasswordLogin}>
               {loading ? 'Signing in…' : 'Continue →'}
@@ -254,6 +267,7 @@ export default function LoginPage() {
                 maxLength={6}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={(e) => { if (e.key === 'Enter' && otp.length === 6 && !loading) handleOtp() }}
                 placeholder="000000"
                 autoFocus
               />
