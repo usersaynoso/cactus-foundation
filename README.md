@@ -16,7 +16,7 @@
 
 Cactus Foundation is a web application platform that gives you everything you need to run a proper website — pages, menus, users, media, and a visual drag-and-drop page editor — without requiring you to understand what any of those words mean at a technical level. You click buttons. Things happen. The website works.
 
-It is deliberately small. Unlike most website platforms that arrive at your door with seventeen cookbooks, strong opinions about your fonts, and a six-week onboarding course, Cactus ships only what you need. Want forums? Add a module. Want a custom design? Use the built-in Appearance editor. Want to debate tabs versus spaces? You've picked the wrong platform for that, but you'll find plenty of people online who'd love to have that conversation with you.
+It is deliberately small. Unlike most website platforms that arrive at your door with seventeen cookbooks, strong opinions about your fonts, and a six-week onboarding course, Cactus ships only what you need. Want forums? Add a module. Want a custom design? Use the built-in Appearance editor. Want to debate tabs versus spaces? You've picked the wrong platform for that, but the internet has no shortage of people absolutely gagging to have that conversation.
 
 **The core idea:** ship a solid foundation, extend it with optional bits, and never make sensible defaults somebody else's emergency.
 
@@ -34,22 +34,24 @@ There's still a traditional email-and-password fallback if you're sentimental ab
 
 Your admin panel doesn't live at `/admin` like every other site in the world, which is the first place anyone trying to get in would look. Instead, it lives at a secret path you choose during setup — something like `/lemon-4f8a2c`. Visitors who don't know it get a perfectly ordinary 404, not even a hint that there's anything behind it. No brute-forcing. No automated attacks. Just a door that, from the outside, doesn't appear to exist.
 
+Very British. Very effective.
+
 ### 🧱 A proper page builder, drag-and-drop and everything
 
-Every page is built using a visual drag-and-drop editor. You pick from a library of ready-made blocks — headings, text, images, videos, buttons, call-to-action banners, hero sections, cards, accordions, stats, logo strips, and more — and arrange them however you like. No code. No fighting with a theme. No accidentally breaking the header because you moved a semicolon.
+Every page is built using a visual drag-and-drop editor. You pick from a library of ready-made blocks — headings, text, images, videos, buttons, call-to-action banners, hero sections, cards, accordions, stats, logo strips, and more — and arrange them however you like. No code. No fighting with a theme. No accidentally demolishing the header because you moved a semicolon.
 
 Blocks snap together on a canvas. What you see is (more or less) what you get.
 
 ### 🎨 A fully visual Appearance system
 
-Every visual aspect of the site is user-configurable through **Appearance**:
+Every visual aspect of the site is configurable through **Appearance**, without touching a single line of code:
 
 - **Header** — design your site navigation exactly how you want it, with your logo, menus, and login button where you put them, using the same drag-and-drop editor.
 - **Footer** — copyright notice, links, social icons, whatever tickles your fancy.
 - **Design Tokens** — pick your brand colours, fonts, and spacing once; they apply everywhere automatically as CSS variables.
 - **Layouts** — define reusable page body structures (full width, boxed, with sidebar) that pages can inherit or override.
 
-No hardcoded design. Every pixel is yours to move.
+No hardcoded design. Every pixel is yours to move about.
 
 ### 🧩 Optional modules (powers you only need when you need them)
 
@@ -57,28 +59,28 @@ Forums, comments, job boards, e-commerce — these are separate **modules** you 
 
 ### 📸 Image storage that won't bankrupt you
 
-Photos and images go into cloud storage (your choice of provider — Backblaze, Amazon S3, Cloudflare, Cloudinary, and several others) and are served through a **Cloudflare Worker** — a fast, cheap middleman that handles resizing and caching. This matters because some hosting platforms charge handsomely for serving large files through their infrastructure. The Worker handles all of that outside the expensive bits. Your wallet remains intact.
+Photos and images go into cloud storage (your choice of provider — Backblaze, Amazon S3, Cloudflare, Cloudinary, and several others) and are served through a **Cloudflare Worker** — a fast, cheap middleman that handles resizing and caching. This matters because some hosting platforms charge handsomely for serving large files through their infrastructure. The Worker handles all of that outside the expensive bits. Your bank account remains in better shape than anticipated.
 
-Ten media providers are supported. Pick whichever you already have, or whichever looks least intimidating.
+Ten media providers are supported. Pick whichever you already have, or whichever looks least threatening.
 
 ### 🔐 Security taken seriously
 
 - Login rate limiting, so a bot can't sit there guessing passwords all afternoon
-- Passwords checked against a database of known breaches (via Pwned Passwords) at registration — "password123" is politely refused
+- Passwords checked against a database of known breaches (via Pwned Passwords) at registration — "password123" is politely but firmly refused
 - Sessions stored in the database, so suspending a user kicks them out immediately — not "eventually, once their cookie expires"
 - Content Security Policy headers on every page
 - CSRF protection baked in
 - HTTP Strict Transport Security, with preload
 
-It's not flashy. Security rarely is. But it's real.
+It's not flashy. Security rarely is. But it's real, and it works, which is rather the point.
 
 ### 📋 GDPR done properly (well, decently)
 
-Users can export all their data in one click, delete their account with a sensible confirmation step, and the footer links to your privacy policy and terms of service once you've set those up. The last admin standing cannot delete their own account — the software physically prevents it. Someone has to be in charge.
+Users can export all their data in one click, delete their account with a sensible confirmation step, and the footer links to your privacy policy and terms of service once you've set those up. The last admin standing cannot delete their own account — the software physically prevents it. Someone has to be in charge, and the software has strong opinions about who that is.
 
 ### 🧭 A setup wizard you'll actually finish
 
-Five steps. About five minutes. No YAML files. No config arrays with twenty-seven nested keys. You pick your secret admin path, register your passkey, name your site, and copy down a recovery code for emergencies. That's it. The dashboard then shows you a friendly checklist of optional features you haven't set up yet, with explanations that don't assume you know what an API key is.
+Five steps. About five minutes. No YAML files. No config arrays with twenty-seven nested keys. You pick your secret admin path, register your passkey, name your site, and copy down a recovery code for emergencies. That's it. The dashboard then shows you a friendly checklist of optional features you haven't configured yet, with explanations that don't assume you know what an API key is.
 
 ---
 
@@ -102,7 +104,7 @@ Import the project into your Vercel dashboard. Before deploying, add these envir
 
 | Variable | How to get it |
 |----------|---------------|
-| `SESSION_SECRET` | Run `openssl rand -base64 32` in your terminal — it spits out a long random string |
+| `SESSION_SECRET` | Run `openssl rand -base64 32` in your terminal — it produces a long random string |
 | `SITE_URL` | Your domain, e.g. `https://example.com` |
 | `NEXT_PUBLIC_SITE_URL` | Same as above |
 | `VERCEL_API_TOKEN` | Vercel dashboard → Account Settings → Tokens |
@@ -122,7 +124,7 @@ Deploy. Vercel builds the app. Visit your production URL. You'll be redirected t
 2. **Admin account** — your name, email, and passkey registration. Your face or fingerprint become your login from this point.
 3. **Admin path** — pick your secret admin URL. The wizard suggests something like `lemon-4f8a2c`. Keep it. Don't share it.
 4. **Name your site** — site name and timezone.
-5. **Recovery code** — shown once, never again. The system stores only a hash of it. Put it in your password manager, or print it and put it in a drawer you'll actually remember. Not the junk drawer. A real drawer.
+5. **Recovery code** — shown once, never again. The system stores only a hash of it. Put it in your password manager, or write it on a bit of paper and keep it somewhere sensible. Not the kitchen drawer. That drawer is a graveyard for batteries, rubber bands, and good intentions — your recovery code deserves better.
 
 Click "I've saved it." You're in.
 
@@ -161,7 +163,7 @@ npm run db:migrate            # set up the database schema
 npm run dev                   # start the dev server
 ```
 
-The app runs at `http://localhost:3000`. Passkeys work on localhost — Cactus handles the technical side of that automatically, so you don't need to.
+The app runs at `http://localhost:3000`. Passkeys work on localhost — Cactus handles the technical side of that automatically, so you don't have to.
 
 ---
 
@@ -206,7 +208,7 @@ The build command is:
 prisma generate && node scripts/build-migrate.mjs && next build
 ```
 
-That's it. No "apply schema on startup." No "run a migration via an API endpoint." This isn't laziness — it's the design. A migration that fires from a live server and goes wrong is the sort of thing that ruins evenings, weekends, and your trust in computers generally. Running it only at build time, where the build either succeeds or fails cleanly, means you always know where you stand.
+That's it. No "apply schema on startup." No "run a migration via an API endpoint." This isn't laziness — it's the design. A migration that fires from a live server and goes wrong is the sort of thing that ruins evenings, weekends, and your faith in computers generally. Running it only at build time, where the build either succeeds or fails cleanly, means you always know where you stand.
 
 If you're building a module: write `.sql` files, put them in `migrations/`, and the build runner handles the rest. The wiki explains the convention.
 
@@ -215,19 +217,19 @@ If you're building a module: write `.sql` files, put them in `migrations/`, and 
 ## Frequently asked questions (nobody has asked these yet but they will)
 
 **Q: Can I run this without Vercel?**
-A: In theory, yes — it's a Next.js app with a PostgreSQL database, nothing exotic. In practice, the Edge Config integration, deployment webhooks, and automatic database provisioning are all built around Vercel. You could re-wire those bits for another platform, but that's a project in itself, and you'd be largely on your own. Not impossible. Just a lot of faff.
+A: In theory, yes — it's a Next.js app with a PostgreSQL database, nothing exotic. In practice, the Edge Config integration, deployment webhooks, and automatic database provisioning are all built around Vercel. You could re-wire those bits for another platform, but that's a project in itself, and you'd be largely on your own. Not impossible. Just a significant amount of faff.
 
 **Q: Why can't I use pnpm?**
-A: Because the repo uses `package-lock.json` and enforces npm. Using a different package manager in the same project is how you end up with subtle version drift and an afternoon debugging something that should have been obvious. It's not personal.
+A: Because the repo uses `package-lock.json` and enforces npm. Using a different package manager in the same project is how you end up with subtle version drift and an afternoon debugging something that should have been perfectly obvious. It's not personal. It's just tidy.
 
 **Q: What if I lose my passkey AND my recovery code?**
-A: There's a procedure in [Self-hosting and operations](wiki/Self-hosting-and-operations.md) under "Completely locked out." It involves a database connection and isn't fun, but it exists. This is a strong argument for saving the recovery code somewhere sensible. Somewhere better than the junk drawer.
+A: There's a procedure in [Self-hosting and operations](wiki/Self-hosting-and-operations.md) under "Completely locked out." It involves a database connection and isn't fun, but it exists. This is a persuasive argument for keeping your recovery code somewhere sensible — your password manager, a printed sheet in a filing cabinet, anywhere that isn't the kitchen drawer.
 
 **Q: Is this production-ready?**
-A: The security model is real, the architecture is solid, and it's been built with care. It is, however, a young project made by humans who drink tea and occasionally miss edge cases. Keep backups. Read the operations guide. Let us know when something's not right.
+A: The security model is real, the architecture is solid, and it's been built with care. It is, however, a young project made by humans who drink too much tea and occasionally miss edge cases. Keep backups. Read the operations guide. Let us know when something's not right.
 
 **Q: Why "Cactus"?**
-A: Low-maintenance. Sharp edges where they matter. Surprisingly resilient. The metaphor does most of the work.
+A: Low-maintenance. Sharp edges where they matter. Surprisingly resilient. And it thrives in hostile environments, which describes most of the internet. The metaphor does most of the work.
 
 ---
 
@@ -241,10 +243,10 @@ Contributions welcome. The sensible starting points:
 
 ---
 
-## License
+## Licence
 
 MIT. Take it, use it, build things with it, charge money for those things if you like. A mention is appreciated but not required.
 
 ---
 
-*Built with stubbornness, strong opinions, and an unreasonable fondness for TypeScript strict mode.*
+*Built in Britain, with stubbornness, strong opinions about TypeScript strict mode, and the quiet conviction that software should do what it says on the tin.*
