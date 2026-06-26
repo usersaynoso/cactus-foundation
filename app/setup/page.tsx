@@ -200,7 +200,7 @@ export default function SetupPage() {
         } else if (d.databaseState === 'provisioned-redeploying') {
           setDbSubStep('db-redeploying')
           startRedeployPolling()
-        } else if (d.neonAvailable) {
+        } else if (d.neonAvailable || !!vercelNeonKey) {
           setDbSubStep('db-choice')
         } else {
           setDbSubStep('db-manual')
