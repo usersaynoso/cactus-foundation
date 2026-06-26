@@ -32,6 +32,9 @@
 }
 
 .prickly-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.125rem;
   color: var(--color-fg);

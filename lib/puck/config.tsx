@@ -4,6 +4,7 @@
 
 import React from 'react'
 import type { Config } from '@puckeditor/core'
+import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -862,7 +863,6 @@ function MenuBlock(props: any) {
   }
 
   const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
-  const horizontalGaps: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem' }
 
   const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
   const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
@@ -908,39 +908,17 @@ function MenuBlock(props: any) {
     )
   }
 
-  const hGap = horizontalGaps[spacing] ?? '0'
   return (
-    <ul className="prickly-menu" style={hGap ? { gap: hGap } : undefined}>
-      {resolvedItems.map((item) => (
-        <li key={item.id} className="prickly-menu-item">
-          <a
-            href={item.href}
-            target={item.openInNewTab ? '_blank' : undefined}
-            rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-            className="prickly-menu-link"
-            style={{ ...linkStyleOverride, ...(hoverBackground ? { '--prickly-hover-bg': hoverBackground } as React.CSSProperties : {}) }}
-          >
-            {item.label}
-            {item.children && item.children.length > 0 && (
-              <span className="prickly-dropdown-arrow" aria-hidden="true">▾</span>
-            )}
-          </a>
-          {item.children && item.children.length > 0 && (
-            <ul className="prickly-dropdown" style={{ display: 'none' }}>
-              {item.children.map((child: any) => (
-                <li key={child.id}>
-                  <a href={child.href} target={child.openInNewTab ? '_blank' : undefined}
-                    rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
-                    className="prickly-dropdown-link">
-                    {child.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
+    <MenuBlockClient
+      resolvedItems={resolvedItems}
+      spacing={spacing}
+      itemFontSize={itemFontSize}
+      itemFontWeight={itemFontWeight}
+      textTransform={textTransform}
+      itemColor={itemColor}
+      hoverBackground={hoverBackground}
+      showMobileToggle={props.showMobileToggle}
+    />
   )
 }
 
