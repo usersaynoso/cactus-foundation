@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 type Layout = {
   id: string
@@ -19,6 +20,7 @@ type LayoutsData = {
 }
 
 export default function LayoutsListPage() {
+  const adminPath = useAdminPath()
   const [data, setData] = useState<LayoutsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,12 +67,12 @@ export default function LayoutsListPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Layouts</h1>
           <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9375rem' }}>Define reusable page body structures with a ContentSlot for page content.</p>
         </div>
-        <Link href="/cactus-admin/layouts/new" className="btn btn-primary">+ New Layout</Link>
+        <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
       </div>
 
       {data.layouts.length === 0 ? (
         <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-          No layouts yet. <Link href="/cactus-admin/layouts/new">Create your first layout</Link>.
+          No layouts yet. <Link href={`/${adminPath}/layouts/new`}>Create your first layout</Link>.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
@@ -92,7 +94,7 @@ export default function LayoutsListPage() {
                 {layout.description && <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.875rem' }}>{layout.description}</p>}
               </div>
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <Link href={`/cactus-admin/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
+                <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
                 {data.defaultLayoutId !== layout.id && (
                   <button className="btn btn-secondary" onClick={() => handleSetSiteDefault(layout.id)} disabled={setDefault === layout.id} style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
                     Set as Default

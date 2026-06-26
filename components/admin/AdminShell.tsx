@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
+import { AdminPathProvider } from './AdminPathContext'
 import type { Role } from '@prisma/client'
 
 type Props = {
@@ -52,6 +53,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
   }
 
   return (
+    <AdminPathProvider value={adminPath}>
     <div className="admin-shell">
       {/* Mobile topbar — only visible on small screens */}
       <div className="admin-mobile-topbar">
@@ -125,5 +127,6 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         </div>
       </div>
     </div>
+    </AdminPathProvider>
   )
 }

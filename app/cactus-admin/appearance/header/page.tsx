@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import Link from 'next/link'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 const AppearancePuckEditor = dynamic(() => import('../AppearancePuckEditor'), {
   ssr: false,
@@ -65,10 +66,11 @@ export default function AppearanceHeaderPage() {
 }
 
 function AppearanceTabBar({ active }: { active: 'header' | 'footer' | 'design' }) {
+  const adminPath = useAdminPath()
   const tabs = [
-    { key: 'header', label: 'Header', href: '/cactus-admin/appearance/header' },
-    { key: 'footer', label: 'Footer', href: '/cactus-admin/appearance/footer' },
-    { key: 'design', label: 'Design Tokens', href: '/cactus-admin/appearance/design' },
+    { key: 'header', label: 'Header', href: `/${adminPath}/appearance/header` },
+    { key: 'footer', label: 'Footer', href: `/${adminPath}/appearance/footer` },
+    { key: 'design', label: 'Design Tokens', href: `/${adminPath}/appearance/design` },
   ] as const
   return (
     <div style={{ display: 'flex', gap: '0.25rem' }}>

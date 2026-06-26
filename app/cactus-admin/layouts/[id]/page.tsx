@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import Link from 'next/link'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
   ssr: false,
@@ -13,6 +14,7 @@ const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
 
 export default function LayoutEditorPage() {
   const { id } = useParams<{ id: string }>()
+  const adminPath = useAdminPath()
   const router = useRouter()
   const [layout, setLayout] = useState<{ id: string; name: string; status: string; builderData: Data | null } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +70,7 @@ export default function LayoutEditorPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '0.8125rem', color: '#6b7280', flexShrink: 0 }}>
-        <Link href="/cactus-admin/layouts" style={{ color: '#6b7280', textDecoration: 'none' }}>← Layouts</Link>
+        <Link href={`/${adminPath}/layouts`} style={{ color: '#6b7280', textDecoration: 'none' }}>← Layouts</Link>
         <span style={{ color: '#e5e7eb' }}>|</span>
         <span style={{ fontWeight: 500, color: '#111827' }}>{layout.name}</span>
         {layout.status === 'published' && <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Published</span>}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 type Starter = {
   key: string
@@ -65,6 +66,7 @@ const STARTERS: Starter[] = [
 
 export default function NewLayoutPage() {
   const router = useRouter()
+  const adminPath = useAdminPath()
   const [selected, setSelected] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -84,7 +86,7 @@ export default function NewLayoutPage() {
       })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to create'); setCreating(false); return }
       const layout = await res.json()
-      router.push(`/cactus-admin/layouts/${layout.id}`)
+      router.push(`/${adminPath}/layouts/${layout.id}`)
     } catch { setError('Failed to create layout'); setCreating(false) }
   }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 type Tokens = {
   primaryColor: string
@@ -147,10 +148,11 @@ function TextField({ label, value, onChange, hint }: { label: string; value: str
 }
 
 function AppearanceTabBar({ active }: { active: 'header' | 'footer' | 'design' }) {
+  const adminPath = useAdminPath()
   const tabs = [
-    { key: 'header', label: 'Header', href: '/cactus-admin/appearance/header' },
-    { key: 'footer', label: 'Footer', href: '/cactus-admin/appearance/footer' },
-    { key: 'design', label: 'Design Tokens', href: '/cactus-admin/appearance/design' },
+    { key: 'header', label: 'Header', href: `/${adminPath}/appearance/header` },
+    { key: 'footer', label: 'Footer', href: `/${adminPath}/appearance/footer` },
+    { key: 'design', label: 'Design Tokens', href: `/${adminPath}/appearance/design` },
   ] as const
   return (
     <div style={{ display: 'flex', gap: '0.25rem' }}>
