@@ -1,102 +1,90 @@
 import { prisma } from '@/lib/db/prisma'
-import { resolveMainMenu } from '@/lib/menu/resolve'
-import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { Render } from '@puckeditor/core/rsc'
-import { puckHeaderTemplateRscConfig, puckFooterTemplateRscConfig } from '@/lib/puck/config'
-import PricklyLayout from '@/themes/prickly/components/Layout'
-import Nav from '@/themes/prickly/components/Nav'
-import Footer from '@/themes/prickly/components/Footer'
-import '@/themes/prickly/styles/prickly.css'
+import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config'
 import type { Data } from '@puckeditor/core'
+import AosInit from '@/lib/puck/components/AosInit'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const config = await prisma.siteConfig
     .findUnique({
       where: { id: 'singleton' },
       select: {
-        siteName: true, adminPath: true,
+        siteName: true,
+        adminPath: true,
         logoMediaId: true,
-        privacyPolicyPageId: true, termsPageId: true,
-        headerTemplateId: true, footerTemplateId: true,
+        headerBuilderData: true,
+        footerBuilderData: true,
+        designTokens: true,
       },
     })
     .catch(() => null)
 
-  const [privacyPage, termsPage, logoMedia] = await Promise.all([
-    config?.privacyPolicyPageId
-      ? prisma.infoPage.findUnique({ where: { id: config.privacyPolicyPageId }, select: { slug: true } }).catch(() => null)
-      : null,
-    config?.termsPageId
-      ? prisma.infoPage.findUnique({ where: { id: config.termsPageId }, select: { slug: true } }).catch(() => null)
-      : null,
-    config?.logoMediaId
-      ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
-      : null,
-  ])
+  const logoMedia = config?.logoMediaId
+    ? await prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+    : null
 
-  const mainMenu = await resolveMainMenu()
-
-  // Check auth for LoginButton block injection
   const user = await getSessionFromCookie().catch(() => null)
   const isLoggedIn = !!user
 
-  const ctx = {
-    siteName: config?.siteName ?? 'Cactus',
-    logoUrl: logoMedia?.url ?? null,
-    isLoggedIn,
-    adminPath: config?.adminPath ?? '',
+  // Inject resolved runtime values into Puck builder data so SiteLogo,
+  // LoginButton etc. render correctly server-side without needing hooks.
+  function injectCtx(data: unknown): Data | null {
+    if (!data || typeof data !== 'object') return null
+    const d = data as Data
+    return {
+      ...d,
+      content: (d.content ?? []).map((block: any) => {
+        if (block.type === 'SiteLogo') return { ...block, props: { ...block.props, siteName: config?.siteName, logoUrl: logoMedia?.url ?? '' } }
+        if (block.type === 'LoginButton') return { ...block, props: { ...block.props, isLoggedIn, adminPath: config?.adminPath ?? '' } }
+        if (block.type === 'MenuBlock') return { ...block, props: { ...block.props, siteName: config?.siteName } }
+        return block
+      }),
+    }
   }
 
-  // Fetch and resolve header/footer templates (only published ones)
-  const [headerTmpl, footerTmpl] = await Promise.all([
-    config?.headerTemplateId
-      ? prisma.pageTemplate.findFirst({ where: { id: config.headerTemplateId, status: 'published' } }).catch(() => null)
-      : null,
-    config?.footerTemplateId
-      ? prisma.pageTemplate.findFirst({ where: { id: config.footerTemplateId, status: 'published' } }).catch(() => null)
-      : null,
-  ])
+  const headerData = injectCtx(config?.headerBuilderData)
+  const footerData = injectCtx(config?.footerBuilderData)
 
-  const [headerData, footerData] = await Promise.all([
-    headerTmpl?.builderData
-      ? resolveTemplateData(headerTmpl.builderData, ctx).catch(() => null)
-      : null,
-    footerTmpl?.builderData
-      ? resolveTemplateData(footerTmpl.builderData, ctx).catch(() => null)
-      : null,
-  ])
-
-  const useCustomHeader = !!headerData
-  const useCustomFooter = !!footerData
-
-  if (!useCustomHeader && !useCustomFooter) {
-    // Pure theme fallback — existing behaviour
-    return (
-      <PricklyLayout
-        siteName={config?.siteName}
-        privacyPolicySlug={privacyPage?.slug}
-        termsSlug={termsPage?.slug}
-        mainMenu={mainMenu}
-      >
-        {children}
-      </PricklyLayout>
-    )
-  }
+  // Build CSS variables from design tokens
+  const tokens = (config?.designTokens ?? {}) as Record<string, string>
+  const cssVars = [
+    tokens.primaryColor   ? `--color-primary: ${tokens.primaryColor};` : '',
+    tokens.primaryFg      ? `--color-primary-fg: ${tokens.primaryFg};` : '',
+    tokens.bgColor        ? `--color-bg: ${tokens.bgColor};` : '',
+    tokens.fgColor        ? `--color-fg: ${tokens.fgColor};` : '',
+    tokens.mutedColor     ? `--color-muted: ${tokens.mutedColor};` : '',
+    tokens.borderColor    ? `--color-border: ${tokens.borderColor};` : '',
+    tokens.fontHeading    ? `--font-heading: ${tokens.fontHeading};` : '',
+    tokens.fontBody       ? `--font-body: ${tokens.fontBody};` : '',
+    tokens.borderRadius   ? `--border-radius: ${tokens.borderRadius};` : '',
+    tokens.linkColor      ? `--color-link: ${tokens.linkColor};` : '',
+    tokens.linkHoverColor ? `--color-link-hover: ${tokens.linkHoverColor};` : '',
+    tokens.h1Size         ? `--h1-size: ${tokens.h1Size};` : '',
+    tokens.h2Size         ? `--h2-size: ${tokens.h2Size};` : '',
+    tokens.h3Size         ? `--h3-size: ${tokens.h3Size};` : '',
+    tokens.bodySize       ? `--body-size: ${tokens.bodySize};` : '',
+    tokens.bodyLineHeight ? `--body-line-height: ${tokens.bodyLineHeight};` : '',
+    tokens.containerMaxWidth ? `--container-max-width: ${tokens.containerMaxWidth};` : '',
+  ].filter(Boolean).join(' ')
 
   return (
-    <div className="prickly-shell">
-      {useCustomHeader
+    <>
+      {cssVars && (
+        <style dangerouslySetInnerHTML={{ __html: `:root { ${cssVars} }` }} />
+      )}
+      <AosInit />
+      {headerData
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={puckHeaderTemplateRscConfig as any} data={headerData as Data} />
-        : <Nav siteName={config?.siteName ?? 'Cactus'} mainMenu={mainMenu} />
+        ? <Render config={headerPuckRscConfig as any} data={headerData} />
+        : null
       }
-      <main className="prickly-main">{children}</main>
-      {useCustomFooter
+      <main>{children}</main>
+      {footerData
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={puckFooterTemplateRscConfig as any} data={footerData as Data} />
-        : <Footer siteName={config?.siteName ?? 'Cactus'} privacyPolicySlug={privacyPage?.slug} termsSlug={termsPage?.slug} />
+        ? <Render config={footerPuckRscConfig as any} data={footerData} />
+        : null
       }
-    </div>
+    </>
   )
 }

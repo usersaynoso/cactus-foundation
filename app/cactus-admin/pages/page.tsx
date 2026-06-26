@@ -29,7 +29,7 @@ export default async function PagesPage({ searchParams }: Props) {
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true, slug: true, title: true, status: true,
-        createdAt: true, updatedAt: true, templateId: true,
+        createdAt: true, updatedAt: true,
         createdBy: { select: { username: true } },
       },
     }),
@@ -67,9 +67,6 @@ export default async function PagesPage({ searchParams }: Props) {
               <tr key={p.id}>
                 <td>
                   <strong>{p.title}</strong>
-                  {p.templateId && (
-                    <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: '#7c3aed', background: '#ede9fe', padding: '0.125rem 0.375rem', borderRadius: 4, fontWeight: 500 }}>template</span>
-                  )}
                 </td>
                 <td><code style={{ fontSize: '0.875rem' }}>{p.slug}</code></td>
                 <td>

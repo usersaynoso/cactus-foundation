@@ -14,9 +14,9 @@
 
 ## What is it?
 
-Cactus Foundation is a web application platform that gives you everything you need to run a proper website — pages, menus, users, media, themes, and a visual drag-and-drop page editor — without requiring you to understand what any of those words mean at a technical level. You click buttons. Things happen. The website works.
+Cactus Foundation is a web application platform that gives you everything you need to run a proper website — pages, menus, users, media, and a visual drag-and-drop page editor — without requiring you to understand what any of those words mean at a technical level. You click buttons. Things happen. The website works.
 
-It is deliberately small. Unlike most website platforms that arrive at your door with seventeen cookbooks, strong opinions about your fonts, and a six-week onboarding course, Cactus ships only what you need. Want forums? Add a module. Want a custom design? Swap a theme. Want to debate tabs versus spaces? You've picked the wrong platform for that, but you'll find plenty of people online who'd love to have that conversation with you.
+It is deliberately small. Unlike most website platforms that arrive at your door with seventeen cookbooks, strong opinions about your fonts, and a six-week onboarding course, Cactus ships only what you need. Want forums? Add a module. Want a custom design? Use the built-in Appearance editor. Want to debate tabs versus spaces? You've picked the wrong platform for that, but you'll find plenty of people online who'd love to have that conversation with you.
 
 **The core idea:** ship a solid foundation, extend it with optional bits, and never make sensible defaults somebody else's emergency.
 
@@ -40,19 +40,16 @@ Every page is built using a visual drag-and-drop editor. You pick from a library
 
 Blocks snap together on a canvas. What you see is (more or less) what you get.
 
-### 🎨 Templates for your header, footer, and page layouts
+### 🎨 A fully visual Appearance system
 
-Beyond individual pages, you can build reusable **templates** in the same drag-and-drop editor:
+Every visual aspect of the site is user-configurable through **Appearance**:
 
-- **Header templates** — design your site navigation exactly how you want it, with your logo, menus, and login button where you put them.
-- **Footer templates** — copyright notice, links, whatever tickles your fancy.
-- **Page templates** — a starting layout that new pages can inherit. Update the template and every page using it updates too.
+- **Header** — design your site navigation exactly how you want it, with your logo, menus, and login button where you put them, using the same drag-and-drop editor.
+- **Footer** — copyright notice, links, social icons, whatever tickles your fancy.
+- **Design Tokens** — pick your brand colours, fonts, and spacing once; they apply everywhere automatically as CSS variables.
+- **Layouts** — define reusable page body structures (full width, boxed, with sidebar) that pages can inherit or override.
 
-Or leave all of that alone and use the default Prickly theme as-is. It looks perfectly respectable and requires zero faffing.
-
-### 🎨 Themes that don't require a degree
-
-The bundled **Prickly** theme is clean, fast, and works straight out of the box. Installing a different theme is one GitHub URL away. Activating it is one button click. No file editing. No mysterious cache to clear. No ritual sacrifice to the design gods.
+No hardcoded design. Every pixel is yours to move.
 
 ### 🧩 Optional modules (powers you only need when you need them)
 
@@ -147,7 +144,7 @@ Provide either:
 ### Image uploads (enables the media library)
 Choose a provider in Settings → Media and add the corresponding credentials. Supported options include Backblaze B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage, Cloudinary, and ImageKit. For most of these, you'll also deploy a Cloudflare Worker from `workers/media-worker/` — full instructions are in the [Configuration reference](wiki/Configuration-reference.md).
 
-### Module and theme installs (enables installing extensions)
+### Module installs (enables installing extensions)
 Create a GitHub personal access token with `repo` scope, then add `GITHUB_API_TOKEN` and `GITHUB_REPO` (format: `owner/repo`, pointing at your Cactus fork).
 
 ### Bot protection on public forms
@@ -179,7 +176,6 @@ The app runs at `http://localhost:3000`. Passkeys work on localhost — Cactus h
 │   └── (public)/           Your actual website, as the world sees it
 │
 ├── lib/                    The engine room — auth, media, config, permissions, page builder
-├── themes/prickly/         The bundled theme. Clean. Fast. Works.
 ├── workers/media-worker/   Cloudflare Worker — serves your images without involving Vercel
 ├── scripts/                Build-time utilities (migrations runner, etc.)
 ├── prisma/                 Database schema — the canonical source of truth
@@ -231,7 +227,7 @@ A: There's a procedure in [Self-hosting and operations](wiki/Self-hosting-and-op
 A: The security model is real, the architecture is solid, and it's been built with care. It is, however, a young project made by humans who drink tea and occasionally miss edge cases. Keep backups. Read the operations guide. Let us know when something's not right.
 
 **Q: Why "Cactus"?**
-A: Low-maintenance. Sharp edges where they matter. Surprisingly resilient. And the bundled theme is called Prickly. The metaphor does most of the work.
+A: Low-maintenance. Sharp edges where they matter. Surprisingly resilient. The metaphor does most of the work.
 
 ---
 
@@ -240,7 +236,7 @@ A: Low-maintenance. Sharp edges where they matter. Surprisingly resilient. And t
 Contributions welcome. The sensible starting points:
 
 1. Open an issue before writing a large feature — not gatekeeping, just avoiding duplicate effort.
-2. Modules and themes are the encouraged extension points. New core features need a good reason.
+2. Modules are the encouraged extension points. New core features need a good reason.
 3. Follow the same code discipline as the rest of the project: type-check, verify your changes actually work, commit clearly.
 
 ---

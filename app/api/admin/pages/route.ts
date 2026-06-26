@@ -14,8 +14,6 @@ const Body = z.object({
   status: z.enum(['draft', 'published']).default('draft'),
   bodyFormat: z.enum(['markdown', 'builder']).default('markdown'),
   menuIds: z.array(z.string()).optional(),
-  templateId: z.string().optional().nullable(),
-  templateMode: z.enum(['copy', 'linked']).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { title, body, metaDescription, status, bodyFormat, menuIds, templateId, templateMode } = parsed.data
+  const { title, body, metaDescription, status, bodyFormat, menuIds } = parsed.data
   let { slug } = parsed.data
   if (!slug) slug = generateSlug(title)
 
@@ -56,30 +54,11 @@ export async function POST(request: NextRequest) {
 
   const canManageMenus = menuIds && menuIds.length > 0 && await hasPermission(user, 'menus.manage')
 
-  // Handle template: copy or link
-  let pageTemplateId: string | null = null
-  let initialBuilderData: unknown = undefined
-  if (templateId) {
-    const canManageTemplates = await hasPermission(user, 'templates.manage')
-    if (canManageTemplates) {
-      const tmpl = await prisma.pageTemplate.findUnique({ where: { id: templateId } })
-      if (tmpl) {
-        if (templateMode === 'linked') {
-          pageTemplateId = templateId
-        } else {
-          initialBuilderData = tmpl.builderData
-        }
-      }
-    }
-  }
-
   const page = await prisma.$transaction(async (tx) => {
     const created = await tx.infoPage.create({
       data: {
         title, slug, body, metaDescription, status, bodyFormat,
         createdById: user.id,
-        templateId: pageTemplateId,
-        ...(initialBuilderData ? { builderData: initialBuilderData } : {}),
       },
     })
 

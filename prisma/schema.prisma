@@ -37,7 +37,6 @@ model User {
   recoveryRequests RecoveryRequest[]
   infoPages       InfoPage[]
   mediaItems      Media[]
-  templates       PageTemplate[]
 
   @@index([email])
   @@index([username])
@@ -184,9 +183,13 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
-  // FK to PageTemplate.id — nullable; when set, renders template instead of theme Nav/Footer
-  headerTemplateId       String?
-  footerTemplateId       String?
+  // Puck builder data for the site-wide header and footer
+  headerBuilderData      Json?
+  footerBuilderData      Json?
+  // FK to Layout.id — the site-wide default layout
+  defaultLayoutId        String?
+  // Design tokens: colors, fonts, spacing stored as JSON
+  designTokens           Json?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -214,8 +217,9 @@ model InfoPage {
   metaDescription String?
   // FK to Media.id — nullable, no Prisma-level relation to avoid circular ref
   ogImageId       String?
-  // FK to PageTemplate.id — nullable; when set, page uses this template (linked mode)
-  templateId      String?
+  // FK to Layout.id — nullable; when set, overrides module/site default layout
+  layoutId        String?
+  layout          Layout?    @relation(fields: [layoutId], references: [id], onDelete: SetNull)
   // Nullable so content survives if author deletes their account
   createdById     String?
   createdBy       User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -301,18 +305,32 @@ model MediaMigrationJob {
 }
 
 // ---------------------------------------------------------------------------
-// Themes
+// Layouts
 // ---------------------------------------------------------------------------
 
-model Theme {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  // null for bundled themes (e.g., Prickly)
-  repoUrl     String?
-  version     String
-  // Exactly one Theme has isActive = true at any time
-  isActive    Boolean  @default(false)
-  installedAt DateTime @default(now())
+model Layout {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  // Puck builder data for the body structure (must contain a ContentSlot block)
+  builderData Json?
+  // Starter layouts are seeded and cannot be deleted by users
+  isStarter   Boolean    @default(false)
+  status      PageStatus @default(draft)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  pageOverrides  InfoPage[]
+  moduleDefaults ModuleLayoutDefault[]
+}
+
+// Per-module layout defaults (e.g. all infopages use "Boxed")
+model ModuleLayoutDefault {
+  id         String @id @default(cuid())
+  // Module name key, e.g. "infopages", "forums"
+  moduleName String @unique
+  layoutId   String
+  layout     Layout @relation(fields: [layoutId], references: [id])
 }
 
 // ---------------------------------------------------------------------------
@@ -363,31 +381,6 @@ model DeployLock {
   lockedAt DateTime @default(now())
   // moduleId or themeId holding the lock
   lockedBy String
-}
-
-// ---------------------------------------------------------------------------
-// Page Templates
-// ---------------------------------------------------------------------------
-
-enum TemplateType {
-  HEADER
-  FOOTER
-  PAGE
-}
-
-model PageTemplate {
-  id          String       @id @default(cuid())
-  name        String
-  type        TemplateType
-  builderData Json?
-  status      PageStatus   @default(draft)
-  createdById String?
-  createdBy   User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@index([type])
-  @@index([status])
 }
 
 // ---------------------------------------------------------------------------

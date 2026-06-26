@@ -15,7 +15,7 @@ const Patch = z.object({
   status:          z.enum(['draft', 'published']).optional(),
   bodyFormat:      z.enum(['markdown', 'builder']).optional(),
   menuIds:         z.array(z.string()).optional(),
-  templateId:      z.string().optional().nullable(),
+  layoutId:        z.string().optional().nullable(),
 })
 
 type Params = { params: Promise<{ id: string }> }

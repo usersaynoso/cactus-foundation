@@ -5,7 +5,7 @@ import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
 
-type Step = 'env' | 'account' | 'adminPath' | 'essentials' | 'recovery'
+type Step = 'connect' | 'database' | 'account' | 'configure' | 'recovery'
 
 // Sub-states within the 'env' step.
 type DbSubStep =
@@ -103,7 +103,7 @@ function startVercelConfiguredPolling(onReady: (data: EnvCheckData) => void): ()
 }
 
 export default function SetupPage() {
-  const [step, setStep] = useState<Step>('env')
+  const [step, setStep] = useState<Step>('connect')
   const [envData, setEnvData] = useState<EnvCheckData | null>(null)
   const [dbSubStep, setDbSubStep] = useState<DbSubStep>('loading')
   const [adminPath, setAdminPath] = useState('')
@@ -139,7 +139,7 @@ export default function SetupPage() {
   const [siteName, setSiteName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
 
-  const steps: Step[] = ['env', 'account', 'adminPath', 'essentials', 'recovery']
+  const steps: Step[] = ['connect', 'database', 'account', 'configure', 'recovery']
   const stepIndex = steps.indexOf(step)
 
   // Clean up health poll on unmount.
@@ -149,10 +149,10 @@ export default function SetupPage() {
     }
   }, [])
 
-  // ── Step 1: Environment check ──────────────────────────────────────────────
+  // ── Step 1: Vercel connection check ───────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (step !== 'env') return
+    if (step !== 'connect') return
     setDbSubStep('loading')
 
     fetch('/api/setup/env-check')
@@ -175,6 +175,26 @@ export default function SetupPage() {
           return
         }
 
+        // Vercel is configured — connect step is done
+        setDbSubStep('ready')
+      })
+      .catch(() => {
+        setError('Failed to load environment status')
+        setDbSubStep('block')
+      })
+  // envCheckKey is intentionally included so we can force a re-run after redeploy
+  // even when `step` is already 'connect' (React won't re-fire if step value doesn't change)
+  }, [step, envCheckKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Step 2: Database check ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== 'database') return
+    setDbSubStep('loading')
+
+    fetch('/api/setup/env-check')
+      .then((r) => r.json())
+      .then((d: EnvCheckData) => {
+        setEnvData(d)
         if (d.databaseState === 'set') {
           setDbSubStep('ready')
         } else if (d.databaseState === 'provisioned-redeploying') {
@@ -187,12 +207,10 @@ export default function SetupPage() {
         }
       })
       .catch(() => {
-        setError('Failed to load environment status')
+        setError('Failed to load database status')
         setDbSubStep('block')
       })
-  // envCheckKey is intentionally included so we can force a re-run after redeploy
-  // even when `step` is already 'env' (React won't re-fire if step value doesn't change)
-  }, [step, envCheckKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startRedeployPolling() {
     cancelPollingRef.current?.()
@@ -204,20 +222,15 @@ export default function SetupPage() {
   function startVercelRedeployPolling() {
     cancelPollingRef.current?.()
     cancelPollingRef.current = startVercelConfiguredPolling((data) => {
-      // Use the data from the response that confirmed vercelConfigured to avoid
-      // a second fetch that could race the old/new deployment boundary and show
-      // the vercel-config panel again.
       setEnvData(data)
-      if (data.databaseState === 'set') {
-        setDbSubStep('ready')
-      } else if (data.databaseState === 'provisioned-redeploying') {
-        setDbSubStep('db-redeploying')
-        startRedeployPolling()
-      } else if (data.neonAvailable) {
-        setDbSubStep('db-choice')
-      } else {
-        setDbSubStep('db-manual')
+      const unexpectedMissing = data.missingRequired.filter(
+        (v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID'
+      )
+      if (unexpectedMissing.length > 0) {
+        setDbSubStep('block')
+        return
       }
+      setDbSubStep('ready')
     })
   }
 
@@ -287,9 +300,8 @@ export default function SetupPage() {
         setVercelConfiguring(false)
         return
       }
-      // Skip the intermediate redeploy — go directly to DB selection.
-      // The combined redeploy will happen once DATABASE_URL is also ready.
-      setDbSubStep(vercelNeonKey ? 'db-choice' : 'db-manual')
+      // Vercel is now configured — connect step is complete.
+      setDbSubStep('ready')
     } catch (err: unknown) {
       setVercelError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('vercel-config')
@@ -421,10 +433,8 @@ export default function SetupPage() {
 
       if (!data.admin) {
         setStep('account')
-      } else if (!data.adminPath) {
-        setStep('adminPath')
-      } else if (!data.siteName) {
-        setStep('essentials')
+      } else if (!data.adminPath || !data.siteName) {
+        setStep('configure')
       } else {
         setStep('recovery')
       }
@@ -491,7 +501,7 @@ export default function SetupPage() {
       }
 
       setPasskeyRegistered(true)
-      setStep('adminPath')
+      setStep('configure')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       // Safari stores passkeys device-side even when server verification fails.
@@ -508,9 +518,9 @@ export default function SetupPage() {
     }
   }
 
-  // ── Step 3: Set admin path ─────────────────────────────────────────────────
+  // ── Step 4: Configure ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (step === 'adminPath') {
+    if (step === 'configure') {
       fetch('/api/setup/suggest-path')
         .then((r) => r.json())
         .then((d: { path: string }) => setAdminPath(d.path))
@@ -518,39 +528,26 @@ export default function SetupPage() {
     }
   }, [step])
 
-  async function handleAdminPath() {
+  async function handleConfigure() {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/setup/set-admin-path', {
+      const pathRes = await fetch('/api/setup/set-admin-path', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminPath }),
       })
-      if (!res.ok) {
-        const d = await res.json()
+      if (!pathRes.ok) {
+        const d = await pathRes.json()
         throw new Error(d.error ?? 'Invalid admin path')
       }
-      setStep('essentials')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ── Step 4: Site essentials ────────────────────────────────────────────────
-  async function handleEssentials() {
-    setError('')
-    setLoading(true)
-    try {
-      const res = await fetch('/api/setup/essentials', {
+      const essRes = await fetch('/api/setup/essentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteName, timezone }),
       })
-      if (!res.ok) {
-        const d = await res.json()
+      if (!essRes.ok) {
+        const d = await essRes.json()
         throw new Error(d.error ?? 'Failed to save settings')
       }
       setStep('recovery')
@@ -587,10 +584,10 @@ export default function SetupPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const stepLabels: Record<Step, string> = {
-    env: 'Connect',
+    connect: 'Connect',
+    database: 'Database',
     account: 'Account',
-    adminPath: 'Path',
-    essentials: 'Site',
+    configure: 'Configure',
     recovery: 'Recovery',
   }
 
@@ -642,8 +639,8 @@ export default function SetupPage() {
 
       {error && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-      {/* ── Step: ENV CHECK ── */}
-      {step === 'env' && (
+      {/* ── Step: CONNECT ── */}
+      {step === 'connect' && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Connect your project</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
@@ -703,46 +700,73 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* Vars list (only shown once everything is confirmed set or blocked) */}
-          {envData && ['ready', 'block'].includes(dbSubStep) && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
-              {envData.required.map((v) => {
-                if (v.name === 'DATABASE_URL') return null
-                return (
-                  <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <span style={{ color: v.set ? '#16a34a' : '#dc2626', fontWeight: 700, flexShrink: 0 }}>{v.set ? '✓' : '✗'}</span>
-                    <div>
-                      <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
-                      {!v.set && (
-                        <div style={{ fontSize: '0.8125rem', color: '#dc2626' }}>{v.description}</div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
           {/* Hard block */}
           {dbSubStep === 'block' && envData && (
-            <div className="alert alert-danger">
-              Unexpected missing variables:{' '}
-              <strong>
-                {envData.missingRequired
-                  .filter((v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID')
-                  .join(', ')}
-              </strong>.
-              Add them to your Vercel project environment variables and redeploy.
-            </div>
+            <>
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Required</div>
+                {envData.required.map((v) => {
+                  if (v.name === 'DATABASE_URL') return null
+                  return (
+                    <div key={v.name} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <span style={{ color: v.set ? '#16a34a' : '#dc2626', fontWeight: 700, flexShrink: 0 }}>{v.set ? '✓' : '✗'}</span>
+                      <div>
+                        <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{v.name}</code>
+                        {!v.set && (
+                          <div style={{ fontSize: '0.8125rem', color: '#dc2626' }}>{v.description}</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="alert alert-danger">
+                Unexpected missing variables:{' '}
+                <strong>
+                  {envData.missingRequired
+                    .filter((v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID')
+                    .join(', ')}
+                </strong>.
+                Add them to your Vercel project environment variables and redeploy.
+              </div>
+            </>
           )}
 
-          {/* All required vars set */}
+          {/* Vercel connected — ready to move to database step */}
           {dbSubStep === 'ready' && (
             <>
               <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                 <span style={{ fontSize: '1.125rem' }}>✓</span>
-                <span><strong>All connected.</strong> Your Vercel project and database are ready.</span>
+                <span><strong>Vercel connected.</strong> Your project environment is configured.</span>
+              </div>
+              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('database')}>
+                Continue →
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Step: DATABASE ── */}
+      {step === 'database' && (
+        <div>
+          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Set up your database</h2>
+          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+            Cactus needs a PostgreSQL database to store your content.
+          </p>
+
+          {dbSubStep === 'loading' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', fontSize: '0.9375rem' }}>
+              <span className="setup-spinner" />
+              Checking…
+            </div>
+          )}
+
+          {dbSubStep === 'ready' && (
+            <>
+              <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <span style={{ fontSize: '1.125rem' }}>✓</span>
+                <span><strong>Database connected.</strong> Your database is ready.</span>
               </div>
               <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('account')}>
                 Continue →
@@ -750,7 +774,6 @@ export default function SetupPage() {
             </>
           )}
 
-          {/* DATABASE_URL absent, Neon available */}
           {dbSubStep === 'db-choice' && (
             <DbChoicePanel
               neonRegion={neonRegion}
@@ -764,7 +787,6 @@ export default function SetupPage() {
             />
           )}
 
-          {/* DATABASE_URL absent, no Neon key */}
           {dbSubStep === 'db-manual' && (
             <DbManualPanel
               onSaveUrl={handleManualDbSave}
@@ -813,7 +835,7 @@ export default function SetupPage() {
           <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>
             <strong>Using existing admin account.</strong> Skipping account creation.
           </div>
-          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('adminPath')}>
+          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('configure')}>
             Continue →
           </button>
         </div>
@@ -851,12 +873,12 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* ── Step: ADMIN PATH ── */}
-      {step === 'adminPath' && (
+      {/* ── Step: CONFIGURE ── */}
+      {step === 'configure' && (
         <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Choose your admin path</h2>
+          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Configure your site</h2>
           <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            This is the secret URL prefix for your admin area. Anyone who doesn&apos;t know it gets a plain 404.
+            Choose your admin path and name your site.
           </p>
           <div className="field">
             <label htmlFor="adminPath">Admin path</label>
@@ -872,26 +894,8 @@ export default function SetupPage() {
                 style={{ flex: 1 }}
               />
             </div>
-            <span className="field-hint">Lowercase letters, numbers, and hyphens only.</span>
+            <span className="field-hint">Lowercase letters, numbers, and hyphens only. Anyone who doesn&apos;t know it gets a plain 404.</span>
           </div>
-          <button
-            className="btn btn-primary btn-lg"
-            style={{ width: '100%' }}
-            disabled={!adminPath || loading}
-            onClick={handleAdminPath}
-          >
-            {loading ? 'Saving…' : 'Set admin path →'}
-          </button>
-        </div>
-      )}
-
-      {/* ── Step: ESSENTIALS ── */}
-      {step === 'essentials' && (
-        <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Name your site</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Just a couple of quick details to get started.
-          </p>
           <div className="field">
             <label htmlFor="siteName">Site name</label>
             <input id="siteName" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="My Cactus Site" />
@@ -920,8 +924,8 @@ export default function SetupPage() {
           <button
             className="btn btn-primary btn-lg"
             style={{ width: '100%' }}
-            disabled={!siteName || loading}
-            onClick={handleEssentials}
+            disabled={!adminPath || !siteName || loading}
+            onClick={handleConfigure}
           >
             {loading ? 'Saving…' : 'Continue →'}
           </button>
