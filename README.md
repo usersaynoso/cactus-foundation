@@ -2,7 +2,7 @@
   <img src="cactus.svg" width="160" alt="Cactus CMS" />
 </p>
 
-<center># Cactus CMS</center>
+#<center> Cactus CMS</center>
 
 > **A minimal, extensible, fast, and themeable CMS built on Next.js 16.**
 > Tough on the outside, surprisingly welcoming inside. Thrives on neglect. Will not die.
