@@ -5,6 +5,7 @@
 import React from 'react'
 import type { Config } from '@puckeditor/core'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
+import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -710,47 +711,6 @@ function Logos(props: any) {
 // Site blocks
 // ---------------------------------------------------------------------------
 
-function SiteLogo(props: any) {
-  const {
-    logoUrl, siteName,
-    logoHeight = 40,
-    showTextWithLogo = false,
-    textColor,
-    homeUrl = '/',
-    showIcon = true,
-  } = props as {
-    logoUrl?: string; siteName?: string; logoHeight?: number;
-    showTextWithLogo?: boolean; textColor?: string; homeUrl?: string;
-    showIcon?: boolean;
-  }
-  const href = homeUrl || '/'
-  const colorStyle = textColor ? { color: textColor } : undefined
-  // Puck select fields return strings; support both boolean and string forms
-  const showTextBool = showTextWithLogo === true || (showTextWithLogo as unknown) === 'true'
-  const showIconBool = showIcon !== false && (showIcon as unknown) !== 'false'
-
-  if (logoUrl) {
-    return (
-      <a href={href} className="prickly-logo" style={colorStyle}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
-        {showTextBool && siteName && (
-          <span style={{ marginLeft: '0.5rem' }}>{siteName}</span>
-        )}
-      </a>
-    )
-  }
-
-  return (
-    <a href={href} className="prickly-logo" style={colorStyle}>
-      {showIconBool && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
-      )}
-      {siteName ?? 'Site Name'}
-    </a>
-  )
-}
 
 function Copyright(props: any) {
   const {
@@ -875,6 +835,15 @@ function MenuBlock(props: any) {
 
   if (orientation === 'vertical') {
     const vGap = verticalGaps[spacing] ?? '0.5rem'
+    const baseLinkStyle: React.CSSProperties = {
+      display: 'block',
+      padding: '0.25rem 0',
+      fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
+      fontWeight: fontWeightMap[itemFontWeight] ?? 500,
+      color: itemColor || '#374151',
+      textDecoration: 'none',
+      ...linkStyleOverride,
+    }
     return (
       <nav>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: vGap }}>
@@ -884,8 +853,7 @@ function MenuBlock(props: any) {
                 href={item.href}
                 target={item.openInNewTab ? '_blank' : undefined}
                 rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                className="prickly-menu-link"
-                style={linkStyleOverride}
+                style={baseLinkStyle}
               >
                 {item.label}
               </a>
@@ -894,7 +862,7 @@ function MenuBlock(props: any) {
                   {item.children.map((child: any) => (
                     <li key={child.id}>
                       <a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
-                        className="prickly-dropdown-link" style={itemColor ? { color: itemColor } : undefined}>
+                        style={{ display: 'block', padding: '0.25rem 0', fontSize: '0.9rem', color: itemColor || '#6b7280', textDecoration: 'none' }}>
                         {child.label}
                       </a>
                     </li>
@@ -1653,7 +1621,7 @@ const puckConfig = {
         showIcon: 'true',
         textColor: '',
       },
-      render: SiteLogo,
+      render: SiteLogoClient,
     },
     Copyright: {
       label: 'Copyright',
@@ -1847,14 +1815,29 @@ export const puckTemplateConfig = {
   },
 }
 
-// Header template config — wraps blocks in the Prickly header shell so the
-// Puck-rendered header matches the theme's sticky nav structure.
+// Header template config — wraps blocks in a self-contained header shell.
+// Uses inline styles so the header looks correct regardless of which theme is active.
 export const puckHeaderTemplateConfig = {
   ...puckConfig,
   root: {
     render: ({ children }: { children: React.ReactNode }) => (
-      <header className="prickly-header">
-        <nav className="prickly-nav">
+      <header style={{
+        height: 64,
+        borderBottom: '1px solid #e5e7eb',
+        background: '#ffffff',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
+        <nav style={{
+          maxWidth: 760,
+          margin: '0 auto',
+          padding: '0 1.5rem',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
           {children}
         </nav>
       </header>
