@@ -50,7 +50,6 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
   }
 
   const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
-  const horizontalGaps: Record<string, string> = { tight: '0', normal: '0.5rem', wide: '1.25rem' }
 
   const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
   const fontWeightMap: Record<string, number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
@@ -60,6 +59,14 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
     fontWeight: fontWeightMap[itemFontWeight] ?? 500,
     fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
     textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
+  }
+
+  // For horizontal (prickly-menu-link class handles defaults) only apply explicit overrides
+  const horizontalLinkStyle: React.CSSProperties = {
+    ...(itemColor ? { color: itemColor } : {}),
+    ...(itemFontWeight !== 'medium' ? { fontWeight: fontWeightMap[itemFontWeight] } : {}),
+    ...(itemFontSize !== 'medium' ? { fontSize: fontSizeMap[itemFontSize] } : {}),
+    ...(textTransform !== 'none' ? { textTransform: textTransform as React.CSSProperties['textTransform'] } : {}),
   }
 
   if (orientation === 'vertical') {
@@ -84,17 +91,20 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
   }
 
   return (
-    <nav>
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: horizontalGaps[spacing] ?? '0.5rem' }}>
-        {items.map((item) => (
-          <li key={item.id} style={{ padding: '0.5rem 0.875rem' }}>
-            <span style={linkStyle}>
-              {item.label}
-              {item.children && item.children.length > 0 && <span style={{ marginLeft: '0.25rem', opacity: 0.6, fontSize: '0.625rem' }}>▾</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <ul className="prickly-menu">
+      {items.map((item) => (
+        <li key={item.id} className="prickly-menu-item">
+          <span
+            className="prickly-menu-link"
+            style={Object.keys(horizontalLinkStyle).length > 0 ? horizontalLinkStyle : undefined}
+          >
+            {item.label}
+            {item.children && item.children.length > 0 && (
+              <span className="prickly-dropdown-arrow" aria-hidden>▾</span>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
