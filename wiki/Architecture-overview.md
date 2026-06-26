@@ -232,9 +232,10 @@ In the admin editor, the same blocks use client-side fetching via `MenuBlockEdit
 `app/(public)/layout.tsx` checks `SiteConfig.headerTemplateId` and `footerTemplateId`. When a template is assigned and its status is `published`:
 
 - The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with **RSC-safe** type-specific configs (`puckHeaderTemplateRscConfig` / `puckFooterTemplateRscConfig` from `lib/puck/config.tsx`).
-  - These configs wrap the root render in the correct Prickly HTML shell (`<header class="prickly-header"><nav class="prickly-nav">` for HEADER; `<footer class="prickly-footer">` for FOOTER).
+  - `puckHeaderTemplateConfig` root render uses **inline styles** (not prickly CSS classes) so the header template looks correct regardless of which theme is active. The shell is a sticky 64px white header bar with a centred 760px nav row.
   - They replace the `richtext` field type with `textarea` to prevent `React.lazy` from being called during server rendering (Puck v0.21.3's RSC module calls `React.lazy` for any component with a `richtext` field, which throws in React 19 RSC).
-  - The `MenuBlock` component (when used in horizontal/header mode) delegates to `MenuBlockClient` — a `'use client'` component that mirrors the Prickly `Nav.tsx` behaviour exactly: interactive hover dropdowns, a hamburger button on mobile, and an absolutely-positioned mobile menu drawer. The mobile menu uses `position: absolute; top: var(--prickly-header-height)` so it appears directly below the sticky header bar.
+  - `SiteLogo` renders via `SiteLogoClient` — a `'use client'` component that uses inline styles and React hover state instead of the `prickly-logo` CSS class.
+  - `MenuBlock` (horizontal/header mode) delegates to `MenuBlockClient` — a `'use client'` component with interactive hover dropdowns and an absolutely-positioned mobile menu drawer. All styling is via inline styles and React state; a tiny embedded `<style>` tag provides only the mobile media query (`@media (max-width: 640px)`) for the hamburger/menu visibility toggle. The mobile menu sits at `position: absolute; top: 64px` below the sticky header bar. No prickly.css dependency.
 - The theme's `Nav.tsx` / `Footer.tsx` components are skipped entirely.
 - The `TemplateEditor` also uses type-specific configs for the Puck canvas: `puckHeaderTemplateConfig` for HEADER, `puckFooterTemplateConfig` for FOOTER, `puckTemplateConfig` for PAGE — so the editor preview matches the live frontend render.
 

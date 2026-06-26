@@ -50,7 +50,6 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
   }
 
   const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
-
   const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
   const fontWeightMap: Record<string, number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
 
@@ -59,14 +58,6 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
     fontWeight: fontWeightMap[itemFontWeight] ?? 500,
     fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
     textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
-  }
-
-  // For horizontal (prickly-menu-link class handles defaults) only apply explicit overrides
-  const horizontalLinkStyle: React.CSSProperties = {
-    ...(itemColor ? { color: itemColor } : {}),
-    ...(itemFontWeight !== 'medium' ? { fontWeight: fontWeightMap[itemFontWeight] } : {}),
-    ...(itemFontSize !== 'medium' ? { fontSize: fontSizeMap[itemFontSize] } : {}),
-    ...(textTransform !== 'none' ? { textTransform: textTransform as React.CSSProperties['textTransform'] } : {}),
   }
 
   if (orientation === 'vertical') {
@@ -90,17 +81,28 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
     )
   }
 
+  // Horizontal — inline styles matching the header design (no prickly.css dependency)
+  const hItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.5rem 0.875rem',
+    fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
+    fontWeight: fontWeightMap[itemFontWeight] ?? 500,
+    color: itemColor || '#111827',
+    textDecoration: 'none',
+    borderRadius: 6,
+    textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
+  }
+
   return (
-    <ul className="prickly-menu">
+    <ul style={{ display: 'flex', alignItems: 'center', listStyle: 'none', margin: 0, padding: 0 }}>
       {items.map((item) => (
-        <li key={item.id} className="prickly-menu-item">
-          <span
-            className="prickly-menu-link"
-            style={Object.keys(horizontalLinkStyle).length > 0 ? horizontalLinkStyle : undefined}
-          >
+        <li key={item.id} style={{ position: 'relative' }}>
+          <span style={hItemStyle}>
             {item.label}
             {item.children && item.children.length > 0 && (
-              <span className="prickly-dropdown-arrow" aria-hidden>▾</span>
+              <span style={{ fontSize: '0.625rem', opacity: 0.6 }} aria-hidden>▾</span>
             )}
           </span>
         </li>
