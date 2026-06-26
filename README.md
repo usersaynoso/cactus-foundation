@@ -1,9 +1,8 @@
 <p align="center">
   <img src="cactus.svg" width="160" alt="Cactus Foundation" />
-  # 🌵 Cactus Foundation
 </p>
 
-
+<h1 align="center">Cactus Foundation</h1>
 
 > **Tough on the outside, surprisingly welcoming inside. Thrives on neglect. Will not die.**
 
