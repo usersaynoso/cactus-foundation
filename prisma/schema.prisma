@@ -183,8 +183,9 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
-  // Puck builder data for the site-wide header and footer
-  headerBuilderData      Json?
+  // Structured config for the site-wide header (logo left, menu right)
+  headerConfig           Json?
+  // Puck builder data for the site-wide footer
   footerBuilderData      Json?
   // FK to Layout.id — the site-wide default layout
   defaultLayoutId        String?

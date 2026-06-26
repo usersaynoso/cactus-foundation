@@ -4,36 +4,27 @@ import { useMemo, useRef } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
-import { headerPuckConfig, footerPuckConfig } from '@/lib/puck/config'
-import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
+import { footerPuckConfig } from '@/lib/puck/config'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 
 type Props = {
-  mode: 'header' | 'footer'
+  mode: 'footer'
   initialData: Data
   onChange: (data: Data) => void
 }
 
-export default function AppearancePuckEditor({ mode, initialData, onChange }: Props) {
-  const baseConfig = mode === 'header' ? headerPuckConfig : footerPuckConfig
+export default function AppearancePuckEditor({ initialData, onChange }: Props) {
   const hasChangedRef = useRef(false)
 
   const editorConfig = useMemo(() => ({
-    ...baseConfig,
+    ...footerPuckConfig,
     components: {
-      ...baseConfig.components,
-      ImageBlock: {
-        ...(baseConfig.components as any).ImageBlock,
-        fields: {
-          ...(baseConfig.components as any).ImageBlock?.fields,
-          mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
-        },
-      },
+      ...footerPuckConfig.components,
       MenuBlock: {
-        ...(baseConfig.components as any).MenuBlock,
+        ...footerPuckConfig.components.MenuBlock,
         fields: {
-          ...(baseConfig.components as any).MenuBlock.fields,
+          ...footerPuckConfig.components.MenuBlock.fields,
           menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
         },
         render: (props: any) => (
@@ -47,7 +38,8 @@ export default function AppearancePuckEditor({ mode, initialData, onChange }: Pr
         ),
       },
     },
-  }), [baseConfig])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }), [])
 
   return (
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

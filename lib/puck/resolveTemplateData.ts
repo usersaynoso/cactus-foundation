@@ -1,5 +1,5 @@
 import type { Data } from '@puckeditor/core'
-import { resolveMenu } from '@/lib/menu/resolve'
+import { resolveMenu, resolveMainMenu } from '@/lib/menu/resolve'
 
 type Context = {
   siteName: string
@@ -34,6 +34,14 @@ export async function resolveTemplateData(rawData: unknown, ctx: Context): Promi
     if (block.type === 'LoginButton') {
       block.props.isLoggedIn = ctx.isLoggedIn
       block.props.adminPath = ctx.adminPath
+    }
+
+    if (block.type === 'SiteHeader') {
+      block.props.logoUrl = ctx.logoUrl
+      block.props.siteName = ctx.siteName
+      try {
+        block.props.resolvedItems = await resolveMainMenu()
+      } catch { block.props.resolvedItems = [] }
     }
   }
 

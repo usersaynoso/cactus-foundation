@@ -35,64 +35,22 @@ export async function POST() {
     },
   })
 
-  // Seed default header builder data — Flex row with SiteLogo left, MenuBlock right
-  const headerBuilderData = {
-    content: [
-      {
-        type: 'Flex',
-        props: {
-          id: 'Flex-header-row',
-          direction: 'row',
-          justify: 'between',
-          align: 'center',
-          gap: 'none',
-          padding: 'none',
-          wrap: 'nowrap',
-        },
-      },
-    ],
-    zones: {
-      'Flex-header-row:items': [
-        {
-          type: 'SiteLogo',
-          props: {
-            id: 'site-logo-1',
-            homeUrl: '/',
-            logoHeight: 40,
-            showTextWithLogo: 'false',
-            showIcon: 'true',
-            textColor: '',
-          },
-        },
-        {
-          type: 'MenuBlock',
-          props: {
-            id: 'main-menu-1',
-            menuId: mainMenu.id,
-            menuName: 'Main Menu',
-            orientation: 'horizontal',
-            spacing: 'normal',
-            itemFontSize: 'medium',
-            itemFontWeight: 'medium',
-            textTransform: 'none',
-            itemColor: '',
-            showDropdowns: 'hover',
-            showMobileToggle: 'collapse',
-          },
-        },
-      ],
-    },
-    root: {
-      props: {
-        bgMode: 'color',
-        bgColor: 'var(--color-bg)',
-        height: '64px',
-        sticky: 'yes',
-        borderBottom: 'show',
-        borderColor: 'var(--color-border)',
-        maxWidth: '1200px',
-      },
-    },
+  // Default header config — logo left, main menu right, fixed layout
+  const headerConfig = {
+    bgMode: 'color',
+    bgColor: 'var(--color-bg)',
+    height: '64px',
+    sticky: 'yes',
+    borderBottom: 'show',
+    borderColor: 'var(--color-border)',
+    maxWidth: '1200px',
+    logoHeight: 40,
+    showTextWithLogo: 'false',
+    logoHomeUrl: '/',
+    itemFontSize: 'medium',
+    itemFontWeight: 'medium',
+    itemColor: '',
+    showMobileToggle: 'collapse',
   }
 
   // Seed default footer builder data — Copyright block
@@ -193,7 +151,7 @@ export async function POST() {
       hideFromCrawlers: true,
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
-      headerBuilderData: headerBuilderData,
+      headerConfig: headerConfig,
       footerBuilderData: footerBuilderData,
       defaultLayoutId: fullWidthLayout.id,
     },

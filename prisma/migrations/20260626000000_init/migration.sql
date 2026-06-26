@@ -145,7 +145,7 @@ CREATE TABLE "SiteConfig" (
     "recoveryCodeHash" TEXT,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
-    "headerBuilderData" JSONB,
+    "headerConfig" JSONB,
     "footerBuilderData" JSONB,
     "defaultLayoutId" TEXT,
     "designTokens" JSONB,

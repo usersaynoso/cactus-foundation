@@ -118,8 +118,6 @@ function GridBlock(props: any) {
   )
 }
 
-function GridBlockHeader(props: any) { return GridBlock({ ...props, spaceBelow: 'none' }) }
-
 function FlexBlock(props: any) {
   const { direction, justify, align, wrap, gap, padding, items } = props
   const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
@@ -140,23 +138,46 @@ function FlexBlock(props: any) {
   )
 }
 
-function FlexBlockHeader(props: any) {
-  const { direction, justify, align, wrap, gap, padding, items } = props
-  const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
-  const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
+function SiteHeaderBlock(props: any) {
+  const {
+    logoUrl, siteName, resolvedItems,
+    bgColor = 'var(--color-bg)', bgMode = 'color', height = '64px',
+    sticky = 'yes', borderBottom = 'show', borderColor = 'var(--color-border)',
+    maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
+    logoHomeUrl = '/', itemFontSize = 'medium', itemFontWeight = 'medium',
+    itemColor = '', showMobileToggle = 'collapse',
+  } = props
+  const showText = showTextWithLogo === 'true' || showTextWithLogo === true
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: direction === 'column' ? 'column' : 'row',
-      justifyContent: justifyMap[justify] ?? 'flex-start',
-      alignItems: alignMap[align] ?? 'stretch',
-      flexWrap: wrap === 'wrap' ? 'wrap' : 'nowrap',
-      gap: GAP_MAP[gap] ?? '1rem',
-      padding: getPadding(padding),
-      width: '100%',
-    }}>
-      {typeof items === 'function' ? items() : null}
-    </div>
+    <header
+      data-bg-mode={bgMode}
+      style={{
+        height: height === 'auto' ? undefined : height,
+        minHeight: height === 'auto' ? 48 : undefined,
+        background: bgMode === 'transparent' ? 'transparent' : bgColor,
+        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor}` : 'none',
+        position: sticky === 'yes' ? 'sticky' : 'relative',
+        top: sticky === 'yes' ? 0 : undefined,
+        zIndex: sticky === 'yes' ? 100 : undefined,
+        width: '100%',
+      }}
+    >
+      <div style={{
+        maxWidth: maxWidth === 'none' ? '100%' : maxWidth,
+        margin: '0 auto',
+        padding: '0 1.5rem',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '2rem',
+      }}>
+        <SiteLogoRsc logoUrl={logoUrl} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
+        {resolvedItems && (
+          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} />
+        )}
+      </div>
+    </header>
   )
 }
 
@@ -775,7 +796,7 @@ const puckConfig = {
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
-    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton'],       defaultExpanded: false },
+    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton'], defaultExpanded: false },
   },
   root: {
     render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -1064,6 +1085,32 @@ const puckConfig = {
       defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
       render: LoginButton,
     },
+    SiteHeader: {
+      label: 'Site Header',
+      fields: {
+        bgMode:           { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
+        bgColor:          { type: 'text' as const, label: 'Background colour (hex/CSS)' },
+        height:           { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
+        sticky:           { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
+        borderBottom:     { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
+        borderColor:      { type: 'text' as const, label: 'Border colour' },
+        maxWidth:         { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
+        logoHeight:       { type: 'number' as const, label: 'Logo height (px)' },
+        showTextWithLogo: { type: 'select' as const, label: 'Show site name', options: [{ value: 'false', label: 'Logo only' }, { value: 'true', label: 'Logo + name' }] },
+        logoHomeUrl:      { type: 'text' as const, label: 'Logo link URL' },
+        itemFontSize:     { type: 'select' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+        itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        itemColor:        { type: 'text' as const, label: 'Nav link colour' },
+        showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
+      },
+      defaultProps: {
+        bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes',
+        borderBottom: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px',
+        logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
+        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse',
+      },
+      render: SiteHeaderBlock,
+    },
   },
 } satisfies Config
 
@@ -1081,63 +1128,6 @@ const rscComponents = {
 }
 
 export const puckRscConfig = { ...puckConfig, components: rscComponents }
-
-// ---------------------------------------------------------------------------
-// Header Puck config — used in Appearance > Header editor
-// ---------------------------------------------------------------------------
-
-export const headerPuckConfig = {
-  categories: {
-    site:   { title: 'Site',   components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ButtonLink', 'SocialLinks'], defaultExpanded: true },
-    layout: { title: 'Layout', components: ['Grid', 'Flex', 'Spacer'], defaultExpanded: false },
-  },
-  root: {
-    fields: {
-      bgMode: { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
-      bgColor: { type: 'text' as const, label: 'Background colour (hex/CSS)' },
-      height: { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
-      sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
-      borderBottom: { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-      borderColor: { type: 'text' as const, label: 'Border colour' },
-      maxWidth: { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
-    },
-    defaultProps: { bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes', borderBottom: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px' },
-    render: ({ children, bgMode, bgColor, height, sticky, borderBottom, borderColor, maxWidth }: any) => (
-      <header data-bg-mode={bgMode} style={{
-        height: height === 'auto' ? undefined : height,
-        minHeight: height === 'auto' ? 48 : undefined,
-        background: bgMode === 'transparent' ? 'transparent' : bgMode === 'transparent-scroll' ? 'transparent' : (bgColor || 'var(--color-bg)'),
-        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border)'}` : 'none',
-        position: sticky === 'yes' ? 'sticky' : 'relative',
-        top: sticky === 'yes' ? 0 : undefined,
-        zIndex: sticky === 'yes' ? 100 : undefined,
-        width: '100%',
-      }}>
-        <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: '0 1.5rem', height: '100%', display: 'flex', alignItems: 'center' }}>
-          {children}
-        </div>
-      </header>
-    ),
-  },
-  components: {
-    SiteLogo: puckConfig.components.SiteLogo,
-    MenuBlock: puckConfig.components.MenuBlock,
-    LoginButton: puckConfig.components.LoginButton,
-    ButtonLink: puckConfig.components.ButtonLink,
-    SocialLinks: puckConfig.components.SocialLinks,
-    Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
-    Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
-    Spacer: puckConfig.components.Spacer,
-  },
-}
-
-export const headerPuckRscConfig = {
-  ...headerPuckConfig,
-  components: {
-    ...headerPuckConfig.components,
-    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-  },
-}
 
 // ---------------------------------------------------------------------------
 // Footer Puck config — used in Appearance > Footer editor

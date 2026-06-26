@@ -1,9 +1,11 @@
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie } from '@/lib/auth/session'
 import { Render } from '@puckeditor/core/rsc'
-import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config'
+import { footerPuckRscConfig } from '@/lib/puck/config'
 import type { Data } from '@puckeditor/core'
 import AosInit from '@/lib/puck/components/AosInit'
+import SiteHeader from '@/components/public/SiteHeader'
+import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
+import { getSessionFromCookie } from '@/lib/auth/session'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const config = await prisma.siteConfig
@@ -13,7 +15,6 @@ export default async function PublicLayout({ children }: { children: React.React
         siteName: true,
         adminPath: true,
         logoMediaId: true,
-        headerBuilderData: true,
         footerBuilderData: true,
         designTokens: true,
       },
@@ -27,24 +28,16 @@ export default async function PublicLayout({ children }: { children: React.React
   const user = await getSessionFromCookie().catch(() => null)
   const isLoggedIn = !!user
 
-  // Inject resolved runtime values into Puck builder data so SiteLogo,
-  // LoginButton etc. render correctly server-side without needing hooks.
-  function injectCtx(data: unknown): Data | null {
-    if (!data || typeof data !== 'object') return null
-    const d = data as Data
-    return {
-      ...d,
-      content: (d.content ?? []).map((block: any) => {
-        if (block.type === 'SiteLogo') return { ...block, props: { ...block.props, siteName: config?.siteName, logoUrl: logoMedia?.url ?? '' } }
-        if (block.type === 'LoginButton') return { ...block, props: { ...block.props, isLoggedIn, adminPath: config?.adminPath ?? '' } }
-        if (block.type === 'MenuBlock') return { ...block, props: { ...block.props, siteName: config?.siteName } }
-        return block
-      }),
-    }
+  const ctx = {
+    siteName: config?.siteName ?? '',
+    logoUrl: logoMedia?.url ?? null,
+    isLoggedIn,
+    adminPath: config?.adminPath ?? '',
   }
 
-  const headerData = injectCtx(config?.headerBuilderData)
-  const footerData = injectCtx(config?.footerBuilderData)
+  const footerData = config?.footerBuilderData
+    ? await resolveTemplateData(config.footerBuilderData, ctx).catch(() => null)
+    : null
 
   // Build CSS variables from design tokens
   const tokens = (config?.designTokens ?? {}) as Record<string, string>
@@ -74,15 +67,11 @@ export default async function PublicLayout({ children }: { children: React.React
         <style dangerouslySetInnerHTML={{ __html: `:root { ${cssVars} }` }} />
       )}
       <AosInit />
-      {headerData
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={headerPuckRscConfig as any} data={headerData} />
-        : null
-      }
+      <SiteHeader />
       <main>{children}</main>
       {footerData
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? <Render config={footerPuckRscConfig as any} data={footerData} />
+        ? <Render config={footerPuckRscConfig as any} data={footerData as Data} />
         : null
       }
     </>

@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { headerBuilderData: true, footerBuilderData: true, designTokens: true },
+      select: { headerConfig: true, footerBuilderData: true, designTokens: true },
     })
     return NextResponse.json(config ?? {})
   } catch {
@@ -23,7 +23,7 @@ export async function PATCH(req: Request) {
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
-    const allowed = ['headerBuilderData', 'footerBuilderData', 'designTokens'] as const
+    const allowed = ['headerConfig', 'footerBuilderData', 'designTokens'] as const
     const data: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in body) data[key] = body[key]
