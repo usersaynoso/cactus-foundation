@@ -1,6 +1,5 @@
-// Puck component config — imported by both the editor (client) and the public
-// render path (server). Only type imports from @puckeditor/core so this file
-// is safe for server components. No hooks, no browser-specific APIs.
+// Puck component config — safe for both editor (client) and RSC render paths.
+// No hooks, no browser APIs. Type imports only from @puckeditor/core.
 
 import React from 'react'
 import type { Config } from '@puckeditor/core'
@@ -10,77 +9,94 @@ import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ---------------------------------------------------------------------------
-// Padding utilities
+// Shared utilities
 // ---------------------------------------------------------------------------
 
 const PADDING_MAP: Record<string, string> = {
-  none: '0',
-  sm:   '0.5rem',
-  md:   '1rem',
-  lg:   '2rem',
-  xl:   '4rem',
+  none: '0', sm: '0.5rem', md: '1rem', lg: '2rem', xl: '4rem',
 }
-
-function getPadding(p?: string): string {
-  return PADDING_MAP[p ?? 'none'] ?? '0'
-}
+function getPadding(p?: string): string { return PADDING_MAP[p ?? 'none'] ?? '0' }
 
 const paddingField = {
   type: 'select' as const,
   label: 'Padding',
   options: [
     { value: 'none', label: 'None' },
-    { value: 'sm',   label: 'Small (0.5rem)' },
-    { value: 'md',   label: 'Medium (1rem)' },
-    { value: 'lg',   label: 'Large (2rem)' },
-    { value: 'xl',   label: 'Extra large (4rem)' },
+    { value: 'sm', label: 'Small (0.5rem)' },
+    { value: 'md', label: 'Medium (1rem)' },
+    { value: 'lg', label: 'Large (2rem)' },
+    { value: 'xl', label: 'Extra large (4rem)' },
   ],
 }
 
 const GAP_MAP: Record<string, string> = { none: '0', sm: '0.5rem', md: '1rem', lg: '2rem' }
+const SPACE_BELOW_MAP: Record<string, string> = { none: '0', sm: '0.75rem', md: '1.5rem', lg: '3rem' }
 
-const SPACE_BELOW_MAP: Record<string, string> = {
-  none: '0', sm: '0.75rem', md: '1.5rem', lg: '3rem',
+// AOS (Animate On Scroll) helpers — data attributes rendered server-side, AOS JS picks them up client-side
+const AOS_TYPE_MAP: Record<string, string> = {
+  'fade-in': 'fade', 'slide-up': 'fade-up', 'slide-down': 'fade-down',
+  'slide-left': 'fade-left', 'slide-right': 'fade-right',
+  'zoom-in': 'zoom-in', 'zoom-out': 'zoom-out',
 }
+const AOS_DURATION_MAP: Record<string, string> = { fast: '300', normal: '600', slow: '1000' }
+const AOS_DELAY_MAP: Record<string, string> = { none: '0', '100ms': '100', '200ms': '200', '400ms': '400', '600ms': '600' }
 
-function getGridTemplateColumns(columnSizes: string | undefined, colCount: number): string {
-  if (colCount === 2) {
-    const sizeMap: Record<string, string> = {
-      'auto-fill': 'auto 1fr',
-      'fill-auto': '1fr auto',
-      '30-70': '3fr 7fr',
-      '40-60': '4fr 6fr',
-      '60-40': '6fr 4fr',
-      '70-30': '7fr 3fr',
-    }
-    if (columnSizes && sizeMap[columnSizes]) return sizeMap[columnSizes]
+function getAosProps(animationType: string, animationDuration: string, animationDelay: string): Record<string, string> {
+  if (!animationType || animationType === 'none') return {}
+  return {
+    'data-aos': AOS_TYPE_MAP[animationType] ?? animationType,
+    'data-aos-duration': AOS_DURATION_MAP[animationDuration] ?? '600',
+    'data-aos-delay': AOS_DELAY_MAP[animationDelay] ?? '0',
   }
-  return `repeat(${colCount}, 1fr)`
 }
+
+const aosFields = {
+  animationType: {
+    type: 'select' as const, label: 'Scroll animation',
+    options: [
+      { value: 'none', label: 'None' }, { value: 'fade-in', label: 'Fade in' },
+      { value: 'slide-up', label: 'Slide up' }, { value: 'slide-down', label: 'Slide down' },
+      { value: 'slide-left', label: 'Slide left' }, { value: 'slide-right', label: 'Slide right' },
+      { value: 'zoom-in', label: 'Zoom in' }, { value: 'zoom-out', label: 'Zoom out' },
+    ],
+  },
+  animationDuration: {
+    type: 'select' as const, label: 'Animation speed',
+    options: [
+      { value: 'fast', label: 'Fast (300ms)' }, { value: 'normal', label: 'Normal (600ms)' }, { value: 'slow', label: 'Slow (1s)' },
+    ],
+  },
+  animationDelay: {
+    type: 'select' as const, label: 'Animation delay',
+    options: [
+      { value: 'none', label: 'None' }, { value: '100ms', label: '100ms' },
+      { value: '200ms', label: '200ms' }, { value: '400ms', label: '400ms' }, { value: '600ms', label: '600ms' },
+    ],
+  },
+}
+const aosDefaults = { animationType: 'none', animationDuration: 'normal', animationDelay: 'none' }
 
 // ---------------------------------------------------------------------------
 // Layout blocks
 // ---------------------------------------------------------------------------
 
+function getGridTemplateColumns(columnSizes: string | undefined, colCount: number): string {
+  if (colCount === 2) {
+    const m: Record<string, string> = {
+      'auto-fill': 'auto 1fr', 'fill-auto': '1fr auto',
+      '30-70': '3fr 7fr', '40-60': '4fr 6fr', '60-40': '6fr 4fr', '70-30': '7fr 3fr',
+    }
+    if (columnSizes && m[columnSizes]) return m[columnSizes]
+  }
+  return `repeat(${colCount}, 1fr)`
+}
+
 function GridBlock(props: any) {
-  const {
-    columns, gap, padding,
-    col1, col2, col3, col4,
-    verticalAlign, columnSizes,
-    col1Align, col2Align, col3Align, col4Align,
-    spaceBelow,
-  } = props
+  const { columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
-
-  const alignItemsMap: Record<string, string> = {
-    stretch: 'stretch', start: 'start', center: 'center', end: 'end',
-  }
-  const justifyMap: Record<string, string> = {
-    center: 'center', end: 'flex-end',
-  }
-
+  const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
   return (
     <div style={{
       display: 'grid',
@@ -88,16 +104,12 @@ function GridBlock(props: any) {
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
       marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
-      alignItems: alignItemsMap[verticalAlign] ?? 'stretch',
+      alignItems: ({ stretch: 'stretch', start: 'start', center: 'center', end: 'end' } as any)[verticalAlign] ?? 'stretch',
     }}>
       {slots.map((slot, i) => {
-        const align = colAligns[i]
-        const justifyContent = align && justifyMap[align]
+        const jc = colAligns[i] && justifyMap[colAligns[i]]
         return (
-          <div key={i} style={{
-            minWidth: 0,
-            ...(justifyContent ? { display: 'flex', justifyContent } : {}),
-          }}>
+          <div key={i} style={{ minWidth: 0, ...(jc ? { display: 'flex', justifyContent: jc } : {}) }}>
             {typeof slot === 'function' ? slot() : null}
           </div>
         )
@@ -106,19 +118,12 @@ function GridBlock(props: any) {
   )
 }
 
-function GridBlockHeader(props: any) {
-  return GridBlock({ ...props, spaceBelow: 'none' })
-}
+function GridBlockHeader(props: any) { return GridBlock({ ...props, spaceBelow: 'none' }) }
 
 function FlexBlock(props: any) {
   const { direction, justify, align, wrap, gap, padding, items } = props
-  const justifyMap: Record<string, string> = {
-    start: 'flex-start', center: 'center', end: 'flex-end',
-    between: 'space-between', around: 'space-around', evenly: 'space-evenly',
-  }
-  const alignMap: Record<string, string> = {
-    start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch',
-  }
+  const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
+  const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
   return (
     <div style={{
       display: 'flex',
@@ -135,1849 +140,10 @@ function FlexBlock(props: any) {
   )
 }
 
-function Columns(props: any) {
-  const { left, right, ratio, padding } = props as { left: any; right: any; ratio: string; padding: string }
-  const ratios: Record<string, [string, string]> = {
-    '50/50': ['1 1 50%', '1 1 50%'],
-    '60/40': ['1 1 60%', '1 1 40%'],
-    '40/60': ['1 1 40%', '1 1 60%'],
-  }
-  const defaultPair: [string, string] = ['1 1 50%', '1 1 50%']
-  const pair = ratios[ratio] ?? defaultPair
-  return (
-    <div style={{
-      display: 'flex', gap: '1.5rem', flexWrap: 'wrap',
-      marginBottom: '1.5rem', padding: getPadding(padding),
-    }}>
-      <div style={{ flex: pair[0], minWidth: 200 }}>
-        {typeof left === 'function' ? left() : null}
-      </div>
-      <div style={{ flex: pair[1], minWidth: 200 }}>
-        {typeof right === 'function' ? right() : null}
-      </div>
-    </div>
-  )
-}
-
-function Spacer(props: any) {
-  const { height } = props as { height: string }
-  const heights: Record<string, number> = { xs: 8, sm: 16, md: 32, lg: 64, xl: 96 }
-  return <div style={{ height: heights[height] ?? 32 }} />
-}
-
-function Divider(props: any) {
-  const { style, color, thickness } = props as {
-    style: 'solid' | 'dashed' | 'dotted'
-    color: 'gray' | 'black' | 'green'
-    thickness: 'thin' | 'medium' | 'thick'
-  }
-  const colors: Record<string, string> = { gray: '#d1d5db', black: '#111827', green: '#16a34a' }
-  const heights: Record<string, string> = { thin: '1px', medium: '2px', thick: '4px' }
-  return (
-    <hr style={{
-      border: 'none',
-      borderTop: `${heights[thickness] ?? '1px'} ${style ?? 'solid'} ${colors[color] ?? colors.gray}`,
-      margin: '1.5rem 0',
-    }} />
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Typography blocks
-// ---------------------------------------------------------------------------
-
-function Heading(props: any) {
-  const { text, level, align, color, padding } = props as {
-    text: string; level: 'h2' | 'h3' | 'h4' | 'h5'
-    align: 'left' | 'center' | 'right'; color: 'dark' | 'muted' | 'brand'
-    padding: string
-  }
-  const colors: Record<string, string> = { dark: '#111827', muted: '#6b7280', brand: '#16a34a' }
-  const sizes: Record<string, string> = { h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
-  const weights: Record<string, number> = { h2: 800, h3: 700, h4: 700, h5: 600 }
-  const Tag = (level ?? 'h2') as 'h2' | 'h3' | 'h4' | 'h5'
-  return (
-    <div style={{ padding: getPadding(padding) }}>
-      <Tag style={{
-        fontSize: sizes[level] ?? sizes.h2,
-        fontWeight: weights[level] ?? 700,
-        color: colors[color] ?? colors.dark,
-        textAlign: align ?? 'left',
-        margin: '0 0 1rem',
-        lineHeight: 1.25,
-      }}>
-        {text}
-      </Tag>
-    </div>
-  )
-}
-
-function TextBlock(props: any) {
-  const { content, align, padding } = props as {
-    content: string; align: 'left' | 'center' | 'right'; padding: string
-  }
-  return (
-    <div style={{
-      marginBottom: '1.5rem',
-      lineHeight: 1.75,
-      color: '#374151',
-      textAlign: align ?? 'left',
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-word',
-      padding: getPadding(padding),
-    }}>
-      {content}
-    </div>
-  )
-}
-
-function RichTextBlock(props: any) {
-  const { content, padding } = props as { content: string; padding: string }
-  if (!content) {
-    return (
-      <div style={{ color: '#9ca3af', fontSize: '0.875rem', padding: getPadding(padding) }}>
-        Rich text — edit in the panel
-      </div>
-    )
-  }
-  return (
-    <div
-      className="puck-richtext"
-      style={{ padding: getPadding(padding) }}
-      dangerouslySetInnerHTML={{ __html: content }}
-    />
-  )
-}
-
-function Quote(props: any) {
-  const { quote, attribution, padding } = props as {
-    quote: string; attribution: string; padding: string
-  }
-  return (
-    <div style={{ padding: getPadding(padding) }}>
-      <blockquote style={{
-        margin: '0 0 1.5rem',
-        padding: '1.25rem 1.5rem',
-        borderLeft: '4px solid #16a34a',
-        background: '#f9fafb',
-        borderRadius: '0 6px 6px 0',
-      }}>
-        <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: '#374151', lineHeight: 1.7 }}>
-          {quote}
-        </p>
-        {attribution && (
-          <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#6b7280', fontStyle: 'normal' }}>
-            — {attribution}
-          </footer>
-        )}
-      </blockquote>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Action blocks
-// ---------------------------------------------------------------------------
-
-function ButtonLink(props: any) {
-  const { label, href, variant, padding } = props as {
-    label: string; href: string; variant: string; padding: string
-  }
-  const styles: Record<string, React.CSSProperties> = {
-    primary:   { background: '#16a34a', color: '#fff', border: 'none' },
-    secondary: { background: '#4b5563', color: '#fff', border: 'none' },
-    outline:   { background: 'transparent', color: '#16a34a', border: '2px solid #16a34a' },
-  }
-  const variantStyle = styles[variant] ?? styles.primary
-  return (
-    <div style={{ marginBottom: '1rem', padding: getPadding(padding) }}>
-      <a
-        href={href}
-        style={{
-          display: 'inline-block', padding: '0.625rem 1.5rem',
-          borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.9375rem',
-          ...variantStyle,
-        }}
-      >
-        {label}
-      </a>
-    </div>
-  )
-}
-
-function CTABanner(props: any) {
-  const { heading, subtext, ctaLabel, ctaHref, background, padding } = props as {
-    heading: string; subtext: string; ctaLabel: string; ctaHref: string
-    background: string; padding: string
-  }
-  const bgs: Record<string, { bg: string; text: string }> = {
-    white: { bg: '#ffffff', text: '#111827' },
-    light: { bg: '#f9fafb', text: '#111827' },
-    brand: { bg: '#16a34a', text: '#ffffff' },
-  }
-  const theme = bgs[background] ?? { bg: '#f9fafb', text: '#111827' }
-  return (
-    <section style={{
-      background: theme.bg,
-      border: background === 'white' ? '1px solid #e5e7eb' : 'none',
-      borderRadius: 8,
-      padding: getPadding(padding) || '2.5rem 2rem',
-      textAlign: 'center',
-      marginBottom: '2rem',
-    }}>
-      {heading && (
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: theme.text, lineHeight: 1.25 }}>
-          {heading}
-        </h2>
-      )}
-      {subtext && (
-        <p style={{ margin: '0 0 1.5rem', color: background === 'brand' ? 'rgba(255,255,255,0.85)' : '#6b7280', fontSize: '1rem', lineHeight: 1.65 }}>
-          {subtext}
-        </p>
-      )}
-      {ctaLabel && ctaHref && (
-        <a href={ctaHref} style={{
-          display: 'inline-block', padding: '0.75rem 1.75rem',
-          background: background === 'brand' ? '#fff' : '#16a34a',
-          color: background === 'brand' ? '#16a34a' : '#fff',
-          borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem',
-        }}>
-          {ctaLabel}
-        </a>
-      )}
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Media blocks
-// ---------------------------------------------------------------------------
-
-function ImageBlock(props: any) {
-  const { mediaUrl, alt, caption, padding } = props as {
-    mediaUrl: string; alt: string; caption: string; padding: string
-  }
-  if (!mediaUrl) {
-    return (
-      <div style={{
-        marginBottom: '1.5rem',
-        background: '#f3f4f6', borderRadius: 6, padding: '3rem',
-        textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem',
-      }}>
-        No image selected
-      </div>
-    )
-  }
-  return (
-    <figure style={{ margin: '0 0 1.5rem', padding: getPadding(padding) }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={mediaUrl}
-        alt={alt ?? ''}
-        style={{ width: '100%', height: 'auto', borderRadius: 6, display: 'block' }}
-      />
-      {caption && (
-        <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-          {caption}
-        </figcaption>
-      )}
-    </figure>
-  )
-}
-
-function toEmbedUrl(url: string): string | null {
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
-      return `https://www.youtube.com/embed/${u.searchParams.get('v')}`
-    }
-    if (u.hostname === 'youtu.be') {
-      return `https://www.youtube.com/embed${u.pathname}`
-    }
-    if (u.hostname.includes('vimeo.com')) {
-      return `https://player.vimeo.com/video${u.pathname}`
-    }
-    return url
-  } catch { return null }
-}
-
-function VideoEmbed(props: any) {
-  const { url, aspectRatio, title, padding } = props as {
-    url: string; aspectRatio: string; title: string; padding: string
-  }
-  if (!url) {
-    return (
-      <div style={{
-        background: '#f3f4f6', borderRadius: 6, padding: '3rem',
-        textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem',
-      }}>
-        No video URL entered
-      </div>
-    )
-  }
-  const embedUrl = toEmbedUrl(url)
-  if (!embedUrl) {
-    return (
-      <div style={{
-        background: '#fef2f2', borderRadius: 6, padding: '1rem',
-        color: '#b91c1c', fontSize: '0.875rem', marginBottom: '1.5rem',
-      }}>
-        Could not parse video URL
-      </div>
-    )
-  }
-  const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
-  const paddingBottom = paddings[aspectRatio] ?? '56.25%'
-  return (
-    <div style={{ padding: getPadding(padding), marginBottom: '1.5rem' }}>
-      <div style={{ position: 'relative', paddingBottom, height: 0, overflow: 'hidden', borderRadius: 6 }}>
-        <iframe
-          src={embedUrl}
-          title={title || 'Video'}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function Embed(props: any) {
-  const { src, height, title, padding } = props as {
-    src: string; height: string; title: string; padding: string
-  }
-  if (!src) {
-    return (
-      <div style={{
-        background: '#f3f4f6', borderRadius: 6, padding: '3rem',
-        textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem',
-      }}>
-        No embed URL entered
-      </div>
-    )
-  }
-  return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
-      <iframe
-        src={src}
-        title={title || 'Embedded content'}
-        style={{ width: '100%', height: height || '400px', border: 'none', borderRadius: 6, display: 'block' }}
-        allowFullScreen
-      />
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Content blocks
-// ---------------------------------------------------------------------------
-
-function Hero(props: any) {
-  const { heading, subheading, ctaLabel, ctaHref, padding } = props as {
-    heading: string; subheading: string; ctaLabel: string; ctaHref: string; padding: string
-  }
-  return (
-    <section style={{
-      padding: getPadding(padding) || '4rem 1.5rem',
-      background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-      textAlign: 'center',
-      borderRadius: 8,
-      marginBottom: '2rem',
-    }}>
-      <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: '0 0 1rem', lineHeight: 1.2, color: '#111827' }}>
-        {heading}
-      </h1>
-      {subheading && (
-        <p style={{ fontSize: '1.125rem', color: '#6b7280', margin: '0 0 2rem', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
-          {subheading}
-        </p>
-      )}
-      {ctaLabel && ctaHref && (
-        <a
-          href={ctaHref}
-          style={{
-            display: 'inline-block', padding: '0.75rem 1.75rem',
-            background: '#16a34a', color: '#fff', borderRadius: 6,
-            fontWeight: 600, textDecoration: 'none', fontSize: '1rem',
-          }}
-        >
-          {ctaLabel}
-        </a>
-      )}
-    </section>
-  )
-}
-
-function Card(props: any) {
-  const { mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding } = props as {
-    mediaUrl: string; alt: string; heading: string; body: string
-    ctaLabel: string; ctaHref: string; padding: string
-  }
-  return (
-    <div style={{
-      border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden',
-      marginBottom: '1.5rem', background: '#fff', padding: getPadding(padding),
-    }}>
-      {mediaUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={mediaUrl} alt={alt ?? ''}
-          style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }}
-        />
-      )}
-      <div style={{ padding: '1.25rem' }}>
-        {heading && (
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: '#111827' }}>
-            {heading}
-          </h3>
-        )}
-        {body && (
-          <p style={{ margin: '0 0 1rem', color: '#4b5563', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-            {body}
-          </p>
-        )}
-        {ctaLabel && ctaHref && (
-          <a href={ctaHref} style={{
-            display: 'inline-block', padding: '0.5rem 1.25rem',
-            background: '#16a34a', color: '#fff', borderRadius: 6,
-            fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem',
-          }}>
-            {ctaLabel}
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Callout(props: any) {
-  const { type, title, body, padding } = props as {
-    type: 'info' | 'success' | 'warning' | 'error'
-    title: string; body: string; padding: string
-  }
-  const themes: Record<string, { bg: string; border: string; icon: string; titleColor: string }> = {
-    info:    { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ️', titleColor: '#1d4ed8' },
-    success: { bg: '#f0fdf4', border: '#16a34a', icon: '✅', titleColor: '#15803d' },
-    warning: { bg: '#fffbeb', border: '#f59e0b', icon: '⚠️', titleColor: '#b45309' },
-    error:   { bg: '#fef2f2', border: '#ef4444', icon: '❌', titleColor: '#b91c1c' },
-  }
-  const t = themes[type] ?? { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ️', titleColor: '#1d4ed8' }
-  return (
-    <div style={{
-      background: t.bg, borderLeft: `4px solid ${t.border}`,
-      borderRadius: '0 6px 6px 0', padding: getPadding(padding) || '1rem 1.25rem',
-      marginBottom: '1.5rem',
-    }}>
-      {title && (
-        <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>
-          {t.icon} {title}
-        </p>
-      )}
-      <p style={{ margin: 0, color: '#374151', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>
-    </div>
-  )
-}
-
-function Badge(props: any) {
-  const { label, color, padding } = props as { label: string; color: string; padding: string }
-  const colors: Record<string, { bg: string; text: string }> = {
-    green:  { bg: '#dcfce7', text: '#15803d' },
-    blue:   { bg: '#dbeafe', text: '#1d4ed8' },
-    yellow: { bg: '#fef9c3', text: '#a16207' },
-    red:    { bg: '#fee2e2', text: '#b91c1c' },
-    gray:   { bg: '#f3f4f6', text: '#374151' },
-  }
-  const theme = colors[color] ?? { bg: '#f3f4f6', text: '#374151' }
-  return (
-    <div style={{ padding: getPadding(padding) }}>
-      <span style={{
-        display: 'inline-block', padding: '0.25rem 0.625rem',
-        borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600,
-        background: theme.bg, color: theme.text, marginBottom: '0.5rem',
-      }}>
-        {label}
-      </span>
-    </div>
-  )
-}
-
-function Accordion(props: any) {
-  const { items, padding } = props as {
-    items: Array<{ question: string; answer: string }>; padding: string
-  }
-  if (!items?.length) {
-    return (
-      <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        No accordion items yet — add some in the panel.
-      </div>
-    )
-  }
-  return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
-      {items.map((item, i) => (
-        <details key={i} style={{ borderBottom: '1px solid #e5e7eb', padding: '0' }}>
-          <summary style={{
-            padding: '0.875rem 0', fontWeight: 600, color: '#111827', cursor: 'pointer',
-            listStyle: 'none', display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', fontSize: '0.9375rem',
-          }}>
-            {item.question}
-            <span style={{ fontSize: '1.25rem', color: '#6b7280', flexShrink: 0, marginLeft: '1rem' }}>+</span>
-          </summary>
-          <p style={{ margin: '0 0 0.875rem', color: '#4b5563', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-            {item.answer}
-          </p>
-        </details>
-      ))}
-    </div>
-  )
-}
-
-function Stats(props: any) {
-  const { items, padding } = props as {
-    items: Array<{ value: string; label: string }>; padding: string
-  }
-  if (!items?.length) {
-    return (
-      <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        No stats yet — add some in the panel.
-      </div>
-    )
-  }
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem', padding: getPadding(padding) }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ flex: '1 1 120px', textAlign: 'center', padding: '1.25rem', background: '#f9fafb', borderRadius: 8 }}>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#16a34a', lineHeight: 1 }}>
-            {item.value}
-          </div>
-          <div style={{ marginTop: '0.375rem', fontSize: '0.875rem', color: '#6b7280', fontWeight: 500 }}>
-            {item.label}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function FeatureList(props: any) {
-  const { items, padding } = props as {
-    items: Array<{ emoji: string; title: string; description: string }>; padding: string
-  }
-  if (!items?.length) {
-    return (
-      <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        No features yet — add some in the panel.
-      </div>
-    )
-  }
-  return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', alignItems: 'flex-start' }}>
-          {item.emoji && (
-            <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>
-          )}
-          <div>
-            {item.title && (
-              <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
-                {item.title}
-              </h4>
-            )}
-            {item.description && (
-              <p style={{ margin: 0, color: '#4b5563', lineHeight: 1.65, fontSize: '0.9375rem', whiteSpace: 'pre-wrap' }}>
-                {item.description}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function Logos(props: any) {
-  const { items, logoHeight, justify, padding } = props as {
-    items: Array<{ logoUrl: string; alt: string; href: string }>
-    logoHeight: 'sm' | 'md' | 'lg'
-    justify: 'left' | 'center' | 'right'
-    padding: string
-  }
-  const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 }
-  const heightPx = heights[logoHeight] ?? 48
-  const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
-
-  if (!items?.length) {
-    return (
-      <div style={{ color: '#9ca3af', fontSize: '0.875rem', padding: getPadding(padding), marginBottom: '1.5rem' }}>
-        No logos added yet — add some in the panel.
-      </div>
-    )
-  }
-
-  return (
-    <div style={{
-      display: 'flex', flexWrap: 'wrap', gap: '2rem',
-      justifyContent: justifyMap[justify] ?? 'center',
-      alignItems: 'center',
-      padding: getPadding(padding),
-      marginBottom: '1.5rem',
-    }}>
-      {items.map((item, i) => {
-        const inner = item.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.logoUrl}
-            alt={item.alt ?? ''}
-            style={{ height: heightPx, width: 'auto', objectFit: 'contain' }}
-          />
-        ) : (
-          <div style={{
-            height: heightPx, width: 120, background: '#f3f4f6', borderRadius: 4,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#9ca3af', fontSize: '0.75rem',
-          }}>
-            Logo
-          </div>
-        )
-        return item.href ? (
-          <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>
-            {inner}
-          </a>
-        ) : (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</span>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Site blocks
-// ---------------------------------------------------------------------------
-
-
-function Copyright(props: any) {
-  const {
-    siteName,
-    prefix = '©',
-    customPrefix = '',
-    yearFormat = 'current',
-    startYear,
-    showSiteName = true,
-    suffix = '',
-    alignment = 'left',
-    fontSize = 'small',
-    textColor = '#9ca3af',
-    privacyPolicyUrl = '',
-    privacyPolicyLabel = 'Privacy Policy',
-    termsUrl = '',
-    termsLabel = 'Terms of Service',
-    customLink1Url = '',
-    customLink1Label = '',
-    customLink2Url = '',
-    customLink2Label = '',
-  } = props as {
-    siteName?: string; prefix?: string; customPrefix?: string;
-    yearFormat?: string; startYear?: number; showSiteName?: boolean;
-    suffix?: string; alignment?: string; fontSize?: string; textColor?: string;
-    privacyPolicyUrl?: string; privacyPolicyLabel?: string;
-    termsUrl?: string; termsLabel?: string;
-    customLink1Url?: string; customLink1Label?: string;
-    customLink2Url?: string; customLink2Label?: string;
-  }
-
-  const currentYear = new Date().getFullYear()
-  const resolvedPrefix = prefix === 'custom' ? (customPrefix || '©') : prefix === 'none' ? '' : prefix
-
-  let yearText = ''
-  if (yearFormat === 'current') yearText = String(currentYear)
-  else if (yearFormat === 'range' && startYear) yearText = `${startYear}–${currentYear}`
-
-  const fontSizes: Record<string, string> = { small: '0.875rem', medium: '1rem', large: '1.125rem' }
-  const textSize = fontSizes[fontSize] ?? '0.875rem'
-
-  // Puck select fields return strings; support both boolean and string forms
-  const showSiteNameBool = showSiteName !== false && (showSiteName as unknown) !== 'false'
-
-  const parts = [
-    resolvedPrefix,
-    yearText,
-    showSiteNameBool ? (siteName ?? 'My Site') : '',
-    suffix,
-  ].filter(Boolean)
-  const copyrightText = parts.join(' ')
-
-  const links = [
-    privacyPolicyUrl ? { url: privacyPolicyUrl, label: privacyPolicyLabel || 'Privacy Policy' } : null,
-    termsUrl ? { url: termsUrl, label: termsLabel || 'Terms of Service' } : null,
-    customLink1Url ? { url: customLink1Url, label: customLink1Label || customLink1Url } : null,
-    customLink2Url ? { url: customLink2Url, label: customLink2Label || customLink2Url } : null,
-  ].filter(Boolean) as Array<{ url: string; label: string }>
-
-  const justifyContent =
-    alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'space-between'
-
-  return (
-    <div style={{
-      display: 'flex', flexWrap: 'wrap', alignItems: 'center',
-      justifyContent, gap: '1.5rem', width: '100%',
-    }}>
-      <span style={{ color: textColor, fontSize: textSize }}>
-        {copyrightText}
-      </span>
-      {links.length > 0 && (
-        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          {links.map((link) => (
-            <a key={link.url} href={link.url} style={{ color: textColor, fontSize: textSize, textDecoration: 'none' }}>
-              {link.label}
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function MenuBlock(props: any) {
-  const {
-    resolvedItems, orientation, spacing,
-    itemFontSize = 'medium',
-    itemFontWeight = 'medium',
-    textTransform = 'none',
-    itemColor,
-    hoverBackground,
-  } = props as {
-    resolvedItems?: Array<{ id: string; label: string; href: string; openInNewTab: boolean; children?: any[] }>
-    orientation: 'horizontal' | 'vertical'
-    spacing: 'tight' | 'normal' | 'wide'
-    showMobileToggle: string
-    itemFontSize?: 'small' | 'medium' | 'large'
-    itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
-    textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
-    itemColor?: string
-    hoverBackground?: string
-  }
-
-  if (!resolvedItems) {
-    return (
-      <div style={{ padding: '0.75rem 1rem', background: '#f3f4f6', borderRadius: 6, color: '#9ca3af', fontSize: '0.875rem' }}>
-        Menu — configure in editor
-      </div>
-    )
-  }
-
-  const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
-
-  const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
-  const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
-
-  const linkStyleOverride: React.CSSProperties = {}
-  if (itemColor) linkStyleOverride.color = itemColor
-  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = fontSizeMap[itemFontSize]
-  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = fontWeightMap[itemFontWeight]
-  if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
-
-  if (orientation === 'vertical') {
-    const vGap = verticalGaps[spacing] ?? '0.5rem'
-    const baseLinkStyle: React.CSSProperties = {
-      display: 'block',
-      padding: '0.25rem 0',
-      fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
-      fontWeight: fontWeightMap[itemFontWeight] ?? 500,
-      color: itemColor || '#374151',
-      textDecoration: 'none',
-      ...linkStyleOverride,
-    }
-    return (
-      <nav>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: vGap }}>
-          {resolvedItems.map((item) => (
-            <li key={item.id}>
-              <a
-                href={item.href}
-                target={item.openInNewTab ? '_blank' : undefined}
-                rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                style={baseLinkStyle}
-              >
-                {item.label}
-              </a>
-              {item.children && item.children.length > 0 && (
-                <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0 0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  {item.children.map((child: any) => (
-                    <li key={child.id}>
-                      <a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined}
-                        style={{ display: 'block', padding: '0.25rem 0', fontSize: '0.9rem', color: itemColor || '#6b7280', textDecoration: 'none' }}>
-                        {child.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
-      </nav>
-    )
-  }
-
-  return (
-    <MenuBlockClient
-      resolvedItems={resolvedItems}
-      spacing={spacing}
-      itemFontSize={itemFontSize}
-      itemFontWeight={itemFontWeight}
-      textTransform={textTransform}
-      itemColor={itemColor}
-      hoverBackground={hoverBackground}
-      showMobileToggle={props.showMobileToggle}
-    />
-  )
-}
-
-function LoginButton(props: any) {
-  const { isLoggedIn, adminPath, loginLabel, registerLabel } = props as {
-    isLoggedIn?: boolean; adminPath?: string; loginLabel: string; registerLabel: string
-  }
-  const base = adminPath ? `/${adminPath}` : ''
-
-  if (isLoggedIn) {
-    return (
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        <a href={`${base}/account`} style={{
-          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #d1d5db',
-          textDecoration: 'none', color: '#374151', fontSize: '0.875rem', fontWeight: 500,
-        }}>My Account</a>
-        <form action="/api/auth/logout" method="POST" style={{ margin: 0 }}>
-          <button type="submit" style={{
-            padding: '0.5rem 1rem', borderRadius: 6, background: 'none', border: '1px solid #d1d5db',
-            color: '#374151', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-          }}>Sign out</button>
-        </form>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-      <a href={`${base}/login`} style={{
-        padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #d1d5db',
-        textDecoration: 'none', color: '#374151', fontSize: '0.875rem', fontWeight: 500,
-      }}>{loginLabel || 'Sign in'}</a>
-      <a href={`${base}/register`} style={{
-        padding: '0.5rem 1rem', borderRadius: 6, background: '#16a34a', border: '1px solid #16a34a',
-        textDecoration: 'none', color: '#fff', fontSize: '0.875rem', fontWeight: 500,
-      }}>{registerLabel || 'Register'}</a>
-    </div>
-  )
-}
-
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
-// ---------------------------------------------------------------------------
-// Config
-// root.fields is intentionally omitted here — the editor extends this config
-// with full field definitions (including the MediaPickerField custom renderer).
-// The public RSC Render only needs root.render and component render functions.
-// ---------------------------------------------------------------------------
-
-const puckConfig = {
-  categories: {
-    layout: {
-      title: 'Layout',
-      components: ['Grid', 'Flex', 'Columns', 'Spacer', 'Divider'],
-      defaultExpanded: true,
-    },
-    typography: {
-      title: 'Typography',
-      components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],
-      defaultExpanded: true,
-    },
-    actions: {
-      title: 'Actions',
-      components: ['ButtonLink', 'CTABanner'],
-      defaultExpanded: true,
-    },
-    media: {
-      title: 'Media',
-      components: ['ImageBlock', 'VideoEmbed', 'Embed'],
-      defaultExpanded: true,
-    },
-    content: {
-      title: 'Content',
-      components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos'],
-      defaultExpanded: true,
-    },
-    site: {
-      title: 'Site',
-      components: ['SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton'],
-      defaultExpanded: false,
-    },
-  },
-  root: {
-    render: ({ children }: { children: React.ReactNode }) => (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-        {children}
-      </div>
-    ),
-  },
-  components: {
-    // ── Layout ──────────────────────────────────────────────────────────────
-    Grid: {
-      label: 'Grid',
-      fields: {
-        columns: {
-          type: 'select' as const,
-          label: 'Columns',
-          options: [
-            { value: '2', label: '2 columns' },
-            { value: '3', label: '3 columns' },
-            { value: '4', label: '4 columns' },
-          ],
-        },
-        columnSizes: {
-          type: 'select' as const,
-          label: 'Column widths (2-col)',
-          options: [
-            { value: 'equal',     label: 'Equal (1fr each)' },
-            { value: 'auto-fill', label: 'Auto + fill (logo / nav)' },
-            { value: 'fill-auto', label: 'Fill + auto (content / sidebar)' },
-            { value: '30-70',     label: '30 / 70' },
-            { value: '40-60',     label: '40 / 60' },
-            { value: '60-40',     label: '60 / 40' },
-            { value: '70-30',     label: '70 / 30' },
-          ],
-        },
-        verticalAlign: {
-          type: 'select' as const,
-          label: 'Vertical align',
-          options: [
-            { value: 'stretch', label: 'Stretch (fill row height)' },
-            { value: 'start',   label: 'Top' },
-            { value: 'center',  label: 'Middle' },
-            { value: 'end',     label: 'Bottom' },
-          ],
-        },
-        gap: {
-          type: 'select' as const,
-          label: 'Gap',
-          options: [
-            { value: 'none', label: 'None' },
-            { value: 'sm',   label: 'Small' },
-            { value: 'md',   label: 'Medium' },
-            { value: 'lg',   label: 'Large' },
-          ],
-        },
-        padding: paddingField,
-        spaceBelow: {
-          type: 'select' as const,
-          label: 'Space below',
-          options: [
-            { value: 'none', label: 'None' },
-            { value: 'sm',   label: 'Small (0.75rem)' },
-            { value: 'md',   label: 'Medium (1.5rem)' },
-            { value: 'lg',   label: 'Large (3rem)' },
-          ],
-        },
-        col1Align: {
-          type: 'select' as const,
-          label: 'Col 1: horizontal align',
-          options: [
-            { value: 'start',  label: 'Left' },
-            { value: 'center', label: 'Centre' },
-            { value: 'end',    label: 'Right' },
-          ],
-        },
-        col2Align: {
-          type: 'select' as const,
-          label: 'Col 2: horizontal align',
-          options: [
-            { value: 'start',  label: 'Left' },
-            { value: 'center', label: 'Centre' },
-            { value: 'end',    label: 'Right' },
-          ],
-        },
-        col3Align: {
-          type: 'select' as const,
-          label: 'Col 3: horizontal align',
-          options: [
-            { value: 'start',  label: 'Left' },
-            { value: 'center', label: 'Centre' },
-            { value: 'end',    label: 'Right' },
-          ],
-        },
-        col4Align: {
-          type: 'select' as const,
-          label: 'Col 4: horizontal align',
-          options: [
-            { value: 'start',  label: 'Left' },
-            { value: 'center', label: 'Centre' },
-            { value: 'end',    label: 'Right' },
-          ],
-        },
-        col1: { type: 'slot' as const },
-        col2: { type: 'slot' as const },
-        col3: { type: 'slot' as const },
-        col4: { type: 'slot' as const },
-      },
-      defaultProps: {
-        columns: '2',
-        gap: 'md',
-        padding: 'none',
-        columnSizes: 'equal',
-        verticalAlign: 'stretch',
-        spaceBelow: 'md',
-        col1Align: 'start',
-        col2Align: 'start',
-        col3Align: 'start',
-        col4Align: 'start',
-      },
-      render: GridBlock,
-    },
-    Flex: {
-      label: 'Flex',
-      fields: {
-        direction: {
-          type: 'select' as const,
-          label: 'Direction',
-          options: [
-            { value: 'row',    label: 'Row (horizontal)' },
-            { value: 'column', label: 'Column (vertical)' },
-          ],
-        },
-        justify: {
-          type: 'select' as const,
-          label: 'Justify content',
-          options: [
-            { value: 'start',   label: 'Start' },
-            { value: 'center',  label: 'Center' },
-            { value: 'end',     label: 'End' },
-            { value: 'between', label: 'Space between' },
-            { value: 'around',  label: 'Space around' },
-            { value: 'evenly',  label: 'Space evenly' },
-          ],
-        },
-        align: {
-          type: 'select' as const,
-          label: 'Align items',
-          options: [
-            { value: 'start',   label: 'Start' },
-            { value: 'center',  label: 'Center' },
-            { value: 'end',     label: 'End' },
-            { value: 'stretch', label: 'Stretch' },
-          ],
-        },
-        wrap: {
-          type: 'select' as const,
-          label: 'Wrap',
-          options: [
-            { value: 'wrap',   label: 'Wrap' },
-            { value: 'nowrap', label: 'No wrap' },
-          ],
-        },
-        gap: {
-          type: 'select' as const,
-          label: 'Gap',
-          options: [
-            { value: 'none', label: 'None' },
-            { value: 'sm',   label: 'Small' },
-            { value: 'md',   label: 'Medium' },
-            { value: 'lg',   label: 'Large' },
-          ],
-        },
-        padding: paddingField,
-        items: { type: 'slot' as const },
-      },
-      defaultProps: {
-        direction: 'row',
-        justify: 'start',
-        align: 'stretch',
-        wrap: 'wrap',
-        gap: 'md',
-        padding: 'none',
-      },
-      render: FlexBlock,
-    },
-    Columns: {
-      label: 'Columns',
-      fields: {
-        left:  { type: 'slot' as const },
-        right: { type: 'slot' as const },
-        ratio: {
-          type: 'select' as const,
-          label: 'Column ratio',
-          options: [
-            { value: '50/50', label: '50 / 50' },
-            { value: '60/40', label: '60 / 40' },
-            { value: '40/60', label: '40 / 60' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        ratio: '50/50',
-        padding: 'none',
-      },
-      render: Columns,
-    },
-    Spacer: {
-      label: 'Space',
-      fields: {
-        height: {
-          type: 'select' as const,
-          label: 'Height',
-          options: [
-            { value: 'xs', label: 'Extra small (8px)' },
-            { value: 'sm', label: 'Small (16px)' },
-            { value: 'md', label: 'Medium (32px)' },
-            { value: 'lg', label: 'Large (64px)' },
-            { value: 'xl', label: 'Extra large (96px)' },
-          ],
-        },
-      },
-      defaultProps: {
-        height: 'md' as const,
-      },
-      render: Spacer,
-    },
-    Divider: {
-      label: 'Divider',
-      fields: {
-        style: {
-          type: 'select' as const,
-          label: 'Line style',
-          options: [
-            { value: 'solid',  label: 'Solid' },
-            { value: 'dashed', label: 'Dashed' },
-            { value: 'dotted', label: 'Dotted' },
-          ],
-        },
-        color: {
-          type: 'select' as const,
-          label: 'Color',
-          options: [
-            { value: 'gray',  label: 'Gray' },
-            { value: 'black', label: 'Black' },
-            { value: 'green', label: 'Green' },
-          ],
-        },
-        thickness: {
-          type: 'select' as const,
-          label: 'Thickness',
-          options: [
-            { value: 'thin',   label: 'Thin' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'thick',  label: 'Thick' },
-          ],
-        },
-      },
-      defaultProps: {
-        style: 'solid' as const,
-        color: 'gray' as const,
-        thickness: 'thin' as const,
-      },
-      render: Divider,
-    },
-
-    // ── Typography ───────────────────────────────────────────────────────────
-    Heading: {
-      label: 'Heading',
-      fields: {
-        text:  { type: 'text' as const, label: 'Text' },
-        level: {
-          type: 'select' as const,
-          label: 'Level',
-          options: [
-            { value: 'h2', label: 'H2 — Section heading' },
-            { value: 'h3', label: 'H3 — Sub-heading' },
-            { value: 'h4', label: 'H4 — Minor heading' },
-            { value: 'h5', label: 'H5 — Small heading' },
-          ],
-        },
-        align: {
-          type: 'select' as const,
-          label: 'Alignment',
-          options: [
-            { value: 'left',   label: 'Left' },
-            { value: 'center', label: 'Center' },
-            { value: 'right',  label: 'Right' },
-          ],
-        },
-        color: {
-          type: 'select' as const,
-          label: 'Color',
-          options: [
-            { value: 'dark',  label: 'Dark' },
-            { value: 'muted', label: 'Muted' },
-            { value: 'brand', label: 'Brand green' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        text: 'Section heading',
-        level: 'h2' as const,
-        align: 'left' as const,
-        color: 'dark' as const,
-        padding: 'none',
-      },
-      render: Heading,
-    },
-    TextBlock: {
-      label: 'Text',
-      fields: {
-        content: { type: 'textarea' as const, label: 'Content' },
-        align: {
-          type: 'select' as const,
-          label: 'Alignment',
-          options: [
-            { value: 'left',   label: 'Left' },
-            { value: 'center', label: 'Center' },
-            { value: 'right',  label: 'Right' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        content: 'Enter your text here…',
-        align: 'left' as const,
-        padding: 'none',
-      },
-      render: TextBlock,
-    },
-    RichTextBlock: {
-      label: 'Rich Text',
-      fields: {
-        content: {
-          type: 'richtext' as const,
-          label: 'Content',
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        content: '',
-        padding: 'none',
-      },
-      render: RichTextBlock,
-    },
-    Quote: {
-      label: 'Quote',
-      fields: {
-        quote:       { type: 'textarea' as const, label: 'Quote' },
-        attribution: { type: 'text' as const,     label: 'Attribution (optional)' },
-        padding: paddingField,
-      },
-      defaultProps: {
-        quote: 'Enter a quote here…',
-        attribution: '',
-        padding: 'none',
-      },
-      render: Quote,
-    },
-
-    // ── Actions ──────────────────────────────────────────────────────────────
-    ButtonLink: {
-      label: 'Button',
-      fields: {
-        label:   { type: 'text' as const, label: 'Label' },
-        href:    { type: 'text' as const, label: 'URL' },
-        variant: {
-          type: 'select' as const,
-          label: 'Style',
-          options: [
-            { value: 'primary',   label: 'Primary' },
-            { value: 'secondary', label: 'Secondary' },
-            { value: 'outline',   label: 'Outline' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        label: 'Click here',
-        href: '#',
-        variant: 'primary' as const,
-        padding: 'none',
-      },
-      render: ButtonLink,
-    },
-    CTABanner: {
-      label: 'CTA Banner',
-      fields: {
-        heading:    { type: 'text' as const,     label: 'Heading' },
-        subtext:    { type: 'textarea' as const, label: 'Sub-text' },
-        ctaLabel:   { type: 'text' as const,     label: 'Button label' },
-        ctaHref:    { type: 'text' as const,     label: 'Button URL' },
-        background: {
-          type: 'select' as const,
-          label: 'Background',
-          options: [
-            { value: 'light', label: 'Light gray' },
-            { value: 'white', label: 'White (with border)' },
-            { value: 'brand', label: 'Brand green' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        heading: 'Ready to get started?',
-        subtext: '',
-        ctaLabel: 'Get in touch',
-        ctaHref: '#',
-        background: 'light' as const,
-        padding: 'none',
-      },
-      render: CTABanner,
-    },
-
-    // ── Media ────────────────────────────────────────────────────────────────
-    ImageBlock: {
-      label: 'Image',
-      fields: {
-        mediaUrl: { type: 'text' as const, label: 'Image URL (set via media picker)' },
-        mediaId:  { type: 'text' as const, label: 'Media ID' },
-        alt:      { type: 'text' as const, label: 'Alt text' },
-        caption:  { type: 'text' as const, label: 'Caption' },
-        padding:  paddingField,
-      },
-      defaultProps: {
-        mediaUrl: '',
-        mediaId:  '',
-        alt:      '',
-        caption:  '',
-        padding:  'none',
-      },
-      render: ImageBlock,
-    },
-    VideoEmbed: {
-      label: 'Video',
-      fields: {
-        url:         { type: 'text' as const, label: 'Video URL (YouTube or Vimeo)' },
-        title:       { type: 'text' as const, label: 'Title (for accessibility)' },
-        aspectRatio: {
-          type: 'select' as const,
-          label: 'Aspect ratio',
-          options: [
-            { value: '16:9', label: '16:9 (widescreen)' },
-            { value: '4:3',  label: '4:3 (standard)' },
-            { value: '1:1',  label: '1:1 (square)' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        url: '',
-        title: '',
-        aspectRatio: '16:9' as const,
-        padding: 'none',
-      },
-      render: VideoEmbed,
-    },
-    Embed: {
-      label: 'Embed',
-      fields: {
-        src:    { type: 'text' as const, label: 'URL to embed' },
-        height: { type: 'text' as const, label: 'Height (e.g. 400px)' },
-        title:  { type: 'text' as const, label: 'Title (for accessibility)' },
-        padding: paddingField,
-      },
-      defaultProps: {
-        src: '',
-        height: '400px',
-        title: '',
-        padding: 'none',
-      },
-      render: Embed,
-    },
-
-    // ── Content ──────────────────────────────────────────────────────────────
-    Hero: {
-      label: 'Hero',
-      fields: {
-        heading:    { type: 'text' as const,     label: 'Heading' },
-        subheading: { type: 'textarea' as const, label: 'Sub-heading' },
-        ctaLabel:   { type: 'text' as const,     label: 'CTA label' },
-        ctaHref:    { type: 'text' as const,     label: 'CTA URL' },
-        padding:    paddingField,
-      },
-      defaultProps: {
-        heading: 'Page heading',
-        subheading: '',
-        ctaLabel: '',
-        ctaHref: '',
-        padding: 'none',
-      },
-      render: Hero,
-    },
-    Card: {
-      label: 'Card',
-      fields: {
-        mediaUrl: { type: 'text' as const, label: 'Image URL (set via media picker)' },
-        mediaId:  { type: 'text' as const, label: 'Media ID' },
-        alt:      { type: 'text' as const, label: 'Image alt text' },
-        heading:  { type: 'text' as const, label: 'Heading' },
-        body:     { type: 'textarea' as const, label: 'Body text' },
-        ctaLabel: { type: 'text' as const, label: 'Button label (optional)' },
-        ctaHref:  { type: 'text' as const, label: 'Button URL (optional)' },
-        padding:  paddingField,
-      },
-      defaultProps: {
-        mediaUrl: '',
-        mediaId:  '',
-        alt:      '',
-        heading:  'Card heading',
-        body:     '',
-        ctaLabel: '',
-        ctaHref:  '',
-        padding:  'none',
-      },
-      render: Card,
-    },
-    Callout: {
-      label: 'Callout',
-      fields: {
-        type: {
-          type: 'select' as const,
-          label: 'Type',
-          options: [
-            { value: 'info',    label: 'Info' },
-            { value: 'success', label: 'Success' },
-            { value: 'warning', label: 'Warning' },
-            { value: 'error',   label: 'Error' },
-          ],
-        },
-        title:   { type: 'text' as const,     label: 'Title (optional)' },
-        body:    { type: 'textarea' as const, label: 'Body' },
-        padding: paddingField,
-      },
-      defaultProps: {
-        type: 'info' as const,
-        title: '',
-        body: 'Notice text here…',
-        padding: 'none',
-      },
-      render: Callout,
-    },
-    Badge: {
-      label: 'Badge',
-      fields: {
-        label: { type: 'text' as const, label: 'Label' },
-        color: {
-          type: 'select' as const,
-          label: 'Color',
-          options: [
-            { value: 'green',  label: 'Green' },
-            { value: 'blue',   label: 'Blue' },
-            { value: 'yellow', label: 'Yellow' },
-            { value: 'red',    label: 'Red' },
-            { value: 'gray',   label: 'Gray' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        label: 'New',
-        color: 'green' as const,
-        padding: 'none',
-      },
-      render: Badge,
-    },
-    Accordion: {
-      label: 'Accordion',
-      fields: {
-        items: {
-          type: 'array' as const,
-          label: 'Items',
-          getItemSummary: (item: { question?: string }) => item.question || 'Question',
-          arrayFields: {
-            question: { type: 'text' as const,     label: 'Question' },
-            answer:   { type: 'textarea' as const, label: 'Answer' },
-          },
-          defaultItemProps: {
-            question: 'What is the question?',
-            answer: 'This is the answer.',
-          },
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        items: [{ question: 'What is the question?', answer: 'This is the answer.' }],
-        padding: 'none',
-      },
-      render: Accordion,
-    },
-    FeatureList: {
-      label: 'Feature List',
-      fields: {
-        items: {
-          type: 'array' as const,
-          label: 'Features',
-          getItemSummary: (item: { title?: string }) => item.title || 'Feature',
-          arrayFields: {
-            emoji:       { type: 'text' as const,     label: 'Emoji or icon' },
-            title:       { type: 'text' as const,     label: 'Title' },
-            description: { type: 'textarea' as const, label: 'Description' },
-          },
-          defaultItemProps: {
-            emoji: '✨',
-            title: 'Feature title',
-            description: 'Describe this feature here.',
-          },
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        items: [
-          { emoji: '✨', title: 'Feature one', description: 'Describe this feature here.' },
-          { emoji: '🚀', title: 'Feature two', description: 'Describe this feature here.' },
-        ],
-        padding: 'none',
-      },
-      render: FeatureList,
-    },
-    Stats: {
-      label: 'Stats',
-      fields: {
-        items: {
-          type: 'array' as const,
-          label: 'Stats',
-          getItemSummary: (item: { value?: string; label?: string }) => item.value ? `${item.value} — ${item.label}` : 'Stat',
-          arrayFields: {
-            value: { type: 'text' as const, label: 'Value (e.g. 10,000+)' },
-            label: { type: 'text' as const, label: 'Label' },
-          },
-          defaultItemProps: {
-            value: '100%',
-            label: 'Satisfaction',
-          },
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        items: [
-          { value: '10k+', label: 'Customers' },
-          { value: '99%',  label: 'Uptime' },
-          { value: '24/7', label: 'Support' },
-        ],
-        padding: 'none',
-      },
-      render: Stats,
-    },
-    Logos: {
-      label: 'Logos',
-      fields: {
-        items: {
-          type: 'array' as const,
-          label: 'Logos',
-          getItemSummary: (item: { alt?: string }) => item.alt || 'Logo',
-          arrayFields: {
-            logoUrl: { type: 'text' as const, label: 'Logo URL' },
-            alt:     { type: 'text' as const, label: 'Alt text' },
-            href:    { type: 'text' as const, label: 'Link URL (optional)' },
-          },
-          defaultItemProps: {
-            logoUrl: '',
-            alt: 'Company name',
-            href: '',
-          },
-        },
-        logoHeight: {
-          type: 'select' as const,
-          label: 'Logo height',
-          options: [
-            { value: 'sm', label: 'Small (32px)' },
-            { value: 'md', label: 'Medium (48px)' },
-            { value: 'lg', label: 'Large (64px)' },
-          ],
-        },
-        justify: {
-          type: 'select' as const,
-          label: 'Alignment',
-          options: [
-            { value: 'left',   label: 'Left' },
-            { value: 'center', label: 'Center' },
-            { value: 'right',  label: 'Right' },
-          ],
-        },
-        padding: paddingField,
-      },
-      defaultProps: {
-        items: [
-          { logoUrl: '', alt: 'Partner logo', href: '' },
-        ],
-        logoHeight: 'md' as const,
-        justify: 'center' as const,
-        padding: 'none',
-      },
-      render: Logos,
-    },
-
-    // ── Site ─────────────────────────────────────────────────────────────────
-    SiteLogo: {
-      label: 'Site Logo',
-      fields: {
-        homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' },
-        logoHeight: { type: 'number' as const, label: 'Logo image height (px)' },
-        showTextWithLogo: {
-          type: 'select' as const,
-          label: 'Show site name with image',
-          options: [
-            { value: 'false', label: 'Image only' },
-            { value: 'true',  label: 'Image + site name' },
-          ],
-        },
-        showIcon: {
-          type: 'select' as const,
-          label: 'Show cactus icon (text logo)',
-          options: [
-            { value: 'true',  label: 'Yes' },
-            { value: 'false', label: 'No' },
-          ],
-        },
-        textColor: { type: 'text' as const, label: 'Text colour (hex or CSS value)' },
-      },
-      defaultProps: {
-        homeUrl: '/',
-        logoHeight: 40,
-        showTextWithLogo: 'false',
-        showIcon: 'true',
-        textColor: '',
-      },
-      render: SiteLogoClient,
-    },
-    Copyright: {
-      label: 'Copyright',
-      fields: {
-        prefix: {
-          type: 'select' as const,
-          label: 'Copyright symbol',
-          options: [
-            { value: '©',         label: '© (copyright symbol)' },
-            { value: 'Copyright', label: 'Copyright (word)' },
-            { value: 'none',      label: 'None' },
-            { value: 'custom',    label: 'Custom…' },
-          ],
-        },
-        customPrefix: { type: 'text' as const, label: 'Custom prefix (when "Custom" selected)' },
-        yearFormat: {
-          type: 'select' as const,
-          label: 'Year format',
-          options: [
-            { value: 'current', label: 'Current year (auto)' },
-            { value: 'range',   label: 'Year range (e.g. 2020–2025)' },
-            { value: 'none',    label: 'No year' },
-          ],
-        },
-        startYear: { type: 'number' as const, label: 'Range start year (e.g. 2020)' },
-        showSiteName: {
-          type: 'select' as const,
-          label: 'Show site name',
-          options: [
-            { value: 'true',  label: 'Yes' },
-            { value: 'false', label: 'No' },
-          ],
-        },
-        suffix: { type: 'text' as const, label: 'Suffix text (e.g. All rights reserved.)' },
-        alignment: {
-          type: 'select' as const,
-          label: 'Alignment',
-          options: [
-            { value: 'left',   label: 'Left (copyright / links split)' },
-            { value: 'center', label: 'Center' },
-            { value: 'right',  label: 'Right' },
-          ],
-        },
-        fontSize: {
-          type: 'select' as const,
-          label: 'Font size',
-          options: [
-            { value: 'small',  label: 'Small' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'large',  label: 'Large' },
-          ],
-        },
-        textColor: { type: 'text' as const, label: 'Text colour (hex or CSS value)' },
-        privacyPolicyUrl:   { type: 'text' as const, label: 'Privacy Policy URL' },
-        privacyPolicyLabel: { type: 'text' as const, label: 'Privacy Policy link label' },
-        termsUrl:           { type: 'text' as const, label: 'Terms of Service URL' },
-        termsLabel:         { type: 'text' as const, label: 'Terms of Service link label' },
-        customLink1Url:   { type: 'text' as const, label: 'Extra link 1 — URL' },
-        customLink1Label: { type: 'text' as const, label: 'Extra link 1 — label' },
-        customLink2Url:   { type: 'text' as const, label: 'Extra link 2 — URL' },
-        customLink2Label: { type: 'text' as const, label: 'Extra link 2 — label' },
-      },
-      defaultProps: {
-        prefix: '©',
-        customPrefix: '',
-        yearFormat: 'current',
-        startYear: new Date().getFullYear(),
-        showSiteName: 'true',
-        suffix: '',
-        alignment: 'left',
-        fontSize: 'small',
-        textColor: '#9ca3af',
-        privacyPolicyUrl: '',
-        privacyPolicyLabel: 'Privacy Policy',
-        termsUrl: '',
-        termsLabel: 'Terms of Service',
-        customLink1Url: '',
-        customLink1Label: '',
-        customLink2Url: '',
-        customLink2Label: '',
-      },
-      render: Copyright,
-    },
-    MenuBlock: {
-      label: 'Menu',
-      fields: {
-        menuId:   { type: 'text' as const, label: 'Menu ID (use the menu selector field in editor)' },
-        menuName: { type: 'text' as const, label: 'Menu name (display only)' },
-        orientation: {
-          type: 'select' as const,
-          label: 'Orientation',
-          options: [
-            { value: 'horizontal', label: 'Horizontal' },
-            { value: 'vertical',   label: 'Vertical' },
-          ],
-        },
-        spacing: {
-          type: 'select' as const,
-          label: 'Item spacing',
-          options: [
-            { value: 'tight',  label: 'Tight' },
-            { value: 'normal', label: 'Normal' },
-            { value: 'wide',   label: 'Wide' },
-          ],
-        },
-        itemFontSize: {
-          type: 'select' as const,
-          label: 'Font size',
-          options: [
-            { value: 'small',  label: 'Small' },
-            { value: 'medium', label: 'Medium (default)' },
-            { value: 'large',  label: 'Large' },
-          ],
-        },
-        itemFontWeight: {
-          type: 'select' as const,
-          label: 'Font weight',
-          options: [
-            { value: 'normal',   label: 'Normal' },
-            { value: 'medium',   label: 'Medium (default)' },
-            { value: 'semibold', label: 'Semibold' },
-            { value: 'bold',     label: 'Bold' },
-          ],
-        },
-        textTransform: {
-          type: 'select' as const,
-          label: 'Text transform',
-          options: [
-            { value: 'none',       label: 'None (default)' },
-            { value: 'uppercase',  label: 'UPPERCASE' },
-            { value: 'capitalize', label: 'Capitalize' },
-            { value: 'lowercase',  label: 'lowercase' },
-          ],
-        },
-        itemColor: { type: 'text' as const, label: 'Link colour (hex or CSS value)' },
-        showDropdowns: {
-          type: 'select' as const,
-          label: 'Dropdowns open on',
-          options: [
-            { value: 'hover', label: 'Hover' },
-            { value: 'click', label: 'Click' },
-          ],
-        },
-        showMobileToggle: {
-          type: 'select' as const,
-          label: 'Mobile behaviour',
-          options: [
-            { value: 'collapse', label: 'Collapse to hamburger' },
-            { value: 'show',     label: 'Always show' },
-          ],
-        },
-      },
-      defaultProps: {
-        menuId:           '',
-        menuName:         '',
-        orientation:      'horizontal' as const,
-        spacing:          'normal' as const,
-        itemFontSize:     'medium' as const,
-        itemFontWeight:   'medium' as const,
-        textTransform:    'none' as const,
-        itemColor:        '',
-        showDropdowns:    'hover',
-        showMobileToggle: 'collapse',
-      },
-      render: MenuBlock,
-    },
-    LoginButton: {
-      label: 'Login Button',
-      fields: {
-        loginLabel:    { type: 'text' as const, label: 'Login button label' },
-        registerLabel: { type: 'text' as const, label: 'Register button label' },
-      },
-      defaultProps: {
-        loginLabel:    'Sign in',
-        registerLabel: 'Register',
-      },
-      render: LoginButton,
-    },
-  },
-} satisfies Config
-
-export default puckConfig
-export type PuckConfig = typeof puckConfig
-
-// Template config — same blocks as puckConfig but with a passthrough root render
-// (no max-width wrapper) so templates can control their own layout.
-export const puckTemplateConfig = {
-  ...puckConfig,
-  root: {
-    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  },
-}
-
-// Server-safe (no hooks) SiteLogo render for RSC context
-function SiteLogoRsc(props: any) {
-  const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
-  const href = homeUrl || '/'
-  const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
-  const showIconBool = showIcon !== false && showIcon !== 'false'
-  const style: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: '0.5rem',
-    fontWeight: 700, fontSize: '1.125rem', color: textColor || '#111827', textDecoration: 'none',
-  }
-  if (logoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <a href={href} style={style}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
-        {showTextBool && siteName && <span>{siteName}</span>}
-      </a>
-    )
-  }
-  return (
-    <a href={href} style={style}>
-      {showIconBool && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
-      )}
-      {siteName ?? 'Site Name'}
-    </a>
-  )
-}
-
-// Flex variant without marginBottom — used inside fixed-height header shell
 function FlexBlockHeader(props: any) {
   const { direction, justify, align, wrap, gap, padding, items } = props
-  const justifyMap: Record<string, string> = {
-    start: 'flex-start', center: 'center', end: 'flex-end',
-    between: 'space-between', around: 'space-around', evenly: 'space-evenly',
-  }
-  const alignMap: Record<string, string> = {
-    start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch',
-  }
+  const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
+  const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
   return (
     <div style={{
       display: 'flex',
@@ -1994,98 +160,1076 @@ function FlexBlockHeader(props: any) {
   )
 }
 
-// Header template config — wraps blocks in a self-contained header shell.
-// Uses inline styles so the header looks correct regardless of which theme is active.
-export const puckHeaderTemplateConfig = {
-  ...puckConfig,
-  components: {
-    ...puckConfig.components,
-    Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
-    Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
-  },
-  root: {
-    render: ({ children }: { children: React.ReactNode }) => (
-      <header style={{
-        height: 64,
-        borderBottom: '1px solid #e5e7eb',
-        background: '#ffffff',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
+function Columns(props: any) {
+  const { left, right, ratio, padding } = props
+  const ratios: Record<string, [string, string]> = {
+    '50/50': ['1 1 50%', '1 1 50%'],
+    '60/40': ['1 1 60%', '1 1 40%'],
+    '40/60': ['1 1 40%', '1 1 60%'],
+    '70/30': ['1 1 70%', '1 1 30%'],
+    '30/70': ['1 1 30%', '1 1 70%'],
+  }
+  const pair = ratios[ratio] ?? ratios['50/50']!
+  return (
+    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: getPadding(padding) }}>
+      <div style={{ flex: pair[0], minWidth: 200 }}>{typeof left === 'function' ? left() : null}</div>
+      <div style={{ flex: pair[1], minWidth: 200 }}>{typeof right === 'function' ? right() : null}</div>
+    </div>
+  )
+}
+
+function Spacer(props: any) {
+  const heights: Record<string, number> = { xs: 8, sm: 16, md: 32, lg: 64, xl: 96 }
+  return <div style={{ height: heights[props.height] ?? 32 }} />
+}
+
+function Divider(props: any) {
+  const { style, color, thickness } = props
+  const colors: Record<string, string> = { gray: 'var(--color-border)', dark: 'var(--color-fg)', brand: 'var(--color-primary)' }
+  const heights: Record<string, string> = { thin: '1px', medium: '2px', thick: '4px' }
+  return (
+    <hr style={{
+      border: 'none',
+      borderTop: `${heights[thickness] ?? '1px'} ${style ?? 'solid'} ${colors[color] ?? colors.gray}`,
+      margin: '1.5rem 0',
+    }} />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Section block — full-width container with background, padding, AOS, sticky
+// ---------------------------------------------------------------------------
+
+function SectionBlock(props: any) {
+  const {
+    content, bgType = 'none', bgColor = '', bgImage = '', bgSize = 'cover',
+    overlayColor = '', overlayOpacity = 0,
+    paddingY = 'lg', maxWidth = 'standard', textColor = '',
+    sticky = 'off', stickyOffset = '0px',
+    animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
+    boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
+    borderWidth = '1px', borderRadius = 'none', opacity = '100',
+  } = props
+
+  const paddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem', xl: '10rem' }
+  const maxWidthMap: Record<string, string> = { none: '100%', narrow: '720px', standard: '960px', wide: '1200px', full: '100%' }
+  const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
+  const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
+
+  const bgStyle: React.CSSProperties = {}
+  if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
+  if (bgType === 'gradient' && bgColor) bgStyle.background = bgColor
+  if (bgType === 'image' && bgImage) {
+    bgStyle.backgroundImage = `url(${bgImage})`
+    bgStyle.backgroundSize = bgSize === 'repeat' ? 'auto' : bgSize
+    bgStyle.backgroundPosition = 'center'
+    bgStyle.backgroundRepeat = bgSize === 'repeat' ? 'repeat' : 'no-repeat'
+  }
+
+  const outerStyle: React.CSSProperties = {
+    position: sticky === 'on' ? 'sticky' : 'relative',
+    top: sticky === 'on' ? stickyOffset : undefined,
+    zIndex: sticky === 'on' ? 10 : undefined,
+    ...bgStyle,
+    color: textColor || undefined,
+    opacity: opacity !== '100' ? parseInt(opacity) / 100 : undefined,
+    boxShadow: shadowMap[boxShadow] ?? 'none',
+    border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
+    borderRadius: radiusMap[borderRadius] ?? '0',
+    overflow: 'hidden',
+  }
+
+  const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
+
+  return (
+    <div style={outerStyle} {...aosAttrs}>
+      {overlayColor && overlayOpacity > 0 && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
+      )}
+      <div style={{
+        maxWidth: maxWidthMap[maxWidth] ?? '960px',
+        margin: '0 auto',
+        padding: `${paddingYMap[paddingY] ?? '6rem'} 1.5rem`,
+        position: 'relative',
+        zIndex: 1,
       }}>
-        <nav style={{
-          maxWidth: 760,
-          margin: '0 auto',
-          padding: '0 1.5rem',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          {children}
-        </nav>
-      </header>
-    ),
-  },
+        {typeof content === 'function' ? content() : null}
+      </div>
+    </div>
+  )
 }
 
-// Footer template config — wraps blocks in the Prickly footer shell.
-export const puckFooterTemplateConfig = {
-  ...puckConfig,
-  root: {
-    render: ({ children }: { children: React.ReactNode }) => (
-      <footer className="prickly-footer">
-        <div className="prickly-footer-inner">
-          {children}
+// ---------------------------------------------------------------------------
+// ContentSlot — marks where page content renders inside a Layout
+// ---------------------------------------------------------------------------
+
+function ContentSlot(_props: any) {
+  return (
+    <div style={{
+      border: '2px dashed var(--color-primary)',
+      borderRadius: 8,
+      padding: '2rem',
+      textAlign: 'center',
+      color: 'var(--color-primary)',
+      background: 'var(--color-primary-subtle, #f0fdf4)',
+      fontWeight: 600,
+      fontSize: '0.9375rem',
+      minHeight: 120,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      Page content renders here
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Typography blocks
+// ---------------------------------------------------------------------------
+
+function Heading(props: any) {
+  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const colors: Record<string, string> = { dark: 'var(--color-fg)', muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
+  const sizes: Record<string, string> = { h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
+  const weights: Record<string, number> = { h2: 800, h3: 700, h4: 700, h5: 600 }
+  const Tag = (level ?? 'h2') as 'h2' | 'h3' | 'h4' | 'h5'
+  return (
+    <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      <Tag style={{ fontSize: sizes[level] ?? sizes.h2, fontWeight: weights[level] ?? 700, color: colors[color] ?? colors.dark, textAlign: align ?? 'left', margin: '0 0 1rem', lineHeight: 1.25 }}>
+        {text}
+      </Tag>
+    </div>
+  )
+}
+
+function TextBlock(props: any) {
+  const { content, align, padding } = props
+  return (
+    <div style={{ marginBottom: '1.5rem', lineHeight: 1.75, color: 'var(--color-fg-secondary)', textAlign: align ?? 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
+      {content}
+    </div>
+  )
+}
+
+function RichTextBlock(props: any) {
+  const { content, padding } = props
+  if (!content) {
+    return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>Rich text — edit in the panel</div>
+  }
+  return <div className="puck-richtext" style={{ padding: getPadding(padding) }} dangerouslySetInnerHTML={{ __html: content }} />
+}
+
+function Quote(props: any) {
+  const { quote, attribution, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  return (
+    <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
+        <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{quote}</p>
+        {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {attribution}</footer>}
+      </blockquote>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Action blocks
+// ---------------------------------------------------------------------------
+
+function ButtonLink(props: any) {
+  const { label, href, variant, padding } = props
+  const styles: Record<string, React.CSSProperties> = {
+    primary: { background: 'var(--color-primary)', color: 'var(--color-bg)', border: 'none' },
+    secondary: { background: 'var(--color-fg-secondary)', color: 'var(--color-bg)', border: 'none' },
+    outline: { background: 'transparent', color: 'var(--color-primary)', border: '2px solid var(--color-primary)' },
+  }
+  return (
+    <div style={{ marginBottom: '1rem', padding: getPadding(padding) }}>
+      <a href={href} style={{ display: 'inline-block', padding: '0.625rem 1.5rem', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.9375rem', ...(styles[variant] ?? styles.primary) }}>
+        {label}
+      </a>
+    </div>
+  )
+}
+
+function CTABanner(props: any) {
+  const { heading, subtext, ctaLabel, ctaHref, background, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const bgs: Record<string, { bg: string; text: string; sub: string }> = {
+    white: { bg: 'var(--color-bg)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
+    light: { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
+    brand: { bg: 'var(--color-primary)', text: 'var(--color-bg)', sub: 'rgba(255,255,255,0.85)' },
+  }
+  const t = bgs[background] ?? bgs.light!
+  return (
+    <section style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, padding: getPadding(padding) || '2.5rem 2rem', textAlign: 'center', marginBottom: '2rem' }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
+      {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
+      {ctaLabel && ctaHref && (
+        <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
+          {ctaLabel}
+        </a>
+      )}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Media blocks
+// ---------------------------------------------------------------------------
+
+function ImageBlock(props: any) {
+  const { mediaUrl, alt, caption, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  if (!mediaUrl) {
+    return <div style={{ marginBottom: '1.5rem', background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>No image selected</div>
+  }
+  return (
+    <figure style={{ margin: '0 0 1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 'auto', borderRadius: 6, display: 'block' }} />
+      {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{caption}</figcaption>}
+    </figure>
+  )
+}
+
+function toEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) return `https://www.youtube.com/embed/${u.searchParams.get('v')}`
+    if (u.hostname === 'youtu.be') return `https://www.youtube.com/embed${u.pathname}`
+    if (u.hostname.includes('vimeo.com')) return `https://player.vimeo.com/video${u.pathname}`
+    return url
+  } catch { return null }
+}
+
+function VideoEmbed(props: any) {
+  const { url, aspectRatio, title, padding } = props
+  if (!url) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No video URL entered</div>
+  const embedUrl = toEmbedUrl(url)
+  if (!embedUrl) return <div style={{ background: '#fef2f2', borderRadius: 6, padding: '1rem', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
+  const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
+  return (
+    <div style={{ padding: getPadding(padding), marginBottom: '1.5rem' }}>
+      <div style={{ position: 'relative', paddingBottom: paddings[aspectRatio] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
+        <iframe src={embedUrl} title={title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+      </div>
+    </div>
+  )
+}
+
+function Embed(props: any) {
+  const { src, height, title, padding } = props
+  if (!src) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No embed URL entered</div>
+  return (
+    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
+      <iframe src={src} title={title || 'Embedded content'} style={{ width: '100%', height: height || '400px', border: 'none', borderRadius: 6, display: 'block' }} allowFullScreen />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Hero block — enhanced with bg types, layouts, second CTA
+// ---------------------------------------------------------------------------
+
+function Hero(props: any) {
+  const {
+    heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
+    bgType = 'gradient', bgColor = '', bgImage = '', overlayColor = '', overlayOpacity = 0,
+    layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
+    padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
+  } = props
+
+  const bgStyle: React.CSSProperties = {}
+  if (bgType === 'gradient') bgStyle.background = bgColor || 'linear-gradient(135deg, var(--color-primary-subtle, #f0fdf4) 0%, var(--color-primary-subtle, #dcfce7) 100%)'
+  else if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
+  else if (bgType === 'image' && bgImage) { bgStyle.backgroundImage = `url(${bgImage})`; bgStyle.backgroundSize = 'cover'; bgStyle.backgroundPosition = 'center' }
+
+  const textColor = textScheme === 'light' ? 'var(--color-bg)' : 'var(--color-fg)'
+  const subColor = textScheme === 'light' ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)'
+  const minH: Record<string, string> = { auto: 'auto', half: '50vh', full: '100vh' }
+
+  const inner = (
+    <>
+      {overlayColor && overlayOpacity > 0 && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
+      )}
+      <div style={{ position: 'relative', zIndex: 1, textAlign: layout === 'centered' ? 'center' : 'left', maxWidth: layout === 'centered' ? 700 : undefined, margin: layout === 'centered' ? '0 auto' : undefined }}>
+        <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, margin: '0 0 1rem', lineHeight: 1.15, color: textColor }}>{heading}</h1>
+        {subheading && <p style={{ fontSize: '1.125rem', color: subColor, margin: '0 0 2rem', lineHeight: 1.65 }}>{subheading}</p>}
+        {(ctaLabel || cta2Label) && (
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: layout === 'centered' ? 'center' : 'flex-start' }}>
+            {ctaLabel && ctaHref && (
+              <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{ctaLabel}</a>
+            )}
+            {cta2Label && cta2Href && (
+              <a href={cta2Href} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: cta2Variant === 'outline' ? 'transparent' : 'var(--color-bg)', color: cta2Variant === 'outline' ? textColor : 'var(--color-fg)', border: cta2Variant === 'outline' ? `2px solid ${textColor}` : 'none', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{cta2Label}</a>
+            )}
+          </div>
+        )}
+      </div>
+      {layout === 'right-image' && imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+      )}
+    </>
+  )
+
+  return (
+    <section style={{ position: 'relative', ...bgStyle, padding: getPadding(padding) || '5rem 1.5rem', borderRadius: 8, marginBottom: '2rem', minHeight: minH[minHeight] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layout === 'right-image' ? 'space-between' : undefined, gap: layout === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {inner}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SocialLinks block
+// ---------------------------------------------------------------------------
+
+const SOCIAL_ICONS: Record<string, string> = {
+  'twitter-x': '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+  linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.499 6.203a3.008 3.008 0 00-2.089-2.089c-1.87-.501-9.4-.501-9.4-.501s-7.509-.01-9.399.501A3.008 3.008 0 00.5 6.203a31.45 31.45 0 00-.5 5.798 31.45 31.45 0 00.501 5.783 3.008 3.008 0 002.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.399-.502a3.008 3.008 0 002.089-2.088 31.45 31.45 0 00.5-5.783 31.45 31.45 0 00-.474-5.798zM9.609 15.601V8.408l6.264 3.602z"/></svg>',
+  github: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
+}
+
+function SocialLinks(props: any) {
+  const { items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal' } = props
+  const sizes: Record<string, number> = { sm: 20, md: 28, lg: 40 }
+  const gapMap: Record<string, string> = { tight: '0.5rem', normal: '1rem', wide: '1.75rem' }
+  const sz = sizes[iconSize] ?? 28
+  return (
+    <div style={{ display: 'flex', flexDirection: layout === 'column' ? 'column' : 'row', gap: gapMap[gap] ?? '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+      {items.map((item: any, i: number) => (
+        <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
+          style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: sz, height: sz, flexShrink: 0 }}
+          dangerouslySetInnerHTML={{ __html: (SOCIAL_ICONS[item.platform] ?? SOCIAL_ICONS['twitter-x']) as string }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Content blocks
+// ---------------------------------------------------------------------------
+
+function Card(props: any) {
+  const { mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  return (
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-bg)', padding: getPadding(padding) }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
+      <div style={{ padding: '1.25rem' }}>
+        {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{heading}</h3>}
+        {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>}
+        {ctaLabel && ctaHref && <a href={ctaHref} style={{ display: 'inline-block', padding: '0.5rem 1.25rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem' }}>{ctaLabel}</a>}
+      </div>
+    </div>
+  )
+}
+
+function Callout(props: any) {
+  const { type, title, body, padding } = props
+  const themes: Record<string, { bg: string; border: string; icon: string; titleColor: string }> = {
+    info:    { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ️', titleColor: '#1d4ed8' },
+    success: { bg: '#f0fdf4', border: '#16a34a', icon: '✅', titleColor: '#15803d' },
+    warning: { bg: '#fffbeb', border: '#f59e0b', icon: '⚠️', titleColor: '#b45309' },
+    error:   { bg: '#fef2f2', border: '#ef4444', icon: '❌', titleColor: '#b91c1c' },
+  }
+  const t = (themes[type] ?? themes.info)!
+  return (
+    <div style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', padding: getPadding(padding) || '1rem 1.25rem', marginBottom: '1.5rem' }}>
+      {title && <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>{t.icon} {title}</p>}
+      <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>
+    </div>
+  )
+}
+
+function Badge(props: any) {
+  const { label, color, padding } = props
+  const colors: Record<string, { bg: string; text: string }> = {
+    primary: { bg: 'var(--color-primary-subtle, #dcfce7)', text: 'var(--color-primary)' },
+    blue:    { bg: '#dbeafe', text: '#1d4ed8' },
+    yellow:  { bg: '#fef9c3', text: '#a16207' },
+    red:     { bg: '#fee2e2', text: '#b91c1c' },
+    gray:    { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg-secondary)' },
+  }
+  const t = (colors[color] ?? colors.gray)!
+  return (
+    <div style={{ padding: getPadding(padding) }}>
+      <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{label}</span>
+    </div>
+  )
+}
+
+function Accordion(props: any) {
+  const { items, padding } = props
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No accordion items yet — add some in the panel.</div>
+  return (
+    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
+      {items.map((item: any, i: number) => (
+        <details key={i} style={{ borderBottom: '1px solid var(--color-border)', padding: 0 }}>
+          <summary style={{ padding: '0.875rem 0', fontWeight: 600, color: 'var(--color-fg)', cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
+            {item.question}
+            <span style={{ fontSize: '1.25rem', color: 'var(--color-muted)', flexShrink: 0, marginLeft: '1rem' }}>+</span>
+          </summary>
+          <p style={{ margin: '0 0 0.875rem', color: 'var(--color-fg-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{item.answer}</p>
+        </details>
+      ))}
+    </div>
+  )
+}
+
+function Stats(props: any) {
+  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No stats yet — add some in the panel.</div>
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {items.map((item: any, i: number) => (
+        <div key={i} style={{ flex: '1 1 120px', textAlign: 'center', padding: '1.25rem', background: 'var(--color-bg-subtle)', borderRadius: 8 }}>
+          <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{item.value}</div>
+          <div style={{ marginTop: '0.375rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontWeight: 500 }}>{item.label}</div>
         </div>
-      </footer>
-    ),
-  },
+      ))}
+    </div>
+  )
+}
+
+function FeatureList(props: any) {
+  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No features yet — add some in the panel.</div>
+  return (
+    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {items.map((item: any, i: number) => (
+        <div key={i} style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', alignItems: 'flex-start' }}>
+          {item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
+          <div>
+            {item.title && <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{item.title}</h4>}
+            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: '0.9375rem', whiteSpace: 'pre-wrap' }}>{item.description}</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Logos(props: any) {
+  const { items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 }
+  const heightPx = heights[logoHeight] ?? 48
+  const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding), marginBottom: '1.5rem' }}>No logos added yet — add some in the panel.</div>
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: justifyMap[justify] ?? 'center', alignItems: 'center', padding: getPadding(padding), marginBottom: '1.5rem' }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {items.map((item: any, i: number) => {
+        const inner = item.logoUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={item.logoUrl} alt={item.alt ?? ''} style={{ height: heightPx, width: 'auto', objectFit: 'contain' }} />
+          : <div style={{ height: heightPx, width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
+        return item.href
+          ? <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
+          : <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</span>
+      })}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
-// RSC-safe config variants
-// Puck's RSC Render calls React.lazy for any component that has a `richtext`
-// field type. React.lazy is not supported in React Server Components and will
-// throw, causing a "server error" page. These variants replace the richtext
-// field type with textarea so the stored HTML is passed through as-is.
-// Use these configs for all public (server-rendered) Render calls.
+// Site blocks
 // ---------------------------------------------------------------------------
 
-const rscSafeComponents = {
-  ...puckConfig.components,
-  RichTextBlock: {
-    ...puckConfig.components.RichTextBlock,
-    fields: {
-      ...puckConfig.components.RichTextBlock.fields,
-      content: { type: 'textarea' as const, label: 'Content (HTML)' },
+function Copyright(props: any) {
+  const {
+    siteName, prefix = '©', customPrefix = '', yearFormat = 'current', startYear,
+    showSiteName = true, suffix = '', alignment = 'left', fontSize = 'small',
+    textColor = 'var(--color-muted)',
+    privacyPolicyUrl = '', privacyPolicyLabel = 'Privacy Policy',
+    termsUrl = '', termsLabel = 'Terms of Service',
+    customLink1Url = '', customLink1Label = '', customLink2Url = '', customLink2Label = '',
+  } = props
+  const currentYear = new Date().getFullYear()
+  const resolvedPrefix = prefix === 'custom' ? (customPrefix || '©') : prefix === 'none' ? '' : prefix
+  let yearText = ''
+  if (yearFormat === 'current') yearText = String(currentYear)
+  else if (yearFormat === 'range' && startYear) yearText = `${startYear}–${currentYear}`
+  const fontSizes: Record<string, string> = { small: '0.875rem', medium: '1rem', large: '1.125rem' }
+  const showSiteNameBool = showSiteName !== false && (showSiteName as unknown) !== 'false'
+  const parts = [resolvedPrefix, yearText, showSiteNameBool ? (siteName ?? 'My Site') : '', suffix].filter(Boolean)
+  const links = [
+    privacyPolicyUrl ? { url: privacyPolicyUrl, label: privacyPolicyLabel } : null,
+    termsUrl ? { url: termsUrl, label: termsLabel } : null,
+    customLink1Url ? { url: customLink1Url, label: customLink1Label || customLink1Url } : null,
+    customLink2Url ? { url: customLink2Url, label: customLink2Label || customLink2Url } : null,
+  ].filter(Boolean) as Array<{ url: string; label: string }>
+  const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'space-between'
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent, gap: '1.5rem', width: '100%' }}>
+      <span style={{ color: textColor, fontSize: fontSizes[fontSize] ?? '0.875rem' }}>{parts.join(' ')}</span>
+      {links.length > 0 && (
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          {links.map((link) => <a key={link.url} href={link.url} style={{ color: textColor, fontSize: fontSizes[fontSize] ?? '0.875rem', textDecoration: 'none' }}>{link.label}</a>)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MenuBlock(props: any) {
+  const { resolvedItems, orientation, spacing, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground } = props
+  if (!resolvedItems) {
+    return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
+  }
+  const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
+  const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
+  const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
+  const linkStyleOverride: React.CSSProperties = {}
+  if (itemColor) linkStyleOverride.color = itemColor
+  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = fontSizeMap[itemFontSize]
+  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = fontWeightMap[itemFontWeight]
+  if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
+  if (orientation === 'vertical') {
+    return (
+      <nav>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: verticalGaps[spacing] ?? '0.5rem' }}>
+          {resolvedItems.map((item: any) => (
+            <li key={item.id}>
+              <a href={item.href} target={item.openInNewTab ? '_blank' : undefined} rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                style={{ display: 'block', padding: '0.25rem 0', fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: fontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }}>
+                {item.label}
+              </a>
+              {item.children?.length > 0 && (
+                <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0 0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  {item.children.map((child: any) => (
+                    <li key={child.id}><a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined} style={{ display: 'block', padding: '0.25rem 0', fontSize: '0.9rem', color: itemColor || 'var(--color-muted)', textDecoration: 'none' }}>{child.label}</a></li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )
+  }
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showMobileToggle={props.showMobileToggle} />
+}
+
+function LoginButton(props: any) {
+  const { isLoggedIn, adminPath, loginLabel, registerLabel } = props
+  const base = adminPath ? `/${adminPath}` : ''
+  if (isLoggedIn) {
+    return (
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <a href={`${base}/account`} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-fg-secondary)', fontSize: '0.875rem', fontWeight: 500 }}>My Account</a>
+        <form action="/api/auth/logout" method="POST" style={{ margin: 0 }}>
+          <button type="submit" style={{ padding: '0.5rem 1rem', borderRadius: 6, background: 'none', border: '1px solid var(--color-border)', color: 'var(--color-fg-secondary)', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+        </form>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <a href={`${base}/login`} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-fg-secondary)', fontSize: '0.875rem', fontWeight: 500 }}>{loginLabel || 'Sign in'}</a>
+      <a href={`${base}/register`} style={{ padding: '0.5rem 1rem', borderRadius: 6, background: 'var(--color-primary)', border: '1px solid var(--color-primary)', textDecoration: 'none', color: 'var(--color-bg)', fontSize: '0.875rem', fontWeight: 500 }}>{registerLabel || 'Register'}</a>
+    </div>
+  )
+}
+
+// RSC-safe SiteLogo (no client hooks)
+function SiteLogoRsc(props: any) {
+  const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
+  const showIconBool = showIcon !== false && showIcon !== 'false'
+  const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-fg)', textDecoration: 'none' }
+  if (logoUrl) {
+    return (
+      <a href={homeUrl || '/'} style={style}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
+        {showTextBool && siteName && <span>{siteName}</span>}
+      </a>
+    )
+  }
+  return (
+    <a href={homeUrl || '/'} style={style}>
+      {showIconBool && <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />}
+      {siteName ?? 'Site Name'}
+    </a>
+  )
+}
+
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+// ---------------------------------------------------------------------------
+// Main puckConfig
+// ---------------------------------------------------------------------------
+
+const puckConfig = {
+  categories: {
+    layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Flex', 'Columns', 'Spacer', 'Divider'], defaultExpanded: true },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],          defaultExpanded: true },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
+    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
+    content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton'],       defaultExpanded: false },
+  },
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  },
+  components: {
+    // ── Layout ──────────────────────────────────────────────────────────────
+    Section: {
+      label: 'Section',
+      fields: {
+        content: { type: 'slot' as const },
+        bgType: { type: 'select' as const, label: 'Background type', options: [{ value: 'none', label: 'None' }, { value: 'color', label: 'Colour' }, { value: 'gradient', label: 'Gradient (CSS)' }, { value: 'image', label: 'Image URL' }] },
+        bgColor: { type: 'text' as const, label: 'Colour or gradient CSS' },
+        bgImage: { type: 'text' as const, label: 'Background image URL' },
+        bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
+        overlayColor: { type: 'text' as const, label: 'Overlay colour' },
+        overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
+        paddingY: { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }] },
+        maxWidth: { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }] },
+        textColor: { type: 'text' as const, label: 'Text colour override' },
+        sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
+        stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
+        boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        borderStyle: { type: 'select' as const, label: 'Border', options: [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }] },
+        borderColor: { type: 'text' as const, label: 'Border colour' },
+        borderWidth: { type: 'select' as const, label: 'Border width', options: [{ value: '1px', label: '1px' }, { value: '2px', label: '2px' }, { value: '4px', label: '4px' }] },
+        borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
+        opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
+        ...aosFields,
+      },
+      defaultProps: { bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      render: SectionBlock,
+    },
+    Grid: {
+      label: 'Grid',
+      fields: {
+        columns: { type: 'select' as const, label: 'Columns', options: [{ value: '2', label: '2 columns' }, { value: '3', label: '3 columns' }, { value: '4', label: '4 columns' }] },
+        columnSizes: { type: 'select' as const, label: 'Column widths (2-col)', options: [{ value: 'equal', label: 'Equal' }, { value: 'auto-fill', label: 'Auto + fill' }, { value: 'fill-auto', label: 'Fill + auto' }, { value: '30-70', label: '30 / 70' }, { value: '40-60', label: '40 / 60' }, { value: '60-40', label: '60 / 40' }, { value: '70-30', label: '70 / 30' }] },
+        verticalAlign: { type: 'select' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }] },
+        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        padding: paddingField,
+        spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        col1Align: { type: 'select' as const, label: 'Col 1 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
+      },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start' },
+      render: GridBlock,
+    },
+    Flex: {
+      label: 'Flex',
+      fields: {
+        direction: { type: 'select' as const, label: 'Direction', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }] },
+        justify: { type: 'select' as const, label: 'Justify content', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Center' }, { value: 'end', label: 'End' }, { value: 'between', label: 'Space between' }, { value: 'around', label: 'Space around' }, { value: 'evenly', label: 'Space evenly' }] },
+        align: { type: 'select' as const, label: 'Align items', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Center' }, { value: 'end', label: 'End' }, { value: 'stretch', label: 'Stretch' }] },
+        wrap: { type: 'select' as const, label: 'Wrap', options: [{ value: 'wrap', label: 'Wrap' }, { value: 'nowrap', label: 'No wrap' }] },
+        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        padding: paddingField,
+        items: { type: 'slot' as const },
+      },
+      defaultProps: { direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none' },
+      render: FlexBlock,
+    },
+    Columns: {
+      label: 'Columns',
+      fields: {
+        left: { type: 'slot' as const }, right: { type: 'slot' as const },
+        ratio: { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }] },
+        padding: paddingField,
+      },
+      defaultProps: { ratio: '50/50', padding: 'none' },
+      render: Columns,
+    },
+    Spacer: {
+      label: 'Space',
+      fields: { height: { type: 'select' as const, label: 'Height', options: [{ value: 'xs', label: 'XS (8px)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (32px)' }, { value: 'lg', label: 'Large (64px)' }, { value: 'xl', label: 'XL (96px)' }] } },
+      defaultProps: { height: 'md' as const },
+      render: Spacer,
+    },
+    Divider: {
+      label: 'Divider',
+      fields: {
+        style: { type: 'select' as const, label: 'Line style', options: [{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }] },
+        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'gray', label: 'Gray' }, { value: 'dark', label: 'Dark' }, { value: 'brand', label: 'Brand' }] },
+        thickness: { type: 'select' as const, label: 'Thickness', options: [{ value: 'thin', label: 'Thin' }, { value: 'medium', label: 'Medium' }, { value: 'thick', label: 'Thick' }] },
+      },
+      defaultProps: { style: 'solid' as const, color: 'gray' as const, thickness: 'thin' as const },
+      render: Divider,
+    },
+
+    // ── Typography ───────────────────────────────────────────────────────────
+    Heading: {
+      label: 'Heading',
+      fields: {
+        text: { type: 'text' as const, label: 'Text' },
+        level: { type: 'select' as const, label: 'Level', options: [{ value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
+        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
+        padding: paddingField,
+        ...aosFields,
+      },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'none', ...aosDefaults },
+      render: Heading,
+    },
+    TextBlock: {
+      label: 'Text',
+      fields: { content: { type: 'textarea' as const, label: 'Content' }, align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField },
+      defaultProps: { content: 'Enter your text here…', align: 'left' as const, padding: 'none' },
+      render: TextBlock,
+    },
+    RichTextBlock: {
+      label: 'Rich Text',
+      fields: { content: { type: 'richtext' as const, label: 'Content' }, padding: paddingField },
+      defaultProps: { content: '', padding: 'none' },
+      render: RichTextBlock,
+    },
+    Quote: {
+      label: 'Quote',
+      fields: { quote: { type: 'textarea' as const, label: 'Quote' }, attribution: { type: 'text' as const, label: 'Attribution' }, padding: paddingField, ...aosFields },
+      defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'none', ...aosDefaults },
+      render: Quote,
+    },
+
+    // ── Actions ──────────────────────────────────────────────────────────────
+    ButtonLink: {
+      label: 'Button',
+      fields: {
+        label: { type: 'text' as const, label: 'Label' }, href: { type: 'text' as const, label: 'URL' },
+        variant: { type: 'select' as const, label: 'Style', options: [{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }, { value: 'outline', label: 'Outline' }] },
+        padding: paddingField,
+      },
+      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, padding: 'none' },
+      render: ButtonLink,
+    },
+    CTABanner: {
+      label: 'CTA Banner',
+      fields: {
+        heading: { type: 'text' as const, label: 'Heading' }, subtext: { type: 'textarea' as const, label: 'Sub-text' },
+        ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' },
+        background: { type: 'select' as const, label: 'Background', options: [{ value: 'light', label: 'Light' }, { value: 'white', label: 'White (bordered)' }, { value: 'brand', label: 'Brand colour' }] },
+        padding: paddingField, ...aosFields,
+      },
+      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, padding: 'none', ...aosDefaults },
+      render: CTABanner,
+    },
+
+    // ── Media ────────────────────────────────────────────────────────────────
+    ImageBlock: {
+      label: 'Image',
+      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, caption: { type: 'text' as const, label: 'Caption' }, padding: paddingField, ...aosFields },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', padding: 'none', ...aosDefaults },
+      render: ImageBlock,
+    },
+    VideoEmbed: {
+      label: 'Video',
+      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'select' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }] }, padding: paddingField },
+      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'none' },
+      render: VideoEmbed,
+    },
+    Embed: {
+      label: 'Embed',
+      fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'text' as const, label: 'Height (e.g. 400px)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField },
+      defaultProps: { src: '', height: '400px', title: '', padding: 'none' },
+      render: Embed,
+    },
+
+    // ── Content ──────────────────────────────────────────────────────────────
+    Hero: {
+      label: 'Hero',
+      fields: {
+        heading: { type: 'text' as const, label: 'Heading' }, subheading: { type: 'textarea' as const, label: 'Sub-heading' },
+        ctaLabel: { type: 'text' as const, label: 'Primary CTA label' }, ctaHref: { type: 'text' as const, label: 'Primary CTA URL' },
+        cta2Label: { type: 'text' as const, label: 'Second CTA label' }, cta2Href: { type: 'text' as const, label: 'Second CTA URL' },
+        cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
+        bgType: { type: 'select' as const, label: 'Background', options: [{ value: 'gradient', label: 'Gradient' }, { value: 'color', label: 'Colour' }, { value: 'image', label: 'Image' }, { value: 'none', label: 'None' }] },
+        bgColor: { type: 'text' as const, label: 'Colour or gradient CSS' }, bgImage: { type: 'text' as const, label: 'Background image URL' },
+        overlayColor: { type: 'text' as const, label: 'Overlay colour' }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
+        layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }] },
+        imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
+        textScheme: { type: 'select' as const, label: 'Text colour', options: [{ value: 'dark', label: 'Dark (for light backgrounds)' }, { value: 'light', label: 'Light (for dark backgrounds)' }] },
+        minHeight: { type: 'select' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }] },
+        padding: paddingField, ...aosFields,
+      },
+      defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
+      render: Hero,
+    },
+    Card: {
+      label: 'Card',
+      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, padding: paddingField, ...aosFields },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', padding: 'none', ...aosDefaults },
+      render: Card,
+    },
+    Callout: {
+      label: 'Callout',
+      fields: { type: { type: 'select' as const, label: 'Type', options: [{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }, { value: 'error', label: 'Error' }] }, title: { type: 'text' as const, label: 'Title' }, body: { type: 'textarea' as const, label: 'Body' }, padding: paddingField },
+      defaultProps: { type: 'info' as const, title: '', body: 'Notice text here…', padding: 'none' },
+      render: Callout,
+    },
+    Badge: {
+      label: 'Badge',
+      fields: { label: { type: 'text' as const, label: 'Label' }, color: { type: 'select' as const, label: 'Colour', options: [{ value: 'primary', label: 'Brand' }, { value: 'blue', label: 'Blue' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }, { value: 'gray', label: 'Gray' }] }, padding: paddingField },
+      defaultProps: { label: 'New', color: 'primary' as const, padding: 'none' },
+      render: Badge,
+    },
+    Accordion: {
+      label: 'Accordion',
+      fields: { items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { question?: string }) => item.question || 'Question', arrayFields: { question: { type: 'text' as const, label: 'Question' }, answer: { type: 'textarea' as const, label: 'Answer' } }, defaultItemProps: { question: 'What is the question?', answer: 'This is the answer.' } }, padding: paddingField },
+      defaultProps: { items: [{ question: 'What is the question?', answer: 'This is the answer.' }], padding: 'none' },
+      render: Accordion,
+    },
+    FeatureList: {
+      label: 'Feature List',
+      fields: { items: { type: 'array' as const, label: 'Features', getItemSummary: (item: { title?: string }) => item.title || 'Feature', arrayFields: { emoji: { type: 'text' as const, label: 'Emoji' }, title: { type: 'text' as const, label: 'Title' }, description: { type: 'textarea' as const, label: 'Description' } }, defaultItemProps: { emoji: '✨', title: 'Feature title', description: 'Describe this feature here.' } }, padding: paddingField, ...aosFields },
+      defaultProps: { items: [{ emoji: '✨', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', title: 'Feature two', description: 'Describe this feature.' }], padding: 'none', ...aosDefaults },
+      render: FeatureList,
+    },
+    Stats: {
+      label: 'Stats',
+      fields: { items: { type: 'array' as const, label: 'Stats', getItemSummary: (item: { value?: string; label?: string }) => item.value ? `${item.value} — ${item.label}` : 'Stat', arrayFields: { value: { type: 'text' as const, label: 'Value' }, label: { type: 'text' as const, label: 'Label' } }, defaultItemProps: { value: '100%', label: 'Satisfaction' } }, padding: paddingField, ...aosFields },
+      defaultProps: { items: [{ value: '10k+', label: 'Customers' }, { value: '99%', label: 'Uptime' }, { value: '24/7', label: 'Support' }], padding: 'none', ...aosDefaults },
+      render: Stats,
+    },
+    Logos: {
+      label: 'Logos',
+      fields: { items: { type: 'array' as const, label: 'Logos', getItemSummary: (item: { alt?: string }) => item.alt || 'Logo', arrayFields: { logoUrl: { type: 'text' as const, label: 'Logo URL' }, alt: { type: 'text' as const, label: 'Alt text' }, href: { type: 'text' as const, label: 'Link URL' } }, defaultItemProps: { logoUrl: '', alt: 'Company name', href: '' } }, logoHeight: { type: 'select' as const, label: 'Logo height', options: [{ value: 'sm', label: 'Small (32px)' }, { value: 'md', label: 'Medium (48px)' }, { value: 'lg', label: 'Large (64px)' }] }, justify: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField, ...aosFields },
+      defaultProps: { items: [{ logoUrl: '', alt: 'Partner logo', href: '' }], logoHeight: 'md' as const, justify: 'center' as const, padding: 'none', ...aosDefaults },
+      render: Logos,
+    },
+    SocialLinks: {
+      label: 'Social Links',
+      fields: {
+        items: { type: 'array' as const, label: 'Links', getItemSummary: (item: { platform?: string }) => item.platform || 'Link', arrayFields: { platform: { type: 'select' as const, label: 'Platform', options: [{ value: 'twitter-x', label: 'Twitter / X' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'youtube', label: 'YouTube' }, { value: 'github', label: 'GitHub' }, { value: 'tiktok', label: 'TikTok' }] }, url: { type: 'text' as const, label: 'URL' } }, defaultItemProps: { platform: 'twitter-x', url: '' } },
+        iconSize: { type: 'select' as const, label: 'Icon size', options: [{ value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        iconColor: { type: 'text' as const, label: 'Icon colour (hex/CSS)' },
+        layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }] },
+        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+      },
+      defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' },
+      render: SocialLinks,
+    },
+
+    // ── Site ─────────────────────────────────────────────────────────────────
+    SiteLogo: {
+      label: 'Site Logo',
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, logoHeight: { type: 'number' as const, label: 'Logo height (px)' }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
+      defaultProps: { homeUrl: '/', logoHeight: 40, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      render: SiteLogoClient,
+    },
+    Copyright: {
+      label: 'Copyright',
+      fields: {
+        prefix: { type: 'select' as const, label: 'Copyright symbol', options: [{ value: '©', label: '©' }, { value: 'Copyright', label: 'Copyright (word)' }, { value: 'none', label: 'None' }, { value: 'custom', label: 'Custom…' }] },
+        customPrefix: { type: 'text' as const, label: 'Custom prefix' }, yearFormat: { type: 'select' as const, label: 'Year', options: [{ value: 'current', label: 'Current year' }, { value: 'range', label: 'Year range' }, { value: 'none', label: 'No year' }] },
+        startYear: { type: 'number' as const, label: 'Range start year' }, showSiteName: { type: 'select' as const, label: 'Show site name', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] },
+        suffix: { type: 'text' as const, label: 'Suffix text' }, alignment: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        fontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+        textColor: { type: 'text' as const, label: 'Text colour' },
+        privacyPolicyUrl: { type: 'text' as const, label: 'Privacy Policy URL' }, privacyPolicyLabel: { type: 'text' as const, label: 'Privacy Policy label' },
+        termsUrl: { type: 'text' as const, label: 'Terms URL' }, termsLabel: { type: 'text' as const, label: 'Terms label' },
+        customLink1Url: { type: 'text' as const, label: 'Extra link 1 URL' }, customLink1Label: { type: 'text' as const, label: 'Extra link 1 label' },
+        customLink2Url: { type: 'text' as const, label: 'Extra link 2 URL' }, customLink2Label: { type: 'text' as const, label: 'Extra link 2 label' },
+      },
+      defaultProps: { prefix: '©', customPrefix: '', yearFormat: 'current', startYear: new Date().getFullYear(), showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', textColor: 'var(--color-muted)', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' },
+      render: Copyright,
+    },
+    MenuBlock: {
+      label: 'Menu',
+      fields: {
+        menuId: { type: 'text' as const, label: 'Menu ID' }, menuName: { type: 'text' as const, label: 'Menu name (display)' },
+        orientation: { type: 'select' as const, label: 'Orientation', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }] },
+        spacing: { type: 'select' as const, label: 'Item spacing', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        itemFontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+        itemFontWeight: { type: 'select' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
+        itemColor: { type: 'text' as const, label: 'Link colour' },
+        showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
+        showMobileToggle: { type: 'select' as const, label: 'Mobile behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
+      },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', showMobileToggle: 'collapse' },
+      render: MenuBlock,
+    },
+    LoginButton: {
+      label: 'Login Button',
+      fields: { loginLabel: { type: 'text' as const, label: 'Login label' }, registerLabel: { type: 'text' as const, label: 'Register label' } },
+      defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
+      render: LoginButton,
     },
   },
+} satisfies Config
+
+export default puckConfig
+export type PuckConfig = typeof puckConfig
+
+// ---------------------------------------------------------------------------
+// RSC-safe variants (no richtext field, SiteLogoRsc instead of client)
+// ---------------------------------------------------------------------------
+
+const rscComponents = {
+  ...puckConfig.components,
+  RichTextBlock: { ...puckConfig.components.RichTextBlock, fields: { ...puckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
   SiteLogo: { ...puckConfig.components.SiteLogo, render: SiteLogoRsc },
 }
 
-export const puckRscConfig = {
-  ...puckConfig,
-  components: rscSafeComponents,
+export const puckRscConfig = { ...puckConfig, components: rscComponents }
+
+// ---------------------------------------------------------------------------
+// Header Puck config — used in Appearance > Header editor
+// ---------------------------------------------------------------------------
+
+export const headerPuckConfig = {
+  categories: {
+    site:   { title: 'Site',   components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ButtonLink', 'SocialLinks'], defaultExpanded: true },
+    layout: { title: 'Layout', components: ['Grid', 'Flex', 'Spacer'], defaultExpanded: false },
+  },
+  root: {
+    fields: {
+      bgMode: { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
+      bgColor: { type: 'text' as const, label: 'Background colour (hex/CSS)' },
+      height: { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
+      sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
+      borderBottom: { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
+      borderColor: { type: 'text' as const, label: 'Border colour' },
+      maxWidth: { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
+    },
+    defaultProps: { bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes', borderBottom: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px' },
+    render: ({ children, bgMode, bgColor, height, sticky, borderBottom, borderColor, maxWidth }: any) => (
+      <header data-bg-mode={bgMode} style={{
+        height: height === 'auto' ? undefined : height,
+        minHeight: height === 'auto' ? 48 : undefined,
+        background: bgMode === 'transparent' ? 'transparent' : bgMode === 'transparent-scroll' ? 'transparent' : (bgColor || 'var(--color-bg)'),
+        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border)'}` : 'none',
+        position: sticky === 'yes' ? 'sticky' : 'relative',
+        top: sticky === 'yes' ? 0 : undefined,
+        zIndex: sticky === 'yes' ? 100 : undefined,
+        width: '100%',
+      }}>
+        <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: '0 1.5rem', height: '100%', display: 'flex', alignItems: 'center' }}>
+          {children}
+        </div>
+      </header>
+    ),
+  },
+  components: {
+    SiteLogo: puckConfig.components.SiteLogo,
+    MenuBlock: puckConfig.components.MenuBlock,
+    LoginButton: puckConfig.components.LoginButton,
+    ButtonLink: puckConfig.components.ButtonLink,
+    SocialLinks: puckConfig.components.SocialLinks,
+    Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
+    Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
+    Spacer: puckConfig.components.Spacer,
+  },
 }
 
-const rscSafeHeaderComponents = {
-  ...rscSafeComponents,
-  Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
-  Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
+export const headerPuckRscConfig = {
+  ...headerPuckConfig,
+  components: {
+    ...headerPuckConfig.components,
+    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+  },
 }
 
-export const puckHeaderTemplateRscConfig = {
-  ...puckHeaderTemplateConfig,
-  components: rscSafeHeaderComponents,
+// ---------------------------------------------------------------------------
+// Footer Puck config — used in Appearance > Footer editor
+// ---------------------------------------------------------------------------
+
+export const footerPuckConfig = {
+  categories: {
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink'], defaultExpanded: true },
+    layout:     { title: 'Layout',     components: ['Grid', 'Flex', 'Columns', 'Spacer', 'Divider'], defaultExpanded: false },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
+  },
+  root: {
+    fields: {
+      bgColor:    { type: 'text' as const,   label: 'Background colour (hex/CSS)' },
+      paddingY:   { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+      borderTop:  { type: 'select' as const, label: 'Border top', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
+      borderColor:{ type: 'text' as const,   label: 'Border colour' },
+      maxWidth:   { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }] },
+    },
+    defaultProps: { bgColor: 'var(--color-bg-subtle)', paddingY: 'md', borderTop: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px' },
+    render: ({ children, bgColor, paddingY, borderTop, borderColor, maxWidth }: any) => {
+      const pyMap: Record<string, string> = { none: '0', sm: '2rem', md: '3rem', lg: '5rem' }
+      return (
+        <footer style={{ background: bgColor || 'var(--color-bg-subtle)', borderTop: borderTop === 'show' ? `1px solid ${borderColor || 'var(--color-border)'}` : 'none' }}>
+          <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: `${pyMap[paddingY] ?? '3rem'} 1.5rem` }}>
+            {children}
+          </div>
+        </footer>
+      )
+    },
+  },
+  components: {
+    SiteLogo:    puckConfig.components.SiteLogo,
+    Copyright:   puckConfig.components.Copyright,
+    MenuBlock:   puckConfig.components.MenuBlock,
+    SocialLinks: puckConfig.components.SocialLinks,
+    ButtonLink:  puckConfig.components.ButtonLink,
+    Grid:        puckConfig.components.Grid,
+    Flex:        puckConfig.components.Flex,
+    Columns:     puckConfig.components.Columns,
+    Spacer:      puckConfig.components.Spacer,
+    Divider:     puckConfig.components.Divider,
+    Heading:     puckConfig.components.Heading,
+    TextBlock:   puckConfig.components.TextBlock,
+    RichTextBlock: puckConfig.components.RichTextBlock,
+  },
 }
 
-export const puckFooterTemplateRscConfig = {
-  ...puckFooterTemplateConfig,
-  components: rscSafeComponents,
+export const footerPuckRscConfig = {
+  ...footerPuckConfig,
+  components: {
+    ...footerPuckConfig.components,
+    SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+    RichTextBlock: { ...footerPuckConfig.components.RichTextBlock, fields: { ...footerPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
+  },
 }
 
-export const puckTemplateRscConfig = {
-  ...puckTemplateConfig,
-  components: rscSafeComponents,
+// ---------------------------------------------------------------------------
+// Layout Puck config — used in Layouts editor (structural blocks + ContentSlot)
+// ---------------------------------------------------------------------------
+
+export const layoutPuckConfig = {
+  categories: {
+    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid', 'Flex', 'Columns', 'Spacer', 'Divider'], defaultExpanded: true },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
+  },
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  },
+  components: {
+    ContentSlot: {
+      label: 'Content Slot',
+      fields: {},
+      defaultProps: {},
+      render: ContentSlot,
+    },
+    Section:      puckConfig.components.Section,
+    Grid:         puckConfig.components.Grid,
+    Flex:         puckConfig.components.Flex,
+    Columns:      puckConfig.components.Columns,
+    Spacer:       puckConfig.components.Spacer,
+    Divider:      puckConfig.components.Divider,
+    Heading:      puckConfig.components.Heading,
+    TextBlock:    puckConfig.components.TextBlock,
+    RichTextBlock: puckConfig.components.RichTextBlock,
+  },
+}
+
+export const layoutPuckRscConfig = {
+  ...layoutPuckConfig,
+  components: {
+    ...layoutPuckConfig.components,
+    RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
+  },
 }

@@ -14,7 +14,7 @@ type Props = {
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
-const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/templates\/[^/]+$/
+const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
 export default function AdminShell({ adminPath, userRole, siteName, version, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)

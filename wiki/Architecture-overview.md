@@ -6,7 +6,7 @@
 Browser request
       │
       ▼
-proxy.ts  (Node.js runtime — NOT Edge)
+proxy.ts  (Node.js runtime - NOT Edge)
       │
       ├── Always pass: /api/health, /api/webhooks/, /_next/, /favicon.ico
       │
@@ -27,7 +27,7 @@ proxy.ts  (Node.js runtime — NOT Edge)
             → status = maintenance → rewrite to /_status/maintenance
 ```
 
-**Why `proxy.ts` instead of `middleware.ts`?** Next.js 16 moved the request-interception layer from the Edge runtime to Node.js and renamed the file. Running on Node.js means Prisma works directly — no edge-compatible ORM, no edge Config only as a fallback. The admin path and site status checks can use real database reads.
+**Why `proxy.ts` instead of `middleware.ts`?** Next.js 16 moved the request-interception layer from the Edge runtime to Node.js and renamed the file. Running on Node.js means Prisma works directly - no edge-compatible ORM, no edge Config only as a fallback. The admin path and site status checks can use real database reads.
 
 ## Admin path and Edge Config
 
@@ -37,14 +37,14 @@ The admin path is a secret URL prefix chosen during setup. It's stored in `SiteC
 
 When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, the setup wizard can provision a Postgres database automatically:
 
-1. **Neon API call** — `POST https://console.neon.tech/api/v2/projects` creates a new Neon project. The response includes both a direct and a **pooled** connection string. Cactus uses the pooled one (`connection_parameters.pooler_host`) to satisfy the pooling requirement.
-2. **Vercel API write** — `POST https://api.vercel.com/v10/projects/{projectId}/env` writes `DATABASE_URL` (pooled) and `NEON_PROJECT_ID` (for idempotency) as project environment variables.
-3. **Triggered redeploy** — writing new env vars to a Vercel project causes Vercel to queue a new deployment. During that build, the existing `build` script (`prisma migrate deploy && node scripts/run-module-migrations.mjs && next build`) applies the full schema.
-4. **Readiness poll** — the wizard polls `/api/health` every 5 seconds. Once the database is reachable (redeploy complete, schema applied), the wizard advances to the next step.
+1. **Neon API call** - `POST https://console.neon.tech/api/v2/projects` creates a new Neon project. The response includes both a direct and a **pooled** connection string. Cactus uses the pooled one (`connection_parameters.pooler_host`) to satisfy the pooling requirement.
+2. **Vercel API write** - `POST https://api.vercel.com/v10/projects/{projectId}/env` writes `DATABASE_URL` (pooled) and `NEON_PROJECT_ID` (for idempotency) as project environment variables.
+3. **Triggered redeploy** - writing new env vars to a Vercel project causes Vercel to queue a new deployment. During that build, the existing `build` script (`prisma migrate deploy && node scripts/run-module-migrations.mjs && next build`) applies the full schema.
+4. **Readiness poll** - the wizard polls `/api/health` every 5 seconds. Once the database is reachable (redeploy complete, schema applied), the wizard advances to the next step.
 
 **Migrations are never triggered from the wizard.** Provisioning only creates the Neon project and writes the env var. The schema reaches the database exactly as it always does: via the `build` script, run by Vercel during the triggered deployment. The wizard cannot continue in the same page load; the redeploy is the mechanism, not a side-effect.
 
-**Idempotency** — the provisioning action checks for an existing Neon project named `cactus-{VERCEL_PROJECT_ID}` before creating a new one. It also checks the Vercel project's env vars for an existing `DATABASE_URL` to detect a prior successful provision that is still awaiting a redeploy. Double-clicks and page refreshes are safe.
+**Idempotency** - the provisioning action checks for an existing Neon project named `cactus-{VERCEL_PROJECT_ID}` before creating a new one. It also checks the Vercel project's env vars for an existing `DATABASE_URL` to detect a prior successful provision that is still awaiting a redeploy. Double-clicks and page refreshes are safe.
 
 ## Authentication and sessions
 
@@ -70,7 +70,7 @@ Browser ──── Next.js <Image> ────▶ Custom loader (lib/media/lo
                                Cloudflare Worker (workers/media-worker/)
                                           │
                                           ├── key format: media/<PROVIDER>/<id>.ext
-                                          │   (legacy B2 keys: media/<id>.ext — no provider segment)
+                                          │   (legacy B2 keys: media/<id>.ext - no provider segment)
                                           ├── resolves provider from key prefix
                                           ├── fetches from the matching private bucket using stored secrets
                                           ├── applies Cloudflare Image Resizing (width, quality, format=auto)
@@ -105,18 +105,18 @@ Modules are git submodules living under `modules/<name>/`. Installing one:
 3. During Vercel's build step, `scripts/run-module-migrations.mjs` runs **after** `prisma migrate deploy`. It finds all active modules' SQL migration files, checks the `ModuleMigration` table for already-applied ones, and executes the rest in lexicographic order.
 4. The deploy lock is released when the Vercel webhook fires (`deployment.succeeded`) or lazily on the next Modules page load (for Hobby-plan users without webhooks).
 
-Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). They never touch Prisma's migration history. The core Prisma client knows nothing about module tables — modules query their own tables directly.
+Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). They never touch Prisma's migration history. The core Prisma client knows nothing about module tables - modules query their own tables directly.
 
 ## Info pages and the Puck builder
 
-Info pages (`InfoPage` model) always use the Puck builder. `bodyFormat` is always `'builder'` for new pages — the admin UI offers no markdown option. Legacy rows with `bodyFormat: 'markdown'` are auto-migrated to `'builder'` the first time they are opened in the admin editor (a PATCH is sent in the background; the public render still falls back to the markdown pipeline for any rows that haven't been migrated yet).
+Info pages (`InfoPage` model) always use the Puck builder. `bodyFormat` is always `'builder'` for new pages - the admin UI offers no markdown option. Legacy rows with `bodyFormat: 'markdown'` are auto-migrated to `'builder'` the first time they are opened in the admin editor (a PATCH is sent in the background; the public render still falls back to the markdown pipeline for any rows that haven't been migrated yet).
 
 - **`builder`**: content stored in `builderData` (JSON), rendered via Puck's `<Render>` component (`@puckeditor/core/rsc`).
 - **`markdown`** (legacy): content stored in `body`, rendered through the sanitized-markdown pipeline (`marked` + `DOMPurify`). No new pages are created in this mode.
 
 ### Editor
 
-The Puck editor (`@puckeditor/core`) is lazy-loaded — it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers, menu selector).
+The Puck editor (`@puckeditor/core`) is lazy-loaded - it ships no bundle to any route that isn't the specific page-edit admin screen. The editor is mounted with the full component config (`lib/puck/config.tsx`) extended with custom field renderers (media pickers, menu selector).
 
 ### Available blocks
 
@@ -128,11 +128,11 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **Grid** | CSS grid container (2–4 columns) with configurable gap, padding, and space below. New fields: **Column widths** (preset ratios for 2-col — equal, auto+fill, 30/70 … 70/30), **Vertical align** (stretch / top / middle / bottom across all cells), **Col N: horizontal align** (left / centre / right per column), **Space below** (replaces the hardcoded 1.5rem bottom margin). In header templates the Grid render is overridden (`GridBlockHeader`) to force `spaceBelow: none`. |
+| **Grid** | CSS grid container (2–4 columns) with configurable gap, padding, and space below. New fields: **Column widths** (preset ratios for 2-col - equal, auto+fill, 30/70 … 70/30), **Vertical align** (stretch / top / middle / bottom across all cells), **Col N: horizontal align** (left / centre / right per column), **Space below** (replaces the hardcoded 1.5rem bottom margin). In header templates the Grid render is overridden (`GridBlockHeader`) to force `spaceBelow: none`. |
 | **Flex** | Flexbox container with direction, justify, align, wrap, and gap controls; single droppable slot |
 | **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
 | **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px → 96 px) |
-| **Divider** | Horizontal rule — solid, dashed, or dotted; thin / medium / thick |
+| **Divider** | Horizontal rule - solid, dashed, or dotted; thin / medium / thick |
 
 #### Typography
 
@@ -147,8 +147,8 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **ButtonLink** *(displayed as "Button")* | Standalone button link — primary, secondary, or outline style |
-| **CTABanner** | Call-to-action banner — white / light-gray / brand background |
+| **ButtonLink** *(displayed as "Button")* | Standalone button link - primary, secondary, or outline style |
+| **CTABanner** | Call-to-action banner - white / light-gray / brand background |
 
 #### Media
 
@@ -164,9 +164,9 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 |---|---|
 | **Hero** | Large hero section with heading, sub-heading, and CTA button |
 | **Card** | Image + heading + body text + optional CTA button |
-| **Callout** | Alert/notice box — info, success, warning, or error |
+| **Callout** | Alert/notice box - info, success, warning, or error |
 | **Badge** | Small coloured pill label |
-| **Accordion** | Collapsible FAQ using native `<details>`/`<summary>` — no JS required |
+| **Accordion** | Collapsible FAQ using native `<details>`/`<summary>` - no JS required |
 | **FeatureList** | List of features with emoji icon, title, and description |
 | **Stats** | Row of statistic items (value + label) |
 | **Logos** | Horizontal strip of logo images with configurable height and alignment |
@@ -175,10 +175,10 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **SiteLogo** | Site logo or name — auto-reads `logoMediaId` from SiteConfig; falls back to site name text. Template block. |
-| **MenuBlock** *(displayed as "Menu")* | Navigation menu — pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
-| **Copyright** | Copyright line — auto-renders © current year + site name from SiteConfig. Template block. |
-| **LoginButton** | Auth-aware login/register buttons — shows "My Account" and "Sign out" when the visitor is logged in. Template block. |
+| **SiteLogo** | Site logo or name - auto-reads `logoMediaId` from SiteConfig; falls back to site name text. Template block. |
+| **MenuBlock** *(displayed as "Menu")* | Navigation menu - pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
+| **Copyright** | Copyright line - auto-renders © current year + site name from SiteConfig. Template block. |
+| **LoginButton** | Auth-aware login/register buttons - shows "My Account" and "Sign out" when the visitor is logged in. Template block. |
 
 Blocks marked **Template block** are most useful in Header/Footer templates but are available everywhere. Blocks that need an image use a custom media-picker field in the editor; the MenuBlock uses a custom menu-selector field (`MenuSelectField`). These custom renderers are declared in `config.tsx` as plain fields and overridden with the full custom renderer in `PuckEditor.tsx` and `TemplateEditor.tsx`.
 
@@ -197,51 +197,58 @@ The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button 
 | `POST /api/admin/pages/[id]/autosave` | `pages.write` | Always `draft` |
 | `POST /api/admin/pages/[id]/publish` | `pages.publish` | Always `published` |
 
-The autosave endpoint ignores any `status` field the client sends — it always writes `draft`. Only the publish endpoint can flip status to `published`, and it re-checks `pages.publish` on the server on every call.
+The autosave endpoint ignores any `status` field the client sends - it always writes `draft`. Only the publish endpoint can flip status to `published`, and it re-checks `pages.publish` on the server on every call.
 
 ### Public render
 
-The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` — a server component. The editor bundle is never included in the public-page response.
+The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` - a server component. The editor bundle is never included in the public-page response.
 
-If the page has a `templateId` (linked to a PAGE template), the template's blocks are resolved and rendered first, then the page's own blocks follow below.
+Page content is rendered directly from `builderData` using `<Render config={puckRscConfig} data={pageData} />`. If the page has an assigned layout, the layout's Puck data is rendered via `layoutPuckRscConfig` and a ContentSlot block marks where page content appears.
 
-## Templates
+## Appearance & Layouts
 
-Templates (`PageTemplate` model) are reusable Puck layouts. Every template has a **type**:
+Cactus has no hardcoded frontend design. All visual aspects are user-configurable through three concerns:
 
-- **`HEADER`** — assigned as the site-wide header in Settings → General. Replaces the theme's built-in Nav component entirely when assigned and published.
-- **`FOOTER`** — assigned as the site-wide footer. Replaces the theme's built-in Footer component.
-- **`PAGE`** — available when creating a new info page. Can be used as a one-off copy (the page is independent immediately) or a live link (template updates propagate to the page automatically).
+### Header and Footer (Appearance)
 
-Templates have the same draft/published workflow as pages: autosave always writes `draft`; publishing flips to `published` and triggers a full layout revalidation.
+The site-wide header and footer are each stored as Puck builder data in `SiteConfig.headerBuilderData` and `SiteConfig.footerBuilderData`. Edited in **Admin → Appearance → Header / Footer**.
 
-### Dynamic data injection (`resolveTemplateData`)
+- Uses `headerPuckConfig` / `footerPuckConfig` in the editor canvas and `headerPuckRscConfig` / `footerPuckRscConfig` for server-side rendering.
+- The header config's Puck root has editable fields: background mode (solid / transparent / transparent-on-scroll), background colour, height, sticky, border bottom, content max-width.
+- The footer config's Puck root has: background colour, vertical padding, border top, content max-width.
+- Both use `SiteLogoRsc` (no hooks, inline styles) in the RSC render path and `SiteLogoClient` in the editor.
+- Context values (site name, logo URL, auth state) are injected server-side in `app/(public)/layout.tsx` before calling `<Render>`.
 
-The template-specific blocks (SiteLogo, MenuBlock, Copyright, LoginButton) need live data at render time (site name, logo URL, resolved menu items, auth state). Puck's `<Render>` component is synchronous, so data is injected before the render call by `lib/puck/resolveTemplateData.ts`:
+### Design Tokens
 
-1. The public layout (or page route) deep-clones the stored Puck JSON.
-2. For every `MenuBlock` in `content`, it fetches and injects `resolvedItems` using `resolveMenu(menuId)`.
-3. For `SiteLogo` and `Copyright` blocks, it injects `logoUrl`, `siteName`, and `year` from `SiteConfig`.
-4. For `LoginButton` blocks, it injects `isLoggedIn` and `adminPath` from the current request session.
-5. The mutated data is passed to `<Render config={puckTemplateConfig} data={resolvedData} />`.
+Stored as JSON in `SiteConfig.designTokens`. Edited in **Admin → Appearance → Design Tokens**.
 
-In the admin editor, the same blocks use client-side fetching via `MenuBlockEditorPreview` (live menu preview) and `MenuSelectField` (dropdown to pick a menu).
+Keys include: `primaryColor`, `primaryFg`, `bgColor`, `fgColor`, `mutedColor`, `borderColor`, `fontHeading`, `fontBody`, `borderRadius`, `linkColor`, `linkHoverColor`, `h1Size`–`h3Size`, `bodySize`, `bodyLineHeight`, `containerMaxWidth`.
 
-### Header/Footer rendering in the public layout
+`app/(public)/layout.tsx` injects these as a `<style>` tag with `:root { --color-primary: …; … }` CSS variables, which all Puck blocks reference via `var(--color-primary)` etc.
 
-`app/(public)/layout.tsx` checks `SiteConfig.headerTemplateId` and `footerTemplateId`. When a template is assigned and its status is `published`:
+### Layouts
 
-- The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with **RSC-safe** type-specific configs (`puckHeaderTemplateRscConfig` / `puckFooterTemplateRscConfig` from `lib/puck/config.tsx`).
-  - `puckHeaderTemplateConfig` root render uses **inline styles** (not prickly CSS classes) so the header template looks correct regardless of which theme is active. The shell is a sticky 64px white header bar with a centred 760px nav row.
-  - They replace the `richtext` field type with `textarea` to prevent `React.lazy` from being called during server rendering (Puck v0.21.3's RSC module calls `React.lazy` for any component with a `richtext` field, which throws in React 19 RSC).
-  - `SiteLogo` in the RSC render path uses `SiteLogoRsc` — a plain server-safe function (no hooks, no `'use client'`) with inline styles. In the editor canvas it uses `SiteLogoClient` which adds mouse-hover colour transitions via React state. The RSC-safe override is registered in `rscSafeComponents` inside `config.tsx`.
-  - The `Flex` block's render is overridden in `puckHeaderTemplateConfig` (and `puckHeaderTemplateRscConfig`) to use `FlexBlockHeader` — the same layout as the standard Flex block but without the `marginBottom: 1.5rem` that would overflow the 64px header shell. Seed data places SiteLogo and MenuBlock inside a `Flex` block (`justify: between, align: center, gap: none`) so logo sits left and nav sits right.
-  - The `Grid` block's render is overridden in `puckHeaderTemplateConfig` (and `puckHeaderTemplateRscConfig`) to use `GridBlockHeader` — identical to the standard Grid but always forces `spaceBelow: none`, preventing the bottom margin from overflowing the fixed 64px header shell. Grid supports new per-column horizontal-align props (`col1Align`…`col4Align`) and a `verticalAlign` prop (maps to CSS `align-items` on the grid container) so logo and nav blocks can be vertically centred and the menu column can be right-aligned.
-  - `MenuBlock` (horizontal/header mode) delegates to `MenuBlockClient` — a `'use client'` component with interactive hover dropdowns and an absolutely-positioned mobile menu drawer. All styling is via inline styles and React state; a tiny embedded `<style>` tag provides only the mobile media query (`@media (max-width: 640px)`) for the hamburger/menu visibility toggle. The mobile menu sits at `position: absolute; top: 64px` below the sticky header bar. No prickly.css dependency.
-- The theme's `Nav.tsx` / `Footer.tsx` components are skipped entirely.
-- The `TemplateEditor` also uses type-specific configs for the Puck canvas: `puckHeaderTemplateConfig` for HEADER, `puckFooterTemplateConfig` for FOOTER, `puckTemplateConfig` for PAGE — so the editor preview matches the live frontend render.
+Layouts define body structure (sidebar, max-width, etc.) using structural blocks plus a special **ContentSlot** block. Multiple layouts can exist; which one applies follows a three-level fallback:
 
-If no template is assigned, or the assigned template is still in draft, the theme components render as normal (fallback).
+1. `InfoPage.layoutId` — explicit page-level override
+2. `ModuleLayoutDefault.moduleName` — module default (e.g. `infopages`)
+3. `SiteConfig.defaultLayoutId` — site-wide default
+
+Edited in **Admin → Layouts**. Uses `layoutPuckConfig` / `layoutPuckRscConfig`.
+
+Three starter layouts are seeded on fresh install: Full Width, Boxed, With Right Sidebar.
+
+### Puck config exports
+
+| Export | Used in |
+|---|---|
+| `puckConfig` / `puckRscConfig` | Page builder (editor / RSC render) |
+| `headerPuckConfig` / `headerPuckRscConfig` | Header editor / public header render |
+| `footerPuckConfig` / `footerPuckRscConfig` | Footer editor / public footer render |
+| `layoutPuckConfig` / `layoutPuckRscConfig` | Layout editor / public layout render |
+
+RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in RSC) and replace `SiteLogoClient` with `SiteLogoRsc`.
 
 ### Template protection
 
@@ -251,8 +258,8 @@ Deleting a template that is currently assigned as the active header or footer is
 
 Themes live under `themes/<name>/`. Activating a theme is a pure database flag flip (`Theme.isActive`) with no redeploy. Installing a new theme follows the same submodule-commit pattern as a module.
 
-The Prickly theme is bundled in `themes/prickly/` — it is not a submodule. No install step is needed for it.
+The Prickly theme is bundled in `themes/prickly/` - it is not a submodule. No install step is needed for it.
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a theme](Authoring-a-theme) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

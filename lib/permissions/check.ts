@@ -12,10 +12,10 @@ export const CORE_PERMISSIONS = [
   { key: 'media.delete', description: 'Delete media files' },
   { key: 'roles.manage', description: 'Create and edit roles and permissions' },
   { key: 'modules.manage', description: 'Install, update, and disable modules' },
-  { key: 'themes.manage', description: 'Install and activate themes' },
   { key: 'config.manage', description: 'Edit site configuration' },
   { key: 'menus.manage', description: 'Create and manage navigation menus' },
-  { key: 'templates.manage', description: 'Create and manage page templates' },
+  { key: 'appearance.manage', description: 'Edit site header, footer, and design tokens' },
+  { key: 'layouts.manage', description: 'Create, edit, and assign page layouts' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']

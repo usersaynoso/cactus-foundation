@@ -6,7 +6,7 @@ Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up
 
 **Recommended approach for PostgreSQL on Neon or Supabase:**
 
-- Enable Point-in-Time Recovery (PITR) — both providers offer it on paid plans. PITR lets you restore to any second in the past within your retention window, which is far more useful than a daily snapshot when debugging a bad migration.
+- Enable Point-in-Time Recovery (PITR) - both providers offer it on paid plans. PITR lets you restore to any second in the past within your retention window, which is far more useful than a daily snapshot when debugging a bad migration.
 - For self-hosted Postgres: use `pg_dump` scheduled via cron, ship the dump to an off-server location (another cloud storage bucket), and test restores occasionally.
 
 **Media backups:**
@@ -71,7 +71,7 @@ wrangler secret put SUPABASE_STORAGE_BUCKET_NAME
 wrangler secret put ALLOWED_ORIGIN   # e.g. https://example.com
 ```
 
-Configure only the secrets for the providers you actually have items on — unused secrets have no effect. When you switch providers and choose "Switch without migrating", keep the old provider's secrets in place until migration is complete so that existing items continue to serve correctly.
+Configure only the secrets for the providers you actually have items on - unused secrets have no effect. When you switch providers and choose "Switch without migrating", keep the old provider's secrets in place until migration is complete so that existing items continue to serve correctly.
 
 ## Stale-row cleanup
 
@@ -98,10 +98,10 @@ The retention periods are configurable on the GDPR & Legal tab of the config pag
 
 ## What to monitor
 
-- **Database connection pool saturation** — watch `pg_stat_activity` or your provider's pool metrics. If you're near the limit, check `DATABASE_URL` is a pooled connection string.
-- **Vercel function errors** — set `SENTRY_DSN` for structured error tracking. Without it, errors go to Vercel's function logs only.
-- **Failed modules/themes** — the Modules/Themes admin page shows any item stuck in `failed` status with the error message.
-- **Deploy lock stuck** — if a deploy fails uncleanly, `DeployLock` may remain set. Clear it:
+- **Database connection pool saturation** - watch `pg_stat_activity` or your provider's pool metrics. If you're near the limit, check `DATABASE_URL` is a pooled connection string.
+- **Vercel function errors** - set `SENTRY_DSN` for structured error tracking. Without it, errors go to Vercel's function logs only.
+- **Failed modules/themes** - the Modules/Themes admin page shows any item stuck in `failed` status with the error message.
+- **Deploy lock stuck** - if a deploy fails uncleanly, `DeployLock` may remain set. Clear it:
   ```sql
   DELETE FROM "DeployLock" WHERE id = 'singleton';
   ```
@@ -159,7 +159,7 @@ If a module migration fails during a build, the build will fail and Vercel will 
 1. Check Vercel's build logs for the `[module-migrations]` lines.
 2. Fix the SQL in your module's migrations folder.
 3. If the broken migration was partially applied, you may need to roll it back manually in the database before retrying.
-4. Commit the fix and push — this triggers a new build.
+4. Commit the fix and push - this triggers a new build.
 
 ## Upgrading Cactus core
 
@@ -171,8 +171,8 @@ Adding or changing an environment variable requires either:
 - A new Vercel deployment (for most variables), or
 - Just saving in Vercel's project settings (for variables that aren't compiled into the build, like `DATABASE_URL`)
 
-After changing `SITE_URL`, you **must** also re-register all passkeys — credentials are bound to the relying party ID (the domain). There is no automated migration for this.
+After changing `SITE_URL`, you **must** also re-register all passkeys - credentials are bound to the relying party ID (the domain). There is no automated migration for this.
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a theme](Authoring-a-theme) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

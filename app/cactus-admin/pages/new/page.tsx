@@ -12,10 +12,6 @@ export default function NewPagePage() {
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   const [canManageMenus, setCanManageMenus] = useState(false)
-  const [canManageTemplates, setCanManageTemplates] = useState(false)
-  const [pageTemplates, setPageTemplates] = useState<{ id: string; name: string }[]>([])
-  const [templateId, setTemplateId] = useState('')
-  const [templateMode, setTemplateMode] = useState<'copy' | 'linked'>('copy')
   const [menuIds, setMenuIds] = useState<string[]>([])
   const [menus, setMenus] = useState<{ id: string; name: string }[]>([])
   const [error, setError] = useState('')
@@ -25,17 +21,9 @@ export default function NewPagePage() {
     Promise.all([
       fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : {}).catch(() => ({})),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
-      fetch('/api/admin/templates').then((r) => ({ ok: r.ok, resp: r })).catch(() => ({ ok: false, resp: null })),
-    ]).then(async ([perms, menusData, templatesResult]) => {
+    ]).then(([perms, menusData]) => {
       setCanManageMenus((perms as { canManageMenus?: boolean }).canManageMenus ?? false)
       setMenus((menusData as { menus?: { id: string; name: string }[] }).menus ?? [])
-      const { ok, resp } = templatesResult as { ok: boolean; resp: Response | null }
-      setCanManageTemplates(ok)
-      if (ok && resp) {
-        const d = await resp.json()
-        const allTemplates = (d as { templates?: { id: string; name: string; type: string }[] }).templates ?? []
-        setPageTemplates(allTemplates.filter((t) => t.type === 'PAGE'))
-      }
     }).catch(() => {})
   }, [])
 
@@ -49,14 +37,10 @@ export default function NewPagePage() {
     setError('')
     setLoading(true)
     try {
-      const payload: Record<string, unknown> = {
-        title, slug, bodyFormat: 'builder', status: 'draft',
-      }
+      const payload: Record<string, unknown> = { title, slug, bodyFormat: 'builder', status: 'draft' }
       if (canManageMenus && menuIds.length > 0) payload.menuIds = menuIds
-      if (templateId) { payload.templateId = templateId; payload.templateMode = templateMode }
       const res = await fetch('/api/admin/pages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const d = await res.json()
@@ -70,14 +54,10 @@ export default function NewPagePage() {
   }
 
   return (
-    <div style={{ maxWidth: 800 }}>
+    <div style={{ maxWidth: 640 }}>
       <div className="page-header">
         <h1 className="page-title">New Page</h1>
-        <button
-          className="btn btn-primary"
-          disabled={!title || !slug || loading}
-          onClick={handleCreate}
-        >
+        <button className="btn btn-primary" disabled={!title || !slug || loading} onClick={handleCreate}>
           {loading ? 'Creating…' : 'Create & Open Builder'}
         </button>
       </div>
@@ -91,37 +71,9 @@ export default function NewPagePage() {
 
       <div className="field">
         <label>Slug</label>
-        <input
-          value={slug}
-          onChange={(e) => { setSlug(e.target.value); setSlugEdited(true) }}
-          placeholder="page-slug"
-        />
+        <input value={slug} onChange={(e) => { setSlug(e.target.value); setSlugEdited(true) }} placeholder="page-slug" />
         <span className="field-hint">URL: <code>/{slug}</code></span>
       </div>
-
-      {canManageTemplates && pageTemplates.length > 0 && (
-        <div className="field">
-          <label>Start from template (optional)</label>
-          <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-            <option value="">— Start blank —</option>
-            {pageTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          {templateId && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <input type="radio" name="templateMode" value="copy" checked={templateMode === 'copy'} onChange={() => setTemplateMode('copy')} />
-                  Copy — paste the template layout in, then edit freely
-                </label>
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <input type="radio" name="templateMode" value="linked" checked={templateMode === 'linked'} onChange={() => setTemplateMode('linked')} />
-                  Live link — template blocks update automatically when the template changes
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {canManageMenus && menus.length > 0 && (
         <div className="field">
@@ -133,11 +85,8 @@ export default function NewPagePage() {
                   type="checkbox"
                   checked={menuIds.includes(menu.id)}
                   onChange={(e) => {
-                    if (e.target.checked) {
-                      setMenuIds((prev) => [...prev, menu.id])
-                    } else {
-                      setMenuIds((prev) => prev.filter((id) => id !== menu.id))
-                    }
+                    if (e.target.checked) setMenuIds((prev) => [...prev, menu.id])
+                    else setMenuIds((prev) => prev.filter((id) => id !== menu.id))
                   }}
                 />
                 {menu.name}

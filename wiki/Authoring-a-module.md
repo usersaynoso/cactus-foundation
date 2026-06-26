@@ -1,6 +1,6 @@
 # Authoring a module
 
-This guide covers everything you need to build, migrate, and ship a real Cactus module from scratch. If you follow it end to end you'll have a module that installs, migrates its database tables, and registers its permissions — all without touching the core Cactus codebase.
+This guide covers everything you need to build, migrate, and ship a real Cactus module from scratch. If you follow it end to end you'll have a module that installs, migrates its database tables, and registers its permissions - all without touching the core Cactus codebase.
 
 ## What is a module?
 
@@ -63,7 +63,7 @@ Every module repo must contain `cactus.module.json` at its root:
 
 ### Permission key convention
 
-Use `_own` / `_any` suffixes for operations that can be scoped: `forum.posts.delete_own` (delete your own posts) vs `forum.posts.delete_any` (delete anyone's posts). This is a convention, not enforced by the framework — but it makes role configuration predictable.
+Use `_own` / `_any` suffixes for operations that can be scoped: `forum.posts.delete_own` (delete your own posts) vs `forum.posts.delete_any` (delete anyone's posts). This is a convention, not enforced by the framework - but it makes role configuration predictable.
 
 ## The module database model
 
@@ -77,7 +77,7 @@ This is the most important section. Get it wrong and migrations become painful.
 2. **Migrations are plain SQL files**, not Prisma migrations.
 3. **The module migration runner applies them during Vercel's build step**, in lexicographic filename order. They are never applied at runtime.
 4. **Already-applied migrations are tracked in `ModuleMigration`** (a core table): `(moduleName, migrationName, checksum)`. The runner skips any migration already recorded there.
-5. **Modules query their own tables directly** — raw SQL or a lightweight query layer — not through the core Prisma client.
+5. **Modules query their own tables directly** - raw SQL or a lightweight query layer - not through the core Prisma client.
 
 ### Migration file structure
 
@@ -172,7 +172,7 @@ if (!user || !await hasPermission(user, 'forum.threads.write')) {
 }
 ```
 
-Disabled module permissions remain visible in the Roles matrix but are visually marked "module inactive". This means re-enabling a module doesn't silently wipe existing role assignments — admins who had `forum.threads.write` before the module was disabled still have it when it's re-enabled.
+Disabled module permissions remain visible in the Roles matrix but are visually marked "module inactive". This means re-enabling a module doesn't silently wipe existing role assignments - admins who had `forum.threads.write` before the module was disabled still have it when it's re-enabled.
 
 ## The install/update/disable lifecycle (from author's perspective)
 
@@ -195,7 +195,7 @@ Disabled module permissions remain visible in the Roles matrix but are visually 
 
 ### Disable
 
-Disabling a module is a database flag flip — no redeploy, no data loss. The module's tables remain intact. Nav entries disappear immediately. Permissions remain in the Roles matrix but are marked inactive.
+Disabling a module is a database flag flip - no redeploy, no data loss. The module's tables remain intact. Nav entries disappear immediately. Permissions remain in the Roles matrix but are marked inactive.
 
 Full uninstall (dropping tables) is not supported in v1. Disable covers almost every real use case.
 
@@ -203,7 +203,7 @@ Full uninstall (dropping tables) is not supported in v1. Disable covers almost e
 
 For the update flow to apply only new migrations correctly, follow this convention:
 
-- Each version that changes the schema adds a new `.sql` file. Never modify an existing migration file after it has been deployed — the `ModuleMigration` table records a checksum and the runner will detect tampering.
+- Each version that changes the schema adds a new `.sql` file. Never modify an existing migration file after it has been deployed - the `ModuleMigration` table records a checksum and the runner will detect tampering.
 - Use a naming scheme that sorts in the order migrations should run: `001_`, `002_`, `003_`, etc.
 - A migration file should be idempotent where practical (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE IF NOT EXISTS`, etc.) to survive edge cases.
 
@@ -236,9 +236,9 @@ Same as themes:
 
 - **Public repos only.** The install flow fetches the manifest from GitHub. Private repos aren't supported.
 - **No shelling out to git.** All installs and updates go through the GitHub REST API. There is no filesystem mutation at runtime.
-- **Migrations run during the build step, never at runtime.** An API route that calls the migration runner will throw in production — Vercel's filesystem is read-only.
+- **Migrations run during the build step, never at runtime.** An API route that calls the migration runner will throw in production - Vercel's filesystem is read-only.
 - **Disable preserves data.** Uninstall (dropping tables) is out of scope for v1.
-- **`tablePrefix` is permanent.** Once installed, the prefix cannot be changed. Choose it carefully — it's used in every table name and in `ModuleMigration` records.
+- **`tablePrefix` is permanent.** Once installed, the prefix cannot be changed. Choose it carefully - it's used in every table name and in `ModuleMigration` records.
 
 ## Minimal complete example
 
@@ -290,7 +290,7 @@ export default async function AnnouncementsPage() {
       <h1>Announcements</h1>
       <ul>
         {rows.map((r) => (
-          <li key={r.id}>{r.title} — {r.published ? 'Published' : 'Draft'}</li>
+          <li key={r.id}>{r.title} - {r.published ? 'Published' : 'Draft'}</li>
         ))}
       </ul>
     </div>
@@ -302,4 +302,4 @@ That's a complete, installable module. Tag it, release it, and any Cactus site c
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a theme](Authoring-a-theme) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

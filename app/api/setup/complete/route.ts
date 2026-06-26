@@ -19,18 +19,6 @@ export async function POST() {
     return NextResponse.json({ error: 'Admin path not set' }, { status: 400 })
   }
 
-  // Seed the default theme (Prickly)
-  const existingTheme = await prisma.theme.findFirst()
-  if (!existingTheme) {
-    await prisma.theme.create({
-      data: {
-        name: 'Prickly',
-        version: '1.0.0',
-        isActive: true,
-      },
-    })
-  }
-
   // Seed a default Home page and Main Menu
   const homePage = await prisma.infoPage.upsert({
     where: { slug: 'home' },
@@ -47,7 +35,7 @@ export async function POST() {
     },
   })
 
-  // Seed default Header template — Flex row with SiteLogo left, MenuBlock right
+  // Seed default header builder data — Flex row with SiteLogo left, MenuBlock right
   const headerBuilderData = {
     content: [
       {
@@ -94,57 +82,104 @@ export async function POST() {
         },
       ],
     },
-    root: { props: {} },
+    root: {
+      props: {
+        bgMode: 'color',
+        bgColor: 'var(--color-bg)',
+        height: '64px',
+        sticky: 'yes',
+        borderBottom: 'show',
+        borderColor: 'var(--color-border)',
+        maxWidth: '1200px',
+      },
+    },
   }
 
-  const headerTemplate = await prisma.pageTemplate.upsert({
-    where: { id: 'seed-header' },
-    create: {
-      id: 'seed-header',
-      name: 'Default Header',
-      type: 'HEADER',
-      status: 'published',
-      builderData: headerBuilderData,
+  // Seed default footer builder data — Copyright block
+  const footerBuilderData = {
+    content: [
+      {
+        type: 'Copyright',
+        props: {
+          id: 'copyright-1',
+          prefix: '©',
+          customPrefix: '',
+          yearFormat: 'current',
+          startYear: new Date().getFullYear(),
+          showSiteName: 'true',
+          suffix: '',
+          alignment: 'center',
+          fontSize: 'small',
+          textColor: 'var(--color-muted)',
+          privacyPolicyUrl: '',
+          privacyPolicyLabel: 'Privacy Policy',
+          termsUrl: '',
+          termsLabel: 'Terms of Service',
+          customLink1Url: '',
+          customLink1Label: '',
+          customLink2Url: '',
+          customLink2Label: '',
+        },
+      },
+    ],
+    root: {
+      props: {
+        bgColor: 'var(--color-bg-subtle)',
+        paddingY: 'md',
+        borderTop: 'show',
+        borderColor: 'var(--color-border)',
+        maxWidth: '1200px',
+      },
     },
-    update: { builderData: headerBuilderData },
+    zones: {},
+  }
+
+  // Seed starter layouts
+  const fullWidthLayout = await prisma.layout.upsert({
+    where: { id: 'starter-full-width' },
+    create: {
+      id: 'starter-full-width',
+      name: 'Full Width',
+      description: 'Content fills the full width. No constraints.',
+      isStarter: true,
+      status: 'published',
+      builderData: { content: [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }], root: { props: {} }, zones: {} },
+    },
+    update: {},
   })
 
-  // Seed default Footer template (Copyright with common options pre-filled)
-  const footerTemplate = await prisma.pageTemplate.upsert({
-    where: { id: 'seed-footer' },
+  await prisma.layout.upsert({
+    where: { id: 'starter-boxed' },
     create: {
-      id: 'seed-footer',
-      name: 'Default Footer',
-      type: 'FOOTER',
+      id: 'starter-boxed',
+      name: 'Boxed',
+      description: 'Centred content with standard max-width.',
+      isStarter: true,
       status: 'published',
       builderData: {
-        content: [
-          {
-            type: 'Copyright',
-            props: {
-              id: 'copyright-1',
-              prefix: '©',
-              customPrefix: '',
-              yearFormat: 'current',
-              startYear: new Date().getFullYear(),
-              showSiteName: 'true',
-              suffix: '',
-              alignment: 'center',
-              fontSize: 'small',
-              textColor: '#9ca3af',
-              privacyPolicyUrl: '',
-              privacyPolicyLabel: 'Privacy Policy',
-              termsUrl: '',
-              termsLabel: 'Terms of Service',
-              customLink1Url: '',
-              customLink1Label: '',
-              customLink2Url: '',
-              customLink2Label: '',
-            },
-          },
-        ],
+        content: [{ type: 'Section', props: { id: 'section-1', paddingY: 'md', maxWidth: 'standard', bgType: 'none' } }],
         root: { props: {} },
-        zones: {},
+        zones: { 'section-1:content': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }] },
+      },
+    },
+    update: {},
+  })
+
+  await prisma.layout.upsert({
+    where: { id: 'starter-sidebar-right' },
+    create: {
+      id: 'starter-sidebar-right',
+      name: 'With Right Sidebar',
+      description: 'Main content (70%) with a sidebar on the right (30%).',
+      isStarter: true,
+      status: 'published',
+      builderData: {
+        content: [{ type: 'Columns', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
+        root: { props: {} },
+        zones: {
+          'columns-1:left': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }],
+          'columns-1:right': [],
+        },
       },
     },
     update: {},
@@ -158,8 +193,9 @@ export async function POST() {
       hideFromCrawlers: true,
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
-      headerTemplateId: headerTemplate.id,
-      footerTemplateId: footerTemplate.id,
+      headerBuilderData: headerBuilderData,
+      footerBuilderData: footerBuilderData,
+      defaultLayoutId: fullWidthLayout.id,
     },
   })
 
