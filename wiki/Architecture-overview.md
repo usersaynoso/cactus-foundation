@@ -232,8 +232,9 @@ In the admin editor, the same blocks use client-side fetching via `MenuBlockEdit
 `app/(public)/layout.tsx` checks `SiteConfig.headerTemplateId` and `footerTemplateId`. When a template is assigned and its status is `published`:
 
 - The template's Puck data is fetched, resolved via `resolveTemplateData`, and rendered with **RSC-safe** type-specific configs (`puckHeaderTemplateRscConfig` / `puckFooterTemplateRscConfig` from `lib/puck/config.tsx`).
-  - These configs wrap the root render in the correct Prickly HTML shell (`<header class="prickly-header"><nav class="prickly-nav">` for HEADER; `<footer class="prickly-footer">` for FOOTER), so the blocks render identically to the default theme components.
+  - These configs wrap the root render in the correct Prickly HTML shell (`<header class="prickly-header"><nav class="prickly-nav">` for HEADER; `<footer class="prickly-footer">` for FOOTER).
   - They replace the `richtext` field type with `textarea` to prevent `React.lazy` from being called during server rendering (Puck v0.21.3's RSC module calls `React.lazy` for any component with a `richtext` field, which throws in React 19 RSC).
+  - The `MenuBlock` component (when used in horizontal/header mode) delegates to `MenuBlockClient` — a `'use client'` component that mirrors the Prickly `Nav.tsx` behaviour exactly: interactive hover dropdowns, a hamburger button on mobile, and an absolutely-positioned mobile menu drawer. The mobile menu uses `position: absolute; top: var(--prickly-header-height)` so it appears directly below the sticky header bar.
 - The theme's `Nav.tsx` / `Footer.tsx` components are skipped entirely.
 - The `TemplateEditor` also uses type-specific configs for the Puck canvas: `puckHeaderTemplateConfig` for HEADER, `puckFooterTemplateConfig` for FOOTER, `puckTemplateConfig` for PAGE — so the editor preview matches the live frontend render.
 
