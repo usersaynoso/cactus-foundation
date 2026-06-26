@@ -47,7 +47,56 @@ export async function POST() {
     },
   })
 
-  // Seed default Header template (SiteLogo + MenuBlock styled for Prickly theme)
+  // Seed default Header template — Flex row with SiteLogo left, MenuBlock right
+  const headerBuilderData = {
+    content: [
+      {
+        type: 'Flex',
+        props: {
+          id: 'Flex-header-row',
+          direction: 'row',
+          justify: 'between',
+          align: 'center',
+          gap: 'none',
+          padding: 'none',
+          wrap: 'nowrap',
+        },
+      },
+    ],
+    zones: {
+      'Flex-header-row:items': [
+        {
+          type: 'SiteLogo',
+          props: {
+            id: 'site-logo-1',
+            homeUrl: '/',
+            logoHeight: 40,
+            showTextWithLogo: 'false',
+            showIcon: 'true',
+            textColor: '',
+          },
+        },
+        {
+          type: 'MenuBlock',
+          props: {
+            id: 'main-menu-1',
+            menuId: mainMenu.id,
+            menuName: 'Main Menu',
+            orientation: 'horizontal',
+            spacing: 'normal',
+            itemFontSize: 'medium',
+            itemFontWeight: 'medium',
+            textTransform: 'none',
+            itemColor: '',
+            showDropdowns: 'hover',
+            showMobileToggle: 'collapse',
+          },
+        },
+      ],
+    },
+    root: { props: {} },
+  }
+
   const headerTemplate = await prisma.pageTemplate.upsert({
     where: { id: 'seed-header' },
     create: {
@@ -55,41 +104,9 @@ export async function POST() {
       name: 'Default Header',
       type: 'HEADER',
       status: 'published',
-      builderData: {
-        content: [
-          {
-            type: 'SiteLogo',
-            props: {
-              id: 'site-logo-1',
-              homeUrl: '/',
-              logoHeight: 40,
-              showTextWithLogo: 'false',
-              showIcon: 'true',
-              textColor: '',
-            },
-          },
-          {
-            type: 'MenuBlock',
-            props: {
-              id: 'main-menu-1',
-              menuId: mainMenu.id,
-              menuName: 'Main Menu',
-              orientation: 'horizontal',
-              spacing: 'normal',
-              itemFontSize: 'medium',
-              itemFontWeight: 'medium',
-              textTransform: 'none',
-              itemColor: '',
-              showDropdowns: 'hover',
-              showMobileToggle: 'collapse',
-            },
-          },
-        ],
-        root: { props: {} },
-        zones: {},
-      },
+      builderData: headerBuilderData,
     },
-    update: {},
+    update: { builderData: headerBuilderData },
   })
 
   // Seed default Footer template (Copyright with common options pre-filled)

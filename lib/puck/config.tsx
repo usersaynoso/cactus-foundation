@@ -1815,10 +1815,71 @@ export const puckTemplateConfig = {
   },
 }
 
+// Server-safe (no hooks) SiteLogo render for RSC context
+function SiteLogoRsc(props: any) {
+  const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  const href = homeUrl || '/'
+  const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
+  const showIconBool = showIcon !== false && showIcon !== 'false'
+  const style: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '0.5rem',
+    fontWeight: 700, fontSize: '1.125rem', color: textColor || '#111827', textDecoration: 'none',
+  }
+  if (logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <a href={href} style={style}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
+        {showTextBool && siteName && <span>{siteName}</span>}
+      </a>
+    )
+  }
+  return (
+    <a href={href} style={style}>
+      {showIconBool && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
+      )}
+      {siteName ?? 'Site Name'}
+    </a>
+  )
+}
+
+// Flex variant without marginBottom — used inside fixed-height header shell
+function FlexBlockHeader(props: any) {
+  const { direction, justify, align, wrap, gap, padding, items } = props
+  const justifyMap: Record<string, string> = {
+    start: 'flex-start', center: 'center', end: 'flex-end',
+    between: 'space-between', around: 'space-around', evenly: 'space-evenly',
+  }
+  const alignMap: Record<string, string> = {
+    start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch',
+  }
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: direction === 'column' ? 'column' : 'row',
+      justifyContent: justifyMap[justify] ?? 'flex-start',
+      alignItems: alignMap[align] ?? 'stretch',
+      flexWrap: wrap === 'wrap' ? 'wrap' : 'nowrap',
+      gap: GAP_MAP[gap] ?? '1rem',
+      padding: getPadding(padding),
+      width: '100%',
+    }}>
+      {typeof items === 'function' ? items() : null}
+    </div>
+  )
+}
+
 // Header template config — wraps blocks in a self-contained header shell.
 // Uses inline styles so the header looks correct regardless of which theme is active.
 export const puckHeaderTemplateConfig = {
   ...puckConfig,
+  components: {
+    ...puckConfig.components,
+    Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
+  },
   root: {
     render: ({ children }: { children: React.ReactNode }) => (
       <header style={{
@@ -1877,6 +1938,7 @@ const rscSafeComponents = {
       content: { type: 'textarea' as const, label: 'Content (HTML)' },
     },
   },
+  SiteLogo: { ...puckConfig.components.SiteLogo, render: SiteLogoRsc },
 }
 
 export const puckRscConfig = {
@@ -1884,9 +1946,14 @@ export const puckRscConfig = {
   components: rscSafeComponents,
 }
 
+const rscSafeHeaderComponents = {
+  ...rscSafeComponents,
+  Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
+}
+
 export const puckHeaderTemplateRscConfig = {
   ...puckHeaderTemplateConfig,
-  components: rscSafeComponents,
+  components: rscSafeHeaderComponents,
 }
 
 export const puckFooterTemplateRscConfig = {
