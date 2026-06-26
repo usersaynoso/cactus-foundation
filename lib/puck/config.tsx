@@ -39,29 +39,75 @@ const paddingField = {
 
 const GAP_MAP: Record<string, string> = { none: '0', sm: '0.5rem', md: '1rem', lg: '2rem' }
 
+const SPACE_BELOW_MAP: Record<string, string> = {
+  none: '0', sm: '0.75rem', md: '1.5rem', lg: '3rem',
+}
+
+function getGridTemplateColumns(columnSizes: string | undefined, colCount: number): string {
+  if (colCount === 2) {
+    const sizeMap: Record<string, string> = {
+      'auto-fill': 'auto 1fr',
+      'fill-auto': '1fr auto',
+      '30-70': '3fr 7fr',
+      '40-60': '4fr 6fr',
+      '60-40': '6fr 4fr',
+      '70-30': '7fr 3fr',
+    }
+    if (columnSizes && sizeMap[columnSizes]) return sizeMap[columnSizes]
+  }
+  return `repeat(${colCount}, 1fr)`
+}
+
 // ---------------------------------------------------------------------------
 // Layout blocks
 // ---------------------------------------------------------------------------
 
 function GridBlock(props: any) {
-  const { columns, gap, padding, col1, col2, col3, col4 } = props
+  const {
+    columns, gap, padding,
+    col1, col2, col3, col4,
+    verticalAlign, columnSizes,
+    col1Align, col2Align, col3Align, col4Align,
+    spaceBelow,
+  } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
+  const colAligns = [col1Align, col2Align, col3Align, col4Align]
+
+  const alignItemsMap: Record<string, string> = {
+    stretch: 'stretch', start: 'start', center: 'center', end: 'end',
+  }
+  const justifyMap: Record<string, string> = {
+    center: 'center', end: 'flex-end',
+  }
+
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+      gridTemplateColumns: getGridTemplateColumns(columnSizes, colCount),
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
-      marginBottom: '1.5rem',
+      marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
+      alignItems: alignItemsMap[verticalAlign] ?? 'stretch',
     }}>
-      {slots.map((slot, i) => (
-        <div key={i} style={{ minWidth: 0 }}>
-          {typeof slot === 'function' ? slot() : null}
-        </div>
-      ))}
+      {slots.map((slot, i) => {
+        const align = colAligns[i]
+        const justifyContent = align && justifyMap[align]
+        return (
+          <div key={i} style={{
+            minWidth: 0,
+            ...(justifyContent ? { display: 'flex', justifyContent } : {}),
+          }}>
+            {typeof slot === 'function' ? slot() : null}
+          </div>
+        )
+      })}
     </div>
   )
+}
+
+function GridBlockHeader(props: any) {
+  return GridBlock({ ...props, spaceBelow: 'none' })
 }
 
 function FlexBlock(props: any) {
@@ -990,6 +1036,29 @@ const puckConfig = {
             { value: '4', label: '4 columns' },
           ],
         },
+        columnSizes: {
+          type: 'select' as const,
+          label: 'Column widths (2-col)',
+          options: [
+            { value: 'equal',     label: 'Equal (1fr each)' },
+            { value: 'auto-fill', label: 'Auto + fill (logo / nav)' },
+            { value: 'fill-auto', label: 'Fill + auto (content / sidebar)' },
+            { value: '30-70',     label: '30 / 70' },
+            { value: '40-60',     label: '40 / 60' },
+            { value: '60-40',     label: '60 / 40' },
+            { value: '70-30',     label: '70 / 30' },
+          ],
+        },
+        verticalAlign: {
+          type: 'select' as const,
+          label: 'Vertical align',
+          options: [
+            { value: 'stretch', label: 'Stretch (fill row height)' },
+            { value: 'start',   label: 'Top' },
+            { value: 'center',  label: 'Middle' },
+            { value: 'end',     label: 'Bottom' },
+          ],
+        },
         gap: {
           type: 'select' as const,
           label: 'Gap',
@@ -1001,6 +1070,52 @@ const puckConfig = {
           ],
         },
         padding: paddingField,
+        spaceBelow: {
+          type: 'select' as const,
+          label: 'Space below',
+          options: [
+            { value: 'none', label: 'None' },
+            { value: 'sm',   label: 'Small (0.75rem)' },
+            { value: 'md',   label: 'Medium (1.5rem)' },
+            { value: 'lg',   label: 'Large (3rem)' },
+          ],
+        },
+        col1Align: {
+          type: 'select' as const,
+          label: 'Col 1: horizontal align',
+          options: [
+            { value: 'start',  label: 'Left' },
+            { value: 'center', label: 'Centre' },
+            { value: 'end',    label: 'Right' },
+          ],
+        },
+        col2Align: {
+          type: 'select' as const,
+          label: 'Col 2: horizontal align',
+          options: [
+            { value: 'start',  label: 'Left' },
+            { value: 'center', label: 'Centre' },
+            { value: 'end',    label: 'Right' },
+          ],
+        },
+        col3Align: {
+          type: 'select' as const,
+          label: 'Col 3: horizontal align',
+          options: [
+            { value: 'start',  label: 'Left' },
+            { value: 'center', label: 'Centre' },
+            { value: 'end',    label: 'Right' },
+          ],
+        },
+        col4Align: {
+          type: 'select' as const,
+          label: 'Col 4: horizontal align',
+          options: [
+            { value: 'start',  label: 'Left' },
+            { value: 'center', label: 'Centre' },
+            { value: 'end',    label: 'Right' },
+          ],
+        },
         col1: { type: 'slot' as const },
         col2: { type: 'slot' as const },
         col3: { type: 'slot' as const },
@@ -1010,6 +1125,13 @@ const puckConfig = {
         columns: '2',
         gap: 'md',
         padding: 'none',
+        columnSizes: 'equal',
+        verticalAlign: 'stretch',
+        spaceBelow: 'md',
+        col1Align: 'start',
+        col2Align: 'start',
+        col3Align: 'start',
+        col4Align: 'start',
       },
       render: GridBlock,
     },
@@ -1879,6 +2001,7 @@ export const puckHeaderTemplateConfig = {
   components: {
     ...puckConfig.components,
     Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
+    Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
   },
   root: {
     render: ({ children }: { children: React.ReactNode }) => (
@@ -1949,6 +2072,7 @@ export const puckRscConfig = {
 const rscSafeHeaderComponents = {
   ...rscSafeComponents,
   Flex: { ...puckConfig.components.Flex, render: FlexBlockHeader },
+  Grid: { ...puckConfig.components.Grid, render: GridBlockHeader },
 }
 
 export const puckHeaderTemplateRscConfig = {
