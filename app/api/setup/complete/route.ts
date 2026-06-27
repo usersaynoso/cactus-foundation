@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { syncToEdgeConfig } from '@/lib/config/edge-config'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, createSession, setSessionCookie } from '@/lib/auth/session'
 
 const ENTIRE_SITE_CONDITIONS = {
   include: [{ type: 'entire_site' }],
@@ -37,14 +37,9 @@ const themeToggle = (id: string) => ({
   props: { id },
 })
 
-const headerRow = (id: string, gap = 'md') => ({
-  type: 'HeaderRow',
-  props: { id, gap },
-})
-
-const columns = (id: string, ratio = '50/50') => ({
+const columns = (id: string, overrides?: Record<string, unknown>) => ({
   type: 'Columns',
-  props: { id, ratio, padding: 'none' },
+  props: { id, columns: '2', ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none', ...overrides },
 })
 
 const copyright = (id: string, alignment = 'center') => ({
@@ -144,7 +139,7 @@ const footerRoot = (overrides?: Record<string, unknown>) => ({
 // 1. Default: logo left, nav right
 const starterHeaderData = {
   root: headerRoot(),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [logo('logo-1')],
     'hr1:center': [],
@@ -155,7 +150,7 @@ const starterHeaderData = {
 // 2. Centred navigation: logo left, nav centre, login right
 const starterHeaderNavCentreData = {
   root: headerRoot(),
-  content: [headerRow('hr1', 'lg')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
   zones: {
     'hr1:left':   [logo('logo-1')],
     'hr1:center': [menu('menu-1')],
@@ -166,7 +161,7 @@ const starterHeaderNavCentreData = {
 // 3. Centred logo: logo in centre, nav right
 const starterHeaderLogoCentreData = {
   root: headerRoot(),
-  content: [headerRow('hr1', 'lg')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
   zones: {
     'hr1:left':   [],
     'hr1:center': [logo('logo-1')],
@@ -177,7 +172,7 @@ const starterHeaderLogoCentreData = {
 // 4. Full width: 1400px max, no border
 const starterHeaderFullWidthData = {
   root: headerRoot({ maxWidth: '1400px', borderBottom: 'hide' }),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [logo('logo-1')],
     'hr1:center': [],
@@ -188,7 +183,7 @@ const starterHeaderFullWidthData = {
 // 5. Logo + site name visible
 const starterHeaderLogoNameData = {
   root: headerRoot(),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [logo('logo-1', { showTextWithLogo: 'true' })],
     'hr1:center': [],
@@ -199,11 +194,11 @@ const starterHeaderLogoNameData = {
 // 6. Tall (80px): logo left, nav centre, login + toggle right
 const starterHeaderTallData = {
   root: headerRoot({ height: '80px' }),
-  content: [headerRow('hr1', 'lg')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
   zones: {
     'hr1:left':   [logo('logo-1', { logoHeight: 48 })],
     'hr1:center': [menu('menu-1', { spacing: 'wide' })],
-    'hr1:right':  [columns('actions-cols', '50/50')],
+    'hr1:right':  [columns('actions-cols', { ratio: '50/50' })],
     'actions-cols:left':  [loginBtn('login-1')],
     'actions-cols:right': [themeToggle('toggle-1')],
   },
@@ -212,7 +207,7 @@ const starterHeaderTallData = {
 // 7. Logo only (minimal, no nav)
 const starterHeaderMinimalData = {
   root: headerRoot({ borderBottom: 'hide' }),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [],
     'hr1:center': [logo('logo-1')],
@@ -223,7 +218,7 @@ const starterHeaderMinimalData = {
 // 8. Transparent (fades to solid on scroll)
 const starterHeaderTransparentData = {
   root: headerRoot({ bgMode: 'transparent-scroll', borderBottom: 'hide' }),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [logo('logo-1')],
     'hr1:center': [],
@@ -234,7 +229,7 @@ const starterHeaderTransparentData = {
 // 9. Compact (48px, small nav text)
 const starterHeaderCompactData = {
   root: headerRoot({ height: '48px' }),
-  content: [headerRow('hr1', 'md')],
+  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
   zones: {
     'hr1:left':   [logo('logo-1', { logoHeight: 28 })],
     'hr1:center': [],
@@ -256,7 +251,7 @@ const starterFooterData = {
 // 2. Logo left, menu + copyright right
 const starterFooterLogoLinksData = {
   root: footerRoot({ paddingY: 'lg' }),
-  content: [columns('footer-cols', '30/70')],
+  content: [columns('footer-cols', { ratio: '30/70' })],
   zones: {
     'footer-cols:left': [
       logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
@@ -294,7 +289,7 @@ const starterFooterThreeColData = {
 // 4. Logo left, social + copyright right
 const starterFooterSocialData = {
   root: footerRoot(),
-  content: [columns('footer-cols', '30/70')],
+  content: [columns('footer-cols', { ratio: '30/70' })],
   zones: {
     'footer-cols:left': [
       logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
@@ -640,6 +635,13 @@ export async function POST() {
     adminPath: cfg.adminPath,
     siteStatus: 'comingSoon',
   }).catch(() => {})
+
+  // Auto-login the admin so the post-setup redirect lands them authenticated
+  const admin = await prisma.user.findFirst({ where: { role: { name: 'admin' } } })
+  if (admin) {
+    const token = await createSession(admin.id)
+    await setSessionCookie(token)
+  }
 
   return NextResponse.json({ adminPath: cfg.adminPath })
 }

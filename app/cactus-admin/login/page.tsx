@@ -252,7 +252,7 @@ export default function LoginPage() {
               </li>
               <li>Select the <strong>Passkey</strong> table.</li>
               <li>Click the checkbox next to your passkey entry to select it, then click <strong>Delete 1 record</strong> and confirm.</li>
-              <li>Return here and sign in — you&apos;ll be prompted to register a new passkey.</li>
+              <li>Return here and sign in with your email address and you&apos;ll be prompted to register a new passkey.</li>
             </ol>
             {emailAvailable && !lostAccessSent && (
               <>
