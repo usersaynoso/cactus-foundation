@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef } from 'react'
+import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
@@ -13,6 +14,7 @@ type Props = {
   onPublish: (data: Data) => void
   isPublishing: boolean
   layoutType?: string
+  conditionsPanel?: React.ReactNode
 }
 
 function getConfig(type: string | undefined) {
@@ -25,7 +27,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, conditionsPanel }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
 
@@ -62,18 +64,18 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         config={editorConfig as any}
         data={initialData}
         onChange={handleChange}
+        onPublish={() => onPublish(latestDataRef.current)}
         overrides={{
-          actionBar: ({ label, children }) => (
+          actionBar: ({ children }) => (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               {children}
-              <button
-                onClick={() => onPublish(latestDataRef.current)}
-                disabled={isPublishing}
-                style={{ padding: '0.375rem 0.875rem', background: '#16a34a', color: '#ffffff', border: 'none', borderRadius: 4, fontWeight: 600, fontSize: '0.8125rem', cursor: isPublishing ? 'default' : 'pointer', fontFamily: 'inherit', opacity: isPublishing ? 0.7 : 1 }}
-              >
-                {isPublishing ? 'Publishing…' : 'Publish'}
-              </button>
             </div>
+          ),
+          fields: ({ children }) => (
+            <>
+              {children}
+              {conditionsPanel}
+            </>
           ),
         }}
       />

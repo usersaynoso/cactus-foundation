@@ -6,12 +6,14 @@ import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import Link from 'next/link'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
-import DisplayConditionsModal from './DisplayConditionsModal'
+import DisplayConditionsPanel from './DisplayConditionsPanel'
 
 const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
   ssr: false,
   loading: () => <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#6b7280' }}>Loading layout editor…</div>,
 })
+
+type DisplayConditions = { include: unknown[]; exclude: unknown[] }
 
 type Layout = {
   id: string
@@ -30,8 +32,6 @@ export default function LayoutEditorPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
-  const [showConditions, setShowConditions] = useState(false)
-  const [conditionsMode, setConditionsMode] = useState<'publish' | 'edit'>('publish')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestDataRef = useRef<Data | null>(null)
 
@@ -59,42 +59,51 @@ export default function LayoutEditorPage() {
     }, 1200)
   }, [id])
 
-  const handlePublishClick = useCallback((data: Data) => {
-    latestDataRef.current = data
+  const handlePublish = useCallback(async (data: Data) => {
+    const conditions = layout?.displayConditions as DisplayConditions | null
+    if (!conditions?.include?.length) {
+      setError('Set at least one include rule in Display Conditions before publishing.')
+      return
+    }
     if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
-    setConditionsMode('publish')
-    setShowConditions(true)
-  }, [])
-
-  const handleConditionsButtonClick = useCallback(() => {
-    setConditionsMode('edit')
-    setShowConditions(true)
-  }, [])
-
-  const handleConditionsSave = useCallback(async (conditions: unknown) => {
-    setShowConditions(false)
-    setSaving(true)
+    setSaving(true); setSaved(false); setError('')
     try {
-      const data = latestDataRef.current
-      const body: Record<string, unknown> = { displayConditions: conditions }
-      if (conditionsMode === 'publish') {
-        body.builderData = data
-        body.status = 'published'
-      }
-      await fetch(`/api/admin/layouts/${id}`, {
+      const res = await fetch(`/api/admin/layouts/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ builderData: data, status: 'published' }),
       })
-      setLayout((l) => l ? { ...l, displayConditions: conditions, ...(conditionsMode === 'publish' ? { status: 'published' } : {}) } : l)
-      setSaved(true)
-    } catch { setError(conditionsMode === 'publish' ? 'Publish failed' : 'Failed to save conditions') }
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Publish failed') }
+      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true) }
+    } catch { setError('Publish failed') }
     finally { setSaving(false) }
-  }, [id, conditionsMode])
+  }, [id, layout?.displayConditions])
+
+  const handleConditionsSave = useCallback(async (conditions: DisplayConditions) => {
+    setSaving(true); setSaved(false); setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayConditions: conditions }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to save conditions') }
+      else { setLayout((l) => l ? { ...l, displayConditions: conditions } : l); setSaved(true) }
+    } catch { setError('Failed to save conditions') }
+    finally { setSaving(false) }
+  }, [id])
 
   if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>
   if (!layout) return <div style={{ padding: '2rem', color: '#dc2626' }}>{error || 'Layout not found'}</div>
 
   const initialData: Data = (layout.builderData as Data | null) ?? { content: [], root: { props: {} }, zones: {} }
+
+  const conditionsPanel = (
+    <DisplayConditionsPanel
+      key={JSON.stringify(layout.displayConditions)}
+      layoutType={layout.type}
+      existing={layout.displayConditions}
+      onSave={handleConditionsSave}
+    />
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -109,30 +118,16 @@ export default function LayoutEditorPage() {
           {saving && <span>Saving…</span>}
           {!saving && saved && <span style={{ color: '#15803d' }}>Saved ✓</span>}
           {error && <span style={{ color: '#dc2626' }}>{error}</span>}
-          <button
-            onClick={handleConditionsButtonClick}
-            style={{ padding: '0.25rem 0.625rem', background: 'none', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: '0.75rem', color: 'var(--color-muted)', cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            Conditions
-          </button>
         </span>
       </div>
       <LayoutPuckEditor
         initialData={initialData}
         onChange={handleChange}
-        onPublish={handlePublishClick}
+        onPublish={handlePublish}
         isPublishing={saving}
         layoutType={layout.type}
+        conditionsPanel={conditionsPanel}
       />
-      {showConditions && (
-        <DisplayConditionsModal
-          layoutType={layout.type}
-          existing={layout.displayConditions}
-          mode={conditionsMode}
-          onSave={handleConditionsSave}
-          onCancel={() => setShowConditions(false)}
-        />
-      )}
     </div>
   )
 }
