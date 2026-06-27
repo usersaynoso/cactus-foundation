@@ -114,41 +114,42 @@ export async function POST() {
           id: 'columns-header-1',
           ratio: '30/70',
           padding: 'none',
-          left: [
-            {
-              type: 'SiteLogo',
-              props: {
-                id: 'site-logo-1',
-                homeUrl: '/',
-                logoHeight: 40,
-                showTextWithLogo: 'false',
-                showIcon: 'true',
-                textColor: '',
-              },
-            },
-          ],
-          right: [
-            {
-              type: 'MenuBlock',
-              props: {
-                id: 'menu-block-1',
-                menuId: '',
-                menuName: '',
-                orientation: 'horizontal',
-                spacing: 'normal',
-                itemFontSize: 'medium',
-                itemFontWeight: 'medium',
-                textTransform: 'none',
-                itemColor: '',
-                showDropdowns: 'hover',
-                showMobileToggle: 'collapse',
-              },
-            },
-          ],
         },
       },
     ],
-    zones: {},
+    zones: {
+      'columns-header-1:left': [
+        {
+          type: 'SiteLogo',
+          props: {
+            id: 'site-logo-1',
+            homeUrl: '/',
+            logoHeight: 40,
+            showTextWithLogo: 'false',
+            showIcon: 'true',
+            textColor: '',
+          },
+        },
+      ],
+      'columns-header-1:right': [
+        {
+          type: 'MenuBlock',
+          props: {
+            id: 'menu-block-1',
+            menuId: '',
+            menuName: '',
+            orientation: 'horizontal',
+            spacing: 'normal',
+            itemFontSize: 'medium',
+            itemFontWeight: 'medium',
+            textTransform: 'none',
+            itemColor: '',
+            showDropdowns: 'hover',
+            showMobileToggle: 'collapse',
+          },
+        },
+      ],
+    },
   }
 
   // Seed header starter layout

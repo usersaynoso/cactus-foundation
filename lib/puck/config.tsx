@@ -184,7 +184,7 @@ function SiteHeaderBlock(props: any) {
 }
 
 function Columns(props: any) {
-  const { left, right, ratio, padding } = props
+  const { puck, ratio, padding } = props
   const ratios: Record<string, [string, string]> = {
     '50/50': ['1 1 50%', '1 1 50%'],
     '60/40': ['1 1 60%', '1 1 40%'],
@@ -195,8 +195,8 @@ function Columns(props: any) {
   const pair = ratios[ratio] ?? ratios['50/50']!
   return (
     <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
-      <div style={{ flex: pair[0], minWidth: 200 }}>{typeof left === 'function' ? left() : null}</div>
-      <div style={{ flex: pair[1], minWidth: 200 }}>{typeof right === 'function' ? right() : null}</div>
+      <div style={{ flex: pair[0], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'left' })}</div>
+      <div style={{ flex: pair[1], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'right' })}</div>
     </div>
   )
 }
@@ -866,7 +866,6 @@ const puckConfig = {
     Columns: {
       label: 'Columns',
       fields: {
-        left: { type: 'slot' as const }, right: { type: 'slot' as const },
         ratio: { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }] },
         padding: paddingField,
       },
