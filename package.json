@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.43",
+  "version": "0.5.45",
   "private": true,
   "scripts": {
     "dev": "next dev",
