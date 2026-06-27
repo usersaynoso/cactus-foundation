@@ -194,7 +194,7 @@ function Columns(props: any) {
   }
   const pair = ratios[ratio] ?? ratios['50/50']!
   return (
-    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
+    <div style={{ width: '100%', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
       <div style={{ flex: pair[0], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'left' })}</div>
       <div style={{ flex: pair[1], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'right' })}</div>
     </div>
@@ -1247,7 +1247,6 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
       top: sticky === 'yes' ? 0 : undefined,
       zIndex: sticky === 'yes' ? 100 : undefined,
       width: '100%',
-      overflow: 'hidden',
     }}
   >
     <div style={{
@@ -1256,8 +1255,9 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
       padding: '0 1.5rem',
       height: '100%',
       display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '2rem',
     }}>
       {children}
     </div>
