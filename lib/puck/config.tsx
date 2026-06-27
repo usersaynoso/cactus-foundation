@@ -201,6 +201,24 @@ function Columns(props: any) {
   )
 }
 
+function HeaderRow(props: any) {
+  const { puck, gap = 'lg' } = props
+  const gapValue = GAP_MAP[gap] ?? '2rem'
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: gapValue }}>
+      <div style={{ flexShrink: 0 }}>
+        {puck?.renderDropZone?.({ zone: 'left' })}
+      </div>
+      <div style={{ flex: '1 1 0%', display: 'flex', justifyContent: 'center' }}>
+        {puck?.renderDropZone?.({ zone: 'center' })}
+      </div>
+      <div style={{ flexShrink: 0 }}>
+        {puck?.renderDropZone?.({ zone: 'right' })}
+      </div>
+    </div>
+  )
+}
+
 function Spacer(props: any) {
   const heights: Record<string, number> = { xs: 8, sm: 16, md: 32, lg: 64, xl: 96 }
   return <div style={{ height: heights[props.height] ?? 32 }} />
@@ -1235,18 +1253,7 @@ export const layoutPuckRscConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
-const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => {
-  // In the editor, {children} is Puck's root DropZone element. DropZoneEdit merges
-  // any style prop onto its container div, so cloning with flex-row makes the DropZone
-  // itself a flex row — blocks inside appear side by side in the canvas.
-  // In RSC, {children} is a Fragment (transparent), so items are direct flex children
-  // of the inner div and the space-between layout already handles them correctly.
-  const content = puck?.isEditing && React.isValidElement(children)
-    ? React.cloneElement(children as React.ReactElement<any>, {
-        style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '2rem', width: '100%', height: '100%' },
-      })
-    : children
-
+const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => {
   return (
     <header
       data-bg-mode={bgMode}
@@ -1266,12 +1273,8 @@ const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', heig
         margin: '0 auto',
         padding: '0 1.5rem',
         height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '2rem',
       }}>
-        {content}
+        {children}
       </div>
     </header>
   )
@@ -1280,7 +1283,7 @@ const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', heig
 export const headerPuckConfig = {
   categories: {
     site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: true },
-    layout: { title: 'Structure', components: ['Flex', 'Columns', 'Spacer'], defaultExpanded: false },
+    layout: { title: 'Structure', components: ['HeaderRow', 'Flex', 'Columns', 'Spacer'], defaultExpanded: true },
   },
   root: {
     fields: {
@@ -1303,6 +1306,23 @@ export const headerPuckConfig = {
     Flex:         puckConfig.components.Flex,
     Columns:      puckConfig.components.Columns,
     Spacer:       puckConfig.components.Spacer,
+    HeaderRow: {
+      label: 'Header Row',
+      fields: {
+        gap: {
+          type: 'select' as const,
+          label: 'Gap',
+          options: [
+            { value: 'none', label: 'None' },
+            { value: 'sm',   label: 'Small (0.5rem)' },
+            { value: 'md',   label: 'Medium (1rem)' },
+            { value: 'lg',   label: 'Large (2rem)' },
+          ],
+        },
+      },
+      defaultProps: { gap: 'lg' },
+      render: HeaderRow,
+    },
   },
 }
 

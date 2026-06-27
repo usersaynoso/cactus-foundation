@@ -128,7 +128,8 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **Grid** | CSS grid container (2–4 columns) with configurable gap, padding, and space below. New fields: **Column widths** (preset ratios for 2-col - equal, auto+fill, 30/70 … 70/30), **Vertical align** (stretch / top / middle / bottom across all cells), **Col N: horizontal align** (left / centre / right per column), **Space below** (replaces the hardcoded 1.5rem bottom margin). In header templates the Grid render is overridden (`GridBlockHeader`) to force `spaceBelow: none`. |
+| **HeaderRow** | Three-zone horizontal row for the header editor (left / centre / right). Left and right zones shrink-wrap their content; centre zone flexes to fill remaining space, centering its children. Available only in `headerPuckConfig`. Configurable gap (none / small / medium / large). |
+| **Grid** | CSS grid container (2–4 columns) with configurable gap, padding, and space below. New fields: **Column widths** (preset ratios for 2-col - equal, auto+fill, 30/70 … 70/30), **Vertical align** (stretch / top / middle / bottom across all cells), **Col N: horizontal align** (left / centre / right per column), **Space below** (replaces the hardcoded 1.5rem bottom margin). |
 | **Flex** | Flexbox container with direction, justify, align, wrap, and gap controls; single droppable slot |
 | **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
 | **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px → 96 px) |
@@ -257,10 +258,25 @@ type DisplayConditions = { include: ConditionRule[]; exclude: ConditionRule[] }
 |---|---|
 | `puckConfig` / `puckRscConfig` | Page builder (editor / RSC render) |
 | `headerPuckConfig` / `headerPuckRscConfig` | Header layout editor / public header render |
+| `footerPuckConfig` / `footerPuckRscConfig` | Footer layout editor / public footer render |
 | `fullPagePuckConfig` / `fullPagePuckRscConfig` | 404 and status page layout editors |
 | `layoutPuckConfig` / `layoutPuckRscConfig` | infoPage layout editor / public layout render |
 
 RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in RSC) and replace `SiteLogoClient` with `SiteLogoRsc`. The layout editor selects which config to use via a `getConfig(type)` switch in `LayoutPuckEditor.tsx`.
+
+### Starter templates
+
+`app/api/setup/complete/route.ts` seeds a library of starter layouts on first setup. The same function (`refreshStarterLayouts`) is called when an admin clicks **Settings → General → Refresh Starter Templates**, so templates are always resettable to their canonical state.
+
+| Type | Count | IDs |
+|---|---|---|
+| `header` | 9 | `starter-header`, `-nav-centre`, `-logo-centre`, `-full-width`, `-logo-name`, `-tall`, `-minimal`, `-transparent`, `-compact` |
+| `footer` | 4 | `starter-footer`, `-logo-links`, `-three-col`, `-social` |
+| `infoPage` | 4 | `starter-full-width`, `starter-boxed`, `starter-sidebar-right`, `starter-sidebar-left` |
+| `notFound` | 3 | `starter-404-hero`, `starter-404-minimal`, `starter-404-branded` |
+| `statusPage` | 3 | `starter-status-coming-soon`, `starter-status-maintenance`, `starter-status-minimal` |
+
+All starter layouts have `isStarter: true`, `status: published`, and `displayConditions: entire_site`. They are upserted (never duplicate-inserted), so re-running setup or the refresh button is idempotent.
 
 ### `resolveLayout` vs `resolveThemeLayout`
 
