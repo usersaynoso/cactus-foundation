@@ -374,8 +374,8 @@ export async function POST(req: NextRequest) {
       await upsertVercelEnvVars(vercelToken, vercelProjectId, [
         { key: 'DATABASE_URL', value: databaseUrl, type: 'encrypted' },
       ])
-      await triggerVercelRedeploy(vercelToken, vercelProjectId)
-      return NextResponse.json({ status: 'provisioned' })
+      const deployResult0 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      return NextResponse.json({ status: 'provisioned', deploymentId: deployResult0.deploymentId })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ status: 'error', error: message }, { status: 500 })
@@ -410,8 +410,8 @@ export async function POST(req: NextRequest) {
         await dropAllSchemas(pooledUri)
       }
       await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
-      await triggerVercelRedeploy(vercelToken, vercelProjectId)
-      return NextResponse.json({ status: 'provisioned', neonProjectId: project.id })
+      const deployResult1 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      return NextResponse.json({ status: 'provisioned', neonProjectId: project.id, deploymentId: deployResult1.deploymentId })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ status: 'error', error: message }, { status: 500 })
@@ -439,11 +439,12 @@ export async function POST(req: NextRequest) {
       // Reuse the existing project — fetch pooled URI via pooled=true endpoint.
       const { pooledUri, project } = await getPooledUriForProject(neonApiKey, existingId)
       await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
-      await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      const deployResult2 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
       return NextResponse.json({
         status: 'provisioned',
         neonProjectId: project.id,
         region: project.region_id,
+        deploymentId: deployResult2.deploymentId,
       })
     }
 
@@ -451,11 +452,12 @@ export async function POST(req: NextRequest) {
     const neonData = await createNeonProject(neonApiKey, neonProjectName, regionId, orgId)
     const pooledUrl = buildPooledUri(neonData)
     await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUrl, neonData.project.id)
-    await triggerVercelRedeploy(vercelToken, vercelProjectId)
+    const deployResult3 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
     return NextResponse.json({
       status: 'provisioned',
       neonProjectId: neonData.project.id,
       region: neonData.project.region_id,
+      deploymentId: deployResult3.deploymentId,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
