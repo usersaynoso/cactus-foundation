@@ -64,5 +64,14 @@ function runWithRetry(label, cmd, args, retries = 3, backoffMs = 10_000) {
   }
 }
 
+// Silently resolve any failed migration left in _prisma_migrations.
+// No-op (exit code ignored) on databases that never had the failed record.
+spawnSync(
+  'npx',
+  ['prisma', 'migrate', 'resolve', '--rolled-back',
+   '20260627000000_add_layout_type_and_conditions'],
+  { stdio: 'pipe', env, shell: false }
+)
+
 runWithRetry('Prisma migrations', 'npx', ['prisma', 'migrate', 'deploy'])
 runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
