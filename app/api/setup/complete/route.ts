@@ -1,10 +1,87 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { syncToEdgeConfig } from '@/lib/config/edge-config'
+import { getSessionFromCookie } from '@/lib/auth/session'
 
 const ENTIRE_SITE_CONDITIONS = {
   include: [{ type: 'entire_site' }],
   exclude: [],
+}
+
+const starterHeaderData = {
+  root: {
+    props: {
+      bgMode: 'color',
+      bgColor: '',
+      height: '64px',
+      sticky: 'yes',
+      borderBottom: 'show',
+      borderColor: '',
+      maxWidth: '1200px',
+    },
+  },
+  content: [
+    {
+      type: 'Columns',
+      props: {
+        id: 'columns-header-1',
+        ratio: '30/70',
+        padding: 'none',
+      },
+    },
+  ],
+  zones: {
+    'columns-header-1:left': [
+      {
+        type: 'SiteLogo',
+        props: {
+          id: 'site-logo-1',
+          homeUrl: '/',
+          logoHeight: 40,
+          showTextWithLogo: 'false',
+          showIcon: 'true',
+          textColor: '',
+        },
+      },
+    ],
+    'columns-header-1:right': [
+      {
+        type: 'MenuBlock',
+        props: {
+          id: 'menu-block-1',
+          menuId: '',
+          menuName: '',
+          orientation: 'horizontal',
+          spacing: 'normal',
+          itemFontSize: 'medium',
+          itemFontWeight: 'medium',
+          textTransform: 'none',
+          itemColor: '',
+          showDropdowns: 'hover',
+          showMobileToggle: 'collapse',
+        },
+      },
+    ],
+  },
+}
+
+async function refreshStarterLayouts(db: typeof prisma) {
+  await db.layout.upsert({
+    where: { id: 'starter-header' },
+    create: {
+      id: 'starter-header',
+      name: 'Default Header',
+      type: 'header',
+      description: 'Logo left, navigation right.',
+      isStarter: true,
+      status: 'published',
+      displayConditions: ENTIRE_SITE_CONDITIONS,
+      builderData: starterHeaderData,
+    },
+    update: {
+      builderData: starterHeaderData,
+    },
+  })
 }
 
 export async function POST() {
@@ -16,7 +93,13 @@ export async function POST() {
   if (cfg?.setupCompleted) {
     const userCount = await prisma.user.count()
     if (userCount > 0) {
-      return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
+      // Allow authenticated admins to refresh starter layout templates
+      const session = await getSessionFromCookie().catch(() => null)
+      if (!session) {
+        return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
+      }
+      await refreshStarterLayouts(prisma)
+      return NextResponse.json({ templatesRefreshed: true })
     }
   }
 
@@ -95,80 +178,7 @@ export async function POST() {
     update: {},
   })
 
-  const starterHeaderData = {
-    root: {
-      props: {
-        bgMode: 'color',
-        bgColor: '',
-        height: '64px',
-        sticky: 'yes',
-        borderBottom: 'show',
-        borderColor: '',
-        maxWidth: '1200px',
-      },
-    },
-    content: [
-      {
-        type: 'Columns',
-        props: {
-          id: 'columns-header-1',
-          ratio: '30/70',
-          padding: 'none',
-        },
-      },
-    ],
-    zones: {
-      'columns-header-1:left': [
-        {
-          type: 'SiteLogo',
-          props: {
-            id: 'site-logo-1',
-            homeUrl: '/',
-            logoHeight: 40,
-            showTextWithLogo: 'false',
-            showIcon: 'true',
-            textColor: '',
-          },
-        },
-      ],
-      'columns-header-1:right': [
-        {
-          type: 'MenuBlock',
-          props: {
-            id: 'menu-block-1',
-            menuId: '',
-            menuName: '',
-            orientation: 'horizontal',
-            spacing: 'normal',
-            itemFontSize: 'medium',
-            itemFontWeight: 'medium',
-            textTransform: 'none',
-            itemColor: '',
-            showDropdowns: 'hover',
-            showMobileToggle: 'collapse',
-          },
-        },
-      ],
-    },
-  }
-
-  // Seed header starter layout
-  await prisma.layout.upsert({
-    where: { id: 'starter-header' },
-    create: {
-      id: 'starter-header',
-      name: 'Default Header',
-      type: 'header',
-      description: 'Logo left, navigation right.',
-      isStarter: true,
-      status: 'published',
-      displayConditions: ENTIRE_SITE_CONDITIONS,
-      builderData: starterHeaderData,
-    },
-    update: {
-      builderData: starterHeaderData,
-    },
-  })
+  await refreshStarterLayouts(prisma)
 
   // Seed footer starter layout
   await prisma.layout.upsert({

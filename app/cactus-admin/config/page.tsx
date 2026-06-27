@@ -163,6 +163,11 @@ function ConfigPageInner() {
   const [envError, setEnvError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
 
+  // Refresh templates state
+  const [refreshingTemplates, setRefreshingTemplates] = useState(false)
+  const [templatesRefreshed, setTemplatesRefreshed] = useState(false)
+  const [templatesRefreshError, setTemplatesRefreshError] = useState('')
+
   // Reset Everything state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -277,6 +282,22 @@ function ConfigPageInner() {
       setEnvError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSavingEnvId(null)
+    }
+  }
+
+  async function handleRefreshTemplates() {
+    setRefreshingTemplates(true)
+    setTemplatesRefreshError('')
+    setTemplatesRefreshed(false)
+    try {
+      const res = await fetch('/api/setup/complete', { method: 'POST' })
+      const d = (await res.json()) as { templatesRefreshed?: boolean; error?: string }
+      if (!res.ok) throw new Error(d.error ?? 'Refresh failed')
+      setTemplatesRefreshed(true)
+    } catch (e) {
+      setTemplatesRefreshError(e instanceof Error ? e.message : 'Refresh failed')
+    } finally {
+      setRefreshingTemplates(false)
     }
   }
 
@@ -547,6 +568,29 @@ function ConfigPageInner() {
           </div>
           <div className="field"><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
           <div className="field"><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Starter templates</h2>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+              Updates the built-in starter layouts (header, footer, page layouts) to the latest versions. Your custom layouts and content are not affected.
+            </p>
+            {templatesRefreshed && (
+              <div className="alert alert-success" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+                Starter templates updated. Reload the layout builder to see changes.
+              </div>
+            )}
+            {templatesRefreshError && (
+              <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{templatesRefreshError}</div>
+            )}
+            <button
+              className="btn btn-secondary"
+              disabled={refreshingTemplates}
+              onClick={handleRefreshTemplates}
+            >
+              {refreshingTemplates ? 'Updating…' : 'Refresh Starter Templates'}
+            </button>
+          </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
           <div>
