@@ -6,7 +6,7 @@ const VERCEL_API = 'https://api.vercel.com'
 export async function triggerVercelRedeploy(
   token: string,
   projectId: string
-): Promise<{ triggered: boolean; error?: string }> {
+): Promise<{ triggered: boolean; deploymentId?: string; error?: string }> {
   try {
     // Find the most recent production deployment (any state — we just need the source).
     const listRes = await fetch(
@@ -50,7 +50,8 @@ export async function triggerVercelRedeploy(
       return { triggered: false, error: `Redeploy API error (${deployRes.status}): ${body}` }
     }
 
-    return { triggered: true }
+    const deployData = (await deployRes.json()) as { id?: string; uid?: string }
+    return { triggered: true, deploymentId: deployData.id ?? deployData.uid }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return { triggered: false, error: message }

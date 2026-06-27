@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState(false)
+  const [neonProjectId, setNeonProjectId] = useState<string | null>(null)
   const [lostAccessMode, setLostAccessMode] = useState(false)
   const [lostAccessEmail, setLostAccessEmail] = useState('')
   const [lostAccessSent, setLostAccessSent] = useState(false)
@@ -29,8 +30,9 @@ export default function LoginPage() {
   const [tokenRecoveryMode] = useState(!!recoveryToken)
 
   useEffect(() => {
-    fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean }) => {
+    fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean; neonProjectId: string | null }) => {
       setEmailAvailable(d.emailConfigured)
+      setNeonProjectId(d.neonProjectId)
     }).catch(() => {})
   }, [])
 
@@ -237,14 +239,20 @@ export default function LoginPage() {
               Remove your passkey record directly from your Neon database, then return here to register a new one.
             </p>
             <ol style={{ fontSize: '0.9375rem', paddingLeft: '1.25rem', margin: '0 0 1rem', lineHeight: 1.7 }}>
-              <li>Go to <strong>console.neon.tech</strong> and open your project&apos;s SQL editor.</li>
               <li>
-                Run this query (replace the email address):
-                <div style={{ fontFamily: 'monospace', fontSize: '0.8125rem', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem', margin: '0.5rem 0', userSelect: 'all', wordBreak: 'break-all' }}>
-                  {'DELETE FROM "Passkey" WHERE "userId" = (SELECT id FROM "User" WHERE email = \'your@email.com\');'}
-                </div>
+                Open your{' '}
+                <a
+                  href={neonProjectId ? `https://console.neon.tech/app/projects/${neonProjectId}` : 'https://console.neon.tech'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Neon database
+                </a>
+                {' '}and go to <strong>Tables</strong> in the left sidebar.
               </li>
-              <li>Return here and sign in with your email address — you&apos;ll be prompted to register a new passkey.</li>
+              <li>Select the <strong>Passkey</strong> table.</li>
+              <li>Click the checkbox next to your passkey entry to select it, then click <strong>Delete 1 record</strong> and confirm.</li>
+              <li>Return here and sign in — you&apos;ll be prompted to register a new passkey.</li>
             </ol>
             {emailAvailable && !lostAccessSent && (
               <>

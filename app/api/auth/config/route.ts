@@ -8,5 +8,6 @@ export async function GET() {
     emailConfigured: isEmailConfigured(),
     turnstileConfigured: isTurnstileConfigured(),
     turnstileSiteKey: isTurnstileConfigured() ? process.env.TURNSTILE_SITE_KEY : null,
+    neonProjectId: process.env.NEON_PROJECT_ID ?? null,
   })
 }

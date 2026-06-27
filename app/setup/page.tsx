@@ -13,7 +13,6 @@ type DbSubStep =
   | 'vercel-config'        // VERCEL_API_TOKEN/PROJECT_ID not set → collect them
   | 'vercel-listing'       // fetching project list from Vercel API
   | 'vercel-configuring'   // writing bootstrap env vars to Vercel
-  | 'vercel-redeploying'   // waiting for redeploy after bootstrap vars written
   | 'block'                // unexpected required var missing → hard block
   | 'ready'                // all required vars set (DATABASE_URL present)
   | 'db-choice'            // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
@@ -117,8 +116,15 @@ export default function SetupPage() {
   const [usingExistingData, setUsingExistingData] = useState(false)
   const [adminAlreadyExists, setAdminAlreadyExists] = useState(false)
   const cancelPollingRef = useRef<(() => void) | null>(null)
+  const cancelDeployLogPollRef = useRef<(() => void) | null>(null)
   // Counter to force re-run the env-check useEffect even when step is already 'env'
   const [envCheckKey, setEnvCheckKey] = useState(0)
+
+  // Deployment progress
+  const [deploymentId, setDeploymentId] = useState<string | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [deployLogs, setDeployLogs] = useState<string[]>([])
+  const [deployState, setDeployState] = useState('')
 
   // Vercel config
   const [vercelToken, setVercelToken] = useState('')
@@ -141,10 +147,11 @@ export default function SetupPage() {
   const steps: Step[] = ['connect', 'database', 'account']
   const stepIndex = step === 'configure' ? 2 : steps.indexOf(step)
 
-  // Clean up health poll on unmount.
+  // Clean up health poll and deploy log poll on unmount.
   useEffect(() => {
     return () => {
       cancelPollingRef.current?.()
+      cancelDeployLogPollRef.current?.()
     }
   }, [])
 
@@ -174,8 +181,8 @@ export default function SetupPage() {
           return
         }
 
-        // Vercel is configured — connect step is done
-        setDbSubStep('ready')
+        // Vercel is configured — connect step is done, advance immediately
+        setStep('database')
       })
       .catch(() => {
         setError('Failed to load environment status')
@@ -218,20 +225,47 @@ export default function SetupPage() {
     })
   }
 
-  function startVercelRedeployPolling() {
-    cancelPollingRef.current?.()
-    cancelPollingRef.current = startVercelConfiguredPolling((data) => {
-      setEnvData(data)
-      const unexpectedMissing = data.missingRequired.filter(
-        (v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID'
-      )
-      if (unexpectedMissing.length > 0) {
-        setDbSubStep('block')
-        return
+  function startDeployLogPolling(id: string): () => void {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+
+    async function poll() {
+      if (cancelled) return
+      try {
+        const res = await fetch(`/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}`)
+        if (res.ok) {
+          const data = (await res.json()) as { state?: string; logLines?: string[] }
+          if (!cancelled) {
+            if (data.state) setDeployState(data.state)
+            if (data.logLines) setDeployLogs(data.logLines)
+          }
+        }
+      } catch {
+        // ignore — redeploy network errors are expected
       }
-      setDbSubStep('ready')
-    })
+      if (!cancelled) timer = setTimeout(poll, 4_000)
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }
+
+  // Elapsed-seconds timer — resets and starts whenever we enter db-redeploying.
+  useEffect(() => {
+    if (dbSubStep !== 'db-redeploying') return
+    setElapsedSeconds(0)
+    const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1_000)
+    return () => clearInterval(interval)
+  }, [dbSubStep])
+
+  // Auto-advance from Step 2 once the health check passes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (dbReady && step === 'database') handleSmartContinue()
+  }, [dbReady])
 
   // ── Vercel config handlers ─────────────────────────────────────────────────
 
@@ -299,8 +333,8 @@ export default function SetupPage() {
         setVercelConfiguring(false)
         return
       }
-      // Vercel is now configured — connect step is complete.
-      setDbSubStep('ready')
+      // Vercel is now configured — connect step is complete, advance immediately.
+      setStep('database')
     } catch (err: unknown) {
       setVercelError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('vercel-config')
@@ -326,7 +360,7 @@ export default function SetupPage() {
           vercelProjectId: selectedProjectId || undefined,
         }),
       })
-      const data = (await res.json()) as { status?: string; error?: string }
+      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string }
       if (!res.ok || data.status === 'error') {
         setProvisionError(data.error ?? 'Failed to configure database')
         setDbSubStep('db-error')
@@ -337,6 +371,11 @@ export default function SetupPage() {
         return
       }
       setDbSubStep('db-redeploying')
+      if (data.deploymentId) {
+        setDeploymentId(data.deploymentId)
+        cancelDeployLogPollRef.current?.()
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+      }
       startRedeployPolling()
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
@@ -358,13 +397,18 @@ export default function SetupPage() {
           vercelProjectId: selectedProjectId || undefined,
         }),
       })
-      const data = (await res.json()) as { status?: string; error?: string }
+      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string }
       if (!res.ok || data.status === 'error') {
         setProvisionError(data.error ?? 'Failed to save database URL')
         setDbSubStep('db-error')
         return
       }
       setDbSubStep('db-redeploying')
+      if (data.deploymentId) {
+        setDeploymentId(data.deploymentId)
+        cancelDeployLogPollRef.current?.()
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+      }
       startRedeployPolling()
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
@@ -389,6 +433,7 @@ export default function SetupPage() {
       const data = (await res.json()) as {
         status?: string
         error?: string
+        deploymentId?: string
       }
 
       if (!res.ok || data.status === 'error') {
@@ -403,6 +448,11 @@ export default function SetupPage() {
       }
 
       setDbSubStep('db-redeploying')
+      if (data.deploymentId) {
+        setDeploymentId(data.deploymentId)
+        cancelDeployLogPollRef.current?.()
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+      }
       startRedeployPolling()
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
@@ -575,8 +625,8 @@ export default function SetupPage() {
   const stepLabels: Record<Step, string> = {
     connect: 'Connect',
     database: 'Database',
-    account: 'Account',
-    configure: 'Account',
+    account: 'Configure',
+    configure: 'Configure',
   }
 
   return (
@@ -667,27 +717,6 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* ── Waiting for Vercel redeploy after bootstrap ── */}
-          {dbSubStep === 'vercel-redeploying' && (
-            <div>
-              <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-                <strong>Vercel project configured.</strong> SESSION_SECRET, SITE_URL, and API credentials have been written to your project.
-              </div>
-              <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
-                <span>
-                  Your app is redeploying to pick up the new settings — this takes about a minute.
-                  This page will continue automatically once the redeploy is complete.{' '}
-                  <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
-                </span>
-              </div>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginTop: '1rem' }}>
-                If this takes more than 3 minutes, trigger a manual redeploy from your{' '}
-                <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Vercel dashboard</a>.
-              </p>
-            </div>
-          )}
-
           {/* Hard block */}
           {dbSubStep === 'block' && envData && (
             <>
@@ -720,21 +749,6 @@ export default function SetupPage() {
             </>
           )}
 
-          {/* Vercel connected — ready to move to database step */}
-          {dbSubStep === 'ready' && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '1.5rem', color: '#16a34a' }}>✓</span>
-                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Vercel connected</h2>
-              </div>
-              <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-                Your project environment is configured.
-              </p>
-              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('database')}>
-                Continue →
-              </button>
-            </>
-          )}
         </div>
       )}
 
@@ -797,7 +811,12 @@ export default function SetupPage() {
           )}
 
           {dbSubStep === 'db-redeploying' && (
-            <DbRedeployingPanel dbReady={dbReady} onContinue={handleSmartContinue} loading={loading} />
+            <DbRedeployingPanel
+              elapsedSeconds={elapsedSeconds}
+              deployState={deployState}
+              deployLogs={deployLogs}
+              deploymentId={deploymentId}
+            />
           )}
 
           {dbSubStep === 'db-error' && (
@@ -1399,14 +1418,26 @@ function DbManualPanel({
 }
 
 function DbRedeployingPanel({
-  dbReady,
-  onContinue,
-  loading = false,
+  elapsedSeconds,
+  deployState,
+  deployLogs,
+  deploymentId,
 }: {
-  dbReady: boolean
-  onContinue: () => void
-  loading?: boolean
+  elapsedSeconds: number
+  deployState: string
+  deployLogs: string[]
+  deploymentId: string | null
 }) {
+  const minutes = Math.floor(elapsedSeconds / 60)
+  const seconds = elapsedSeconds % 60
+  const timerText = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+
+  const stateLabel =
+    deployState === 'BUILDING' ? 'Building…' :
+    deployState === 'READY' ? 'Done' :
+    deployState === 'ERROR' ? 'Failed' :
+    deployState || ''
+
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
@@ -1417,32 +1448,37 @@ function DbRedeployingPanel({
         </div>
       </div>
 
-      {!dbReady ? (
-        <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-          <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
-          <span>
-            <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
-            During the redeploy, the database schema migrations run automatically via the build script.
-            <br /><br />
-            This page will continue automatically once the database is reachable.{' '}
-            <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
-          </span>
+      <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {deploymentId ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: deployLogs.length > 0 ? '0.5rem' : 0 }}>
+                <strong>Redeploying…</strong>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>{timerText}</span>
+                {stateLabel && (
+                  <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: 99, background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                    {stateLabel}
+                  </span>
+                )}
+              </div>
+              {deployLogs.length > 0 && (
+                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {deployLogs.map((line, i) => <div key={i}>{line}</div>)}
+                </div>
+              )}
+            </>
+          ) : (
+            <span>
+              <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
+              During the redeploy, the database schema migrations run automatically via the build script.
+              <br /><br />
+              This page will continue automatically once the database is reachable.{' '}
+              <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
+            </span>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-            <strong>Database connected.</strong> The redeploy is complete and the schema is ready.
-          </div>
-          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={onContinue}>
-            {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <span className="setup-spinner" />
-                Detecting existing setup…
-              </span>
-            ) : 'Continue →'}
-          </button>
-        </>
-      )}
+      </div>
     </div>
   )
 }
