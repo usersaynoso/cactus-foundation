@@ -109,34 +109,49 @@ export async function POST() {
     },
     content: [
       {
-        type: 'SiteLogo',
+        type: 'Flex',
         props: {
-          id: 'site-logo-1',
-          homeUrl: '/',
-          logoHeight: 40,
-          showTextWithLogo: 'false',
-          showIcon: 'true',
-          textColor: '',
-        },
-      },
-      {
-        type: 'MenuBlock',
-        props: {
-          id: 'menu-block-1',
-          menuId: '',
-          menuName: '',
-          orientation: 'horizontal',
-          spacing: 'normal',
-          itemFontSize: 'medium',
-          itemFontWeight: 'medium',
-          textTransform: 'none',
-          itemColor: '',
-          showDropdowns: 'hover',
-          showMobileToggle: 'collapse',
+          id: 'flex-header-1',
+          direction: 'row',
+          justify: 'between',
+          align: 'center',
+          wrap: 'nowrap',
+          gap: 'lg',
+          padding: 'none',
         },
       },
     ],
-    zones: {},
+    zones: {
+      'flex-header-1:items': [
+        {
+          type: 'SiteLogo',
+          props: {
+            id: 'site-logo-1',
+            homeUrl: '/',
+            logoHeight: 40,
+            showTextWithLogo: 'false',
+            showIcon: 'true',
+            textColor: '',
+          },
+        },
+        {
+          type: 'MenuBlock',
+          props: {
+            id: 'menu-block-1',
+            menuId: '',
+            menuName: '',
+            orientation: 'horizontal',
+            spacing: 'normal',
+            itemFontSize: 'medium',
+            itemFontWeight: 'medium',
+            textTransform: 'none',
+            itemColor: '',
+            showDropdowns: 'hover',
+            showMobileToggle: 'collapse',
+          },
+        },
+      ],
+    },
   }
 
   // Seed header starter layout
