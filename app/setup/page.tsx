@@ -5,7 +5,7 @@ import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
 
-type Step = 'connect' | 'database' | 'account' | 'configure'
+type Step = 'connect' | 'database' | 'configure'
 
 // Sub-states within the 'env' step.
 type DbSubStep =
@@ -137,15 +137,14 @@ export default function SetupPage() {
   // Account fields
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
-  const [passkeyRegistered, setPasskeyRegistered] = useState(false)
   const [userId, setUserId] = useState('')
 
   // Essentials
   const [siteName, setSiteName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
 
-  const steps: Step[] = ['connect', 'database', 'account']
-  const stepIndex = step === 'configure' ? 2 : steps.indexOf(step)
+  const steps: Step[] = ['connect', 'database', 'configure']
+  const stepIndex = steps.indexOf(step)
 
   // Clean up health poll and deploy log poll on unmount.
   useEffect(() => {
@@ -462,7 +461,7 @@ export default function SetupPage() {
 
   async function handleSmartContinue() {
     if (!usingExistingData) {
-      setStep('account')
+      setStep('configure')
       return
     }
     setLoading(true)
@@ -481,14 +480,14 @@ export default function SetupPage() {
       if (data.admin) setAdminAlreadyExists(true)
 
       if (!data.admin) {
-        setStep('account')
+        setStep('configure')
       } else if (!data.adminPath || !data.siteName) {
         setStep('configure')
       } else {
         await handleFinish()
       }
     } catch {
-      setStep('account')
+      setStep('configure')
     } finally {
       setLoading(false)
     }
@@ -500,7 +499,7 @@ export default function SetupPage() {
   // (cactus.vercel.app) and Safari throws "The string did not match the expected
   // pattern." when they differ.
   useEffect(() => {
-    if (step !== 'account') return
+    if (step !== 'configure') return
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
     if (!siteUrl) return
     const expectedOrigin = siteUrl.replace(/\/$/, '')
@@ -509,8 +508,17 @@ export default function SetupPage() {
     }
   }, [step])
 
-  // ── Step 2: Register passkey ───────────────────────────────────────────────
-  async function handleCreateAccount() {
+  // ── Step 3: Set passkey, save config, complete ────────────────────────────
+  useEffect(() => {
+    if (step === 'configure') {
+      fetch('/api/setup/suggest-path')
+        .then((r) => r.json())
+        .then((d: { path: string }) => setAdminPath(d.path))
+        .catch(() => {})
+    }
+  }, [step])
+
+  async function handleSetPasskeyAndComplete() {
     setError('')
     setLoading(true)
     try {
@@ -549,8 +557,7 @@ export default function SetupPage() {
         throw new Error(d.error ?? 'Passkey registration failed')
       }
 
-      setPasskeyRegistered(true)
-      setStep('configure')
+      await handleConfigureOnly()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       // Safari stores passkeys device-side even when server verification fails.
@@ -562,24 +569,11 @@ export default function SetupPage() {
       } else {
         setError(msg)
       }
-    } finally {
       setLoading(false)
     }
   }
 
-  // ── Step 4: Configure ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (step === 'configure') {
-      fetch('/api/setup/suggest-path')
-        .then((r) => r.json())
-        .then((d: { path: string }) => setAdminPath(d.path))
-        .catch(() => {})
-    }
-  }, [step])
-
-  async function handleConfigure() {
-    setError('')
-    setLoading(true)
+  async function handleConfigureOnly() {
     try {
       const pathRes = await fetch('/api/setup/set-admin-path', {
         method: 'POST',
@@ -602,7 +596,6 @@ export default function SetupPage() {
       await handleFinish()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
       setLoading(false)
     }
   }
@@ -625,7 +618,6 @@ export default function SetupPage() {
   const stepLabels: Record<Step, string> = {
     connect: 'Connect',
     database: 'Database',
-    account: 'Configure',
     configure: 'Configure',
   }
 
@@ -838,77 +830,22 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* ── Step: ADMIN ACCOUNT ── */}
-      {step === 'account' && adminAlreadyExists && (
-        <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Admin account found</h2>
-          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            An admin account already exists in this database.
-          </p>
-          <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>
-            <strong>Using existing admin account.</strong> Skipping account creation.
-          </div>
-          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('configure')}>
-            Continue →
-          </button>
-        </div>
-      )}
-      {step === 'account' && !adminAlreadyExists && (
-        <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Create your admin account</h2>
-          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            You&apos;ll register a passkey (fingerprint, Face ID, or security key) as your primary login method.
-          </p>
-          {!passkeyRegistered ? (
-            <>
-              <div className="field">
-                <label htmlFor="username">Username</label>
-                <input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. alice" autoComplete="username" />
-                <span className="field-hint">Your public-facing handle. Used in bylines, not for login.</span>
-              </div>
-              <div className="field">
-                <label htmlFor="email">Email address</label>
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
-                <span className="field-hint">Used for account recovery if you add email credentials later.</span>
-              </div>
-              <button
-                className="btn btn-primary btn-lg"
-                style={{ width: '100%' }}
-                disabled={!username || !email || loading}
-                onClick={handleCreateAccount}
-              >
-                {loading ? 'Registering…' : 'Register passkey →'}
-              </button>
-            </>
-          ) : (
-            <div className="alert alert-success">Passkey registered successfully!</div>
-          )}
-        </div>
-      )}
-
-      {/* ── Step: CONFIGURE ── */}
+      {/* ── Step: CONFIGURE (merged account + configure) ── */}
       {step === 'configure' && (
         <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Configure your site</h2>
+          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Set up your site</h2>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Choose your admin path and name your site.
+            {adminAlreadyExists
+              ? 'An admin account already exists — just configure your site below.'
+              : 'Name your site and create your admin account.'}
           </p>
-          <div className="field">
-            <label htmlFor="adminPath">Admin path</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <span style={{ padding: '0.5rem 0.75rem', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.9375rem', color: 'var(--color-muted)', flexShrink: 0 }}>
-                {typeof window !== 'undefined' ? window.location.hostname : 'yourdomain.com'}/
-              </span>
-              <input
-                id="adminPath"
-                value={adminPath}
-                onChange={(e) => setAdminPath(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                placeholder="lemon-4f8a2c"
-                style={{ flex: 1 }}
-              />
+
+          {adminAlreadyExists && (
+            <div className="alert alert-info" style={{ marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+              <strong>Using existing admin account.</strong> Passkey registration is not required.
             </div>
-            <span className="field-hint">Lowercase letters, numbers, and hyphens only. Anyone who doesn&apos;t know it gets a plain 404.</span>
-          </div>
+          )}
+
           <div className="field">
             <label htmlFor="siteName">Site name</label>
             <input id="siteName" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="My Cactus Site" />
@@ -930,17 +867,52 @@ export default function SetupPage() {
               <option value="Australia/Sydney">Australia/Sydney</option>
             </select>
           </div>
-          <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
-            <strong>Site URL:</strong> <code>{typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin : ''}</code><br />
-            This is read from <code>SITE_URL</code> and is the WebAuthn relying party ID. It cannot be changed here.
+          <div className="field">
+            <label htmlFor="adminPath">Admin path</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <span style={{ padding: '0.5rem 0.75rem', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.9375rem', color: 'var(--color-muted)', flexShrink: 0 }}>
+                {typeof window !== 'undefined' ? window.location.hostname : 'yourdomain.com'}/
+              </span>
+              <input
+                id="adminPath"
+                value={adminPath}
+                onChange={(e) => setAdminPath(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                placeholder="lemon-4f8a2c"
+                style={{ flex: 1 }}
+              />
+            </div>
+            <span className="field-hint">Lowercase letters, numbers, and hyphens only. Anyone who doesn&apos;t know it gets a plain 404.</span>
           </div>
+
+          {!adminAlreadyExists && (
+            <>
+              <div className="field">
+                <label htmlFor="username">Username</label>
+                <input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. alice" autoComplete="username" />
+                <span className="field-hint">Your public-facing handle. Used in bylines, not for login.</span>
+              </div>
+              <div className="field">
+                <label htmlFor="email">Email address</label>
+                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                <span className="field-hint">Used for account recovery if you add email credentials later.</span>
+              </div>
+            </>
+          )}
+
           <button
             className="btn btn-primary btn-lg"
             style={{ width: '100%' }}
-            disabled={!adminPath || !siteName || loading}
-            onClick={handleConfigure}
+            disabled={
+              !siteName || !adminPath || loading ||
+              (!adminAlreadyExists && (!username || !email))
+            }
+            onClick={adminAlreadyExists ? () => { setLoading(true); handleConfigureOnly() } : handleSetPasskeyAndComplete}
           >
-            {loading ? 'Saving…' : 'Continue →'}
+            {loading
+              ? 'Setting up…'
+              : adminAlreadyExists
+                ? 'Complete setup →'
+                : 'Set passkey →'}
           </button>
         </div>
       )}
