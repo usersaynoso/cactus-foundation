@@ -171,6 +171,12 @@ function ConfigPageInner() {
   const [resetPartialError, setResetPartialError] = useState('')
   const [resetError, setResetError] = useState('')
 
+  // Reset Database state
+  const [showDbResetConfirm, setShowDbResetConfirm] = useState(false)
+  const [dbResetting, setDbResetting] = useState(false)
+  const [dbResetDone, setDbResetDone] = useState(false)
+  const [dbResetError, setDbResetError] = useState('')
+
   // Media provider state
   const [breakdown, setBreakdown] = useState<Record<string, number>>({})
   const [migrationJob, setMigrationJob] = useState<MigrationJob | null>(null)
@@ -269,6 +275,23 @@ function ConfigPageInner() {
       setEnvError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSavingEnvId(null)
+    }
+  }
+
+  async function handleDbReset() {
+    setDbResetting(true)
+    setDbResetError('')
+    try {
+      const res = await fetch('/api/admin/reset-database', { method: 'POST' })
+      const d = (await res.json()) as { ok?: boolean; error?: string }
+      if (!res.ok) throw new Error(d.error ?? 'Reset failed')
+      setShowDbResetConfirm(false)
+      setDbResetDone(true)
+      setTimeout(() => { window.location.href = '/setup' }, 2000)
+    } catch (err: unknown) {
+      setDbResetError(err instanceof Error ? err.message : 'Reset failed')
+    } finally {
+      setDbResetting(false)
     }
   }
 
@@ -518,7 +541,49 @@ function ConfigPageInner() {
 
           <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
           <div>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem', color: '#dc2626' }}>Danger zone</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: '#dc2626' }}>Danger zone</h2>
+
+            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Database</h3>
+            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+              Permanently removes all data from the database — every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
+            </p>
+            {!showDbResetConfirm && !dbResetDone && (
+              <button className="btn btn-danger" style={{ marginBottom: '1.5rem' }} onClick={() => setShowDbResetConfirm(true)}>
+                Reset Database
+              </button>
+            )}
+            {showDbResetConfirm && !dbResetDone && (
+              <div className="card" style={{ borderColor: '#dc2626', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#dc2626' }}>Are you absolutely sure?</h3>
+                <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+                  This will <strong>permanently delete all data</strong> from the database. Every user account, page, layout, menu, media record, and all settings will be gone. This cannot be undone.
+                </p>
+                {dbResetError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{dbResetError}</div>}
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    className="btn btn-danger"
+                    disabled={dbResetting}
+                    onClick={handleDbReset}
+                  >
+                    {dbResetting ? 'Resetting…' : 'Reset Database'}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    disabled={dbResetting}
+                    onClick={() => { setShowDbResetConfirm(false); setDbResetError('') }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            {dbResetDone && (
+              <div className="alert alert-info" style={{ marginBottom: '1.5rem' }}>
+                Database reset successfully. Redirecting to setup…
+              </div>
+            )}
+
+            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Everything</h3>
             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
               Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
             </p>
