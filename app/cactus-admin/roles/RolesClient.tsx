@@ -172,7 +172,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
               const moduleActive = isCore || activeModuleNames.includes(groupKey)
               return (
                 <div key={groupKey} style={{ marginBottom: '1.25rem' }}>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: moduleActive ? '#374151' : '#9ca3af', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: moduleActive ? 'var(--color-fg)' : 'var(--color-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {isCore ? 'Core' : groupKey}
                     {!moduleActive && <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>module inactive</span>}
                   </div>

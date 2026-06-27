@@ -577,7 +577,7 @@ function ConfigPageInner() {
                 }{' '}
                 A redeployment has been triggered — your site will restart with factory settings in a few minutes.
                 {resetPartialError && (
-                  <div style={{ marginTop: '0.5rem', color: '#b45309', fontSize: '0.875rem' }}>
+                  <div style={{ marginTop: '0.5rem', color: 'var(--color-warning)', fontSize: '0.875rem' }}>
                     Warning: {resetPartialError}
                   </div>
                 )}
@@ -643,9 +643,9 @@ function ConfigPageInner() {
               <option value="maintenance">Maintenance</option>
             </select>
           </div>
-          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>Status page layouts</p>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: '#6b7280' }}>Customise the coming soon and maintenance screens in the Theme Builder.</p>
+          <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: 'var(--color-fg)', fontWeight: 500 }}>Status page layouts</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Customise the coming soon and maintenance screens in the Theme Builder.</p>
             <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: '0.875rem', color: '#16a34a' }}>Manage status page layouts →</a>
           </div>
           <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
@@ -733,9 +733,9 @@ function ConfigPageInner() {
 
             {/* Migrate / switch dialog after a change with stray rows */}
             {pendingProvider && (
-              <div className="card" style={{ marginBottom: '1rem', borderColor: '#f59e0b' }}>
+              <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--color-warning)' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Existing media on other providers</h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>
                   Some images still live on a different provider. You can move them onto {PROVIDER_LABELS[pendingProvider]} now,
                   or switch for new uploads only and migrate later.
                 </p>
@@ -846,7 +846,7 @@ function ConfigPageInner() {
                 <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                   {job.migratedItems} of {job.totalItems} migrated{migrationRunning ? '' : ' (paused)'}
                 </p>
-                <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden', marginBottom: '0.75rem' }}>
                   <div style={{ height: '100%', width: `${job.totalItems ? Math.round((job.migratedItems / job.totalItems) * 100) : 0}%`, background: '#16a34a' }} />
                 </div>
                 {job.failedItemIds.length > 0 && (

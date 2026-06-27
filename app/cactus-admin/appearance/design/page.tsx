@@ -119,11 +119,11 @@ export default function StyleGuidePage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1.25rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '0.8125rem' }}>
-        <span style={{ fontWeight: 600, color: '#111827', fontSize: '0.9375rem' }}>Style Guide</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1.25rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem' }}>
+        <span style={{ fontWeight: 600, color: 'var(--color-fg)', fontSize: '0.9375rem' }}>Style Guide</span>
         <span style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {error && <span style={{ color: '#dc2626' }}>{error}</span>}
-          {saved && <span style={{ color: '#15803d' }}>Saved ✓</span>}
+          {error && <span style={{ color: 'var(--color-danger)' }}>{error}</span>}
+          {saved && <span style={{ color: 'var(--color-success)' }}>Saved ✓</span>}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: '0.8125rem', padding: '0.375rem 1rem' }}>
             {saving ? 'Saving…' : 'Save Style Guide'}
           </button>
@@ -191,27 +191,27 @@ export default function StyleGuidePage() {
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
             {spacingSteps.map((m, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ width: Math.min(tokens.spacing.base * m, 80), height: 8, background: '#dbeafe', borderRadius: 2, marginBottom: '0.25rem' }} />
-                <span style={{ fontSize: '0.6875rem', color: '#9ca3af' }}>sp-{i + 1}<br />{tokens.spacing.base * m}px</span>
+                <div style={{ width: Math.min(tokens.spacing.base * m, 80), height: 8, background: 'var(--color-info-border)', borderRadius: 2, marginBottom: '0.25rem' }} />
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-muted)' }}>sp-{i + 1}<br />{tokens.spacing.base * m}px</span>
               </div>
             ))}
           </div>
         </Section>
 
         <Section title="Border radius">
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1rem' }}>Three radius presets used across the design system.</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Three radius presets used across the design system.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
             <div>
               <TextField label="Tight (badges/plates)" value={tokens.radius.small} onChange={v => setRadius('small', v)} hint="E.g. 2px" />
-              <div style={{ width: 48, height: 24, background: '#dbeafe', borderRadius: tokens.radius.small, marginTop: '0.25rem' }} />
+              <div style={{ width: 48, height: 24, background: 'var(--color-info-border)', borderRadius: tokens.radius.small, marginTop: '0.25rem' }} />
             </div>
             <div>
               <TextField label="Standard (cards/buttons)" value={tokens.radius.medium} onChange={v => setRadius('medium', v)} hint="E.g. 6px" />
-              <div style={{ width: 48, height: 24, background: '#dbeafe', borderRadius: tokens.radius.medium, marginTop: '0.25rem' }} />
+              <div style={{ width: 48, height: 24, background: 'var(--color-info-border)', borderRadius: tokens.radius.medium, marginTop: '0.25rem' }} />
             </div>
             <div>
               <TextField label="Round (pills)" value={tokens.radius.large} onChange={v => setRadius('large', v)} hint="E.g. 9999px" />
-              <div style={{ width: 64, height: 24, background: '#dbeafe', borderRadius: tokens.radius.large, marginTop: '0.25rem' }} />
+              <div style={{ width: 64, height: 24, background: 'var(--color-info-border)', borderRadius: tokens.radius.large, marginTop: '0.25rem' }} />
             </div>
           </div>
         </Section>
@@ -220,11 +220,11 @@ export default function StyleGuidePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div>
               <TextField label="Subtle shadow" value={tokens.shadows.subtle} onChange={v => setShadow('subtle', v)} hint="Used for cards and panels." />
-              <div style={{ width: '100%', height: 48, background: '#ffffff', borderRadius: 6, boxShadow: tokens.shadows.subtle, marginTop: '0.5rem', border: '1px solid #f3f4f6' }} />
+              <div style={{ width: '100%', height: 48, background: 'var(--color-bg)', borderRadius: 6, boxShadow: tokens.shadows.subtle, marginTop: '0.5rem', border: '1px solid var(--color-border)' }} />
             </div>
             <div>
               <TextField label="Elevated shadow" value={tokens.shadows.elevated} onChange={v => setShadow('elevated', v)} hint="Used for modals and dropdowns." />
-              <div style={{ width: '100%', height: 48, background: '#ffffff', borderRadius: 6, boxShadow: tokens.shadows.elevated, marginTop: '0.5rem', border: '1px solid #f3f4f6' }} />
+              <div style={{ width: '100%', height: 48, background: 'var(--color-bg)', borderRadius: 6, boxShadow: tokens.shadows.elevated, marginTop: '0.5rem', border: '1px solid var(--color-border)' }} />
             </div>
           </div>
         </Section>
@@ -233,7 +233,7 @@ export default function StyleGuidePage() {
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save Style Guide'}
           </button>
-          {saved && <span style={{ color: '#15803d', alignSelf: 'center' }}>Saved ✓</span>}
+          {saved && <span style={{ color: 'var(--color-success)', alignSelf: 'center' }}>Saved ✓</span>}
         </div>
       </div>
     </div>

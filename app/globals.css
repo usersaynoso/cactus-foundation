@@ -5,7 +5,9 @@
 
 :root, [data-theme="light"] {
   --color-bg: #ffffff;
+  --color-bg-subtle: #f9fafb;
   --color-fg: #111827;
+  --color-fg-secondary: #374151;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-primary: #16a34a;
@@ -14,6 +16,10 @@
   --color-warning: #d97706;
   --color-info: #2563eb;
   --color-success: #16a34a;
+  --color-success-subtle: #f0fdf4;
+  --color-success-border: #d1fae5;
+  --color-info-subtle: #eff6ff;
+  --color-info-border: #dbeafe;
   --radius: 6px;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
@@ -31,11 +37,21 @@
 
 [data-theme="dark"] {
   --color-bg: #0f172a;
+  --color-bg-subtle: #1e293b;
   --color-fg: #f1f5f9;
+  --color-fg-secondary: #94a3b8;
   --color-muted: #94a3b8;
   --color-border: #334155;
   --color-primary: #4ade80;
   --color-primary-hover: #22c55e;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
+  --color-success: #4ade80;
+  --color-success-subtle: #052e16;
+  --color-success-border: #14532d;
+  --color-info-subtle: #172554;
+  --color-info-border: #1e3a8a;
   --radius: 6px;
 
   /* Admin UI tokens */
@@ -52,11 +68,21 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --color-bg: #0f172a;
+    --color-bg-subtle: #1e293b;
     --color-fg: #f1f5f9;
+    --color-fg-secondary: #94a3b8;
     --color-muted: #94a3b8;
     --color-border: #334155;
     --color-primary: #4ade80;
     --color-primary-hover: #22c55e;
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+    --color-info: #60a5fa;
+    --color-success: #4ade80;
+    --color-success-subtle: #052e16;
+    --color-success-border: #14532d;
+    --color-info-subtle: #172554;
+    --color-info-border: #1e3a8a;
 
     --admin-bg: #0f172a;
     --admin-bg-subtle: #1e293b;
@@ -205,7 +231,7 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
-  background: #ffffff;
+  background: var(--admin-bg);
 }
 
 .admin-content {
@@ -254,7 +280,7 @@ a:hover {
   border-radius: var(--radius);
   font-size: 0.9375rem;
   font-family: inherit;
-  background: #ffffff;
+  background: var(--color-bg);
   color: var(--color-fg);
   width: 100%;
 }
@@ -306,12 +332,12 @@ a:hover {
   color: #ffffff;
 }
 .btn-secondary {
-  background: #ffffff;
+  background: var(--color-bg);
   color: var(--color-fg);
   border-color: var(--color-border);
 }
 .btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
+  background: var(--color-bg-subtle);
   text-decoration: none;
 }
 .btn-danger {
@@ -341,6 +367,11 @@ a:hover {
 .alert-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
 .alert-danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
 
+[data-theme="dark"] .alert-info { background: #172554; border-color: #1e3a8a; color: #93c5fd; }
+[data-theme="dark"] .alert-success { background: #052e16; border-color: #14532d; color: #86efac; }
+[data-theme="dark"] .alert-warning { background: #451a03; border-color: #92400e; color: #fcd34d; }
+[data-theme="dark"] .alert-danger { background: #450a0a; border-color: #991b1b; color: #fca5a5; }
+
 /* Tables */
 .table-wrapper {
   overflow-x: auto;
@@ -355,7 +386,7 @@ table {
 th {
   text-align: left;
   padding: 0.6875rem 1rem;
-  background: #f9fafb;
+  background: var(--color-bg-subtle);
   font-size: 0.8125rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -372,12 +403,12 @@ tr:last-child td {
   border-bottom: none;
 }
 tbody tr:hover {
-  background: #f9fafb;
+  background: var(--color-bg-subtle);
 }
 
 /* Cards */
 .card {
-  background: #ffffff;
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 1.5rem;
@@ -403,6 +434,12 @@ tbody tr:hover {
 .badge-yellow { background: #fef3c7; color: #92400e; }
 .badge-blue   { background: #dbeafe; color: #1e40af; }
 .badge-gray   { background: #f3f4f6; color: #374151; }
+
+[data-theme="dark"] .badge-green  { background: #052e16; color: #86efac; }
+[data-theme="dark"] .badge-red    { background: #450a0a; color: #fca5a5; }
+[data-theme="dark"] .badge-yellow { background: #451a03; color: #fcd34d; }
+[data-theme="dark"] .badge-blue   { background: #172554; color: #93c5fd; }
+[data-theme="dark"] .badge-gray   { background: #1e293b; color: #cbd5e1; }
 
 /* Page header */
 .page-header {
@@ -437,7 +474,7 @@ tbody tr:hover {
   font-size: 0.875rem;
   color: var(--color-fg);
 }
-.pagination a:hover { background: #f9fafb; text-decoration: none; }
+.pagination a:hover { background: var(--color-bg-subtle); text-decoration: none; }
 .pagination .current { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
 
 /* Spinner */
@@ -459,20 +496,23 @@ tbody tr:hover {
 /* Setup wizard */
 .setup-shell {
   min-height: 100vh;
-  background: #f9fafb;
+  background: var(--color-bg-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
 }
 .setup-card {
-  background: #ffffff;
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   width: 100%;
   max-width: 540px;
   padding: 2.5rem;
   box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+[data-theme="dark"] .setup-card {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 .setup-steps {
   display: flex;
@@ -616,12 +656,12 @@ tbody tr:hover {
   margin: 1.25em 0 0.5em;
   line-height: 1.3;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-fg);
 }
 .puck-richtext h1 { font-size: 2rem; }
 .puck-richtext h2 { font-size: 1.5rem; }
 .puck-richtext h3 { font-size: 1.25rem; }
-.puck-richtext p  { margin: 0 0 1em; line-height: 1.75; color: #374151; }
+.puck-richtext p  { margin: 0 0 1em; line-height: 1.75; color: var(--color-fg-secondary); }
 .puck-richtext ul,
 .puck-richtext ol { margin: 0 0 1em 1.5em; padding: 0; color: var(--color-fg-secondary, #374151); line-height: 1.75; }
 .puck-richtext li { margin-bottom: 0.25em; }
@@ -654,20 +694,14 @@ tbody tr:hover {
 }
 
 /* ---------------------------------------------------------------------------
-   Frontend CSS variable defaults
+   Frontend CSS variable defaults (non-theme-sensitive only)
    These only apply if design tokens haven't been set via SiteConfig.designTokens.
    The inline <style> injected by public layout.tsx overrides these when tokens exist.
+   Theme-sensitive vars (--color-bg, --color-fg, etc.) live in the theme blocks above.
    --------------------------------------------------------------------------- */
 :root {
-  --color-primary: #16a34a;
   --color-primary-dark: #15803d;
   --color-primary-subtle: #f0fdf4;
-  --color-bg: #ffffff;
-  --color-bg-subtle: #f9fafb;
-  --color-fg: #111827;
-  --color-fg-secondary: #374151;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
   --font-heading: system-ui, sans-serif;
   --font-body: system-ui, sans-serif;
   --border-radius: 6px;

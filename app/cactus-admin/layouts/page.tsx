@@ -121,12 +121,12 @@ export default function ThemeBuilderPage() {
                   <TypeBadge type={layout.type} />
                   {layout.status === 'published' && <StatusBadge status="published" />}
                   {layout.status === 'draft' && <StatusBadge status="draft" />}
-                  {layout.isStarter && <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>}
+                  {layout.isStarter && <span className="badge badge-gray" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>}
                 </div>
-                {layout.description && <p style={{ margin: '0 0 0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>{layout.description}</p>}
-                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>{conditionSummary(layout)}</p>
+                {layout.description && <p style={{ margin: '0 0 0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{layout.description}</p>}
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-muted)' }}>{conditionSummary(layout)}</p>
               </div>
-              <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
                 {!layout.isStarter && (
                   <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8125rem', cursor: 'pointer', padding: '0.375rem 0' }}>
@@ -144,15 +144,15 @@ export default function ThemeBuilderPage() {
 
 function TypeBadge({ type }: { type: string }) {
   return (
-    <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>
+    <span className="badge badge-blue" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>
       {TYPE_LABELS[type] ?? type}
     </span>
   )
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'published') return <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Published</span>
-  return <span style={{ background: '#fef9c3', color: '#a16207', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Draft</span>
+  if (status === 'published') return <span className="badge badge-green" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Published</span>
+  return <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Draft</span>
 }
 
 function LayoutThumbnail({ type, name }: { type: string; name: string }) {

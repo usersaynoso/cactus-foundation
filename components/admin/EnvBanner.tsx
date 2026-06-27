@@ -10,15 +10,15 @@ export default async function EnvBanner() {
   if (missing.length === 0) return null
 
   return (
-    <div style={{
-      background: '#fffbeb',
-      borderBottom: '1px solid #fde68a',
+    <div className="alert-warning" style={{
+      borderBottom: '1px solid',
       padding: '0.625rem 1.5rem',
       fontSize: '0.875rem',
-      color: '#92400e',
       display: 'flex',
       alignItems: 'center',
       gap: '0.5rem',
+      borderRadius: 0,
+      marginBottom: 0,
     }}>
       <span>⚠️</span>
       <span>
@@ -30,7 +30,7 @@ export default async function EnvBanner() {
           </span>
         ))}
         .{' '}
-        <a href={`/${adminPath}/config`} style={{ color: '#92400e', textDecoration: 'underline' }}>
+        <a href={`/${adminPath}/config`} style={{ textDecoration: 'underline' }}>
           Configure in Settings →
         </a>
       </span>
