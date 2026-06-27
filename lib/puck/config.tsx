@@ -1235,33 +1235,38 @@ export const layoutPuckRscConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
-const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => (
-  <header
-    data-bg-mode={bgMode}
-    style={{
-      height: height === 'auto' ? undefined : height,
-      minHeight: height === 'auto' ? 48 : undefined,
-      background: bgMode === 'transparent' ? 'transparent' : (bgColor || undefined),
-      borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}` : 'none',
-      position: sticky === 'yes' ? 'sticky' : 'relative',
-      top: sticky === 'yes' ? 0 : undefined,
-      zIndex: sticky === 'yes' ? 100 : undefined,
-      width: '100%',
-    }}
-  >
-    <div style={{
-      maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
-      margin: '0 auto',
-      padding: '0 1.5rem',
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '2rem',
-    }}>
-      {children}
-    </div>
-  </header>
+const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => (
+  <>
+    {puck?.isEditing && (
+      <style>{`[data-header-inner]>div{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:2rem!important;width:100%!important;height:100%!important}`}</style>
+    )}
+    <header
+      data-bg-mode={bgMode}
+      style={{
+        height: height === 'auto' ? undefined : height,
+        minHeight: height === 'auto' ? 48 : undefined,
+        background: bgMode === 'transparent' ? 'transparent' : (bgColor || undefined),
+        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}` : 'none',
+        position: sticky === 'yes' ? 'sticky' : 'relative',
+        top: sticky === 'yes' ? 0 : undefined,
+        zIndex: sticky === 'yes' ? 100 : undefined,
+        width: '100%',
+      }}
+    >
+      <div data-header-inner style={{
+        maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
+        margin: '0 auto',
+        padding: '0 1.5rem',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '2rem',
+      }}>
+        {children}
+      </div>
+    </header>
+  </>
 )
 
 export const headerPuckConfig = {
