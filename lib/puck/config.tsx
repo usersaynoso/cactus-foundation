@@ -1235,11 +1235,19 @@ export const layoutPuckRscConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
-const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => (
-  <>
-    {puck?.isEditing && (
-      <style>{`[data-header-inner]>div{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:2rem!important;width:100%!important;height:100%!important}`}</style>
-    )}
+const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => {
+  // In the editor, {children} is Puck's root DropZone element. DropZoneEdit merges
+  // any style prop onto its container div, so cloning with flex-row makes the DropZone
+  // itself a flex row — blocks inside appear side by side in the canvas.
+  // In RSC, {children} is a Fragment (transparent), so items are direct flex children
+  // of the inner div and the space-between layout already handles them correctly.
+  const content = puck?.isEditing && React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<any>, {
+        style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '2rem', width: '100%', height: '100%' },
+      })
+    : children
+
+  return (
     <header
       data-bg-mode={bgMode}
       style={{
@@ -1263,11 +1271,11 @@ const headerRootRender = ({ children, puck, bgMode = 'color', bgColor = '', heig
         justifyContent: 'space-between',
         gap: '2rem',
       }}>
-        {children}
+        {content}
       </div>
     </header>
-  </>
-)
+  )
+}
 
 export const headerPuckConfig = {
   categories: {
