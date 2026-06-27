@@ -133,7 +133,7 @@ function FlexBlock(props: any) {
       flexWrap: wrap === 'wrap' ? 'wrap' : 'nowrap',
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
-      marginBottom: '1.5rem',
+      marginBottom: padding === 'none' ? 0 : '1.5rem',
     }}>
       {typeof items === 'function' ? items() : null}
     </div>
@@ -1248,6 +1248,7 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
       top: sticky === 'yes' ? 0 : undefined,
       zIndex: sticky === 'yes' ? 100 : undefined,
       width: '100%',
+      overflow: 'hidden',
     }}
   >
     <div style={{
@@ -1256,9 +1257,8 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
       padding: '0 1.5rem',
       height: '100%',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '2rem',
+      flexDirection: 'column',
+      justifyContent: 'center',
     }}>
       {children}
     </div>
