@@ -168,8 +168,6 @@ model SiteConfig {
   // Active media provider for new uploads. Null until an admin selects one.
   // MediaProviderKind (PROXIED/DIRECT) is a static app-code lookup, not a column.
   mediaProvider          MediaProviderType?
-  comingSoonPageId       String?
-  maintenancePageId      String?
   privacyPolicyPageId    String?
   termsPageId            String?
   logoMediaId            String?
@@ -183,13 +181,7 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
-  // Structured config for the site-wide header (logo left, menu right)
-  headerConfig           Json?
-  // Puck builder data for the site-wide footer
-  footerBuilderData      Json?
-  // FK to Layout.id — the site-wide default layout
-  defaultLayoutId        String?
-  // Design tokens: colors, fonts, spacing stored as JSON
+  // Design tokens: colours, fonts, spacing, radius, shadows stored as JSON
   designTokens           Json?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
@@ -218,9 +210,6 @@ model InfoPage {
   metaDescription String?
   // FK to Media.id — nullable, no Prisma-level relation to avoid circular ref
   ogImageId       String?
-  // FK to Layout.id — nullable; when set, overrides module/site default layout
-  layoutId        String?
-  layout          Layout?    @relation(fields: [layoutId], references: [id], onDelete: SetNull)
   // Nullable so content survives if author deletes their account
   createdById     String?
   createdBy       User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -310,28 +299,22 @@ model MediaMigrationJob {
 // ---------------------------------------------------------------------------
 
 model Layout {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  // Puck builder data for the body structure (must contain a ContentSlot block)
-  builderData Json?
+  id                String     @id @default(cuid())
+  name              String
+  // header | footer | infoPage | notFound | statusPage | <module-type>
+  type              String     @default("infoPage")
+  description       String?
+  // Puck builder data for the body structure
+  builderData       Json?
+  // { include: ConditionRule[], exclude: ConditionRule[] }
+  displayConditions Json?
+  // Manual tiebreaker when two layouts have the same specificity score
+  priority          Int        @default(0)
   // Starter layouts are seeded and cannot be deleted by users
-  isStarter   Boolean    @default(false)
-  status      PageStatus @default(draft)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  pageOverrides  InfoPage[]
-  moduleDefaults ModuleLayoutDefault[]
-}
-
-// Per-module layout defaults (e.g. all infopages use "Boxed")
-model ModuleLayoutDefault {
-  id         String @id @default(cuid())
-  // Module name key, e.g. "infopages", "forums"
-  moduleName String @unique
-  layoutId   String
-  layout     Layout @relation(fields: [layoutId], references: [id])
+  isStarter         Boolean    @default(false)
+  status            PageStatus @default(draft)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 // ---------------------------------------------------------------------------

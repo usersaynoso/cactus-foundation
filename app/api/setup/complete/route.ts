@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { syncToEdgeConfig } from '@/lib/config/edge-config'
 
+const ENTIRE_SITE_CONDITIONS = {
+  include: [{ type: 'entire_site' }],
+  exclude: [],
+}
+
 export async function POST() {
   const cfg = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
@@ -35,72 +40,17 @@ export async function POST() {
     },
   })
 
-  // Default header config — logo left, main menu right, fixed layout
-  const headerConfig = {
-    bgMode: 'color',
-    bgColor: 'var(--color-bg)',
-    height: '64px',
-    sticky: 'yes',
-    borderBottom: 'show',
-    borderColor: 'var(--color-border)',
-    maxWidth: '1200px',
-    logoHeight: 40,
-    showTextWithLogo: 'false',
-    logoHomeUrl: '/',
-    itemFontSize: 'medium',
-    itemFontWeight: 'medium',
-    itemColor: '',
-    showMobileToggle: 'collapse',
-  }
-
-  // Seed default footer builder data — Copyright block
-  const footerBuilderData = {
-    content: [
-      {
-        type: 'Copyright',
-        props: {
-          id: 'copyright-1',
-          prefix: '©',
-          customPrefix: '',
-          yearFormat: 'current',
-          startYear: new Date().getFullYear(),
-          showSiteName: 'true',
-          suffix: '',
-          alignment: 'center',
-          fontSize: 'small',
-          textColor: 'var(--color-muted)',
-          privacyPolicyUrl: '',
-          privacyPolicyLabel: 'Privacy Policy',
-          termsUrl: '',
-          termsLabel: 'Terms of Service',
-          customLink1Url: '',
-          customLink1Label: '',
-          customLink2Url: '',
-          customLink2Label: '',
-        },
-      },
-    ],
-    root: {
-      props: {
-        bgColor: 'var(--color-bg-subtle)',
-        paddingY: 'md',
-        borderTop: 'show',
-        borderColor: 'var(--color-border)',
-        maxWidth: '1200px',
-      },
-    },
-    zones: {},
-  }
-
-  // Seed starter layouts
-  const fullWidthLayout = await prisma.layout.upsert({
+  // Seed infoPage starter layouts
+  await prisma.layout.upsert({
     where: { id: 'starter-full-width' },
     create: {
       id: 'starter-full-width',
       name: 'Full Width',
+      type: 'infoPage',
       description: 'Content fills the full width. No constraints.',
       isStarter: true,
       status: 'published',
+      displayConditions: ENTIRE_SITE_CONDITIONS,
       builderData: { content: [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }], root: { props: {} }, zones: {} },
     },
     update: {},
@@ -111,6 +61,7 @@ export async function POST() {
     create: {
       id: 'starter-boxed',
       name: 'Boxed',
+      type: 'infoPage',
       description: 'Centred content with standard max-width.',
       isStarter: true,
       status: 'published',
@@ -128,6 +79,7 @@ export async function POST() {
     create: {
       id: 'starter-sidebar-right',
       name: 'With Right Sidebar',
+      type: 'infoPage',
       description: 'Main content (70%) with a sidebar on the right (30%).',
       isStarter: true,
       status: 'published',
@@ -143,6 +95,111 @@ export async function POST() {
     update: {},
   })
 
+  // Seed header starter layout
+  await prisma.layout.upsert({
+    where: { id: 'starter-header' },
+    create: {
+      id: 'starter-header',
+      name: 'Default Header',
+      type: 'header',
+      description: 'Logo left, navigation right.',
+      isStarter: true,
+      status: 'published',
+      displayConditions: ENTIRE_SITE_CONDITIONS,
+      builderData: {
+        root: { props: {} },
+        content: [
+          {
+            type: 'SiteHeader',
+            props: { id: 'site-header-1', sticky: true, bgMode: 'color', height: 64, maxWidth: 1200, borderBottom: true },
+            readOnly: {},
+          },
+        ],
+        zones: {},
+      },
+    },
+    update: {},
+  })
+
+  // Seed footer starter layout
+  await prisma.layout.upsert({
+    where: { id: 'starter-footer' },
+    create: {
+      id: 'starter-footer',
+      name: 'Default Footer',
+      type: 'footer',
+      description: 'Simple copyright footer.',
+      isStarter: true,
+      status: 'published',
+      displayConditions: ENTIRE_SITE_CONDITIONS,
+      builderData: {
+        content: [
+          {
+            type: 'Copyright',
+            props: {
+              id: 'copyright-1',
+              prefix: '©',
+              customPrefix: '',
+              yearFormat: 'current',
+              startYear: new Date().getFullYear(),
+              showSiteName: 'true',
+              suffix: '',
+              alignment: 'center',
+              fontSize: 'small',
+              textColor: '',
+              privacyPolicyUrl: '',
+              privacyPolicyLabel: 'Privacy Policy',
+              termsUrl: '',
+              termsLabel: 'Terms of Service',
+              customLink1Url: '',
+              customLink1Label: '',
+              customLink2Url: '',
+              customLink2Label: '',
+            },
+          },
+        ],
+        root: {
+          props: {
+            bgColor: '',
+            paddingY: 'md',
+            borderTop: 'show',
+            borderColor: '',
+            maxWidth: '1200px',
+          },
+        },
+        zones: {},
+      },
+    },
+    update: {},
+  })
+
+  // Default design tokens - new palette format
+  const defaultDesignTokens = {
+    colours: [
+      { name: 'Primary', hex: '#16a34a', darkHex: '#4ade80' },
+      { name: 'Surface', hex: '#ffffff', darkHex: '#0f172a' },
+    ],
+    typography: {
+      fontHeading: 'system-ui, sans-serif',
+      fontBody: 'system-ui, sans-serif',
+      h1Size: '2.5rem',
+      h2Size: '1.875rem',
+      h3Size: '1.5rem',
+      bodySize: '1rem',
+      bodyLineHeight: '1.75',
+    },
+    spacing: { base: 4 },
+    radius: {
+      small: '2px',
+      medium: '6px',
+      large: '9999px',
+    },
+    shadows: {
+      subtle: '0 2px 8px rgba(0,0,0,0.08)',
+      elevated: '0 4px 24px rgba(0,0,0,0.15)',
+    },
+  }
+
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: {
@@ -151,9 +208,7 @@ export async function POST() {
       hideFromCrawlers: true,
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
-      headerConfig: headerConfig,
-      footerBuilderData: footerBuilderData,
-      defaultLayoutId: fullWidthLayout.id,
+      designTokens: defaultDesignTokens,
     },
   })
 

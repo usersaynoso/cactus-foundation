@@ -5,6 +5,8 @@ import React from 'react'
 import type { Config } from '@puckeditor/core'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
+import { SiteColourField } from '@/lib/puck/SiteColourField'
+import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -796,7 +798,7 @@ const puckConfig = {
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
-    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton'], defaultExpanded: false },
+    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: false },
   },
   root: {
     render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -808,14 +810,14 @@ const puckConfig = {
       fields: {
         content: { type: 'slot' as const },
         bgType: { type: 'select' as const, label: 'Background type', options: [{ value: 'none', label: 'None' }, { value: 'color', label: 'Colour' }, { value: 'gradient', label: 'Gradient (CSS)' }, { value: 'image', label: 'Image URL' }] },
-        bgColor: { type: 'text' as const, label: 'Colour or gradient CSS' },
+        bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
-        overlayColor: { type: 'text' as const, label: 'Overlay colour' },
+        overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
         paddingY: { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }] },
         maxWidth: { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }] },
-        textColor: { type: 'text' as const, label: 'Text colour override' },
+        textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
         stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
         boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
@@ -973,8 +975,8 @@ const puckConfig = {
         cta2Label: { type: 'text' as const, label: 'Second CTA label' }, cta2Href: { type: 'text' as const, label: 'Second CTA URL' },
         cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
         bgType: { type: 'select' as const, label: 'Background', options: [{ value: 'gradient', label: 'Gradient' }, { value: 'color', label: 'Colour' }, { value: 'image', label: 'Image' }, { value: 'none', label: 'None' }] },
-        bgColor: { type: 'text' as const, label: 'Colour or gradient CSS' }, bgImage: { type: 'text' as const, label: 'Background image URL' },
-        overlayColor: { type: 'text' as const, label: 'Overlay colour' }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
+        bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> }, bgImage: { type: 'text' as const, label: 'Background image URL' },
+        overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
         layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }] },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
         textScheme: { type: 'select' as const, label: 'Text colour', options: [{ value: 'dark', label: 'Dark (for light backgrounds)' }, { value: 'light', label: 'Light (for dark backgrounds)' }] },
@@ -1085,27 +1087,33 @@ const puckConfig = {
       defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
       render: LoginButton,
     },
+    ThemeToggle: {
+      label: 'Theme Toggle',
+      fields: {},
+      defaultProps: {},
+      render: () => <ThemeToggleClient />,
+    },
     SiteHeader: {
       label: 'Site Header',
       fields: {
         bgMode:           { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
-        bgColor:          { type: 'text' as const, label: 'Background colour (hex/CSS)' },
+        bgColor:          { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         height:           { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
         sticky:           { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
         borderBottom:     { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-        borderColor:      { type: 'text' as const, label: 'Border colour' },
+        borderColor:      { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         maxWidth:         { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
         logoHeight:       { type: 'number' as const, label: 'Logo height (px)' },
         showTextWithLogo: { type: 'select' as const, label: 'Show site name', options: [{ value: 'false', label: 'Logo only' }, { value: 'true', label: 'Logo + name' }] },
         logoHomeUrl:      { type: 'text' as const, label: 'Logo link URL' },
         itemFontSize:     { type: 'select' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
-        itemColor:        { type: 'text' as const, label: 'Nav link colour' },
+        itemColor:        { type: 'custom' as const, label: 'Nav link colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
       },
       defaultProps: {
-        bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes',
-        borderBottom: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px',
+        bgMode: 'color', bgColor: '', height: '64px', sticky: 'yes',
+        borderBottom: 'show', borderColor: '', maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
         itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse',
       },
@@ -1141,17 +1149,17 @@ export const footerPuckConfig = {
   },
   root: {
     fields: {
-      bgColor:    { type: 'text' as const,   label: 'Background colour (hex/CSS)' },
+      bgColor:    { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
       paddingY:   { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
       borderTop:  { type: 'select' as const, label: 'Border top', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-      borderColor:{ type: 'text' as const,   label: 'Border colour' },
+      borderColor:{ type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
       maxWidth:   { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }] },
     },
-    defaultProps: { bgColor: 'var(--color-bg-subtle)', paddingY: 'md', borderTop: 'show', borderColor: 'var(--color-border)', maxWidth: '1200px' },
+    defaultProps: { bgColor: '', paddingY: 'md', borderTop: 'show', borderColor: '', maxWidth: '1200px' },
     render: ({ children, bgColor, paddingY, borderTop, borderColor, maxWidth }: any) => {
       const pyMap: Record<string, string> = { none: '0', sm: '2rem', md: '3rem', lg: '5rem' }
       return (
-        <footer style={{ background: bgColor || 'var(--color-bg-subtle)', borderTop: borderTop === 'show' ? `1px solid ${borderColor || 'var(--color-border)'}` : 'none' }}>
+        <footer style={{ background: bgColor || undefined, borderTop: borderTop === 'show' ? `1px solid ${borderColor || 'var(--admin-border, #e5e7eb)'}` : 'none' }}>
           <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: `${pyMap[paddingY] ?? '3rem'} 1.5rem` }}>
             {children}
           </div>
@@ -1223,3 +1231,47 @@ export const layoutPuckRscConfig = {
     RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
   },
 }
+
+// ---------------------------------------------------------------------------
+// Header Puck config — site + structural blocks only, no content blocks
+// ---------------------------------------------------------------------------
+
+export const headerPuckConfig = {
+  categories: {
+    site:   { title: 'Site',      components: ['SiteHeader', 'SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: true },
+    layout: { title: 'Structure', components: ['Flex', 'Columns', 'Spacer'], defaultExpanded: false },
+  },
+  root: {
+    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  },
+  components: {
+    SiteHeader:   puckConfig.components.SiteHeader,
+    SiteLogo:     puckConfig.components.SiteLogo,
+    MenuBlock:    puckConfig.components.MenuBlock,
+    LoginButton:  puckConfig.components.LoginButton,
+    ThemeToggle:  puckConfig.components.ThemeToggle,
+    Flex:         puckConfig.components.Flex,
+    Columns:      puckConfig.components.Columns,
+    Spacer:       puckConfig.components.Spacer,
+  },
+}
+
+export const headerPuckRscConfig = {
+  ...headerPuckConfig,
+  components: {
+    ...headerPuckConfig.components,
+    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Footer Puck config RSC — same as footerPuckConfig but kept for completeness
+// (footerPuckRscConfig already defined above)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Full-page Puck config — for notFound + statusPage types (no ContentSlot)
+// ---------------------------------------------------------------------------
+
+export const fullPagePuckConfig = puckConfig
+export const fullPagePuckRscConfig = puckRscConfig

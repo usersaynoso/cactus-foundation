@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { headerConfig: true, footerBuilderData: true, designTokens: true },
+      select: { designTokens: true },
     })
     return NextResponse.json(config ?? {})
   } catch {
@@ -23,13 +23,15 @@ export async function PATCH(req: Request) {
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
-    const allowed = ['headerConfig', 'footerBuilderData', 'designTokens'] as const
-    const data: Record<string, unknown> = {}
-    for (const key of allowed) {
-      if (key in body) data[key] = body[key]
+    // Only accept designTokens; silently ignore legacy headerConfig/footerBuilderData
+    if (!('designTokens' in body)) {
+      return NextResponse.json({ error: 'designTokens required' }, { status: 400 })
     }
 
-    const config = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
+    const config = await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { designTokens: body.designTokens },
+    })
     return NextResponse.json(config)
   } catch {
     return NextResponse.json({ error: 'Failed to save appearance' }, { status: 500 })

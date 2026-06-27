@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 type Props = {
   adminPath: string
@@ -21,8 +22,8 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
     { href: `${base}/pages`,      label: 'Pages',      icon: '📄' },
     { href: `${base}/menus`,      label: 'Menus',      icon: '☰' },
     { href: `${base}/media`,      label: 'Media',      icon: '🖼' },
-    { href: `${base}/appearance`, label: 'Appearance', icon: '🎨' },
-    { href: `${base}/layouts`,    label: 'Layouts',    icon: '📐' },
+    { href: `${base}/appearance`, label: 'Style Guide', icon: '🎨' },
+    { href: `${base}/layouts`,    label: 'Theme Builder', icon: '📐' },
     { href: `${base}/users`,      label: 'Users',      icon: '👥' },
     { href: `${base}/roles`,      label: 'Roles',      icon: '🔑' },
     { href: `${base}/modules`,    label: 'Modules',    icon: '🧩' },
@@ -47,6 +48,11 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
         )
       })}
       <div style={{ marginTop: 'auto', borderTop: '1px solid #1f2937', paddingTop: '1rem' }}>
+        {!collapsed && (
+          <div style={{ padding: '0.5rem 1.25rem' }}>
+            <ThemeToggle compact />
+          </div>
+        )}
         <form action="/api/auth/logout" method="POST">
           <button
             type="submit"

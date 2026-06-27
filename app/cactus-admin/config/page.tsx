@@ -19,7 +19,6 @@ type SiteConfig = {
   publicRegistration: boolean; trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null;
-  comingSoonPageId: string; maintenancePageId: string;
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
@@ -644,19 +643,10 @@ function ConfigPageInner() {
               <option value="maintenance">Maintenance</option>
             </select>
           </div>
-          <div className="field">
-            <label>Coming soon page</label>
-            <select value={config.comingSoonPageId ?? ''} onChange={(e) => set('comingSoonPageId', e.target.value)}>
-              <option value="">— Use default template —</option>
-              {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Maintenance page</label>
-            <select value={config.maintenancePageId ?? ''} onChange={(e) => set('maintenancePageId', e.target.value)}>
-              <option value="">— Use default template —</option>
-              {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>Status page layouts</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: '#6b7280' }}>Customise the coming soon and maintenance screens in the Theme Builder.</p>
+            <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: '0.875rem', color: '#16a34a' }}>Manage status page layouts →</a>
           </div>
           <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />

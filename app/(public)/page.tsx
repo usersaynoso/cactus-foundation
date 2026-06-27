@@ -5,6 +5,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
 import { puckRscConfig } from '@/lib/puck/config'
+import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
+import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import type { Data } from '@puckeditor/core'
 
 export const dynamic = 'force-dynamic'
@@ -30,32 +32,27 @@ export default async function RootPage() {
     select: { siteName: true, tagline: true, description: true, homepageId: true },
   })
 
-  // If a homepage page is configured, render it inline at /
   if (config?.homepageId) {
     const page = await prisma.infoPage.findUnique({
       where: { id: config.homepageId },
       select: {
-        id: true, title: true, body: true, bodyFormat: true, builderData: true,
-        status: true,
+        id: true, title: true, body: true, bodyFormat: true, builderData: true, status: true,
       },
     }).catch(() => null)
 
     if (page) {
-      // Draft gate
       if (page.status === 'draft') {
         const user = await getSessionFromCookie()
-        if (!user || !isAdmin(user)) {
-          // Fall through to default
-        } else {
-          return renderPage(page, true)
+        if (user && isAdmin(user)) {
+          return renderHomePage(page, true, config.homepageId)
         }
+        // fall through to welcome screen for non-admins
       } else {
-        return renderPage(page, false)
+        return renderHomePage(page, false, config.homepageId)
       }
     }
   }
 
-  // Default welcome screen
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.5rem' }}>
       <h1>{config?.siteName ?? 'Welcome'}</h1>
@@ -74,58 +71,60 @@ type PageData = {
   status: string
 }
 
-function renderPage(page: PageData, isDraft: boolean) {
+async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) {
+  const layout = await resolveThemeLayout('infoPage', { pageId, slug: 'home', isHomepage: true })
+
+  const draftBanner = isDraft ? (
+    <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: '#fef9c3', color: '#a16207', fontSize: '0.875rem', fontWeight: 500 }}>
+      Draft — not visible to the public
+    </div>
+  ) : null
+
   if (page.bodyFormat === 'builder') {
     const data = page.builderData as Data | null
     if (!data) {
       return (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-          {isDraft && (
-            <div className="alert alert-warning" style={{ marginBottom: '1.5rem' }}>
-              This page is a draft and is not visible to the public.
-            </div>
-          )}
-          <p style={{ color: '#9ca3af', textAlign: 'center', padding: '4rem 0' }}>
-            This page has no builder content yet.
-          </p>
+          {draftBanner}
+          <p style={{ color: '#9ca3af', textAlign: 'center', padding: '4rem 0' }}>This page has no builder content yet.</p>
         </div>
       )
     }
+
+    if (layout?.builderData) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pageContent = <Render config={puckRscConfig as any} data={data} />
+      return (
+        <>
+          {draftBanner}
+          {renderLayoutWithContent(layout.builderData as Data, pageContent)}
+        </>
+      )
+    }
+
     return (
       <>
-        {isDraft && (
-          <div
-            className="alert alert-warning"
-            style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center' }}
-          >
-            This page is a draft and is not visible to the public.
-          </div>
-        )}
+        {draftBanner}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <Render config={puckRscConfig as any} data={data as any} />
+        <Render config={puckRscConfig as any} data={data} />
       </>
     )
   }
 
   const html = markdownToHtml(page.body)
-
-  return (
+  const markdownContent = (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-      {isDraft && (
-        <div className="alert alert-warning" style={{ marginBottom: '1.5rem' }}>
-          This page is a draft and is not visible to the public.
-        </div>
-      )}
+      {draftBanner}
       <article>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: '0 0 1.5rem', lineHeight: 1.2 }}>
-          {page.title}
-        </h1>
-        <div
-          className="prose"
-          dangerouslySetInnerHTML={{ __html: html }}
-          style={{ lineHeight: 1.75, color: '#374151' }}
-        />
+        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: '0 0 1.5rem', lineHeight: 1.2 }}>{page.title}</h1>
+        <div className="prose" dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.75, color: '#374151' }} />
       </article>
     </div>
   )
+
+  if (layout?.builderData) {
+    return renderLayoutWithContent(layout.builderData as Data, markdownContent)
+  }
+
+  return markdownContent
 }

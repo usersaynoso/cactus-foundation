@@ -4,8 +4,9 @@ import { markdownToHtml } from '@/lib/sanitize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
-import { puckRscConfig, layoutPuckRscConfig } from '@/lib/puck/config'
-import { resolveLayout } from '@/lib/layout/resolveLayout'
+import { puckRscConfig } from '@/lib/puck/config'
+import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
+import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -41,8 +42,7 @@ export default async function InfoPageRoute({ params }: Props) {
   const page = await prisma.infoPage.findUnique({
     where: { slug },
     select: {
-      id: true, title: true, body: true, bodyFormat: true, builderData: true,
-      status: true, layoutId: true,
+      id: true, title: true, body: true, bodyFormat: true, builderData: true, status: true,
     },
   }).catch(() => null)
 
@@ -55,8 +55,7 @@ export default async function InfoPageRoute({ params }: Props) {
 
   const isDraft = page.status === 'draft'
 
-  // Resolve layout (page override → module default → site default)
-  const layout = await resolveLayout(page.layoutId, 'infopages')
+  const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug })
 
   const draftBanner = isDraft ? (
     <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: '#fef9c3', color: '#a16207', fontSize: '0.875rem', fontWeight: 500 }}>
@@ -76,14 +75,14 @@ export default async function InfoPageRoute({ params }: Props) {
     }
 
     if (layout?.builderData) {
-      // Render layout with page content injected into ContentSlot
-      const layoutData = layout.builderData as Data
-      const layoutDataWithSlot = injectContentSlot(layoutData, pageData)
+      const pageContent = (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        <Render config={puckRscConfig as any} data={pageData} />
+      )
       return (
         <>
           {draftBanner}
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <Render config={layoutPuckRscConfig as any} data={layoutDataWithSlot} />
+          {renderLayoutWithContent(layout.builderData as Data, pageContent)}
         </>
       )
     }
@@ -108,32 +107,13 @@ export default async function InfoPageRoute({ params }: Props) {
   )
 
   if (layout?.builderData) {
-    const layoutData = layout.builderData as Data
-    const layoutDataWithSlot = injectContentSlot(layoutData, null, markdownContent)
     return (
       <>
         {draftBanner}
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <Render config={layoutPuckRscConfig as any} data={layoutDataWithSlot} />
+        {renderLayoutWithContent(layout.builderData as Data, markdownContent)}
       </>
     )
   }
 
   return <>{draftBanner}{markdownContent}</>
-}
-
-// Replace ContentSlot in layout builderData with page content rendered via Puck.
-// Since we can't nest Render calls, we swap ContentSlot's render to output pageData.
-// At runtime this is handled by injecting a custom render for the ContentSlot component.
-function injectContentSlot(layoutData: Data, pageData: Data | null, markdownNode?: React.ReactNode): Data {
-  // Mark the layout data so the RSC render knows to inject content.
-  // We pass pageData as a prop on the ContentSlot block so the config's
-  // ContentSlot render can access it — but RSC Render doesn't support this.
-  // Instead, we embed the content directly in the layout structure by replacing
-  // ContentSlot blocks with a wrapper that carries the content as a zone.
-  // For now: return the layout data as-is; ContentSlot shows placeholder.
-  // Full injection requires a custom Render wrapper (future enhancement).
-  void pageData
-  void markdownNode
-  return layoutData
 }

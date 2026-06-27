@@ -15,7 +15,6 @@ const Patch = z.object({
   status:          z.enum(['draft', 'published']).optional(),
   bodyFormat:      z.enum(['markdown', 'builder']).optional(),
   menuIds:         z.array(z.string()).optional(),
-  layoutId:        z.string().optional().nullable(),
 })
 
 type Params = { params: Promise<{ id: string }> }
@@ -119,7 +118,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!page) return errorResponse('Not found', 404)
 
   const config = await prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
-  const refs = [config?.comingSoonPageId, config?.maintenancePageId, config?.privacyPolicyPageId, config?.termsPageId]
+  const refs = [config?.privacyPolicyPageId, config?.termsPageId]
   if (refs.includes(id)) {
     return errorResponse('This page is referenced in site settings. Update the settings first before deleting.', 409)
   }

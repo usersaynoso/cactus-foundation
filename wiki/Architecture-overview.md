@@ -203,62 +203,100 @@ The autosave endpoint ignores any `status` field the client sends - it always wr
 
 The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` - a server component. The editor bundle is never included in the public-page response.
 
-Page content is rendered directly from `builderData` using `<Render config={puckRscConfig} data={pageData} />`. If the page has an assigned layout, the layout's Puck data is rendered via `layoutPuckRscConfig` and a ContentSlot block marks where page content appears.
+Page content is wrapped inside a layout resolved by `resolveThemeLayout('infoPage', { pageId, slug })`. The layout is rendered via `renderLayoutWithContent(layoutData, pageContent)`, which patches the Puck config to replace the `ContentSlot` component's render function with one that returns the real page content. This happens entirely server-side with no hydration overhead.
 
-## Appearance & Layouts
+## Theme Builder
 
-Cactus has no hardcoded frontend design. All visual aspects are user-configurable through three concerns:
+Cactus has no hardcoded frontend design. All visual aspects are user-configurable through the Theme Builder and Style Guide.
 
-### Header and Footer (Appearance)
+### Layout types
 
-The site-wide header and footer are each stored as Puck builder data in `SiteConfig.headerBuilderData` and `SiteConfig.footerBuilderData`. Edited in **Admin → Appearance → Header / Footer**.
+Every layout record has a `type` field (stored as a plain `String` on the `Layout` model, not a database enum, so new types can be added without a migration). The five built-in types are:
 
-- Uses `headerPuckConfig` / `footerPuckConfig` in the editor canvas and `headerPuckRscConfig` / `footerPuckRscConfig` for server-side rendering.
-- The header config's Puck root has editable fields: background mode (solid / transparent / transparent-on-scroll), background colour, height, sticky, border bottom, content max-width.
-- The footer config's Puck root has: background colour, vertical padding, border top, content max-width.
-- Both use `SiteLogoRsc` (no hooks, inline styles) in the RSC render path and `SiteLogoClient` in the editor.
-- Context values (site name, logo URL, auth state) are injected server-side in `app/(public)/layout.tsx` before calling `<Render>`.
+| Type | Purpose |
+|---|---|
+| `header` | Site-wide header. Rendered above every public page. |
+| `footer` | Site-wide footer. Rendered below every public page. |
+| `infoPage` | Body wrapper for info pages. The `ContentSlot` block marks where page content appears. |
+| `notFound` | Rendered by `app/not-found.tsx` when a URL matches no page. |
+| `statusPage` | Rendered by the coming-soon / maintenance status routes. |
 
-### Design Tokens
+Headers and footers are full `Layout` records edited in **Admin → Theme Builder**, not JSON blobs on `SiteConfig`. The `SiteConfig` columns `headerBuilderData`, `footerBuilderData`, `defaultLayoutId`, `comingSoonPageId`, and `maintenancePageId` were removed.
 
-Stored as JSON in `SiteConfig.designTokens`. Edited in **Admin → Appearance → Design Tokens**.
+### Display conditions
 
-Keys include: `primaryColor`, `primaryFg`, `bgColor`, `fgColor`, `mutedColor`, `borderColor`, `fontHeading`, `fontBody`, `borderRadius`, `linkColor`, `linkHoverColor`, `h1Size`–`h3Size`, `bodySize`, `bodyLineHeight`, `containerMaxWidth`.
+Each layout can carry a `displayConditions` JSON field with `include` and `exclude` rule lists:
 
-`app/(public)/layout.tsx` injects these as a `<style>` tag with `:root { --color-primary: …; … }` CSS variables, which all Puck blocks reference via `var(--color-primary)` etc.
+```ts
+type ConditionRule = { type: ConditionType; value?: string }
+type DisplayConditions = { include: ConditionRule[]; exclude: ConditionRule[] }
+```
 
-### Layouts
+`ConditionType` values and their specificity scores:
 
-Layouts define body structure (sidebar, max-width, etc.) using structural blocks plus a special **ContentSlot** block. Multiple layouts can exist; which one applies follows a three-level fallback:
+| Condition type | Score |
+|---|---|
+| `page_id` | 100 |
+| `page_slug` | 90 |
+| `homepage` / `not_found` / `coming_soon` / `maintenance` | 80 |
+| `module` | 50 |
+| `path_prefix` | 40 |
+| `entire_site` | 10 |
 
-1. `InfoPage.layoutId` — explicit page-level override
-2. `ModuleLayoutDefault.moduleName` — module default (e.g. `infopages`)
-3. `SiteConfig.defaultLayoutId` — site-wide default
+`resolveThemeLayout(type, renderContext)` in `lib/layout/resolveThemeLayout.ts` fetches all published layouts of the requested type, scores each one's include rules against the current render context, eliminates any layout that matches an exclude rule, and returns the highest-scoring layout. Ties are broken by `priority` then `updatedAt`. A layout with no include rules scores 0 and is only used as a last resort.
 
-Edited in **Admin → Layouts**. Uses `layoutPuckConfig` / `layoutPuckRscConfig`.
+`matchesRule` and `scoreConditions` live in `lib/layout/displayConditions.ts`.
 
-Three starter layouts are seeded on fresh install: Full Width, Boxed, With Right Sidebar.
+### ContentSlot injection
+
+`renderLayoutWithContent(layoutData, pageContent)` in `lib/puck/renderLayoutWithContent.tsx` patches the Puck config at render time: it overrides the `ContentSlot` component's `render` function to return the real page React node, then calls `<Render>` with the patched config. This means layouts are ordinary Puck builder data; the ContentSlot is just a positioned placeholder that gets swapped at render time with no special data format needed.
 
 ### Puck config exports
 
 | Export | Used in |
 |---|---|
 | `puckConfig` / `puckRscConfig` | Page builder (editor / RSC render) |
-| `headerPuckConfig` / `headerPuckRscConfig` | Header editor / public header render |
-| `footerPuckConfig` / `footerPuckRscConfig` | Footer editor / public footer render |
-| `layoutPuckConfig` / `layoutPuckRscConfig` | Layout editor / public layout render |
+| `headerPuckConfig` / `headerPuckRscConfig` | Header layout editor / public header render |
+| `fullPagePuckConfig` / `fullPagePuckRscConfig` | 404 and status page layout editors |
+| `layoutPuckConfig` / `layoutPuckRscConfig` | infoPage layout editor / public layout render |
 
-RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in RSC) and replace `SiteLogoClient` with `SiteLogoRsc`.
+RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in RSC) and replace `SiteLogoClient` with `SiteLogoRsc`. The layout editor selects which config to use via a `getConfig(type)` switch in `LayoutPuckEditor.tsx`.
 
-### Template protection
+### `resolveLayout` vs `resolveThemeLayout`
 
-Deleting a template that is currently assigned as the active header or footer is blocked with a `409` error explaining which slot it occupies. The admin must reassign the slot in Settings → General first.
+`lib/layout/resolveLayout.ts` is the original three-tier fallback (`InfoPage.layoutId` → `ModuleLayoutDefault` → `SiteConfig.defaultLayoutId`). It is kept for backwards compatibility with any module that calls it directly but is no longer used by the core public routes. New code should use `resolveThemeLayout`.
 
-## Theme system
+## Style Guide
 
-Themes live under `themes/<name>/`. Activating a theme is a pure database flag flip (`Theme.isActive`) with no redeploy. Installing a new theme follows the same submodule-commit pattern as a module.
+**Admin → Style Guide** (formerly "Appearance") controls all visual design tokens.
 
-The Prickly theme is bundled in `themes/prickly/` - it is not a submodule. No install step is needed for it.
+### Colour palette
+
+Up to six colour slots, each with a name, a light-mode hex value, and an optional dark-mode hex. Stored as `SiteConfig.designTokens.colours` (a `ColourSlot[]` array).
+
+`app/(public)/layout.tsx` emits a `<style>` tag via `buildTokenStyles(tokens)` that generates:
+
+```css
+:root, [data-theme="light"] { --color-1: #hex; --color-2: #hex; … }
+[data-theme="dark"] { --color-1: #dark-hex; … }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --color-1: #dark-hex; … } }
+```
+
+All Puck block colour fields use the `SiteColourField` custom field renderer (`lib/puck/SiteColourField.tsx`). It fetches the palette from `/api/admin/appearance` and renders named swatches. Selecting a swatch stores `var(--color-N)` as the field value, so colour changes in the Style Guide propagate to all blocks automatically without re-saving pages.
+
+### Other tokens
+
+`designTokens` also carries `typography` (heading/body font families, size scale), `spacing` (9-step scale mapped to `--sp-1` through `--sp-9`), `radius` (sm/md/lg), and `shadows` (sm/md/lg). These are edited in the Style Guide and exposed as CSS variables by the same `buildTokenStyles` call.
+
+### Dark mode
+
+Cactus supports three dark-mode states: **Auto** (follows the OS), **Light**, and **Dark**. The preference is stored in `localStorage` as `cactus-theme`.
+
+To prevent flash-of-wrong-theme on load, `app/layout.tsx` includes an inline `<script>` that runs before paint: it reads `cactus-theme`, and sets `data-theme="light"` or `data-theme="dark"` on `<html>` immediately. When mode is `auto`, no attribute is set and the CSS `prefers-color-scheme` media query takes over.
+
+The `ThemeToggle` component (`components/ThemeToggle.tsx`) is a client component that renders Auto / Light / Dark buttons and calls `applyTheme(mode)`. A compact variant is mounted in the admin sidebar above Sign out.
+
+Admin UI colours are defined as `--admin-*` CSS variables in `app/globals.css` with light and dark overrides, so the admin panel also responds to the dark-mode toggle without a separate theme system.
 
 ---
 

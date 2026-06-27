@@ -134,8 +134,6 @@ CREATE TABLE "SiteConfig" (
     "emailFromAddress" TEXT,
     "emailProvider" TEXT,
     "mediaProvider" "MediaProviderType",
-    "comingSoonPageId" TEXT,
-    "maintenancePageId" TEXT,
     "privacyPolicyPageId" TEXT,
     "termsPageId" TEXT,
     "logoMediaId" TEXT,
@@ -145,9 +143,6 @@ CREATE TABLE "SiteConfig" (
     "recoveryCodeHash" TEXT,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
-    "headerConfig" JSONB,
-    "footerBuilderData" JSONB,
-    "defaultLayoutId" TEXT,
     "designTokens" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -168,7 +163,6 @@ CREATE TABLE "InfoPage" (
     "status" "PageStatus" NOT NULL DEFAULT 'draft',
     "metaDescription" TEXT,
     "ogImageId" TEXT,
-    "layoutId" TEXT,
     "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -214,20 +208,16 @@ CREATE TABLE "MediaMigrationJob" (
 CREATE TABLE "Layout" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'infoPage',
     "description" TEXT,
     "builderData" JSONB,
+    "displayConditions" JSONB,
+    "priority" INTEGER NOT NULL DEFAULT 0,
     "isStarter" BOOLEAN NOT NULL DEFAULT false,
     "status" "PageStatus" NOT NULL DEFAULT 'draft',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Layout_pkey" PRIMARY KEY ("id")
-);
-
-CREATE TABLE "ModuleLayoutDefault" (
-    "id" TEXT NOT NULL,
-    "moduleName" TEXT NOT NULL,
-    "layoutId" TEXT NOT NULL,
-    CONSTRAINT "ModuleLayoutDefault_pkey" PRIMARY KEY ("id")
 );
 
 -- ---------------------------------------------------------------------------
@@ -358,8 +348,6 @@ CREATE INDEX "Media_provider_idx" ON "Media"("provider");
 CREATE INDEX "MediaMigrationJob_status_idx" ON "MediaMigrationJob"("status");
 CREATE INDEX "MediaMigrationJob_startedAt_idx" ON "MediaMigrationJob"("startedAt");
 
-CREATE UNIQUE INDEX "ModuleLayoutDefault_moduleName_key" ON "ModuleLayoutDefault"("moduleName");
-
 CREATE UNIQUE INDEX "MenuItem_menuId_pageId_key" ON "MenuItem"("menuId", "pageId");
 CREATE INDEX "MenuItem_menuId_idx" ON "MenuItem"("menuId");
 CREATE INDEX "MenuItem_pageId_idx" ON "MenuItem"("pageId");
@@ -393,11 +381,8 @@ ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionKey_fkey" FOREIGN KEY ("permissionKey") REFERENCES "Permission"("key") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "InfoPage" ADD CONSTRAINT "InfoPage_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "InfoPage" ADD CONSTRAINT "InfoPage_layoutId_fkey" FOREIGN KEY ("layoutId") REFERENCES "Layout"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "Media" ADD CONSTRAINT "Media_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-ALTER TABLE "ModuleLayoutDefault" ADD CONSTRAINT "ModuleLayoutDefault_layoutId_fkey" FOREIGN KEY ("layoutId") REFERENCES "Layout"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "MenuItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;

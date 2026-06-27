@@ -7,99 +7,127 @@ import { useAdminPath } from '@/components/admin/AdminPathContext'
 type Layout = {
   id: string
   name: string
+  type: string
   description: string | null
   status: string
   isStarter: boolean
+  displayConditions: { include?: Array<{ type: string; value?: string }> } | null
   createdAt: string
 }
 
-type LayoutsData = {
-  layouts: Layout[]
-  defaultLayoutId: string | null
-  moduleDefaults: Array<{ moduleName: string; layoutId: string; layout: { id: string; name: string } }>
+type Tab = { key: string; label: string; type: string | null }
+
+const TABS: Tab[] = [
+  { key: 'all',        label: 'All',          type: null },
+  { key: 'header',     label: 'Header',       type: 'header' },
+  { key: 'footer',     label: 'Footer',       type: 'footer' },
+  { key: 'infoPage',   label: 'Page Layout',  type: 'infoPage' },
+  { key: 'notFound',   label: '404',          type: 'notFound' },
+  { key: 'statusPage', label: 'Status Page',  type: 'statusPage' },
+]
+
+const TYPE_LABELS: Record<string, string> = {
+  header: 'Header', footer: 'Footer', infoPage: 'Page Layout',
+  notFound: '404', statusPage: 'Status Page',
 }
 
-export default function LayoutsListPage() {
+function conditionSummary(layout: Layout): string {
+  if (layout.status === 'draft') return 'Draft — no conditions set'
+  const inc = layout.displayConditions?.include ?? []
+  if (!inc.length) return 'No conditions'
+  if (inc.some(r => r.type === 'entire_site')) return 'Entire site'
+  if (inc.some(r => r.type === 'homepage')) return 'Homepage'
+  return `${inc.length} condition${inc.length === 1 ? '' : 's'}`
+}
+
+export default function ThemeBuilderPage() {
   const adminPath = useAdminPath()
-  const [data, setData] = useState<LayoutsData | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('all')
+  const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [setDefault, setSetDefault] = useState<string | null>(null)
 
-  const reload = () => {
-    fetch('/api/admin/layouts')
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false) })
+  function reload(type: string | null) {
+    setLoading(true)
+    const url = type ? `/api/admin/layouts?type=${type}` : '/api/admin/layouts'
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { setLayouts(d.layouts ?? []); setLoading(false) })
       .catch(() => { setError('Failed to load layouts'); setLoading(false) })
   }
 
-  useEffect(reload, [])
-
-  async function handleSetSiteDefault(id: string) {
-    setSetDefault(id)
-    try {
-      await fetch('/api/admin/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ defaultLayoutId: id }),
-      })
-      reload()
-    } catch { setError('Failed to set default') }
-    finally { setSetDefault(null) }
-  }
+  useEffect(() => {
+    const tab = TABS.find(t => t.key === activeTab)
+    reload(tab?.type ?? null)
+  }, [activeTab])
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this layout? This cannot be undone.')) return
     try {
       await fetch(`/api/admin/layouts/${id}`, { method: 'DELETE' })
-      reload()
+      const tab = TABS.find(t => t.key === activeTab)
+      reload(tab?.type ?? null)
     } catch { setError('Failed to delete layout') }
   }
 
-  if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>
-  if (error) return <div style={{ padding: '2rem', color: '#dc2626' }}>{error}</div>
-  if (!data) return null
-
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Layouts</h1>
-          <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9375rem' }}>Define reusable page body structures with a ContentSlot for page content.</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Theme Builder</h1>
+          <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9375rem' }}>Create typed layouts for headers, footers, pages, and status screens.</p>
         </div>
         <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
       </div>
 
-      {data.layouts.length === 0 ? (
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0' }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '0.5rem 1rem', border: 'none', borderRadius: '4px 4px 0 0', cursor: 'pointer',
+              background: activeTab === tab.key ? '#ffffff' : 'transparent',
+              borderBottom: activeTab === tab.key ? '2px solid #16a34a' : '2px solid transparent',
+              color: activeTab === tab.key ? '#16a34a' : '#6b7280',
+              fontWeight: activeTab === tab.key ? 600 : 400,
+              fontSize: '0.875rem', fontFamily: 'inherit',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>}
+      {error && <div style={{ padding: '1rem', color: '#dc2626' }}>{error}</div>}
+
+      {!loading && layouts.length === 0 && (
         <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-          No layouts yet. <Link href={`/${adminPath}/layouts/new`}>Create your first layout</Link>.
+          No layouts here yet. <Link href={`/${adminPath}/layouts/new`}>Create your first layout</Link>.
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-          {data.layouts.map((layout) => (
+      )}
+
+      {!loading && layouts.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+          {layouts.map((layout) => (
             <div key={layout.id} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ background: '#f9fafb', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e5e7eb' }}>
-                <LayoutThumbnail name={layout.name} />
+              <div style={{ background: '#f9fafb', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e5e7eb' }}>
+                <LayoutThumbnail type={layout.type} name={layout.name} />
               </div>
               <div style={{ padding: '1rem', flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{layout.name}</h3>
-                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                    {layout.status === 'published' && <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Published</span>}
-                    {layout.status === 'draft' && <span style={{ background: '#fef9c3', color: '#a16207', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Draft</span>}
-                    {data.defaultLayoutId === layout.id && <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Site Default</span>}
-                    {layout.isStarter && <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>}
-                  </div>
+                  <TypeBadge type={layout.type} />
+                  {layout.status === 'published' && <StatusBadge status="published" />}
+                  {layout.status === 'draft' && <StatusBadge status="draft" />}
+                  {layout.isStarter && <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>}
                 </div>
-                {layout.description && <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.875rem' }}>{layout.description}</p>}
+                {layout.description && <p style={{ margin: '0 0 0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>{layout.description}</p>}
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>{conditionSummary(layout)}</p>
               </div>
-              <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
-                {data.defaultLayoutId !== layout.id && (
-                  <button className="btn btn-secondary" onClick={() => handleSetSiteDefault(layout.id)} disabled={setDefault === layout.id} style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
-                    Set as Default
-                  </button>
-                )}
                 {!layout.isStarter && (
                   <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8125rem', cursor: 'pointer', padding: '0.375rem 0' }}>
                     Delete
@@ -110,42 +138,55 @@ export default function LayoutsListPage() {
           ))}
         </div>
       )}
-
-      {data.moduleDefaults.length > 0 && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1.5rem', marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 1rem' }}>Module Layout Defaults</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '0.5rem 0', fontWeight: 600, color: '#6b7280' }}>Module</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem 0', fontWeight: 600, color: '#6b7280' }}>Layout</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.moduleDefaults.map((md) => (
-                <tr key={md.moduleName} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '0.5rem 0', color: '#374151' }}>{md.moduleName}</td>
-                  <td style={{ padding: '0.5rem 0', color: '#374151' }}>{md.layout.name}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   )
 }
 
-function LayoutThumbnail({ name }: { name: string }) {
+function TypeBadge({ type }: { type: string }) {
+  return (
+    <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>
+      {TYPE_LABELS[type] ?? type}
+    </span>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'published') return <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Published</span>
+  return <span style={{ background: '#fef9c3', color: '#a16207', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Draft</span>
+}
+
+function LayoutThumbnail({ type, name }: { type: string; name: string }) {
+  if (type === 'header') {
+    return (
+      <div style={{ width: '80%', height: 28, background: '#dbeafe', borderRadius: 3, display: 'flex', alignItems: 'center', padding: '0 8px', justifyContent: 'space-between' }}>
+        <div style={{ width: 24, height: 10, background: '#93c5fd', borderRadius: 2 }} />
+        <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 14, height: 6, background: '#93c5fd', borderRadius: 2 }} />)}</div>
+      </div>
+    )
+  }
+  if (type === 'footer') {
+    return (
+      <div style={{ width: '80%', height: 28, background: '#f3f4f6', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 60, height: 6, background: '#d1d5db', borderRadius: 2 }} />
+      </div>
+    )
+  }
+  if (type === 'notFound' || type === 'statusPage') {
+    return (
+      <div style={{ width: '80%', height: 36, background: '#fef3c7', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 40, height: 10, background: '#fbbf24', borderRadius: 2 }} />
+      </div>
+    )
+  }
   const n = name.toLowerCase()
   if (n.includes('sidebar') && (n.includes('right') || n.includes('70'))) {
-    return <div style={{ display: 'flex', gap: 4, height: 44 }}><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /></div>
   }
   if (n.includes('sidebar') && n.includes('left')) {
-    return <div style={{ display: 'flex', gap: 4, height: 44 }}><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /></div>
   }
   if (n.includes('boxed') || n.includes('centred') || n.includes('centered')) {
-    return <div style={{ display: 'flex', justifyContent: 'center', height: 44 }}><div style={{ width: '70%', background: '#dbeafe', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', justifyContent: 'center', height: 44, width: '80%' }}><div style={{ width: '70%', background: '#dbeafe', borderRadius: 3 }} /></div>
   }
-  return <div style={{ width: '90%', height: 44, background: '#dbeafe', borderRadius: 3 }} />
+  return <div style={{ width: '80%', height: 44, background: '#dbeafe', borderRadius: 3 }} />
 }

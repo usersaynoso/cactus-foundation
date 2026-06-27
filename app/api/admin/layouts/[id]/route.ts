@@ -25,11 +25,38 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
+
+    // Validate displayConditions when publishing
+    if (body.status === 'published') {
+      const conditions = body.displayConditions
+      if (!conditions?.include?.length) {
+        // Check existing conditions if not being updated
+        if (!('displayConditions' in body)) {
+          const existing = await prisma.layout.findUnique({ where: { id }, select: { displayConditions: true } })
+          const existingConds = existing?.displayConditions as { include?: unknown[] } | null
+          if (!existingConds?.include?.length) {
+            return NextResponse.json(
+              { error: 'Add at least one display condition before publishing.' },
+              { status: 400 },
+            )
+          }
+        } else {
+          return NextResponse.json(
+            { error: 'Add at least one display condition before publishing.' },
+            { status: 400 },
+          )
+        }
+      }
+    }
+
     const data: Record<string, unknown> = {}
     if ('name' in body) data.name = body.name
     if ('description' in body) data.description = body.description
     if ('builderData' in body) data.builderData = body.builderData
     if ('status' in body) data.status = body.status
+    if ('type' in body) data.type = body.type
+    if ('displayConditions' in body) data.displayConditions = body.displayConditions
+    if ('priority' in body) data.priority = body.priority
 
     const layout = await prisma.layout.update({ where: { id }, data })
     return NextResponse.json(layout)

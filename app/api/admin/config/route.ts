@@ -42,15 +42,12 @@ const Patch = z.object({
     .enum(['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT'])
     .optional()
     .nullable(),
-  comingSoonPageId: z.string().optional().nullable(),
-  maintenancePageId: z.string().optional().nullable(),
   privacyPolicyPageId: z.string().optional().nullable(),
   termsPageId: z.string().optional().nullable(),
   sessionPurgeAfterDays: z.number().int().min(1).max(365).optional(),
   recoveryPurgeAfterDays: z.number().int().min(1).max(30).optional(),
   mainMenuId: z.string().optional().nullable(),
   homepageId: z.string().optional().nullable(),
-  defaultLayoutId: z.string().optional().nullable(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -61,7 +58,7 @@ export async function PATCH(request: NextRequest) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { adminPath, status, mainMenuId, homepageId, defaultLayoutId, ...rest } = parsed.data
+  const { adminPath, status, mainMenuId, homepageId, ...rest } = parsed.data
 
   if (adminPath && isBlocklisted(adminPath)) {
     return errorResponse(`"${adminPath}" is a reserved path`)
@@ -72,7 +69,6 @@ export async function PATCH(request: NextRequest) {
   if (status) data.status = status
   if (mainMenuId !== undefined) data.mainMenuId = mainMenuId
   if (homepageId !== undefined) data.homepageId = homepageId
-  if (defaultLayoutId !== undefined) data.defaultLayoutId = defaultLayoutId
 
   const updated = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
 
