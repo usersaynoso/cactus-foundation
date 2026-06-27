@@ -79,15 +79,13 @@ Open http://localhost:3000. If the database is empty (no `SiteConfig` row), you'
 
 ## The setup wizard
 
-The wizard runs once, at `/_setup`, and completes in five steps:
+The wizard runs once, at `/_setup`, and completes in three steps:
 
 1. **Connect your project** - confirms required variables are set and your Vercel project is linked. If `DATABASE_URL` is absent, you will be offered one of the three paths below.
-2. **Admin account** - enter a username and email, then register a passkey (fingerprint, Face ID, or security key). No password at this step. The account is exempt from email verification.
-3. **Admin path** - choose a secret URL prefix for the admin area. A suggestion is pre-filled (e.g. `lemon-4f8a2c`). Anyone who doesn't know this path gets a plain 404.
-4. **Name your site** - site name and timezone. Site URL is shown read-only (it comes from `SITE_URL`).
-5. **Recovery code** - a single-use offline recovery code is generated and shown **once**. Save it somewhere safe (password manager, printed paper). Only a hash is stored.
+2. **Database** - provisions or connects your PostgreSQL database and runs the schema migration.
+3. **Account & configure** - enter a username and email, register a passkey (fingerprint, Face ID, or security key), then choose your secret admin path, site name, and timezone.
 
-When you click "I've saved it", the setup marks `setupCompleted = true` and redirects you to the admin dashboard.
+When setup completes, the wizard marks `setupCompleted = true` and redirects you to the admin dashboard.
 
 Optional features (email, image storage, bot protection, etc.) are not configured during setup. After setup, the dashboard shows an **Additional features** checklist with friendly descriptions and direct links to the relevant settings section.
 

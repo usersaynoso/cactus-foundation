@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { validateRecoveryToken, consumeRecoveryToken } from '@/lib/auth/recovery'
-import { verifyAdminRecoveryCode } from '@/lib/auth/recovery'
 import { hashPassword, validateNewPassword } from '@/lib/auth/password'
 import { prisma } from '@/lib/db/prisma'
 import { deleteAllUserSessions, revokeAllTrustedDevices, createSession, setSessionCookie } from '@/lib/auth/session'
@@ -32,11 +31,9 @@ export async function GET(request: NextRequest) {
   )
 }
 
-// POST: complete recovery — register new passkey or set new password
+// POST: complete recovery via email token
 const Body = z.object({
-  token: z.string().optional(),
-  recoveryCode: z.string().optional(),
-  email: z.string().email().optional(), // for recovery-code path (identify the account)
+  token: z.string(),
   newPassword: z.string().optional(),
 })
 
@@ -46,37 +43,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { token, recoveryCode, email, newPassword } = parsed.data
+  const { token, newPassword } = parsed.data
 
-  let userId: string | null = null
-
-  if (token) {
-    // Email-based recovery
-    if (!isEmailConfigured()) {
-      return NextResponse.json({ error: 'Email recovery is not available' }, { status: 503 })
-    }
-    const result = await validateRecoveryToken(token)
-    if (!result) {
-      return NextResponse.json({ error: 'Recovery link is invalid or expired' }, { status: 400 })
-    }
-    userId = result.userId
-    await consumeRecoveryToken(token)
-  } else if (recoveryCode && email) {
-    // Offline recovery code (admin only, stored on SiteConfig)
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
-    }
-    const valid = await verifyAdminRecoveryCode(recoveryCode)
-    if (!valid) {
-      return NextResponse.json({ error: 'Invalid recovery code' }, { status: 401 })
-    }
-    userId = user.id
+  if (!isEmailConfigured()) {
+    return NextResponse.json({ error: 'Email recovery is not available' }, { status: 503 })
   }
-
-  if (!userId) {
-    return NextResponse.json({ error: 'No valid recovery method provided' }, { status: 400 })
+  const result = await validateRecoveryToken(token)
+  if (!result) {
+    return NextResponse.json({ error: 'Recovery link is invalid or expired' }, { status: 400 })
   }
+  const userId = result.userId
+  await consumeRecoveryToken(token)
 
   // Optionally set a new password
   if (newPassword) {

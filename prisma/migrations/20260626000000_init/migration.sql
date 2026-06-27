@@ -140,7 +140,6 @@ CREATE TABLE "SiteConfig" (
     "faviconMediaId" TEXT,
     "sessionPurgeAfterDays" INTEGER NOT NULL DEFAULT 30,
     "recoveryPurgeAfterDays" INTEGER NOT NULL DEFAULT 7,
-    "recoveryCodeHash" TEXT,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "designTokens" JSONB,

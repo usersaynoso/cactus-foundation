@@ -2,13 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { isEmailConfigured } from '@/lib/config/env'
-import type { Metadata } from 'next'
-
-// Note: metadata must be in a server component; for client components wrap with Suspense
-// or use a separate server layout. Here we skip metadata since layout handles robots.
 
 type LoginStep = 'passkey' | 'password' | 'otp'
+type NoPasskeyMode = 'register' | 'email' | null
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -24,12 +20,15 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState(false)
-  const [recoveryMode, setRecoveryMode] = useState(!!recoveryToken)
-  const [recoveryCode, setRecoveryCode] = useState('')
+  const [lostAccessMode, setLostAccessMode] = useState(false)
+  const [lostAccessEmail, setLostAccessEmail] = useState('')
+  const [lostAccessSent, setLostAccessSent] = useState(false)
+  const [noPasskeyMode, setNoPasskeyMode] = useState<NoPasskeyMode>(null)
+  const [noPasskeyUserId, setNoPasskeyUserId] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [tokenRecoveryMode] = useState(!!recoveryToken)
 
   useEffect(() => {
-    // Check if email/password login is available
     fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean }) => {
       setEmailAvailable(d.emailConfigured)
     }).catch(() => {})
@@ -54,8 +53,15 @@ export default function LoginPage() {
         const d = await optRes.json().catch(() => ({}))
         throw new Error((d as { error?: string }).error ?? 'Failed to get authentication options')
       }
-      const opts = await optRes.json()
-      const assertion = await startAuthentication({ optionsJSON: opts })
+      const opts = await optRes.json() as { noPasskeys?: boolean; userId?: string; allowCredentials?: unknown[] }
+
+      if (opts.noPasskeys) {
+        setNoPasskeyUserId(opts.userId ?? '')
+        setNoPasskeyMode(emailAvailable ? 'email' : 'register')
+        return
+      }
+
+      const assertion = await startAuthentication({ optionsJSON: opts as Parameters<typeof startAuthentication>[0]['optionsJSON'] })
 
       const verifyRes = await fetch('/api/auth/passkey/authenticate-verify', {
         method: 'POST',
@@ -67,7 +73,6 @@ export default function LoginPage() {
         throw new Error(d.error ?? 'Authentication failed')
       }
 
-      // Determine admin path from URL
       const parts = window.location.pathname.split('/')
       const ap = parts[1] ?? ''
       redirect(nextUrl || `/${ap}`)
@@ -119,17 +124,11 @@ export default function LoginPage() {
     }
   }
 
-  async function handleRecovery() {
+  async function handleTokenRecovery() {
     setError('')
     setLoading(true)
     try {
-      const body: Record<string, string> = {}
-      if (recoveryToken) {
-        body['token'] = recoveryToken
-      } else {
-        body['recoveryCode'] = recoveryCode
-        body['email'] = email
-      }
+      const body: Record<string, string> = { token: recoveryToken }
       if (newPassword) body['newPassword'] = newPassword
 
       const res = await fetch('/api/auth/recovery/complete', {
@@ -149,6 +148,61 @@ export default function LoginPage() {
     }
   }
 
+  async function handleRegisterNewPasskey() {
+    setError('')
+    setLoading(true)
+    try {
+      const { startRegistration } = await import('@simplewebauthn/browser')
+
+      const optRes = await fetch('/api/auth/passkey/register-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: noPasskeyUserId }),
+      })
+      if (!optRes.ok) {
+        const d = await optRes.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to get registration options')
+      }
+      const opts = await optRes.json()
+      const attestation = await startRegistration({ optionsJSON: opts })
+
+      const verifyRes = await fetch('/api/auth/passkey/register-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: noPasskeyUserId, attestation }),
+      })
+      if (!verifyRes.ok) {
+        const d = await verifyRes.json()
+        throw new Error(d.error ?? 'Passkey registration failed')
+      }
+
+      const parts = window.location.pathname.split('/')
+      const ap = parts[1] ?? ''
+      redirect(nextUrl || `/${ap}`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Passkey registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSendRecoveryEmail(emailAddress: string) {
+    setError('')
+    setLoading(true)
+    try {
+      await fetch('/api/auth/recovery/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailAddress }),
+      })
+      setLostAccessSent(true)
+    } catch {
+      setError('Failed to send recovery email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: '#f9fafb' }}>
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '2.5rem', width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
@@ -160,36 +214,115 @@ export default function LoginPage() {
 
         {error && <div className="alert alert-danger">{error}</div>}
 
-        {recoveryMode && (
+        {/* ── Email recovery token (from recovery email link) ── */}
+        {tokenRecoveryMode && (
           <div>
             <h2 style={{ fontSize: '1rem', margin: '0 0 1rem' }}>Account recovery</h2>
-            {!recoveryToken && (
-              <>
-                <div className="field">
-                  <label>Email address</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Recovery code</label>
-                  <input type="text" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} placeholder="Your offline recovery code" />
-                </div>
-              </>
-            )}
             <div className="field">
               <label>New password (optional)</label>
               <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Leave blank to skip" />
               <span className="field-hint">You can add a passkey after signing in.</span>
             </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading} onClick={handleRecovery}>
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading} onClick={handleTokenRecovery}>
               {loading ? 'Recovering…' : 'Complete recovery'}
             </button>
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setRecoveryMode(false); setError('') }}>
+          </div>
+        )}
+
+        {/* ── Lost access instructions ── */}
+        {!tokenRecoveryMode && lostAccessMode && (
+          <div>
+            <h2 style={{ fontSize: '1rem', margin: '0 0 1rem' }}>Lost your passkey?</h2>
+            <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>
+              Remove your passkey record directly from your Neon database, then return here to register a new one.
+            </p>
+            <ol style={{ fontSize: '0.9375rem', paddingLeft: '1.25rem', margin: '0 0 1rem', lineHeight: 1.7 }}>
+              <li>Go to <strong>console.neon.tech</strong> and open your project&apos;s SQL editor.</li>
+              <li>
+                Run this query (replace the email address):
+                <div style={{ fontFamily: 'monospace', fontSize: '0.8125rem', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem', margin: '0.5rem 0', userSelect: 'all', wordBreak: 'break-all' }}>
+                  {'DELETE FROM "Passkey" WHERE "userId" = (SELECT id FROM "User" WHERE email = \'your@email.com\');'}
+                </div>
+              </li>
+              <li>Return here and sign in with your email address — you&apos;ll be prompted to register a new passkey.</li>
+            </ol>
+            {emailAvailable && !lostAccessSent && (
+              <>
+                <div style={{ borderTop: '1px solid var(--color-border)', margin: '1.25rem 0', paddingTop: '1.25rem' }}>
+                  <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
+                    Alternatively, request a recovery email to sign in without a passkey:
+                  </p>
+                  <div className="field" style={{ margin: '0 0 0.75rem' }}>
+                    <input
+                      type="email"
+                      value={lostAccessEmail}
+                      onChange={(e) => setLostAccessEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      autoComplete="email"
+                    />
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ width: '100%' }}
+                    disabled={!lostAccessEmail || loading}
+                    onClick={() => handleSendRecoveryEmail(lostAccessEmail)}
+                  >
+                    {loading ? 'Sending…' : 'Send recovery link'}
+                  </button>
+                </div>
+              </>
+            )}
+            {lostAccessSent && (
+              <div className="alert alert-success" style={{ marginTop: '1rem' }}>
+                Recovery link sent. Check your inbox.
+              </div>
+            )}
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '1rem' }} onClick={() => { setLostAccessMode(false); setLostAccessSent(false); setError('') }}>
               Back to sign in
             </button>
           </div>
         )}
 
-        {!recoveryMode && step === 'passkey' && (
+        {/* ── No passkey found — register new one ── */}
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'register' && (
+          <div>
+            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>No passkey found</h2>
+            <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1.5rem' }}>
+              No passkey is registered for <strong>{email}</strong>. Register a new one now to sign in.
+            </p>
+            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={handleRegisterNewPasskey}>
+              {loading ? 'Registering…' : '🔑 Register new passkey →'}
+            </button>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setNoPasskeyMode(null); setError('') }}>
+              Back to sign in
+            </button>
+          </div>
+        )}
+
+        {/* ── No passkey found — send recovery email ── */}
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'email' && (
+          <div>
+            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>No passkey found</h2>
+            {!lostAccessSent ? (
+              <>
+                <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1.5rem' }}>
+                  No passkey is registered for <strong>{email}</strong>. We can send a recovery link to your email address.
+                </p>
+                <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={() => handleSendRecoveryEmail(email)}>
+                  {loading ? 'Sending…' : 'Send recovery link'}
+                </button>
+              </>
+            ) : (
+              <div className="alert alert-success">Recovery link sent. Check your inbox.</div>
+            )}
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setNoPasskeyMode(null); setLostAccessSent(false); setError('') }}>
+              Back to sign in
+            </button>
+          </div>
+        )}
+
+        {/* ── Normal login flows ── */}
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'passkey' && (
           <div>
             <div className="field">
               <label>Email address (optional)</label>
@@ -213,7 +346,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: '1rem' }}>
               <button
                 style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.875rem', cursor: 'pointer', padding: 0 }}
-                onClick={() => { setRecoveryMode(true); setError('') }}
+                onClick={() => { setLostAccessMode(true); setError('') }}
               >
                 Lost access?
               </button>
@@ -221,7 +354,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {!recoveryMode && step === 'password' && (
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'password' && (
           <div>
             <div className="field">
               <label>Email address</label>
@@ -246,7 +379,7 @@ export default function LoginPage() {
             <div style={{ textAlign: 'center', marginTop: '1rem' }}>
               <button
                 style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.875rem', cursor: 'pointer', padding: 0 }}
-                onClick={() => { setRecoveryMode(true); setError('') }}
+                onClick={() => { setLostAccessMode(true); setError('') }}
               >
                 Lost access?
               </button>
@@ -254,7 +387,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {!recoveryMode && step === 'otp' && (
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'otp' && (
           <div>
             <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.25rem' }}>
               We sent a 6-digit code to <strong>{email}</strong>. Enter it below.

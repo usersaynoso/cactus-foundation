@@ -16,9 +16,7 @@ export async function GET() {
   const config = await prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
   if (!config) return errorResponse('Config not found', 404)
 
-  // Never expose sensitive hashes
-  const { recoveryCodeHash: _, ...safe } = config
-  return NextResponse.json(safe)
+  return NextResponse.json(config)
 }
 
 const Patch = z.object({

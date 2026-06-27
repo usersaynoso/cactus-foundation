@@ -175,8 +175,6 @@ model SiteConfig {
   // Stale-row cleanup periods (days)
   sessionPurgeAfterDays  Int        @default(30)
   recoveryPurgeAfterDays Int        @default(7)
-  // Hashed recovery code for the admin account
-  recoveryCodeHash       String?
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /

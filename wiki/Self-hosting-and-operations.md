@@ -108,24 +108,26 @@ The retention periods are configurable on the GDPR & Legal tab of the config pag
 
 ## Admin recovery procedures
 
-### Lost passkey, recovery code available
+### Lost passkey - email configured
 
-1. Go to `/<adminPath>/login`.
-2. Click **Lost access?**.
-3. Enter your email and the offline recovery code.
-4. Optionally set a new password.
-5. After signing in, register a new passkey from **Account settings**.
+1. Go to `/<adminPath>/login` and click **Lost access?**.
+2. Enter your email address and click **Send recovery link**.
+3. Check your inbox, click the link (expires in 30 minutes).
+4. Complete recovery - you are signed in and can register a new passkey from **Account settings**.
 
-### Lost passkey, no recovery code, email configured
+### Lost passkey - email not configured
 
-1. Go to `/<adminPath>/login` → **Lost access?**.
-2. Click **Email me a recovery link** (visible when email is configured).
-3. Check your email, click the link (expires in 30 minutes).
-4. Register a new passkey and/or set a new password.
+Access requires a direct database intervention:
 
-### Completely locked out (no passkey, no code, email not configured or inbox compromised)
+1. Open the **SQL editor** in your [Neon console](https://console.neon.tech) and run:
+   ```sql
+   DELETE FROM "Passkey" WHERE "userId" = (SELECT id FROM "User" WHERE email = 'your@email.com');
+   ```
+2. Go to `/<adminPath>/login`, enter your email address, and click **Sign in with passkey**.
+3. Because no passkey is on record, you will be prompted to register a new one immediately.
+4. Complete passkey registration - you are signed in.
 
-This is a database intervention:
+### Completely locked out (no passkey, email not configured or inbox compromised)
 
 1. Connect to your PostgreSQL database.
 2. Generate a new `bcrypt` hash for a temporary password:
@@ -137,7 +139,7 @@ This is a database intervention:
    UPDATE "User" SET "passwordHash" = '<hash>' WHERE email = 'you@example.com';
    ```
 4. Add email credentials to your environment variables (if not already set).
-5. Sign in via the password fallback, register a new passkey.
+5. Sign in via the password fallback and register a new passkey.
 6. Remove the temporary password from account settings once your passkey is registered.
 
 ### Last admin account accidentally deleted

@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     })
     userId = user?.id
+
+    if (userId) {
+      const count = await prisma.passkey.count({ where: { userId } })
+      if (count === 0) {
+        return NextResponse.json({ noPasskeys: true, userId })
+      }
+    }
   }
 
   try {

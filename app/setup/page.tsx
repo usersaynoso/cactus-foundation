@@ -5,7 +5,7 @@ import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
 
-type Step = 'connect' | 'database' | 'account' | 'configure' | 'recovery'
+type Step = 'connect' | 'database' | 'account' | 'configure'
 
 // Sub-states within the 'env' step.
 type DbSubStep =
@@ -107,7 +107,6 @@ export default function SetupPage() {
   const [envData, setEnvData] = useState<EnvCheckData | null>(null)
   const [dbSubStep, setDbSubStep] = useState<DbSubStep>('loading')
   const [adminPath, setAdminPath] = useState('')
-  const [recoveryCode, setRecoveryCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -139,8 +138,8 @@ export default function SetupPage() {
   const [siteName, setSiteName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
 
-  const steps: Step[] = ['connect', 'database', 'account', 'configure', 'recovery']
-  const stepIndex = steps.indexOf(step)
+  const steps: Step[] = ['connect', 'database', 'account']
+  const stepIndex = step === 'configure' ? 2 : steps.indexOf(step)
 
   // Clean up health poll on unmount.
   useEffect(() => {
@@ -436,7 +435,7 @@ export default function SetupPage() {
       } else if (!data.adminPath || !data.siteName) {
         setStep('configure')
       } else {
-        setStep('recovery')
+        await handleFinish()
       }
     } catch {
       setStep('account')
@@ -550,23 +549,13 @@ export default function SetupPage() {
         const d = await essRes.json()
         throw new Error(d.error ?? 'Failed to save settings')
       }
-      setStep('recovery')
+      await handleFinish()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
   }
-
-  // ── Step 5: Recovery code ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (step === 'recovery') {
-      fetch('/api/setup/recovery-code', { method: 'POST' })
-        .then((r) => r.json())
-        .then((d: { code: string }) => setRecoveryCode(d.code))
-        .catch(() => setError('Failed to generate recovery code'))
-    }
-  }, [step])
 
   async function handleFinish() {
     setError('')
@@ -587,8 +576,7 @@ export default function SetupPage() {
     connect: 'Connect',
     database: 'Database',
     account: 'Account',
-    configure: 'Configure',
-    recovery: 'Recovery',
+    configure: 'Account',
   }
 
   return (
@@ -735,10 +723,13 @@ export default function SetupPage() {
           {/* Vercel connected — ready to move to database step */}
           {dbSubStep === 'ready' && (
             <>
-              <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                <span style={{ fontSize: '1.125rem' }}>✓</span>
-                <span><strong>Vercel connected.</strong> Your project environment is configured.</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem', color: '#16a34a' }}>✓</span>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Vercel connected</h2>
               </div>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+                Your project environment is configured.
+              </p>
               <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('database')}>
                 Continue →
               </button>
@@ -764,11 +755,14 @@ export default function SetupPage() {
 
           {dbSubStep === 'ready' && (
             <>
-              <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                <span style={{ fontSize: '1.125rem' }}>✓</span>
-                <span><strong>Database connected.</strong> Your database is ready.</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem', color: '#16a34a' }}>✓</span>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Database connected</h2>
               </div>
-              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => setStep('account')}>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+                The redeploy is complete and the schema is ready.
+              </p>
+              <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => handleSmartContinue()}>
                 Continue →
               </button>
             </>
@@ -929,46 +923,6 @@ export default function SetupPage() {
           >
             {loading ? 'Saving…' : 'Continue →'}
           </button>
-        </div>
-      )}
-
-      {/* ── Step: RECOVERY CODE ── */}
-      {step === 'recovery' && (
-        <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Save your recovery code</h2>
-          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            If you lose access to your passkey, this code is your only way back in. It&apos;s single-use. <strong>Save it somewhere safe offline before continuing.</strong>
-          </p>
-          {!recoveryCode ? (
-            <p>Generating…</p>
-          ) : (
-            <>
-              <div style={{
-                fontFamily: 'monospace',
-                background: 'var(--color-bg-subtle)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 6,
-                padding: '1rem',
-                fontSize: '0.9375rem',
-                wordBreak: 'break-all',
-                marginBottom: '1rem',
-                userSelect: 'all',
-              }}>
-                {recoveryCode}
-              </div>
-              <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
-                This code is shown once and is not stored in plain text. Copy it now.
-              </div>
-              <button
-                className="btn btn-primary btn-lg"
-                style={{ width: '100%' }}
-                disabled={loading}
-                onClick={handleFinish}
-              >
-                {loading ? 'Finishing…' : "I've saved it — go to admin →"}
-              </button>
-            </>
-          )}
         </div>
       )}
 
