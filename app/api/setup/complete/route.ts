@@ -109,20 +109,16 @@ export async function POST() {
     },
     content: [
       {
-        type: 'Flex',
+        type: 'Columns',
         props: {
-          id: 'flex-header-1',
-          direction: 'row',
-          justify: 'between',
-          align: 'center',
-          wrap: 'nowrap',
-          gap: 'lg',
+          id: 'columns-header-1',
+          ratio: '30/70',
           padding: 'none',
         },
       },
     ],
     zones: {
-      'flex-header-1:items': [
+      'columns-header-1:left': [
         {
           type: 'SiteLogo',
           props: {
@@ -134,6 +130,8 @@ export async function POST() {
             textColor: '',
           },
         },
+      ],
+      'columns-header-1:right': [
         {
           type: 'MenuBlock',
           props: {

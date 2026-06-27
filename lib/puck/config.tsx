@@ -194,7 +194,7 @@ function Columns(props: any) {
   }
   const pair = ratios[ratio] ?? ratios['50/50']!
   return (
-    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: getPadding(padding) }}>
+    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
       <div style={{ flex: pair[0], minWidth: 200 }}>{typeof left === 'function' ? left() : null}</div>
       <div style={{ flex: pair[1], minWidth: 200 }}>{typeof right === 'function' ? right() : null}</div>
     </div>
