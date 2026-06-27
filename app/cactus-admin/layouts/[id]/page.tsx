@@ -86,13 +86,13 @@ export default function LayoutEditorPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '0.8125rem', color: '#6b7280', flexShrink: 0 }}>
-        <Link href={`/${adminPath}/layouts`} style={{ color: '#6b7280', textDecoration: 'none' }}>← Theme Builder</Link>
-        <span style={{ color: '#e5e7eb' }}>|</span>
-        <span style={{ fontWeight: 500, color: '#111827' }}>{layout.name}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem', color: 'var(--color-muted)', flexShrink: 0 }}>
+        <Link href={`/${adminPath}/layouts`} style={{ color: 'var(--color-muted)', textDecoration: 'none' }}>← Theme Builder</Link>
+        <span style={{ color: 'var(--color-border)' }}>|</span>
+        <span style={{ fontWeight: 500, color: 'var(--color-fg)' }}>{layout.name}</span>
         <TypeBadge type={layout.type} />
-        {layout.status === 'published' && <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Published</span>}
-        {layout.status === 'draft' && <span style={{ background: '#fef9c3', color: '#a16207', padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Draft</span>}
+        {layout.status === 'published' && <span className="badge badge-green" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Published</span>}
+        {layout.status === 'draft' && <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Draft</span>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {saving && <span>Saving…</span>}
           {!saving && saved && <span style={{ color: '#15803d' }}>Saved ✓</span>}

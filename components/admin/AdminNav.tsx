@@ -58,7 +58,7 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
             type="submit"
             title={collapsed ? 'Sign out' : undefined}
             style={{
-              background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.875rem',
+              background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.875rem',
               cursor: 'pointer', padding: collapsed ? '0.5rem' : '0.5rem 1.25rem',
               width: '100%', textAlign: collapsed ? 'center' : 'left',
             }}
@@ -67,7 +67,7 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
           </button>
         </form>
         {!collapsed && (
-          <p style={{ color: '#4b5563', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>
+          <p style={{ color: '#94a3b8', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>
             v{version}
           </p>
         )}

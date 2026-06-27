@@ -292,11 +292,11 @@ All Puck block colour fields use the `SiteColourField` custom field renderer (`l
 
 Cactus supports three dark-mode states: **Auto** (follows the OS), **Light**, and **Dark**. The preference is stored in `localStorage` as `cactus-theme`.
 
-To prevent flash-of-wrong-theme on load, `app/layout.tsx` includes an inline `<script>` that runs before paint: it reads `cactus-theme`, and sets `data-theme="light"` or `data-theme="dark"` on `<html>` immediately. When mode is `auto`, no attribute is set and the CSS `prefers-color-scheme` media query takes over.
+To prevent flash-of-wrong-theme on load, `app/layout.tsx` includes an inline `<script>` that runs before paint: it reads `cactus-theme` and always sets `data-theme="dark"` or `data-theme="light"` on `<html>` before the first paint. In `auto` mode it checks `window.matchMedia('(prefers-color-scheme: dark)')` to decide which to apply. A `@media (prefers-color-scheme: dark)` block in `globals.css` acts as a CSS-only fallback for SSR.
 
 The `ThemeToggle` component (`components/ThemeToggle.tsx`) is a client component that renders Auto / Light / Dark buttons and calls `applyTheme(mode)`. A compact variant is mounted in the admin sidebar above Sign out.
 
-Admin UI colours are defined as `--admin-*` CSS variables in `app/globals.css` with light and dark overrides, so the admin panel also responds to the dark-mode toggle without a separate theme system.
+Theme-sensitive CSS variables (`--color-bg`, `--color-fg`, `--color-muted`, `--color-border`, etc.) are defined in `[data-theme="light"]` and `[data-theme="dark"]` blocks in `globals.css`. Admin-specific variables use `--admin-*` prefixes. All reusable UI classes (`.card`, `.btn-secondary`, alerts, badges, tables) reference these variables so they automatically adapt to both themes. Hard-coded hex values should be avoided in component inline styles - use CSS variable references (`var(--color-muted)` etc.) instead.
 
 ---
 

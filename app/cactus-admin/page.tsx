@@ -126,7 +126,7 @@ export default async function AdminDashboard() {
           </p>
 
           {/* Progress bar */}
-          <div style={{ height: 4, background: '#e5e7eb', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' }}>
+          <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' }}>
             <div style={{
               height: '100%', borderRadius: 2, background: '#16a34a',
               width: `${(configuredCount / features.length) * 100}%`,
@@ -140,23 +140,23 @@ export default async function AdminDashboard() {
                 display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
                 padding: '0.875rem',
                 borderRadius: 8,
-                background: f.configured ? '#f0fdf4' : '#fff',
-                border: `1px solid ${f.configured ? '#bbf7d0' : '#f3f4f6'}`,
+                background: f.configured ? 'var(--color-success-subtle)' : 'var(--color-bg)',
+                border: `1px solid ${f.configured ? 'var(--color-success-border)' : 'var(--color-border)'}`,
                 marginBottom: '0.5rem',
               }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: f.configured ? '#16a34a' : '#f3f4f6',
+                  background: f.configured ? '#16a34a' : 'var(--color-bg-subtle)',
                   fontSize: '0.8125rem', fontWeight: 700,
-                  color: f.configured ? '#fff' : '#9ca3af',
+                  color: f.configured ? '#fff' : 'var(--color-muted)',
                   marginTop: 1,
                 }}>
                   {f.configured ? '✓' : '○'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: f.configured ? '#15803d' : '#111827' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: f.configured ? '#15803d' : 'var(--color-fg)' }}>
                       {f.name}
                     </span>
                     {!f.configured && (
@@ -168,7 +168,7 @@ export default async function AdminDashboard() {
                       </a>
                     )}
                   </div>
-                  <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.4 }}>
+                  <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: 'var(--color-muted)', lineHeight: 1.4 }}>
                     {f.configured ? f.description : f.hint}
                   </p>
                 </div>
@@ -184,14 +184,14 @@ export default async function AdminDashboard() {
             <span style={{ fontSize: '1.125rem' }}>✓</span>
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>All features configured</div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`} style={{ color: '#16a34a' }}>Settings</a>.</div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`} style={{ color: '#16a34a' }}>Settings</a>.</div>
             </div>
           </div>
         </div>
       )}
 
       <div className="card">
-        <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9375rem' }}>
+        <p style={{ margin: 0, color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
           Logged in as <strong>{user?.username}</strong> ({user?.role.name})
         </p>
       </div>

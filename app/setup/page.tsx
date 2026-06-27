@@ -598,7 +598,7 @@ export default function SetupPage() {
         <img src="/cactus.svg" alt="Cactus" style={{ width: 36, height: 36, background: '#f0fdf4', borderRadius: 8, padding: 3, flexShrink: 0 }} />
         <div>
           <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>Cactus Setup</div>
-          <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Step {stepIndex + 1} of {steps.length}</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Step {stepIndex + 1} of {steps.length}</div>
         </div>
       </div>
 
@@ -612,22 +612,22 @@ export default function SetupPage() {
               {i > 0 && (
                 <div style={{
                   position: 'absolute', top: 11, right: '50%', width: '100%',
-                  height: 2, background: isDone ? '#16a34a' : '#e5e7eb', zIndex: 0,
+                  height: 2, background: isDone ? '#16a34a' : 'var(--color-border)', zIndex: 0,
                 }} />
               )}
               <div style={{
                 width: 24, height: 24, borderRadius: '50%', zIndex: 1, position: 'relative',
-                background: isDone ? '#16a34a' : isActive ? '#fff' : '#f3f4f6',
-                border: `2px solid ${isDone || isActive ? '#16a34a' : '#d1d5db'}`,
+                background: isDone ? '#16a34a' : isActive ? 'var(--color-bg)' : 'var(--color-bg-subtle)',
+                border: `2px solid ${isDone || isActive ? '#16a34a' : 'var(--color-border)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0,
-                color: isDone ? '#fff' : isActive ? '#16a34a' : '#9ca3af',
+                color: isDone ? '#fff' : isActive ? '#16a34a' : 'var(--color-muted)',
               }}>
                 {isDone ? '✓' : i + 1}
               </div>
               <span style={{
                 fontSize: '0.625rem', marginTop: '0.3rem', fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#16a34a' : isDone ? '#374151' : '#9ca3af',
+                color: isActive ? '#16a34a' : isDone ? 'var(--color-fg)' : 'var(--color-muted)',
                 textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap',
               }}>
                 {stepLabels[s]}
@@ -643,12 +643,12 @@ export default function SetupPage() {
       {step === 'connect' && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Connect your project</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             Link Cactus to your Vercel project — no environment variables need to be set manually.
           </p>
 
           {dbSubStep === 'loading' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', fontSize: '0.9375rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
               <span className="setup-spinner" />
               Checking…
             </div>
@@ -690,10 +690,10 @@ export default function SetupPage() {
                 <span>
                   Your app is redeploying to pick up the new settings — this takes about a minute.
                   This page will continue automatically once the redeploy is complete.{' '}
-                  <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+                  <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
                 </span>
               </div>
-              <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '1rem' }}>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginTop: '1rem' }}>
                 If this takes more than 3 minutes, trigger a manual redeploy from your{' '}
                 <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" style={{ color: '#16a34a' }}>Vercel dashboard</a>.
               </p>
@@ -751,12 +751,12 @@ export default function SetupPage() {
       {step === 'database' && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Set up your database</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             Cactus needs a PostgreSQL database to store your content.
           </p>
 
           {dbSubStep === 'loading' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', fontSize: '0.9375rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
               <span className="setup-spinner" />
               Checking…
             </div>
@@ -829,7 +829,7 @@ export default function SetupPage() {
       {step === 'account' && adminAlreadyExists && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Admin account found</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             An admin account already exists in this database.
           </p>
           <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>
@@ -843,7 +843,7 @@ export default function SetupPage() {
       {step === 'account' && !adminAlreadyExists && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Create your admin account</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             You&apos;ll register a passkey (fingerprint, Face ID, or security key) as your primary login method.
           </p>
           {!passkeyRegistered ? (
@@ -877,13 +877,13 @@ export default function SetupPage() {
       {step === 'configure' && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Configure your site</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             Choose your admin path and name your site.
           </p>
           <div className="field">
             <label htmlFor="adminPath">Admin path</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <span style={{ padding: '0.5rem 0.75rem', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '0.9375rem', color: '#6b7280', flexShrink: 0 }}>
+              <span style={{ padding: '0.5rem 0.75rem', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.9375rem', color: 'var(--color-muted)', flexShrink: 0 }}>
                 {typeof window !== 'undefined' ? window.location.hostname : 'yourdomain.com'}/
               </span>
               <input
@@ -936,7 +936,7 @@ export default function SetupPage() {
       {step === 'recovery' && (
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Save your recovery code</h2>
-          <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
             If you lose access to your passkey, this code is your only way back in. It&apos;s single-use. <strong>Save it somewhere safe offline before continuing.</strong>
           </p>
           {!recoveryCode ? (
@@ -945,8 +945,8 @@ export default function SetupPage() {
             <>
               <div style={{
                 fontFamily: 'monospace',
-                background: '#f9fafb',
-                border: '1px solid #e5e7eb',
+                background: 'var(--color-bg-subtle)',
+                border: '1px solid var(--color-border)',
                 borderRadius: 6,
                 padding: '1rem',
                 fontSize: '0.9375rem',
@@ -972,7 +972,7 @@ export default function SetupPage() {
         </div>
       )}
 
-      <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#d1d5db', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
+      <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
         v{process.env.NEXT_PUBLIC_APP_VERSION}
       </div>
     </div>
@@ -1037,7 +1037,7 @@ function VercelConfigPanel({
 
       <div className="field" style={{ marginBottom: '1rem' }}>
         <label htmlFor="neonApiKey">
-          Neon API key <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+          Neon API key <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>(optional)</span>
         </label>
         <input
           id="neonApiKey"
@@ -1206,27 +1206,27 @@ function DbChoicePanel({
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-        <span style={{ color: '#dc2626', fontWeight: 700, flexShrink: 0 }}>✗</span>
+        <span style={{ color: 'var(--color-danger)', fontWeight: 700, flexShrink: 0 }}>✗</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>No database connected yet — choose an option below.</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>No database connected yet — choose an option below.</div>
         </div>
       </div>
 
       {/* Create a fresh database */}
-      <div style={{ border: selectedOption === 'create' ? '2px solid #16a34a' : '1px solid #d1fae5', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
+      <div style={{ border: selectedOption === 'create' ? '2px solid #16a34a' : '1px solid var(--color-success-border)', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
         <button
           onClick={() => setSelectedOption(selectedOption === 'create' ? null : 'create')}
-          style={{ width: '100%', background: selectedOption === 'create' ? '#f0fdf4' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+          style={{ width: '100%', background: selectedOption === 'create' ? 'var(--color-success-subtle)' : 'var(--color-bg-subtle)', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>Create a fresh database automatically</div>
-            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Cactus creates a free Neon Postgres database and configures it for you.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Cactus creates a free Neon Postgres database and configures it for you.</div>
           </div>
-          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'create' ? '▲' : '▼'}</span>
+          <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'create' ? '▲' : '▼'}</span>
         </button>
         {selectedOption === 'create' && (
-          <div style={{ padding: '1rem', borderTop: '1px solid #d1fae5', background: '#f0fdf4' }}>
+          <div style={{ padding: '1rem', borderTop: '1px solid var(--color-success-border)', background: 'var(--color-success-subtle)' }}>
             <div className="field" style={{ marginBottom: '0.75rem' }}>
               <label htmlFor="neonRegion" style={{ fontSize: '0.875rem' }}>Database region</label>
               <select id="neonRegion" value={neonRegion} onChange={(e) => setNeonRegion(e.target.value)} style={{ fontSize: '0.875rem' }}>
@@ -1244,21 +1244,21 @@ function DbChoicePanel({
       </div>
 
       {/* Use an existing Neon database */}
-      <div style={{ border: selectedOption === 'existing' ? '2px solid #2563eb' : '1px solid #dbeafe', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
+      <div style={{ border: selectedOption === 'existing' ? '2px solid #2563eb' : '1px solid var(--color-info-border)', borderRadius: 8, marginBottom: '0.75rem', overflow: 'hidden' }}>
         <button
           onClick={handleSelectExisting}
-          style={{ width: '100%', background: selectedOption === 'existing' ? '#eff6ff' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+          style={{ width: '100%', background: selectedOption === 'existing' ? 'var(--color-info-subtle)' : 'var(--color-bg-subtle)', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#1d4ed8' }}>Use an existing Neon database</div>
-            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Connect an existing Neon project from your account.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Connect an existing Neon project from your account.</div>
           </div>
-          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'existing' ? '▲' : '▼'}</span>
+          <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'existing' ? '▲' : '▼'}</span>
         </button>
         {selectedOption === 'existing' && (
-          <div style={{ padding: '1rem', borderTop: '1px solid #dbeafe', background: '#eff6ff' }}>
+          <div style={{ padding: '1rem', borderTop: '1px solid var(--color-info-border)', background: 'var(--color-info-subtle)' }}>
             {loadingProjects && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#6b7280', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
                 <span className="setup-spinner" />
                 Loading your Neon projects…
               </div>
@@ -1270,7 +1270,7 @@ function DbChoicePanel({
               <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>No Neon projects found in your account.</div>
             )}
             {neonProjects.length === 1 && (
-              <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#374151' }}>
+              <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--color-fg)' }}>
                 Project: <strong>{neonProjects[0]?.name}</strong>
                 <span className="field-hint" style={{ display: 'block' }}>Cactus will read the default branch connection URI and write it to Vercel.</span>
               </div>
@@ -1332,7 +1332,7 @@ function DbChoicePanel({
                   </button>
                   <button
                     className="btn"
-                    style={{ width: '100%', background: '#fff', border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                    style={{ width: '100%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', fontSize: '0.875rem' }}
                     onClick={() => { setExistingDataWarning(false); setPendingProjectId('') }}
                   >
                     Cancel
@@ -1345,19 +1345,19 @@ function DbChoicePanel({
       </div>
 
       {/* Supply own DATABASE_URL */}
-      <div style={{ border: selectedOption === 'manual' ? '2px solid #9ca3af' : '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ border: selectedOption === 'manual' ? '2px solid var(--color-muted)' : '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
         <button
           onClick={() => setSelectedOption(selectedOption === 'manual' ? null : 'manual')}
-          style={{ width: '100%', background: selectedOption === 'manual' ? '#f3f4f6' : '#f9fafb', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
+          style={{ width: '100%', background: 'var(--color-bg-subtle)', border: 'none', padding: '0.875rem 1rem', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Paste a PostgreSQL connection string — Cactus saves it to Vercel and redeploys.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus saves it to Vercel and redeploys.</div>
           </div>
-          <span style={{ color: '#6b7280', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
+          <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
         {selectedOption === 'manual' && (
-          <div style={{ padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ padding: '1rem', borderTop: '1px solid var(--color-border)' }}>
             <div className="field" style={{ marginBottom: '0.75rem' }}>
               <label htmlFor="manualDbUrl" style={{ fontSize: '0.875rem' }}>PostgreSQL connection string</label>
               <input
@@ -1401,10 +1401,10 @@ function DbManualPanel({
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-        <span style={{ color: '#dc2626', fontWeight: 700, flexShrink: 0 }}>✗</span>
+        <span style={{ color: 'var(--color-danger)', fontWeight: 700, flexShrink: 0 }}>✗</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Paste your PostgreSQL connection string below.</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste your PostgreSQL connection string below.</div>
         </div>
       </div>
 
@@ -1456,10 +1456,10 @@ function DbRedeployingPanel({
   return (
     <div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-        <span style={{ color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓</span>
+        <span style={{ color: 'var(--color-success)', fontWeight: 700, flexShrink: 0 }}>✓</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: '#16a34a' }}>Database created and connection string written</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database created and connection string written</div>
         </div>
       </div>
 
@@ -1471,7 +1471,7 @@ function DbRedeployingPanel({
             During the redeploy, the database schema migrations run automatically via the build script.
             <br /><br />
             This page will continue automatically once the database is reachable.{' '}
-            <span style={{ color: '#6b7280' }}>(Checking every 5 seconds…)</span>
+            <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
           </span>
         </div>
       ) : (
