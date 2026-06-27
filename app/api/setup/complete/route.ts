@@ -95,6 +95,50 @@ export async function POST() {
     update: {},
   })
 
+  const starterHeaderData = {
+    root: {
+      props: {
+        bgMode: 'color',
+        bgColor: '',
+        height: '64px',
+        sticky: 'yes',
+        borderBottom: 'show',
+        borderColor: '',
+        maxWidth: '1200px',
+      },
+    },
+    content: [
+      {
+        type: 'SiteLogo',
+        props: {
+          id: 'site-logo-1',
+          homeUrl: '/',
+          logoHeight: 40,
+          showTextWithLogo: 'false',
+          showIcon: 'true',
+          textColor: '',
+        },
+      },
+      {
+        type: 'MenuBlock',
+        props: {
+          id: 'menu-block-1',
+          menuId: '',
+          menuName: '',
+          orientation: 'horizontal',
+          spacing: 'normal',
+          itemFontSize: 'medium',
+          itemFontWeight: 'medium',
+          textTransform: 'none',
+          itemColor: '',
+          showDropdowns: 'hover',
+          showMobileToggle: 'collapse',
+        },
+      },
+    ],
+    zones: {},
+  }
+
   // Seed header starter layout
   await prisma.layout.upsert({
     where: { id: 'starter-header' },
@@ -106,19 +150,11 @@ export async function POST() {
       isStarter: true,
       status: 'published',
       displayConditions: ENTIRE_SITE_CONDITIONS,
-      builderData: {
-        root: { props: {} },
-        content: [
-          {
-            type: 'SiteHeader',
-            props: { id: 'site-header-1', sticky: true, bgMode: 'color', height: 64, maxWidth: 1200, borderBottom: true },
-            readOnly: {},
-          },
-        ],
-        zones: {},
-      },
+      builderData: starterHeaderData,
     },
-    update: {},
+    update: {
+      builderData: starterHeaderData,
+    },
   })
 
   // Seed footer starter layout

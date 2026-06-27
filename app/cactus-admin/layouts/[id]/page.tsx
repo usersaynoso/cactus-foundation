@@ -31,6 +31,7 @@ export default function LayoutEditorPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [showConditions, setShowConditions] = useState(false)
+  const [conditionsMode, setConditionsMode] = useState<'publish' | 'edit'>('publish')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestDataRef = useRef<Data | null>(null)
 
@@ -61,6 +62,12 @@ export default function LayoutEditorPage() {
   const handlePublishClick = useCallback((data: Data) => {
     latestDataRef.current = data
     if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+    setConditionsMode('publish')
+    setShowConditions(true)
+  }, [])
+
+  const handleConditionsButtonClick = useCallback(() => {
+    setConditionsMode('edit')
     setShowConditions(true)
   }, [])
 
@@ -69,15 +76,20 @@ export default function LayoutEditorPage() {
     setSaving(true)
     try {
       const data = latestDataRef.current
+      const body: Record<string, unknown> = { displayConditions: conditions }
+      if (conditionsMode === 'publish') {
+        body.builderData = data
+        body.status = 'published'
+      }
       await fetch(`/api/admin/layouts/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ builderData: data, displayConditions: conditions, status: 'published' }),
+        body: JSON.stringify(body),
       })
-      setLayout((l) => l ? { ...l, status: 'published', displayConditions: conditions } : l)
+      setLayout((l) => l ? { ...l, displayConditions: conditions, ...(conditionsMode === 'publish' ? { status: 'published' } : {}) } : l)
       setSaved(true)
-    } catch { setError('Publish failed') }
+    } catch { setError(conditionsMode === 'publish' ? 'Publish failed' : 'Failed to save conditions') }
     finally { setSaving(false) }
-  }, [id])
+  }, [id, conditionsMode])
 
   if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>
   if (!layout) return <div style={{ padding: '2rem', color: '#dc2626' }}>{error || 'Layout not found'}</div>
@@ -93,10 +105,16 @@ export default function LayoutEditorPage() {
         <TypeBadge type={layout.type} />
         {layout.status === 'published' && <span className="badge badge-green" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Published</span>}
         {layout.status === 'draft' && <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Draft</span>}
-        <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {saving && <span>Saving…</span>}
           {!saving && saved && <span style={{ color: '#15803d' }}>Saved ✓</span>}
           {error && <span style={{ color: '#dc2626' }}>{error}</span>}
+          <button
+            onClick={handleConditionsButtonClick}
+            style={{ padding: '0.25rem 0.625rem', background: 'none', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: '0.75rem', color: 'var(--color-muted)', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Conditions
+          </button>
         </span>
       </div>
       <LayoutPuckEditor
@@ -110,6 +128,7 @@ export default function LayoutEditorPage() {
         <DisplayConditionsModal
           layoutType={layout.type}
           existing={layout.displayConditions}
+          mode={conditionsMode}
           onSave={handleConditionsSave}
           onCancel={() => setShowConditions(false)}
         />

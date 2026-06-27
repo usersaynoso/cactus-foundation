@@ -1,6 +1,62 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+
+const POPULAR_FONTS = [
+  'system-ui, sans-serif',
+  'Arial, sans-serif',
+  'Georgia, serif',
+  'Times New Roman, serif',
+  'Helvetica, sans-serif',
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Poppins',
+  'Montserrat',
+  'Raleway',
+  'Oswald',
+  'Nunito',
+  'Ubuntu',
+  'Playfair Display',
+  'Merriweather',
+  'Source Sans Pro',
+  'Source Serif Pro',
+  'PT Sans',
+  'PT Serif',
+  'Noto Sans',
+  'Noto Serif',
+  'Libre Baskerville',
+  'Libre Franklin',
+  'Work Sans',
+  'DM Sans',
+  'DM Serif Display',
+  'Outfit',
+  'Figtree',
+  'Plus Jakarta Sans',
+  'Sora',
+  'Space Grotesk',
+  'Manrope',
+  'Barlow',
+  'Josefin Sans',
+  'Cormorant Garamond',
+  'EB Garamond',
+  'Crimson Text',
+  'Lora',
+  'Bitter',
+  'Spectral',
+  'Mulish',
+  'Quicksand',
+  'Cabin',
+  'Karla',
+  'Rubik',
+  'Jost',
+  'Lexend',
+  'IBM Plex Sans',
+  'IBM Plex Serif',
+  'Fira Sans',
+  'Inconsolata',
+]
 
 type ColourSlot = { name: string; hex: string; darkHex: string }
 
@@ -169,8 +225,8 @@ export default function StyleGuidePage() {
         </Section>
 
         <Section title="Typography">
-          <TextField label="Heading font" value={tokens.typography.fontHeading} onChange={v => setTypography('fontHeading', v)} hint="CSS font-family value. E.g. 'Georgia, serif' or a Google Font name like 'Inter'" />
-          <TextField label="Body font" value={tokens.typography.fontBody} onChange={v => setTypography('fontBody', v)} hint="CSS font-family value." />
+          <FontPickerField label="Heading font" value={tokens.typography.fontHeading} onChange={v => setTypography('fontHeading', v)} />
+          <FontPickerField label="Body font" value={tokens.typography.fontBody} onChange={v => setTypography('fontBody', v)} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
             <TextField label="H1 size" value={tokens.typography.h1Size} onChange={v => setTypography('h1Size', v)} />
             <TextField label="H2 size" value={tokens.typography.h2Size} onChange={v => setTypography('h2Size', v)} />
@@ -255,6 +311,52 @@ function TextField({ label, value, onChange, hint }: { label: string; value: str
       <label>{label}</label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)} />
       {hint && <span className="field-hint">{hint}</span>}
+    </div>
+  )
+}
+
+function FontPickerField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = search
+    ? POPULAR_FONTS.filter(f => f.toLowerCase().includes(search.toLowerCase()))
+    : POPULAR_FONTS
+
+  return (
+    <div className="field" ref={ref} style={{ position: 'relative' }}>
+      <label>{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={e => { onChange(e.target.value); setSearch(e.target.value); setOpen(true) }}
+        onFocus={() => { setSearch(''); setOpen(true) }}
+        placeholder="e.g. Inter or system-ui, sans-serif"
+      />
+      <span className="field-hint">Type to search or enter any CSS font-family value.</span>
+      {open && filtered.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto', marginTop: 2 }}>
+          {filtered.map(font => (
+            <button
+              key={font}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); onChange(font); setOpen(false) }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.4375rem 0.75rem', background: font === value ? '#f0fdf4' : 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: font === value ? '#15803d' : '#374151', fontFamily: font.includes(',') ? font : `${font}, sans-serif` }}
+            >
+              {font}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

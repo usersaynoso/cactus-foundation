@@ -37,11 +37,12 @@ type PageOption = { id: string; title: string; slug: string }
 type Props = {
   layoutType: string
   existing: unknown
+  mode?: 'publish' | 'edit'
   onSave: (conditions: DisplayConditions) => void
   onCancel: () => void
 }
 
-export default function DisplayConditionsModal({ layoutType, existing, onSave, onCancel }: Props) {
+export default function DisplayConditionsModal({ layoutType, existing, mode = 'publish', onSave, onCancel }: Props) {
   const availableTypes: ConditionType[] = TYPES_BY_LAYOUT[layoutType] ?? DEFAULT_TYPES
 
   const parseExisting = (): DisplayConditions => {
@@ -94,7 +95,11 @@ export default function DisplayConditionsModal({ layoutType, existing, onSave, o
       <div style={{ background: '#ffffff', borderRadius: 10, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb' }}>
           <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Display Conditions</h2>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#6b7280' }}>Define when this layout is active. At least one include rule is required to publish.</p>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+            {mode === 'publish'
+              ? 'Define when this layout is active. At least one include rule is required to publish.'
+              : 'Define when this layout is active. Changes are saved without publishing.'}
+          </p>
         </div>
 
         <div style={{ padding: '1.25rem 1.5rem' }}>
@@ -130,9 +135,9 @@ export default function DisplayConditionsModal({ layoutType, existing, onSave, o
           <button
             className="btn btn-primary"
             onClick={() => onSave(conditions)}
-            disabled={conditions.include.length === 0}
+            disabled={mode === 'publish' && conditions.include.length === 0}
           >
-            Save &amp; Publish
+            {mode === 'publish' ? 'Save & Publish' : 'Save Conditions'}
           </button>
         </div>
       </div>

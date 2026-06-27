@@ -1236,16 +1236,54 @@ export const layoutPuckRscConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
+const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => (
+  <header
+    data-bg-mode={bgMode}
+    style={{
+      height: height === 'auto' ? undefined : height,
+      minHeight: height === 'auto' ? 48 : undefined,
+      background: bgMode === 'transparent' ? 'transparent' : (bgColor || undefined),
+      borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}` : 'none',
+      position: sticky === 'yes' ? 'sticky' : 'relative',
+      top: sticky === 'yes' ? 0 : undefined,
+      zIndex: sticky === 'yes' ? 100 : undefined,
+      width: '100%',
+    }}
+  >
+    <div style={{
+      maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
+      margin: '0 auto',
+      padding: '0 1.5rem',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '2rem',
+    }}>
+      {children}
+    </div>
+  </header>
+)
+
 export const headerPuckConfig = {
   categories: {
-    site:   { title: 'Site',      components: ['SiteHeader', 'SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: true },
+    site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: true },
     layout: { title: 'Structure', components: ['Flex', 'Columns', 'Spacer'], defaultExpanded: false },
   },
   root: {
-    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    fields: {
+      bgMode:       { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
+      bgColor:      { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+      height:       { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
+      sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
+      borderBottom: { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
+      borderColor:  { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+      maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
+    },
+    defaultProps: { bgMode: 'color', bgColor: '', height: '64px', sticky: 'yes', borderBottom: 'show', borderColor: '', maxWidth: '1200px' },
+    render: headerRootRender,
   },
   components: {
-    SiteHeader:   puckConfig.components.SiteHeader,
     SiteLogo:     puckConfig.components.SiteLogo,
     MenuBlock:    puckConfig.components.MenuBlock,
     LoginButton:  puckConfig.components.LoginButton,
@@ -1258,6 +1296,10 @@ export const headerPuckConfig = {
 
 export const headerPuckRscConfig = {
   ...headerPuckConfig,
+  root: {
+    ...headerPuckConfig.root,
+    render: headerRootRender,
+  },
   components: {
     ...headerPuckConfig.components,
     SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
