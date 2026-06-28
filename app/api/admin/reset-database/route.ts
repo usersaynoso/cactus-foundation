@@ -123,7 +123,7 @@ async function seedStarterContent() {
       isStarter: true,
       status: 'published',
       builderData: {
-        content: [{ type: 'Columns', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
+        content: [{ type: 'Split', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
         root: { props: {} },
         zones: {
           'columns-1:left': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }],

@@ -39,12 +39,10 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       name: 'Logo Left + Nav Right',
       description: 'Standard header with logo on the left and navigation on the right.',
       builderData: {
-        content: [{ type: 'Columns', props: { id: 'cols-1', columns: '3', align: 'center', gap: 'lg', padding: 'none' } }],
+        content: [{ type: 'Row', props: { id: 'cols-1', justify: 'between', align: 'center', gap: 'lg', padding: 'none' } }],
         root: { props: { height: '64px', sticky: 'yes', borderBottom: 'show', maxWidth: '1200px' } },
         zones: {
-          'cols-1:left':   [{ type: 'SiteLogo',  props: { id: 'logo-1' } }],
-          'cols-1:center': [],
-          'cols-1:right':  [{ type: 'MenuBlock', props: { id: 'menu-1' } }],
+          'cols-1:items': [{ type: 'SiteLogo', props: { id: 'logo-1' } }, { type: 'MenuBlock', props: { id: 'menu-1' } }],
         },
       },
     },
@@ -53,12 +51,10 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       name: 'Logo + Centred Nav',
       description: 'Logo on the left with navigation centred across the header.',
       builderData: {
-        content: [{ type: 'Columns', props: { id: 'cols-1', columns: '3', align: 'center', gap: 'lg', padding: 'none' } }],
+        content: [{ type: 'Row', props: { id: 'cols-1', justify: 'between', align: 'center', gap: 'lg', padding: 'none' } }],
         root: { props: { height: '64px', sticky: 'yes', borderBottom: 'show', maxWidth: '1200px' } },
         zones: {
-          'cols-1:left':   [{ type: 'SiteLogo',  props: { id: 'logo-1' } }],
-          'cols-1:center': [{ type: 'MenuBlock', props: { id: 'menu-1' } }],
-          'cols-1:right':  [],
+          'cols-1:items': [{ type: 'SiteLogo', props: { id: 'logo-1' } }, { type: 'MenuBlock', props: { id: 'menu-1' } }],
         },
       },
     },
@@ -103,7 +99,7 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       name: 'Right Sidebar (70/30)',
       description: 'Main content (70%) with a sidebar on the right (30%).',
       builderData: {
-        content: [{ type: 'Columns', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
+        content: [{ type: 'Split', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
         root: { props: {} },
         zones: { 'columns-1:left': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }], 'columns-1:right': [] },
       },
@@ -113,7 +109,7 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       name: 'Left Sidebar (30/70)',
       description: 'Sidebar on the left (30%), main content on the right (70%).',
       builderData: {
-        content: [{ type: 'Columns', props: { id: 'columns-1', ratio: '30/70', padding: 'none' } }],
+        content: [{ type: 'Split', props: { id: 'columns-1', ratio: '30/70', padding: 'none' } }],
         root: { props: {} },
         zones: { 'columns-1:left': [], 'columns-1:right': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }] },
       },

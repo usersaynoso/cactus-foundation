@@ -37,9 +37,14 @@ const themeToggle = (id: string) => ({
   props: { id },
 })
 
-const columns = (id: string, overrides?: Record<string, unknown>) => ({
-  type: 'Columns',
-  props: { id, columns: '2', ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none', ...overrides },
+const split = (id: string, overrides?: Record<string, unknown>) => ({
+  type: 'Split',
+  props: { id, ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none', ...overrides },
+})
+
+const row = (id: string, overrides?: Record<string, unknown>) => ({
+  type: 'Row',
+  props: { id, justify: 'between', align: 'center', gap: 'md', padding: 'none', ...overrides },
 })
 
 const copyright = (id: string, alignment = 'center') => ({
@@ -136,104 +141,89 @@ const footerRoot = (overrides?: Record<string, unknown>) => ({
 // Header template data (9 variants)
 // ---------------------------------------------------------------------------
 
-// 1. Default: logo left, nav right
+// 1. Default: logo left, menu right
 const starterHeaderData = {
   root: headerRoot(),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { gap: 'md' })],
   zones: {
-    'hr1:left':   [logo('logo-1')],
-    'hr1:center': [],
-    'hr1:right':  [menu('menu-1')],
+    'hr1:items': [logo('logo-1'), menu('menu-1')],
   },
 }
 
 // 2. Centred navigation: logo left, nav centre, login right
 const starterHeaderNavCentreData = {
   root: headerRoot(),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
+  content: [row('hr1', { gap: 'lg' })],
   zones: {
-    'hr1:left':   [logo('logo-1')],
-    'hr1:center': [menu('menu-1')],
-    'hr1:right':  [loginBtn('login-1')],
+    'hr1:items': [logo('logo-1'), menu('menu-1'), loginBtn('login-1')],
   },
 }
 
-// 3. Centred logo: logo in centre, nav right
+// 3. Logo left, nav right (logo was previously centred via 3-col trick)
 const starterHeaderLogoCentreData = {
   root: headerRoot(),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
+  content: [row('hr1', { gap: 'lg' })],
   zones: {
-    'hr1:left':   [],
-    'hr1:center': [logo('logo-1')],
-    'hr1:right':  [menu('menu-1')],
+    'hr1:items': [logo('logo-1'), menu('menu-1')],
   },
 }
 
 // 4. Full width: 1400px max, no border
 const starterHeaderFullWidthData = {
   root: headerRoot({ maxWidth: '1400px', borderBottom: 'hide' }),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { gap: 'md' })],
   zones: {
-    'hr1:left':   [logo('logo-1')],
-    'hr1:center': [],
-    'hr1:right':  [menu('menu-1')],
+    'hr1:items': [logo('logo-1'), menu('menu-1')],
   },
 }
 
 // 5. Logo + site name visible
 const starterHeaderLogoNameData = {
   root: headerRoot(),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { gap: 'md' })],
   zones: {
-    'hr1:left':   [logo('logo-1', { showTextWithLogo: 'true' })],
-    'hr1:center': [],
-    'hr1:right':  [menu('menu-1')],
+    'hr1:items': [logo('logo-1', { showTextWithLogo: 'true' }), menu('menu-1')],
   },
 }
 
 // 6. Tall (80px): logo left, nav centre, login + toggle right
 const starterHeaderTallData = {
   root: headerRoot({ height: '80px' }),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'lg' })],
+  content: [row('hr1', { gap: 'lg' })],
   zones: {
-    'hr1:left':   [logo('logo-1', { logoHeight: 48 })],
-    'hr1:center': [menu('menu-1', { spacing: 'wide' })],
-    'hr1:right':  [columns('actions-cols', { ratio: '50/50' })],
-    'actions-cols:left':  [loginBtn('login-1')],
-    'actions-cols:right': [themeToggle('toggle-1')],
+    'hr1:items': [
+      logo('logo-1', { logoHeight: 48 }),
+      menu('menu-1', { spacing: 'wide' }),
+      row('actions-row', { justify: 'end', gap: 'sm' }),
+    ],
+    'actions-row:items': [loginBtn('login-1'), themeToggle('toggle-1')],
   },
 }
 
 // 7. Logo only (minimal, no nav)
 const starterHeaderMinimalData = {
   root: headerRoot({ borderBottom: 'hide' }),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { justify: 'center', gap: 'md' })],
   zones: {
-    'hr1:left':   [],
-    'hr1:center': [logo('logo-1')],
-    'hr1:right':  [],
+    'hr1:items': [logo('logo-1')],
   },
 }
 
 // 8. Transparent (fades to solid on scroll)
 const starterHeaderTransparentData = {
   root: headerRoot({ bgMode: 'transparent-scroll', borderBottom: 'hide' }),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { gap: 'md' })],
   zones: {
-    'hr1:left':   [logo('logo-1')],
-    'hr1:center': [],
-    'hr1:right':  [menu('menu-1')],
+    'hr1:items': [logo('logo-1'), menu('menu-1')],
   },
 }
 
 // 9. Compact (48px, small nav text)
 const starterHeaderCompactData = {
   root: headerRoot({ height: '48px' }),
-  content: [columns('hr1', { columns: '3', align: 'center', gap: 'md' })],
+  content: [row('hr1', { gap: 'md' })],
   zones: {
-    'hr1:left':   [logo('logo-1', { logoHeight: 28 })],
-    'hr1:center': [],
-    'hr1:right':  [menu('menu-1', { itemFontSize: 'small' })],
+    'hr1:items': [logo('logo-1', { logoHeight: 28 }), menu('menu-1', { itemFontSize: 'small' })],
   },
 }
 
@@ -251,12 +241,10 @@ const starterFooterData = {
 // 2. Logo left, menu + copyright right
 const starterFooterLogoLinksData = {
   root: footerRoot({ paddingY: 'lg' }),
-  content: [columns('footer-cols', { ratio: '30/70' })],
+  content: [{ type: 'Grid', props: { id: 'footer-grid-2', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none', verticalAlign: 'start', spaceBelow: 'none', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start' } }],
   zones: {
-    'footer-cols:left': [
-      logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
-    ],
-    'footer-cols:right': [
+    'footer-grid-2:col1': [logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
+    'footer-grid-2:col2': [
       menu('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', showMobileToggle: 'show' }),
       copyright('footer-copy', 'left'),
     ],
@@ -289,12 +277,10 @@ const starterFooterThreeColData = {
 // 4. Logo left, social + copyright right
 const starterFooterSocialData = {
   root: footerRoot(),
-  content: [columns('footer-cols', { ratio: '30/70' })],
+  content: [{ type: 'Grid', props: { id: 'footer-grid-4', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none', verticalAlign: 'start', spaceBelow: 'none', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start' } }],
   zones: {
-    'footer-cols:left': [
-      logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
-    ],
-    'footer-cols:right': [
+    'footer-grid-4:col1': [logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
+    'footer-grid-4:col2': [
       socialLinks('footer-social', { layout: 'row' }),
       copyright('footer-copy', 'right'),
     ],
@@ -318,7 +304,7 @@ const starterBoxedData = {
 }
 
 const starterSidebarRightData = {
-  content: [columns('columns-1', { ratio: '70/30' })],
+  content: [split('columns-1', { ratio: '70/30' })],
   root: { props: {} },
   zones: {
     'columns-1:left':  [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }],
@@ -327,7 +313,7 @@ const starterSidebarRightData = {
 }
 
 const starterSidebarLeftData = {
-  content: [columns('columns-1', { ratio: '30/70' })],
+  content: [split('columns-1', { ratio: '30/70' })],
   root: { props: {} },
   zones: {
     'columns-1:left':  [],
