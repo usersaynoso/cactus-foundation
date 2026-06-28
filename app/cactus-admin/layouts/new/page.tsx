@@ -72,10 +72,15 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
     },
     {
       key: 'logo-nav-centred',
-      name: 'Logo Left + Nav Centred + Login Right',
-      description: 'Logo left, navigation centred, login button on the right.',
+      name: 'Logo Centred + Nav Right',
+      description: 'Logo truly centred in the bar, navigation right-aligned.',
       builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [logoBlock('logo-1'), menuBlock('menu-1'), loginBlock('login-1')] })],
+        content: [{ type: 'Grid', props: {
+          id: 'header-grid', columns: '3', columnSizes: 'equal', gap: 'md', padding: 'none',
+          verticalAlign: 'center', spaceBelow: 'none',
+          col1Align: 'start', col2Align: 'center', col3Align: 'end',
+          col1: [], col2: [logoBlock('logo-1')], col3: [menuBlock('menu-1')],
+        } }],
         root: { props: { height: '64px', sticky: 'yes', borderBottom: 'show', maxWidth: '1200px' } },
         zones: {},
       },
@@ -194,7 +199,72 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       name: 'Standard Footer',
       description: 'Simple copyright line centred at the bottom.',
       builderData: {
-        content: [{ type: 'Copyright', props: { id: 'copyright-1', prefix: '©', yearFormat: 'current', showSiteName: 'true', alignment: 'center', fontSize: 'small' } }],
+        content: [{ type: 'Copyright', props: { id: 'copyright-1', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'center', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } }],
+        root: { props: { paddingY: 'md', borderTop: 'show' } },
+        zones: {},
+      },
+    },
+    {
+      key: 'logo-links',
+      name: 'Logo + Links',
+      description: 'Logo and site name left, menu and copyright right.',
+      builderData: {
+        content: [{ type: 'Grid', props: {
+          id: 'footer-grid', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none',
+          verticalAlign: 'start', spaceBelow: 'none',
+          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
+          col1: [logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
+          col2: [
+            menuBlock('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', showMobileToggle: 'show' }),
+            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
+          ],
+        } }],
+        root: { props: { paddingY: 'lg', borderTop: 'show' } },
+        zones: {},
+      },
+    },
+    {
+      key: 'three-col',
+      name: 'Three Column',
+      description: 'Brand, navigation links, and social icons in three columns.',
+      builderData: {
+        content: [{ type: 'Grid', props: {
+          id: 'footer-grid', columns: '3', columnSizes: 'equal', gap: 'lg', padding: 'none',
+          verticalAlign: 'start', spaceBelow: 'none',
+          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
+          col1: [
+            logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
+            { type: 'TextBlock', props: { id: 'footer-tagline', content: 'Your tagline or description goes here.', align: 'left', padding: 'none' } },
+          ],
+          col2: [
+            { type: 'Heading', props: { id: 'footer-nav-heading', text: 'Quick Links', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
+            menuBlock('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', showMobileToggle: 'show' }),
+          ],
+          col3: [
+            { type: 'Heading', props: { id: 'footer-social-heading', text: 'Follow Us', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
+            { type: 'SocialLinks', props: { id: 'footer-social', items: [{ platform: 'twitter-x', url: '' }, { platform: 'instagram', url: '' }, { platform: 'linkedin', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' } },
+            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
+          ],
+        } }],
+        root: { props: { paddingY: 'lg', borderTop: 'show' } },
+        zones: {},
+      },
+    },
+    {
+      key: 'social',
+      name: 'With Social Links',
+      description: 'Logo left, social icons and copyright right.',
+      builderData: {
+        content: [{ type: 'Grid', props: {
+          id: 'footer-grid', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none',
+          verticalAlign: 'start', spaceBelow: 'none',
+          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
+          col1: [logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
+          col2: [
+            { type: 'SocialLinks', props: { id: 'footer-social', items: [{ platform: 'twitter-x', url: '' }, { platform: 'instagram', url: '' }, { platform: 'linkedin', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' } },
+            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'right', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
+          ],
+        } }],
         root: { props: { paddingY: 'md', borderTop: 'show' } },
         zones: {},
       },
@@ -246,11 +316,35 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       builderData: { content: [], root: { props: {} }, zones: {} },
     },
     {
-      key: 'centred',
-      name: 'Centred message',
-      description: 'Centred 404 message with a link back home.',
+      key: 'hero',
+      name: 'Full Hero',
+      description: 'Full-screen gradient hero with heading and home button.',
       builderData: {
-        content: [{ type: 'Heading', props: { id: 'h1', text: '404 — Page not found', level: '1', align: 'center' } }, { type: 'ButtonLink', props: { id: 'cta', label: 'Back to home', href: '/' } }],
+        content: [{ type: 'Hero', props: { id: 'hero-1', heading: '404 — Page Not Found', subheading: 'Sorry, the page you were looking for does not exist.', ctaLabel: 'Go Home', ctaHref: '/', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'full', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    {
+      key: 'minimal',
+      name: 'Minimal',
+      description: 'Simple centred heading, message, and back link.',
+      builderData: {
+        content: [{ type: 'Section', props: { id: 'section-1', bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
+          { type: 'Heading', props: { id: 'h-404', text: '404', level: 'h2', align: 'center', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
+          { type: 'TextBlock', props: { id: 't-404', content: "The page you're looking for could not be found.", align: 'center', padding: 'none' } },
+          { type: 'ButtonLink', props: { id: 'btn-home', label: '← Back to Home', href: '/', variant: 'outline', padding: 'md' } },
+        ] } }],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    {
+      key: 'branded',
+      name: 'Branded',
+      description: 'Hero with gradient and dual call-to-action buttons.',
+      builderData: {
+        content: [{ type: 'Hero', props: { id: 'hero-1', heading: 'Page Not Found', subheading: "We've looked everywhere and can't find that page. Let's get you back on track.", ctaLabel: 'Go Home', ctaHref: '/', cta2Label: 'Contact Us', cta2Href: '/contact', cta2Variant: 'outline', bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'half', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
         root: { props: {} },
         zones: {},
       },
@@ -264,11 +358,40 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
       builderData: { content: [], root: { props: {} }, zones: {} },
     },
     {
-      key: 'centred',
-      name: 'Centred message',
-      description: 'Centred status message.',
+      key: 'coming-soon',
+      name: 'Coming Soon',
+      description: 'Full-screen gradient hero for a coming-soon page.',
       builderData: {
-        content: [{ type: 'Heading', props: { id: 'h1', text: 'Coming soon', level: '1', align: 'center' } }],
+        content: [{ type: 'Hero', props: { id: 'hero-1', heading: 'Coming Soon', subheading: "We're working on something exciting. Check back shortly.", ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'full', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    {
+      key: 'maintenance',
+      name: 'Maintenance',
+      description: 'Maintenance notice with logo, heading, and callout block.',
+      builderData: {
+        content: [{ type: 'Section', props: { id: 'section-1', bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
+          { type: 'SiteLogo', props: { id: 'site-logo', homeUrl: '/', logoHeight: 48, showTextWithLogo: 'false', showIcon: 'true', textColor: '' } },
+          { type: 'Heading', props: { id: 'h-main', text: 'Down for Maintenance', level: 'h2', align: 'center', color: 'dark', padding: 'md', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
+          { type: 'Callout', props: { id: 'callout-1', type: 'warning', title: 'Scheduled Maintenance', body: "We're making some improvements. We'll be back shortly - thank you for your patience.", padding: 'none' } },
+          { type: 'TextBlock', props: { id: 't-contact', content: 'Need urgent help? Get in touch via email.', align: 'center', padding: 'md' } },
+        ] } }],
+        root: { props: {} },
+        zones: {},
+      },
+    },
+    {
+      key: 'minimal',
+      name: 'Minimal',
+      description: 'Logo, heading, and brief message. Nothing more.',
+      builderData: {
+        content: [{ type: 'Section', props: { id: 'section-1', bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
+          { type: 'SiteLogo', props: { id: 'site-logo', homeUrl: '/', logoHeight: 48, showTextWithLogo: 'false', showIcon: 'true', textColor: '' } },
+          { type: 'Heading', props: { id: 'h-main', text: "We'll be right back.", level: 'h2', align: 'center', color: 'dark', padding: 'md', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
+          { type: 'TextBlock', props: { id: 't-sub', content: 'This site is temporarily unavailable. Please check back soon.', align: 'center', padding: 'none' } },
+        ] } }],
         root: { props: {} },
         zones: {},
       },

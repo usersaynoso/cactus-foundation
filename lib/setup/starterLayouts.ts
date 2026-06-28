@@ -49,7 +49,7 @@ const copyright = (id: string, alignment = 'center') => ({
   props: {
     id, prefix: '©', customPrefix: '', yearFormat: 'current',
     startYear: new Date().getFullYear(), showSiteName: 'true', suffix: '',
-    alignment, fontSize: 'small', textColor: '',
+    alignment, fontSize: 'small',
     privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy',
     termsUrl: '', termsLabel: 'Terms of Service',
     customLink1Url: '', customLink1Label: '',
@@ -148,7 +148,12 @@ const starterHeaderNavCentreData = {
 
 const starterHeaderLogoCentreData = {
   root: headerRoot(),
-  content: [group('hr1', { gap: 'lg', items: [logo('logo-1'), menu('menu-1')] })],
+  content: [{ type: 'Grid', props: {
+    id: 'header-grid', columns: '3', columnSizes: 'equal', gap: 'md', padding: 'none',
+    verticalAlign: 'center', spaceBelow: 'none',
+    col1Align: 'start', col2Align: 'center', col3Align: 'end',
+    col1: [], col2: [logo('logo-1')], col3: [menu('menu-1')],
+  } }],
   zones: {},
 }
 
@@ -367,7 +372,7 @@ const starterStatusMaintenanceData = {
     content: [
       logo('site-logo', { logoHeight: 48 }),
       heading('h-main', 'Down for Maintenance', { level: 'h2', align: 'center', padding: 'md' }),
-      { type: 'Callout', props: { id: 'callout-1', type: 'warning', title: 'Scheduled Maintenance', body: "We're making some improvements. We'll be back shortly — thank you for your patience.", padding: 'none' } },
+      { type: 'Callout', props: { id: 'callout-1', type: 'warning', title: 'Scheduled Maintenance', body: "We're making some improvements. We'll be back shortly - thank you for your patience.", padding: 'none' } },
       textBlock('t-contact', 'Need urgent help? Get in touch via email.', { align: 'center', padding: 'md' }),
     ],
   })],
@@ -413,7 +418,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
         displayConditions: ENTIRE_SITE_CONDITIONS,
         builderData: t.data,
       },
-      update: { builderData: t.data },
+      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
@@ -433,7 +438,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
         displayConditions: ENTIRE_SITE_CONDITIONS,
         builderData: t.data,
       },
-      update: { builderData: t.data },
+      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
@@ -453,7 +458,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
         displayConditions: ENTIRE_SITE_CONDITIONS,
         builderData: t.data,
       },
-      update: { builderData: t.data },
+      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
@@ -472,7 +477,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
         displayConditions: ENTIRE_SITE_CONDITIONS,
         builderData: t.data,
       },
-      update: { builderData: t.data },
+      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
@@ -491,7 +496,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
         displayConditions: ENTIRE_SITE_CONDITIONS,
         builderData: t.data,
       },
-      update: { builderData: t.data },
+      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 }

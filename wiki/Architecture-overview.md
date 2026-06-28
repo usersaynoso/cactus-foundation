@@ -128,11 +128,11 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **HeaderRow** | Three-zone horizontal row for the header editor (left / centre / right). Left and right zones shrink-wrap their content; centre zone flexes to fill remaining space, centering its children. Available only in `headerPuckConfig`. Configurable gap (none / small / medium / large). |
-| **Grid** | CSS grid container (2–4 columns) with configurable gap, padding, and space below. New fields: **Column widths** (preset ratios for 2-col - equal, auto+fill, 30/70 … 70/30), **Vertical align** (stretch / top / middle / bottom across all cells), **Col N: horizontal align** (left / centre / right per column), **Space below** (replaces the hardcoded 1.5rem bottom margin). |
-| **Flex** | Flexbox container with direction, justify, align, wrap, and gap controls; single droppable slot |
-| **Columns** | Two-column layout with 50/50, 60/40, or 40/60 ratio; each column is a droppable slot |
-| **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px → 96 px) |
+| **Section** | Full-width container with background (colour, gradient, image), vertical padding, max-width, sticky positioning, border, box-shadow, and AOS scroll animation controls. Content rendered via an inline slot (`content` prop). |
+| **Grid** | CSS grid container (2-4 columns) with configurable gap, padding, column-width ratios (30/70, 40/60, etc.), per-column horizontal alignment, vertical alignment across all cells, and space below. Each column (`col1`-`col4`) is an inline slot. |
+| **Group** | Flexbox container with direction (row / column), justify-content, align-items, wrap, gap, and padding controls. Children rendered via an inline slot (`items` prop). Replaces the old Flex and Row blocks. Available in all configs; Split is preferred when you need independently droppable zones. |
+| **Split** | Two-column layout (50/50, 60/40, 40/60, 70/30, 30/70) using `renderDropZone` - each column is a live Puck drop zone backed by `data.zones`. Shows an 80 px placeholder when empty so editors can always see and drag into the column. Not available in `headerPuckConfig`. |
+| **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px - 96 px) |
 | **Divider** | Horizontal rule - solid, dashed, or dotted; thin / medium / thick |
 
 #### Typography
