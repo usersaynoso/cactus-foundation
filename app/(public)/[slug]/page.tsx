@@ -7,6 +7,8 @@ import { Render } from '@puckeditor/core/rsc'
 import { puckRscConfig } from '@/lib/puck/config'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
+import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
+import { StarterGalleryPage } from '@/lib/puck/StarterGalleryPage'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -55,13 +57,46 @@ export default async function InfoPageRoute({ params }: Props) {
 
   const isDraft = page.status === 'draft'
 
-  const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug })
-
   const draftBanner = isDraft ? (
     <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: '#fef9c3', color: '#a16207', fontSize: '0.875rem', fontWeight: 500 }}>
       Draft — not visible to the public
     </div>
   ) : null
+
+  // Layouts gallery: admin-only page showing live previews of all starter templates
+  if (slug === 'layouts') {
+    const [starters, siteConfig] = await Promise.all([
+      prisma.layout.findMany({
+        where: { isStarter: true },
+        orderBy: [{ type: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, type: true, description: true, builderData: true },
+      }),
+      prisma.siteConfig.findUnique({
+        where: { id: 'singleton' },
+        select: { siteName: true, adminPath: true, logoMediaId: true },
+      }),
+    ])
+    const logoMedia = siteConfig?.logoMediaId
+      ? await prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
+      : null
+    const ctx = {
+      siteName: siteConfig?.siteName ?? '',
+      logoUrl: logoMedia?.url ?? null,
+      isLoggedIn: false,
+      adminPath: siteConfig?.adminPath ?? '',
+    }
+    const resolvedLayouts = await Promise.all(
+      starters.map(async (l) => ({
+        ...l,
+        builderData: l.builderData
+          ? await resolveTemplateData(l.builderData, ctx).catch(() => l.builderData)
+          : null,
+      }))
+    )
+    return <StarterGalleryPage layouts={resolvedLayouts} draftBanner={draftBanner} />
+  }
+
+  const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug })
 
   if (page.bodyFormat === 'builder') {
     const pageData = page.builderData as Data | null

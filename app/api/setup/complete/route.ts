@@ -34,6 +34,13 @@ export async function POST() {
     update: {},
   })
 
+  // Admin-only gallery page showing all starter layout templates
+  await prisma.infoPage.upsert({
+    where: { slug: 'layouts' },
+    create: { slug: 'layouts', title: 'Layouts', body: '', status: 'draft' },
+    update: {},
+  })
+
   const mainMenu = await prisma.menu.create({
     data: {
       name: 'Main Menu',
