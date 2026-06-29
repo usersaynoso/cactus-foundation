@@ -98,14 +98,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
     }
 
-    // Get the project's domains to determine SITE_URL
-    const domainsRes = await fetch(
-      `${VERCEL_API}/v9/projects/${projectId}/domains?limit=50`,
-      {
+    // Fetch domains and project details in parallel
+    const [domainsRes, projectRes] = await Promise.all([
+      fetch(`${VERCEL_API}/v9/projects/${projectId}/domains?limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
-      }
-    )
+      }),
+      fetch(`${VERCEL_API}/v9/projects/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10_000),
+      }),
+    ])
+
     if (!domainsRes.ok) {
       return NextResponse.json(
         { error: `Failed to fetch project domains (${domainsRes.status})` },
@@ -117,6 +121,12 @@ export async function POST(req: NextRequest) {
       domains?: Array<{ name: string }>
     }
     const domains = domainsData.domains ?? []
+
+    const projectData = projectRes.ok
+      ? ((await projectRes.json()) as {
+          link?: { org?: string; repo?: string; type?: string }
+        })
+      : null
 
     // Prefer a custom (non-vercel.app) domain; fall back to the vercel.app alias
     const customDomain = domains.find((d) => !d.name.endsWith('.vercel.app'))
@@ -145,6 +155,11 @@ export async function POST(req: NextRequest) {
 
     if (neonApiKey) {
       vars.push({ key: 'NEON_API_KEY', value: neonApiKey.trim(), type: 'encrypted' })
+    }
+
+    const ghLink = projectData?.link
+    if (ghLink?.type === 'github' && ghLink.org && ghLink.repo) {
+      vars.push({ key: 'GITHUB_REPO', value: `${ghLink.org}/${ghLink.repo}`, type: 'plain' })
     }
 
     try {
