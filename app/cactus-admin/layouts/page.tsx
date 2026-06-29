@@ -37,6 +37,12 @@ function conditionSummary(layout: Layout): string {
   if (!inc.length) return 'No conditions'
   if (inc.some(r => r.type === 'entire_site')) return 'Entire site'
   if (inc.some(r => r.type === 'homepage')) return 'Homepage'
+  if (inc.some(r => r.type === 'not_found')) return '404 pages'
+  const hasComingSoon = inc.some(r => r.type === 'coming_soon')
+  const hasMaintenance = inc.some(r => r.type === 'maintenance')
+  if (hasComingSoon && hasMaintenance) return 'Coming soon + Maintenance'
+  if (hasComingSoon) return 'Coming soon'
+  if (hasMaintenance) return 'Maintenance'
   return `${inc.length} condition${inc.length === 1 ? '' : 's'}`
 }
 
@@ -128,6 +134,7 @@ export default function ThemeBuilderPage() {
               </div>
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
+                <a href={`/layout-preview/${layout.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Preview</a>
                 {!layout.isStarter && (
                   <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8125rem', cursor: 'pointer', padding: '0.375rem 0' }}>
                     Delete

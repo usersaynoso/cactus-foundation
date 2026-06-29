@@ -8,7 +8,6 @@ import { puckRscConfig } from '@/lib/puck/config'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
-import { StarterGalleryPage } from '@/lib/puck/StarterGalleryPage'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -62,55 +61,6 @@ export default async function InfoPageRoute({ params }: Props) {
       Draft — not visible to the public
     </div>
   ) : null
-
-  // Layouts gallery: admin-only page showing live previews of all starter templates
-  if (slug === 'layouts') {
-    try {
-      const [starters, siteConfig] = await Promise.all([
-        prisma.layout.findMany({
-          where: { isStarter: true },
-          orderBy: [{ type: 'asc' }, { name: 'asc' }],
-          select: { id: true, name: true, type: true, description: true, builderData: true },
-        }),
-        prisma.siteConfig.findUnique({
-          where: { id: 'singleton' },
-          select: { siteName: true, adminPath: true, logoMediaId: true },
-        }),
-      ])
-      const logoMedia = siteConfig?.logoMediaId
-        ? await prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
-        : null
-      const ctx = {
-        siteName: siteConfig?.siteName ?? '',
-        logoUrl: logoMedia?.url ?? null,
-        isLoggedIn: false,
-        adminPath: siteConfig?.adminPath ?? '',
-      }
-      const resolvedLayouts: Array<{ id: string; name: string; type: string; description: string | null; builderData: unknown }> = []
-      for (const l of starters) {
-        let builderData: unknown = null
-        if (l.builderData) {
-          try {
-            builderData = await resolveTemplateData(l.builderData, ctx)
-          } catch {
-            builderData = l.builderData
-          }
-        }
-        resolvedLayouts.push({ ...l, builderData })
-      }
-      return <StarterGalleryPage layouts={resolvedLayouts} draftBanner={draftBanner} />
-    } catch (err) {
-      return (
-        <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '900px', margin: '0 auto' }}>
-          {draftBanner}
-          <h2 style={{ color: '#b91c1c', margin: '1rem 0 0.5rem' }}>Layouts gallery error (admin only)</h2>
-          <pre style={{ background: '#fef2f2', padding: '1rem', borderRadius: '0.5rem', overflow: 'auto', fontSize: '0.8rem', color: '#7f1d1d', whiteSpace: 'pre-wrap' }}>
-            {String(err instanceof Error ? err.stack ?? err.message : err)}
-          </pre>
-        </div>
-      )
-    }
-  }
 
   const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug })
 

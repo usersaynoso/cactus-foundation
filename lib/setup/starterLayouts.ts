@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/db/prisma'
 
-const ENTIRE_SITE_CONDITIONS = {
-  include: [{ type: 'entire_site' }],
-  exclude: [],
-}
+const ENTIRE_SITE_CONDITIONS  = { include: [{ type: 'entire_site' }],   exclude: [] }
+const NOT_FOUND_CONDITIONS    = { include: [{ type: 'not_found' }],     exclude: [] }
+const COMING_SOON_CONDITIONS  = { include: [{ type: 'coming_soon' }],   exclude: [] }
+const MAINTENANCE_CONDITIONS  = { include: [{ type: 'maintenance' }],   exclude: [] }
+const DRAFT_CONDITIONS        = { include: [],                           exclude: [] }
 
 // ---------------------------------------------------------------------------
 // Shared block prop helpers
@@ -397,105 +398,83 @@ const starterStatusMinimalData = {
 // ---------------------------------------------------------------------------
 
 export async function refreshStarterLayouts(db: typeof prisma) {
-  const headerTemplates = [
-    { id: 'starter-header',             name: 'Default Header',       description: 'Logo left, navigation right.',                                        data: starterHeaderData },
-    { id: 'starter-header-nav-centre',  name: 'Centred Navigation',   description: 'Logo left, nav centred, login button right.',                         data: starterHeaderNavCentreData },
-    { id: 'starter-header-logo-centre', name: 'Centred Logo',         description: 'Logo centred, navigation on the right.',                              data: starterHeaderLogoCentreData },
-    { id: 'starter-header-full-width',  name: 'Full Width',           description: '1400px max-width, no border, logo left, nav right.',                  data: starterHeaderFullWidthData },
-    { id: 'starter-header-logo-name',   name: 'Logo + Site Name',     description: 'Logo with site name visible, navigation right.',                      data: starterHeaderLogoNameData },
-    { id: 'starter-header-tall',        name: 'Tall',                 description: '80px height, logo left, nav centred, login and theme toggle right.',   data: starterHeaderTallData },
-    { id: 'starter-header-minimal',     name: 'Logo Only',            description: 'Logo centred, no navigation.',                                        data: starterHeaderMinimalData },
-    { id: 'starter-header-transparent', name: 'Transparent',          description: 'Transparent until scroll, logo left, nav right.',                     data: starterHeaderTransparentData },
-    { id: 'starter-header-compact',     name: 'Compact',              description: '48px height, logo left, small nav text right.',                       data: starterHeaderCompactData },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type Template = { id: string; name: string; description: string; data: any; conditions: typeof ENTIRE_SITE_CONDITIONS; status: 'published' | 'draft' }
+
+  const headerTemplates: Template[] = [
+    { id: 'starter-header',             name: 'Default Header',     description: 'Logo left, navigation right.',                                       data: starterHeaderData,            conditions: ENTIRE_SITE_CONDITIONS, status: 'published' },
+    { id: 'starter-header-nav-centre',  name: 'Centred Navigation', description: 'Logo left, nav centred, login button right.',                        data: starterHeaderNavCentreData,   conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-logo-centre', name: 'Centred Logo',       description: 'Logo centred, navigation on the right.',                             data: starterHeaderLogoCentreData,  conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-full-width',  name: 'Full Width',         description: '1400px max-width, no border, logo left, nav right.',                 data: starterHeaderFullWidthData,   conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-logo-name',   name: 'Logo + Site Name',   description: 'Logo with site name visible, navigation right.',                     data: starterHeaderLogoNameData,    conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-tall',        name: 'Tall',               description: '80px height, logo left, nav centred, login and theme toggle right.',  data: starterHeaderTallData,        conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-minimal',     name: 'Logo Only',          description: 'Logo centred, no navigation.',                                       data: starterHeaderMinimalData,     conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-transparent', name: 'Transparent',        description: 'Transparent until scroll, logo left, nav right.',                    data: starterHeaderTransparentData, conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-header-compact',     name: 'Compact',            description: '48px height, logo left, small nav text right.',                      data: starterHeaderCompactData,     conditions: DRAFT_CONDITIONS,       status: 'draft' },
   ]
 
   for (const t of headerTemplates) {
     await db.layout.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, type: 'header', description: t.description,
-        isStarter: true, status: 'published',
-        displayConditions: ENTIRE_SITE_CONDITIONS,
-        builderData: t.data,
-      },
+      create: { id: t.id, name: t.name, type: 'header', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
-  const footerTemplates = [
-    { id: 'starter-footer',            name: 'Default Footer',  description: 'Simple centred copyright line.',                        data: starterFooterData },
-    { id: 'starter-footer-logo-links', name: 'Logo + Links',    description: 'Logo and tagline left, menu and copyright right.',      data: starterFooterLogoLinksData },
-    { id: 'starter-footer-three-col',  name: 'Three Column',    description: 'Brand, navigation, and social links in three columns.', data: starterFooterThreeColData },
-    { id: 'starter-footer-social',     name: 'With Social Links', description: 'Logo left, social icons and copyright right.',        data: starterFooterSocialData },
+  const footerTemplates: Template[] = [
+    { id: 'starter-footer',            name: 'Default Footer',    description: 'Simple centred copyright line.',                        data: starterFooterData,          conditions: ENTIRE_SITE_CONDITIONS, status: 'published' },
+    { id: 'starter-footer-logo-links', name: 'Logo + Links',      description: 'Logo and tagline left, menu and copyright right.',      data: starterFooterLogoLinksData,  conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-footer-three-col',  name: 'Three Column',      description: 'Brand, navigation, and social links in three columns.', data: starterFooterThreeColData,  conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-footer-social',     name: 'With Social Links', description: 'Logo left, social icons and copyright right.',          data: starterFooterSocialData,    conditions: DRAFT_CONDITIONS,       status: 'draft' },
   ]
 
   for (const t of footerTemplates) {
     await db.layout.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, type: 'footer', description: t.description,
-        isStarter: true, status: 'published',
-        displayConditions: ENTIRE_SITE_CONDITIONS,
-        builderData: t.data,
-      },
+      create: { id: t.id, name: t.name, type: 'footer', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
-  const pageTemplates = [
-    { id: 'starter-full-width',    name: 'Full Width',         description: 'Content fills the full width. No constraints.',             data: starterFullWidthData },
-    { id: 'starter-boxed',         name: 'Boxed',              description: 'Centred content with standard max-width.',                  data: starterBoxedData },
-    { id: 'starter-sidebar-right', name: 'With Right Sidebar', description: 'Main content (70%) with a sidebar on the right (30%).',    data: starterSidebarRightData },
-    { id: 'starter-sidebar-left',  name: 'With Left Sidebar',  description: 'Sidebar on the left (30%) with main content right (70%).', data: starterSidebarLeftData },
+  const pageTemplates: Template[] = [
+    { id: 'starter-full-width',    name: 'Full Width',         description: 'Content fills the full width. No constraints.',             data: starterFullWidthData,    conditions: ENTIRE_SITE_CONDITIONS, status: 'published' },
+    { id: 'starter-boxed',         name: 'Boxed',              description: 'Centred content with standard max-width.',                  data: starterBoxedData,        conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-sidebar-right', name: 'With Right Sidebar', description: 'Main content (70%) with a sidebar on the right (30%).',    data: starterSidebarRightData, conditions: DRAFT_CONDITIONS,       status: 'draft' },
+    { id: 'starter-sidebar-left',  name: 'With Left Sidebar',  description: 'Sidebar on the left (30%) with main content right (70%).', data: starterSidebarLeftData,  conditions: DRAFT_CONDITIONS,       status: 'draft' },
   ]
 
   for (const t of pageTemplates) {
     await db.layout.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, type: 'infoPage', description: t.description,
-        isStarter: true, status: 'published',
-        displayConditions: ENTIRE_SITE_CONDITIONS,
-        builderData: t.data,
-      },
+      create: { id: t.id, name: t.name, type: 'infoPage', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
-  const notFoundTemplates = [
-    { id: 'starter-404-hero',    name: 'Full Hero', description: 'Full-screen hero with heading and home button.',    data: starter404HeroData },
-    { id: 'starter-404-minimal', name: 'Minimal',   description: 'Simple centred heading, message, and back link.',  data: starter404MinimalData },
-    { id: 'starter-404-branded', name: 'Branded',   description: 'Hero with gradient, dual call-to-action buttons.', data: starter404BrandedData },
+  const notFoundTemplates: Template[] = [
+    { id: 'starter-404-hero',    name: 'Full Hero', description: 'Full-screen hero with heading and home button.',    data: starter404HeroData,    conditions: NOT_FOUND_CONDITIONS, status: 'published' },
+    { id: 'starter-404-minimal', name: 'Minimal',   description: 'Simple centred heading, message, and back link.',  data: starter404MinimalData, conditions: DRAFT_CONDITIONS,     status: 'draft' },
+    { id: 'starter-404-branded', name: 'Branded',   description: 'Hero with gradient, dual call-to-action buttons.', data: starter404BrandedData, conditions: DRAFT_CONDITIONS,     status: 'draft' },
   ]
 
   for (const t of notFoundTemplates) {
     await db.layout.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, type: 'notFound', description: t.description,
-        isStarter: true, status: 'published',
-        displayConditions: ENTIRE_SITE_CONDITIONS,
-        builderData: t.data,
-      },
+      create: { id: t.id, name: t.name, type: 'notFound', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
 
-  const statusTemplates = [
-    { id: 'starter-status-coming-soon', name: 'Coming Soon', description: 'Full-screen hero for a coming-soon page.',        data: starterStatusComingSoonData },
-    { id: 'starter-status-maintenance', name: 'Maintenance',  description: 'Maintenance notice with logo and callout block.', data: starterStatusMaintenanceData },
-    { id: 'starter-status-minimal',     name: 'Minimal',      description: 'Logo, heading, and brief message. Nothing more.', data: starterStatusMinimalData },
+  const statusTemplates: Template[] = [
+    { id: 'starter-status-coming-soon', name: 'Coming Soon', description: 'Full-screen hero for a coming-soon page.',        data: starterStatusComingSoonData,  conditions: COMING_SOON_CONDITIONS, status: 'published' },
+    { id: 'starter-status-maintenance', name: 'Maintenance',  description: 'Maintenance notice with logo and callout block.', data: starterStatusMaintenanceData, conditions: MAINTENANCE_CONDITIONS, status: 'published' },
+    { id: 'starter-status-minimal',     name: 'Minimal',      description: 'Logo, heading, and brief message. Nothing more.', data: starterStatusMinimalData,     conditions: DRAFT_CONDITIONS,       status: 'draft' },
   ]
 
   for (const t of statusTemplates) {
     await db.layout.upsert({
       where: { id: t.id },
-      create: {
-        id: t.id, name: t.name, type: 'statusPage', description: t.description,
-        isStarter: true, status: 'published',
-        displayConditions: ENTIRE_SITE_CONDITIONS,
-        builderData: t.data,
-      },
+      create: { id: t.id, name: t.name, type: 'statusPage', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
   }
