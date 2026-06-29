@@ -181,6 +181,8 @@ model SiteConfig {
   homepageId             String?
   // Design tokens: colours, fonts, spacing, radius, shadows stored as JSON
   designTokens           Json?
+  // Fallback recipient for module notification emails (e.g. contact form submissions)
+  adminEmail             String?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -333,6 +335,8 @@ model Module {
   // Set when a newer tagged release is available
   updateAvailable String?
   updateNotes     String?      @db.Text
+  // Parsed cactus.module.json stored at install time for runtime access (nav entries, permissions)
+  manifest        Json?
 }
 
 enum ModuleStatus {

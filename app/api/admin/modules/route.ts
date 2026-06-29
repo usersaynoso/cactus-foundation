@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
         version: release.tag,
         tablePrefix: manifest.tablePrefix,
         status: 'pending_install',
+        manifest: manifest as object,
       },
     }),
   ])

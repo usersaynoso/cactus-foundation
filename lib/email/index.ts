@@ -5,6 +5,8 @@ export type EmailPayload = {
   subject: string
   html: string
   text: string
+  replyTo?: string
+  cc?: string[]
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<void> {
@@ -30,6 +32,8 @@ async function sendViaBrevo(payload: EmailPayload): Promise<void> {
     body: JSON.stringify({
       sender: { name: config.fromName, email: config.fromAddress },
       to: [{ email: payload.to }],
+      ...(payload.cc?.length ? { cc: payload.cc.map((e) => ({ email: e })) } : {}),
+      ...(payload.replyTo ? { replyTo: { email: payload.replyTo } } : {}),
       subject: payload.subject,
       htmlContent: payload.html,
       textContent: payload.text,
@@ -55,6 +59,8 @@ async function sendViaSmtp(payload: EmailPayload): Promise<void> {
   await transporter.sendMail({
     from: `"${config.fromName}" <${config.fromAddress}>`,
     to: payload.to,
+    ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
+    ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     subject: payload.subject,
     html: payload.html,
     text: payload.text,

@@ -18,6 +18,7 @@ type SiteConfig = {
   adminPath: string; status: string; hideFromCrawlers: boolean;
   publicRegistration: boolean; trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
+  adminEmail: string;
   mediaProvider: MediaProviderType | null;
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
@@ -732,6 +733,11 @@ function ConfigPageInner() {
         <div>
           <div className="field"><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
           <div className="field"><label>From address</label><input type="email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
+          <div className="field">
+            <label>Admin notification email</label>
+            <input type="email" value={config.adminEmail ?? ''} onChange={(e) => set('adminEmail', e.target.value)} placeholder="e.g. hello@yoursite.com" />
+            <span className="field-hint">Used as the fallback recipient for contact form submissions when no override is configured in the module settings.</span>
+          </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div style={{ marginBottom: '1rem' }}>

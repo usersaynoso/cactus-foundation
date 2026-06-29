@@ -1,0 +1,3 @@
+[submodule "modules/contact-form"]
+	path = modules/contact-form
+	url = https://github.com/usersaynoso/cactus-module-contact-form.git

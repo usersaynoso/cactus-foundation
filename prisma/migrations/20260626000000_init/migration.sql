@@ -143,6 +143,7 @@ CREATE TABLE "SiteConfig" (
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "designTokens" JSONB,
+    "adminEmail" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
@@ -262,6 +263,7 @@ CREATE TABLE "Module" (
     "lastCheckedAt" TIMESTAMP(3),
     "updateAvailable" TEXT,
     "updateNotes" TEXT,
+    "manifest" JSONB,
     CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
 );
 
