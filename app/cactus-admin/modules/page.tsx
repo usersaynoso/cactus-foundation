@@ -73,7 +73,7 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
       setRepoUrl('')
-      await load()
+      window.location.href = '/cactus-status/redeploying'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Install failed')
     } finally {
@@ -91,6 +91,10 @@ export default function ModulesPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Action failed')
+      if (action === 'update') {
+        window.location.href = '/cactus-status/redeploying'
+        return
+      }
       await load()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed')
@@ -164,7 +168,7 @@ export default function ModulesPage() {
                     <strong>{m.name}</strong>
                     {m.lastError && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)' }}>{m.lastError}</div>}
                   </td>
-                  <td>v{m.version}</td>
+                  <td>{m.version}</td>
                   <td><code style={{ fontSize: '0.875rem' }}>{m.tablePrefix}</code></td>
                   <td>
                     <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`}>
