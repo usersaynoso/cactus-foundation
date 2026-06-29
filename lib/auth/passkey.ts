@@ -13,7 +13,7 @@ import type {
 import { prisma } from '@/lib/db/prisma'
 import { getWebAuthnRpId, getWebAuthnOrigin } from '@/lib/config/env'
 
-const RP_NAME = 'Cactus CMS'
+const RP_NAME = 'Cactus Foundation'
 const CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 // ---------------------------------------------------------------------------

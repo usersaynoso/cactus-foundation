@@ -3,8 +3,8 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Cactus CMS',
-    default: 'Cactus CMS',
+    template: '%s | Cactus Foundation',
+    default: 'Cactus Foundation',
   },
   description: 'A minimal, extensible CMS',
 }

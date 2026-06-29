@@ -1,4 +1,4 @@
-// Cactus CMS — Prisma Schema
+// Cactus Foundation — Prisma Schema
 // All timestamps are stored in UTC.
 // Run `npm run db:migrate` (prisma migrate dev) for local development.
 // Never use db push — see AGENTS.md.
