@@ -228,16 +228,21 @@ export default function SetupPage() {
   function startDeployLogPolling(id: string): () => void {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
+    let lastSeen: number | null = null
 
     async function poll() {
       if (cancelled) return
       try {
-        const res = await fetch(`/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}`)
+        const url = lastSeen
+          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}`
+          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}`
+        const res = await fetch(url)
         if (res.ok) {
-          const data = (await res.json()) as { state?: string; logLines?: string[] }
+          const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
           if (!cancelled) {
             if (data.state) setDeployState(data.state)
             if (data.logLines) setDeployLogs(data.logLines)
+            if (data.latestTimestamp) lastSeen = data.latestTimestamp
           }
         }
       } catch {

@@ -13,13 +13,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'VERCEL_API_TOKEN not configured' }, { status: 500 })
   }
 
+  const since = req.nextUrl.searchParams.get('since')
+  const eventsUrl = since
+    ? `${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events?since=${encodeURIComponent(since)}`
+    : `${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events`
+
   try {
     const [stateRes, eventsRes] = await Promise.all([
       fetch(`${VERCEL_API}/v13/deployments/${encodeURIComponent(deploymentId)}`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
       }),
-      fetch(`${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events`, {
+      fetch(eventsUrl, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
       }),
@@ -30,21 +35,23 @@ export async function GET(req: NextRequest) {
       : ''
 
     let logLines: string[] = []
+    let latestTimestamp: number | null = null
     if (eventsRes.ok) {
       const events = (await eventsRes.json()) as Array<{
         type?: string
         payload?: { text?: string }
+        created?: number
       }>
-      logLines = events
-        .filter((e) =>
-          (e.type === 'stdout' || e.type === 'stderr' || e.type === 'command') &&
-          !!e.payload?.text
-        )
-        .map((e) => e.payload!.text!)
-        .slice(-3)
+      const filtered = events.filter((e) =>
+        (e.type === 'stdout' || e.type === 'stderr' || e.type === 'command') &&
+        !!e.payload?.text
+      )
+      logLines = filtered.map((e) => e.payload!.text!).slice(-3)
+      const lastEvent = events[events.length - 1]
+      if (lastEvent?.created) latestTimestamp = lastEvent.created
     }
 
-    return NextResponse.json({ state, logLines })
+    return NextResponse.json({ state, logLines, latestTimestamp })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
