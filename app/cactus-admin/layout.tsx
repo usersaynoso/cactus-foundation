@@ -48,7 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus'} version={pkg.version} moduleNavEntries={moduleNavEntries}>
+    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus Foundation'} version={pkg.version} moduleNavEntries={moduleNavEntries}>
       {children}
     </AdminShell>
   )

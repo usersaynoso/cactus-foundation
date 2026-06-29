@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Cactus Setup' },
+  title: { absolute: 'Cactus Foundation Setup' },
   robots: { index: false },
 }
 
