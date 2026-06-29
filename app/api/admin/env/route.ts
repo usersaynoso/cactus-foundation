@@ -96,7 +96,20 @@ export async function POST(req: NextRequest) {
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
     after(async () => {
-      await triggerVercelRedeploy(token, projectId)
+      const result = await triggerVercelRedeploy(token, projectId)
+      if (result.triggered && result.deploymentId) {
+        try {
+          const { prisma } = await import('@/lib/db/prisma')
+          const { invalidateSiteConfigCache } = await import('@/lib/config/site')
+          await prisma.siteConfig.update({
+            where: { id: 'singleton' },
+            data: { pendingRedeployId: result.deploymentId },
+          })
+          invalidateSiteConfigCache()
+        } catch (err) {
+          console.error('[env] Failed to persist pendingRedeployId:', err)
+        }
+      }
     })
     return NextResponse.json({ ok: true, written: toWrite.length, redeployTriggered: true })
   } catch (err: unknown) {
@@ -139,7 +152,20 @@ export async function DELETE() {
   // Trigger the redeploy after the response is sent so it never blocks or
   // races against the function timeout.
   after(async () => {
-    await triggerVercelRedeploy(token, projectId)
+    const result = await triggerVercelRedeploy(token, projectId)
+    if (result.triggered && result.deploymentId) {
+      try {
+        const { prisma } = await import('@/lib/db/prisma')
+        const { invalidateSiteConfigCache } = await import('@/lib/config/site')
+        await prisma.siteConfig.update({
+          where: { id: 'singleton' },
+          data: { pendingRedeployId: result.deploymentId },
+        })
+        invalidateSiteConfigCache()
+      } catch (err) {
+        console.error('[env] Failed to persist pendingRedeployId:', err)
+      }
+    }
   })
 
   return NextResponse.json({
