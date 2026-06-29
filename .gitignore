@@ -58,3 +58,6 @@ coverage/
 # Modules — installed locally for development, managed via their own git repos.
 # Never committed to the main Cactus repo; the template ships without modules.
 /modules/
+
+# Claude Code agent worktrees (temporary, never commit)
+.claude/worktrees/
