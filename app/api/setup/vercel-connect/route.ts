@@ -132,11 +132,13 @@ export async function POST(req: NextRequest) {
 
     const siteUrl = `https://${primaryDomain}`
     const sessionSecret = randomBytes(48).toString('hex')
+    const encryptionKey = randomBytes(32).toString('hex')
 
     const vars: Array<{ key: string; value: string; type?: 'plain' | 'encrypted' }> = [
       { key: 'VERCEL_API_TOKEN', value: token, type: 'encrypted' },
       { key: 'VERCEL_PROJECT_ID', value: projectId, type: 'plain' },
       { key: 'SESSION_SECRET', value: sessionSecret, type: 'encrypted' },
+      { key: 'ENCRYPTION_KEY', value: encryptionKey, type: 'encrypted' },
       { key: 'SITE_URL', value: siteUrl, type: 'plain' },
       { key: 'NEXT_PUBLIC_SITE_URL', value: siteUrl, type: 'plain' },
     ]
