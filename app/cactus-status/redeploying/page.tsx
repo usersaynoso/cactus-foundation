@@ -23,6 +23,14 @@ export default function RedeployingPage() {
           window.location.href = `/${data.adminPath}/`
           return
         }
+        if (data.deploymentId === 'pending') {
+          // Sentinel written synchronously by the admin action; the real Vercel
+          // deployment ID arrives shortly via after(). Show the spinner now and
+          // poll until it lands, then switch over to log polling.
+          setReady(true)
+          cancelPollRef.current = pollForId(data.adminPath)
+          return
+        }
         setDeploymentId(data.deploymentId)
         setReady(true)
         cancelPollRef.current = startPolling(data.deploymentId, data.adminPath)
@@ -36,6 +44,44 @@ export default function RedeployingPage() {
       cancelPollRef.current?.()
     }
   }, [])
+
+  function pollForId(path: string): () => void {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+
+    async function poll() {
+      if (cancelled) return
+      try {
+        const res = await fetch('/api/admin/redeploy-status')
+        if (res.ok) {
+          const data = (await res.json()) as { deploymentId: string | null; adminPath: string }
+          if (!cancelled) {
+            if (data.deploymentId === null) {
+              // Sentinel cleared (redeploy never started) — bounce back to admin.
+              cancelled = true
+              window.location.href = `/${path}/`
+              return
+            }
+            if (data.deploymentId && data.deploymentId !== 'pending') {
+              cancelled = true
+              setDeploymentId(data.deploymentId)
+              cancelPollRef.current = startPolling(data.deploymentId, path)
+              return
+            }
+          }
+        }
+      } catch {
+        // ignore transient errors while the real ID is being written
+      }
+      if (!cancelled) timer = setTimeout(poll, 2_000)
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }
 
   function startPolling(id: string, path: string): () => void {
     let cancelled = false
