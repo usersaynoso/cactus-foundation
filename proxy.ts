@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
-import { getAdminPathCached, getSiteStatusCached } from '@/lib/config/site'
+import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached } from '@/lib/config/site'
 import { validateSession } from '@/lib/auth/session'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 
@@ -172,6 +172,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         try {
           const user = await validateSession(token)
           if (user) {
+            const pendingRedeployId = await getPendingRedeployIdCached()
+            if (pendingRedeployId) {
+              const redeployingUrl = new URL('/cactus-status/redeploying', request.url)
+              const res = NextResponse.rewrite(redeployingUrl)
+              res.headers.set('x-cactus-admin-path', adminPath)
+              return withSecurity(res)
+            }
             const target = new URL(`${ADMIN_INTERNAL}${sub}`, request.url)
             const res = NextResponse.rewrite(target)
             res.headers.set('x-cactus-admin-path', adminPath)

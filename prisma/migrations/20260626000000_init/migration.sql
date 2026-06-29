@@ -142,6 +142,7 @@ CREATE TABLE "SiteConfig" (
     "recoveryPurgeAfterDays" INTEGER NOT NULL DEFAULT 7,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
+    "pendingRedeployId" TEXT,
     "designTokens" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

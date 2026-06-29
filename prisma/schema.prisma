@@ -179,6 +179,8 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
+  // Set when a Vercel redeploy is in-flight; cleared when READY or dismissed
+  pendingRedeployId      String?
   // Design tokens: colours, fonts, spacing, radius, shadows stored as JSON
   designTokens           Json?
   createdAt              DateTime   @default(now())

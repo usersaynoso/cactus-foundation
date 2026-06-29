@@ -7,6 +7,8 @@ let cachedAdminPath: string | null = null
 let cachedAdminPathAt: number = 0
 let cachedStatus: SiteStatus | null = null
 let cachedStatusAt: number = 0
+let cachedPendingRedeployId: string | null = null
+let cachedPendingRedeployIdAt: number = 0
 const CACHE_TTL_MS = 5_000 // 5 seconds
 
 export async function getSiteConfig(): Promise<SiteConfig | null> {
@@ -45,11 +47,27 @@ export async function getSiteStatusCached(): Promise<SiteStatus | null> {
   return config?.status ?? null
 }
 
+export async function getPendingRedeployIdCached(): Promise<string | null> {
+  const now = Date.now()
+  if (cachedPendingRedeployIdAt > 0 && now - cachedPendingRedeployIdAt < CACHE_TTL_MS) {
+    return cachedPendingRedeployId
+  }
+  const config = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { pendingRedeployId: true },
+  })
+  cachedPendingRedeployId = config?.pendingRedeployId ?? null
+  cachedPendingRedeployIdAt = now
+  return cachedPendingRedeployId
+}
+
 export function invalidateSiteConfigCache() {
   cachedAdminPath = null
   cachedAdminPathAt = 0
   cachedStatus = null
   cachedStatusAt = 0
+  cachedPendingRedeployId = null
+  cachedPendingRedeployIdAt = 0
 }
 
 export async function isSetupComplete(): Promise<boolean> {
