@@ -6,18 +6,25 @@ import AdminNav from './AdminNav'
 import { AdminPathProvider } from './AdminPathContext'
 import type { Role } from '@prisma/client'
 
+type ModuleNavEntry = {
+  label: string
+  path: string
+  icon?: string
+}
+
 type Props = {
   adminPath: string
   userRole: Role
   siteName: string
   version: string
   children: React.ReactNode
+  moduleNavEntries?: ModuleNavEntry[]
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavEntries }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
@@ -107,6 +114,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           version={version}
           collapsed={collapsed}
           onNavClick={() => setMobileOpen(false)}
+          moduleNavEntries={moduleNavEntries}
         />
 
         {/* Desktop collapse/expand toggle — pinned to the bottom of the sidebar */}

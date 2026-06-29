@@ -5,15 +5,22 @@ import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
+type ModuleNavEntry = {
+  label: string
+  path: string
+  icon?: string
+}
+
 type Props = {
   adminPath: string
   userRole: Role
   version: string
   collapsed?: boolean
   onNavClick?: () => void
+  moduleNavEntries?: ModuleNavEntry[]
 }
 
-export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick }: Props) {
+export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick, moduleNavEntries }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
@@ -47,6 +54,32 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
           </Link>
         )
       })}
+
+      {moduleNavEntries && moduleNavEntries.length > 0 && (
+        <>
+          {!collapsed && (
+            <div style={{ padding: '0.5rem 0.75rem 0.25rem', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.5rem' }}>
+              Modules
+            </div>
+          )}
+          {moduleNavEntries.map((entry) => {
+            const href = `${base}${entry.path}`
+            const isActive = pathname === href || pathname.startsWith(href)
+            return (
+              <Link
+                key={entry.path}
+                href={href}
+                className={isActive ? 'active' : ''}
+                title={collapsed ? entry.label : undefined}
+                onClick={onNavClick}
+              >
+                <span style={{ width: 18, textAlign: 'center', flexShrink: 0 }}>{entry.icon ?? '🧩'}</span>
+                {!collapsed && <span className="admin-nav-label">{entry.label}</span>}
+              </Link>
+            )
+          })}
+        </>
+      )}
 
       <div className="admin-nav-footer">
         {!collapsed && (
