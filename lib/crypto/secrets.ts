@@ -11,7 +11,7 @@ function getKey(): Buffer {
       'ENCRYPTION_KEY is not set. Generate one with: openssl rand -hex 32'
     )
   }
-  if (hex.length !== 64) {
+  if (hex.length !== 64 || !/^[0-9a-fA-F]+$/.test(hex)) {
     throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes)')
   }
   return Buffer.from(hex, 'hex')
