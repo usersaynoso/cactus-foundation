@@ -143,7 +143,12 @@ const starterHeaderData = {
 
 const starterHeaderNavCentreData = {
   root: headerRoot(),
-  content: [group('hr1', { gap: 'lg', items: [logo('logo-1'), menu('menu-1'), loginBtn('login-1')] })],
+  content: [{ type: 'Grid', props: {
+    id: 'header-grid', columns: '3', columnSizes: 'equal', gap: 'md', padding: 'none',
+    verticalAlign: 'center', spaceBelow: 'none',
+    col1Align: 'start', col2Align: 'center', col3Align: 'end',
+    col1: [logo('logo-1')], col2: [menu('menu-1')], col3: [loginBtn('login-1')],
+  } }],
   zones: {},
 }
 
@@ -172,11 +177,14 @@ const starterHeaderLogoNameData = {
 
 const starterHeaderTallData = {
   root: headerRoot({ height: '80px' }),
-  content: [group('hr1', { gap: 'lg', items: [
-    logo('logo-1', { logoHeight: 48 }),
-    menu('menu-1', { spacing: 'wide' }),
-    group('actions-row', { justify: 'end', wrap: 'nowrap', gap: 'sm', items: [loginBtn('login-1'), themeToggle('toggle-1')] }),
-  ] })],
+  content: [{ type: 'Grid', props: {
+    id: 'header-grid', columns: '3', columnSizes: 'equal', gap: 'md', padding: 'none',
+    verticalAlign: 'center', spaceBelow: 'none',
+    col1Align: 'start', col2Align: 'center', col3Align: 'end',
+    col1: [logo('logo-1', { logoHeight: 48 })],
+    col2: [menu('menu-1', { spacing: 'wide' })],
+    col3: [group('actions-row', { justify: 'end', wrap: 'nowrap', gap: 'sm', items: [loginBtn('login-1'), themeToggle('toggle-1')] })],
+  } }],
   zones: {},
 }
 

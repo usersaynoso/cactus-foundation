@@ -1262,7 +1262,8 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
         padding: '0 1.5rem',
         height: '100%',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
+        justifyContent: 'center',
       }}>
         {children}
       </div>
