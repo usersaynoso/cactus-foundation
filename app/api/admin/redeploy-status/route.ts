@@ -25,5 +25,11 @@ export async function DELETE() {
     data: { pendingRedeployId: null },
   })
   invalidateSiteConfigCache()
+  // Activate any modules that finished deploying and release any lingering lock
+  await prisma.deployLock.deleteMany({})
+  await prisma.module.updateMany({
+    where: { status: 'deploying' },
+    data: { status: 'active' },
+  })
   return NextResponse.json({ ok: true })
 }
