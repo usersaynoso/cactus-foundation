@@ -198,8 +198,12 @@ function ConfigPageInner() {
     if (github === 'installed' || github === 'connected') loadGhStatus()
     if (github === 'error') {
       const reason = searchParams.get('reason')
-      if (reason === 'encrypt_error') {
-        setGhError('ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string - generate one with openssl rand -hex 32.')
+      if (reason === 'encrypt_key_missing') {
+        setGhError('ENCRYPTION_KEY is not set. Add it to your Vercel environment variables (Settings → Environment Variables) then redeploy.')
+      } else if (reason === 'encrypt_key_format') {
+        setGhError('ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string - generate one with: openssl rand -hex 32')
+      } else if (reason === 'encrypt_error') {
+        setGhError('GitHub App credentials could not be encrypted. Check that ENCRYPTION_KEY is correctly set in Vercel and redeploy.')
       } else if (reason === 'state_mismatch') {
         setGhError('GitHub connection failed: the security state token did not match. Please try again.')
       } else if (reason === 'conversion_failed') {
