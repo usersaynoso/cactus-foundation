@@ -20,7 +20,7 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 
 ### Danger zone - Reset Everything
 
-At the bottom of the General tab is a **Reset Everything** button. Pressing it shows a confirmation dialog; confirming will permanently delete all environment variables managed through the admin UI (email, media, integration credentials) from your Vercel project. Core infrastructure variables (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`) are **not** touched. After the reset you must **redeploy manually in Vercel** for the changes to take effect.
+At the bottom of the General tab is a **Reset Everything** button. Pressing it shows a confirmation dialog; confirming will permanently delete all environment variables managed through the admin UI (email, media, integration credentials) from your Vercel project. Core infrastructure variables (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`) are **not** touched. A redeploy is triggered automatically after the reset via Vercel's REST API.
 
 ## Branding tab
 
@@ -44,6 +44,8 @@ Upload a logo and favicon. Requires a media provider to be configured in the Med
 
 Provider (Brevo or SMTP) is set by which credentials are present in environment variables - `BREVO_API_KEY` wins if both are set.
 
+Saving credentials writes them to Vercel project environment variables and triggers a redeploy automatically via Vercel's REST API. The helper text changes to "Redeploying…" to confirm this.
+
 ## Media tab
 
 Select the active media provider from a dropdown grouped by kind:
@@ -51,7 +53,7 @@ Select the active media provider from a dropdown grouped by kind:
 - **Object storage (proxied via your Cloudflare Worker)**: B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage. Images are fetched from the private bucket by the Worker, resized, and served from `CLOUDFLARE_WORKER_URL`.
 - **Image CDN (direct)**: Cloudinary, ImageKit. Images are served straight from the provider's CDN; the Worker is not involved.
 
-Selecting a provider scopes the credentials checklist beneath it to only that provider's environment variables (✓/✗ per var). No credentials are stored in the database - they live in Vercel project environment variables.
+Selecting a provider scopes the credentials checklist beneath it to only that provider's environment variables (✓/✗ per var). No credentials are stored in the database - they live in Vercel project environment variables. Saving credentials triggers a redeploy automatically; the helper text changes to "Redeploying…" to confirm this.
 
 **Changing the active provider** opens a confirmation dialog showing how many existing media items live on other providers. You can either **Migrate now** (moves all items to the new provider in batches while the page is open) or **Switch without migrating** (new uploads go to the new provider; existing items keep serving from wherever they currently are until you run a migration later).
 
@@ -113,7 +115,8 @@ These are read from environment variables. Values are never shown.
 | `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage - object storage. Use the service role key, not the anon key. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary - direct image CDN (no Worker involvement). |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit - direct image CDN (no Worker involvement). |
-| `GITHUB_API_TOKEN` | No | GitHub token (needs `repo` scope) for module/theme install and update. |
+| `GITHUB_API_TOKEN` | No | GitHub personal access token (needs `repo` scope). Legacy fallback - prefer connecting a GitHub App via Config → Integrations. |
+| `ENCRYPTION_KEY` | No | 32-byte hex key for encrypting GitHub App credentials in the database. Required for the GitHub App connect flow. Generate: `openssl rand -hex 32`. Must not change once an App is connected. |
 | `EDGE_CONFIG` | No | Vercel Edge Config read connection string for fast path lookups. |
 | `VERCEL_EDGE_CONFIG_ID` | No | Edge Config ID for writes via Vercel REST API. |
 | `VERCEL_WEBHOOK_SECRET` | No | Webhook secret for automatic deployment status updates (Pro/Enterprise only). |

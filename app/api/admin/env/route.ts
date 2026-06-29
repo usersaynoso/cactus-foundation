@@ -22,6 +22,7 @@ const ALLOWED_KEYS = new Set([
   ...ALL_PROVIDERS.flatMap(envKeysForProvider),
   // Integrations
   'GITHUB_API_TOKEN',
+  'ENCRYPTION_KEY',
   'NEON_API_KEY',
   'EDGE_CONFIG',
   'VERCEL_EDGE_CONFIG_ID',
@@ -94,7 +95,10 @@ export async function POST(req: NextRequest) {
 
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
-    return NextResponse.json({ ok: true, written: toWrite.length })
+    after(async () => {
+      await triggerVercelRedeploy(token, projectId)
+    })
+    return NextResponse.json({ ok: true, written: toWrite.length, redeployTriggered: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return errorResponse(`Failed to write env vars: ${message}`, 502)

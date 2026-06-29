@@ -614,7 +614,7 @@ function ConfigPageInner() {
           >
             {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : 'Save credentials'}
           </button>
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Takes effect on next deployment</span>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{isSaved ? 'Redeploying…' : 'Takes effect on next deployment'}</span>
         </div>
       </div>
     )
@@ -1074,7 +1074,7 @@ function ConfigPageInner() {
                 >
                   {savingEnvId === `media-${selected}` ? 'Saving…' : savedEnvId === `media-${selected}` ? '✓ Saved' : 'Save credentials'}
                 </button>
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginLeft: '1rem' }}>Takes effect on next deployment</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginLeft: '1rem' }}>{savedEnvId === `media-${selected}` ? 'Redeploying…' : 'Takes effect on next deployment'}</span>
               </div>
             )}
 
