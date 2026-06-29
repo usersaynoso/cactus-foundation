@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -12,6 +12,9 @@ import {
 } from '@/lib/modules/manifest'
 import { commitSubmoduleAdd, getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
+import { invalidateSiteConfigCache } from '@/lib/config/site'
+
+export const maxDuration = 60
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -138,6 +141,33 @@ export async function POST(request: NextRequest) {
     await prisma.module.update({
       where: { name: manifest.name },
       data: { status: 'deploying', version: release.tag },
+    })
+
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: 'pending' },
+    })
+    invalidateSiteConfigCache()
+
+    after(async () => {
+      const token = process.env.VERCEL_API_TOKEN
+      const projectId = process.env.VERCEL_PROJECT_ID
+      if (!token || !projectId) return
+      await new Promise(r => setTimeout(r, 8_000))
+      try {
+        const res = await fetch(
+          `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1`,
+          { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
+        )
+        if (res.ok) {
+          const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
+          const uid = data.deployments?.[0]?.uid
+          if (uid) {
+            await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { pendingRedeployId: uid } })
+            invalidateSiteConfigCache()
+          }
+        }
+      } catch { /* ignore */ }
     })
   } catch (err: unknown) {
     await prisma.module.update({
