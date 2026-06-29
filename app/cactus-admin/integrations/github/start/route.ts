@@ -38,7 +38,7 @@ export async function GET() {
   const state = randomBytes(32).toString('hex')
 
   const manifest = {
-    name: `Cactus - ${siteName}`,
+    name: `Cactus Foundation - ${siteName}`,
     url: siteUrl,
     redirect_url: `${siteUrl}/${adminPath}/integrations/github/callback`,
     setup_url: `${siteUrl}/${adminPath}/integrations/github/installed`,

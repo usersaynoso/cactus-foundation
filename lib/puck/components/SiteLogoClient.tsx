@@ -57,7 +57,7 @@ export default function SiteLogoClient({
     <a href={href} style={style} {...events}>
       {showIconBool && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />
+        <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />
       )}
       {siteName ?? 'Site Name'}
     </a>

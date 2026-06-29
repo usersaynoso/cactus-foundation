@@ -120,7 +120,7 @@ const INTEGRATION_SECTIONS: EnvSection[] = [
   {
     id: 'neon',
     label: 'Neon (auto database provisioning)',
-    description: 'Lets Cactus create a Postgres database automatically during setup',
+    description: 'Lets Cactus Foundation create a Postgres database automatically during setup',
     keys: [
       { key: 'NEON_API_KEY', label: 'NEON_API_KEY', type: 'password', placeholder: 'Neon API key' },
     ],

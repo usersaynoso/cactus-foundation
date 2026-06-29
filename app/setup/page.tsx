@@ -633,9 +633,9 @@ export default function SetupPage() {
     <div className="setup-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.75rem' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/cactus.svg" alt="Cactus" style={{ width: 36, height: 36, background: 'var(--color-primary-subtle)', borderRadius: 8, padding: 3, flexShrink: 0 }} />
+        <img src="/cactus.svg" alt="Cactus Foundation" style={{ width: 36, height: 36, background: 'var(--color-primary-subtle)', borderRadius: 8, padding: 3, flexShrink: 0 }} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>Cactus Setup</div>
+          <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>Cactus Foundation Setup</div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Step {stepIndex + 1} of {steps.length}</div>
         </div>
       </div>
@@ -696,7 +696,7 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Connect your project</h2>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Link Cactus to your Vercel project — no environment variables need to be set manually.
+            Link Cactus Foundation to your Vercel project — no environment variables need to be set manually.
           </p>
 
           {dbSubStep === 'loading' && (
@@ -771,7 +771,7 @@ export default function SetupPage() {
         <div>
           <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Set up your database</h2>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Cactus needs a PostgreSQL database to store your content.
+            Cactus Foundation needs a PostgreSQL database to store your content.
           </p>
 
           {dbSubStep === 'loading' && (
@@ -869,7 +869,7 @@ export default function SetupPage() {
 
           <div className="field">
             <label htmlFor="siteName">Site name</label>
-            <input id="siteName" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="My Cactus Site" />
+            <input id="siteName" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="My Cactus Foundation Site" />
           </div>
           <div className="field">
             <label htmlFor="timezone">Timezone</label>
@@ -942,6 +942,7 @@ export default function SetupPage() {
       )}
 
       <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
+        <div style={{ fontStyle: 'italic', marginBottom: '0.375rem' }}>Tough on the outside. Warmer than it lets on. Thrives on neglect. Refuses to die.</div>
         v{process.env.NEXT_PUBLIC_APP_VERSION}
       </div>
     </div>
@@ -978,7 +979,7 @@ function VercelConfigPanel({
   return (
     <div>
       <div className="alert alert-info" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Cactus needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
+        Cactus Foundation needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
       </div>
 
       <div className="field">
@@ -1190,7 +1191,7 @@ function DbChoicePanel({
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-success)' }}>Create a fresh database automatically</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Cactus creates a free Neon Postgres database and configures it for you.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Cactus Foundation creates a free Neon Postgres database and configures it for you.</div>
           </div>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'create' ? '▲' : '▼'}</span>
         </button>
@@ -1241,7 +1242,7 @@ function DbChoicePanel({
             {neonProjects.length === 1 && (
               <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--color-fg)' }}>
                 Project: <strong>{neonProjects[0]?.name}</strong>
-                <span className="field-hint" style={{ display: 'block' }}>Cactus will read the default branch connection URI and write it to Vercel.</span>
+                <span className="field-hint" style={{ display: 'block' }}>Cactus Foundation will read the default branch connection URI and write it to Vercel.</span>
               </div>
             )}
             {neonProjects.length > 1 && (
@@ -1258,7 +1259,7 @@ function DbChoicePanel({
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                <span className="field-hint">Cactus will read the default branch connection URI and write it to Vercel.</span>
+                <span className="field-hint">Cactus Foundation will read the default branch connection URI and write it to Vercel.</span>
               </div>
             )}
             {neonProjects.length > 0 && !existingDataWarning && (
@@ -1321,7 +1322,7 @@ function DbChoicePanel({
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus saves it to Vercel and redeploys.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus Foundation saves it to Vercel and redeploys.</div>
           </div>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
@@ -1391,7 +1392,7 @@ function DbManualPanel({
           placeholder="postgresql://user:pass@host/db?sslmode=require"
           style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
         />
-        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus saves it to Vercel and redeploys automatically.</span>
+        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus Foundation saves it to Vercel and redeploys automatically.</span>
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem' }}>
