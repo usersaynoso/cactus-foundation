@@ -43,6 +43,22 @@ export async function GET(request: NextRequest) {
   })
   const adminPath = config?.adminPath ?? ''
 
+  const encKey = process.env.ENCRYPTION_KEY
+  if (!encKey) {
+    const res = NextResponse.redirect(
+      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_missing`, request.url)
+    )
+    res.cookies.delete('cactus_github_app_state')
+    return res
+  }
+  if (encKey.length !== 64 || !/^[0-9a-fA-F]+$/.test(encKey)) {
+    const res = NextResponse.redirect(
+      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_format`, request.url)
+    )
+    res.cookies.delete('cactus_github_app_state')
+    return res
+  }
+
   let data: ManifestConversionResponse
   try {
     const resp = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {

@@ -113,7 +113,7 @@ export function getEnvStatus(): {
     },
     {
       name: 'ENCRYPTION_KEY',
-      description: '32-byte hex key for encrypting GitHub App credentials in the database. Generate: openssl rand -hex 32',
+      description: '64-character hex string (32 bytes) for encrypting GitHub App credentials in the database. Generate: openssl rand -hex 32',
       required: false,
       set: !!process.env.ENCRYPTION_KEY,
       gates: 'GitHub App connection flow (alternative to GITHUB_API_TOKEN)',
