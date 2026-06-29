@@ -99,12 +99,18 @@ export async function POST() {
   // If it's missing, generate it now, write it to Vercel, and trigger a redeploy
   // so the new deployment picks it up. Auto-login is skipped because the current
   // process won't see the new env var until redeployed.
-  if (!process.env.SESSION_SECRET) {
+  if (!process.env.SESSION_SECRET || !process.env.ENCRYPTION_KEY) {
     const vercelToken = process.env.VERCEL_API_TOKEN
     const projectId = process.env.VERCEL_PROJECT_ID
     if (vercelToken && projectId) {
-      const secret = randomBytes(48).toString('hex')
-      await upsertVercelEnvVar(vercelToken, projectId, 'SESSION_SECRET', secret).catch(() => {})
+      if (!process.env.SESSION_SECRET) {
+        const secret = randomBytes(48).toString('hex')
+        await upsertVercelEnvVar(vercelToken, projectId, 'SESSION_SECRET', secret).catch(() => {})
+      }
+      if (!process.env.ENCRYPTION_KEY) {
+        const key = randomBytes(32).toString('hex')
+        await upsertVercelEnvVar(vercelToken, projectId, 'ENCRYPTION_KEY', key).catch(() => {})
+      }
       await triggerVercelRedeploy(vercelToken, projectId).catch(() => {})
     }
     return NextResponse.json({ adminPath: cfg.adminPath, needsRedeploy: true })
