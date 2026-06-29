@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { encryptSecret } from '@/lib/crypto/secrets'
+import path from 'path'
+import { readFile } from 'fs/promises'
+import sharp from 'sharp'
+import { createAppAuth } from '@octokit/auth-app'
 
 type ManifestConversionResponse = {
   id: number
@@ -130,6 +134,40 @@ export async function GET(request: NextRequest) {
     )
     res.cookies.delete('cactus_github_app_state')
     return res
+  }
+
+  // Logo upload — non-fatal; failures only log a warning
+  try {
+    const svgPath = path.join(process.cwd(), 'public', 'cactus.svg')
+    const svgBuffer = await readFile(svgPath)
+
+    // Render the portrait SVG (980x1057) at 2x density then fit into 200x200
+    const pngBuffer = await sharp(svgBuffer, { density: 144 })
+      .resize(200, 200, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+
+    // App-level JWT (not installation token) required by PUT /app/logo
+    const auth = createAppAuth({ appId: data.id, privateKey: data.pem })
+    const { token } = await auth({ type: 'app' }) as { token: string }
+
+    const logoResp = await fetch('https://api.github.com/app/logo', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'image/png',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: new Blob([new Uint8Array(pngBuffer)]),
+      signal: AbortSignal.timeout(15_000),
+    })
+
+    if (!logoResp.ok) {
+      console.warn('[github/callback] logo upload failed:', logoResp.status, await logoResp.text())
+    }
+  } catch (err) {
+    console.warn('[github/callback] logo upload error (non-fatal):', err)
   }
 
   const res = NextResponse.redirect(
