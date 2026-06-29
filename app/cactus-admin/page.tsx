@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
-import { isMediaProviderConfigured } from '@/lib/config/env'
+import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
 import type { Metadata } from 'next'
 import type { MediaProviderType } from '@prisma/client'
 
@@ -36,7 +36,7 @@ export default async function AdminDashboard() {
   const mediaConfigured = !!(activeProvider && isMediaProviderConfigured(activeProvider))
   const botProtectionConfigured = !!(process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY)
   const edgeConfigConfigured = !!(process.env.EDGE_CONFIG && process.env.VERCEL_EDGE_CONFIG_ID)
-  const githubConfigured = !!process.env.GITHUB_API_TOKEN
+  const githubConfigured = await isGitHubConfigured()
   const sentryConfigured = !!process.env.SENTRY_DSN
 
   const features: FeatureItem[] = [

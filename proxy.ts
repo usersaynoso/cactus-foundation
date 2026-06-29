@@ -37,7 +37,7 @@ function buildCsp(): string {
     `connect-src 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
-    `form-action 'self'`,
+    `form-action 'self' https://github.com`,
   ].join('; ')
 }
 

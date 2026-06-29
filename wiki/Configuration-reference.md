@@ -116,7 +116,7 @@ These are read from environment variables. Values are never shown.
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary - direct image CDN (no Worker involvement). |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit - direct image CDN (no Worker involvement). |
 | `GITHUB_API_TOKEN` | No | GitHub personal access token (needs `repo` scope). Legacy fallback - prefer connecting a GitHub App via Config → Integrations. |
-| `ENCRYPTION_KEY` | No | 32-byte hex key for encrypting GitHub App credentials in the database. Required for the GitHub App connect flow. Generate: `openssl rand -hex 32`. Must not change once an App is connected. |
+| `ENCRYPTION_KEY` | No | 64-character hex string (32 bytes) for encrypting GitHub App credentials in the database. Required for the GitHub App connect flow. Generate with `openssl rand -hex 32`. The format is validated before GitHub redirects begin - connecting will fail immediately with a clear error if the value is wrong. Must not change once an App is connected (re-encryption would be required). |
 | `EDGE_CONFIG` | No | Vercel Edge Config read connection string for fast path lookups. |
 | `VERCEL_EDGE_CONFIG_ID` | No | Edge Config ID for writes via Vercel REST API. |
 | `VERCEL_WEBHOOK_SECRET` | No | Webhook secret for automatic deployment status updates (Pro/Enterprise only). |

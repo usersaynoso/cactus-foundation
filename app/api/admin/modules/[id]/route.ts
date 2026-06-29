@@ -5,6 +5,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { commitSubmoduleUpdate, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
+import { isGitHubConfigured } from '@/lib/config/env'
 
 const Patch = z.object({
   action: z.enum(['update', 'enable', 'disable', 'check-status']),
@@ -55,8 +56,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   if (action === 'update') {
-    if (!process.env.GITHUB_API_TOKEN) {
-      return errorResponse('GITHUB_API_TOKEN is required to update modules', 503)
+    if (!await isGitHubConfigured()) {
+      return errorResponse('GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to update modules.', 503)
     }
 
     const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
@@ -105,8 +106,8 @@ export async function GET(request: NextRequest, { params }: Params) {
   const module = await prisma.module.findUnique({ where: { id } })
   if (!module) return errorResponse('Module not found', 404)
 
-  if (!process.env.GITHUB_API_TOKEN) {
-    return NextResponse.json({ updateAvailable: null, note: 'GITHUB_API_TOKEN not set' })
+  if (!await isGitHubConfigured()) {
+    return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
   const release = await getLatestRelease(module.repoUrl)

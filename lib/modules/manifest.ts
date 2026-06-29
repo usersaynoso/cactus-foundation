@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { getGithubToken } from '@/lib/github/client'
 
 // ---------------------------------------------------------------------------
 // Module manifest (cactus.module.json)
@@ -80,10 +81,9 @@ export async function fetchManifestFromRepo(
     .replace(/\.git$/, '')
     + `/HEAD/${filename}`
 
+  const token = await getGithubToken()
   const res = await fetch(raw, {
-    headers: process.env.GITHUB_API_TOKEN
-      ? { Authorization: `Bearer ${process.env.GITHUB_API_TOKEN}` }
-      : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     signal: AbortSignal.timeout(10_000),
   })
 

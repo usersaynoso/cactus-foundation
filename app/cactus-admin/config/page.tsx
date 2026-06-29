@@ -194,7 +194,24 @@ function ConfigPageInner() {
   }, [tab, loading, loadGhStatus])
 
   useEffect(() => {
-    if (searchParams.get('github') === 'installed') loadGhStatus()
+    const github = searchParams.get('github')
+    if (github === 'installed' || github === 'connected') loadGhStatus()
+    if (github === 'error') {
+      const reason = searchParams.get('reason')
+      if (reason === 'encrypt_error') {
+        setGhError('ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string - generate one with openssl rand -hex 32.')
+      } else if (reason === 'state_mismatch') {
+        setGhError('GitHub connection failed: the security state token did not match. Please try again.')
+      } else if (reason === 'conversion_failed') {
+        setGhError('GitHub rejected the app manifest. Please try again.')
+      } else if (reason === 'network') {
+        setGhError('Could not reach GitHub to complete the connection. Please try again.')
+      } else if (reason === 'db') {
+        setGhError('Failed to save the GitHub App credentials to the database. Check your database connection.')
+      } else {
+        setGhError('Something went wrong during the GitHub connection. Please try again.')
+      }
+    }
   }, [searchParams, loadGhStatus])
 
   // Media provider state
@@ -459,7 +476,12 @@ function ConfigPageInner() {
       setGhError('')
       try {
         const res = await fetch(`/${adminPath}/integrations/github/start`)
-        if (!res.ok) { setGhError('Failed to start GitHub App flow'); setGhBusy(false); return }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({})) as { error?: string }
+          setGhError(d.error ?? 'Failed to start GitHub App flow')
+          setGhBusy(false)
+          return
+        }
         const { formActionUrl, manifest, state } = await res.json() as { formActionUrl: string; manifest: unknown; state: string }
         const form = document.createElement('form')
         form.method = 'post'

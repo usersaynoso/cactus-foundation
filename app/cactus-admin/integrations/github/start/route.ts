@@ -17,6 +17,14 @@ export async function GET() {
     )
   }
 
+  const keyHex = process.env.ENCRYPTION_KEY
+  if (keyHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(keyHex)) {
+    return errorResponse(
+      'ENCRYPTION_KEY must be a 64-character hex string. Generate one with: openssl rand -hex 32',
+      503
+    )
+  }
+
   const siteUrl = process.env.SITE_URL?.replace(/\/$/, '')
   if (!siteUrl) return errorResponse('SITE_URL is not configured', 503)
 

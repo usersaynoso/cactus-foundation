@@ -106,10 +106,17 @@ export function getEnvStatus(): {
     ...MEDIA_PROVIDER_ENV_STATUS(),
     {
       name: 'GITHUB_API_TOKEN',
-      description: 'GitHub personal access token (repo-read + repo-write scopes)',
+      description: 'GitHub personal access token (repo-read + repo-write scopes). Alternative: connect a GitHub App via Config → Integrations.',
       required: false,
       set: !!process.env.GITHUB_API_TOKEN,
-      gates: 'Module and theme install/update',
+      gates: 'Module and theme install/update (fallback when no GitHub App is connected)',
+    },
+    {
+      name: 'ENCRYPTION_KEY',
+      description: '32-byte hex key for encrypting GitHub App credentials in the database. Generate: openssl rand -hex 32',
+      required: false,
+      set: !!process.env.ENCRYPTION_KEY,
+      gates: 'GitHub App connection flow (alternative to GITHUB_API_TOKEN)',
     },
     {
       name: 'NEON_API_KEY',
@@ -225,8 +232,12 @@ export function configuredProxiedProviders(): MediaProviderType[] {
   )
 }
 
-export function isGitHubConfigured(): boolean {
-  return !!process.env.GITHUB_API_TOKEN
+export async function isGitHubConfigured(): Promise<boolean> {
+  if (process.env.GITHUB_API_TOKEN) return true
+  if (!process.env.ENCRYPTION_KEY) return false
+  const { prisma } = await import('@/lib/db/prisma')
+  const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
+  return !!conn?.installationId
 }
 
 export function isVercelConfigured(): boolean {

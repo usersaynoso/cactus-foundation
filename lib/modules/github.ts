@@ -3,14 +3,8 @@
 // Installs/updates work by committing a submodule reference (gitlink, mode 160000)
 // plus the .gitmodules entry via createTree + createCommit + updateRef.
 
-import { Octokit } from '@octokit/rest'
 import { parseGitHubRepo } from './manifest'
-
-function getOctokit(): Octokit {
-  const token = process.env.GITHUB_API_TOKEN
-  if (!token) throw new Error('GITHUB_API_TOKEN is not set')
-  return new Octokit({ auth: token })
-}
+import { getGithubClient } from '@/lib/github/client'
 
 // Parse the MAIN repo (where submodules are committed) from GITHUB_REPO env var.
 // Format: "owner/repo"
@@ -28,7 +22,7 @@ function getMainRepo(): { owner: string; repo: string } {
 export async function getLatestRelease(
   repoUrl: string
 ): Promise<{ tag: string; sha: string; body: string | null } | null> {
-  const octokit = getOctokit()
+  const octokit = await getGithubClient()
   const { owner, repo } = parseGitHubRepo(repoUrl)
 
   try {
@@ -65,7 +59,7 @@ export async function commitSubmoduleAdd(params: {
   commitSha: string      // the commit SHA to pin the submodule to
   message: string
 }): Promise<{ commitSha: string }> {
-  const octokit = getOctokit()
+  const octokit = await getGithubClient()
   const { owner, repo } = getMainRepo()
 
   // Get current HEAD
@@ -153,7 +147,7 @@ export async function commitSubmoduleUpdate(params: {
   commitSha: string
   message: string
 }): Promise<{ commitSha: string }> {
-  const octokit = getOctokit()
+  const octokit = await getGithubClient()
   const { owner, repo } = getMainRepo()
 
   const { data: ref } = await octokit.rest.git.getRef({

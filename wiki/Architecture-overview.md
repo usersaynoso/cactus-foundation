@@ -100,7 +100,7 @@ The active provider is `SiteConfig.mediaProvider`. Changing it in Settings → M
 
 Modules are git submodules living under `modules/<name>/`. Installing one:
 
-1. `POST /api/admin/modules` fetches `cactus.module.json`, validates the manifest, acquires the deploy lock, and commits the submodule via the GitHub Git Data API (no `git` CLI, no shell calls).
+1. `POST /api/admin/modules` fetches `cactus.module.json`, validates the manifest, acquires the deploy lock, and commits the submodule via the GitHub Git Data API (no `git` CLI, no shell calls). GitHub credentials are resolved by `lib/github/client.ts`: prefers a connected GitHub App installation token; falls back to `GITHUB_API_TOKEN`.
 2. The commit triggers a Vercel deployment through the standard GitHub integration.
 3. During Vercel's build step, `scripts/run-module-migrations.mjs` runs **after** `prisma migrate deploy`. It finds all active modules' SQL migration files, checks the `ModuleMigration` table for already-applied ones, and executes the rest in lexicographic order.
 4. The deploy lock is released when the Vercel webhook fires (`deployment.succeeded`) or lazily on the next Modules page load (for Hobby-plan users without webhooks).

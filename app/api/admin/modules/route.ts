@@ -11,6 +11,7 @@ import {
   validateTablePrefixUnique,
 } from '@/lib/modules/manifest'
 import { commitSubmoduleAdd, getLatestRelease } from '@/lib/modules/github'
+import { isGitHubConfigured } from '@/lib/config/env'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
-  if (!process.env.GITHUB_API_TOKEN) {
-    return errorResponse('GITHUB_API_TOKEN is required to install modules', 503)
+  if (!await isGitHubConfigured()) {
+    return errorResponse('GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to install modules.', 503)
   }
 
   const parsed = InstallBody.safeParse(await request.json())
