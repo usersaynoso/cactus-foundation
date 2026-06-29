@@ -116,7 +116,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const module = await prisma.module.findUnique({ where: { id } })
   if (!module) return errorResponse('Module not found', 404)
 
-  if (!await isGitHubConfigured()) {
+  if (await getGitHubConfigStatus() !== 'configured') {
     return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
