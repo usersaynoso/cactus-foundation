@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cactus Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --cactus-50: #eef6f1;
+    --cactus-100: #d0e8db;
+    --cactus-200: #a3d1bc;
+    --cactus-300: #6db49a;
+    --cactus-400: #459578;
+    --cactus-500: #2c7558;
+    --cactus-600: #22604a;
+    --cactus-700: #1a4c3a;
+    --cactus-800: #133929;
+    --cactus-900: #0e2a1e;
+    --cactus-950: #071611;
+
+    --spine-50: #fdf0ec;
+    --spine-100: #fad8cd;
+    --spine-200: #f5b09c;
+    --spine-300: #ed7e60;
+    --spine-400: #e05232;
+    --spine-500: #c94223;
+    --spine-600: #a8341a;
+    --spine-700: #872913;
+    --spine-800: #671f0e;
+
+    --sand-50: #faf9f7;
+    --sand-100: #f4f2ee;
+    --sand-200: #e6e2da;
+    --sand-300: #d2cdbf;
+    --sand-400: #b0a896;
+    --sand-500: #8e856f;
+    --sand-600: #6e6657;
+    --sand-700: #544e42;
+    --sand-800: #3b3730;
+    --sand-900: #272420;
+    --sand-950: #16140f;
+
+    --font-sans: "Instrument Sans", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --radius: 6px;
+    --radius-lg: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--sand-50);
+    color: var(--sand-900);
+    line-height: 1.6;
+  }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .sidebar {
+    background: var(--sand-100);
+    border-right: 1px solid var(--sand-200);
+    padding: 24px 12px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .main { padding: 40px 48px; max-width: 900px; }
+  .logo-mark { display: flex; align-items: flex-end; gap: 2px; height: 36px; margin-bottom: 20px; padding: 0 10px; }
+  .logo-mark span { border-radius: 2px; background: var(--cactus-500); }
+  .logo-mark .l1 { width: 3px; height: 34px; }
+  .logo-mark .l2 { width: 3px; height: 26px; background: var(--cactus-300); }
+  .logo-mark .l3 { width: 3px; height: 40px; margin-bottom: -4px; }
+  .logo-mark .l4 { width: 3px; height: 20px; background: var(--cactus-200); }
+  .logo-mark .l5 { width: 3px; height: 30px; }
+  .logo-name { font-size: 13px; font-weight: 600; color: var(--sand-900); padding: 0 10px; margin-bottom: 4px; letter-spacing: -.01em; }
+  .logo-sub { font-size: 11px; color: var(--sand-500); padding: 0 10px; margin-bottom: 20px; }
+
+  /* Nav */
+  .nav-section { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--sand-400); padding: 14px 10px 4px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: var(--radius); font-size: 13px; font-weight: 500; color: var(--sand-600); cursor: pointer; text-decoration: none; transition: background .12s, color .12s; }
+  .nav-item:hover { background: var(--sand-200); color: var(--sand-900); }
+  .nav-item.active { color: var(--cactus-500); background: var(--cactus-50); border-left: 2px solid var(--cactus-500); padding-left: 8px; }
+
+  /* Sections */
+  section { margin-bottom: 56px; }
+  .section-heading { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--sand-400); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--sand-200); }
+  h1 { font-size: 30px; font-weight: 600; letter-spacing: -.02em; color: var(--sand-900); margin-bottom: 8px; }
+  .lead { font-size: 15px; color: var(--sand-600); margin-bottom: 40px; }
+
+  /* Colour swatches */
+  .swatch-group { margin-bottom: 18px; }
+  .swatch-group-label { font-size: 12px; font-weight: 500; color: var(--sand-600); margin-bottom: 6px; }
+  .swatch-row { display: flex; gap: 3px; }
+  .swatch { flex: 1; height: 40px; border-radius: 5px; cursor: default; transition: transform .1s; position: relative; }
+  .swatch:hover { transform: scaleY(1.15); z-index: 1; }
+  .swatch:hover::after { content: attr(title); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--sand-900); color: #fff; font-size: 10px; font-family: var(--font-mono); padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
+
+  /* Semantic chips */
+  .semantic-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chip { border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 88px; }
+  .chip-swatch { width: 22px; height: 22px; border-radius: 4px; margin: 0 auto 6px; }
+  .chip-name { font-size: 11px; font-weight: 500; margin-bottom: 2px; }
+  .chip-hex { font-family: var(--font-mono); font-size: 10px; color: var(--sand-500); }
+
+  /* Type scale */
+  .type-row { display: flex; align-items: baseline; gap: 20px; padding: 10px 0; border-bottom: 1px solid var(--sand-200); }
+  .type-meta { font-family: var(--font-mono); font-size: 10px; color: var(--sand-400); width: 54px; flex-shrink: 0; }
+
+  /* Cards */
+  .card { background: #fff; border: 1px solid var(--sand-200); border-radius: var(--radius-lg); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-label { font-size: 11px; font-weight: 500; color: var(--sand-400); margin-bottom: 14px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: var(--radius); font-family: var(--font-sans); font-size: 14px; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: background .12s, transform .08s; white-space: nowrap; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--cactus-500); color: #fff; }
+  .btn-primary:hover { background: var(--cactus-600); }
+  .btn-secondary { background: #fff; color: var(--sand-900); border-color: var(--sand-300); }
+  .btn-secondary:hover { background: var(--sand-50); }
+  .btn-ghost { background: transparent; color: var(--sand-900); }
+  .btn-ghost:hover { background: var(--sand-100); }
+  .btn-destructive { background: var(--spine-500); color: #fff; }
+  .btn-destructive:hover { background: var(--spine-600); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 13px; }
+  .btn-lg { height: 42px; padding: 0 18px; font-size: 15px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+  .badge-default { background: var(--sand-100); color: var(--sand-600); border: 1px solid var(--sand-200); }
+  .badge-primary { background: var(--cactus-50); color: var(--cactus-700); border: 1px solid var(--cactus-200); }
+  .badge-success { background: #e8f5ee; color: #1e6644; }
+  .badge-warning { background: #fef7eb; color: #92530a; }
+  .badge-error { background: var(--spine-50); color: var(--spine-600); }
+  .badge-info { background: #eaf2fb; color: #1a5fa8; }
+
+  /* Inputs */
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 13px; font-weight: 500; color: var(--sand-900); }
+  .hint { font-size: 12px; color: var(--sand-500); }
+  input[type="text"], input[type="email"], input[type="password"], textarea, select {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--sand-300);
+    border-radius: var(--radius);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--sand-900);
+    background: #fff;
+    outline: none;
+    width: 100%;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--cactus-400);
+    box-shadow: 0 0 0 3px rgba(68,149,120,.2);
+  }
+  input.mono-input { font-family: var(--font-mono); font-size: 13px; }
+  input.error { border-color: var(--spine-500); box-shadow: 0 0 0 3px rgba(201,66,35,.15); }
+  .error-text { font-size: 12px; color: var(--spine-600); }
+
+  /* Toggle */
+  .toggle-wrap { display: flex; align-items: center; gap: 10px; }
+  .track { width: 36px; height: 20px; border-radius: 9999px; background: var(--sand-300); position: relative; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+  .track.on { background: var(--cactus-500); }
+  .thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .track.on .thumb { transform: translateX(16px); }
+
+  /* Toasts */
+  .toast { border-radius: 10px; padding: 12px 16px; border-left: 3px solid; font-size: 14px; line-height: 1.5; }
+  .toast-success { background: #e8f5ee; border-color: #1e6644; }
+  .toast-warning { background: #fef7eb; border-color: #92530a; }
+  .toast-error { background: var(--spine-50); border-color: var(--spine-500); }
+
+  /* Module card */
+  .module-card { background: var(--sand-50); border: 1px solid var(--sand-200); border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .module-name { font-size: 14px; font-weight: 600; color: var(--sand-900); }
+  .module-desc { font-size: 12px; color: var(--sand-500); margin-top: 2px; }
+  .module-version { font-family: var(--font-mono); font-size: 10px; color: var(--sand-400); margin-top: 4px; }
+  .module-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+  /* Spacing scale */
+  .spacing-scale { display: flex; align-items: flex-end; gap: 6px; }
+  .space-block { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .space-block-inner { background: var(--cactus-500); border-radius: 2px; }
+  .space-label { font-size: 9px; color: var(--sand-400); }
+
+  /* Radius demo */
+  .radius-row { display: flex; gap: 12px; align-items: flex-end; }
+  .radius-box { width: 60px; height: 60px; background: var(--cactus-100); border: 1px solid var(--cactus-200); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; }
+  .radius-label { font-size: 10px; color: var(--cactus-600); font-family: var(--font-mono); }
+
+  /* Dialog preview */
+  .dialog-preview { background: rgba(39,36,32,.45); border-radius: var(--radius-lg); padding: 40px 24px; display: flex; align-items: center; justify-content: center; }
+  .dialog { background: #fff; border-radius: var(--radius-lg); padding: 24px; width: 100%; max-width: 360px; box-shadow: 0 20px 40px rgba(0,0,0,.15); }
+  .dialog-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--sand-900); }
+  .dialog-body { font-size: 14px; color: var(--sand-600); margin-bottom: 20px; line-height: 1.6; }
+  .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* Permission badge */
+  .permission-row { display: flex; align-items: center; gap: 12px; }
+
+  /* Page status */
+  .page-list-item { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--sand-100); }
+  .page-item-name { font-size: 14px; font-weight: 500; color: var(--sand-900); }
+  .page-item-slug { font-family: var(--font-mono); font-size: 12px; color: var(--sand-500); }
+
+  /* Footer */
+  .doc-footer { padding: 24px 0; border-top: 1px solid var(--sand-200); display: flex; justify-content: space-between; align-items: center; color: var(--sand-400); font-size: 12px; }
+  .doc-footer span { font-family: var(--font-mono); }
+
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { padding: 24px 20px; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar nav -->
+  <nav class="sidebar" aria-label="Design system navigation">
+    <div class="logo-mark">
+      <span class="l1"></span>
+      <span class="l2"></span>
+      <span class="l3"></span>
+      <span class="l4"></span>
+      <span class="l5"></span>
+    </div>
+    <p class="logo-name">Cactus</p>
+    <p class="logo-sub">Design System</p>
+
+    <p class="nav-section">Foundations</p>
+    <a href="#colour" class="nav-item active"><i class="ti ti-palette" aria-hidden="true"></i> Colour</a>
+    <a href="#typography" class="nav-item"><i class="ti ti-typography" aria-hidden="true"></i> Typography</a>
+    <a href="#spacing" class="nav-item"><i class="ti ti-layout-distribute-vertical" aria-hidden="true"></i> Spacing</a>
+
+    <p class="nav-section">Components</p>
+    <a href="#buttons" class="nav-item"><i class="ti ti-cursor-text" aria-hidden="true"></i> Buttons</a>
+    <a href="#form" class="nav-item"><i class="ti ti-forms" aria-hidden="true"></i> Form</a>
+    <a href="#badges" class="nav-item"><i class="ti ti-tag" aria-hidden="true"></i> Badges</a>
+    <a href="#feedback" class="nav-item"><i class="ti ti-bell" aria-hidden="true"></i> Feedback</a>
+    <a href="#navigation" class="nav-item"><i class="ti ti-layout-sidebar" aria-hidden="true"></i> Navigation</a>
+    <a href="#dialogs" class="nav-item"><i class="ti ti-layout-bottombar" aria-hidden="true"></i> Dialogs</a>
+
+    <p class="nav-section">Platform</p>
+    <a href="#cactus-specific" class="nav-item"><i class="ti ti-puzzle" aria-hidden="true"></i> Cactus-specific</a>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <h1>Cactus Design System</h1>
+    <p class="lead">Admin UI design language. Public-facing themes are owned by Puck and sit outside this system.</p>
+
+    <!-- COLOUR -->
+    <section id="colour">
+      <p class="section-heading">Colour</p>
+
+      <div class="swatch-group">
+        <p class="swatch-group-label">Cactus — brand primary</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#eef6f1;border:1px solid #e6e2da" title="cactus-50"></div>
+          <div class="swatch" style="background:#d0e8db" title="cactus-100"></div>
+          <div class="swatch" style="background:#a3d1bc" title="cactus-200"></div>
+          <div class="swatch" style="background:#6db49a" title="cactus-300"></div>
+          <div class="swatch" style="background:#459578" title="cactus-400"></div>
+          <div class="swatch" style="background:#2c7558;outline:2px solid #2c7558;outline-offset:2px" title="cactus-500 — brand primary"></div>
+          <div class="swatch" style="background:#22604a" title="cactus-600"></div>
+          <div class="swatch" style="background:#1a4c3a" title="cactus-700"></div>
+          <div class="swatch" style="background:#133929" title="cactus-800"></div>
+          <div class="swatch" style="background:#0e2a1e" title="cactus-900"></div>
+          <div class="swatch" style="background:#071611" title="cactus-950"></div>
+        </div>
+      </div>
+
+      <div class="swatch-group">
+        <p class="swatch-group-label">Spine — destructive, warnings, sharp edges</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#fdf0ec;border:1px solid #e6e2da" title="spine-50"></div>
+          <div class="swatch" style="background:#fad8cd" title="spine-100"></div>
+          <div class="swatch" style="background:#f5b09c" title="spine-200"></div>
+          <div class="swatch" style="background:#ed7e60" title="spine-300"></div>
+          <div class="swatch" style="background:#e05232" title="spine-400"></div>
+          <div class="swatch" style="background:#c94223;outline:2px solid #c94223;outline-offset:2px" title="spine-500 — destructive primary"></div>
+          <div class="swatch" style="background:#a8341a" title="spine-600"></div>
+          <div class="swatch" style="background:#872913" title="spine-700"></div>
+          <div class="swatch" style="background:#671f0e" title="spine-800"></div>
+          <div class="swatch" style="background:#4c160a" title="spine-900"></div>
+          <div class="swatch" style="background:#2b0a05" title="spine-950"></div>
+        </div>
+      </div>
+
+      <div class="swatch-group">
+        <p class="swatch-group-label">Sand — neutral, text, backgrounds</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#faf9f7;border:1px solid #e6e2da" title="sand-50 — page background"></div>
+          <div class="swatch" style="background:#f4f2ee;border:1px solid #e6e2da" title="sand-100 — sidebar, subtle bg"></div>
+          <div class="swatch" style="background:#e6e2da" title="sand-200 — borders"></div>
+          <div class="swatch" style="background:#d2cdbf" title="sand-300 — strong borders"></div>
+          <div class="swatch" style="background:#b0a896" title="sand-400 — muted text"></div>
+          <div class="swatch" style="background:#8e856f" title="sand-500"></div>
+          <div class="swatch" style="background:#6e6657" title="sand-600 — secondary text"></div>
+          <div class="swatch" style="background:#544e42" title="sand-700"></div>
+          <div class="swatch" style="background:#3b3730" title="sand-800"></div>
+          <div class="swatch" style="background:#272420;outline:2px solid #272420;outline-offset:2px" title="sand-900 — primary text"></div>
+          <div class="swatch" style="background:#16140f" title="sand-950"></div>
+        </div>
+      </div>
+
+      <div class="semantic-chips">
+        <div class="chip" style="background:#eef6f1;border:1px solid #a3d1bc">
+          <div class="chip-swatch" style="background:#2c7558"></div>
+          <p class="chip-name" style="color:#1a4c3a">Primary</p>
+          <p class="chip-hex">#2c7558</p>
+        </div>
+        <div class="chip" style="background:#fdf0ec;border:1px solid #f5b09c">
+          <div class="chip-swatch" style="background:#c94223"></div>
+          <p class="chip-name" style="color:#a8341a">Destructive</p>
+          <p class="chip-hex">#c94223</p>
+        </div>
+        <div class="chip" style="background:#e8f5ee">
+          <div class="chip-swatch" style="background:#1e6644"></div>
+          <p class="chip-name" style="color:#1e6644">Success</p>
+          <p class="chip-hex">#1e6644</p>
+        </div>
+        <div class="chip" style="background:#fef7eb">
+          <div class="chip-swatch" style="background:#92530a"></div>
+          <p class="chip-name" style="color:#92530a">Warning</p>
+          <p class="chip-hex">#92530a</p>
+        </div>
+        <div class="chip" style="background:#eaf2fb">
+          <div class="chip-swatch" style="background:#1a5fa8"></div>
+          <p class="chip-name" style="color:#1a5fa8">Info</p>
+          <p class="chip-hex">#1a5fa8</p>
+        </div>
+        <div class="chip" style="background:#f4f2ee;border:1px solid #e6e2da">
+          <div class="chip-swatch" style="background:#faf9f7;border:1px solid #e6e2da"></div>
+          <p class="chip-name" style="color:#6e6657">Surface</p>
+          <p class="chip-hex">sand-50</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <section id="typography">
+      <p class="section-heading">Typography — Instrument Sans</p>
+
+      <div class="type-row" style="border-top:1px solid var(--sand-200)">
+        <span class="type-meta">30 / 600</span>
+        <span style="font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--sand-900)">Page heading</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">24 / 600</span>
+        <span style="font-size:24px;font-weight:600;color:var(--sand-900)">Section heading</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">20 / 600</span>
+        <span style="font-size:20px;font-weight:600;color:var(--sand-900)">Card title</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">17 / 500</span>
+        <span style="font-size:17px;font-weight:500;color:var(--sand-900)">Section intro text</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">15 / 400</span>
+        <span style="font-size:15px;font-weight:400;color:var(--sand-900)">Body copy — default for descriptions, form hints, and content areas.</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">13 / 400</span>
+        <span style="font-size:13px;font-weight:400;color:var(--sand-600)">Secondary text · table cells · badge labels · metadata</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">11 / 500</span>
+        <span style="font-size:11px;font-weight:500;color:var(--sand-600)">Helper text, form hints, captions — minimum readable size</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">10 / 600 UPP</span>
+        <span style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sand-400)">Nav section label · overline · category</span>
+      </div>
+      <div class="type-row">
+        <span class="type-meta">Mono 13</span>
+        <span style="font-family:var(--font-mono);font-size:13px;color:var(--sand-900)">/admin-7f3a9b2c · passkey:aaguid:b93fd421 · sk-ant-api03-xxx</span>
+      </div>
+    </section>
+
+    <!-- SPACING -->
+    <section id="spacing">
+      <p class="section-heading">Spacing &amp; radius</p>
+
+      <p style="font-size:12px;font-weight:500;color:var(--sand-500);margin-bottom:10px">Scale — base 4px</p>
+      <div class="spacing-scale" style="margin-bottom:32px">
+        <div class="space-block"><div class="space-block-inner" style="width:4px;height:4px"></div><span class="space-label">1</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:8px;height:8px"></div><span class="space-label">2</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:12px;height:12px"></div><span class="space-label">3</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:16px;height:16px"></div><span class="space-label">4</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:20px;height:20px"></div><span class="space-label">5</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:24px;height:24px"></div><span class="space-label">6</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:32px;height:32px;background:var(--cactus-400)"></div><span class="space-label">8</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:40px;height:40px;background:var(--cactus-300)"></div><span class="space-label">10</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:48px;height:48px;background:var(--cactus-200)"></div><span class="space-label">12</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:64px;height:64px;background:var(--cactus-100)"></div><span class="space-label">16</span></div>
+        <div class="space-block"><div class="space-block-inner" style="width:80px;height:80px;background:var(--cactus-50);border:1px solid var(--cactus-200)"></div><span class="space-label">20</span></div>
+      </div>
+
+      <p style="font-size:12px;font-weight:500;color:var(--sand-500);margin-bottom:10px">Border radius</p>
+      <div class="radius-row">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:0"><span class="radius-label">none</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">0</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:4px"><span class="radius-label">sm</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">4px</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:6px"><span class="radius-label">base</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">6px</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:8px"><span class="radius-label">md</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">8px</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:12px"><span class="radius-label">lg</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">12px</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="radius-box" style="border-radius:16px"><span class="radius-label">xl</span></div>
+          <span style="font-size:10px;color:var(--sand-400)">16px</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="width:60px;height:60px;background:var(--cactus-100);border:1px solid var(--cactus-200);border-radius:9999px;display:flex;align-items:center;justify-content:center">
+            <span class="radius-label">pill</span>
+          </div>
+          <span style="font-size:10px;color:var(--sand-400)">9999px</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section id="buttons">
+      <p class="section-heading">Buttons</p>
+      <div class="card" style="margin-bottom:14px">
+        <p class="card-label">Variants</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <button class="btn btn-primary">Save changes</button>
+          <button class="btn btn-secondary">Cancel</button>
+          <button class="btn btn-ghost">Preview</button>
+          <button class="btn btn-destructive">Delete page</button>
+          <button class="btn btn-secondary" style="color:var(--cactus-500);border-color:var(--cactus-200)">View live</button>
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-label">Sizes</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <button class="btn btn-primary btn-sm">Publish</button>
+          <button class="btn btn-primary">Save changes</button>
+          <button class="btn btn-primary btn-lg">Get started</button>
+          <button class="btn btn-primary" disabled style="opacity:.4;cursor:not-allowed">Disabled</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <section id="form">
+      <p class="section-heading">Form controls</p>
+      <div class="two-col">
+        <div class="card" style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group">
+            <label for="title">Page title</label>
+            <input type="text" id="title" value="About us">
+          </div>
+          <div class="form-group">
+            <label for="slug">URL slug</label>
+            <input type="text" id="slug" class="mono-input" value="/about-us">
+            <span class="hint">Must start with /. Changing the slug invalidates old links.</span>
+          </div>
+          <div class="form-group">
+            <label for="desc">Meta description</label>
+            <input type="text" id="desc" placeholder="A short description for search engines…">
+          </div>
+          <div class="form-group">
+            <label for="email-err" style="color:var(--spine-600)">Admin email <span style="font-size:11px;font-weight:400">(error state)</span></label>
+            <input type="email" id="email-err" class="error" value="not-an-email">
+            <span class="error-text">Enter a valid email address.</span>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group">
+            <label for="admin-path">Admin path</label>
+            <input type="text" id="admin-path" class="mono-input" value="/admin-7f3a9b2c">
+            <span class="hint">Obfuscates the admin URL. Required for security.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+            <div class="toggle-wrap">
+              <div class="track on" id="t1" onclick="this.classList.toggle('on')" role="switch" aria-checked="true" tabindex="0"><div class="thumb"></div></div>
+              <span style="font-size:14px;font-weight:500">Passkey login enabled</span>
+            </div>
+            <div class="toggle-wrap">
+              <div class="track" id="t2" onclick="this.classList.toggle('on')" role="switch" aria-checked="false" tabindex="0"><div class="thumb"></div></div>
+              <span style="font-size:14px;font-weight:500">Email notifications</span>
+            </div>
+            <div class="toggle-wrap">
+              <div class="track on" id="t3" onclick="this.classList.toggle('on')" role="switch" aria-checked="true" tabindex="0"><div class="thumb"></div></div>
+              <span style="font-size:14px;font-weight:500">Sitemap inclusion</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="cb1" checked style="width:16px;height:16px;accent-color:var(--cactus-500)">
+              <label for="cb1" style="font-size:14px;cursor:pointer">Show in main menu</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="cb2" style="width:16px;height:16px;accent-color:var(--cactus-500)">
+              <label for="cb2" style="font-size:14px;cursor:pointer">Show in footer</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BADGES -->
+    <section id="badges">
+      <p class="section-heading">Badges</p>
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <span class="badge badge-success"><i class="ti ti-circle-filled" style="font-size:8px" aria-hidden="true"></i> Published</span>
+          <span class="badge badge-default">Draft</span>
+          <span class="badge badge-warning">Update available</span>
+          <span class="badge badge-error"><i class="ti ti-lock" style="font-size:11px" aria-hidden="true"></i> Admin only</span>
+          <span class="badge badge-info">Scheduled · Jan 15</span>
+          <span class="badge badge-primary">Active</span>
+          <span class="badge badge-default">Editor+</span>
+          <span class="badge badge-success">Installed</span>
+          <span class="badge badge-error">Incompatible</span>
+          <span class="badge badge-default"><i class="ti ti-eye-off" style="font-size:11px" aria-hidden="true"></i> Private</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEEDBACK -->
+    <section id="feedback">
+      <p class="section-heading">Feedback — toasts &amp; alerts</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="toast toast-success"><strong>Page published.</strong> Revalidation triggered for /about-us.</div>
+        <div class="toast toast-warning"><strong>Update available</strong> — Blog module v1.4.2 is ready to install.</div>
+        <div class="toast toast-error"><strong>Build failed.</strong> Check the deployment log for details. This toast won't auto-dismiss.</div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION -->
+    <section id="navigation">
+      <p class="section-heading">Navigation</p>
+      <div class="two-col">
+        <div class="card" style="padding:12px">
+          <p class="card-label" style="padding:0 8px">Sidebar — with spine indicator</p>
+          <p class="nav-section">Content</p>
+          <a href="#" class="nav-item active" onclick="return false"><i class="ti ti-file-text" aria-hidden="true"></i> Pages</a>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-photo" aria-hidden="true"></i> Media</a>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-menu-2" aria-hidden="true"></i> Menus</a>
+          <p class="nav-section">Appearance</p>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-layout" aria-hidden="true"></i> Page builder</a>
+          <p class="nav-section">Settings</p>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-settings" aria-hidden="true"></i> General</a>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-lock" aria-hidden="true"></i> Security</a>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-cloud" aria-hidden="true"></i> Media provider</a>
+          <p class="nav-section">Modules</p>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-puzzle" aria-hidden="true"></i> Installed</a>
+          <a href="#" class="nav-item" onclick="return false"><i class="ti ti-circle-plus" aria-hidden="true"></i> Browse</a>
+        </div>
+
+        <div class="card">
+          <p class="card-label">Page list</p>
+          <div>
+            <div class="page-list-item">
+              <div><p class="page-item-name">Home</p><p class="page-item-slug">/</p></div>
+              <span class="badge badge-success">Published</span>
+            </div>
+            <div class="page-list-item">
+              <div><p class="page-item-name">About us</p><p class="page-item-slug">/about-us</p></div>
+              <span class="badge badge-success">Published</span>
+            </div>
+            <div class="page-list-item">
+              <div><p class="page-item-name">New product launch</p><p class="page-item-slug">/products/launch-2025</p></div>
+              <span class="badge badge-default">Draft</span>
+            </div>
+            <div class="page-list-item">
+              <div><p class="page-item-name">Holiday sale</p><p class="page-item-slug">/sale/holiday</p></div>
+              <span class="badge badge-info">Scheduled</span>
+            </div>
+            <div class="page-list-item" style="border-bottom:none">
+              <div><p class="page-item-name">Internal docs</p><p class="page-item-slug">/internal</p></div>
+              <span class="badge badge-default"><i class="ti ti-eye-off" style="font-size:11px" aria-hidden="true"></i> Private</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIALOGS -->
+    <section id="dialogs">
+      <p class="section-heading">Dialogs</p>
+      <div class="dialog-preview">
+        <div class="dialog">
+          <p class="dialog-title">Delete this page?</p>
+          <p class="dialog-body">Deleting <strong>About us</strong> will permanently remove the page and all its content. This action cannot be undone.</p>
+          <div class="dialog-footer">
+            <button class="btn btn-secondary btn-sm">Cancel</button>
+            <button class="btn btn-destructive btn-sm">Delete page</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CACTUS-SPECIFIC -->
+    <section id="cactus-specific">
+      <p class="section-heading">Cactus-specific components</p>
+
+      <p style="font-size:12px;font-weight:500;color:var(--sand-500);margin-bottom:10px">Module status cards</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
+        <div class="module-card">
+          <div>
+            <p class="module-name">Blog</p>
+            <p class="module-desc">Posts · tags · authors</p>
+            <p class="module-version">v1.3.0 → v1.4.2</p>
+          </div>
+          <div class="module-actions">
+            <span class="badge badge-warning">Update available</span>
+            <button class="btn btn-secondary btn-sm">Update</button>
+          </div>
+        </div>
+        <div class="module-card">
+          <div>
+            <p class="module-name">Forms</p>
+            <p class="module-desc">Contact · submissions · routing</p>
+            <p class="module-version">v2.1.0</p>
+          </div>
+          <div class="module-actions">
+            <span class="badge badge-success">Installed</span>
+            <button class="btn btn-ghost btn-sm">Configure</button>
+          </div>
+        </div>
+        <div class="module-card">
+          <div>
+            <p class="module-name">Commerce</p>
+            <p class="module-desc">Products · orders · checkout</p>
+            <p class="module-version">Requires Cactus core ≥ 0.9.0</p>
+          </div>
+          <div class="module-actions">
+            <span class="badge badge-error">Incompatible</span>
+            <button class="btn btn-ghost btn-sm" disabled style="opacity:.4;cursor:not-allowed">Install</button>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:12px;font-weight:500;color:var(--sand-500);margin-bottom:10px">Provider connection card</p>
+      <div class="module-card" style="margin-bottom:28px">
+        <div>
+          <p class="module-name">Backblaze B2</p>
+          <p class="module-desc">Proxied via Cloudflare Worker</p>
+          <p class="module-version" style="font-family:var(--font-mono)">Bucket: cactus-media-prod · Key: …4f8a</p>
+        </div>
+        <div class="module-actions">
+          <span class="badge badge-success"><i class="ti ti-circle-filled" style="font-size:8px" aria-hidden="true"></i> Connected</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm">Configure</button>
+            <button class="btn btn-sm" style="background:var(--spine-50);color:var(--spine-600);border-color:var(--spine-200)">Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:12px;font-weight:500;color:var(--sand-500);margin-bottom:10px">Passkey device list</p>
+      <div class="card">
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--sand-100)">
+            <div style="display:flex;align-items:center;gap:12px">
+              <i class="ti ti-fingerprint" style="font-size:20px;color:var(--cactus-500)" aria-hidden="true"></i>
+              <div>
+                <p style="font-size:14px;font-weight:500">Chrome on macOS</p>
+                <p style="font-size:12px;color:var(--sand-500)">Last used 2 days ago · Created Jan 4, 2025</p>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm">Rename</button>
+              <button class="btn btn-sm" style="background:var(--spine-50);color:var(--spine-600);border-color:var(--spine-200)">Remove</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+            <div style="display:flex;align-items:center;gap:12px">
+              <i class="ti ti-device-mobile" style="font-size:20px;color:var(--cactus-500)" aria-hidden="true"></i>
+              <div>
+                <p style="font-size:14px;font-weight:500">iPhone Face ID</p>
+                <p style="font-size:12px;color:var(--sand-500)">Last used today · Created Mar 12, 2025</p>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm">Rename</button>
+              <button class="btn btn-sm" style="background:var(--spine-50);color:var(--spine-600);border-color:var(--spine-200)">Remove</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="doc-footer">
+      <span>github.com/usersaynoso/cactus</span>
+      <span style="font-family:var(--font-sans)">MIT License</span>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.track').forEach(track => {
+    track.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.classList.toggle('on');
+        this.setAttribute('aria-checked', this.classList.contains('on'));
+      }
+    });
+    track.addEventListener('click', function() {
+      this.setAttribute('aria-checked', this.classList.contains('on'));
+    });
+  });
+</script>
+</body>
+</html>
