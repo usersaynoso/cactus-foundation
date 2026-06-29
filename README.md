@@ -4,7 +4,7 @@
 
 <h1 align="center">Cactus Foundation</h1>
 
-> **Tough on the outside, surprisingly welcoming inside. Thrives on neglect. Will not die.**
+> **Tough on the outside. Warmer than it lets on. Thrives on neglect. Refuses to die.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)

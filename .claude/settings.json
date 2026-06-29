@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel deploy *)",
+      "Bash(VERCEL_TOKEN=vcp_13RZ2AkyS7iRyYoN6jq2z9zLeIPTjgPEd9rheaiqpXSu3y9Mhd2AFE7u vercel deploy --prod --token vcp_13RZ2AkyS7iRyYoN6jq2z9zLeIPTjgPEd9rheaiqpXSu3y9Mhd2AFE7u)",
+      "Bash(vercel build *)",
+      "Bash(curl -s https://api.vercel.com/v9/projects/prj_D6pkdRoCunEf8hSeRj05foY3Okqo -H 'Authorization: Bearer vcp_13RZ2AkyS7iRyYoN6jq2z9zLeIPTjgPEd9rheaiqpXSu3y9Mhd2AFE7u')",
+      "Bash(curl -s 'https://api.vercel.com/v6/deployments?projectId=prj_D6pkdRoCunEf8hSeRj05foY3Okqo&limit=5' -H 'Authorization: Bearer vcp_13RZ2AkyS7iRyYoN6jq2z9zLeIPTjgPEd9rheaiqpXSu3y9Mhd2AFE7u')",
+      "Bash(curl -s https://api.vercel.com/v13/deployments/dpl_J4i8DYMX9XLaKfCwPP3c8mvoME8b -H 'Authorization: Bearer vcp_13RZ2AkyS7iRyYoN6jq2z9zLeIPTjgPEd9rheaiqpXSu3y9Mhd2AFE7u')",
+      "Bash(git config *)",
+      "Bash(mv \"/Users/chris/Git Local/Cactus/.git-hidden\" \"/Users/chris/Git Local/Cactus/.git\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git -C \"/Users/chris/Git Local/Cactus\" add app/api/setup/deployment-logs/route.ts app/setup/page.tsx)",
+      "Bash(git -C '/Users/chris/Git Local/Cactus' commit -m ' *)",
+      "Bash(git -C \"/Users/chris/Git Local/Cactus\" describe --tags --abbrev=0)"
+    ],
+    "additionalDirectories": [
+      "/Users/chris/Git Local/Cactus"
+    ]
+  }
+}
