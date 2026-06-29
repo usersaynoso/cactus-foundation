@@ -210,7 +210,7 @@ export default function LoginPage() {
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-10)', width: '100%', maxWidth: 400, boxShadow: 'var(--shadow-xl)' }}>
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cactus.svg" alt="Cactus" style={{ width: '2.5rem', height: '2.5rem', marginBottom: 'var(--space-3)' }} />
+          <img src="/cactus.svg" alt="Cactus Foundation" style={{ width: '2.5rem', height: '2.5rem', marginBottom: 'var(--space-3)' }} />
           <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Sign in</h1>
         </div>
 
