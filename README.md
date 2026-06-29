@@ -96,7 +96,7 @@ Five steps. About five minutes. No YAML files. No config arrays with twenty-seve
 ### Step 1: Get the code onto Vercel
 
 ```bash
-git clone https://github.com/usersaynoso/cactus.git my-site
+git clone https://github.com/usersaynoso/cactus-foundation.git my-site
 cd my-site
 ```
 

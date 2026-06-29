@@ -10,7 +10,7 @@
 ## Clone and install
 
 ```bash
-git clone https://github.com/usersaynoso/cactus.git my-site
+git clone https://github.com/usersaynoso/cactus-foundation.git my-site
 cd my-site
 npm install
 ```
