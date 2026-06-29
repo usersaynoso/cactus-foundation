@@ -7,9 +7,9 @@ type ManifestConversionResponse = {
   id: number
   slug: string
   pem: string
-  webhook_secret: string
-  client_id: string
-  client_secret: string
+  webhook_secret?: string | null
+  client_id?: string | null
+  client_secret?: string | null
 }
 
 export async function GET(request: NextRequest) {
@@ -89,15 +89,17 @@ export async function GET(request: NextRequest) {
   }
 
   let privateKeyEncrypted: string
-  let webhookSecretEncrypted: string
-  let clientIdEncrypted: string
-  let clientSecretEncrypted: string
+  let webhookSecretEncrypted: string | null
+  let clientIdEncrypted: string | null
+  let clientSecretEncrypted: string | null
+
+  const encOptional = (v?: string | null) => (v ? encryptSecret(v) : null)
 
   try {
     privateKeyEncrypted = encryptSecret(data.pem)
-    webhookSecretEncrypted = encryptSecret(data.webhook_secret)
-    clientIdEncrypted = encryptSecret(data.client_id)
-    clientSecretEncrypted = encryptSecret(data.client_secret)
+    webhookSecretEncrypted = encOptional(data.webhook_secret)
+    clientIdEncrypted = encOptional(data.client_id)
+    clientSecretEncrypted = encOptional(data.client_secret)
   } catch (err) {
     console.error('[github/callback] encryption error:', err)
     const res = NextResponse.redirect(
