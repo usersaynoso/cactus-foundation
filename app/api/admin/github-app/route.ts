@@ -7,7 +7,9 @@ export async function GET() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
 
-  const encryptionKeySet = !!process.env.ENCRYPTION_KEY
+  const key = process.env.ENCRYPTION_KEY ?? ''
+  const encryptionKeySet = key.length > 0
+  const encryptionKeyValid = key.length === 64 && /^[0-9a-fA-F]+$/.test(key)
   const hasPat = !!process.env.GITHUB_API_TOKEN
 
   let connected = false
@@ -15,7 +17,7 @@ export async function GET() {
   let installationAccount: string | null = null
   let hasInstallation = false
 
-  if (encryptionKeySet) {
+  if (encryptionKeyValid) {
     try {
       const conn = await prisma.githubAppConnection.findFirst()
       if (conn) {
@@ -31,6 +33,7 @@ export async function GET() {
 
   return NextResponse.json({
     encryptionKeySet,
+    encryptionKeyValid,
     connected,
     appSlug,
     installationAccount,
