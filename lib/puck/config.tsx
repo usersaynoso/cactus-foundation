@@ -199,8 +199,8 @@ function SplitBlock(props: any) {
   const pair = ratios[ratio] ?? ratios['50/50']!
   return (
     <div style={{ width: '100%', display: 'flex', alignItems, gap: gapValue, flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
-      <div style={{ flex: pair[0], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
-      <div style={{ flex: pair[1], minWidth: 200 }}>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
+      <div style={{ flex: pair[0], minWidth: 0 }}>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
+      <div style={{ flex: pair[1], minWidth: 0 }}>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
     </div>
   )
 }
@@ -1205,7 +1205,11 @@ export const footerPuckRscConfig = {
 export const layoutPuckConfig = {
   categories: {
     layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
-    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],                         defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
+    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
+    content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
+    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: false },
   },
   root: {
     render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -1226,6 +1230,27 @@ export const layoutPuckConfig = {
     Heading:      puckConfig.components.Heading,
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,
+    Quote:        puckConfig.components.Quote,
+    ButtonLink:   puckConfig.components.ButtonLink,
+    CTABanner:    puckConfig.components.CTABanner,
+    ImageBlock:   puckConfig.components.ImageBlock,
+    VideoEmbed:   puckConfig.components.VideoEmbed,
+    Embed:        puckConfig.components.Embed,
+    Hero:         puckConfig.components.Hero,
+    Card:         puckConfig.components.Card,
+    Callout:      puckConfig.components.Callout,
+    Badge:        puckConfig.components.Badge,
+    Accordion:    puckConfig.components.Accordion,
+    FeatureList:  puckConfig.components.FeatureList,
+    Stats:        puckConfig.components.Stats,
+    Logos:        puckConfig.components.Logos,
+    SocialLinks:  puckConfig.components.SocialLinks,
+    SiteHeader:   puckConfig.components.SiteHeader,
+    SiteLogo:     puckConfig.components.SiteLogo,
+    Copyright:    puckConfig.components.Copyright,
+    MenuBlock:    puckConfig.components.MenuBlock,
+    LoginButton:  puckConfig.components.LoginButton,
+    ThemeToggle:  puckConfig.components.ThemeToggle,
   },
 }
 
@@ -1234,6 +1259,7 @@ export const layoutPuckRscConfig = {
   components: {
     ...layoutPuckConfig.components,
     RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
+    SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: SiteLogoRsc },
   },
 }
 
