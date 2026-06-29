@@ -74,7 +74,7 @@ async function getEmailConfig() {
     select: { emailFromName: true, emailFromAddress: true, siteName: true },
   })
   return {
-    fromName: config?.emailFromName ?? config?.siteName ?? 'Cactus CMS',
+    fromName: config?.emailFromName ?? config?.siteName ?? 'Cactus Foundation',
     fromAddress: config?.emailFromAddress ?? 'noreply@example.com',
   }
 }

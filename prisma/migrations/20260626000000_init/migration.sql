@@ -1,4 +1,4 @@
--- Cactus CMS — single combined init migration
+-- Cactus Foundation — single combined init migration
 -- Applied on fresh install via `prisma migrate deploy` in the Vercel build step.
 -- This file represents the complete schema; no incremental migrations needed
 -- because Cactus has no live deployments to preserve.

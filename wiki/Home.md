@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="cactus.svg" width="160" alt="Cactus CMS" />
+  <img src="cactus.svg" width="160" alt="Cactus Foundation" />
 </p>
 
-# Cactus CMS
+# Cactus Foundation
 
 Cactus is a minimal, extensible, fast website platform built on Next.js 16, PostgreSQL, and Prisma. It ships with everything you need to run a content site — authentication, site configuration, roles and permissions, info pages with a visual page builder, navigation menus, user administration, a fully visual Appearance system, and a module registry — and nothing you don't.
 

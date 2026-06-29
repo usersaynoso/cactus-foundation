@@ -22,7 +22,7 @@ Every module repo must contain `cactus.module.json` at its root:
   "name": "forum",
   "version": "1.0.0",
   "tablePrefix": "forum_",
-  "description": "Discussion forums for Cactus CMS.",
+  "description": "Discussion forums for Cactus Foundation.",
   "requiredEnvVars": [
     { "name": "FORUM_MAX_THREADS", "required": false }
   ],
