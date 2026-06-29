@@ -177,7 +177,7 @@ function ConfigPageInner() {
   const [dbResetWasHard, setDbResetWasHard] = useState(false)
 
   // GitHub App state
-  type GhStatus = { encryptionKeySet: boolean; connected: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; hasPat: boolean }
+  type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; hasPat: boolean }
   const [ghStatus, setGhStatus] = useState<GhStatus | null>(null)
   const [ghBusy, setGhBusy] = useState(false)
   const [ghError, setGhError] = useState('')
@@ -550,7 +550,15 @@ function ConfigPageInner() {
           </p>
         )}
 
-        {gh && gh.encryptionKeySet && !gh.connected && (
+        {gh && gh.encryptionKeySet && !gh.encryptionKeyValid && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)', marginBottom: 0 }}>
+            ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string.
+            Generate a valid one with <code>openssl rand -hex 32</code> and save it in your Vercel
+            environment variables, then redeploy.
+          </p>
+        )}
+
+        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.connected && (
           <div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>No GitHub App connected. Click below to create and install one in about 30 seconds.</p>
             <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>

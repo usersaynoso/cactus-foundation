@@ -57,4 +57,4 @@ coverage/
 
 # Modules — installed locally for development, managed via their own git repos.
 # Never committed to the main Cactus repo; the template ships without modules.
-modules/
+/modules/
