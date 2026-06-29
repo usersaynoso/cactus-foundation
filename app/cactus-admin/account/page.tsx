@@ -142,7 +142,7 @@ export default function AccountPage() {
       {/* Data export */}
       <div className="card">
         <h2 className="card-title">Your data</h2>
-        <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 0 1rem' }}>
+        <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
           Download a JSON export of your profile, passkey metadata, and active sessions.
         </p>
         <button className="btn btn-secondary" disabled={exportLoading} onClick={handleExport}>
@@ -151,9 +151,9 @@ export default function AccountPage() {
       </div>
 
       {/* Delete account */}
-      <div className="card" style={{ borderColor: '#fecaca' }}>
-        <h2 className="card-title" style={{ color: '#dc2626' }}>Delete account</h2>
-        <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 0 1rem' }}>
+      <div className="card" style={{ borderColor: 'var(--color-destructive-border)' }}>
+        <h2 className="card-title" style={{ color: 'var(--color-destructive)' }}>Delete account</h2>
+        <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
           Permanent and immediate. Your content will remain but will be attributed to a deleted user.
         </p>
         {!deleteConfirm ? (

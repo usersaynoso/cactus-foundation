@@ -89,7 +89,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           <img
             src="/cactus.svg"
             alt="Cactus"
-            style={{ width: 28, height: 28, background: '#fff', borderRadius: 4, padding: 2, flexShrink: 0 }}
+            className="admin-sidebar-logo-img"
           />
           {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
           <button

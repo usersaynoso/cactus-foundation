@@ -90,7 +90,7 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave }:
 
   return (
     <div style={{ borderTop: '1px solid var(--color-border)', padding: '1rem', fontSize: '0.8125rem' }}>
-      <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem' }}>
+      <div style={{ fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem' }}>
         Display Conditions
       </div>
 
@@ -116,7 +116,7 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave }:
         onUpdate={(i, p) => updateRule('exclude', i, p)}
       />
 
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 4, padding: '0.5rem 0.625rem', fontSize: '0.75rem', color: '#374151', marginBottom: '0.75rem' }}>
+      <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-3)' }}>
         {summarise()}
       </div>
 
@@ -146,11 +146,11 @@ function RuleList({ title, rules, availableTypes, pages, onAdd, onRemove, onUpda
   return (
     <div style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-        <span style={{ fontWeight: 600, color: '#374151', fontSize: '0.75rem' }}>{title}</span>
-        <button onClick={onAdd} style={{ fontSize: '0.75rem', color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem 0.25rem', fontFamily: 'inherit' }}>+ Add</button>
+        <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>{title}</span>
+        <button onClick={onAdd} style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1)', fontFamily: 'inherit' }}>+ Add</button>
       </div>
       {rules.length === 0 && (
-        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 0.375rem' }}>None</p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: '0 0 0.375rem' }}>None</p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         {rules.map((rule, i) => (
@@ -159,19 +159,19 @@ function RuleList({ title, rules, availableTypes, pages, onAdd, onRemove, onUpda
               <select
                 value={rule.type}
                 onChange={(e) => onUpdate(i, { type: e.target.value as ConditionType, value: undefined })}
-                style={{ flex: 1, padding: '0.25rem 0.375rem', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: '0.75rem', fontFamily: 'inherit' }}
+                style={{ flex: 1, padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
               >
                 {availableTypes.map(t => (
                   <option key={t} value={t}>{TYPE_LABELS[t]}</option>
                 ))}
               </select>
-              <button onClick={() => onRemove(i)} style={{ padding: '0.25rem 0.375rem', background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.875rem', lineHeight: 1, flexShrink: 0 }} title="Remove">✕</button>
+              <button onClick={() => onRemove(i)} style={{ padding: 'var(--space-1)', background: 'none', border: 'none', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: 'var(--text-sm)', lineHeight: 1, flexShrink: 0 }} title="Remove">✕</button>
             </div>
             {rule.type === 'page_id' && (
               <select
                 value={rule.value ?? ''}
                 onChange={(e) => onUpdate(i, { value: e.target.value })}
-                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: '0.75rem', fontFamily: 'inherit' }}
+                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
               >
                 <option value="">Select page…</option>
                 {pages.map(p => <option key={p.id} value={p.id}>{p.title} (/{p.slug})</option>)}
@@ -183,7 +183,7 @@ function RuleList({ title, rules, availableTypes, pages, onAdd, onRemove, onUpda
                 value={rule.value ?? ''}
                 onChange={(e) => onUpdate(i, { value: e.target.value })}
                 placeholder={rule.type === 'page_slug' ? 'e.g. about' : 'e.g. /blog'}
-                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: '0.75rem', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)', boxSizing: 'border-box' }}
               />
             )}
           </div>

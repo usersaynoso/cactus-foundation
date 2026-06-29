@@ -206,12 +206,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', background: '#f9fafb' }}>
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '2.5rem', width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-8)', background: 'var(--color-bg-subtle)' }}>
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-10)', width: '100%', maxWidth: 400, boxShadow: 'var(--shadow-xl)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cactus.svg" alt="Cactus" style={{ width: '2.5rem', height: '2.5rem', marginBottom: '0.5rem' }} />
-          <h1 style={{ margin: 0, fontSize: '1.375rem', fontWeight: 700 }}>Sign in</h1>
+          <img src="/cactus.svg" alt="Cactus" style={{ width: '2.5rem', height: '2.5rem', marginBottom: 'var(--space-3)' }} />
+          <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Sign in</h1>
         </div>
 
         {error && <div className="alert alert-danger">{error}</div>}
@@ -219,7 +219,7 @@ export default function LoginPage() {
         {/* ── Email recovery token (from recovery email link) ── */}
         {tokenRecoveryMode && (
           <div>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 1rem' }}>Account recovery</h2>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>Account recovery</h2>
             <div className="field">
               <label>New password (optional)</label>
               <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Leave blank to skip" />
@@ -234,11 +234,11 @@ export default function LoginPage() {
         {/* ── Lost access instructions ── */}
         {!tokenRecoveryMode && lostAccessMode && (
           <div>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 1rem' }}>Lost your passkey?</h2>
-            <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>Lost your passkey?</h2>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-4)' }}>
               Remove your passkey record directly from your Neon database, then return here to register a new one.
             </p>
-            <ol style={{ fontSize: '0.9375rem', paddingLeft: '1.25rem', margin: '0 0 1rem', lineHeight: 1.7 }}>
+            <ol style={{ fontSize: 'var(--text-base)', paddingLeft: 'var(--space-5)', margin: '0 0 var(--space-4)', lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
               <li>
                 Open your{' '}
                 <a
@@ -256,11 +256,11 @@ export default function LoginPage() {
             </ol>
             {emailAvailable && !lostAccessSent && (
               <>
-                <div style={{ borderTop: '1px solid var(--color-border)', margin: '1.25rem 0', paddingTop: '1.25rem' }}>
-                  <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
+                <div style={{ borderTop: '1px solid var(--color-border)', margin: 'var(--space-5) 0', paddingTop: 'var(--space-5)' }}>
+                  <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-3)' }}>
                     Alternatively, request a recovery email to sign in without a passkey:
                   </p>
-                  <div className="field" style={{ margin: '0 0 0.75rem' }}>
+                  <div className="field" style={{ margin: '0 0 var(--space-3)' }}>
                     <input
                       type="email"
                       value={lostAccessEmail}
@@ -281,11 +281,11 @@ export default function LoginPage() {
               </>
             )}
             {lostAccessSent && (
-              <div className="alert alert-success" style={{ marginTop: '1rem' }}>
+              <div className="alert alert-success" style={{ marginTop: 'var(--space-4)' }}>
                 Recovery link sent. Check your inbox.
               </div>
             )}
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '1rem' }} onClick={() => { setLostAccessMode(false); setLostAccessSent(false); setError('') }}>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-4)' }} onClick={() => { setLostAccessMode(false); setLostAccessSent(false); setError('') }}>
               Back to sign in
             </button>
           </div>
@@ -294,14 +294,14 @@ export default function LoginPage() {
         {/* ── No passkey found — register new one ── */}
         {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'register' && (
           <div>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>No passkey found</h2>
-            <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1.5rem' }}>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-3)', color: 'var(--color-text)' }}>No passkey found</h2>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-6)' }}>
               No passkey is registered for <strong>{email}</strong>. Register a new one now to sign in.
             </p>
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={handleRegisterNewPasskey}>
               {loading ? 'Registering…' : '🔑 Register new passkey →'}
             </button>
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setNoPasskeyMode(null); setError('') }}>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setNoPasskeyMode(null); setError('') }}>
               Back to sign in
             </button>
           </div>
@@ -310,10 +310,10 @@ export default function LoginPage() {
         {/* ── No passkey found — send recovery email ── */}
         {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'email' && (
           <div>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>No passkey found</h2>
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-3)', color: 'var(--color-text)' }}>No passkey found</h2>
             {!lostAccessSent ? (
               <>
-                <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted)', margin: '0 0 1.5rem' }}>
+                <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-6)' }}>
                   No passkey is registered for <strong>{email}</strong>. We can send a recovery link to your email address.
                 </p>
                 <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={() => handleSendRecoveryEmail(email)}>
@@ -323,7 +323,7 @@ export default function LoginPage() {
             ) : (
               <div className="alert alert-success">Recovery link sent. Check your inbox.</div>
             )}
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setNoPasskeyMode(null); setLostAccessSent(false); setError('') }}>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setNoPasskeyMode(null); setLostAccessSent(false); setError('') }}>
               Back to sign in
             </button>
           </div>
@@ -347,13 +347,14 @@ export default function LoginPage() {
               {loading ? 'Waiting for passkey…' : '🔑 Sign in with passkey'}
             </button>
             {emailAvailable && (
-              <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.75rem' }} onClick={() => setStep('password')}>
+              <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-3)' }} onClick={() => setStep('password')}>
                 Use password instead
               </button>
             )}
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
               <button
-                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.875rem', cursor: 'pointer', padding: 0 }}
+                className="btn btn-link"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}
                 onClick={() => { setLostAccessMode(true); setError('') }}
               >
                 Lost access?
@@ -381,12 +382,13 @@ export default function LoginPage() {
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!email || !password || loading} onClick={handlePasswordLogin}>
               {loading ? 'Signing in…' : 'Continue →'}
             </button>
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => { setStep('passkey'); setError('') }}>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setStep('passkey'); setError('') }}>
               Use passkey instead
             </button>
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
               <button
-                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '0.875rem', cursor: 'pointer', padding: 0 }}
+                className="btn btn-link"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}
                 onClick={() => { setLostAccessMode(true); setError('') }}
               >
                 Lost access?
@@ -397,7 +399,7 @@ export default function LoginPage() {
 
         {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'otp' && (
           <div>
-            <p style={{ color: '#6b7280', fontSize: '0.9375rem', margin: '0 0 1.25rem' }}>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-base)', margin: '0 0 var(--space-5)' }}>
               We sent a 6-digit code to <strong>{email}</strong>. Enter it below.
             </p>
             <div className="field">
@@ -413,8 +415,8 @@ export default function LoginPage() {
                 autoFocus
               />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9375rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
-              <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-base)', marginBottom: 'var(--space-5)', cursor: 'pointer', color: 'var(--color-text)' }}>
+              <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} style={{ accentColor: 'var(--color-primary)' }} />
               Trust this browser for 28 days
             </label>
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={otp.length !== 6 || loading} onClick={handleOtp}>

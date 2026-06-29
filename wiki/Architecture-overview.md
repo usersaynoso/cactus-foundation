@@ -312,7 +312,7 @@ To prevent flash-of-wrong-theme on load, `app/layout.tsx` includes an inline `<s
 
 The `ThemeToggle` component (`components/ThemeToggle.tsx`) is a client component that renders Auto / Light / Dark buttons and calls `applyTheme(mode)`. A compact variant is mounted in the admin sidebar above Sign out.
 
-Theme-sensitive CSS variables (`--color-bg`, `--color-fg`, `--color-muted`, `--color-border`, etc.) are defined in `[data-theme="light"]` and `[data-theme="dark"]` blocks in `globals.css`. Admin-specific variables use `--admin-*` prefixes. All reusable UI classes (`.card`, `.btn-secondary`, alerts, badges, tables) reference these variables so they automatically adapt to both themes. Hard-coded hex values should be avoided in component inline styles - use CSS variable references (`var(--color-muted)` etc.) instead.
+The admin UI uses the Cactus Design System. Primitive palette tokens (`--cactus-*`, `--spine-*`, `--sand-*`) are defined in `globals.css` and mapped to semantic aliases (`--color-bg`, `--color-text`, `--color-primary`, `--color-destructive`, `--color-border`, etc.) in `[data-theme="light"]` and `[data-theme="dark"]` blocks. The UI typeface is Instrument Sans; developer content (slugs, paths, keys, code) uses JetBrains Mono. Admin-specific variables use `--admin-*` prefixes. All reusable UI classes (`.card`, `.btn-*`, alerts, badges, tables) reference these variables so they automatically adapt to both themes. Hardcoded hex values must not appear in component inline styles - always use CSS variable references (`var(--color-text-muted)`, `var(--color-destructive)`, etc.).
 
 ---
 

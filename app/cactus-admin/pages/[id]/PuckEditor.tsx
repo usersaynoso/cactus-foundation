@@ -179,11 +179,11 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             : lastSaved ? `Draft saved ${lastSaved.toLocaleTimeString()}`
             : 'Unsaved'}
         </span>
-        {saveError && <span style={{ color: '#dc2626' }}>{saveError}</span>}
-        {publishError && <span style={{ color: '#dc2626' }}>{publishError}</span>}
+        {saveError && <span style={{ color: 'var(--color-destructive)' }}>{saveError}</span>}
+        {publishError && <span style={{ color: 'var(--color-destructive)' }}>{publishError}</span>}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {isPublished && (
-            <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>
+            <span className="badge badge-success" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>
               Published
             </span>
           )}

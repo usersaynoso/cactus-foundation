@@ -61,7 +61,7 @@ export default async function PagesPage({ searchParams }: Props) {
           </thead>
           <tbody>
             {pages.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9ca3af' }}>No pages yet</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No pages yet</td></tr>
             )}
             {pages.map((p) => (
               <tr key={p.id}>
@@ -75,7 +75,7 @@ export default async function PagesPage({ searchParams }: Props) {
                   </span>
                 </td>
                 <td>{p.createdBy?.username ?? '—'}</td>
-                <td style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                <td style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                   {new Date(p.updatedAt).toLocaleDateString()}
                 </td>
                 <td>

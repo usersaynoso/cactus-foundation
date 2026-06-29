@@ -114,13 +114,13 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '0.5rem 0.75rem', border: 'none', borderRadius: 4, cursor: 'pointer',
-                background: r.id === selectedRoleId ? '#f0fdf4' : 'transparent',
+                background: r.id === selectedRoleId ? 'var(--color-primary-subtle)' : 'transparent',
                 fontWeight: r.id === selectedRoleId ? 600 : 400,
-                color: r.id === selectedRoleId ? '#15803d' : '#111827',
-                fontSize: '0.9375rem',
+                color: r.id === selectedRoleId ? 'var(--color-primary)' : 'var(--color-text)',
+                fontSize: 'var(--text-base)',
               }}
             >
-              {r.name} {r.isProtected && <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>•</span>}
+              {r.name} {r.isProtected && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>•</span>}
             </button>
           ))}
         </div>
@@ -131,7 +131,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
               value={newRoleName}
               onChange={(e) => setNewRoleName(e.target.value)}
               placeholder="Role name"
-              style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid #e5e7eb', borderRadius: 4, marginBottom: '0.375rem', fontSize: '0.875rem', fontFamily: 'inherit' }}
+              style={{ width: '100%', padding: 'var(--space-1) var(--space-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
               onKeyDown={(e) => e.key === 'Enter' && createRole()}
               autoFocus
             />
@@ -190,7 +190,7 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
                         <div>
                           <code style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{perm.key}</code>
                           {perm.description && (
-                            <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{perm.description}</div>
+                            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{perm.description}</div>
                           )}
                         </div>
                       </label>

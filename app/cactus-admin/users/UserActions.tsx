@@ -59,7 +59,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
 
   return (
     <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
-      {error && <span style={{ color: '#dc2626', fontSize: '0.8125rem' }}>{error}</span>}
+      {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>{error}</span>}
 
       {currentUserIsAdmin && (
         <select
@@ -70,7 +70,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
               patch({ roleId: selectedRoleId })
             }
           }}
-          style={{ padding: '0.25rem 0.5rem', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: '0.8125rem' }}
+          style={{ padding: 'var(--space-1) var(--space-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-sm)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'inherit' }}
           disabled={loading}
         >
           {roles.map((r) => (

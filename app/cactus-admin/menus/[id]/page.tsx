@@ -344,7 +344,7 @@ export default function MenuDetailPage() {
                     </label>
                   </div>
                 )}
-                {editError && <p style={{ color: '#dc2626', fontSize: '0.8125rem', marginTop: '0.25rem' }}>{editError}</p>}
+                {editError && <p style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>{editError}</p>}
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                   <button className="btn btn-primary btn-sm" onClick={() => saveEdit(item.id)}>Save</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
@@ -352,18 +352,18 @@ export default function MenuDetailPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                {depth > 0 && <span style={{ color: '#d1d5db', userSelect: 'none' }}>{'└'.padStart(depth, '·')}</span>}
+                {depth > 0 && <span style={{ color: 'var(--color-border-strong)', userSelect: 'none' }}>{'└'.padStart(depth, '·')}</span>}
                 <span style={{ fontWeight: 500 }}>{effectiveLabel(item)}</span>
                 {item.label && item.type === 'PAGE' && (
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>(label override)</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>(label override)</span>
                 )}
                 {item.openInNewTab && (
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>↗ new tab</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>↗ new tab</span>
                 )}
               </div>
             )}
           </td>
-          <td style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+          <td style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
             {item.type === 'PAGE'
               ? (item.page ? `/${item.page.slug}` : '(deleted)')
               : item.url}
@@ -400,7 +400,7 @@ export default function MenuDetailPage() {
                     <select
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) nestUnder(item.id, e.target.value) }}
-                      style={{ fontSize: '0.75rem', padding: '0.125rem 0.25rem', border: '1px solid #e5e7eb', borderRadius: 4, fontFamily: 'inherit' }}
+                      style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
                       title="Nest under…"
                     >
                       <option value="" disabled>Nest under…</option>
@@ -416,7 +416,7 @@ export default function MenuDetailPage() {
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => setDeleteId(item.id)}
-                    style={{ color: '#dc2626' }}
+                    style={{ color: 'var(--color-destructive)' }}
                   >
                     Delete
                   </button>
@@ -442,13 +442,13 @@ export default function MenuDetailPage() {
     <div>
       <div className="page-header">
         <div>
-          <Link href={`/${adminPath}/menus`} style={{ fontSize: '0.875rem', color: '#6b7280', textDecoration: 'none', display: 'block', marginBottom: '0.25rem' }}>
+          <Link href={`/${adminPath}/menus`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginBottom: 'var(--space-1)' }}>
             ← All menus
           </Link>
           <h1 className="page-title" style={{ marginBottom: 0 }}>{menu.name}</h1>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {saving && <span style={{ fontSize: '0.875rem', color: '#6b7280', alignSelf: 'center' }}>Saving…</span>}
+          {saving && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>Saving…</span>}
           <button className="btn btn-secondary" onClick={() => setAddMode('page')}>+ Page link</button>
           <button className="btn btn-secondary" onClick={() => setAddMode('external')}>+ External link</button>
         </div>
@@ -463,7 +463,7 @@ export default function MenuDetailPage() {
 
       {/* Add parent context banner */}
       {addParentId && !addMode && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: '1rem', fontSize: 'var(--text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Adding a child item under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong></span>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('page')}>+ Page link</button>
@@ -474,7 +474,7 @@ export default function MenuDetailPage() {
       )}
 
       {menu.items.length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
           This menu has no items yet. Use the buttons above to add links.
         </div>
       )}
@@ -499,7 +499,7 @@ export default function MenuDetailPage() {
         </div>
       )}
 
-      <p style={{ fontSize: '0.8125rem', color: '#9ca3af', marginTop: '1rem' }}>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-4)' }}>
         Drag rows to reorder. Use &quot;+ Child&quot; to add nested items, &quot;↑ Promote&quot; to move an item up one level, or &quot;Nest under…&quot; to re-parent.
       </p>
 
@@ -509,7 +509,7 @@ export default function MenuDetailPage() {
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={(e) => e.target === e.currentTarget && closeAddModal()}
         >
-          <div style={{ background: '#fff', borderRadius: 8, width: '90vw', maxWidth: 560, padding: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', width: '90vw', maxWidth: 560, padding: 'var(--space-6)', boxShadow: 'var(--shadow-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.125rem' }}>
                 {addParentId ? 'Add child item' : 'Add menu item'}
@@ -523,7 +523,7 @@ export default function MenuDetailPage() {
                   className={addMode === 'external' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
                   onClick={() => setAddMode('external')}
                 >External link</button>
-                <button onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#6b7280', lineHeight: 1 }}>×</button>
+                <button onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
               </div>
             </div>
 
@@ -539,10 +539,10 @@ export default function MenuDetailPage() {
                     autoFocus
                   />
                 </div>
-                <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                  {pageSearchLoading && <p style={{ padding: '1rem', color: '#6b7280', textAlign: 'center' }}>Searching…</p>}
+                <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
+                  {pageSearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
                   {!pageSearchLoading && pageResults.length === 0 && (
-                    <p style={{ padding: '1rem', color: '#9ca3af', textAlign: 'center' }}>
+                    <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
                       {pageSearch ? 'No matching pages' : 'No pages available (pages already in this menu are excluded)'}
                     </p>
                   )}
@@ -553,12 +553,12 @@ export default function MenuDetailPage() {
                       style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         width: '100%', padding: '0.625rem 0.875rem',
-                        border: 'none', borderBottom: '1px solid #f3f4f6',
+                        border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
                         background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                       }}
                     >
                       <span style={{ fontWeight: 500 }}>{page.title}</span>
-                      <span style={{ fontSize: '0.8125rem', color: '#9ca3af' }}>/{page.slug}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>/{page.slug}</span>
                     </button>
                   ))}
                 </div>

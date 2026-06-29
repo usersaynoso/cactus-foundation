@@ -23,7 +23,7 @@ export default function MediaDelete({ mediaId, mediaUrl }: { mediaId: string; me
     }
   }
 
-  if (error) return <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.25rem' }}>{error}</div>
+  if (error) return <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-destructive)', marginTop: 'var(--space-1)' }}>{error}</div>
 
   return confirm ? (
     <div style={{ marginTop: '0.375rem', display: 'flex', gap: '0.25rem' }}>

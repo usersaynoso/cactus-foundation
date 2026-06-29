@@ -53,19 +53,19 @@ export default async function MediaPage({ searchParams }: Props) {
           name="q"
           defaultValue={search}
           placeholder="Search by filename or alt text…"
-          style={{ padding: '0.5rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: 6, width: '100%', maxWidth: 360, fontFamily: 'inherit', fontSize: '0.9375rem' }}
+          style={{ padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', maxWidth: 360, fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }}
         />
       </form>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
         {items.length === 0 && (
-          <div style={{ gridColumn: '1/-1', color: '#9ca3af', textAlign: 'center', padding: '3rem' }}>
+          <div style={{ gridColumn: '1/-1', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3rem' }}>
             No media files yet
           </div>
         )}
         {items.map((item) => (
-          <div key={item.id} style={{ border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden', background: '#f9fafb' }}>
-            <div style={{ height: 140, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <div key={item.id} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)' }}>
+            <div style={{ height: 140, background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {item.mimeType.startsWith('image/') ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={item.url} alt={item.altText ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -77,7 +77,7 @@ export default async function MediaPage({ searchParams }: Props) {
               <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.key.split('/').pop()}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {(item.sizeBytes / 1024).toFixed(1)} KB
               </div>
               {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} />}

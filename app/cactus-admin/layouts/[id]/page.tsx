@@ -10,7 +10,7 @@ import DisplayConditionsPanel from './DisplayConditionsPanel'
 
 const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
   ssr: false,
-  loading: () => <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#6b7280' }}>Loading layout editor…</div>,
+  loading: () => <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--color-text-muted)' }}>Loading layout editor…</div>,
 })
 
 type DisplayConditions = { include: unknown[]; exclude: unknown[] }
@@ -91,8 +91,8 @@ export default function LayoutEditorPage() {
     finally { setSaving(false) }
   }, [id])
 
-  if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>
-  if (!layout) return <div style={{ padding: '2rem', color: '#dc2626' }}>{error || 'Layout not found'}</div>
+  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>
+  if (!layout) return <div style={{ padding: '2rem', color: 'var(--color-destructive)' }}>{error || 'Layout not found'}</div>
 
   const initialData: Data = (layout.builderData as Data | null) ?? { content: [], root: { props: {} }, zones: {} }
 
@@ -116,8 +116,8 @@ export default function LayoutEditorPage() {
         {layout.status === 'draft' && <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Draft</span>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {saving && <span>Saving…</span>}
-          {!saving && saved && <span style={{ color: '#15803d' }}>Saved ✓</span>}
-          {error && <span style={{ color: '#dc2626' }}>{error}</span>}
+          {!saving && saved && <span style={{ color: 'var(--color-success)' }}>Saved ✓</span>}
+          {error && <span style={{ color: 'var(--color-destructive)' }}>{error}</span>}
         </span>
       </div>
       <LayoutPuckEditor
@@ -138,7 +138,7 @@ function TypeBadge({ type }: { type: string }) {
     notFound: '404', statusPage: 'Status Page',
   }
   return (
-    <span style={{ background: '#f3f4f6', color: '#374151', padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>
+    <span className="badge badge-default" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: 'var(--text-xs)' }}>
       {labels[type] ?? type}
     </span>
   )

@@ -38,7 +38,7 @@ export default async function ComingSoonPage() {
         <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
           {config?.siteName ?? 'Coming Soon'}
         </h1>
-        <p style={{ color: '#6b7280' }}>Coming soon - we&apos;ll be back shortly.</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>Coming soon - we&apos;ll be back shortly.</p>
       </div>
     </main>
   )

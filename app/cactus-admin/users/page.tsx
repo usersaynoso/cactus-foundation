@@ -37,7 +37,7 @@ export default async function UsersPage({ searchParams }: Props) {
     <div>
       <div className="page-header">
         <h1 className="page-title">Users</h1>
-        <span style={{ color: '#6b7280', fontSize: '0.9375rem' }}>{total} total</span>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>{total} total</span>
       </div>
 
       <div className="table-wrapper">
@@ -57,7 +57,7 @@ export default async function UsersPage({ searchParams }: Props) {
               <tr key={u.id} style={{ opacity: u.suspendedAt ? 0.6 : 1 }}>
                 <td>
                   <div style={{ fontWeight: 500 }}>{u.username}</div>
-                  {u.displayName && <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{u.displayName}</div>}
+                  {u.displayName && <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{u.displayName}</div>}
                 </td>
                 <td style={{ fontSize: '0.9rem' }}>{u.email}</td>
                 <td>
@@ -65,7 +65,7 @@ export default async function UsersPage({ searchParams }: Props) {
                     {u.role.name}
                   </span>
                 </td>
-                <td style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                <td style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                   {new Date(u.createdAt).toLocaleDateString()}
                 </td>
                 <td>

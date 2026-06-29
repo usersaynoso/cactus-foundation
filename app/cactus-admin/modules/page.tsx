@@ -101,7 +101,7 @@ export default function ModulesPage() {
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="https://github.com/owner/cactus-module-name"
-            style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '0.9375rem' }}
+            style={{ flex: 1, padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'inherit' }}
           />
           <button
             className="btn btn-primary"
@@ -111,7 +111,7 @@ export default function ModulesPage() {
             {installing ? 'Installing…' : 'Install'}
           </button>
         </div>
-        <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.5rem 0 0' }}>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 'var(--space-2) 0 0' }}>
           The module will be added as a git submodule. A Vercel deployment will be triggered automatically.
         </p>
       </div>
@@ -135,7 +135,7 @@ export default function ModulesPage() {
                 <tr key={m.id}>
                   <td>
                     <strong>{m.name}</strong>
-                    {m.lastError && <div style={{ fontSize: '0.8125rem', color: '#dc2626' }}>{m.lastError}</div>}
+                    {m.lastError && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)' }}>{m.lastError}</div>}
                   </td>
                   <td>v{m.version}</td>
                   <td><code style={{ fontSize: '0.875rem' }}>{m.tablePrefix}</code></td>

@@ -81,23 +81,23 @@ export default function ThemeBuilderPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Theme Builder</h1>
-          <p style={{ color: '#6b7280', margin: '0.25rem 0 0', fontSize: '0.9375rem' }}>Create typed layouts for headers, footers, pages, and status screens.</p>
+          <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-base)' }}>Create typed layouts for headers, footers, pages, and status screens.</p>
         </div>
         <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0' }}>
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0' }}>
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
-              padding: '0.5rem 1rem', border: 'none', borderRadius: '4px 4px 0 0', cursor: 'pointer',
-              background: activeTab === tab.key ? '#ffffff' : 'transparent',
-              borderBottom: activeTab === tab.key ? '2px solid #16a34a' : '2px solid transparent',
-              color: activeTab === tab.key ? '#16a34a' : '#6b7280',
+              padding: '0.5rem 1rem', border: 'none', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', cursor: 'pointer',
+              background: activeTab === tab.key ? 'var(--color-surface)' : 'transparent',
+              borderBottom: activeTab === tab.key ? '2px solid var(--color-primary)' : '2px solid transparent',
+              color: activeTab === tab.key ? 'var(--color-primary)' : 'var(--color-text-muted)',
               fontWeight: activeTab === tab.key ? 600 : 400,
-              fontSize: '0.875rem', fontFamily: 'inherit',
+              fontSize: 'var(--text-sm)', fontFamily: 'inherit',
             }}
           >
             {tab.label}
@@ -105,11 +105,11 @@ export default function ThemeBuilderPage() {
         ))}
       </div>
 
-      {loading && <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>}
-      {error && <div style={{ padding: '1rem', color: '#dc2626' }}>{error}</div>}
+      {loading && <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}
+      {error && <div style={{ padding: '1rem', color: 'var(--color-destructive)' }}>{error}</div>}
 
       {!loading && layouts.length === 0 && (
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+        <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
           No layouts here yet. <Link href={`/${adminPath}/layouts/new`}>Create your first layout</Link>.
         </div>
       )}
@@ -117,8 +117,8 @@ export default function ThemeBuilderPage() {
       {!loading && layouts.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {layouts.map((layout) => (
-            <div key={layout.id} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ background: '#f9fafb', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e5e7eb' }}>
+            <div key={layout.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: 'var(--color-bg-subtle)', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--color-border)' }}>
                 <LayoutThumbnail type={layout.type} name={layout.name} />
               </div>
               <div style={{ padding: '1rem', flex: 1 }}>
@@ -136,7 +136,7 @@ export default function ThemeBuilderPage() {
                 <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
                 <a href={`/layout-preview/${layout.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Preview</a>
                 {!layout.isStarter && (
-                  <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8125rem', cursor: 'pointer', padding: '0.375rem 0' }}>
+                  <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0.375rem 0' }}>
                     Delete
                   </button>
                 )}
@@ -165,35 +165,35 @@ function StatusBadge({ status }: { status: string }) {
 function LayoutThumbnail({ type, name }: { type: string; name: string }) {
   if (type === 'header') {
     return (
-      <div style={{ width: '80%', height: 28, background: '#dbeafe', borderRadius: 3, display: 'flex', alignItems: 'center', padding: '0 8px', justifyContent: 'space-between' }}>
-        <div style={{ width: 24, height: 10, background: '#93c5fd', borderRadius: 2 }} />
-        <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 14, height: 6, background: '#93c5fd', borderRadius: 2 }} />)}</div>
+      <div style={{ width: '80%', height: 28, background: 'var(--color-primary-subtle)', borderRadius: 3, display: 'flex', alignItems: 'center', padding: '0 8px', justifyContent: 'space-between' }}>
+        <div style={{ width: 24, height: 10, background: 'var(--color-primary)', borderRadius: 2, opacity: 0.4 }} />
+        <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 14, height: 6, background: 'var(--color-primary)', borderRadius: 2, opacity: 0.4 }} />)}</div>
       </div>
     )
   }
   if (type === 'footer') {
     return (
-      <div style={{ width: '80%', height: 28, background: '#f3f4f6', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 60, height: 6, background: '#d1d5db', borderRadius: 2 }} />
+      <div style={{ width: '80%', height: 28, background: 'var(--color-bg-subtle)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 60, height: 6, background: 'var(--color-border-strong)', borderRadius: 2 }} />
       </div>
     )
   }
   if (type === 'notFound' || type === 'statusPage') {
     return (
-      <div style={{ width: '80%', height: 36, background: '#fef3c7', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 40, height: 10, background: '#fbbf24', borderRadius: 2 }} />
+      <div style={{ width: '80%', height: 36, background: 'var(--color-warning-bg)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 40, height: 10, background: 'var(--color-warning)', borderRadius: 2, opacity: 0.5 }} />
       </div>
     )
   }
   const n = name.toLowerCase()
   if (n.includes('sidebar') && (n.includes('right') || n.includes('70'))) {
-    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 7, background: 'var(--color-primary-subtle)', borderRadius: 3 }} /><div style={{ flex: 3, background: 'var(--color-bg-subtle)', borderRadius: 3 }} /></div>
   }
   if (n.includes('sidebar') && n.includes('left')) {
-    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 3, background: '#f3f4f6', borderRadius: 3 }} /><div style={{ flex: 7, background: '#dbeafe', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 3, background: 'var(--color-bg-subtle)', borderRadius: 3 }} /><div style={{ flex: 7, background: 'var(--color-primary-subtle)', borderRadius: 3 }} /></div>
   }
   if (n.includes('boxed') || n.includes('centred') || n.includes('centered')) {
-    return <div style={{ display: 'flex', justifyContent: 'center', height: 44, width: '80%' }}><div style={{ width: '70%', background: '#dbeafe', borderRadius: 3 }} /></div>
+    return <div style={{ display: 'flex', justifyContent: 'center', height: 44, width: '80%' }}><div style={{ width: '70%', background: 'var(--color-primary-subtle)', borderRadius: 3 }} /></div>
   }
-  return <div style={{ width: '80%', height: 44, background: '#dbeafe', borderRadius: 3 }} />
+  return <div style={{ width: '80%', height: 44, background: 'var(--color-primary-subtle)', borderRadius: 3 }} />
 }

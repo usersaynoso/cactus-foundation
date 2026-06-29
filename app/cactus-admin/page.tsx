@@ -110,7 +110,7 @@ export default async function AdminDashboard() {
         ].map((stat) => (
           <div key={stat.label} className="card" style={{ textAlign: 'center', padding: '1.25rem' }}>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{stat.value}</div>
-            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{stat.label}</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -119,16 +119,16 @@ export default async function AdminDashboard() {
         <div className="card" style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
             <h2 className="card-title" style={{ margin: 0 }}>Additional features</h2>
-            <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{configuredCount} of {features.length} set up</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{configuredCount} of {features.length} set up</span>
           </div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1.25rem' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 1.25rem' }}>
             Your site is up and running. Set up these optional features whenever you&apos;re ready.
           </p>
 
           {/* Progress bar */}
           <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' }}>
             <div style={{
-              height: '100%', borderRadius: 2, background: '#16a34a',
+              height: '100%', borderRadius: 2, background: 'var(--color-primary)',
               width: `${(configuredCount / features.length) * 100}%`,
               transition: 'width 0.3s ease',
             }} />
@@ -147,22 +147,22 @@ export default async function AdminDashboard() {
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: f.configured ? '#16a34a' : 'var(--color-bg-subtle)',
-                  fontSize: '0.8125rem', fontWeight: 700,
-                  color: f.configured ? '#fff' : 'var(--color-muted)',
+                  background: f.configured ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                  fontSize: 'var(--text-sm)', fontWeight: 700,
+                  color: f.configured ? '#fff' : 'var(--color-text-muted)',
                   marginTop: 1,
                 }}>
                   {f.configured ? '✓' : '○'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: f.configured ? '#15803d' : 'var(--color-fg)' }}>
+                    <span style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: f.configured ? 'var(--color-success)' : 'var(--color-text)' }}>
                       {f.name}
                     </span>
                     {!f.configured && (
                       <a
                         href={`/${adminPath}/config?tab=${f.settingsTab}`}
-                        style={{ fontSize: '0.8125rem', color: '#16a34a', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+                        style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
                       >
                         Set up →
                       </a>
@@ -183,8 +183,8 @@ export default async function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <span style={{ fontSize: '1.125rem' }}>✓</span>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#15803d' }}>All features configured</div>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`} style={{ color: '#16a34a' }}>Settings</a>.</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-success)' }}>All features configured</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`}>Settings</a>.</div>
             </div>
           </div>
         </div>

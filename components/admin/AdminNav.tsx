@@ -18,16 +18,16 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
   const base = `/${adminPath}`
 
   const links = [
-    { href: `${base}`,            label: 'Dashboard',  icon: '◈' },
-    { href: `${base}/pages`,      label: 'Pages',      icon: '📄' },
-    { href: `${base}/menus`,      label: 'Menus',      icon: '☰' },
-    { href: `${base}/media`,      label: 'Media',      icon: '🖼' },
-    { href: `${base}/appearance`, label: 'Style Guide', icon: '🎨' },
+    { href: `${base}`,            label: 'Dashboard',    icon: '◈' },
+    { href: `${base}/pages`,      label: 'Pages',        icon: '📄' },
+    { href: `${base}/menus`,      label: 'Menus',        icon: '☰' },
+    { href: `${base}/media`,      label: 'Media',        icon: '🖼' },
+    { href: `${base}/appearance`, label: 'Style Guide',  icon: '🎨' },
     { href: `${base}/layouts`,    label: 'Theme Builder', icon: '📐' },
-    { href: `${base}/users`,      label: 'Users',      icon: '👥' },
-    { href: `${base}/roles`,      label: 'Roles',      icon: '🔑' },
-    { href: `${base}/modules`,    label: 'Modules',    icon: '🧩' },
-    { href: `${base}/config`,     label: 'Settings',   icon: '⚙️' },
+    { href: `${base}/users`,      label: 'Users',        icon: '👥' },
+    { href: `${base}/roles`,      label: 'Roles',        icon: '🔑' },
+    { href: `${base}/modules`,    label: 'Modules',      icon: '🧩' },
+    { href: `${base}/config`,     label: 'Settings',     icon: '⚙️' },
   ]
 
   return (
@@ -47,29 +47,25 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
           </Link>
         )
       })}
-      <div style={{ marginTop: 'auto', borderTop: '1px solid #1f2937', paddingTop: '1rem' }}>
+
+      <div className="admin-nav-footer">
         {!collapsed && (
-          <div style={{ padding: '0.5rem 1.25rem' }}>
+          <div className="admin-nav-theme">
             <ThemeToggle compact />
           </div>
         )}
         <form action="/api/auth/logout" method="POST">
           <button
             type="submit"
+            className={`admin-nav-logout${collapsed ? ' admin-nav-logout--collapsed' : ''}`}
             title={collapsed ? 'Sign out' : undefined}
-            style={{
-              background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.875rem',
-              cursor: 'pointer', padding: collapsed ? '0.5rem' : '0.5rem 1.25rem',
-              width: '100%', textAlign: collapsed ? 'center' : 'left',
-            }}
           >
-            {collapsed ? '⏻' : 'Sign out'}
+            <span>⏻</span>
+            {!collapsed && <span>Sign out</span>}
           </button>
         </form>
         {!collapsed && (
-          <p style={{ color: '#94a3b8', fontSize: '0.75rem', padding: '0.25rem 1.25rem', margin: 0 }}>
-            v{version}
-          </p>
+          <p className="admin-nav-version">v{version}</p>
         )}
       </div>
     </nav>

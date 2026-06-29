@@ -9,7 +9,7 @@ import { generateSlug } from '@/lib/utils'
 // Lazy-load the Puck editor — only ships to client when builder mode is active.
 // ssr: false because Puck relies on browser APIs (drag-and-drop, ResizeObserver).
 const PuckEditor = dynamic(() => import('./PuckEditor'), { ssr: false, loading: () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#6b7280' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--color-text-muted)' }}>
     Loading builder…
   </div>
 ) })
@@ -98,7 +98,7 @@ export default function EditPagePage() {
 
   if (!page) {
     return (
-      <div style={{ padding: '2rem', color: '#6b7280' }}>
+      <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>
         {error || 'Loading…'}
       </div>
     )
@@ -112,8 +112,8 @@ export default function EditPagePage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         padding: '0.5rem 1rem',
-        borderBottom: '1px solid #e5e7eb',
-        background: '#fff',
+        borderBottom: '1px solid var(--color-border)',
+        background: 'var(--color-surface)',
         zIndex: 100,
         position: 'relative',
       }}>
@@ -123,7 +123,7 @@ export default function EditPagePage() {
         >
           ← Pages
         </button>
-        <strong style={{ fontSize: '0.875rem', color: '#111827', flex: 1 }}>{page.title}</strong>
+        <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', flex: 1 }}>{page.title}</strong>
         <button
           className="btn btn-danger btn-sm"
           disabled={loading}
@@ -139,7 +139,7 @@ export default function EditPagePage() {
           background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ background: '#fff', borderRadius: 8, padding: '2rem', maxWidth: 400, width: '90%' }}>
+          <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-8)', maxWidth: 400, width: '90%' }}>
             <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Delete this page?</h3>
             {error && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>

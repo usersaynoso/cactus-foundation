@@ -36,7 +36,7 @@ export default function MediaUpload() {
 
   return (
     <div>
-      {error && <span style={{ color: '#dc2626', fontSize: '0.875rem', marginRight: '0.75rem' }}>{error}</span>}
+      {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-base)', marginRight: 'var(--space-3)' }}>{error}</span>}
       <input
         ref={ref}
         type="file"

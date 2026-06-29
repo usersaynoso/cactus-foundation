@@ -135,7 +135,7 @@ export default function MenusPage() {
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               style={{ width: '100%' }}
             />
-            {createError && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '0.25rem' }}>{createError}</p>}
+            {createError && <p style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-base)', marginTop: 'var(--space-1)' }}>{createError}</p>}
           </div>
           <button className="btn btn-primary" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
           <button className="btn btn-secondary" onClick={() => { setCreating(false); setNewName(''); setCreateError('') }}>Cancel</button>
@@ -143,7 +143,7 @@ export default function MenusPage() {
       )}
 
       {menus.length === 0 && !creating && (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
           <p style={{ marginBottom: '1rem' }}>No menus yet. Create one to start building your site&apos;s navigation.</p>
           <button className="btn btn-primary" onClick={() => setCreating(true)}>+ New menu</button>
         </div>
@@ -179,14 +179,12 @@ export default function MenusPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <strong>{menu.name}</strong>
                         {menu.isMainMenu && (
-                          <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600 }}>
-                            Main menu
-                          </span>
+                          <span className="badge badge-success">Main menu</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td style={{ color: '#6b7280' }}>{menu.itemCount}</td>
+                  <td style={{ color: 'var(--color-text-muted)' }}>{menu.itemCount}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                       <Link href={`/${adminPath}/menus/${menu.id}`} className="btn btn-secondary btn-sm">
@@ -200,7 +198,7 @@ export default function MenusPage() {
                       </button>
                       {deleteId === menu.id ? (
                         <>
-                          {deleteWarning && <span style={{ fontSize: '0.8125rem', color: '#dc2626', alignSelf: 'center' }}>{deleteWarning}</span>}
+                          {deleteWarning && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)', alignSelf: 'center' }}>{deleteWarning}</span>}
                           <button className="btn btn-danger btn-sm" onClick={() => handleDelete(menu.id)}>Confirm</button>
                           <button className="btn btn-secondary btn-sm" onClick={() => { setDeleteId(null); setDeleteWarning('') }}>Cancel</button>
                         </>
@@ -228,7 +226,7 @@ export default function MenusPage() {
         </div>
       )}
 
-      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '1.5rem' }}>
+      <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', marginTop: 'var(--space-6)' }}>
         To set the main menu shown in the site header, go to{' '}
         <Link href={`/${adminPath}/config`} style={{ color: 'var(--color-primary)' }}>
           Settings → General

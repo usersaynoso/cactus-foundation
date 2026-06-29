@@ -34,14 +34,15 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   }
 
   const btnStyle = (m: Mode): React.CSSProperties => ({
-    background: mode === m ? 'rgba(255,255,255,0.15)' : 'transparent',
+    background: mode === m ? 'var(--color-primary-subtle)' : 'transparent',
     border: 'none',
-    color: '#9ca3af',
+    color: mode === m ? 'var(--color-primary)' : 'var(--color-text-muted)',
     cursor: 'pointer',
     padding: compact ? '0.25rem 0.375rem' : '0.375rem 0.625rem',
-    borderRadius: 4,
-    fontSize: compact ? '0.75rem' : '0.8125rem',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: compact ? 'var(--text-xs)' : 'var(--text-sm)',
     fontFamily: 'inherit',
+    transition: 'background var(--dur-base), color var(--dur-base)',
   })
 
   return (

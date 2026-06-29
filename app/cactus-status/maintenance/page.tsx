@@ -35,7 +35,7 @@ export default async function MaintenancePage() {
       <div style={{ maxWidth: 480, textAlign: 'center' }}>
         <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔧</div>
         <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Down for maintenance</h1>
-        <p style={{ color: '#6b7280' }}>{config?.siteName ?? 'This site'} is down for scheduled maintenance. We&apos;ll be back shortly.</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{config?.siteName ?? 'This site'} is down for scheduled maintenance. We&apos;ll be back shortly.</p>
       </div>
     </main>
   )

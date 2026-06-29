@@ -438,7 +438,7 @@ export default function NewLayoutPage() {
     return (
       <div style={{ maxWidth: 640 }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>New Layout</h1>
-        <p style={{ color: '#6b7280', margin: '0 0 2rem' }}>What kind of layout do you want to create?</p>
+        <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>What kind of layout do you want to create?</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
           {LAYOUT_TYPES.map(t => (
@@ -446,16 +446,16 @@ export default function NewLayoutPage() {
               key={t.key}
               onClick={() => handleTypeSelect(t.key)}
               style={{
-                textAlign: 'left', padding: '1.25rem', border: '1px solid #e5e7eb',
-                borderRadius: 8, background: '#ffffff', cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
+                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'border-color var(--dur-base), box-shadow var(--dur-base)',
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#16a34a'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px rgba(22,163,74,0.1)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px var(--color-primary-ring, rgba(44,117,88,0.1))' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
             >
               <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t.icon}</div>
-              <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#111827', marginBottom: '0.25rem' }}>{t.label}</div>
-              <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{t.description}</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{t.label}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{t.description}</div>
             </button>
           ))}
         </div>
@@ -472,11 +472,11 @@ export default function NewLayoutPage() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '0.875rem', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
+      <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
         ← Back to type selection
       </button>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>New {typeOption?.label}</h1>
-      <p style={{ color: '#6b7280', margin: '0 0 2rem' }}>Give it a name and choose a starting structure.</p>
+      <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>Give it a name and choose a starting structure.</p>
 
       <div className="field">
         <label>Layout name</label>
@@ -488,17 +488,17 @@ export default function NewLayoutPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           {starters.map(s => (
             <button key={s.key} onClick={() => setSelectedStarter(s.key)} style={{
-              textAlign: 'left', padding: '1rem', border: selectedStarter === s.key ? '2px solid #16a34a' : '1px solid #e5e7eb',
-              borderRadius: 8, background: selectedStarter === s.key ? '#f0fdf4' : '#ffffff', cursor: 'pointer', fontFamily: 'inherit',
+              textAlign: 'left', padding: '1rem', border: selectedStarter === s.key ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+              borderRadius: 'var(--radius)', background: selectedStarter === s.key ? 'var(--color-primary-subtle)' : 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
             }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#111827' }}>{s.name}</div>
-              <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.25rem' }}>{s.description}</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>{s.name}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>{s.description}</div>
             </button>
           ))}
         </div>
       </div>
 
-      {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginBottom: '1rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: '1rem' }}>
         <button className="btn btn-primary" onClick={handleCreate} disabled={creating || !selectedStarter || !name.trim()}>

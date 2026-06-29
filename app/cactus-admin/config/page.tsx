@@ -129,15 +129,7 @@ const INTEGRATION_SECTIONS: EnvSection[] = [
 
 function StatusBadge({ set }: { set: boolean }) {
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '0.125rem 0.5rem',
-      borderRadius: 9999,
-      fontSize: '0.75rem',
-      fontWeight: 600,
-      background: set ? '#dcfce7' : '#f3f4f6',
-      color: set ? '#15803d' : '#6b7280',
-    }}>
+    <span className={set ? 'badge badge-success' : 'badge badge-default'}>
       {set ? '● Set' : '○ Not set'}
     </span>
   )
@@ -449,7 +441,7 @@ function ConfigPageInner() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{section.label}</h3>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>{section.description}</p>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>{section.description}</p>
           </div>
           <StatusBadge set={isEnvSectionSet(allKeys)} />
         </div>
@@ -482,7 +474,7 @@ function ConfigPageInner() {
           >
             {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : 'Save credentials'}
           </button>
-          <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>Takes effect on next deployment</span>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Takes effect on next deployment</span>
         </div>
       </div>
     )
@@ -500,13 +492,13 @@ function ConfigPageInner() {
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e5e7eb', marginBottom: '2rem', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--color-border)', marginBottom: '2rem', overflowX: 'auto' }}>
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '0.625rem 1rem', border: 'none', background: 'none',
-            borderBottom: t === tab ? '2px solid #16a34a' : '2px solid transparent',
-            color: t === tab ? '#16a34a' : '#6b7280', fontWeight: t === tab ? 600 : 400,
-            cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9375rem', whiteSpace: 'nowrap',
+            borderBottom: t === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
+            color: t === tab ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: t === tab ? 600 : 400,
+            cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', whiteSpace: 'nowrap',
           }}>
             {tabLabels[t]}
           </button>
@@ -569,10 +561,10 @@ function ConfigPageInner() {
           <div className="field"><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
           <div className="field"><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
           <div style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Starter templates</h2>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Updates the built-in starter layouts (header, footer, page layouts) to the latest versions. Your custom layouts and content are not affected.
             </p>
             {templatesRefreshed && (
@@ -592,12 +584,12 @@ function ConfigPageInner() {
             </button>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2rem 0 1.5rem' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
           <div>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: '#dc2626' }}>Danger zone</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--color-destructive)' }}>Danger zone</h2>
 
             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Database</h3>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all data from the database — every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
             </p>
             {!showDbResetConfirm && !dbResetDone && (
@@ -606,8 +598,8 @@ function ConfigPageInner() {
               </button>
             )}
             {showDbResetConfirm && !dbResetDone && (
-              <div className="card" style={{ borderColor: '#dc2626', marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#dc2626' }}>Are you absolutely sure?</h3>
+              <div className="card" style={{ borderColor: 'var(--color-destructive)', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you absolutely sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
                   This will <strong>permanently delete all content</strong> from the database — every page, layout, menu, media record, and other user accounts. This cannot be undone.
                 </p>
@@ -650,7 +642,7 @@ function ConfigPageInner() {
             )}
 
             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Everything</h3>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
             </p>
             {!showResetConfirm && !resetDone && (
@@ -659,8 +651,8 @@ function ConfigPageInner() {
               </button>
             )}
             {showResetConfirm && !resetDone && (
-              <div className="card" style={{ borderColor: '#dc2626' }}>
-                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#dc2626' }}>Are you sure?</h3>
+              <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
                   This will <strong>permanently delete all environment variables</strong> from your Vercel project —
                   email credentials, media provider keys, integrations, and everything else.
@@ -741,10 +733,10 @@ function ConfigPageInner() {
           <div className="field"><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
           <div className="field"><label>From address</label><input type="email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '1.5rem 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Email provider credentials</div>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 0.75rem' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
               Stored in your Vercel project environment variables — never in the database.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -777,7 +769,7 @@ function ConfigPageInner() {
           <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: 'var(--color-fg)', fontWeight: 500 }}>Status page layouts</p>
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Customise the coming soon and maintenance screens in the Theme Builder.</p>
-            <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: '0.875rem', color: '#16a34a' }}>Manage status page layouts →</a>
+            <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)' }}>Manage status page layouts →</a>
           </div>
           <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
@@ -830,7 +822,7 @@ function ConfigPageInner() {
 
         return (
           <div>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Choose where uploaded images are stored. Provider selection is saved to your site config; the credentials
               themselves live only in your Vercel environment variables.
             </p>
@@ -888,7 +880,7 @@ function ConfigPageInner() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div>
                     <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{PROVIDER_LABELS[selected]} credentials</h3>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
                       Stored in your Vercel project environment variables — never in the database.
                     </p>
                   </div>
@@ -942,7 +934,7 @@ function ConfigPageInner() {
                 >
                   {savingEnvId === `media-${selected}` ? 'Saving…' : savedEnvId === `media-${selected}` ? '✓ Saved' : 'Save credentials'}
                 </button>
-                <span style={{ fontSize: '0.8125rem', color: '#6b7280', marginLeft: '1rem' }}>Takes effect on next deployment</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginLeft: '1rem' }}>Takes effect on next deployment</span>
               </div>
             )}
 
@@ -950,13 +942,13 @@ function ConfigPageInner() {
             <div className="card" style={{ marginBottom: '1rem' }}>
               <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Where your media lives</h3>
               {Object.keys(breakdown).length === 0 ? (
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>No media uploaded yet.</p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>No media uploaded yet.</p>
               ) : (
                 <ul style={{ fontSize: '0.875rem', margin: '0 0 0.5rem 1rem' }}>
                   {Object.entries(breakdown).map(([p, n]) => (
                     <li key={p}>
                       {PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}
-                      {p === selected && <span style={{ color: '#16a34a' }}> (active)</span>}
+                      {p === selected && <span style={{ color: 'var(--color-primary)' }}> (active)</span>}
                     </li>
                   ))}
                 </ul>
@@ -978,7 +970,7 @@ function ConfigPageInner() {
                   {job.migratedItems} of {job.totalItems} migrated{migrationRunning ? '' : ' (paused)'}
                 </p>
                 <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden', marginBottom: '0.75rem' }}>
-                  <div style={{ height: '100%', width: `${job.totalItems ? Math.round((job.migratedItems / job.totalItems) * 100) : 0}%`, background: '#16a34a' }} />
+                  <div style={{ height: '100%', width: `${job.totalItems ? Math.round((job.migratedItems / job.totalItems) * 100) : 0}%`, background: 'var(--color-primary)' }} />
                 </div>
                 {job.failedItemIds.length > 0 && (
                   <details style={{ fontSize: '0.8125rem', marginBottom: '0.5rem' }}>
@@ -994,7 +986,7 @@ function ConfigPageInner() {
 
             {/* Completed-with-failures retry */}
             {jobFailed && job && (
-              <div className="card" style={{ marginBottom: '1rem', borderColor: '#dc2626' }}>
+              <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--color-destructive)' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Migration finished with failures</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                   {job.migratedItems} of {job.totalItems} migrated, {job.failedItemIds.length} failed.
@@ -1014,7 +1006,7 @@ function ConfigPageInner() {
 
       {tab === 'integrations' && (
         <div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.
           </p>
           {INTEGRATION_SECTIONS.map((section) => (
@@ -1028,7 +1020,7 @@ function ConfigPageInner() {
 
 export default function ConfigPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>}>
+    <Suspense fallback={<div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}>
       <ConfigPageInner />
     </Suspense>
   )
