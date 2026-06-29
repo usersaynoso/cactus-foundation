@@ -297,8 +297,15 @@ function ConfigPageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vars }),
       })
-      const d = (await res.json()) as { ok?: boolean; error?: string }
+      const d = (await res.json()) as { ok?: boolean; error?: string; redeployTriggered?: boolean }
       if (!res.ok) throw new Error(d.error ?? 'Save failed')
+
+      // A redeploy was triggered — hard reload so the proxy picks up the
+      // pendingRedeployId sentinel and shows the redeploying screen immediately.
+      if (d.redeployTriggered) {
+        window.location.reload()
+        return
+      }
 
       // Update local status optimistically
       const updated: Record<string, boolean> = { ...envStatus }
@@ -842,8 +849,14 @@ function ConfigPageInner() {
                       setResetError('')
                       try {
                         const res = await fetch('/api/admin/env', { method: 'DELETE' })
-                        const d = (await res.json()) as { ok?: boolean; error?: string; deleted?: number; failed?: Array<{ key: string; error: string }> }
+                        const d = (await res.json()) as { ok?: boolean; error?: string; deleted?: number; failed?: Array<{ key: string; error: string }>; redeployTriggered?: boolean }
                         if (!res.ok) throw new Error(d.error ?? 'Reset failed')
+                        // A redeploy was triggered — hard reload so the proxy picks up the
+                        // pendingRedeployId sentinel and shows the redeploying screen immediately.
+                        if (d.redeployTriggered) {
+                          window.location.reload()
+                          return
+                        }
                         setEnvStatus({})
                         setShowResetConfirm(false)
                         setResetDeletedCount(d.deleted ?? 0)
