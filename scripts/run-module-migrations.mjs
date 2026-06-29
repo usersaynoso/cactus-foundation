@@ -28,7 +28,11 @@ const { Client } = pg
 function getClient() {
   const url = process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL is not set')
-  return new Client({ connectionString: url })
+  const parsedUrl = new URL(url)
+  if (parsedUrl.searchParams.get('sslmode') === 'require') {
+    parsedUrl.searchParams.set('sslmode', 'verify-full')
+  }
+  return new Client({ connectionString: parsedUrl.toString() })
 }
 
 // ---------------------------------------------------------------------------
