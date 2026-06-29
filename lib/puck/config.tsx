@@ -124,8 +124,11 @@ function GroupBlock(props: any) {
   const { direction, justify, align, wrap, gap, padding, items } = props
   const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
   const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
-  return (
-    <div style={{
+  if (typeof items !== 'function') return null
+  // Pass flex styles directly to the SlotRender wrapper so its children are
+  // proper flex items rather than sitting inside an unstyled block container.
+  return items({
+    style: {
       display: 'flex',
       flexDirection: direction === 'column' ? 'column' : 'row',
       justifyContent: justifyMap[justify] ?? 'flex-start',
@@ -133,10 +136,8 @@ function GroupBlock(props: any) {
       flexWrap: wrap === 'nowrap' ? 'nowrap' : 'wrap',
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
-    }}>
-      {typeof items === 'function' ? items() : null}
-    </div>
-  )
+    }
+  })
 }
 
 function SiteHeaderBlock(props: any) {
@@ -1260,6 +1261,8 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
         margin: '0 auto',
         padding: '0 1.5rem',
         height: '100%',
+        display: 'flex',
+        alignItems: 'center',
       }}>
         {children}
       </div>
