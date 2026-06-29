@@ -5,7 +5,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { commitSubmoduleUpdate, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
-import { isGitHubConfigured } from '@/lib/config/env'
+import { getGitHubConfigStatus } from '@/lib/config/env'
 
 const Patch = z.object({
   action: z.enum(['update', 'enable', 'disable', 'check-status']),
@@ -56,8 +56,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   if (action === 'update') {
-    if (!await isGitHubConfigured()) {
-      return errorResponse('GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to update modules.', 503)
+    const ghConfigStatus = await getGitHubConfigStatus()
+    if (ghConfigStatus === 'app_not_installed') {
+      return errorResponse(
+        'GitHub App is connected but not yet installed on a repository. Go to Settings → Integrations and click "Install app on repository".',
+        503
+      )
+    }
+    if (ghConfigStatus === 'not_configured') {
+      return errorResponse(
+        'GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to update modules.',
+        503
+      )
     }
 
     const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })

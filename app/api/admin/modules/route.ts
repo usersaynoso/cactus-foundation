@@ -11,7 +11,7 @@ import {
   validateTablePrefixUnique,
 } from '@/lib/modules/manifest'
 import { commitSubmoduleAdd, getLatestRelease } from '@/lib/modules/github'
-import { isGitHubConfigured } from '@/lib/config/env'
+import { getGitHubConfigStatus } from '@/lib/config/env'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -31,8 +31,18 @@ export async function POST(request: NextRequest) {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
-  if (!await isGitHubConfigured()) {
-    return errorResponse('GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to install modules.', 503)
+  const ghConfigStatus = await getGitHubConfigStatus()
+  if (ghConfigStatus === 'app_not_installed') {
+    return errorResponse(
+      'GitHub App is connected but not yet installed on a repository. Go to Settings → Integrations and click "Install app on repository".',
+      503
+    )
+  }
+  if (ghConfigStatus === 'not_configured') {
+    return errorResponse(
+      'GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to install modules.',
+      503
+    )
   }
 
   const parsed = InstallBody.safeParse(await request.json())
