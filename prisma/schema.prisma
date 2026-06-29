@@ -384,7 +384,7 @@ model GithubAppConnection {
   installationId         String?
   installationAccount    String?
   privateKeyEncrypted    String   @db.Text
-  webhookSecretEncrypted String   @db.Text
+  webhookSecretEncrypted String?  @db.Text
   clientIdEncrypted      String?  @db.Text
   clientSecretEncrypted  String?  @db.Text
   createdAt              DateTime @default(now())

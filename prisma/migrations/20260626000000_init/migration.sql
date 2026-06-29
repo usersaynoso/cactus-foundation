@@ -400,7 +400,7 @@ CREATE TABLE "GithubAppConnection" (
     "installationId" TEXT,
     "installationAccount" TEXT,
     "privateKeyEncrypted" TEXT NOT NULL,
-    "webhookSecretEncrypted" TEXT NOT NULL,
+    "webhookSecretEncrypted" TEXT,
     "clientIdEncrypted" TEXT,
     "clientSecretEncrypted" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
