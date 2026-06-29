@@ -4,6 +4,7 @@ import pkg from './package.json'
 const config: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
+    NEXT_TELEMETRY_DISABLED: '1',
   },
   images: {
     remotePatterns: [

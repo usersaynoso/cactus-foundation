@@ -227,17 +227,14 @@ export async function uploadMedia(
   }
 
   if (provider === 'IMAGEKIT') {
-    const ImageKit = (await import('imagekit')).default
-    const ik = new ImageKit({
-      publicKey: process.env.IMAGEKIT_PUBLIC_KEY ?? '',
-      privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '',
-      urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT ?? '',
-    })
+    const { default: ImageKit, toFile } = await import('@imagekit/nodejs')
+    const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
     const ext = mimeType.split('/')[1] ?? 'bin'
     const fileName = `${nanoid()}${originalFilename ? `-${sanitizeFilename(originalFilename)}` : ''}.${ext}`
-    const result = await ik.upload({ file: buffer, fileName, useUniqueFileName: true })
+    const uploadable = await toFile(buffer, fileName, { type: mimeType })
+    const result = await ik.files.upload({ file: uploadable, fileName })
     // Direct provider: store the fileId as key (needed for deletes), url is the CDN url.
-    return { key: result.fileId, url: result.url, mimeType, sizeBytes: buffer.length }
+    return { key: result.fileId ?? '', url: result.url ?? '', mimeType, sizeBytes: buffer.length }
   }
 
   throw new Error(`Unsupported media provider: ${provider}`)
@@ -300,14 +297,10 @@ export async function downloadMedia(
 
   if (provider === 'IMAGEKIT') {
     // Resolve the original (untransformed) file url from the stored fileId.
-    const ImageKit = (await import('imagekit')).default
-    const ik = new ImageKit({
-      publicKey: process.env.IMAGEKIT_PUBLIC_KEY ?? '',
-      privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '',
-      urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT ?? '',
-    })
-    const details = await ik.getFileDetails(key)
-    const res = await fetch(details.url)
+    const { default: ImageKit } = await import('@imagekit/nodejs')
+    const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
+    const details = await ik.files.get(key)
+    const res = await fetch(details.url ?? '')
     if (!res.ok) throw new Error(`ImageKit fetch failed: ${res.status}`)
     return Buffer.from(await res.arrayBuffer())
   }
@@ -364,13 +357,9 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
   }
 
   if (provider === 'IMAGEKIT') {
-    const ImageKit = (await import('imagekit')).default
-    const ik = new ImageKit({
-      publicKey: process.env.IMAGEKIT_PUBLIC_KEY ?? '',
-      privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '',
-      urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT ?? '',
-    })
-    await ik.deleteFile(key)
+    const { default: ImageKit } = await import('@imagekit/nodejs')
+    const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
+    await ik.files.delete(key)
     return
   }
 
