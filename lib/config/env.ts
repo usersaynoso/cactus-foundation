@@ -240,6 +240,18 @@ export async function isGitHubConfigured(): Promise<boolean> {
   return !!conn?.installationId
 }
 
+export type GitHubConfigStatus = 'configured' | 'app_not_installed' | 'not_configured'
+
+export async function getGitHubConfigStatus(): Promise<GitHubConfigStatus> {
+  if (process.env.GITHUB_API_TOKEN) return 'configured'
+  if (!process.env.ENCRYPTION_KEY) return 'not_configured'
+  const { prisma } = await import('@/lib/db/prisma')
+  const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
+  if (!conn) return 'not_configured'
+  if (!conn.installationId) return 'app_not_installed'
+  return 'configured'
+}
+
 export function isVercelConfigured(): boolean {
   return !!(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID)
 }

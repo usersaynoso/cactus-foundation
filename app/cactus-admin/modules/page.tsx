@@ -1,8 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Metadata } from 'next'
 import type { ModuleStatus } from '@prisma/client'
+
+type GitHubAppStatus = {
+  connected: boolean
+  hasInstallation: boolean
+  hasPat: boolean
+}
 
 type Module = {
   id: string
@@ -33,12 +38,20 @@ export default function ModulesPage() {
   const [installing, setInstalling] = useState(false)
   const [repoUrl, setRepoUrl] = useState('')
   const [releaseNotesFor, setReleaseNotesFor] = useState<string | null>(null)
+  const [ghStatus, setGhStatus] = useState<GitHubAppStatus | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/modules')
-      const d = await res.json()
+      const [modulesRes, ghRes] = await Promise.all([
+        fetch('/api/admin/modules'),
+        fetch('/api/admin/github-app'),
+      ])
+      const d = await modulesRes.json()
       setModules(d.modules ?? [])
+      if (ghRes.ok) {
+        const gh = await ghRes.json()
+        setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
+      }
     } catch {
       setError('Failed to load modules')
     } finally {
@@ -93,6 +106,20 @@ export default function ModulesPage() {
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
+
+      {ghStatus && !ghStatus.hasPat && !ghStatus.connected && (
+        <div className="alert alert-warning">
+          GitHub is not configured. Module install requires a GitHub connection.{' '}
+          <a href="../config?tab=integrations">Go to Settings &rarr; Integrations</a> to connect a GitHub App or add a personal access token.
+        </div>
+      )}
+
+      {ghStatus && !ghStatus.hasPat && ghStatus.connected && !ghStatus.hasInstallation && (
+        <div className="alert alert-warning">
+          GitHub App is connected but not yet installed on a repository. Module install will fail until you complete the setup.{' '}
+          <a href="../config?tab=integrations">Go to Settings &rarr; Integrations</a> and click &ldquo;Install app on repository&rdquo;.
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: '2rem' }}>
         <h2 className="card-title">Install a module</h2>
