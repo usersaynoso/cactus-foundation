@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'deploymentId is required' }, { status: 400 })
   }
 
-  const token = process.env.VERCEL_API_TOKEN
+  const token = process.env.VERCEL_API_TOKEN ?? req.nextUrl.searchParams.get('token') ?? ''
   if (!token) {
     return NextResponse.json({ error: 'VERCEL_API_TOKEN not configured' }, { status: 500 })
   }

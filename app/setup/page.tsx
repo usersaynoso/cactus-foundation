@@ -224,7 +224,7 @@ export default function SetupPage() {
     })
   }
 
-  function startDeployLogPolling(id: string): () => void {
+  function startDeployLogPolling(id: string, token: string): () => void {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
     let lastSeen: number | null = null
@@ -232,9 +232,10 @@ export default function SetupPage() {
     async function poll() {
       if (cancelled) return
       try {
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ''
         const url = lastSeen
-          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}`
-          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}`
+          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${tokenParam}`
+          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${tokenParam}`
         const res = await fetch(url)
         if (res.ok) {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
@@ -370,7 +371,7 @@ export default function SetupPage() {
       if (data.deploymentId) {
         setDeploymentId(data.deploymentId)
         cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
       }
       startRedeployPolling()
     } catch (err: unknown) {
@@ -403,7 +404,7 @@ export default function SetupPage() {
       if (data.deploymentId) {
         setDeploymentId(data.deploymentId)
         cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
       }
       startRedeployPolling()
     } catch (err: unknown) {
@@ -447,7 +448,7 @@ export default function SetupPage() {
       if (data.deploymentId) {
         setDeploymentId(data.deploymentId)
         cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId)
+        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
       }
       startRedeployPolling()
     } catch (err: unknown) {
