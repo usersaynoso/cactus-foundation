@@ -186,21 +186,21 @@ function SiteHeaderBlock(props: any) {
 function SplitBlock(props: any) {
   const { puck, ratio, align = 'stretch', gap = 'md', padding } = props
   const alignMap: Record<string, string> = { stretch: 'stretch', start: 'flex-start', center: 'center', end: 'flex-end' }
-  const alignItems = alignMap[align] ?? 'stretch'
   const gapValue = GAP_MAP[gap] ?? '1rem'
 
-  const ratios: Record<string, [string, string]> = {
-    '50/50': ['1 1 50%', '1 1 50%'],
-    '60/40': ['1 1 60%', '1 1 40%'],
-    '40/60': ['1 1 40%', '1 1 60%'],
-    '70/30': ['1 1 70%', '1 1 30%'],
-    '30/70': ['1 1 30%', '1 1 70%'],
+  const gridCols: Record<string, string> = {
+    '50/50': '1fr 1fr',
+    '60/40': '3fr 2fr',
+    '40/60': '2fr 3fr',
+    '70/30': '7fr 3fr',
+    '30/70': '3fr 7fr',
   }
-  const pair = ratios[ratio] ?? ratios['50/50']!
+  const cols = gridCols[ratio] ?? '1fr 1fr'
+
   return (
-    <div style={{ width: '100%', display: 'flex', alignItems, gap: gapValue, flexWrap: 'wrap', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
-      <div style={{ flex: pair[0], minWidth: 0 }}>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
-      <div style={{ flex: pair[1], minWidth: 0 }}>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
+    <div style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[align] ?? 'stretch', gap: gapValue, marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
+      <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
+      <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
     </div>
   )
 }
