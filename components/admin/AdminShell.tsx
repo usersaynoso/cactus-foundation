@@ -95,7 +95,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/cactus.svg"
-            alt="Cactus"
+            alt="Cactus Foundation"
             className="admin-sidebar-logo-img"
           />
           {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
