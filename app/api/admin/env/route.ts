@@ -4,6 +4,8 @@ import { getVercelEnvVarKeys, upsertVercelEnvVars, deleteVercelEnvVars } from '@
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { errorResponse } from '@/lib/utils'
 import { ALL_PROVIDERS, envKeysForProvider } from '@/lib/media/providers'
+import { prisma } from '@/lib/db/prisma'
+import { invalidateSiteConfigCache } from '@/lib/config/site'
 
 // Give the function enough headroom for list + parallel deletes + redeploy.
 export const maxDuration = 60
@@ -95,12 +97,17 @@ export async function POST(req: NextRequest) {
 
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
+    // Write a sentinel synchronously so the proxy shows the redeploying screen
+    // the moment the client reloads — before the real deployment ID lands in after().
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: 'pending' },
+    })
+    invalidateSiteConfigCache()
     after(async () => {
       const result = await triggerVercelRedeploy(token, projectId)
       if (result.triggered && result.deploymentId) {
         try {
-          const { prisma } = await import('@/lib/db/prisma')
-          const { invalidateSiteConfigCache } = await import('@/lib/config/site')
           await prisma.siteConfig.update({
             where: { id: 'singleton' },
             data: { pendingRedeployId: result.deploymentId },
@@ -108,6 +115,17 @@ export async function POST(req: NextRequest) {
           invalidateSiteConfigCache()
         } catch (err) {
           console.error('[env] Failed to persist pendingRedeployId:', err)
+        }
+      } else {
+        // Redeploy never started — clear the sentinel so we don't strand the user.
+        try {
+          await prisma.siteConfig.update({
+            where: { id: 'singleton' },
+            data: { pendingRedeployId: null },
+          })
+          invalidateSiteConfigCache()
+        } catch (err) {
+          console.error('[env] Failed to clear pendingRedeployId sentinel:', err)
         }
       }
     })
@@ -149,14 +167,24 @@ export async function DELETE() {
     return errorResponse(`Failed to delete env vars: ${message}`, 502)
   }
 
+  // Write a sentinel synchronously so the proxy shows the redeploying screen
+  // the moment the client reloads — before the real deployment ID lands in after().
+  try {
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: 'pending' },
+    })
+    invalidateSiteConfigCache()
+  } catch (err) {
+    console.error('[reset] Failed to write pendingRedeployId sentinel:', err)
+  }
+
   // Trigger the redeploy after the response is sent so it never blocks or
   // races against the function timeout.
   after(async () => {
     const result = await triggerVercelRedeploy(token, projectId)
     if (result.triggered && result.deploymentId) {
       try {
-        const { prisma } = await import('@/lib/db/prisma')
-        const { invalidateSiteConfigCache } = await import('@/lib/config/site')
         await prisma.siteConfig.update({
           where: { id: 'singleton' },
           data: { pendingRedeployId: result.deploymentId },
@@ -164,6 +192,17 @@ export async function DELETE() {
         invalidateSiteConfigCache()
       } catch (err) {
         console.error('[env] Failed to persist pendingRedeployId:', err)
+      }
+    } else {
+      // Redeploy never started — clear the sentinel so we don't strand the user.
+      try {
+        await prisma.siteConfig.update({
+          where: { id: 'singleton' },
+          data: { pendingRedeployId: null },
+        })
+        invalidateSiteConfigCache()
+      } catch (err) {
+        console.error('[env] Failed to clear pendingRedeployId sentinel:', err)
       }
     }
   })
