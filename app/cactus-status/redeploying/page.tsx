@@ -9,10 +9,13 @@ export default function RedeployingPage() {
   const [deployState, setDeployState] = useState<string>('')
   const [deployLogs, setDeployLogs] = useState<string[]>([])
   const [failed, setFailed] = useState(false)
+  const [showEscape, setShowEscape] = useState(false)
   const cancelPollRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     let mounted = true
+    const escapeTimer = setTimeout(() => { if (mounted) setShowEscape(true) }, 45_000)
+
     async function init() {
       try {
         const res = await fetch('/api/admin/redeploy-status')
@@ -42,6 +45,7 @@ export default function RedeployingPage() {
     init()
     return () => {
       mounted = false
+      clearTimeout(escapeTimer)
       cancelPollRef.current?.()
     }
   }, [])
@@ -180,22 +184,34 @@ export default function RedeployingPage() {
             </button>
           </>
         ) : (
-          <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-            <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: deployLogs.length > 0 ? '0.5rem' : 0 }}>
-                <strong>Redeploying to apply your changes.</strong>
-                {stateLabel && (
-                  <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: 99, background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                    {stateLabel}
-                  </span>
+          <>
+            <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: deployLogs.length > 0 ? '0.5rem' : 0 }}>
+                  <strong>Redeploying to apply your changes.</strong>
+                  {stateLabel && (
+                    <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: 99, background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                      {stateLabel}
+                    </span>
+                  )}
+                </div>
+                {deployLogs.length > 0 && (
+                  <DeployLogViewer rawLines={deployLogs} />
                 )}
               </div>
-              {deployLogs.length > 0 && (
-                <DeployLogViewer rawLines={deployLogs} />
-              )}
             </div>
-          </div>
+            {showEscape && (
+              <div style={{ marginTop: '1rem' }}>
+                <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                  Taking longer than expected? You can dismiss this and carry on - your changes may not have taken effect yet.
+                </p>
+                <button className="btn btn-secondary" onClick={handleDismiss}>
+                  Dismiss and continue
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
