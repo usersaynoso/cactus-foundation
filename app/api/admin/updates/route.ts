@@ -10,6 +10,7 @@ import {
   invalidateCoreUpdateCache,
 } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
 
@@ -66,6 +67,11 @@ export async function POST() {
     data: { id: 'singleton', lockedBy: 'cactus-core-update' },
   })
 
+  // Captured before the sync push so startDeferredRedeploy's poll reliably picks up
+  // the Vercel build that push triggers (the deploy lock guarantees no other
+  // deployment exists in this window).
+  const deployStartedAt = Date.now()
+
   try {
     await syncCoreFromUpstream(currentVersion, latestVersion)
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
@@ -73,7 +79,15 @@ export async function POST() {
     // Bust the update cache so the panel reflects the new version after redeploy
     invalidateCoreUpdateCache()
 
-    await recordDeploymentNeeded({ label: `Cactus core updated to v${latestVersion}` })
+    // The sync push already triggered a Vercel build. Arm the redeploy gate and capture
+    // that build (committedSince mode skips module sync / triggerVercelRedeploy so we
+    // don't double-deploy), then send the admin to the redeploying screen.
+    const { triggered } = await startDeferredRedeploy({ committedSince: deployStartedAt })
+    if (!triggered) {
+      // No Vercel creds: fall back to the deferred-notification flow.
+      await recordDeploymentNeeded({ label: `Cactus core updated to v${latestVersion}` })
+      return NextResponse.json({ ok: true })
+    }
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(
@@ -82,5 +96,5 @@ export async function POST() {
     )
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, redeployTriggered: true })
 }
