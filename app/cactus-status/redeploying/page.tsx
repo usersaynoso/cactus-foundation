@@ -88,6 +88,8 @@ export default function RedeployingPage() {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
     let lastSeen: number | null = null
+    let postReadyPolls = 0
+    const MAX_POST_READY_POLLS = 10
 
     async function poll() {
       if (cancelled) return
@@ -104,9 +106,16 @@ export default function RedeployingPage() {
             if (lines && lines.length > 0) setDeployLogs(prev => [...prev, ...lines])
             if (data.latestTimestamp) lastSeen = data.latestTimestamp
             if (data.state === 'READY') {
-              cancelled = true
-              await clearAndRedirect(path)
-              return
+              postReadyPolls++
+              const tailDone =
+                lines?.some(l => l.includes('Build cache uploaded')) ||
+                postReadyPolls >= MAX_POST_READY_POLLS
+              if (tailDone) {
+                cancelled = true
+                await new Promise(r => setTimeout(r, 2_000))
+                await clearAndRedirect(path)
+                return
+              }
             }
             if (data.state === 'ERROR' || data.state === 'CANCELED') {
               cancelled = true

@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         created?: number
       }>
       const filtered = events.filter((e) => !!e.payload?.text)
-      logLines = filtered.map((e) => e.payload!.text!).slice(-3)
+      logLines = filtered.map((e) => e.payload!.text!)
       const lastEvent = events[events.length - 1]
       if (lastEvent?.created) latestTimestamp = lastEvent.created
     }

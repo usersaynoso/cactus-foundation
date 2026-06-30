@@ -18,6 +18,10 @@ describe('translateLogLine', () => {
     expect(translateLogLine('added 1 package in 0.8s')).toBe('All the bits and bobs are present and correct.')
   })
 
+  it('matches "changed N packages" pattern', () => {
+    expect(translateLogLine('changed 1 package in 2s')).toBe('All the bits and bobs are present and correct.')
+  })
+
   it('returns applied count for module-migrations Applied line', () => {
     expect(translateLogLine('[module-migrations] Applied 3 migrations')).toBe('Applied 3 updates to your add-ons.')
   })
