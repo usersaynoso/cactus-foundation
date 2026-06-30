@@ -8,9 +8,10 @@
  * with 0 pages.
  *
  * Strategy per module:
- *   1. Try `git -C <moduleDir> checkout HEAD -- .` (fast path for normal envs).
- *   2. If that fails (no valid git repo at moduleDir), fall back to a fresh
- *      shallow clone of the module URL from .gitmodules.
+ *   On Vercel (VERCEL=1): always do a fresh --depth=1 clone from .gitmodules
+ *     so the build always gets the latest committed module code.
+ *   Locally: try `git -C <moduleDir> checkout HEAD -- .` (fast path).
+ *     If that fails, fall back to a fresh shallow clone from .gitmodules.
  */
 
 import { readFileSync, readdirSync, existsSync, rmSync } from 'fs'
@@ -49,11 +50,31 @@ function parseGitmodules() {
 }
 
 const urlMap = parseGitmodules()
+const isVercel = process.env.VERCEL === '1'
 
 for (const name of moduleNames) {
   const moduleDir = join(modulesDir, name)
   const submodulePath = `modules/${name}`
+  const url = urlMap[submodulePath]
 
+  if (isVercel && url) {
+    // On Vercel, always clone fresh so we get the latest published module code.
+    console.log(`[checkout-modules] ${name}: Vercel build — cloning ${url}…`)
+    try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
+
+    const clone = spawnSync('git', ['clone', '--depth=1', url, moduleDir], {
+      stdio: 'inherit', shell: false,
+    })
+
+    if (clone.status !== 0) {
+      console.error(`[checkout-modules] ${name}: clone failed — module pages will be missing`)
+    } else {
+      console.log(`[checkout-modules] ${name}: done`)
+    }
+    continue
+  }
+
+  // Local fast path: restore tracked files to HEAD without a network call.
   console.log(`[checkout-modules] ${name}: attempting git checkout HEAD -- .`)
   const checkout = spawnSync('git', ['-C', moduleDir, 'checkout', 'HEAD', '--', '.'], {
     stdio: 'pipe', shell: false,
@@ -66,15 +87,13 @@ for (const name of moduleNames) {
 
   const stderr = checkout.stderr?.toString().trim().split('\n')[0] ?? ''
   console.log(`[checkout-modules] ${name}: checkout failed — ${stderr}`)
-  console.log(`[checkout-modules] ${name}: falling back to fresh clone`)
 
-  const url = urlMap[submodulePath]
   if (!url) {
     console.error(`[checkout-modules] ${name}: no URL in .gitmodules — skipping`)
     continue
   }
 
-  console.log(`[checkout-modules] ${name}: cloning ${url}…`)
+  console.log(`[checkout-modules] ${name}: falling back to fresh clone`)
   try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
 
   const clone = spawnSync('git', ['clone', '--depth=1', url, moduleDir], {
