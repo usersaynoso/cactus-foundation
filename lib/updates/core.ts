@@ -3,8 +3,10 @@
 // Git Data API (createBlob → createTree → createCommit → updateRef).
 // Modules, .gitmodules, and user content are never touched.
 
+import { Octokit } from '@octokit/rest'
 import pkg from '@/package.json'
 import { getGithubClient } from '@/lib/github/client'
+import { isGitHubConfigured } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
 
 const UPSTREAM_REPO = process.env.CACTUS_CORE_REPO ?? 'usersaynoso/cactus-foundation'
@@ -34,7 +36,11 @@ export function compareVersions(a: string, b: string): number {
 }
 
 export type CoreUpdateStatus =
-  | { configured: false; error?: string }
+  // Genuinely not configured: no GitHub App installation and no GITHUB_API_TOKEN.
+  | { configured: false }
+  // Configured, but the upstream read failed for some other reason.
+  | { configured: true; error: string }
+  // Configured and the check succeeded.
   | {
       configured: true
       currentVersion: string
@@ -45,35 +51,54 @@ export type CoreUpdateStatus =
       publishedAt: string | null
     }
 
-// In-memory cache: ~10 min TTL so the panel does not hit GitHub on every load.
+// In-memory cache. Successful results live for the full TTL; failures are cached
+// only briefly so a fixed config recovers quickly rather than waiting 10 minutes.
 let _cachedStatus: CoreUpdateStatus | null = null
 let _cachedAt = 0
 const CACHE_TTL_MS = 10 * 60_000
+const ERROR_CACHE_TTL_MS = 30_000
+
+function isErrorStatus(s: CoreUpdateStatus): boolean {
+  return !s.configured || 'error' in s
+}
+
+// Reads the upstream releases. Tries the authenticated client first (when GitHub
+// is configured) so a private upstream fork the installation can reach still
+// works, then falls back to an unauthenticated client — the canonical upstream
+// repo is public, so this resolves the common case where the App installation
+// does not include the upstream repo.
+async function fetchUpstreamReleases(owner: string, repo: string, configured: boolean) {
+  if (configured) {
+    try {
+      const octokit = await getGithubClient()
+      const { data } = await octokit.rest.repos.listReleases({ owner, repo, per_page: 100 })
+      return data
+    } catch {
+      // Fall through to an unauthenticated read of the public upstream repo.
+    }
+  }
+  const octokit = new Octokit()
+  const { data } = await octokit.rest.repos.listReleases({ owner, repo, per_page: 100 })
+  return data
+}
 
 export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<CoreUpdateStatus> {
   const now = Date.now()
-  if (!opts?.bust && _cachedStatus && now - _cachedAt < CACHE_TTL_MS) {
-    return _cachedStatus
+  if (!opts?.bust && _cachedStatus) {
+    const ttl = isErrorStatus(_cachedStatus) ? ERROR_CACHE_TTL_MS : CACHE_TTL_MS
+    if (now - _cachedAt < ttl) return _cachedStatus
   }
 
   const currentVersion = pkg.version
   const { owner: upOwner, repo: upRepo } = parseRepo(UPSTREAM_REPO)
 
-  let octokit
-  try {
-    octokit = await getGithubClient()
-  } catch {
-    const result: CoreUpdateStatus = { configured: false, error: 'GitHub is not configured' }
-    _cachedStatus = result
-    _cachedAt = now
-    return result
-  }
+  // "configured" reflects the actual GitHub config state, independent of whether
+  // the upstream read happens to succeed.
+  const configured = await isGitHubConfigured()
 
   try {
     // Fetch all non-draft, non-prerelease releases (up to 100)
-    const { data: releases } = await octokit.rest.repos.listReleases({
-      owner: upOwner, repo: upRepo, per_page: 100,
-    })
+    const releases = await fetchUpstreamReleases(upOwner, upRepo, configured)
 
     const published = releases.filter((r) => !r.draft && !r.prerelease)
     if (published.length === 0) {
@@ -125,10 +150,10 @@ export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<Co
     _cachedAt = now
     return result
   } catch (err: unknown) {
-    const result: CoreUpdateStatus = {
-      configured: false,
-      error: err instanceof Error ? err.message : 'Failed to check for updates',
-    }
+    const message = err instanceof Error ? err.message : 'Failed to check for updates'
+    const result: CoreUpdateStatus = configured
+      ? { configured: true, error: message }
+      : { configured: false }
     _cachedStatus = result
     _cachedAt = now
     return result

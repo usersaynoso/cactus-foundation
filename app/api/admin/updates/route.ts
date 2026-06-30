@@ -52,6 +52,9 @@ export async function POST() {
   if (!status.configured) {
     return errorResponse('Cannot determine update status — GitHub may not be configured.', 503)
   }
+  if ('error' in status) {
+    return errorResponse("Couldn't determine the latest version - try again shortly.", 503)
+  }
   if (!status.updateAvailable) {
     return errorResponse('Already on the latest version.', 400)
   }

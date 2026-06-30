@@ -179,7 +179,9 @@ The **Settings → General** tab shows an Updates panel that checks the upstream
 2. Copies changed core files into your GitHub repo (your `GITHUB_REPO` env var), skipping `modules/`, `.gitmodules`, and all database content.
 3. Commits the changes and triggers a Vercel redeploy automatically.
 
-This requires GitHub to be configured (a GitHub App or `GITHUB_API_TOKEN`). The upstream repo must publish GitHub Releases whose tags correspond to `package.json` versions (e.g. `v0.5.97`).
+**Checking for updates** reads the public upstream releases directly and does not require your GitHub App installation to include the upstream repo. The check tries your authenticated GitHub connection first (so a private upstream fork the installation can reach still works) and falls back to an unauthenticated read of the public `usersaynoso/cactus-foundation` repo. As a result, the panel correctly shows the update card (or "Up to date") even when your App is only installed on your own deployment repo. If the check itself fails for some other reason, the panel says "Couldn't check for updates right now" rather than falsely reporting that GitHub is not configured.
+
+**Applying an update** still requires GitHub to be configured (a GitHub App or `GITHUB_API_TOKEN`) with write access to your `GITHUB_REPO`. The upstream repo must publish GitHub Releases whose tags correspond to `package.json` versions (e.g. `v0.5.97`).
 
 **Requirements:**
 - `GITHUB_REPO` is set to your repo (e.g. `myorg/my-cactus-site`).

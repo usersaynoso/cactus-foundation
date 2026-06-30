@@ -139,7 +139,8 @@ function StatusBadge({ set }: { set: boolean }) {
 }
 
 type CoreUpdateStatus =
-  | { configured: false; error?: string }
+  | { configured: false }
+  | { configured: true; error: string }
   | {
       configured: true
       currentVersion: string
@@ -191,6 +192,17 @@ function UpdatesPanel() {
           Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
           <code>GITHUB_API_TOKEN</code> in{' '}
           <a href="?tab=integrations" style={{ color: 'var(--color-primary)' }}>Settings → Integrations</a>.
+        </div>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
+      </div>
+    )
+  }
+
+  if ('error' in status) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
+          Couldn&rsquo;t check for updates right now. Please try again later.
         </div>
         <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
       </div>
