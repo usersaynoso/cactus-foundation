@@ -35,23 +35,56 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     applyTheme(m)
   }
 
-  const btnStyle = (m: Mode): React.CSSProperties => ({
-    background: mode === m ? 'var(--color-primary-subtle)' : 'transparent',
-    border: 'none',
-    color: mode === m ? 'var(--color-primary)' : 'var(--color-text-muted)',
-    cursor: 'pointer',
-    padding: compact ? '0.25rem 0.375rem' : '0.375rem 0.625rem',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: compact ? 'var(--text-xs)' : 'var(--text-sm)',
-    fontFamily: 'inherit',
-    transition: 'background var(--dur-base), color var(--dur-base)',
-  })
-
   return (
-    <div role="group" aria-label="Colour scheme" style={{ display: 'flex', gap: '0.125rem' }}>
-      <button onClick={() => apply('auto')}  aria-pressed={mode === 'auto'}  style={btnStyle('auto')}  title="Auto (follow system)">Auto</button>
-      <button onClick={() => apply('light')} aria-pressed={mode === 'light'} style={btnStyle('light')} title="Light mode">☀</button>
-      <button onClick={() => apply('dark')}  aria-pressed={mode === 'dark'}  style={btnStyle('dark')}  title="Dark mode">☽</button>
+    <div
+      role="group"
+      aria-label="Colour scheme"
+      className={`theme-toggle${compact ? ' theme-toggle--compact' : ''}`}
+      data-mode={mode}
+    >
+      <span className="theme-toggle-knob" aria-hidden="true" />
+
+      <button
+        type="button"
+        className="theme-toggle-btn"
+        onClick={() => apply('light')}
+        aria-pressed={mode === 'light'}
+        aria-label="Light mode"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+        </svg>
+        <span className="theme-toggle-tip" aria-hidden="true">Light</span>
+      </button>
+
+      <button
+        type="button"
+        className="theme-toggle-btn"
+        onClick={() => apply('auto')}
+        aria-pressed={mode === 'auto'}
+        aria-label="Auto (follow system)"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 4v16" />
+          <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none" />
+        </svg>
+        <span className="theme-toggle-tip" aria-hidden="true">Auto</span>
+      </button>
+
+      <button
+        type="button"
+        className="theme-toggle-btn"
+        onClick={() => apply('dark')}
+        aria-pressed={mode === 'dark'}
+        aria-label="Dark mode"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z" />
+        </svg>
+        <span className="theme-toggle-tip" aria-hidden="true">Dark</span>
+      </button>
     </div>
   )
 }
