@@ -6,6 +6,7 @@ import { errorResponse } from '@/lib/utils'
 import { ALL_PROVIDERS, envKeysForProvider } from '@/lib/media/providers'
 import { prisma } from '@/lib/db/prisma'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
 // Give the function enough headroom for list + parallel deletes + redeploy.
 export const maxDuration = 60
@@ -97,39 +98,8 @@ export async function POST(req: NextRequest) {
 
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
-    // Write a sentinel synchronously so the proxy shows the redeploying screen
-    // the moment the client reloads — before the real deployment ID lands in after().
-    await prisma.siteConfig.update({
-      where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
-    })
-    invalidateSiteConfigCache()
-    after(async () => {
-      const result = await triggerVercelRedeploy(token, projectId)
-      if (result.triggered && result.deploymentId) {
-        try {
-          await prisma.siteConfig.updateMany({
-            where: { id: 'singleton', pendingRedeployId: 'pending' },
-            data: { pendingRedeployId: result.deploymentId },
-          })
-          invalidateSiteConfigCache()
-        } catch (err) {
-          console.error('[env] Failed to persist pendingRedeployId:', err)
-        }
-      } else {
-        // Redeploy never started — clear the sentinel so we don't strand the user.
-        try {
-          await prisma.siteConfig.updateMany({
-            where: { id: 'singleton', pendingRedeployId: 'pending' },
-            data: { pendingRedeployId: null, pendingRedeployAt: null },
-          })
-          invalidateSiteConfigCache()
-        } catch (err) {
-          console.error('[env] Failed to clear pendingRedeployId sentinel:', err)
-        }
-      }
-    })
-    return NextResponse.json({ ok: true, written: toWrite.length, redeployTriggered: true })
+    await recordDeploymentNeeded({ label: labelForEnvKeys(toWrite.map((v) => v.key)) })
+    return NextResponse.json({ ok: true, written: toWrite.length })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return errorResponse(`Failed to write env vars: ${message}`, 502)

@@ -1,15 +1,15 @@
-import { NextResponse, after } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getGitHubConfigStatus } from '@/lib/config/env'
-import { invalidateSiteConfigCache } from '@/lib/config/site'
 import {
   getCoreUpdateStatus,
   syncCoreFromUpstream,
   invalidateCoreUpdateCache,
 } from '@/lib/updates/core'
+import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 
 export const maxDuration = 60
 
@@ -63,47 +63,14 @@ export async function POST() {
     data: { id: 'singleton', lockedBy: 'cactus-core-update' },
   })
 
-  const deployStartedAt = Date.now()
-
   try {
     await syncCoreFromUpstream(currentVersion, latestVersion)
+    await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
     // Bust the update cache so the panel reflects the new version after redeploy
     invalidateCoreUpdateCache()
 
-    await prisma.siteConfig.update({
-      where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
-    })
-    invalidateSiteConfigCache()
-
-    after(async () => {
-      const token = process.env.VERCEL_API_TOKEN
-      const projectId = process.env.VERCEL_PROJECT_ID
-      if (!token || !projectId) return
-      let uid: string | undefined
-      for (let i = 0; i < 8; i++) {
-        await new Promise(r => setTimeout(r, 5_000))
-        try {
-          const res = await fetch(
-            `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=5`,
-            { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
-          )
-          if (res.ok) {
-            const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
-            uid = data.deployments?.find(d => d.created > deployStartedAt)?.uid
-            if (uid) break
-          }
-        } catch { /* ignore */ }
-      }
-      if (uid) {
-        await prisma.siteConfig.updateMany({
-          where: { id: 'singleton', pendingRedeployId: 'pending' },
-          data: { pendingRedeployId: uid },
-        })
-        invalidateSiteConfigCache()
-      }
-    })
+    await recordDeploymentNeeded({ label: `Cactus core updated to v${latestVersion}` })
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(
@@ -112,5 +79,5 @@ export async function POST() {
     )
   }
 
-  return NextResponse.json({ ok: true, redeployTriggered: true })
+  return NextResponse.json({ ok: true })
 }
