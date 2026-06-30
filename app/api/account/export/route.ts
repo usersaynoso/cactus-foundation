@@ -9,7 +9,7 @@ export async function GET() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
 
-  const [passkeys, sessions] = await Promise.all([
+  const [passkeys, sessions, consentRecords] = await Promise.all([
     prisma.passkey.findMany({
       where: { userId: user.id },
       select: { id: true, credentialId: true, transports: true, createdAt: true },
@@ -17,6 +17,11 @@ export async function GET() {
     prisma.session.findMany({
       where: { userId: user.id, expiresAt: { gt: new Date() } },
       select: { id: true, createdAt: true, expiresAt: true },
+    }),
+    prisma.consentRecord.findMany({
+      where: { userId: user.id },
+      select: { id: true, categoriesVersion: true, decision: true, action: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
     }),
   ])
 
@@ -46,6 +51,13 @@ export async function GET() {
       id: s.id,
       createdAt: s.createdAt,
       expiresAt: s.expiresAt,
+    })),
+    consentRecords: consentRecords.map((r) => ({
+      id: r.id,
+      categoriesVersion: r.categoriesVersion,
+      decision: r.decision,
+      action: r.action,
+      createdAt: r.createdAt,
     })),
   }
 

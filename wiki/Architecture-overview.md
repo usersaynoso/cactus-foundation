@@ -199,6 +199,7 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 | **MenuBlock** *(displayed as "Menu")* | Navigation menu - pick any menu; horizontal or vertical orientation, configurable spacing and dropdown behaviour. Template block. |
 | **Copyright** | Copyright line - auto-renders © current year + site name from SiteConfig. Template block. |
 | **LoginButton** | Auth-aware login/register buttons - shows "My Account" and "Sign out" when the visitor is logged in. Template block. |
+| **CookieSettingsLink** | A button that re-opens the consent management panel. Calls `window.cactusConsent.open()`. Place this in your footer so visitors can change their preferences at any time. Template block. |
 
 Blocks marked **Template block** are most useful in Header/Footer templates but are available everywhere. Blocks that need an image use a custom media-picker field in the editor; the MenuBlock uses a custom menu-selector field (`MenuSelectField`). These custom renderers are declared in `config.tsx` as plain fields and overridden with the full custom renderer in `PuckEditor.tsx` and `TemplateEditor.tsx`.
 
@@ -332,6 +333,44 @@ To prevent flash-of-wrong-theme on load, `app/layout.tsx` includes an inline `<s
 The `ThemeToggle` component (`components/ThemeToggle.tsx`) is a client component that renders Auto / Light / Dark buttons and calls `applyTheme(mode)`. A compact variant is mounted in the admin sidebar above Sign out.
 
 The admin UI uses the Cactus Design System. Primitive palette tokens (`--cactus-*`, `--spine-*`, `--sand-*`) are defined in `globals.css` and mapped to semantic aliases (`--color-bg`, `--color-text`, `--color-primary`, `--color-destructive`, `--color-border`, etc.) in `[data-theme="light"]` and `[data-theme="dark"]` blocks. The UI typeface is Instrument Sans; developer content (slugs, paths, keys, code) uses JetBrains Mono. Admin-specific variables use `--admin-*` prefixes. All reusable UI classes (`.card`, `.btn-*`, alerts, badges, tables) reference these variables so they automatically adapt to both themes. Hardcoded hex values must not appear in component inline styles - always use CSS variable references (`var(--color-text-muted)`, `var(--color-destructive)`, etc.).
+
+## Cookie consent gate
+
+Cactus ships a built-in consent system. When the consent banner is enabled in the GDPR & Legal config tab, the following contract applies across the whole platform.
+
+### Runtime state
+
+An inline `<script>` in `app/layout.tsx` (runs before any body content) reads the `cactus-consent` cookie and populates `window.__cactusConsent` as a flat `Record<string, boolean>`. Non-necessary categories default to `false` until the visitor makes a choice (deny-by-default). The `cactus-consent-id` cookie holds the visitor's anonymous UUID identity, which is linked to a `userId` when the visitor is authenticated.
+
+### Client utilities (`lib/consent/gate.ts`)
+
+```ts
+import { hasConsent, onConsentChange, loadIfConsented } from '@/lib/consent/gate'
+
+hasConsent('analytics')           // true | false, reads window.__cactusConsent
+onConsentChange(cb)               // subscribe to future decisions, returns unsubscribe fn
+loadIfConsented('analytics', fn)  // run fn immediately if consented, else defer until consented
+```
+
+### Re-opening the preference panel
+
+```ts
+window.cactusConsent.open()       // programmatically re-open the consent banner
+```
+
+The `CookieSettingsLink` Puck block calls this for you. Drop it into your footer layout so visitors always have a way to change their mind.
+
+### ConsentRecord table
+
+Every decision is appended to `ConsentRecord` (append-only audit log). Current consent = the latest row for a given `consentId`. The `decision` column is a JSON snapshot of per-category booleans. The `action` column is one of `accept_all | reject_all | custom | withdraw`. Stored metadata is minimal: truncated IP (IPv4 last octet zeroed; IPv6 /48 prefix only) and a SHA-256 hash of the user-agent string. Raw IP and raw UA are never persisted.
+
+### Module contract
+
+Any module that sets non-necessary cookies **must** declare those categories in its manifest `cookieCategories` array. It **must not** load tracking scripts unconditionally - use `loadIfConsented(category, fn)` to gate them. The admin consent banner editor surfaces the module's declared categories as one-click suggestions. See [Authoring a module](Authoring-a-module) for details.
+
+### Known limitation
+
+Cactus can only gate scripts it injects itself. Third-party snippets pasted directly into page HTML (e.g. raw GA `<script>` tags) cannot be suppressed by this system. Document this to site operators.
 
 ---
 
