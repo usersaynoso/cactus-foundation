@@ -13,6 +13,7 @@ import {
 import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
 
@@ -128,15 +129,24 @@ export async function POST(request: NextRequest) {
       )
     )
 
-    // No git push here: the modules.json commit is deferred until "Redeploy now".
-    // The DB row is the source of truth; the registry is synced lazily at deploy time.
+    // Commit modules.json and redeploy immediately: the git push auto-deploys, and the
+    // admin is sent straight to the redeploying screen. The module ships as 'deploying'.
     await prisma.module.update({
       where: { name: manifest.name },
-      data: { status: 'pending_deploy', version: release.tag },
+      data: { status: 'deploying', version: release.tag },
     })
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    await recordDeploymentNeeded({ label: `Module '${manifest.name}' installed` })
+    const { triggered } = await startDeferredRedeploy()
+    if (!triggered) {
+      // No Vercel creds: fall back to the deferred-notification flow.
+      await prisma.module.update({
+        where: { name: manifest.name },
+        data: { status: 'pending_deploy' },
+      })
+      await recordDeploymentNeeded({ label: `Module '${manifest.name}' installed` })
+      return NextResponse.json({ ok: true, name: manifest.name, status: 'pending_deploy' })
+    }
   } catch (err: unknown) {
     await prisma.module.update({
       where: { name: manifest.name },
@@ -146,5 +156,5 @@ export async function POST(request: NextRequest) {
     return errorResponse(`Install failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 500)
   }
 
-  return NextResponse.json({ ok: true, name: manifest.name, status: 'pending_deploy' })
+  return NextResponse.json({ ok: true, name: manifest.name, status: 'deploying', redeployTriggered: true })
 }

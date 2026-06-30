@@ -152,6 +152,10 @@ export default function ModulesPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
+      if (d.redeployTriggered) {
+        window.location.assign('/cactus-status/redeploying')
+        return
+      }
       setNotice('Module installed. Your changes are waiting to go live - review and redeploy from Notifications.')
       await loadDirectory()
       router.refresh()
@@ -174,6 +178,10 @@ export default function ModulesPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Action failed')
+      if (d.redeployTriggered) {
+        window.location.assign('/cactus-status/redeploying')
+        return
+      }
       if (action === 'update') {
         setNotice('Module updated. Your changes are waiting to go live - review and redeploy from Notifications.')
       }
@@ -206,6 +214,10 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Uninstall failed')
       setUninstallModal(null)
+      if (d.redeployTriggered) {
+        window.location.assign('/cactus-status/redeploying')
+        return
+      }
       setNotice('Module uninstalled. Your changes are waiting to go live - review and redeploy from Notifications.')
       await loadDirectory()
       router.refresh()

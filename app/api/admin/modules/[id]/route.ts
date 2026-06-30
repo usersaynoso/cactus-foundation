@@ -7,6 +7,7 @@ import { errorResponse } from '@/lib/utils'
 import { getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
 
@@ -84,14 +85,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     })
 
     try {
-      // No git push here: the modules.json commit is deferred until "Redeploy now".
+      // Commit modules.json and redeploy immediately: the git push auto-deploys and the
+      // admin is sent to the redeploying screen. The module ships as 'deploying'.
       await prisma.module.update({
         where: { id },
-        data: { status: 'pending_deploy', updateAvailable: null, updateNotes: null, version: release.tag },
+        data: { status: 'deploying', updateAvailable: null, updateNotes: null, version: release.tag },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag}` })
+      const { triggered } = await startDeferredRedeploy()
+      if (!triggered) {
+        // No Vercel creds: fall back to the deferred-notification flow.
+        await prisma.module.update({ where: { id }, data: { status: 'pending_deploy' } })
+        await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag}` })
+        return NextResponse.json({ ok: true, status: 'pending_deploy' })
+      }
     } catch (err: unknown) {
       await prisma.module.update({
         where: { id },
@@ -101,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return errorResponse(`Update failed: ${err instanceof Error ? err.message : 'Unknown'}`, 500)
     }
 
-    return NextResponse.json({ ok: true, status: 'pending_deploy' })
+    return NextResponse.json({ ok: true, status: 'deploying', redeployTriggered: true })
   }
 
   return errorResponse('Unknown action')
@@ -185,7 +193,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    await recordDeploymentNeeded({ label: `Module '${mod.name}' uninstalled` })
+    // Deleting the row above removes it from the desired registry. Commit modules.json
+    // and redeploy immediately; the admin is sent to the redeploying screen.
+    const { triggered } = await startDeferredRedeploy()
+    if (!triggered) {
+      // No Vercel creds: fall back to the deferred-notification flow.
+      await recordDeploymentNeeded({ label: `Module '${mod.name}' uninstalled` })
+      return NextResponse.json({ ok: true, droppedTables })
+    }
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(
@@ -194,7 +209,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     )
   }
 
-  return NextResponse.json({ ok: true, droppedTables })
+  return NextResponse.json({ ok: true, droppedTables, redeployTriggered: true })
 }
 
 // Check for available updates (called periodically by the Modules page)
