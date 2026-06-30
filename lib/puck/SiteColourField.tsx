@@ -32,8 +32,8 @@ export function SiteColourField({ value, onChange }: Props) {
             onClick={() => onChange(varName)}
             style={{
               width: 28, height: 28, borderRadius: 4, background: c.hex,
-              border: isSelected ? '2px solid #111827' : '1px solid rgba(0,0,0,0.15)',
-              cursor: 'pointer', padding: 0, outline: isSelected ? '2px solid #16a34a' : 'none', outlineOffset: 1,
+              border: isSelected ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+              cursor: 'pointer', padding: 0, outline: isSelected ? '2px solid var(--color-success)' : 'none', outlineOffset: 1,
             }}
           />
         )
@@ -44,9 +44,9 @@ export function SiteColourField({ value, onChange }: Props) {
         onClick={() => onChange('')}
         style={{
           width: 28, height: 28, borderRadius: 4,
-          background: 'repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 4px, #fff 4px, #fff 8px)',
-          border: !value ? '2px solid #111827' : '1px solid #e5e7eb',
-          cursor: 'pointer', padding: 0, outline: !value ? '2px solid #16a34a' : 'none', outlineOffset: 1,
+          background: 'repeating-linear-gradient(45deg, var(--color-bg-subtle), var(--color-bg-subtle) 4px, var(--color-surface) 4px, var(--color-surface) 8px)',
+          border: !value ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+          cursor: 'pointer', padding: 0, outline: !value ? '2px solid var(--color-success)' : 'none', outlineOffset: 1,
         }}
       />
     </div>

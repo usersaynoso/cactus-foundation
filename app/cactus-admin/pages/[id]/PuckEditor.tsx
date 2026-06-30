@@ -169,10 +169,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       <div style={{
         display: 'flex', alignItems: 'center', gap: '1rem',
         padding: '0.5rem 1rem',
-        background: '#f9fafb',
-        borderBottom: '1px solid #e5e7eb',
+        background: 'var(--color-bg-subtle)',
+        borderBottom: '1px solid var(--color-border)',
         fontSize: '0.8125rem',
-        color: '#6b7280',
+        color: 'var(--color-text-muted)',
         flexShrink: 0,
       }}>
         <span>
@@ -207,7 +207,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'rgba(255,255,255,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', fontWeight: 600, color: '#374151',
+          fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)',
         }}>
           Publishing…
         </div>

@@ -14,8 +14,8 @@ const DROPDOWN_PANEL: React.CSSProperties = {
   top: 'calc(100% + 4px)',
   left: 0,
   minWidth: 180,
-  background: '#ffffff',
-  border: '1px solid #e5e7eb',
+  background: 'var(--color-surface)',
+  border: '1px solid var(--color-border)',
   borderRadius: 6,
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
   listStyle: 'none',
@@ -44,8 +44,8 @@ function DropdownLink({ item, hasChildren }: { item: MenuItem; hasChildren: bool
         alignItems: hasChildren ? 'center' : undefined,
         padding: '0.5rem 1rem',
         fontSize: '0.9rem',
-        color: hovered ? '#16a34a' : '#111827',
-        background: hovered ? '#f0fdf4' : 'transparent',
+        color: hovered ? 'var(--color-primary)' : 'var(--color-text)',
+        background: hovered ? 'var(--color-success-subtle)' : 'transparent',
         textDecoration: 'none',
         transition: 'color 0.15s, background 0.15s',
       }}
@@ -88,8 +88,8 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
             fontSize: overrides?.fontSize ?? '0.9375rem',
             fontWeight: overrides?.fontWeight ?? 500,
             textTransform: overrides?.textTransform,
-            color: hovered ? '#16a34a' : (overrides?.color ?? '#111827'),
-            background: hovered ? '#f0fdf4' : 'transparent',
+            color: hovered ? 'var(--color-primary)' : (overrides?.color ?? 'var(--color-text)'),
+            background: hovered ? 'var(--color-success-subtle)' : 'transparent',
             textDecoration: 'none',
             borderRadius: 6,
             transition: 'color 0.15s, background 0.15s',
@@ -154,8 +154,8 @@ function MobileNavItem({ item, onClose, depth = 0 }: {
             padding: '0.625rem 0',
             fontSize: '1rem',
             fontWeight: 500,
-            color: '#111827',
-            borderBottom: '1px solid #e5e7eb',
+            color: 'var(--color-text)',
+            borderBottom: '1px solid var(--color-border)',
           }}>
             {item.label} {open ? '▴' : '▾'}
           </span>
@@ -169,9 +169,9 @@ function MobileNavItem({ item, onClose, depth = 0 }: {
               padding: '0.625rem 0',
               fontSize: '1rem',
               fontWeight: 500,
-              color: hovered ? '#16a34a' : '#111827',
+              color: hovered ? 'var(--color-primary)' : 'var(--color-text)',
               textDecoration: 'none',
-              borderBottom: '1px solid #e5e7eb',
+              borderBottom: '1px solid var(--color-border)',
               transition: 'color 0.15s',
             }}
             onMouseEnter={() => setHovered(true)}
@@ -221,7 +221,7 @@ export default function MenuBlockClient({
 
   if (!resolvedItems) {
     return (
-      <div style={{ padding: '0.75rem 1rem', background: '#f3f4f6', borderRadius: 6, color: '#9ca3af', fontSize: '0.875rem' }}>
+      <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
         Menu — configure in editor
       </div>
     )
@@ -276,9 +276,9 @@ export default function MenuBlockClient({
             gap: '5px',
           }}
         >
-          <span style={{ display: 'block', width: 22, height: 2, background: '#111827', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 22, height: 2, background: '#111827', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 22, height: 2, background: '#111827', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
         </button>
       )}
 
@@ -288,8 +288,8 @@ export default function MenuBlockClient({
           top: 64,
           left: 0,
           right: 0,
-          borderTop: '1px solid #e5e7eb',
-          background: '#ffffff',
+          borderTop: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
           paddingTop: '0.5rem',
           paddingBottom: '1rem',
         }}>

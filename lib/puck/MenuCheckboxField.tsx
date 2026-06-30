@@ -29,12 +29,12 @@ export const MenuCheckboxField: CustomFieldRender<string[]> = ({ value, onChange
 
   return (
     <div>
-      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#374151', marginBottom: '0.375rem' }}>
+      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
         {(field as { label?: string }).label ?? 'Show in menus'}
       </label>
-      {loading && <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0 }}>Loading menus…</p>}
+      {loading && <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>Loading menus…</p>}
       {!loading && menus.length === 0 && (
-        <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0 }}>No menus created yet.</p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>No menus created yet.</p>
       )}
       {menus.map((menu) => (
         <label

@@ -33,7 +33,7 @@ export default function SiteLogoClient({
     gap: '0.5rem',
     fontWeight: 700,
     fontSize: '1.125rem',
-    color: hovered ? '#16a34a' : (textColor || '#111827'),
+    color: hovered ? 'var(--color-primary)' : (textColor || 'var(--color-text)'),
     textDecoration: 'none',
     transition: 'color 0.15s',
   }
