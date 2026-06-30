@@ -6,6 +6,8 @@ import AosInit from '@/lib/puck/components/AosInit'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import ConsentBanner from '@/components/consent/ConsentBanner'
+import type { ConsentBannerConfig } from '@/lib/consent/types'
 
 type ColourSlot = { name: string; hex: string; darkHex?: string }
 type DesignTokens = {
@@ -67,13 +69,20 @@ export default async function PublicLayout({ children }: { children: React.React
         adminPath: true,
         logoMediaId: true,
         designTokens: true,
+        consentBannerConfig: true,
+        privacyPolicyPageId: true,
       },
     })
     .catch(() => null)
 
-  const logoMedia = config?.logoMediaId
-    ? await prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
-    : null
+  const [logoMedia, privacyPage] = await Promise.all([
+    config?.logoMediaId
+      ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+      : Promise.resolve(null),
+    config?.privacyPolicyPageId
+      ? prisma.infoPage.findUnique({ where: { id: config.privacyPolicyPageId }, select: { slug: true } }).catch(() => null)
+      : Promise.resolve(null),
+  ])
 
   const user = await getSessionFromCookie().catch(() => null)
   const isLoggedIn = !!user
@@ -100,6 +109,8 @@ export default async function PublicLayout({ children }: { children: React.React
 
   const tokens = (config?.designTokens ?? {}) as DesignTokens
   const cssStyles = buildTokenStyles(tokens)
+  const consentBannerConfig = config?.consentBannerConfig as ConsentBannerConfig | null
+  const privacyPolicyUrl = privacyPage?.slug ? `/${privacyPage.slug}` : undefined
 
   return (
     <>
@@ -116,6 +127,9 @@ export default async function PublicLayout({ children }: { children: React.React
         ? <Render config={footerPuckRscConfig as any} data={footerData as Data} />
         : null
       }
+      {consentBannerConfig?.enabled && (
+        <ConsentBanner config={consentBannerConfig} privacyPolicyUrl={privacyPolicyUrl} />
+      )}
     </>
   )
 }

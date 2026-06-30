@@ -59,7 +59,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. |
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
-| `cookieCategories` | `string[]` | Non-essential cookie categories this module sets. If non-empty, a cookie consent banner will appear until the visitor consents. |
+| `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
 | `puckBlocks` | `PuckBlock[]` | Optional. Registers Puck blocks provided by this module. See [Module Puck blocks](#module-puck-blocks) below. |
 
@@ -274,6 +274,46 @@ A module can register Puck blocks that appear in both the page builder and the l
    VALUES ('dev-forum', 'forum', 'https://github.com/you/cactus-module-forum', '0.0.1', 'forum_', 'active', NOW());
    ```
 4. Start `npm run dev` - it automatically runs `generate-module-router.mjs` first, wiring your admin pages and API routes. Visit `/cacti/m/forum/<page>` (or wherever your nav entry points).
+
+## Cookie consent gate for modules
+
+If your module sets non-necessary cookies (analytics, advertising, third-party embeds, etc.), you must follow the consent gate contract.
+
+### 1. Declare the category in your manifest
+
+```json
+{
+  "cookieCategories": ["analytics"]
+}
+```
+
+This tells the admin consent banner editor that your module uses these categories and surfaces them as one-click suggestions. The admin still decides whether to add the category to their site's list.
+
+### 2. Gate scripts that set non-necessary cookies
+
+Never load tracking scripts unconditionally. Use the gate utility:
+
+```ts
+import { loadIfConsented, onConsentChange } from '@/lib/consent/gate'
+
+// Run fn immediately if consent exists, else defer until the visitor consents
+loadIfConsented('analytics', () => {
+  // inject your script here
+})
+
+// Or subscribe to changes (e.g. if the visitor upgrades from reject to accept)
+onConsentChange((decision) => {
+  if (decision.analytics) {
+    // inject
+  }
+})
+```
+
+You can also check `window.__cactusConsent.analytics` directly, but `hasConsent()` from `gate.ts` is safer (handles SSR and missing window).
+
+### 3. What Cactus cannot gate for you
+
+If operators paste third-party script tags directly into page HTML (e.g. a raw Google Analytics snippet), Cactus cannot suppress them. Document this clearly if your module encourages such patterns.
 
 ## Known constraints
 

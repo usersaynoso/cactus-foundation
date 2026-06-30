@@ -8,6 +8,7 @@ import { syncToEdgeConfig } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
+import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -17,6 +18,84 @@ export async function GET() {
   if (!config) return errorResponse('Config not found', 404)
 
   return NextResponse.json(config)
+}
+
+const ConsentCategoryPatch = z.object({
+  key: z.string().min(1).max(50).regex(/^[a-z][a-z0-9_-]*$/),
+  label: z.string().min(1).max(100),
+  description: z.string().max(300).default(''),
+  required: z.boolean().default(false),
+  defaultOn: z.boolean().default(false),
+})
+
+const ConsentBannerConfigPatch = z.object({
+  enabled: z.boolean(),
+  style: z.enum(['bottom-bar', 'modal']),
+  title: z.string().max(200).default('Cookie preferences'),
+  body: z.string().max(1000).default(''),
+  acceptAllLabel: z.string().max(100).default('Accept all'),
+  rejectAllLabel: z.string().max(100).default('Reject all'),
+  manageLabel: z.string().max(100).default('Manage preferences'),
+  categories: z.array(ConsentCategoryPatch).min(1),
+  reConsentDays: z.number().int().min(1).max(3650).default(365),
+  consentLogRetentionDays: z.number().int().min(0).max(36500).nullable().optional(),
+})
+
+function bumpConsentVersions(
+  incoming: z.infer<typeof ConsentBannerConfigPatch>,
+  stored: ConsentBannerConfig | null
+): { categoriesVersion: number; copyVersion: number } {
+  const prevCats: ConsentCategory[] = stored?.categories ?? []
+  const nextCats: ConsentCategory[] = incoming.categories
+
+  const prevMap = new Map(prevCats.map((c) => [c.key, c]))
+  const nextMap = new Map(nextCats.map((c) => [c.key, c]))
+
+  let catBump = false
+
+  for (const k of prevMap.keys()) if (!nextMap.has(k)) { catBump = true; break }
+  if (!catBump) {
+    for (const k of nextMap.keys()) if (!prevMap.has(k)) { catBump = true; break }
+  }
+  if (!catBump) {
+    for (const cat of nextCats) {
+      const prev = prevMap.get(cat.key)
+      if (prev && (prev.required !== cat.required || prev.defaultOn !== cat.defaultOn)) {
+        catBump = true
+        break
+      }
+    }
+  }
+
+  const categoriesVersion = catBump
+    ? (stored?.categoriesVersion ?? 0) + 1
+    : (stored?.categoriesVersion ?? 0)
+
+  let copyBump = false
+  if (stored) {
+    const copyKeys = ['title', 'body', 'acceptAllLabel', 'rejectAllLabel', 'manageLabel', 'style'] as const
+    for (const k of copyKeys) {
+      if ((incoming as Record<string, unknown>)[k] !== (stored as Record<string, unknown>)[k]) {
+        copyBump = true
+        break
+      }
+    }
+    if (!copyBump && !catBump) {
+      for (const cat of nextCats) {
+        const prev = prevMap.get(cat.key)
+        if (prev && (prev.label !== cat.label || prev.description !== cat.description)) {
+          copyBump = true
+          break
+        }
+      }
+    }
+  }
+
+  const copyVersion = copyBump
+    ? (stored?.copyVersion ?? 0) + 1
+    : (stored?.copyVersion ?? 0)
+
+  return { categoriesVersion, copyVersion }
 }
 
 const Patch = z.object({
@@ -46,6 +125,7 @@ const Patch = z.object({
   recoveryPurgeAfterDays: z.number().int().min(1).max(30).optional(),
   mainMenuId: z.string().optional().nullable(),
   homepageId: z.string().optional().nullable(),
+  consentBannerConfig: ConsentBannerConfigPatch.optional().nullable(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -56,7 +136,7 @@ export async function PATCH(request: NextRequest) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { adminPath, status, mainMenuId, homepageId, ...rest } = parsed.data
+  const { adminPath, status, mainMenuId, homepageId, consentBannerConfig: incomingConsent, ...rest } = parsed.data
 
   if (adminPath && isBlocklisted(adminPath)) {
     return errorResponse(`"${adminPath}" is a reserved path`)
@@ -67,6 +147,31 @@ export async function PATCH(request: NextRequest) {
   if (status) data.status = status
   if (mainMenuId !== undefined) data.mainMenuId = mainMenuId
   if (homepageId !== undefined) data.homepageId = homepageId
+
+  if (incomingConsent !== undefined) {
+    if (incomingConsent === null) {
+      data.consentBannerConfig = null
+    } else {
+      // Ensure "necessary" category exists and is required
+      const hasNecessary = incomingConsent.categories.some((c) => c.key === 'necessary')
+      if (!hasNecessary) {
+        return errorResponse('The "necessary" cookie category cannot be removed')
+      }
+
+      const stored = await prisma.siteConfig.findUnique({
+        where: { id: 'singleton' },
+        select: { consentBannerConfig: true },
+      })
+      const storedConsent = stored?.consentBannerConfig as ConsentBannerConfig | null
+      const { categoriesVersion, copyVersion } = bumpConsentVersions(incomingConsent, storedConsent)
+
+      data.consentBannerConfig = {
+        ...incomingConsent,
+        categoriesVersion,
+        copyVersion,
+      }
+    }
+  }
 
   const updated = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
 
