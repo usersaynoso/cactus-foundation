@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 type Mode = 'auto' | 'light' | 'dark'
 
@@ -10,22 +10,24 @@ function applyTheme(mode: Mode) {
 }
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const [mode, setMode] = useState<Mode>('auto')
+  const [mode, setMode] = useState<Mode>(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem('cactus-theme') as Mode) ?? 'auto' : 'auto'
+  )
 
   useEffect(() => {
-    const stored = (localStorage.getItem('cactus-theme') as Mode) ?? 'auto'
-    setMode(stored)
-    applyTheme(stored)
+    applyTheme(mode)
+  }, [mode])
+
+  const onSystemChange = useCallback((e: MediaQueryListEvent) => {
+    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light')
   }, [])
 
   useEffect(() => {
     if (mode !== 'auto') return
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = (e: MediaQueryListEvent) =>
-      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light')
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [mode])
+    mq.addEventListener('change', onSystemChange)
+    return () => mq.removeEventListener('change', onSystemChange)
+  }, [mode, onSystemChange])
 
   function apply(m: Mode) {
     setMode(m)

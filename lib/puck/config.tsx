@@ -9,7 +9,7 @@ import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleRscComponents } from '@/lib/puck/module-components'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 // ---------------------------------------------------------------------------
 // Shared utilities
@@ -550,6 +550,7 @@ function Card(props: any) {
   return (
     <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-bg)', padding: getPadding(padding) }}
       {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
       {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
         {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{heading}</h3>}
@@ -784,13 +785,14 @@ function SiteLogoRsc(props: any) {
   }
   return (
     <a href={homeUrl || '/'} style={style}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- SVG logo asset with known static path; no CDN optimisation needed */}
       {showIconBool && <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />}
       {siteName ?? 'Site Name'}
     </a>
   )
 }
 
-/* eslint-enable @typescript-eslint/no-explicit-any */
+ 
 
 // ---------------------------------------------------------------------------
 // Main puckConfig
@@ -1109,7 +1111,7 @@ const puckConfig = {
       render: (props: any) => (
         <button
           type="button"
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           onClick={() => { if (typeof window !== 'undefined') (window as any).cactusConsent?.open() }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', padding: 0, textDecoration: 'underline' }}
         >

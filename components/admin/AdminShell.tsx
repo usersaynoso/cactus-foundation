@@ -29,16 +29,12 @@ const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts
 
 export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavEntries, unreadCount, pendingDeployId }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('cactus-sidebar-collapsed') === 'true'
+  )
   const pathname = usePathname()
   // Track whether the sidebar was auto-collapsed by the editor so we can restore it on exit
   const autoCollapsedRef = useRef(false)
-
-  // Read persisted preference on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('cactus-sidebar-collapsed')
-    if (stored !== null) setCollapsed(stored === 'true')
-  }, [])
 
   // Auto-collapse when entering puck editor; auto-expand when leaving
   useEffect(() => {

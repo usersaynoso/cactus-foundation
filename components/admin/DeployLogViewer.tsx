@@ -39,6 +39,7 @@ export default function DeployLogViewer({ rawLines, onComplete, onError: _onErro
       if (isFinal) shouldComplete = true
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- batch accumulation from props change; no cascading risk
     if (batch.length > 0) setMessages(prev => [...prev, ...batch])
     if (shouldComplete) onComplete?.()
   }, [rawLines, onComplete])

@@ -406,7 +406,7 @@ const starterStatusMinimalData = {
 // ---------------------------------------------------------------------------
 
 export async function refreshStarterLayouts(db: typeof prisma) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   type Template = { id: string; name: string; description: string; data: any; conditions: typeof ENTIRE_SITE_CONDITIONS; status: 'published' | 'draft' }
 
   const headerTemplates: Template[] = [

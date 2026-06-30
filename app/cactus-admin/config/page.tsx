@@ -352,11 +352,13 @@ function ConfigPageInner() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
     if (tab === 'integrations' && !loading) loadGhStatus()
   }, [tab, loading, loadGhStatus])
 
   useEffect(() => {
     const github = searchParams.get('github')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
     if (github === 'installed' || github === 'connected') loadGhStatus()
     if (github === 'error') {
       const reason = searchParams.get('reason')
@@ -399,6 +401,7 @@ function ConfigPageInner() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
     if (tab === 'gdpr' && !loading) loadGdprSuggestions()
   }, [tab, loading, loadGdprSuggestions])
 
@@ -419,6 +422,7 @@ function ConfigPageInner() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
     if (tab === 'media' && !loading) loadMediaState()
   }, [tab, loading, loadMediaState])
 
@@ -566,7 +570,7 @@ function ConfigPageInner() {
   const runMigrationLoop = useCallback(async () => {
     setMigrationRunning(true)
     try {
-      // eslint-disable-next-line no-constant-condition
+       
       while (true) {
         const res = await fetch('/api/admin/media/migration-batch', { method: 'POST' })
         if (!res.ok) break
@@ -586,6 +590,7 @@ function ConfigPageInner() {
   // Resume an already-running job if the admin reopens the tab.
   useEffect(() => {
     if (tab === 'media' && migrationJob && (migrationJob.status === 'running' || migrationJob.status === 'pending') && !migrationRunning) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resuming an in-progress migration loop; all mutations happen in the async loop body
       runMigrationLoop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1131,6 +1136,7 @@ function ConfigPageInner() {
               >SMTP</button>
             </div>
           </div>
+          {/* eslint-disable-next-line react-hooks/static-components -- EnvSectionCard is a render helper defined in this file; extracting it would require threading ~20 state values as props */}
           <EnvSectionCard section={emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION} />
         </div>
       )}
@@ -1554,6 +1560,7 @@ function ConfigPageInner() {
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.
           </p>
+          {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
           <GitHubAppCard />
           {INTEGRATION_SECTIONS.map((section) => (
             <EnvSectionCard key={section.id} section={section} />

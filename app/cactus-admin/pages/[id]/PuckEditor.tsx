@@ -90,7 +90,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           ...puckConfig.components.MenuBlock.fields,
           menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         render: (props: any) => (
           <MenuBlockEditorPreview
             menuId={props.menuId ?? ''}
@@ -132,6 +132,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         setSaving(false)
       }
     }, AUTOSAVE_DEBOUNCE_MS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canManageMenus is read inside the debounce callback; adding it to deps would reset the timer unnecessarily
   }, [pageId])
 
   const handlePublish = useCallback(async (data: Data) => {
@@ -193,7 +194,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       {/* Puck editor — takes remaining height */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <Puck
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           config={editorConfig as any}
           data={initialData}
           onChange={handleChange}

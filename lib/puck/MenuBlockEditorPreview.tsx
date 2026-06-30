@@ -20,7 +20,8 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, i
   const [menuName, setMenuName] = useState('')
 
   useEffect(() => {
-    if (!menuId) { setItems([]); return }
+    if (!menuId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag before async fetch is intentional
     setLoading(true)
     fetch(`/api/admin/menus/${menuId}/resolve`)
       .then((r) => r.ok ? r.json() : { items: [], name: '' })

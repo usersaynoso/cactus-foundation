@@ -22,8 +22,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
   const { id } = await params
-  const module = await prisma.module.findUnique({ where: { id } })
-  if (!module) return errorResponse('Module not found', 404)
+  const mod = await prisma.module.findUnique({ where: { id } })
+  if (!mod) return errorResponse('Module not found', 404)
 
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
@@ -42,8 +42,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (action === 'check-status') {
     // Lazy status check: used when webhooks aren't configured (Hobby plan)
-    if (module.status !== 'deploying') {
-      return NextResponse.json({ status: module.status })
+    if (mod.status !== 'deploying') {
+      return NextResponse.json({ status: mod.status })
     }
     const deployStatus = await getLatestDeploymentStatus()
     if (deployStatus === 'READY') {
@@ -76,18 +76,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
     if (lock) return errorResponse('Another install or update is in progress', 409)
 
-    const release = await getLatestRelease(module.repoUrl)
+    const release = await getLatestRelease(mod.repoUrl)
     if (!release) return errorResponse('No tagged releases found', 404)
 
     await prisma.deployLock.create({
-      data: { id: 'singleton', lockedBy: `module:${module.name}` },
+      data: { id: 'singleton', lockedBy: `module:${mod.name}` },
     })
 
     try {
       await commitSubmoduleUpdate({
-        submodulePath: `modules/${module.name}`,
+        submodulePath: `modules/${mod.name}`,
         commitSha: release.sha,
-        message: `chore: update module ${module.name} to v${release.tag}\n\n[cactus-update]`,
+        message: `chore: update module ${mod.name} to v${release.tag}\n\n[cactus-update]`,
       })
 
       await prisma.module.update({
@@ -96,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      await recordDeploymentNeeded({ label: `Module '${module.name}' updated to v${release.tag}` })
+      await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag}` })
     } catch (err: unknown) {
       await prisma.module.update({
         where: { id },
@@ -122,8 +122,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
   const { id } = await params
-  const module = await prisma.module.findUnique({ where: { id } })
-  if (!module) return errorResponse('Module not found', 404)
+  const mod = await prisma.module.findUnique({ where: { id } })
+  if (!mod) return errorResponse('Module not found', 404)
 
   const ghConfigStatus = await getGitHubConfigStatus()
   if (ghConfigStatus === 'app_not_installed') {
@@ -144,7 +144,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
   if (lock) return errorResponse('Another install or update is in progress', 409)
 
-  const manifest = module.manifest as { teardown?: string[] } | null
+  const manifest = mod.manifest as { teardown?: string[] } | null
 
   if (mode === 'code_and_data') {
     const teardown = manifest?.teardown
@@ -157,15 +157,15 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   }
 
   await prisma.deployLock.create({
-    data: { id: 'singleton', lockedBy: `module:uninstall:${module.name}` },
+    data: { id: 'singleton', lockedBy: `module:uninstall:${mod.name}` },
   })
 
   const droppedTables: string[] = []
 
   try {
     await commitSubmoduleRemove({
-      submodulePath: `modules/${module.name}`,
-      message: `chore: uninstall module ${module.name}\n\n[cactus-uninstall]`,
+      submodulePath: `modules/${mod.name}`,
+      message: `chore: uninstall module ${mod.name}\n\n[cactus-uninstall]`,
     })
 
     if (mode === 'code_and_data') {
@@ -187,13 +187,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     await prisma.$transaction([
-      prisma.permission.deleteMany({ where: { module: module.name } }),
+      prisma.permission.deleteMany({ where: { module: mod.name } }),
       prisma.module.delete({ where: { id } }),
     ])
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    await recordDeploymentNeeded({ label: `Module '${module.name}' uninstalled` })
+    await recordDeploymentNeeded({ label: `Module '${mod.name}' uninstalled` })
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(
@@ -212,15 +212,15 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
   const { id } = await params
-  const module = await prisma.module.findUnique({ where: { id } })
-  if (!module) return errorResponse('Module not found', 404)
+  const mod = await prisma.module.findUnique({ where: { id } })
+  if (!mod) return errorResponse('Module not found', 404)
 
   if (await getGitHubConfigStatus() !== 'configured') {
     return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
-  const release = await getLatestRelease(module.repoUrl)
-  if (!release || release.tag === module.version) {
+  const release = await getLatestRelease(mod.repoUrl)
+  if (!release || release.tag === mod.version) {
     await prisma.module.update({
       where: { id },
       data: { lastCheckedAt: new Date() },

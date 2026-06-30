@@ -65,13 +65,13 @@ out.push(`// DO NOT EDIT BY HAND. Rewritten on every build and dev start.`)
 out.push(``)
 for (const imp of imports) out.push(imp)
 if (imports.length > 0) out.push(``)
-// eslint-disable-next-line
+
 out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
 out.push(`export const moduleComponents: Record<string, any> = {`)
 for (const e of clientEntries) out.push(e)
 out.push(`}`)
 out.push(``)
-// eslint-disable-next-line
+
 out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
 out.push(`export const moduleRscComponents: Record<string, any> = {`)
 for (const e of rscEntries) out.push(e)

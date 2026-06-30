@@ -23,7 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
   statusPage: 'Status Page',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function getConfig(type: string): any {
   switch (type) {
     case 'header':     return headerPuckRscConfig

@@ -16,6 +16,6 @@ export function renderLayoutWithContent(
       },
     },
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return <Render config={config as any} data={layoutData} />
 }

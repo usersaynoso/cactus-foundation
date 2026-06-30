@@ -156,9 +156,10 @@ export default function SetupPage() {
   }, [])
 
   // ── Step 1: Vercel connection check ───────────────────────────────────────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (step !== 'connect') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading sub-step indicator before async check; no cascading risk
     setDbSubStep('loading')
 
     fetch('/api/setup/env-check')
@@ -190,11 +191,12 @@ export default function SetupPage() {
       })
   // envCheckKey is intentionally included so we can force a re-run after redeploy
   // even when `step` is already 'connect' (React won't re-fire if step value doesn't change)
-  }, [step, envCheckKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, envCheckKey])
 
   // ── Step 2: Database check ─────────────────────────────────────────────────
   useEffect(() => {
     if (step !== 'database') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading sub-step indicator before async check; no cascading risk
     setDbSubStep('loading')
 
     fetch('/api/setup/env-check')
@@ -261,9 +263,10 @@ export default function SetupPage() {
   }
 
   // Auto-advance from Step 2 once the health check passes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (dbReady && step === 'database') handleSmartContinue()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- step and handleSmartContinue are stable; only dbReady transition should trigger this
   }, [dbReady])
 
   // ── Vercel config handlers ─────────────────────────────────────────────────

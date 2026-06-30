@@ -108,6 +108,7 @@ export default function ModulesPage() {
     }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async directory load on mount; all state updates are after awaits
   useEffect(() => { loadDirectory() }, [loadDirectory])
 
   async function handleRefresh() {
@@ -131,7 +132,7 @@ export default function ModulesPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
-      window.location.href = '/cactus-status/redeploying'
+      window.location.assign('/cactus-status/redeploying')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Install failed')
       setLoaderFor(repoUrl, false)
@@ -150,7 +151,7 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Action failed')
       if (action === 'update') {
-        window.location.href = '/cactus-status/redeploying'
+        window.location.assign('/cactus-status/redeploying')
         return
       }
       await loadDirectory()
@@ -181,7 +182,7 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Uninstall failed')
       setUninstallModal(null)
-      window.location.href = '/cactus-status/redeploying'
+      window.location.assign('/cactus-status/redeploying')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Uninstall failed')
       setUninstalling(false)

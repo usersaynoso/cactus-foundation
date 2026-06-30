@@ -39,10 +39,10 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
       ...baseConfig.components,
       ...(('ImageBlock' in (baseConfig.components ?? {})) ? {
         ImageBlock: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           ...(baseConfig.components as any).ImageBlock,
           fields: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             ...(baseConfig.components as any).ImageBlock?.fields,
             mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
           },
@@ -60,7 +60,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   return (
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <Puck
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         config={editorConfig as any}
         data={initialData}
         onChange={handleChange}
