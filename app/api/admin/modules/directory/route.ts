@@ -18,6 +18,7 @@ type DirectoryEntry = {
   installedVersion?: string
   status?: ModuleStatus
   updateAvailable?: string | null
+  updateNotes?: string | null
   lastError?: string | null
   hasTeardown?: boolean
 }
@@ -82,6 +83,7 @@ type InstalledModule = {
   version: string
   status: ModuleStatus
   updateAvailable: string | null
+  updateNotes: string | null
   lastError: string | null
   manifest: unknown
 }
@@ -97,6 +99,7 @@ function buildInstalledEntry(m: InstalledModule): DirectoryEntry {
     installedVersion: m.version,
     status: m.status,
     updateAvailable: m.updateAvailable,
+    updateNotes: m.updateNotes,
     lastError: m.lastError,
     hasTeardown: Array.isArray(manifest?.teardown) && manifest.teardown.length > 0,
   }
@@ -117,6 +120,7 @@ function mergeWithInstalled(dir: DirectoryEntry[], installed: InstalledModule[])
       installedVersion: match.version,
       status: match.status,
       updateAvailable: match.updateAvailable,
+      updateNotes: match.updateNotes,
       lastError: match.lastError,
       hasTeardown: Array.isArray(manifest?.teardown) && manifest.teardown.length > 0,
     }
