@@ -42,6 +42,7 @@ for (const moduleName of moduleNames) {
   // PAGE_LOADERS — scan modules/[name]/app/cactus-admin/[name]/**/page.tsx
   const adminDir = join(rootDir, 'modules', moduleName, 'app', 'cactus-admin', moduleName)
   const pageFiles = scanDir(adminDir, 'page.tsx')
+  console.log(`[generate-module-router] ${moduleName}: adminDir=${adminDir} exists=${existsSync(adminDir)} pages=${pageFiles.length} (${pageFiles.join(', ')})`)
 
   if (pageFiles.length > 0) {
     pageLoaders[moduleName] = {}
