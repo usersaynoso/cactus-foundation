@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import DeployLogViewer from '@/components/admin/DeployLogViewer'
 
 export default function RedeployingPage() {
   const [ready, setReady] = useState(false)
@@ -99,7 +100,7 @@ export default function RedeployingPage() {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
           if (!cancelled) {
             if (data.state) setDeployState(data.state)
-            if (data.logLines && data.logLines.length > 0) setDeployLogs(data.logLines)
+            if (data.logLines && data.logLines.length > 0) setDeployLogs(prev => [...prev, ...data.logLines])
             if (data.latestTimestamp) lastSeen = data.latestTimestamp
             if (data.state === 'READY') {
               cancelled = true
@@ -160,8 +161,8 @@ export default function RedeployingPage() {
               <strong>Deployment failed.</strong> You can dismiss this and continue - your changes may not have taken effect.
             </div>
             {deployLogs.length > 0 && (
-              <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: '1rem' }}>
-                {deployLogs.map((line, i) => <div key={i}>{line}</div>)}
+              <div style={{ marginBottom: '1rem' }}>
+                <DeployLogViewer rawLines={deployLogs} />
               </div>
             )}
             <button className="btn btn-secondary" onClick={handleDismiss}>
@@ -181,9 +182,7 @@ export default function RedeployingPage() {
                 )}
               </div>
               {deployLogs.length > 0 && (
-                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {deployLogs.map((line, i) => <div key={i}>{line}</div>)}
-                </div>
+                <DeployLogViewer rawLines={deployLogs} />
               )}
             </div>
           </div>
