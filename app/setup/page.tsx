@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
+import DeployLogViewer from '@/components/admin/DeployLogViewer'
 
 type Step = 'connect' | 'database' | 'configure'
 
@@ -241,7 +242,7 @@ export default function SetupPage() {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
           if (!cancelled) {
             if (data.state) setDeployState(data.state)
-            if (data.logLines && data.logLines.length > 0) setDeployLogs(data.logLines)
+            if (data.logLines && data.logLines.length > 0) setDeployLogs(prev => [...prev, ...data.logLines])
             if (data.latestTimestamp) lastSeen = data.latestTimestamp
           }
         }
@@ -1453,9 +1454,7 @@ function DbRedeployingPanel({
                 )}
               </div>
               {deployLogs.length > 0 && (
-                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', background: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {deployLogs.map((line, i) => <div key={i}>{line}</div>)}
-                </div>
+                <DeployLogViewer rawLines={deployLogs} />
               )}
             </>
           ) : (
