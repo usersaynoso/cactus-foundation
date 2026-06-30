@@ -160,6 +160,14 @@ Each `navEntry` in the manifest becomes a link in the admin sidebar when the mod
 - If `permission` is set, the nav entry is only shown to users with that permission (or admins).
 - Nav entries from disabled modules are hidden immediately when the module is disabled.
 
+## Linking between admin pages
+
+Build every admin link inside your module from the **real** admin path, never the internal `/cactus-admin/` prefix. Each site sets its own admin path during setup (the default is `/cactus-admin/`, but it might be `/cacti/` or anything else), and `proxy.ts` rewrites `/<adminPath>/*` to the internal `/cactus-admin/*` while **blocking** direct access to the internal prefix. A hardcoded `/cactus-admin/...` link therefore bypasses the real path, hits a blocked route, and renders a blank page.
+
+- **Client components:** read the path with `useAdminPath()` from `@cactus/components/admin/AdminPathContext`, then build links as `` `/${adminPath}/m/<module-name>/...` ``. The context is provided by the admin shell, so the hook works on any module admin page with no prop drilling.
+- **Server components:** read the request header instead - `const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''`.
+- **Exceptions:** API routes (`/api/m/<module-name>/...`) are not under the admin path and stay as-is, and nav-entry `path`s in the manifest are already prefixed with the real path by core, so they need no change.
+
 ## Permissions in module code
 
 To check permissions from your module's server components or API routes:
