@@ -144,6 +144,7 @@ CREATE TABLE "SiteConfig" (
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
     "designTokens" JSONB,
+    "consentBannerConfig" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
@@ -284,6 +285,23 @@ CREATE TABLE "DeployLock" (
 );
 
 -- ---------------------------------------------------------------------------
+-- GDPR Consent Records
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE "ConsentRecord" (
+    "id" TEXT NOT NULL,
+    "consentId" TEXT NOT NULL,
+    "userId" TEXT,
+    "categoriesVersion" INTEGER NOT NULL,
+    "decision" JSONB NOT NULL,
+    "action" TEXT NOT NULL,
+    "ipTruncated" TEXT,
+    "uaHash" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ConsentRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- ---------------------------------------------------------------------------
 -- Rate Limiting & WebAuthn
 -- ---------------------------------------------------------------------------
 
@@ -359,6 +377,9 @@ CREATE UNIQUE INDEX "Module_tablePrefix_key" ON "Module"("tablePrefix");
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");
 
+CREATE INDEX "ConsentRecord_consentId_createdAt_idx" ON "ConsentRecord"("consentId", "createdAt");
+CREATE INDEX "ConsentRecord_userId_idx" ON "ConsentRecord"("userId");
+
 CREATE UNIQUE INDEX "RateLimit_key_action_key" ON "RateLimit"("key", "action");
 CREATE INDEX "RateLimit_windowStart_idx" ON "RateLimit"("windowStart");
 
@@ -382,6 +403,8 @@ ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionKey_fkey" FOREIGN KEY ("permissionKey") REFERENCES "Permission"("key") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "InfoPage" ADD CONSTRAINT "InfoPage_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "Media" ADD CONSTRAINT "Media_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

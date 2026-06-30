@@ -803,7 +803,7 @@ const puckConfig = {
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
-    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: false },
+    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -1100,6 +1100,23 @@ const puckConfig = {
       defaultProps: {},
       render: () => <ThemeToggleClient />,
     },
+    CookieSettingsLink: {
+      label: 'Cookie Preferences',
+      fields: {
+        label: { type: 'text' as const, label: 'Link text' },
+      },
+      defaultProps: { label: 'Cookie preferences' },
+      render: (props: any) => (
+        <button
+          type="button"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onClick={() => { if (typeof window !== 'undefined') (window as any).cactusConsent?.open() }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', padding: 0, textDecoration: 'underline' }}
+        >
+          {props.label || 'Cookie preferences'}
+        </button>
+      ),
+    },
     SiteHeader: {
       label: 'Site Header',
       fields: {
@@ -1152,7 +1169,7 @@ export const puckRscConfig = { ...puckConfig, components: rscComponents }
 
 export const footerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
   },
@@ -1177,19 +1194,20 @@ export const footerPuckConfig = {
     },
   },
   components: {
-    SiteLogo:    puckConfig.components.SiteLogo,
-    Copyright:   puckConfig.components.Copyright,
-    MenuBlock:   puckConfig.components.MenuBlock,
-    SocialLinks: puckConfig.components.SocialLinks,
-    ButtonLink:  puckConfig.components.ButtonLink,
-    Grid:        puckConfig.components.Grid,
-    Group:       puckConfig.components.Group,
-    Split:       puckConfig.components.Split,
-    Spacer:      puckConfig.components.Spacer,
-    Divider:     puckConfig.components.Divider,
-    Heading:     puckConfig.components.Heading,
-    TextBlock:   puckConfig.components.TextBlock,
-    RichTextBlock: puckConfig.components.RichTextBlock,
+    SiteLogo:            puckConfig.components.SiteLogo,
+    Copyright:           puckConfig.components.Copyright,
+    MenuBlock:           puckConfig.components.MenuBlock,
+    SocialLinks:         puckConfig.components.SocialLinks,
+    ButtonLink:          puckConfig.components.ButtonLink,
+    CookieSettingsLink:  puckConfig.components.CookieSettingsLink,
+    Grid:                puckConfig.components.Grid,
+    Group:               puckConfig.components.Group,
+    Split:               puckConfig.components.Split,
+    Spacer:              puckConfig.components.Spacer,
+    Divider:             puckConfig.components.Divider,
+    Heading:             puckConfig.components.Heading,
+    TextBlock:           puckConfig.components.TextBlock,
+    RichTextBlock:       puckConfig.components.RichTextBlock,
   },
 }
 
@@ -1213,7 +1231,7 @@ export const layoutPuckConfig = {
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
-    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: false },
+    site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -1254,8 +1272,9 @@ export const layoutPuckConfig = {
     SiteLogo:     puckConfig.components.SiteLogo,
     Copyright:    puckConfig.components.Copyright,
     MenuBlock:    puckConfig.components.MenuBlock,
-    LoginButton:  puckConfig.components.LoginButton,
-    ThemeToggle:  puckConfig.components.ThemeToggle,
+    LoginButton:        puckConfig.components.LoginButton,
+    ThemeToggle:        puckConfig.components.ThemeToggle,
+    CookieSettingsLink: puckConfig.components.CookieSettingsLink,
     ...moduleComponents,
   },
 }

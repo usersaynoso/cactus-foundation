@@ -11,6 +11,8 @@ import {
   ALL_PROVIDERS,
   envKeysForProvider,
 } from '@/lib/media/providers'
+import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
+import { DEFAULT_CONSENT_BANNER_CONFIG } from '@/lib/consent/types'
 
 type SiteConfig = {
   siteName: string; tagline: string; description: string;
@@ -23,6 +25,7 @@ type SiteConfig = {
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
   homepageId: string | null;
+  consentBannerConfig: ConsentBannerConfig | null;
 }
 
 type InfoPage = { id: string; title: string }
@@ -218,6 +221,28 @@ function ConfigPageInner() {
     }
   }, [searchParams, loadGhStatus])
 
+  // GDPR consent banner state
+  const [gdprSuggestions, setGdprSuggestions] = useState<string[]>([])
+
+  const loadGdprSuggestions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/modules')
+      if (!res.ok) return
+      const data = (await res.json()) as { modules?: Array<{ status: string; manifest?: { cookieCategories?: string[] } | null }> }
+      const cats = new Set<string>()
+      for (const mod of (data.modules ?? [])) {
+        if (mod.status === 'active' && mod.manifest?.cookieCategories) {
+          for (const c of mod.manifest.cookieCategories) cats.add(c)
+        }
+      }
+      setGdprSuggestions([...cats])
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'gdpr' && !loading) loadGdprSuggestions()
+  }, [tab, loading, loadGdprSuggestions])
+
   // Media provider state
   const [breakdown, setBreakdown] = useState<Record<string, number>>({})
   const [migrationJob, setMigrationJob] = useState<MigrationJob | null>(null)
@@ -368,6 +393,13 @@ function ConfigPageInner() {
 
   function set(key: keyof SiteConfig, value: unknown) {
     setConfig((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function setConsent(updates: Partial<ConsentBannerConfig>) {
+    setConfig((prev) => ({
+      ...prev,
+      consentBannerConfig: { ...(prev.consentBannerConfig ?? DEFAULT_CONSENT_BANNER_CONFIG), ...updates },
+    }))
   }
 
   // Drives the batch endpoint repeatedly until the job finishes or is cancelled,
@@ -965,32 +997,198 @@ function ConfigPageInner() {
         </div>
       )}
 
-      {tab === 'gdpr' && (
-        <div>
-          <div className="field">
-            <label>Privacy policy page</label>
-            <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value)}>
-              <option value="">— Not set —</option>
-              {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
+      {tab === 'gdpr' && (() => {
+        const consent = config.consentBannerConfig ?? null
+        const cats: ConsentCategory[] = consent?.categories ?? DEFAULT_CONSENT_BANNER_CONFIG.categories
+
+        function updateCategory(index: number, updates: Partial<ConsentCategory>) {
+          const next = cats.map((c, i) => i === index ? { ...c, ...updates } : c)
+          setConsent({ categories: next })
+        }
+
+        function addCategory() {
+          const next = [...cats, { key: `category_${cats.length}`, label: 'New category', description: '', required: false, defaultOn: false }]
+          setConsent({ categories: next })
+        }
+
+        function removeCategory(index: number) {
+          if (cats[index]?.key === 'necessary') return
+          setConsent({ categories: cats.filter((_, i) => i !== index) })
+        }
+
+        const existingKeys = new Set(cats.map((c) => c.key))
+        const availableSuggestions = gdprSuggestions.filter((k) => !existingKeys.has(k))
+
+        return (
+          <div>
+            <div className="field">
+              <label>Privacy policy page</label>
+              <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
+                <option value="">— Not set —</option>
+                {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Terms of service page</label>
+              <select value={config.termsPageId ?? ''} onChange={(e) => set('termsPageId', e.target.value || null as unknown as string)}>
+                <option value="">— Not set —</option>
+                {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Purge expired sessions after (days)</label>
+              <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
+            </div>
+            <div className="field">
+              <label>Purge unused recovery requests after (days)</label>
+              <input type="number" min={1} max={30} value={config.recoveryPurgeAfterDays ?? 7} onChange={(e) => set('recoveryPurgeAfterDays', parseInt(e.target.value))} />
+            </div>
+
+            {/* ----------------------------------------------------------------
+                Cookie Consent Banner
+            ---------------------------------------------------------------- */}
+            <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
+            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>Cookie consent banner</h3>
+
+            <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={consent?.enabled ?? false}
+                onChange={(e) => {
+                  if (!consent) {
+                    set('consentBannerConfig', { ...DEFAULT_CONSENT_BANNER_CONFIG, enabled: e.target.checked })
+                  } else {
+                    setConsent({ enabled: e.target.checked })
+                  }
+                }}
+              />
+              Enable cookie consent banner
+            </label>
+
+            {consent && (
+              <>
+                <div className="field">
+                  <label>Banner style</label>
+                  <select value={consent.style ?? 'bottom-bar'} onChange={(e) => setConsent({ style: e.target.value as 'bottom-bar' | 'modal' })}>
+                    <option value="bottom-bar">Bottom bar</option>
+                    <option value="modal">Modal (centred overlay)</option>
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Banner title</label>
+                  <input type="text" value={consent.title ?? ''} onChange={(e) => setConsent({ title: e.target.value })} placeholder="Cookie preferences" />
+                </div>
+
+                <div className="field">
+                  <label>Banner body text</label>
+                  <textarea rows={3} value={consent.body ?? ''} onChange={(e) => setConsent({ body: e.target.value })} placeholder="Use {privacyPolicy} to insert a link to your privacy policy page." style={{ width: '100%', resize: 'vertical' }} />
+                  <span className="field-hint">Use <code>{'{privacyPolicy}'}</code> to insert a link to your configured privacy policy page.</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Accept all label</label>
+                    <input type="text" value={consent.acceptAllLabel ?? ''} onChange={(e) => setConsent({ acceptAllLabel: e.target.value })} placeholder="Accept all" />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Reject all label</label>
+                    <input type="text" value={consent.rejectAllLabel ?? ''} onChange={(e) => setConsent({ rejectAllLabel: e.target.value })} placeholder="Reject all" />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Manage label</label>
+                    <input type="text" value={consent.manageLabel ?? ''} onChange={(e) => setConsent({ manageLabel: e.target.value })} placeholder="Manage preferences" />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>
+                    Cookie categories
+                  </label>
+                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                    &ldquo;Necessary&rdquo; is pinned and cannot be removed. Adding or removing categories, or changing their defaults, will re-prompt existing visitors.
+                  </p>
+
+                  <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                    {cats.map((cat, i) => (
+                      <div key={cat.key} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: '0.5rem', alignItems: 'start', padding: '0.75rem', borderBottom: i < cats.length - 1 ? '1px solid var(--color-border)' : 'none', background: cat.required ? 'var(--color-bg-subtle)' : 'var(--color-surface)' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Key</label>
+                          <input
+                            type="text"
+                            value={cat.key}
+                            disabled={cat.required}
+                            onChange={(e) => updateCategory(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
+                            style={{ width: '100%', fontSize: '0.8125rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Label</label>
+                          <input type="text" value={cat.label} onChange={(e) => updateCategory(i, { label: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Description</label>
+                          <input type="text" value={cat.description} onChange={(e) => updateCategory(i, { description: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>On by default</label>
+                          <input type="checkbox" checked={cat.required ? true : cat.defaultOn} disabled={cat.required} onChange={(e) => updateCategory(i, { defaultOn: e.target.checked })} />
+                        </div>
+                        <div style={{ paddingTop: '1.25rem' }}>
+                          {cat.required ? (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Required</span>
+                          ) : (
+                            <button type="button" onClick={() => removeCategory(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '0.8125rem', padding: '0.25rem 0.5rem' }}>Remove</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="button" onClick={addCategory} style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem', marginBottom: availableSuggestions.length > 0 ? '0.5rem' : 0 }}>
+                    + Add category
+                  </button>
+
+                  {availableSuggestions.length > 0 && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Suggested by active modules:</span>
+                      {availableSuggestions.map((key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setConsent({ categories: [...cats, { key, label: key.charAt(0).toUpperCase() + key.slice(1), description: '', required: false, defaultOn: false }] })}
+                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', marginRight: '0.375rem', marginBottom: '0.375rem', borderRadius: 9999, background: 'var(--color-primary-subtle)', border: '1px solid var(--color-primary-border)', color: 'var(--color-primary)', cursor: 'pointer' }}
+                        >
+                          + {key}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Re-prompt after (days)</label>
+                    <input type="number" min={1} max={3650} value={consent.reConsentDays ?? 365} onChange={(e) => setConsent({ reConsentDays: parseInt(e.target.value) || 365 })} />
+                    <span className="field-hint">Visitors who consented more than this many days ago will be shown the banner again.</span>
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Keep consent records for (days)</label>
+                    <input type="number" min={0} value={consent.consentLogRetentionDays ?? ''} onChange={(e) => setConsent({ consentLogRetentionDays: e.target.value ? parseInt(e.target.value) : null })} placeholder="Blank = keep indefinitely" />
+                    <span className="field-hint">Leave blank to keep records indefinitely (recommended for audit purposes).</span>
+                  </div>
+                </div>
+
+                {(consent.categoriesVersion ?? 0) > 0 && (
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+                    Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
+                  </p>
+                )}
+              </>
+            )}
           </div>
-          <div className="field">
-            <label>Terms of service page</label>
-            <select value={config.termsPageId ?? ''} onChange={(e) => set('termsPageId', e.target.value)}>
-              <option value="">— Not set —</option>
-              {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Purge expired sessions after (days)</label>
-            <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
-          </div>
-          <div className="field">
-            <label>Purge unused recovery requests after (days)</label>
-            <input type="number" min={1} max={30} value={config.recoveryPurgeAfterDays ?? 7} onChange={(e) => set('recoveryPurgeAfterDays', parseInt(e.target.value))} />
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {tab === 'branding' && (
         <div className="alert alert-info">

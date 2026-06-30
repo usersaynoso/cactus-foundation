@@ -17,6 +17,8 @@ export async function DELETE() {
       }
       await tx.infoPage.updateMany({ where: { createdById: user.id }, data: { createdById: null } })
       await tx.media.updateMany({ where: { uploadedById: user.id }, data: { uploadedById: null } })
+      // Null the userId on consent records (right to erasure) — rows themselves survive as proof-of-consent
+      await tx.consentRecord.updateMany({ where: { userId: user.id }, data: { userId: null } })
       await tx.user.delete({ where: { id: user.id } })
     })
   } catch (err: unknown) {

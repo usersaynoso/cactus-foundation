@@ -80,14 +80,37 @@ A **Preview as visitor** link opens the status page exactly as a real visitor wo
 
 ## GDPR & Legal tab
 
-| Field | Description |
-|-------|-------------|
-| Privacy policy page | Info page linked in the public footer and required at registration (once set). |
-| Terms of service page | Info page linked in the public footer and required at registration (once set). |
+### Legal pages and data retention
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Privacy policy page | Info page linked in the public footer and required at registration (once set). | — |
+| Terms of service page | Info page linked in the public footer and required at registration (once set). | — |
 | Purge expired sessions after (days) | Stale sessions older than this are deleted. | `30` |
 | Purge unused recovery requests after (days) | Unused recovery tokens older than this are deleted. | `7` |
 
 The **Third-party data processors** list is auto-generated from whichever email/media/hosting providers are actually configured, so it never drifts out of sync.
+
+### Cookie consent banner
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Enable cookie consent banner | Master toggle. When off the banner never appears and no consent records are logged. | Off |
+| Banner style | `bottom-bar` renders a strip at the foot of the viewport; `modal` renders a centred overlay with a backdrop. | `bottom-bar` |
+| Banner title | Heading text shown to the visitor. | `Cookie preferences` |
+| Banner body text | Explanatory copy. Use `{privacyPolicy}` to insert a hyperlink to the configured privacy policy page. | — |
+| Accept all label | Button label for accepting all categories. | `Accept all` |
+| Reject all label | Button label for rejecting all non-necessary categories. | `Reject all` |
+| Manage label | Link/button label that opens the per-category toggle panel. | `Manage preferences` |
+| Cookie categories | Admin-editable list. Each category has a **key** (slug, stable identity), **label**, **description**, and a **default-on** toggle. The **Necessary** category is always present, always on, and cannot be removed. Categories declared by active modules (via their `cookieCategories` manifest field) are surfaced as one-click suggestions. | Necessary, Analytics, Marketing |
+| Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again. | `365` |
+| Keep consent records for (days) | Consent log rows older than this will be purged. Blank keeps records indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
+
+**Category versioning** - the server tracks `categoriesVersion` internally. It increments automatically whenever you add or remove a category, or change a category's `required` or `defaultOn` flag. A returning visitor whose stored version is older than the current version will be re-prompted. Purely cosmetic changes (renaming a category's label, editing copy) increment `copyVersion` instead and do not trigger re-consent.
+
+**Consent log** - every visitor decision (accept all, reject all, custom, withdraw) is written to the `ConsentRecord` table. Anonymous visitors are identified by a first-party `cactus-consent-id` UUID cookie. When a visitor is authenticated their `userId` is linked at write time. On account deletion, `userId` is nulled on the visitor's records (the rows themselves survive as proof-of-consent). Records are included in the self-service data export (GDPR Art. 20).
+
+**Programmatic access** - after a visitor makes their choice, `window.__cactusConsent` is populated with the per-category decision and `window.cactusConsent.open()` re-opens the preferences panel. Use the `CookieSettingsLink` Puck block in your footer to give visitors a persistent entry point.
 
 ## Integrations tab
 

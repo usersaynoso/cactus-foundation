@@ -8,6 +8,7 @@ type RateLimitAction =
   | 'recovery_request'
   | 'email_code'
   | 'passkey_authenticate'
+  | 'consent'
 
 type RateLimitConfig = {
   windowMs: number
@@ -20,6 +21,7 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   recovery_request: { windowMs: 60 * 60 * 1000, maxAttempts: 3 },
   email_code: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   passkey_authenticate: { windowMs: 15 * 60 * 1000, maxAttempts: 20 },
+  consent: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
 }
 
 // Accepts an optional NextRequest for use in API route handlers.

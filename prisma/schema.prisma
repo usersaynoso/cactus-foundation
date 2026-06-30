@@ -37,6 +37,7 @@ model User {
   recoveryRequests RecoveryRequest[]
   infoPages       InfoPage[]
   mediaItems      Media[]
+  consentRecords  ConsentRecord[]
 
   @@index([email])
   @@index([username])
@@ -183,6 +184,8 @@ model SiteConfig {
   pendingRedeployId      String?
   // Design tokens: colours, fonts, spacing, radius, shadows stored as JSON
   designTokens           Json?
+  // Cookie consent banner config (null = banner not configured)
+  consentBannerConfig    Json?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -446,6 +449,27 @@ model RateLimit {
 
   @@unique([key, action])
   @@index([windowStart])
+}
+
+// ---------------------------------------------------------------------------
+// GDPR Consent Records (append-only audit log)
+// ---------------------------------------------------------------------------
+
+// action values: 'accept_all' | 'reject_all' | 'custom' | 'withdraw'
+model ConsentRecord {
+  id                String   @id @default(cuid())
+  consentId         String
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  categoriesVersion Int
+  decision          Json
+  action            String
+  ipTruncated       String?
+  uaHash            String?
+  createdAt         DateTime @default(now())
+
+  @@index([consentId, createdAt])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
