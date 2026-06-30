@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && next dev",
-    "build": "prisma generate && node scripts/build-migrate.mjs && node scripts/generate-module-router.mjs && next build",
+    "build": "git submodule update --init --recursive --checkout 2>/dev/null || true && prisma generate && node scripts/build-migrate.mjs && node scripts/generate-module-router.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
