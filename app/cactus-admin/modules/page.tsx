@@ -19,6 +19,7 @@ type DirectoryEntry = {
   installedVersion?: string
   status?: ModuleStatus
   updateAvailable?: string | null
+  updateNotes?: string | null
   lastError?: string | null
   hasTeardown?: boolean
 }
@@ -84,12 +85,12 @@ export default function ModulesPage() {
             try {
               const res = await fetch(`/api/admin/modules/${m.installedId}`)
               if (!res.ok) return
-              const data = await res.json() as { updateAvailable?: string | null }
+              const data = await res.json() as { updateAvailable?: string | null; notes?: string | null }
               if (data.updateAvailable) {
                 setEntries((prev) =>
                   prev.map((e) =>
                     e.installedId === m.installedId
-                      ? { ...e, updateAvailable: data.updateAvailable, status: 'update_available' as const }
+                      ? { ...e, updateAvailable: data.updateAvailable, updateNotes: data.notes, status: 'update_available' as const }
                       : e
                   )
                 )
@@ -314,9 +315,9 @@ export default function ModulesPage() {
           // The directory API doesn't carry updateNotes; toggling note from the installed list is cosmetic
           return (
             <div className="card" style={{ marginTop: '1rem' }}>
-              <h3 className="card-title">Release notes</h3>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Update to {showVersion(m.updateAvailable)} is available. Fetch full notes from the repository.
+              <h3 className="card-title">Release notes - {showVersion(m.updateAvailable)}</h3>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>
+                {m.updateNotes || 'No release notes available.'}
               </p>
             </div>
           )
