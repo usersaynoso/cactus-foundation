@@ -611,6 +611,24 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+.admin-sidebar nav a.admin-nav-account {
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.admin-sidebar nav a.admin-nav-account:hover {
+  background: none;
+  color: var(--color-text);
+}
+.admin-sidebar--collapsed nav a.admin-nav-account {
+  justify-content: center;
+  padding: var(--space-2);
+  gap: 0;
+}
+
 .admin-nav-logout {
   background: none;
   border: none;
