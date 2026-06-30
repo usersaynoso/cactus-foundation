@@ -10,7 +10,7 @@ import {
   parseGitHubRepo,
   validateTablePrefixUnique,
 } from '@/lib/modules/manifest'
-import { commitModuleAdd, getLatestRelease } from '@/lib/modules/github'
+import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 
@@ -128,14 +128,8 @@ export async function POST(request: NextRequest) {
       )
     )
 
-    // Register module in modules.json via GitHub API
-    await commitModuleAdd({
-      name: manifest.name,
-      repoUrl,
-      version: release.tag,
-      message: `chore: install module ${manifest.name} v${release.tag}\n\n[cactus-install]`,
-    })
-
+    // No git push here: the modules.json commit is deferred until "Redeploy now".
+    // The DB row is the source of truth; the registry is synced lazily at deploy time.
     await prisma.module.update({
       where: { name: manifest.name },
       data: { status: 'pending_deploy', version: release.tag },

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { commitModuleUpdate, commitModuleRemove, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
+import { getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 
@@ -84,12 +84,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     })
 
     try {
-      await commitModuleUpdate({
-        name: mod.name,
-        version: release.tag,
-        message: `chore: update module ${mod.name} to v${release.tag}\n\n[cactus-update]`,
-      })
-
+      // No git push here: the modules.json commit is deferred until "Redeploy now".
       await prisma.module.update({
         where: { id },
         data: { status: 'pending_deploy', updateAvailable: null, updateNotes: null, version: release.tag },
@@ -163,11 +158,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const droppedTables: string[] = []
 
   try {
-    await commitModuleRemove({
-      name: mod.name,
-      message: `chore: uninstall module ${mod.name}\n\n[cactus-uninstall]`,
-    })
-
+    // No git push here: the modules.json commit is deferred until "Redeploy now".
+    // Deleting the DB row below removes it from the desired registry state.
     if (mode === 'code_and_data') {
       const teardown = (manifest?.teardown ?? []) as string[]
       for (const tableName of teardown) {
