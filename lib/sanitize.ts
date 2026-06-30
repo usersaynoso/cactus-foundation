@@ -1,10 +1,23 @@
 import { marked } from 'marked'
-import { JSDOM } from 'jsdom'
 import createDOMPurify from 'dompurify'
 
-// DOMPurify needs a DOM environment — use jsdom in Node.js
-const { window } = new JSDOM('<!DOCTYPE html>')
-const DOMPurify = createDOMPurify(window as unknown as Parameters<typeof createDOMPurify>[0])
+// DOMPurify needs a DOM environment.
+// Browser: use the native window. Node.js: lazy-require jsdom so it never
+// lands in the client bundle (Turbopack tree-shakes the server branch).
+let _purifier: ReturnType<typeof createDOMPurify> | null = null
+
+function getPurifier(): ReturnType<typeof createDOMPurify> {
+  if (_purifier) return _purifier
+  if (typeof window !== 'undefined') {
+    _purifier = createDOMPurify(window)
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { JSDOM } = require('jsdom') as typeof import('jsdom')
+    const dom = new JSDOM('<!DOCTYPE html>')
+    _purifier = createDOMPurify(dom.window as unknown as Parameters<typeof createDOMPurify>[0])
+  }
+  return _purifier
+}
 
 // Allowed HTML elements after markdown parsing.
 // Raw HTML in the input is stripped before parsing — authors write markdown,
@@ -38,7 +51,7 @@ export function markdownToHtml(markdown: string): string {
 
   const rawHtml = marked.parse(stripped, { async: false }) as string
 
-  const clean = DOMPurify.sanitize(rawHtml, {
+  const clean = getPurifier().sanitize(rawHtml, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ADD_ATTR: ['target'],
