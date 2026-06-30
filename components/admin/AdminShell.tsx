@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
 import NotificationBell from './NotificationBell'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import PendingDeployBanner from './PendingDeployBanner'
 import { AdminPathProvider } from './AdminPathContext'
 import type { Role } from '@prisma/client'
@@ -116,6 +117,11 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed />
           </div>
         )}
+
+        {/* Theme toggle — sits beneath the logo and notification bell, centred */}
+        <div className={`admin-sidebar-theme${collapsed ? ' admin-sidebar-theme--collapsed' : ''}`}>
+          <ThemeToggle compact collapsed={collapsed} />
+        </div>
 
         {/* Desktop collapse/expand toggle — sits above the nav as a header control */}
         <button

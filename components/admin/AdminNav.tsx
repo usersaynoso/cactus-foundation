@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
-import { ThemeToggle } from '@/components/ThemeToggle'
 
 type ModuleNavEntry = {
   label: string
@@ -82,9 +81,6 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
       )}
 
       <div className="admin-nav-footer">
-        <div className={`admin-nav-theme${collapsed ? ' admin-nav-theme--collapsed' : ''}`}>
-          <ThemeToggle compact collapsed={collapsed} />
-        </div>
         <Link
           href={`${base}/account`}
           className={`admin-nav-account${collapsed ? ' admin-nav-account--collapsed' : ''}`}
