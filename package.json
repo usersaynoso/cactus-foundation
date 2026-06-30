@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.82",
+  "version": "0.5.84",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && next dev",
