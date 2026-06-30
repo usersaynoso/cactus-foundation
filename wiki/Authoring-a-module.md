@@ -184,7 +184,7 @@ Disabled module permissions remain visible in the Roles matrix but are visually 
 3. Validates: manifest schema, `tablePrefix` uniqueness, required env vars.
 4. Finds your latest tagged release and its commit SHA.
 5. Commits your repo as a git submodule at `modules/<name>` via the GitHub API.
-6. Vercel builds → `run-module-migrations.mjs` applies `001_create_tables.sql`, etc.
+6. Vercel builds → `generate-module-router.mjs` wires admin pages and API routes, then `run-module-migrations.mjs` applies `001_create_tables.sql`, etc.
 7. Module row flips to `active` (via webhook or lazy polling).
 
 ### Update
@@ -241,7 +241,7 @@ Modules hosted elsewhere can still be installed manually if the admin knows the 
    INSERT INTO "Module" (id, name, "repoUrl", version, "tablePrefix", status, "installedAt")
    VALUES ('dev-forum', 'forum', 'https://github.com/you/cactus-module-forum', '0.0.1', 'forum_', 'active', NOW());
    ```
-4. Start `npm run dev` and visit `/_cactus_admin/forum` (or wherever your nav entry points).
+4. Start `npm run dev` - it automatically runs `generate-module-router.mjs` first, wiring your admin pages and API routes. Visit `/cacti/m/forum/<page>` (or wherever your nav entry points).
 
 ## Known constraints
 
@@ -281,10 +281,10 @@ CREATE TABLE ann_announcements (
 );
 ```
 
-**`app/_cactus_admin/announcements/page.tsx`** (inside the module's own directory, auto-registered via Next.js App Router when the module is a submodule):
+**`app/cactus-admin/announcements/list/page.tsx`** — admin page, reachable at `/cacti/m/announcements/list`:
 ```tsx
-import { getSessionFromCookie } from '@cactus/lib/auth/session'
-import { hasPermission } from '@cactus/lib/permissions/check'
+import { getSessionFromCookie } from '@/lib/auth/session'
+import { hasPermission } from '@/lib/permissions/check'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
@@ -308,6 +308,8 @@ export default async function AnnouncementsPage() {
   )
 }
 ```
+
+Admin pages live at `app/cactus-admin/<module-name>/<page>/page.tsx` inside the module repo. API routes live at `app/api/admin/<module-name>/<endpoint>/route.ts`. The build step runs `generate-module-router.mjs` which scans these directories and wires them into the core's catch-all routes automatically - no changes to core code required.
 
 That's a complete, installable module. Tag it, release it, and any Cactus site can install it.
 
