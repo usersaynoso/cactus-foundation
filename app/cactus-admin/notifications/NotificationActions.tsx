@@ -7,12 +7,34 @@ type Props = {
   id: string
   isRead: boolean
   canRedeploy: boolean
+  viewHref?: string | null
+  viewLabel?: string | null
 }
 
-export default function NotificationActions({ id, isRead, canRedeploy }: Props) {
+export default function NotificationActions({ id, isRead, canRedeploy, viewHref, viewLabel }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  async function handleView() {
+    if (!viewHref) return
+    setLoading(true)
+    setError('')
+    try {
+      // Viewing marks the notification read, then navigates to the target.
+      if (!isRead) {
+        await fetch(`/api/admin/notifications/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ read: true }),
+        })
+      }
+      router.push(viewHref)
+    } catch {
+      // Navigate regardless - failing to mark read shouldn't block the admin.
+      router.push(viewHref)
+    }
+  }
 
   async function handleRedeploy() {
     setLoading(true)
@@ -67,6 +89,11 @@ export default function NotificationActions({ id, isRead, canRedeploy }: Props) 
     <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
       {error && (
         <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>{error}</span>
+      )}
+      {viewHref && viewLabel && (
+        <button className="btn btn-primary btn-sm" disabled={loading} onClick={handleView}>
+          {viewLabel}
+        </button>
       )}
       {canRedeploy && (
         <button className="btn btn-primary btn-sm" disabled={loading} onClick={handleRedeploy}>

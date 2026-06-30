@@ -184,6 +184,40 @@ if (!user || !await hasPermission(user, 'forum.threads.write')) {
 
 Disabled module permissions remain visible in the Roles matrix but are visually marked "module inactive". This means re-enabling a module doesn't silently wipe existing role assignments - admins who had `forum.threads.write` before the module was disabled still have it when it's re-enabled.
 
+## Raising admin notifications
+
+Your module can raise notifications in the admin bell (the same bell core uses for deferred deployments). Import the generic helpers from core:
+
+```ts
+import { upsertAlert, clearAlert } from '@cactus/lib/notifications/alerts'
+```
+
+- `upsertAlert({ type, dedupeKey, title, link })` - raises (or re-surfaces) a single notification keyed by `dedupeKey`. If one with that key already exists and the `title` (or `link`) changed, it re-surfaces as unread; if the title is unchanged it's a no-op, so you never nag an admin about a notice they've already read. `type` is a `NotificationType` (modules typically use `'message'`); `link` is an admin-relative path (e.g. `/m/<module-name>/inbox`) rendered as `` `/${adminPath}${link}` ``.
+- `clearAlert(dedupeKey)` - deletes the notification(s) with that key. Call this when the condition clears.
+
+**Rolling-count pattern (recommended for inbox-style modules).** Keep one notification in step with a count rather than raising one-per-event. The contact-form module does this in `lib/notify.ts`:
+
+```ts
+import { upsertAlert, clearAlert } from '@cactus/lib/notifications/alerts'
+import { countUnreadSubmissions } from './db'
+
+export async function syncMessagesNotification() {
+  const n = await countUnreadSubmissions()
+  if (n > 0) {
+    await upsertAlert({
+      type: 'message',
+      dedupeKey: 'contact-form:messages',
+      title: `${n} unread message${n === 1 ? '' : 's'}`,
+      link: '/m/contact-form/inbox?tab=unread',
+    })
+  } else {
+    await clearAlert('contact-form:messages')
+  }
+}
+```
+
+Call it (fire-and-forget, `.catch(...)`) after **every** mutation that changes the count - on create, on status change, on delete - so the badge stays honest and clears itself at zero. Wrap the call so a notification failure never breaks your endpoint. Use a `dedupeKey` namespaced to your module (e.g. `<module-name>:<concern>`) to avoid colliding with core or other modules.
+
 ## The install/update/disable lifecycle (from author's perspective)
 
 ### Install
@@ -330,7 +364,8 @@ If operators paste third-party script tags directly into page HTML (e.g. a raw G
 - **Migrations run during the build step, never at runtime.** An API route that calls the migration runner will throw in production - Vercel's filesystem is read-only.
 - **Declare `teardown` to enable full uninstall.** Without it, admins can only remove the code - database tables are left behind. Declare the exact PascalCase table names Prisma created (e.g. `"ForumThread"`, not `forum_threads`).
 - **`tablePrefix` is permanent.** Once installed, the prefix cannot be changed. Choose it carefully - it's used in every table name and in `ModuleMigration` records.
-- **Render markdown in client components with `@cactus/lib/markdown-client`, never `@cactus/lib/sanitize`.** The server sanitiser pulls in jsdom, which must never reach the client bundle - importing it into a `'use client'` component throws at render in the serverless runtime. `lib/markdown-client.ts` does the same job using the browser's own `window` and shares the allow-list, so its output matches. Server components and API routes keep using `@cactus/lib/sanitize`.
+- **Render markdown in client components with the browser-safe renderer, never `@cactus/lib/sanitize`.** The server sanitiser pulls in jsdom, which must never reach the client bundle - importing it into a `'use client'` component throws at render in the serverless runtime. Use a `window`-backed renderer (`marked` + `DOMPurify(window)`) that shares the same allow-list, so its output matches the server sanitiser. Server components and API routes keep using `@cactus/lib/sanitize`.
+  - **Vendor it inside your module - do not import `@cactus/lib/markdown-client`.** Core ships that file, but it only exists in cores from `0.5.114` onwards. A module that imports it fails to build on any install whose core predates it (the build clones the latest module against whatever core that install happens to be on). Keep your own copy under `lib/` so your module is portable across core versions. The contact-form module's `lib/markdown-client.ts` is the reference implementation.
 
 ## Minimal complete example
 

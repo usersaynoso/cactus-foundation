@@ -111,17 +111,42 @@ Env-var changes accumulate into a single **deployment notification** instead of 
 
 ### Notification data model
 
-`Notification` table, `NotificationType` enum (currently just `deployment`).
+`Notification` table, `NotificationType` enum: `deployment`, `core_update`, `module_update`, `message`. The nav bell badge counts **any** unread notification (`getUnreadCount` = `count({ readAt: null })`), so new types light the bell automatically.
 
 | Field | Purpose |
 |---|---|
-| `type` | Always `deployment` for now. Enum is extensible. |
-| `title` | Human-readable title shown in the UI. |
-| `reasons` | JSON array of `{ label, detail?, at }` - each change that contributed to this notification. |
-| `readAt` | `null` = unread (drives the nav bell badge). Set when the admin manually marks read, or when they click Redeploy. |
-| `deployInitiatedAt` | `null` = deploy not yet initiated (the "open" notification that new reasons append to). Set when Redeploy is clicked. |
+| `type` | `deployment` (deferred deploy) or one of the on-demand alert types (`core_update`, `module_update`, `message`). |
+| `title` | Human-readable title shown in the UI. For alerts the title carries the version/count, e.g. `Cactus update available - v0.5.110`. |
+| `reasons` | JSON array of `{ label, detail?, at }` - each change that contributed to a deployment notification. `null` for alerts. |
+| `link` | Admin-relative "View X" target for alerts (e.g. `/config?tab=general`). `null` for deployment notifications. Rendered as `/${adminPath}${link}`. |
+| `dedupeKey` | Idempotency handle for on-demand alerts: `core-update` (one ever), `module-update:{moduleId}` (one per module), `contact-form:messages` (one rolling). `null` for deployment notifications. Indexed. |
+| `readAt` | `null` = unread (drives the nav bell badge). Set when the admin manually marks read, clicks Redeploy, or clicks a "View …" button. |
+| `deployInitiatedAt` | `null` = deploy not yet initiated (the "open" deployment notification that new reasons append to). Set when Redeploy is clicked. Always `null` for alerts. |
 
 **"Open" notification** - a deployment notification where `deployInitiatedAt IS NULL`. New reasons always append here. If the admin manually marked it read but hasn't deployed yet, `readAt` is cleared so the notification re-surfaces when the next change comes in.
+
+### On-demand alerts (core/module updates, contact messages)
+
+Beyond deployment, three alert types are raised **on demand** by the existing update checks - no cron or new infrastructure, matching the app's on-demand pattern. The bell badge then persists the reminder across the admin until the underlying state clears.
+
+`lib/notifications/alerts.ts` provides the generic helpers, keyed by `dedupeKey`:
+
+- `upsertAlert({ type, dedupeKey, title, link })` - creates the alert if none exists; if one exists and the **title** (or link) changed, it re-surfaces it (`readAt: null`); if the title is unchanged it's a no-op (don't nag a notice the admin already read). Re-surfacing keys off the version-bearing title, so a notice only re-lights the bell when the available version actually changes.
+- `clearAlert(dedupeKey)` - `deleteMany({ where: { dedupeKey } })`.
+
+Wrappers `recordCoreUpdate(latestVersion)` and `recordModuleUpdate({ moduleId, name, latestVersion })` set the type/dedupeKey/title/link.
+
+**Where they're raised and cleared:**
+
+| Alert | Raised | Cleared |
+|---|---|---|
+| `core_update` (`core-update`) | `GET /api/admin/updates` when `updateAvailable` (the Settings → General check). Links to `/config?tab=general`. | Same GET when no update; and after a core update is applied (`POST /api/admin/updates`). |
+| `module_update` (`module-update:{id}`) | `GET /api/admin/modules/[id]` update-found branch (the Modules page check). Links to `/modules`. | Same GET no-update branch; on the update PATCH action; and on uninstall (`DELETE`). |
+| `message` (`contact-form:messages`) | `syncMessagesNotification()` (contact-form `lib/notify.ts`) when unread > 0. One rolling `N unread messages` notification linking to `/m/contact-form/inbox?tab=unread`. | Same helper when the unread count hits zero. |
+
+All triggers are wrapped in try/catch (or fire-and-forget `.catch`) so a notification failure never breaks the endpoint. The contact-form helper is called after every mutation that changes the unread count: submit, the bulk status/delete PATCH, the single-submission status PATCH / DELETE / open-marks-read, and reply (which marks read).
+
+On the Notifications page, alerts render a leading icon by type (⬆️ core, 📦 module, ✉️ message, 🚀 deployment) and a primary "View Update" / "View Messages" button. Clicking it PATCHes the notification `read: true` then navigates to `link` - viewing marks it read. Deployment notifications keep their `canRedeploy`-gated "Redeploy now" action instead.
 
 ### Deferred deploy flow (env vars; core-update fallback)
 

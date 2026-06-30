@@ -7,6 +7,7 @@ import { errorResponse } from '@/lib/utils'
 import { getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
@@ -92,6 +93,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         data: { status: 'deploying', updateAvailable: null, updateNotes: null, version: release.tag },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+
+      // The update has been applied - clear the "update available" reminder.
+      try {
+        await clearAlert(`module-update:${id}`)
+      } catch (err) {
+        console.error('[modules] Failed to clear module-update notification:', err)
+      }
 
       const { triggered } = await startDeferredRedeploy()
       if (!triggered) {
@@ -193,6 +201,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
+    // Module is gone - clear any lingering "update available" reminder for it.
+    try {
+      await clearAlert(`module-update:${id}`)
+    } catch (err) {
+      console.error('[modules] Failed to clear module-update notification:', err)
+    }
+
     // Deleting the row above removes it from the desired registry. Commit modules.json
     // and redeploy immediately; the admin is sent to the redeploying screen.
     const { triggered } = await startDeferredRedeploy()
@@ -232,6 +247,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       where: { id },
       data: { lastCheckedAt: new Date() },
     })
+    // No update: clear any lingering "update available" reminder for this module.
+    try {
+      await clearAlert(`module-update:${id}`)
+    } catch (err) {
+      console.error('[modules] Failed to clear module-update notification:', err)
+    }
     return NextResponse.json({ updateAvailable: null })
   }
 
@@ -244,6 +265,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       lastCheckedAt: new Date(),
     },
   })
+
+  // Raise the on-demand per-module "update available" notification so the bell
+  // persists the reminder across the admin. Never let this break the endpoint.
+  try {
+    await recordModuleUpdate({ moduleId: id, name: mod.name, latestVersion: release.tag })
+  } catch (err) {
+    console.error('[modules] Failed to record module-update notification:', err)
+  }
 
   return NextResponse.json({ updateAvailable: release.tag, notes: release.body })
 }

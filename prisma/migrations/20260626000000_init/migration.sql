@@ -13,7 +13,7 @@ CREATE TYPE "SiteStatus" AS ENUM ('live', 'comingSoon', 'maintenance');
 CREATE TYPE "PageStatus" AS ENUM ('draft', 'published');
 CREATE TYPE "BodyFormat" AS ENUM ('markdown', 'builder');
 CREATE TYPE "ModuleStatus" AS ENUM ('pending_install', 'deploying', 'pending_deploy', 'active', 'inactive', 'failed', 'update_available');
-CREATE TYPE "NotificationType" AS ENUM ('deployment');
+CREATE TYPE "NotificationType" AS ENUM ('deployment', 'core_update', 'module_update', 'message');
 CREATE TYPE "MenuItemType" AS ENUM ('PAGE', 'EXTERNAL');
 CREATE TYPE "MediaProviderType" AS ENUM ('B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT');
 
@@ -423,6 +423,8 @@ CREATE TABLE "Notification" (
     "type" "NotificationType" NOT NULL DEFAULT 'deployment',
     "title" TEXT NOT NULL,
     "reasons" JSONB,
+    "link" TEXT,
+    "dedupeKey" TEXT,
     "readAt" TIMESTAMP(3),
     "deployInitiatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -432,6 +434,7 @@ CREATE TABLE "Notification" (
 
 CREATE INDEX "Notification_type_deployInitiatedAt_idx" ON "Notification"("type", "deployInitiatedAt");
 CREATE INDEX "Notification_readAt_idx" ON "Notification"("readAt");
+CREATE INDEX "Notification_dedupeKey_idx" ON "Notification"("dedupeKey");
 
 -- ---------------------------------------------------------------------------
 -- GitHub App Connection

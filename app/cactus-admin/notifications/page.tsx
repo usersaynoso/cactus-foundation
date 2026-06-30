@@ -1,12 +1,29 @@
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import NotificationActions from './NotificationActions'
 import type { Metadata } from 'next'
+import type { NotificationType } from '@prisma/client'
 
 export const metadata: Metadata = { title: 'Notifications — Admin' }
 
 type NotificationReason = { label: string; detail?: string; at: string }
+
+// Per-type presentation: leading icon, and the "View …" button label for alerts
+// that carry a link (deployment notifications use their own Redeploy action).
+const ICON_BY_TYPE: Record<NotificationType, string> = {
+  deployment: '🚀',
+  core_update: '⬆️',
+  module_update: '📦',
+  message: '✉️',
+}
+
+const VIEW_LABEL_BY_TYPE: Partial<Record<NotificationType, string>> = {
+  core_update: 'View Update',
+  module_update: 'View Update',
+  message: 'View Messages',
+}
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -25,6 +42,8 @@ export default async function NotificationsPage() {
   if (!await hasPermission(user, 'config.manage')) {
     return <div className="alert alert-danger">You do not have permission to view notifications.</div>
   }
+
+  const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
 
   const notifications = await prisma.notification.findMany({
     orderBy: { createdAt: 'desc' },
@@ -51,11 +70,14 @@ export default async function NotificationsPage() {
             const reasons = (notification.reasons as NotificationReason[] | null) ?? []
             const isDeployPending = notification.type === 'deployment' && !notification.deployInitiatedAt
             const isRead = !!notification.readAt
+            const viewHref = notification.link ? `/${adminPath}${notification.link}` : null
+            const viewLabel = VIEW_LABEL_BY_TYPE[notification.type] ?? null
+            const icon = ICON_BY_TYPE[notification.type] ?? '🔔'
 
             return (
               <div key={notification.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
-                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>🔔</span>
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: '0.9375rem' }}>{notification.title}</strong>
@@ -96,6 +118,8 @@ export default async function NotificationsPage() {
                   id={notification.id}
                   isRead={isRead}
                   canRedeploy={isDeployPending}
+                  viewHref={viewHref}
+                  viewLabel={viewLabel}
                 />
               </div>
             )

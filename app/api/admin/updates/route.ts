@@ -10,6 +10,7 @@ import {
   invalidateCoreUpdateCache,
 } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
@@ -20,6 +21,19 @@ export async function GET() {
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
 
   const status = await getCoreUpdateStatus()
+
+  // Raise (or clear) the on-demand "update available" notification so the bell
+  // persists the reminder across the admin. Never let this break the endpoint.
+  try {
+    if (status.configured && 'updateAvailable' in status && status.updateAvailable) {
+      await recordCoreUpdate(status.latestVersion)
+    } else {
+      await clearAlert('core-update')
+    }
+  } catch (err) {
+    console.error('[updates] Failed to sync core-update notification:', err)
+  }
+
   return NextResponse.json(status)
 }
 
@@ -78,6 +92,13 @@ export async function POST() {
 
     // Bust the update cache so the panel reflects the new version after redeploy
     invalidateCoreUpdateCache()
+
+    // The update has been applied - clear the "update available" reminder.
+    try {
+      await clearAlert('core-update')
+    } catch (err) {
+      console.error('[updates] Failed to clear core-update notification:', err)
+    }
 
     // The sync push already triggered a Vercel build. Arm the redeploy gate and capture
     // that build (committedSince mode skips module sync / triggerVercelRedeploy so we

@@ -365,6 +365,11 @@ model Notification {
   title             String
   // For deployment type: array of { label, detail?, at } reasons
   reasons           Json?
+  // Admin-relative "View X" target (e.g. "/config?tab=general"). null for deployment.
+  link              String?
+  // Idempotency handle for on-demand alerts (core-update, module-update:{id},
+  // contact-form:messages). null for deployment notifications.
+  dedupeKey         String?
   // null = unread (drives nav badge). Set when admin redeploys or manually marks read.
   readAt            DateTime?
   // null = deploy not yet initiated (this is the "open" notification reasons append to)
@@ -374,10 +379,14 @@ model Notification {
 
   @@index([type, deployInitiatedAt])
   @@index([readAt])
+  @@index([dedupeKey])
 }
 
 enum NotificationType {
   deployment
+  core_update
+  module_update
+  message
 }
 
 // Applied module SQL migrations, tracked separately from Prisma's own history.
