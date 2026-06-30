@@ -33,6 +33,7 @@ type UninstallModal = {
 const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> = {
   pending_install: { label: 'Pending', className: 'badge-yellow' },
   deploying: { label: 'Deploying', className: 'badge-blue' },
+  pending_deploy: { label: 'Awaiting deployment', className: 'badge-yellow' },
   active: { label: 'Active', className: 'badge-green' },
   inactive: { label: 'Disabled', className: 'badge-gray' },
   failed: { label: 'Failed', className: 'badge-red' },

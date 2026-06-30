@@ -18,29 +18,32 @@ type Props = {
   collapsed?: boolean
   onNavClick?: () => void
   moduleNavEntries?: ModuleNavEntry[]
+  unreadCount?: number
 }
 
-export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick, moduleNavEntries }: Props) {
+export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick, moduleNavEntries, unreadCount }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
   const links = [
-    { href: `${base}`,            label: 'Dashboard',    icon: '◈' },
-    { href: `${base}/pages`,      label: 'Pages',        icon: '📄' },
-    { href: `${base}/menus`,      label: 'Menus',        icon: '☰' },
-    { href: `${base}/media`,      label: 'Media',        icon: '🖼' },
-    { href: `${base}/appearance`, label: 'Style Guide',  icon: '🎨' },
-    { href: `${base}/layouts`,    label: 'Theme Builder', icon: '📐' },
-    { href: `${base}/users`,      label: 'Users',        icon: '👥' },
-    { href: `${base}/roles`,      label: 'Roles',        icon: '🔑' },
-    { href: `${base}/modules`,    label: 'Modules',      icon: '🧩' },
-    { href: `${base}/config`,     label: 'Settings',     icon: '⚙️' },
+    { href: `${base}`,                 label: 'Dashboard',     icon: '◈' },
+    { href: `${base}/pages`,           label: 'Pages',         icon: '📄' },
+    { href: `${base}/menus`,           label: 'Menus',         icon: '☰' },
+    { href: `${base}/media`,           label: 'Media',         icon: '🖼' },
+    { href: `${base}/appearance`,      label: 'Style Guide',   icon: '🎨' },
+    { href: `${base}/layouts`,         label: 'Theme Builder', icon: '📐' },
+    { href: `${base}/users`,           label: 'Users',         icon: '👥' },
+    { href: `${base}/roles`,           label: 'Roles',         icon: '🔑' },
+    { href: `${base}/modules`,         label: 'Modules',       icon: '🧩' },
+    { href: `${base}/notifications`,   label: 'Notifications', icon: '🔔' },
+    { href: `${base}/config`,          label: 'Settings',      icon: '⚙️' },
   ]
 
   return (
     <nav>
       {links.map((link) => {
         const isActive = pathname === link.href || (link.href !== base && pathname.startsWith(link.href))
+        const isNotifications = link.href === `${base}/notifications`
         return (
           <Link
             key={link.href}
@@ -51,6 +54,14 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
           >
             <span style={{ width: 18, textAlign: 'center', flexShrink: 0 }}>{link.icon}</span>
             {!collapsed && <span className="admin-nav-label">{link.label}</span>}
+            {!collapsed && isNotifications && unreadCount != null && unreadCount > 0 && (
+              <span className="badge badge-red" style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', minWidth: 18, textAlign: 'center' }}>
+                {unreadCount}
+              </span>
+            )}
+            {collapsed && isNotifications && unreadCount != null && unreadCount > 0 && (
+              <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: '50%', background: 'var(--color-destructive)' }} />
+            )}
           </Link>
         )
       })}
