@@ -50,6 +50,7 @@ next-env.d.ts
 
 # Vercel
 .vercel
+.vercelignore
 
 # Coverage
 coverage/
@@ -70,4 +71,6 @@ coverage/
 # Claude Code agent worktrees (temporary, never commit)
 .claude/
 
+# Kept local — not shared via the repo
+.gitignore
 
