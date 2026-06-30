@@ -146,7 +146,17 @@ Access requires a direct database intervention:
    ```
 4. Add email credentials to your environment variables (if not already set).
 5. Sign in via the password fallback and register a new passkey.
-6. Remove the temporary password from account settings once your passkey is registered.
+6. Once your passkey is registered, change the temporary password to a strong one from **Account settings → Password** (passkeys remain your primary sign-in).
+
+### Adding or changing your password
+
+A signed-in admin can add or change their password from **Account settings → Password** (`/<adminPath>/account`), without touching the database.
+
+- The section only appears when email is configured (Brevo or SMTP). The password sign-in relies on email to send a one-time code, so a password set without email would be useless. If email is not configured, the section shows a warning with a link to **Settings** instead of the form.
+- If you have no password yet, the form takes a new password. If you already have one, it also asks for your current password before changing it.
+- Passwords must be at least 12 characters and are checked against the Pwned Passwords breach list; breached passwords are rejected.
+- A notification email is sent to your address whenever the password is added or changed.
+- Removing a password is not yet supported from the UI; set a strong one and rely on passkeys for day-to-day sign-in.
 
 ### Last admin account accidentally deleted
 

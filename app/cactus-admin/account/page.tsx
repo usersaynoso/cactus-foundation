@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 type SessionInfo = {
   id: string
@@ -9,7 +10,17 @@ type SessionInfo = {
   current: boolean
 }
 
+type PasswordInfo = {
+  hasPassword: boolean
+  emailConfigured: boolean
+}
+
 export default function AccountPage() {
+  const pathname = usePathname()
+  // Strip the trailing /account to recover the admin base path (the admin path
+  // is configurable, so never hardcode it). Matches the AdminNav convention.
+  const adminBase = pathname.replace(/\/account$/, '')
+
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,12 +29,53 @@ export default function AccountPage() {
   const [newPasskeyLoading, setNewPasskeyLoading] = useState(false)
   const [message, setMessage] = useState('')
 
+  const [passwordInfo, setPasswordInfo] = useState<PasswordInfo | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+
   useEffect(() => {
     fetch('/api/account/sessions')
       .then((r) => r.json())
       .then((d: { sessions: SessionInfo[] }) => { setSessions(d.sessions ?? []); setLoading(false) })
       .catch(() => { setError('Failed to load sessions'); setLoading(false) })
   }, [])
+
+  useEffect(() => {
+    fetch('/api/account/password')
+      .then((r) => r.json())
+      .then((d: PasswordInfo) => setPasswordInfo(d))
+      .catch(() => {})
+  }, [])
+
+  async function handleSavePassword() {
+    setPasswordLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const hadPassword = passwordInfo?.hasPassword ?? false
+      const res = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(hadPassword ? { currentPassword } : {}),
+          newPassword,
+        }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error((d as { error?: string }).error ?? 'Failed to save password')
+      }
+      setMessage(hadPassword ? 'Password updated.' : 'Password added.')
+      setCurrentPassword('')
+      setNewPassword('')
+      setPasswordInfo((p) => (p ? { ...p, hasPassword: true } : p))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save password')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
 
   async function handleRevokeSession(id: string) {
     const res = await fetch(`/api/account/sessions/${id}`, { method: 'DELETE' })
@@ -112,6 +164,58 @@ export default function AccountPage() {
         >
           {newPasskeyLoading ? 'Registering…' : '+ Add a new passkey'}
         </button>
+      </div>
+
+      {/* Password */}
+      <div className="card">
+        <h2 className="card-title">Password</h2>
+        {passwordInfo === null ? (
+          <p>Loading…</p>
+        ) : !passwordInfo.emailConfigured ? (
+          <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
+            Set up email (Brevo or SMTP) in <a href={`${adminBase}/config`}>Settings</a> before you can add a password. The password sign-in needs email to send a one-time code.
+          </div>
+        ) : (
+          <>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
+              {passwordInfo.hasPassword
+                ? 'Change the password you use with the email one-time code sign-in.'
+                : 'Add a password to sign in with an email one-time code, alongside your passkeys.'}
+            </p>
+            {passwordInfo.hasPassword && (
+              <div className="field">
+                <label>Current password</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="field">
+              <label>New password</label>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <span className="field-hint">At least 12 characters. Breached passwords are rejected.</span>
+            </div>
+            <button
+              className="btn btn-primary"
+              disabled={passwordLoading || !newPassword || (passwordInfo.hasPassword && !currentPassword)}
+              onClick={handleSavePassword}
+            >
+              {passwordLoading
+                ? 'Saving…'
+                : passwordInfo.hasPassword
+                  ? 'Change password'
+                  : 'Add password'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Active sessions */}

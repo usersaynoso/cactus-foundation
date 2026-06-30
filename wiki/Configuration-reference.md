@@ -160,7 +160,7 @@ These are read from environment variables. Values are never shown.
 | `VERCEL_API_TOKEN` | Yes | Vercel REST API token. Create at Vercel → Account Settings → Tokens. |
 | `VERCEL_PROJECT_ID` | Yes | Vercel project ID. Find at Vercel → your project → Settings → General. |
 | `NEON_API_KEY` | No | Neon API key for one-click DB provisioning during setup. Leave unset if supplying own `DATABASE_URL`. |
-| `BREVO_API_KEY` | No | Brevo email API key (gates email login, verification, recovery). |
+| `BREVO_API_KEY` | No | Brevo email API key (gates email login, verification, recovery, and adding/changing a password in Account settings). |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | SMTP fallback for email (alternative to Brevo). |
 | `CLOUDFLARE_WORKER_URL` / `CLOUDFLARE_WORKER_HOSTNAME` | No | Shared Cloudflare Worker URL for all proxied media providers. |
 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 - object storage. |
