@@ -57,6 +57,8 @@ function MediaPickerModal({ onSelect, onClose }: {
             style={{ flex: 1, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'inherit', background: 'var(--color-bg)', color: 'var(--color-text)' }}
           />
           <button
+            type="button"
+            aria-label="Close"
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1, flexShrink: 0 }}
           >

@@ -664,13 +664,13 @@ export default function SetupPage() {
                 border: `2px solid ${isDone || isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.6875rem', fontWeight: 700, flexShrink: 0,
-                color: isDone ? '#fff' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                color: isDone ? 'var(--color-on-primary)' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
               }}>
                 {isDone ? '✓' : i + 1}
               </div>
               <span style={{
                 fontSize: '0.625rem', marginTop: '0.3rem', fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#16a34a' : isDone ? 'var(--color-fg)' : 'var(--color-muted)',
+                color: isActive ? 'var(--color-success)' : isDone ? 'var(--color-fg)' : 'var(--color-muted)',
                 textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap',
               }}>
                 {stepLabels[s]}

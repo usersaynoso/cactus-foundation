@@ -457,7 +457,7 @@ export default function MenuDetailPage() {
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
           {error}
-          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
+          <button type="button" aria-label="Dismiss" onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
         </div>
       )}
 
@@ -523,7 +523,7 @@ export default function MenuDetailPage() {
                   className={addMode === 'external' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
                   onClick={() => setAddMode('external')}
                 >External link</button>
-                <button onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
+                <button type="button" aria-label="Close" onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
               </div>
             </div>
 
