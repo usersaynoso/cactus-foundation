@@ -42,13 +42,6 @@ for (const moduleName of moduleNames) {
   // PAGE_LOADERS — scan modules/[name]/app/cactus-admin/[name]/**/page.tsx
   const adminDir = join(rootDir, 'modules', moduleName, 'app', 'cactus-admin', moduleName)
   const pageFiles = scanDir(adminDir, 'page.tsx')
-  const moduleDir = join(rootDir, 'modules', moduleName)
-  let moduleDirContents = '(missing)'
-  try { moduleDirContents = readdirSync(moduleDir).join(', ') } catch {}
-  let adminDirContents = '(missing)'
-  try { adminDirContents = readdirSync(adminDir, { recursive: true }).slice(0, 20).join(', ') } catch {}
-  console.log(`[generate-module-router] ${moduleName}: moduleDir contents=[${moduleDirContents}]`)
-  console.log(`[generate-module-router] ${moduleName}: adminDir=${adminDir} exists=${existsSync(adminDir)} contents=[${adminDirContents}] pages=${pageFiles.length}`)
 
   if (pageFiles.length > 0) {
     pageLoaders[moduleName] = {}
