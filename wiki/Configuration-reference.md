@@ -4,6 +4,27 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 
 ## General tab
 
+### Updates panel
+
+At the top of the General tab, Cactus checks whether your install is on the latest version of Cactus Foundation. The check is made against the upstream GitHub repository (`usersaynoso/cactus-foundation` by default, overridable with `CACTUS_CORE_REPO`) and is cached for 10 minutes.
+
+**States:**
+
+- **Up to date** - green badge; shows the current version number.
+- **Update available** - shows the version jump (e.g. v0.5.97 → v0.5.100), aggregated release notes for every release since your installed version (newest first), and an **Update now** button.
+- **Not configured** - shown when GitHub is not set up; links to Settings → Integrations.
+
+**What the Update button does:**
+
+1. Fetches the list of files changed between your installed version tag and the latest release tag on the upstream repo.
+2. Copies each changed file (excluding `modules/`, `.gitmodules`, and the database) into your GitHub repo via the Git Data API.
+3. Commits the change as `chore: update Cactus Foundation to vX.Y.Z [cactus-core-update]`.
+4. Triggers a Vercel redeploy - the full-screen redeploying view appears immediately (same as other redeploy flows).
+
+Modules, content, user accounts, and user-created files are never touched. Core files in your repo that you have hand-edited will be overwritten; the Cactus model for customisation is modules and themes, not editing core files directly.
+
+If the upstream repo does not have a matching tag for your current version, the update falls back to a full overlay of the latest upstream tree (all core files are replaced).
+
 | Field | Description | Default |
 |-------|-------------|---------|
 | Site name | Displayed in the admin sidebar, browser title, emails | `My Cactus Site` |
