@@ -4,7 +4,11 @@ export function translateLogLine(rawLine: string): string | null {
   if (line.includes('Cloning github.com/')) return 'Popping over to grab the latest code from GitHub...'
   if (line.includes('Cloning completed:')) return 'Got it. All the latest changes are here.'
   if (line.includes('Installing dependencies')) return 'Rounding up all the bits and bobs this needs to run...'
-  if (line.includes('up to date in') || /added (\d+) packages?/i.test(line)) return 'All the bits and bobs are present and correct.'
+  if (
+    line.includes('up to date in') ||
+    /added (\d+) packages?/i.test(line) ||
+    /changed (\d+) packages?/i.test(line)
+  ) return 'All the bits and bobs are present and correct.'
   if (line.includes('Generated Prisma Client')) return 'Had a quiet word with the database. All sorted.'
   if (line.includes('[build-migrate] Prisma migrations')) return 'Having a rummage to see if the database needs any updates...'
   if (line.includes('No pending migrations to apply')) return 'Database is ship-shape, nothing to change.'
