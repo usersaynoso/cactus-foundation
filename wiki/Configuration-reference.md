@@ -54,7 +54,9 @@ That screen shows a spinner while the real Vercel deployment ID is being recorde
 
 **Escape hatch:** if the page is still showing the spinner after 45 seconds, a "Dismiss and continue" button appears. Clicking it sends `DELETE /api/admin/redeploy-status`, clears the `pendingRedeployId` sentinel, and returns to the admin. Polling keeps running underneath, so a genuinely long build still completes on its own - the button is simply always available once things are taking an unreasonable amount of time.
 
-**Server-side release on success:** when Vercel fires the `deployment.succeeded` webhook, the handler now clears `pendingRedeployId` unconditionally (for any non-null value, not just the `pending` sentinel). This means a successful deployment always releases the proxy gate, even if the client never reached the log-polling flow.
+**Proxy confirmation on dismiss:** the proxy caches the `pendingRedeployId` flag in memory for up to 5 seconds per serverless isolate. Because a dismiss DELETE runs in a different isolate than the one serving the next admin request, the proxy could still see a stale non-null value and bounce the admin back to the redeploying page. To prevent this, whenever the cached value appears set, the proxy does one additional uncached DB read to confirm before rewriting. If the flag was just cleared, that read returns null and the admin page renders immediately - no 5-second wait, no ping-pong. On Vercel Hobby, where the `deployment.succeeded` webhook is never delivered, the client DELETE is the only clear path, so this confirmation step is the mechanism that makes "Dismiss and continue" actually work.
+
+**Server-side release on success:** when Vercel fires the `deployment.succeeded` webhook, the handler clears `pendingRedeployId` unconditionally (for any non-null value, not just the `pending` sentinel). This means a successful deployment always releases the proxy gate, even if the client never reached the log-polling flow.
 
 ## Media tab
 

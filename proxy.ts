@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
-import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached } from '@/lib/config/site'
+import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached, getPendingRedeployIdUncached } from '@/lib/config/site'
 import { validateSession } from '@/lib/auth/session'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 
@@ -172,7 +172,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         try {
           const user = await validateSession(token)
           if (user) {
-            const pendingRedeployId = await getPendingRedeployIdCached()
+              let pendingRedeployId = await getPendingRedeployIdCached()
+            if (pendingRedeployId) {
+              // The cached value can be stale across serverless isolates: the dismiss DELETE
+              // clears the flag and the API isolate's cache, but not this isolate's copy.
+              // Confirm against the DB before trapping the admin on the redeploying page.
+              pendingRedeployId = await getPendingRedeployIdUncached()
+            }
             if (pendingRedeployId) {
               const redeployingUrl = new URL('/cactus-status/redeploying', request.url)
               const res = NextResponse.rewrite(redeployingUrl)
