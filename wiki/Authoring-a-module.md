@@ -248,7 +248,7 @@ A module can register Puck blocks that appear in both the page builder and the l
 | `component` | yes | Named export for the editor (synchronous) version of the block config object. |
 | `rscComponent` | no | Named export for the RSC render version. If omitted, `component` is used for both. |
 
-`scripts/generate-module-puck.mjs` runs on every `npm run build` and `npm run dev`. It rewrites `lib/puck/module-components.ts` with the correct import statements. The resulting `moduleComponents`/`moduleRscComponents` records are spread into `puckConfig`, `layoutPuckConfig`, and their RSC variants so your block appears under the **Modules** category in the block picker.
+`scripts/generate-module-puck.mjs` runs on every `npm run build` and `npm run dev`. It rewrites `lib/puck/module-components.ts` with the correct import statements. The resulting `moduleComponents`/`moduleRscComponents` records are spread into `puckConfig`, `layoutPuckConfig`, and their RSC variants so your block appears under the **Modules** category in the block picker. `lib/puck/module-components.ts` is gitignored and never committed to the core repo - it mirrors `lib/modules/router.ts` in this respect.
 
 ### Block design rules
 
