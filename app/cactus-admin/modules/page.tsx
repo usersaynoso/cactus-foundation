@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
 
 type GitHubAppStatus = {
@@ -37,6 +38,8 @@ const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> =
   update_available: { label: 'Update available', className: 'badge-yellow' },
 }
 
+const showVersion = (v?: string | null) => v ? 'v' + v.replace(/^v/i, '') : ''
+
 function formatModuleName(repoName: string): string {
   return repoName
     .replace(/^cactus-module-/, '')
@@ -46,6 +49,7 @@ function formatModuleName(repoName: string): string {
 }
 
 export default function ModulesPage() {
+  const router = useRouter()
   const [entries, setEntries] = useState<DirectoryEntry[]>([])
   const [directoryUnavailable, setDirectoryUnavailable] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -65,11 +69,34 @@ export default function ModulesPage() {
         fetch('/api/admin/github-app'),
       ])
       const d = await dirRes.json()
-      setEntries(d.modules ?? [])
+      const modules: DirectoryEntry[] = d.modules ?? []
+      setEntries(modules)
       setDirectoryUnavailable(d.directoryUnavailable === true)
       if (ghRes.ok) {
         const gh = await ghRes.json()
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
+      }
+      // Fire update checks for each installed module in parallel; merge results as they arrive
+      const installedModules = modules.filter((m) => m.installed && m.installedId)
+      if (installedModules.length > 0) {
+        Promise.all(
+          installedModules.map(async (m) => {
+            try {
+              const res = await fetch(`/api/admin/modules/${m.installedId}`)
+              if (!res.ok) return
+              const data = await res.json() as { updateAvailable?: string | null }
+              if (data.updateAvailable) {
+                setEntries((prev) =>
+                  prev.map((e) =>
+                    e.installedId === m.installedId
+                      ? { ...e, updateAvailable: data.updateAvailable, status: 'update_available' as const }
+                      : e
+                  )
+                )
+              }
+            } catch { /* ignore per-module check failures */ }
+          })
+        )
       }
     } catch {
       setError('Failed to load module directory')
@@ -125,6 +152,7 @@ export default function ModulesPage() {
         return
       }
       await loadDirectory()
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed')
     } finally {
@@ -215,9 +243,9 @@ export default function ModulesPage() {
                       )}
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {m.installedVersion && <span className="badge badge-gray">v{m.installedVersion}</span>}
+                      {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
                       {m.updateAvailable && (
-                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>v{m.updateAvailable} available</span>
+                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
                       )}
                     </td>
                     <td>
@@ -288,7 +316,7 @@ export default function ModulesPage() {
             <div className="card" style={{ marginTop: '1rem' }}>
               <h3 className="card-title">Release notes</h3>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Update to v{m.updateAvailable} is available. Fetch full notes from the repository.
+                Update to {showVersion(m.updateAvailable)} is available. Fetch full notes from the repository.
               </p>
             </div>
           )
