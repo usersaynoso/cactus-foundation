@@ -52,6 +52,10 @@ Whenever an admin action triggers a redeploy (saving env-var credentials, or Res
 
 That screen shows a spinner while the real Vercel deployment ID is being recorded (this happens just after the response, via Next's `after()`), then polls the deployment logs and walks through Initialising → Building → Done before redirecting back to the admin. If the redeploy never actually starts, the sentinel is cleared and the screen bounces straight back to the admin instead of stranding the user.
 
+**Escape hatch:** if the page is still showing the spinner after 45 seconds, a "Dismiss and continue" button appears. Clicking it sends `DELETE /api/admin/redeploy-status`, clears the `pendingRedeployId` sentinel, and returns to the admin. Polling keeps running underneath, so a genuinely long build still completes on its own - the button is simply always available once things are taking an unreasonable amount of time.
+
+**Server-side release on success:** when Vercel fires the `deployment.succeeded` webhook, the handler now clears `pendingRedeployId` unconditionally (for any non-null value, not just the `pending` sentinel). This means a successful deployment always releases the proxy gate, even if the client never reached the log-polling flow.
+
 ## Media tab
 
 Select the active media provider from a dropdown grouped by kind:
