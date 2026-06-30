@@ -82,11 +82,9 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
       )}
 
       <div className="admin-nav-footer">
-        {!collapsed && (
-          <div className="admin-nav-theme">
-            <ThemeToggle compact />
-          </div>
-        )}
+        <div className={`admin-nav-theme${collapsed ? ' admin-nav-theme--collapsed' : ''}`}>
+          <ThemeToggle compact collapsed={collapsed} />
+        </div>
         <Link
           href={`${base}/account`}
           className={`admin-nav-account${collapsed ? ' admin-nav-account--collapsed' : ''}`}
