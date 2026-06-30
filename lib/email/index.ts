@@ -127,6 +127,18 @@ export async function sendRecoveryNotification(to: string, siteName: string) {
   })
 }
 
+export async function sendPasswordChangedNotification(
+  to: string,
+  siteName: string
+) {
+  await sendEmail({
+    to,
+    subject: `${siteName} password changed`,
+    html: `<p>The password on your account was just added or changed. If this was you, no further action is needed.</p><p>If this was not you, please secure your account and contact support straight away.</p>`,
+    text: `The password on your account was just added or changed. If this was you, no further action is needed.\n\nIf this was not you, please secure your account and contact support straight away.`,
+  })
+}
+
 export async function sendRecoveryRequestNotification(
   to: string,
   siteName: string
