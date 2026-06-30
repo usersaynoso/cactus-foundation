@@ -233,7 +233,7 @@ export async function commitSubmoduleRemove(params: {
 
   const treeItems: Array<{
     path: string
-    mode: '100644' | '160000' | '040000' | '100755' | '100664' | '120000'
+    mode: '100644' | '160000' | '040000' | '100755' | '120000'
     type: 'blob' | 'tree' | 'commit'
     sha: string | null
   }> = [
