@@ -63,6 +63,8 @@ export async function POST() {
     data: { id: 'singleton', lockedBy: 'cactus-core-update' },
   })
 
+  const deployStartedAt = Date.now()
+
   try {
     await syncCoreFromUpstream(currentVersion, latestVersion)
 
@@ -79,24 +81,28 @@ export async function POST() {
       const token = process.env.VERCEL_API_TOKEN
       const projectId = process.env.VERCEL_PROJECT_ID
       if (!token || !projectId) return
-      await new Promise((r) => setTimeout(r, 8_000))
-      try {
-        const res = await fetch(
-          `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1`,
-          { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
-        )
-        if (res.ok) {
-          const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
-          const uid = data.deployments?.[0]?.uid
-          if (uid) {
-            await prisma.siteConfig.updateMany({
-              where: { id: 'singleton', pendingRedeployId: 'pending' },
-              data: { pendingRedeployId: uid },
-            })
-            invalidateSiteConfigCache()
+      let uid: string | undefined
+      for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 5_000))
+        try {
+          const res = await fetch(
+            `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=5`,
+            { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
+          )
+          if (res.ok) {
+            const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
+            uid = data.deployments?.find(d => d.created > deployStartedAt)?.uid
+            if (uid) break
           }
-        }
-      } catch { /* ignore */ }
+        } catch { /* ignore */ }
+      }
+      if (uid) {
+        await prisma.siteConfig.updateMany({
+          where: { id: 'singleton', pendingRedeployId: 'pending' },
+          data: { pendingRedeployId: uid },
+        })
+        invalidateSiteConfigCache()
+      }
     })
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
