@@ -4,19 +4,19 @@
  *
  * Vercel creates the module directory tree (directories exist) but does not
  * fully initialise git submodules, so blob objects (files) are absent.
- * readdirSync shows directories but not files, leaving the router generator
+ * readdirSync shows directories but no files, leaving the router generator
  * with 0 pages.
  *
  * Strategy per module:
  *   1. Try `git -C <moduleDir> checkout HEAD -- .` (fast path for normal envs).
- *   2. If that fails (no valid git repo), fall back to a fresh shallow clone
- *      at the pinned commit SHA from the parent repo's index.
+ *   2. If that fails (no valid git repo at moduleDir), fall back to a fresh
+ *      shallow clone of the module URL from .gitmodules.
  */
 
 import { readFileSync, readdirSync, existsSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { spawnSync, execFileSync } from 'child_process'
+import { spawnSync } from 'child_process'
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 const modulesDir = join(rootDir, 'modules')
@@ -48,18 +48,6 @@ function parseGitmodules() {
   return map
 }
 
-function getPinnedSha(submodulePath) {
-  try {
-    const out = execFileSync('git', ['ls-tree', 'HEAD', submodulePath], {
-      cwd: rootDir, encoding: 'utf8',
-    })
-    const match = out.match(/160000 commit ([0-9a-f]+)/)
-    return match ? match[1] : null
-  } catch {
-    return null
-  }
-}
-
 const urlMap = parseGitmodules()
 
 for (const name of moduleNames) {
@@ -76,34 +64,26 @@ for (const name of moduleNames) {
     continue
   }
 
-  const stderr = checkout.stderr?.toString().trim()
-  console.log(`[checkout-modules] ${name}: checkout failed (${checkout.status})${stderr ? ': ' + stderr : ''} — falling back to fresh clone`)
+  const stderr = checkout.stderr?.toString().trim().split('\n')[0] ?? ''
+  console.log(`[checkout-modules] ${name}: checkout failed — ${stderr}`)
+  console.log(`[checkout-modules] ${name}: falling back to fresh clone`)
 
   const url = urlMap[submodulePath]
-  const sha = getPinnedSha(submodulePath)
-
-  if (!url) { console.error(`[checkout-modules] ${name}: no URL in .gitmodules — skipping`); continue }
-  if (!sha) { console.error(`[checkout-modules] ${name}: could not read pinned SHA — skipping`); continue }
-
-  console.log(`[checkout-modules] ${name}: cloning ${url} at ${sha.slice(0, 10)}…`)
-
-  try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
-
-  const clone = spawnSync('git', ['clone', '--no-single-branch', url, moduleDir], {
-    stdio: 'inherit', shell: false,
-  })
-  if (clone.status !== 0) {
-    console.error(`[checkout-modules] ${name}: clone failed — module pages will be missing`)
+  if (!url) {
+    console.error(`[checkout-modules] ${name}: no URL in .gitmodules — skipping`)
     continue
   }
 
-  const co = spawnSync('git', ['-C', moduleDir, 'checkout', sha], {
+  console.log(`[checkout-modules] ${name}: cloning ${url}…`)
+  try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
+
+  const clone = spawnSync('git', ['clone', '--depth=1', url, moduleDir], {
     stdio: 'inherit', shell: false,
   })
-  if (co.status !== 0) {
-    console.log(`[checkout-modules] ${name}: detached checkout failed — trying fetch`)
-    spawnSync('git', ['-C', moduleDir, 'fetch', 'origin', sha], { stdio: 'inherit', shell: false })
-    spawnSync('git', ['-C', moduleDir, 'checkout', sha], { stdio: 'inherit', shell: false })
+
+  if (clone.status !== 0) {
+    console.error(`[checkout-modules] ${name}: clone failed — module pages will be missing`)
+    continue
   }
 
   console.log(`[checkout-modules] ${name}: done`)
