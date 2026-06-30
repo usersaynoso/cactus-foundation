@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
   cachedDir = orgRepos.map((r) => ({
     repoUrl: r.html_url,
     repoName: r.name,
-    description: r.description,
+    description: r.description ?? '',
     installed: false,
   }))
   cachedAt = now
