@@ -132,49 +132,44 @@ async function hasGitmodules(
   }
 }
 
-export async function commitModuleAdd(params: {
-  name: string
-  repoUrl: string
-  version: string
-  message: string
-}): Promise<{ commitSha: string }> {
+// Normalise a modules list to a stable JSON string for comparison: sorted by name,
+// only the persisted fields, so cosmetic ordering differences never force a commit.
+function normaliseModules(modules: ModuleEntry[]): string {
+  const sorted = [...modules]
+    .map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  return JSON.stringify(sorted)
+}
+
+// Deferred module registry sync. Commits modules.json to main only when the desired
+// state (derived from the DB) differs from what's already in git. Returns whether a
+// commit was made so the caller knows if a Vercel build was triggered by the push.
+// An identical state is a no-op — critical so env-only redeploys don't create an
+// empty commit and a spurious build.
+export async function syncModulesJson(
+  desired: ModuleEntry[]
+): Promise<{ committed: boolean; commitSha?: string }> {
   const octokit = await getGithubClient()
   const { owner, repo } = getMainRepo()
 
   const { content } = await readModulesJson(octokit, owner, repo)
-  content.modules.push({ name: params.name, repoUrl: params.repoUrl, version: params.version })
+  if (normaliseModules(content.modules) === normaliseModules(desired)) {
+    return { committed: false }
+  }
 
+  const updated: ModulesJson = {
+    modules: desired.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version })),
+  }
   const deleteGitmodules = await hasGitmodules(octokit, owner, repo)
-  return commitModulesJson(octokit, owner, repo, content, params.message, deleteGitmodules)
-}
-
-export async function commitModuleUpdate(params: {
-  name: string
-  version: string
-  message: string
-}): Promise<{ commitSha: string }> {
-  const octokit = await getGithubClient()
-  const { owner, repo } = getMainRepo()
-
-  const { content } = await readModulesJson(octokit, owner, repo)
-  const entry = content.modules.find(m => m.name === params.name)
-  if (!entry) throw new Error(`Module "${params.name}" not found in modules.json`)
-  entry.version = params.version
-
-  return commitModulesJson(octokit, owner, repo, content, params.message)
-}
-
-export async function commitModuleRemove(params: {
-  name: string
-  message: string
-}): Promise<void> {
-  const octokit = await getGithubClient()
-  const { owner, repo } = getMainRepo()
-
-  const { content } = await readModulesJson(octokit, owner, repo)
-  content.modules = content.modules.filter(m => m.name !== params.name)
-
-  await commitModulesJson(octokit, owner, repo, content, params.message)
+  const { commitSha } = await commitModulesJson(
+    octokit,
+    owner,
+    repo,
+    updated,
+    'chore: sync module registry\n\n[cactus-deploy]',
+    deleteGitmodules
+  )
+  return { committed: true, commitSha }
 }
 
 export async function getLatestDeploymentStatus(): Promise<

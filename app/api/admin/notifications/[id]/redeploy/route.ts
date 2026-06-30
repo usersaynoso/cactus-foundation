@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 
 export const maxDuration = 60
@@ -49,20 +50,24 @@ export async function POST(_request: NextRequest, { params }: Params) {
   invalidateSiteConfigCache()
 
   after(async () => {
-    const result = await triggerVercelRedeploy(token, projectId)
-    if (result.triggered && result.deploymentId) {
+    // Persist a resolved deployment id (or clear the sentinel if nothing started).
+    const persistDeploymentId = async (uid: string | undefined) => {
       try {
         await prisma.siteConfig.updateMany({
           where: { id: 'singleton', pendingRedeployId: 'pending' },
-          data: { pendingRedeployId: result.deploymentId },
+          data: uid
+            ? { pendingRedeployId: uid }
+            : { pendingRedeployId: null, pendingRedeployAt: null },
         })
         invalidateSiteConfigCache()
       } catch (err) {
         console.error('[notifications/redeploy] Failed to persist pendingRedeployId:', err)
       }
-    } else {
-      // Poll for the real deployment ID since triggerVercelRedeploy didn't return one
-      let uid: string | undefined
+    }
+
+    // Poll Vercel for the deployment created after we started (used when we don't
+    // get an id back directly — e.g. a git-push-triggered build).
+    const pollForDeploymentId = async (): Promise<string | undefined> => {
       for (let i = 0; i < 8; i++) {
         await new Promise((r) => setTimeout(r, 5_000))
         try {
@@ -72,33 +77,42 @@ export async function POST(_request: NextRequest, { params }: Params) {
           )
           if (res.ok) {
             const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
-            uid = data.deployments?.find((d) => d.created > deployStartedAt)?.uid
-            if (uid) break
+            const uid = data.deployments?.find((d) => d.created > deployStartedAt)?.uid
+            if (uid) return uid
           }
         } catch { /* ignore */ }
       }
-      if (uid) {
-        try {
-          await prisma.siteConfig.updateMany({
-            where: { id: 'singleton', pendingRedeployId: 'pending' },
-            data: { pendingRedeployId: uid },
-          })
-          invalidateSiteConfigCache()
-        } catch (err) {
-          console.error('[notifications/redeploy] Failed to persist polled deploymentId:', err)
-        }
-      } else {
-        // Redeploy never started - clear sentinel so admin isn't stranded
-        try {
-          await prisma.siteConfig.updateMany({
-            where: { id: 'singleton', pendingRedeployId: 'pending' },
-            data: { pendingRedeployId: null, pendingRedeployAt: null },
-          })
-          invalidateSiteConfigCache()
-        } catch (err) {
-          console.error('[notifications/redeploy] Failed to clear pendingRedeployId sentinel:', err)
-        }
-      }
+      return undefined
+    }
+
+    // Deferred module registry sync. The desired state is the full set of Module rows
+    // (any status — a row existing means its code should ship; uninstall already deleted
+    // the row). If creds are missing or this throws, fall through to the env-var redeploy
+    // path so settings-only redeploys still work.
+    let committed = false
+    try {
+      const modules = await prisma.module.findMany()
+      const synced = await syncModulesJson(
+        modules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version }))
+      )
+      committed = synced.committed
+    } catch (err) {
+      console.error('[notifications/redeploy] Module registry sync failed, falling back to redeploy:', err)
+    }
+
+    if (committed) {
+      // The git push already triggered a Vercel build — do NOT trigger another, or we
+      // double-deploy. Just capture the build the push created.
+      await persistDeploymentId(await pollForDeploymentId())
+      return
+    }
+
+    // No module changes to commit: rebuild current HEAD to pick up env-var changes.
+    const result = await triggerVercelRedeploy(token, projectId)
+    if (result.triggered && result.deploymentId) {
+      await persistDeploymentId(result.deploymentId)
+    } else {
+      await persistDeploymentId(await pollForDeploymentId())
     }
   })
 
