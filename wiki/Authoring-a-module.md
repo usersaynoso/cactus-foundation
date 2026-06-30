@@ -255,6 +255,7 @@ A module can register Puck blocks that appear in both the page builder and the l
 - **All settings live in the block's Puck fields.** Do not create a separate settings page for per-form configuration - every block instance on the site can carry different settings.
 - **Keep security-sensitive settings server-authoritative.** For example, a contact form block's notification email and CAPTCHA toggle should be stored in the page's `builderData`, never sent by the browser. The submit handler must re-derive the config by looking up the saved `builderData` using the page/layout slug and block `id`.
 - **Use `puck?.id`** in the RSC render function to get the block's unique Puck identifier (available as `props.puck.id` in all render functions).
+- **Gate settings behind real config status with `resolveFields`.** If your block depends on integrations that may not be configured (e.g. email delivery, a third-party API), add an async `resolveFields` function to your editor component object. It receives `(data, { fields })` and returns the fields to display. When the required integration is absent, return a single custom field that renders a warning banner instead of the normal controls - this prevents editors from configuring features that can't work. Use `fetch('/api/auth/config')` to check email and Turnstile status; cache the promise at module scope with a short TTL (60 s) so the function doesn't refetch on every panel keystroke.
 
 ## Local development loop
 
