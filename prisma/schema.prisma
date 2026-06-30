@@ -163,7 +163,6 @@ model SiteConfig {
   trustDeviceDays        Int        @default(28)
   emailFromName          String?
   emailFromAddress       String?
-  adminEmail             String?
   // 'brevo' | 'smtp'
   emailProvider          String?
   // Active media provider for new uploads. Null until an admin selects one.
