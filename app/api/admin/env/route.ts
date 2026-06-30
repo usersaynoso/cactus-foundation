@@ -101,15 +101,15 @@ export async function POST(req: NextRequest) {
     // the moment the client reloads — before the real deployment ID lands in after().
     await prisma.siteConfig.update({
       where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending' },
+      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
     })
     invalidateSiteConfigCache()
     after(async () => {
       const result = await triggerVercelRedeploy(token, projectId)
       if (result.triggered && result.deploymentId) {
         try {
-          await prisma.siteConfig.update({
-            where: { id: 'singleton' },
+          await prisma.siteConfig.updateMany({
+            where: { id: 'singleton', pendingRedeployId: 'pending' },
             data: { pendingRedeployId: result.deploymentId },
           })
           invalidateSiteConfigCache()
@@ -119,9 +119,9 @@ export async function POST(req: NextRequest) {
       } else {
         // Redeploy never started — clear the sentinel so we don't strand the user.
         try {
-          await prisma.siteConfig.update({
-            where: { id: 'singleton' },
-            data: { pendingRedeployId: null },
+          await prisma.siteConfig.updateMany({
+            where: { id: 'singleton', pendingRedeployId: 'pending' },
+            data: { pendingRedeployId: null, pendingRedeployAt: null },
           })
           invalidateSiteConfigCache()
         } catch (err) {
@@ -172,7 +172,7 @@ export async function DELETE() {
   try {
     await prisma.siteConfig.update({
       where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending' },
+      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
     })
     invalidateSiteConfigCache()
   } catch (err) {
@@ -185,8 +185,8 @@ export async function DELETE() {
     const result = await triggerVercelRedeploy(token, projectId)
     if (result.triggered && result.deploymentId) {
       try {
-        await prisma.siteConfig.update({
-          where: { id: 'singleton' },
+        await prisma.siteConfig.updateMany({
+          where: { id: 'singleton', pendingRedeployId: 'pending' },
           data: { pendingRedeployId: result.deploymentId },
         })
         invalidateSiteConfigCache()
@@ -196,9 +196,9 @@ export async function DELETE() {
     } else {
       // Redeploy never started — clear the sentinel so we don't strand the user.
       try {
-        await prisma.siteConfig.update({
-          where: { id: 'singleton' },
-          data: { pendingRedeployId: null },
+        await prisma.siteConfig.updateMany({
+          where: { id: 'singleton', pendingRedeployId: 'pending' },
+          data: { pendingRedeployId: null, pendingRedeployAt: null },
         })
         invalidateSiteConfigCache()
       } catch (err) {

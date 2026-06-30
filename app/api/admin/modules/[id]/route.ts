@@ -97,7 +97,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
       await prisma.siteConfig.update({
         where: { id: 'singleton' },
-        data: { pendingRedeployId: 'pending' },
+        data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
       })
       invalidateSiteConfigCache()
 
@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
             const uid = data.deployments?.[0]?.uid
             if (uid) {
-              await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { pendingRedeployId: uid } })
+              await prisma.siteConfig.updateMany({ where: { id: 'singleton', pendingRedeployId: 'pending' }, data: { pendingRedeployId: uid } })
               invalidateSiteConfigCache()
             }
           }
@@ -217,7 +217,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     await prisma.siteConfig.update({
       where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending' },
+      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
     })
     invalidateSiteConfigCache()
 
@@ -237,7 +237,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
           const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
           const uid = data.deployments?.[0]?.uid
           if (uid) {
-            await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { pendingRedeployId: uid } })
+            await prisma.siteConfig.updateMany({ where: { id: 'singleton', pendingRedeployId: 'pending' }, data: { pendingRedeployId: uid } })
             invalidateSiteConfigCache()
           }
         }

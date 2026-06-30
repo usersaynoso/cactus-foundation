@@ -10,6 +10,10 @@ let cachedStatusAt: number = 0
 let cachedPendingRedeployId: string | null = null
 let cachedPendingRedeployIdAt: number = 0
 const CACHE_TTL_MS = 5_000 // 5 seconds
+// Server-side safety net: the redeploy gate auto-releases after this window so an admin
+// is never permanently trapped if the webhook/client/token path never clears the flag.
+// Deploys here never exceed ~2 min, so 2 min is the agreed maximum.
+const REDEPLOY_MAX_MS = 2 * 60_000
 
 export async function getSiteConfig(): Promise<SiteConfig | null> {
   return prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
@@ -47,6 +51,28 @@ export async function getSiteStatusCached(): Promise<SiteStatus | null> {
   return config?.status ?? null
 }
 
+async function resolvePendingRedeploy(
+  row: { pendingRedeployId: string | null; pendingRedeployAt: Date | null }
+): Promise<string | null> {
+  const id = row.pendingRedeployId
+  if (!id) return null
+  const at = row.pendingRedeployAt
+  // NULL timestamp => legacy/stuck row => treat as expired (self-heals the current trap).
+  const expired = at === null || Date.now() - at.getTime() > REDEPLOY_MAX_MS
+  if (!expired) return id
+  try {
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: null, pendingRedeployAt: null },
+    })
+  } catch {
+    // best-effort: still return null so this request is unblocked; next request retries
+  }
+  cachedPendingRedeployId = null
+  cachedPendingRedeployIdAt = Date.now()
+  return null
+}
+
 export async function getPendingRedeployIdCached(): Promise<string | null> {
   const now = Date.now()
   if (cachedPendingRedeployIdAt > 0 && now - cachedPendingRedeployIdAt < CACHE_TTL_MS) {
@@ -54,21 +80,23 @@ export async function getPendingRedeployIdCached(): Promise<string | null> {
   }
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { pendingRedeployId: true },
+    select: { pendingRedeployId: true, pendingRedeployAt: true },
   })
-  cachedPendingRedeployId = config?.pendingRedeployId ?? null
+  const resolved = config ? await resolvePendingRedeploy(config) : null
+  cachedPendingRedeployId = resolved
   cachedPendingRedeployIdAt = now
-  return cachedPendingRedeployId
+  return resolved
 }
 
 export async function getPendingRedeployIdUncached(): Promise<string | null> {
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { pendingRedeployId: true },
+    select: { pendingRedeployId: true, pendingRedeployAt: true },
   })
-  cachedPendingRedeployId = config?.pendingRedeployId ?? null
+  const resolved = config ? await resolvePendingRedeploy(config) : null
+  cachedPendingRedeployId = resolved
   cachedPendingRedeployIdAt = Date.now()
-  return cachedPendingRedeployId
+  return resolved
 }
 
 export function invalidateSiteConfigCache() {

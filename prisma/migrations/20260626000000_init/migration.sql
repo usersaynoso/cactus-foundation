@@ -143,6 +143,7 @@ CREATE TABLE "SiteConfig" (
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
+    "pendingRedeployAt" TIMESTAMP(3),
     "designTokens" JSONB,
     "consentBannerConfig" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

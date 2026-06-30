@@ -182,6 +182,9 @@ model SiteConfig {
   homepageId             String?
   // Set when a Vercel redeploy is in-flight; cleared when READY or dismissed
   pendingRedeployId      String?
+  // When pendingRedeployId was set; drives the server-side time-box that auto-releases
+  // the redeploy gate so admins are never trapped (NULL => treat as expired).
+  pendingRedeployAt      DateTime?
   // Design tokens: colours, fonts, spacing, radius, shadows stored as JSON
   designTokens           Json?
   // Cookie consent banner config (null = banner not configured)

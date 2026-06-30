@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.siteConfig.update({
       where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending' },
+      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
     })
     invalidateSiteConfigCache()
 
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
           const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
           const uid = data.deployments?.[0]?.uid
           if (uid) {
-            await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { pendingRedeployId: uid } })
+            await prisma.siteConfig.updateMany({ where: { id: 'singleton', pendingRedeployId: 'pending' }, data: { pendingRedeployId: uid } })
             invalidateSiteConfigCache()
           }
         }
