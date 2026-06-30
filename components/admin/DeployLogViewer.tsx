@@ -43,8 +43,8 @@ export default function DeployLogViewer({ rawLines, onComplete, onError: _onErro
     if (shouldComplete) onComplete?.()
   }, [rawLines, onComplete])
 
-  const visible = messages.slice(-5)
-  const hasFade = messages.length > 5
+  const visible = messages.slice(-8)
+  const hasFade = messages.length > 8
 
   function formatTime(d: Date) {
     return d.toTimeString().slice(0, 8)
