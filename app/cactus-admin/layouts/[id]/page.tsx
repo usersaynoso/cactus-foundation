@@ -108,7 +108,7 @@ export default function LayoutEditorPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem', color: 'var(--color-muted)', flexShrink: 0 }}>
-        <Link href={`/${adminPath}/layouts`} style={{ color: 'var(--color-muted)', textDecoration: 'none' }}>← Theme Builder</Link>
+        <Link href={`/${adminPath}/layouts`} style={{ color: 'var(--color-muted)', textDecoration: 'none' }}>← Layout Builder</Link>
         <span style={{ color: 'var(--color-border)' }}>|</span>
         <span style={{ fontWeight: 500, color: 'var(--color-fg)' }}>{layout.name}</span>
         <TypeBadge type={layout.type} />

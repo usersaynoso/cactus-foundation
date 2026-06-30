@@ -169,7 +169,7 @@ export default function StyleGuidePage() {
     setSaved(false)
   }
 
-  if (loading) return <div style={{ padding: '2rem', color: '#6b7280' }}>Loading…</div>
+  if (loading) return <div style={{ padding: '2rem', color: 'var(--color-muted)' }}>Loading…</div>
 
   const spacingSteps = [1, 2, 3, 4, 6, 8, 12, 16, 24]
 
@@ -189,9 +189,9 @@ export default function StyleGuidePage() {
       <div style={{ padding: '2rem', maxWidth: 720 }}>
 
         <Section title="Colour palette">
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0 0 1rem' }}>Up to 6 named colours. Each colour has a light and dark mode variant. These become the only colour options throughout the layout builder.</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Up to 6 named colours. Each colour has a light and dark mode variant. These become the only colour options throughout the layout builder.</p>
           {tokens.colours.map((c, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'end', marginBottom: '0.75rem', padding: '0.75rem', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'end', marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--admin-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
               <div className="field" style={{ margin: 0 }}>
                 <label style={{ fontSize: '0.75rem' }}>Name</label>
                 <input type="text" value={c.name} onChange={e => updateColour(i, { name: e.target.value })} placeholder="e.g. Primary" />
@@ -199,28 +199,28 @@ export default function StyleGuidePage() {
               <div className="field" style={{ margin: 0 }}>
                 <label style={{ fontSize: '0.75rem' }}>Light mode</label>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="color" value={c.hex.startsWith('#') ? c.hex : '#ffffff'} onChange={e => updateColour(i, { hex: e.target.value })} style={{ width: 32, height: 32, padding: 2, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} />
+                  <input type="color" value={c.hex.startsWith('#') ? c.hex : '#ffffff'} onChange={e => updateColour(i, { hex: e.target.value })} style={{ width: 32, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} />
                   <input type="text" value={c.hex} onChange={e => updateColour(i, { hex: e.target.value })} placeholder="#000000" style={{ fontSize: '0.8125rem' }} />
                 </div>
               </div>
               <div className="field" style={{ margin: 0 }}>
                 <label style={{ fontSize: '0.75rem' }}>Dark mode</label>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="color" value={(c.darkHex || c.hex).startsWith('#') ? (c.darkHex || c.hex) : '#ffffff'} onChange={e => updateColour(i, { darkHex: e.target.value })} style={{ width: 32, height: 32, padding: 2, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} />
+                  <input type="color" value={(c.darkHex || c.hex).startsWith('#') ? (c.darkHex || c.hex) : '#ffffff'} onChange={e => updateColour(i, { darkHex: e.target.value })} style={{ width: 32, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} />
                   <input type="text" value={c.darkHex} onChange={e => updateColour(i, { darkHex: e.target.value })} placeholder="#000000" style={{ fontSize: '0.8125rem' }} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', paddingBottom: '0.25rem' }}>
-                <div style={{ width: 28, height: 28, background: c.hex, borderRadius: 4, border: '1px solid #e5e7eb', flexShrink: 0 }} title="Light" />
-                <div style={{ width: 28, height: 28, background: c.darkHex || c.hex, borderRadius: 4, border: '1px solid #e5e7eb', flexShrink: 0 }} title="Dark" />
+                <div style={{ width: 28, height: 28, background: c.hex, borderRadius: 4, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light" />
+                <div style={{ width: 28, height: 28, background: c.darkHex || c.hex, borderRadius: 4, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark" />
                 {tokens.colours.length > 1 && (
-                  <button onClick={() => removeColour(i)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '0.25rem', fontSize: '1rem', lineHeight: 1 }} title="Remove colour">✕</button>
+                  <button onClick={() => removeColour(i)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '0.25rem', fontSize: '1rem', lineHeight: 1 }} title="Remove colour">✕</button>
                 )}
               </div>
             </div>
           ))}
           {tokens.colours.length < 6 && (
-            <button onClick={addColour} style={{ background: 'none', border: '1px dashed #d1d5db', borderRadius: 6, padding: '0.5rem 1rem', cursor: 'pointer', color: '#6b7280', fontSize: '0.875rem', fontFamily: 'inherit', width: '100%' }}>+ Add colour ({tokens.colours.length}/6)</button>
+            <button onClick={addColour} style={{ background: 'none', border: '1px dashed var(--color-border)', borderRadius: 6, padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.875rem', fontFamily: 'inherit', width: '100%' }}>+ Add colour ({tokens.colours.length}/6)</button>
           )}
         </Section>
 
@@ -299,7 +299,7 @@ export default function StyleGuidePage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '2.5rem' }}>
-      <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 1rem', color: '#111827', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>{title}</h2>
+      <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 1rem', color: 'var(--color-fg)', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>{title}</h2>
       {children}
     </div>
   )
@@ -344,13 +344,13 @@ function FontPickerField({ label, value, onChange }: { label: string; value: str
       />
       <span className="field-hint">Type to search or enter any CSS font-family value.</span>
       {open && filtered.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto', marginTop: 2 }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto', marginTop: 2 }}>
           {filtered.map(font => (
             <button
               key={font}
               type="button"
               onMouseDown={e => { e.preventDefault(); onChange(font); setOpen(false) }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.4375rem 0.75rem', background: font === value ? '#f0fdf4' : 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: font === value ? '#15803d' : '#374151', fontFamily: font.includes(',') ? font : `${font}, sans-serif` }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.4375rem 0.75rem', background: font === value ? 'var(--color-success-bg)' : 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', color: font === value ? 'var(--color-success)' : 'var(--color-fg)', fontFamily: font.includes(',') ? font : `${font}, sans-serif` }}
             >
               {font}
             </button>

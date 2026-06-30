@@ -299,9 +299,9 @@ The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share
 
 Page content is wrapped inside a layout resolved by `resolveThemeLayout('infoPage', { pageId, slug })`. The layout is rendered via `renderLayoutWithContent(layoutData, pageContent)`, which patches the Puck config to replace the `ContentSlot` component's render function with one that returns the real page content. This happens entirely server-side with no hydration overhead.
 
-## Theme Builder
+## Layout Builder
 
-Cactus has no hardcoded frontend design. All visual aspects are user-configurable through the Theme Builder and Style Guide.
+Cactus has no hardcoded frontend design. All visual aspects are user-configurable through the Layout Builder and Style Guide.
 
 ### Layout types
 
@@ -315,7 +315,7 @@ Every layout record has a `type` field (stored as a plain `String` on the `Layou
 | `notFound` | Rendered by `app/not-found.tsx` when a URL matches no page. |
 | `statusPage` | Rendered by the coming-soon / maintenance status routes. |
 
-Headers and footers are full `Layout` records edited in **Admin → Theme Builder**, not JSON blobs on `SiteConfig`. The `SiteConfig` columns `headerBuilderData`, `footerBuilderData`, `defaultLayoutId`, `comingSoonPageId`, and `maintenancePageId` were removed.
+Headers and footers are full `Layout` records edited in **Admin → Layout Builder**, not JSON blobs on `SiteConfig`. The `SiteConfig` columns `headerBuilderData`, `footerBuilderData`, `defaultLayoutId`, `comingSoonPageId`, and `maintenancePageId` were removed.
 
 ### Display conditions
 

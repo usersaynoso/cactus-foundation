@@ -30,7 +30,7 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
     { href: `${base}/menus`,           label: 'Menus',         icon: '☰' },
     { href: `${base}/media`,           label: 'Media',         icon: '🖼' },
     { href: `${base}/appearance`,      label: 'Style Guide',   icon: '🎨' },
-    { href: `${base}/layouts`,         label: 'Theme Builder', icon: '📐' },
+    { href: `${base}/layouts`,         label: 'Layout Builder', icon: '📐' },
     { href: `${base}/users`,           label: 'Users',         icon: '👥' },
     { href: `${base}/roles`,           label: 'Roles',         icon: '🔑' },
     { href: `${base}/modules`,         label: 'Modules',       icon: '🧩' },

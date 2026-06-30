@@ -1165,7 +1165,7 @@ function ConfigPageInner() {
           </div>
           <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: 'var(--color-fg)', fontWeight: 500 }}>Status page layouts</p>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Customise the coming soon and maintenance screens in the Theme Builder.</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Customise the coming soon and maintenance screens in the Layout Builder.</p>
             <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)' }}>Manage status page layouts →</a>
           </div>
           <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>

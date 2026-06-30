@@ -46,7 +46,7 @@ function conditionSummary(layout: Layout): string {
   return `${inc.length} condition${inc.length === 1 ? '' : 's'}`
 }
 
-export default function ThemeBuilderPage() {
+export default function LayoutBuilderPage() {
   const adminPath = useAdminPath()
   const [activeTab, setActiveTab] = useState<string>('all')
   const [layouts, setLayouts] = useState<Layout[]>([])
@@ -81,7 +81,7 @@ export default function ThemeBuilderPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Theme Builder</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Layout Builder</h1>
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-base)' }}>Create typed layouts for headers, footers, pages, and status screens.</p>
         </div>
         <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
