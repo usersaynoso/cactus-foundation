@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Deployment is live - release the redeploy gate for any non-null marker.
     await prisma.siteConfig.updateMany({
       where: { id: 'singleton', NOT: { pendingRedeployId: null } },
-      data: { pendingRedeployId: null },
+      data: { pendingRedeployId: null, pendingRedeployAt: null },
     })
     invalidateSiteConfigCache()
   } else if (event.type === 'deployment.error' || event.type === 'deployment.canceled') {
