@@ -12,7 +12,10 @@
       "Bash(git commit -m ' *)",
       "Bash(git -C \"/Users/chris/Git Local/Cactus\" add app/api/setup/deployment-logs/route.ts app/setup/page.tsx)",
       "Bash(git -C '/Users/chris/Git Local/Cactus' commit -m ' *)",
-      "Bash(git -C \"/Users/chris/Git Local/Cactus\" describe --tags --abbrev=0)"
+      "Bash(git -C \"/Users/chris/Git Local/Cactus\" describe --tags --abbrev=0)",
+      "Bash(vercel --prod --yes)",
+      "Bash(git fetch *)",
+      "Bash(echo \"exit: $?\")"
     ],
     "additionalDirectories": [
       "/Users/chris/Git Local/Cactus"
