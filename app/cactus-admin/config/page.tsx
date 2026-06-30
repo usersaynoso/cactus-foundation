@@ -138,6 +138,165 @@ function StatusBadge({ set }: { set: boolean }) {
   )
 }
 
+type CoreUpdateStatus =
+  | { configured: false; error?: string }
+  | {
+      configured: true
+      currentVersion: string
+      latestVersion: string
+      updateAvailable: boolean
+      releaseNotesHtml: string
+      latestUrl: string
+      publishedAt: string | null
+    }
+
+function UpdatesPanel() {
+  const [status, setStatus] = useState<CoreUpdateStatus | null>(null)
+  const [showNotes, setShowNotes] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/updates')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setStatus(d as CoreUpdateStatus) })
+      .catch(() => {})
+  }, [])
+
+  async function handleUpdate() {
+    setUpdating(true)
+    setUpdateError('')
+    try {
+      const res = await fetch('/api/admin/updates', { method: 'POST' })
+      const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
+      if (!res.ok) throw new Error(d.error ?? 'Update failed')
+      if (d.redeployTriggered) {
+        window.location.reload()
+        return
+      }
+    } catch (err: unknown) {
+      setUpdateError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  if (!status) return null
+
+  if (!status.configured) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
+          Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
+          <code>GITHUB_API_TOKEN</code> in{' '}
+          <a href="?tab=integrations" style={{ color: 'var(--color-primary)' }}>Settings → Integrations</a>.
+        </div>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
+      </div>
+    )
+  }
+
+  if (!status.updateAvailable) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
+          <span className="badge badge-success">Up to date</span>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+            You&rsquo;re on v{status.currentVersion} — the latest release.
+          </span>
+        </div>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 0 1.5rem' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      <div className="card" style={{ borderColor: 'var(--color-primary)', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+          <div>
+            <h2 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 600 }}>
+              Update available
+            </h2>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+              v{status.currentVersion} &rarr; <strong>v{status.latestVersion}</strong>{' '}
+              <span className="badge" style={{ fontSize: '0.7rem', marginLeft: '0.25rem' }}>new</span>
+            </p>
+          </div>
+          <a
+            href={status.latestUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}
+          >
+            View on GitHub →
+          </a>
+        </div>
+
+        {status.releaseNotesHtml && (
+          <div style={{ marginBottom: '0.75rem' }}>
+            <button
+              type="button"
+              onClick={() => setShowNotes((s) => !s)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.875rem', color: 'var(--color-primary)', fontFamily: 'inherit' }}
+            >
+              {showNotes ? 'Hide' : "What's new"} {showNotes ? '▲' : '▼'}
+            </button>
+            {showNotes && (
+              <div
+                style={{ marginTop: '0.625rem', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem 1rem', maxHeight: '16rem', overflowY: 'auto', fontSize: '0.8125rem', lineHeight: 1.6 }}
+                dangerouslySetInnerHTML={{ __html: status.releaseNotesHtml }}
+              />
+            )}
+          </div>
+        )}
+
+        {updateError && (
+          <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+            {updateError}
+          </div>
+        )}
+
+        {!showConfirm && (
+          <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} onClick={() => setShowConfirm(true)}>
+            Update now
+          </button>
+        )}
+
+        {showConfirm && (
+          <div className="card" style={{ marginTop: '0.5rem', background: 'var(--color-bg-subtle)' }}>
+            <p style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+              This will copy the updated core files from the upstream Cactus Foundation repository
+              into your GitHub repo and trigger a redeploy. Your modules, content, and database are
+              not affected.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="btn btn-primary"
+                style={{ fontSize: '0.875rem' }}
+                disabled={updating}
+                onClick={handleUpdate}
+              >
+                {updating ? 'Updating…' : 'Confirm update'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize: '0.875rem' }}
+                disabled={updating}
+                onClick={() => { setShowConfirm(false); setUpdateError('') }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 0 1.5rem' }} />
+    </div>
+  )
+}
+
 function ConfigPageInner() {
   const searchParams = useSearchParams()
   const initialTab = TABS.includes(searchParams.get('tab') as Tab) ? (searchParams.get('tab') as Tab) : 'general'
@@ -720,6 +879,7 @@ function ConfigPageInner() {
 
       {tab === 'general' && (
         <div>
+          <UpdatesPanel />
           <div className="field"><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
           <div className="field"><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>

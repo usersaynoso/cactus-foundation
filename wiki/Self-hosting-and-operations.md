@@ -171,7 +171,28 @@ If a module migration fails during a build, the build will fail and Vercel will 
 
 ## Upgrading Cactus core
 
-Cactus core upgrades are `npm update next @prisma/client prisma` (and other dependencies), followed by a new `prisma migrate dev` if the schema changed, then push. The module migration runner runs before `next build` and is unaffected by core upgrades.
+### In-product update (recommended)
+
+The **Settings → General** tab shows an Updates panel that checks the upstream Cactus Foundation repo for newer releases. If one is available, an **Update now** button appears. Clicking it:
+
+1. Uses the GitHub API to diff between your installed version tag and the latest release tag on `usersaynoso/cactus-foundation`.
+2. Copies changed core files into your GitHub repo (your `GITHUB_REPO` env var), skipping `modules/`, `.gitmodules`, and all database content.
+3. Commits the changes and triggers a Vercel redeploy automatically.
+
+This requires GitHub to be configured (a GitHub App or `GITHUB_API_TOKEN`). The upstream repo must publish GitHub Releases whose tags correspond to `package.json` versions (e.g. `v0.5.97`).
+
+**Requirements:**
+- `GITHUB_REPO` is set to your repo (e.g. `myorg/my-cactus-site`).
+- GitHub App or `GITHUB_API_TOKEN` has write access to `GITHUB_REPO`.
+- The upstream repo (`usersaynoso/cactus-foundation` or your `CACTUS_CORE_REPO` override) publishes tagged GitHub Releases.
+
+**What is preserved:** Anything in `modules/`, `.gitmodules`, and all database rows (users, pages, layouts, media, settings). Only core files tracked in the upstream diff are overwritten.
+
+**Override the upstream repo:** If you fork Cactus Foundation, set `CACTUS_CORE_REPO=yourorg/your-fork` so the Updates panel checks your fork instead.
+
+### Manual upgrade (alternative)
+
+Cactus core upgrades can also be done manually: `npm update next @prisma/client prisma` (and other dependencies), followed by a new `prisma migrate dev` if the schema changed, then push. The module migration runner runs before `next build` and is unaffected by core upgrades.
 
 ## Environment variable changes
 
