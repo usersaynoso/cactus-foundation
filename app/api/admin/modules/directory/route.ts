@@ -83,7 +83,7 @@ type InstalledModule = {
   status: ModuleStatus
   updateAvailable: string | null
   lastError: string | null
-  manifest: object | null
+  manifest: unknown
 }
 
 function buildInstalledEntry(m: InstalledModule): DirectoryEntry {
