@@ -149,7 +149,7 @@ export default async function AdminDashboard() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: f.configured ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
                   fontSize: 'var(--text-sm)', fontWeight: 700,
-                  color: f.configured ? '#fff' : 'var(--color-text-muted)',
+                  color: f.configured ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
                   marginTop: 1,
                 }}>
                   {f.configured ? '✓' : '○'}

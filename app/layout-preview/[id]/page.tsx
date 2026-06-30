@@ -71,7 +71,7 @@ export default async function LayoutPreviewPage({ params }: Props) {
   const infoBar = (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-      background: '#111827', color: '#f9fafb',
+      background: 'var(--color-text)', color: 'var(--color-bg)',
       padding: '0.4rem 1rem', fontSize: '0.8rem',
       display: 'flex', gap: '0.75rem', alignItems: 'center',
     }}>
@@ -84,9 +84,9 @@ export default async function LayoutPreviewPage({ params }: Props) {
 
   const placeholder = (label: string) => (
     <div style={{
-      minHeight: '70vh', background: '#f3f4f6',
+      minHeight: '70vh', background: 'var(--color-bg-subtle)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: '#9ca3af', fontSize: '0.875rem', fontStyle: 'italic',
+      color: 'var(--color-muted)', fontSize: '0.875rem', fontStyle: 'italic',
     }}>
       {label}
     </div>

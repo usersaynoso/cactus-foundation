@@ -315,7 +315,7 @@ export default function MenuDetailPage() {
           onDrop={() => handleDrop(item.id)}
           onDragEnd={() => { setDragOver(null); dragId.current = null }}
           style={{
-            background: dragOver === item.id ? '#f0fdf4' : undefined,
+            background: dragOver === item.id ? 'var(--color-success-subtle)' : undefined,
             cursor: 'grab',
             opacity: dragId.current === item.id ? 0.5 : 1,
           }}

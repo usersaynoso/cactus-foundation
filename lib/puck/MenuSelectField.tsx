@@ -18,16 +18,16 @@ export const MenuSelectField: CustomFieldRender<string> = ({ value, onChange, fi
 
   return (
     <div>
-      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#374151', marginBottom: '0.375rem' }}>
+      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
         {(field as { label?: string }).label ?? 'Menu'}
       </label>
       {loading
-        ? <p style={{ fontSize: '0.8125rem', color: '#9ca3af', margin: 0 }}>Loading…</p>
+        ? <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>Loading…</p>
         : (
           <select
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value)}
-            style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit' }}
+            style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit' }}
           >
             <option value="">— Select a menu —</option>
             {menus.map((m) => (

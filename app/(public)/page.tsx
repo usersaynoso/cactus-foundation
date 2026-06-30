@@ -56,7 +56,7 @@ export default async function RootPage() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.5rem' }}>
       <h1>{config?.siteName ?? 'Welcome'}</h1>
-      {config?.tagline && <p style={{ fontSize: '1.25rem', color: '#6b7280' }}>{config.tagline}</p>}
+      {config?.tagline && <p style={{ fontSize: '1.25rem', color: 'var(--color-fg-secondary)' }}>{config.tagline}</p>}
       {config?.description && <p>{config.description}</p>}
     </div>
   )
@@ -75,7 +75,7 @@ async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) 
   const layout = await resolveThemeLayout('infoPage', { pageId, slug: 'home', isHomepage: true })
 
   const draftBanner = isDraft ? (
-    <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: '#fef9c3', color: '#a16207', fontSize: '0.875rem', fontWeight: 500 }}>
+    <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: 'var(--color-warning-bg)', color: 'var(--color-warning)', fontSize: '0.875rem', fontWeight: 500 }}>
       Draft — not visible to the public
     </div>
   ) : null
@@ -86,7 +86,7 @@ async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) 
       return (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
           {draftBanner}
-          <p style={{ color: '#9ca3af', textAlign: 'center', padding: '4rem 0' }}>This page has no builder content yet.</p>
+          <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: '4rem 0' }}>This page has no builder content yet.</p>
         </div>
       )
     }
@@ -116,7 +116,7 @@ async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) 
       {draftBanner}
       <article>
         <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: '0 0 1.5rem', lineHeight: 1.2 }}>{page.title}</h1>
-        <div className="prose" dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.75, color: '#374151' }} />
+        <div className="prose" dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.75, color: 'var(--color-fg)' }} />
       </article>
     </div>
   )

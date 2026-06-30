@@ -57,7 +57,7 @@ export default async function InfoPageRoute({ params }: Props) {
   const isDraft = page.status === 'draft'
 
   const draftBanner = isDraft ? (
-    <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: '#fef9c3', color: '#a16207', fontSize: '0.875rem', fontWeight: 500 }}>
+    <div style={{ margin: 0, borderRadius: 0, padding: '0.75rem 1.5rem', textAlign: 'center', background: 'var(--color-warning-bg)', color: 'var(--color-warning)', fontSize: '0.875rem', fontWeight: 500 }}>
       Draft — not visible to the public
     </div>
   ) : null
