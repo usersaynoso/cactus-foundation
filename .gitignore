@@ -59,5 +59,11 @@ coverage/
 # Never committed to the main Cactus repo; the template ships without modules.
 /modules/
 
+# Module router — always generated from installed modules at build/dev time.
+# Vercel regenerates it from submodules; never commit the generated version.
+/lib/modules/router.ts
+
 # Claude Code agent worktrees (temporary, never commit)
-.claude/worktrees/
+.claude/
+
+
