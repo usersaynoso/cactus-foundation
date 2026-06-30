@@ -242,7 +242,8 @@ export default function SetupPage() {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
           if (!cancelled) {
             if (data.state) setDeployState(data.state)
-            if (data.logLines && data.logLines.length > 0) setDeployLogs(prev => [...prev, ...data.logLines])
+            const lines = data.logLines
+            if (lines && lines.length > 0) setDeployLogs(prev => [...prev, ...lines])
             if (data.latestTimestamp) lastSeen = data.latestTimestamp
           }
         }
