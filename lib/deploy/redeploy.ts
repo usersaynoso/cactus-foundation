@@ -88,7 +88,9 @@ export async function startDeferredRedeploy(
     try {
       const modules = await prisma.module.findMany()
       const synced = await syncModulesJson(
-        modules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version }))
+        // Ship the in-flight target while a deploy is mid-flight (pendingVersion);
+        // it's promoted to `version` only once the deploy succeeds.
+        modules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.pendingVersion ?? m.version }))
       )
       committed = synced.committed
     } catch (err) {

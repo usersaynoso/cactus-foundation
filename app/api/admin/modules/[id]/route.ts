@@ -9,6 +9,7 @@ import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 
 export const maxDuration = 60
 
@@ -49,13 +50,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
     const deployStatus = await getLatestDeploymentStatus()
     if (deployStatus === 'READY') {
-      await prisma.module.update({ where: { id }, data: { status: 'active' } })
+      await markModulesDeploySucceeded()
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
       return NextResponse.json({ status: 'active' })
     } else if (deployStatus === 'ERROR') {
-      await prisma.module.update({ where: { id }, data: { status: 'failed', lastError: 'Vercel deployment failed' } })
+      await markModulesDeployFailed('Vercel deployment failed')
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
-      return NextResponse.json({ status: 'failed' })
+      const refreshed = await prisma.module.findUnique({ where: { id }, select: { status: true } })
+      return NextResponse.json({ status: refreshed?.status ?? 'failed' })
     }
     return NextResponse.json({ status: 'deploying' })
   }
@@ -87,31 +89,41 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     try {
       // Commit modules.json and redeploy immediately: the git push auto-deploys and the
-      // admin is sent to the redeploying screen. The module ships as 'deploying'.
+      // admin is sent to the redeploying screen. The module ships as 'deploying' with the
+      // new tag held in pendingVersion - the confirmed `version` only moves once the deploy
+      // succeeds (markModulesDeploySucceeded), so a failed deploy doesn't masquerade as done.
       await prisma.module.update({
         where: { id },
-        data: { status: 'deploying', updateAvailable: null, updateNotes: null, version: release.tag },
+        data: { status: 'deploying', pendingVersion: release.tag },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      // The update has been applied - clear the "update available" reminder.
-      try {
-        await clearAlert(`module-update:${id}`)
-      } catch (err) {
-        console.error('[modules] Failed to clear module-update notification:', err)
-      }
-
       const { triggered } = await startDeferredRedeploy()
       if (!triggered) {
-        // No Vercel creds: fall back to the deferred-notification flow.
-        await prisma.module.update({ where: { id }, data: { status: 'pending_deploy' } })
+        // No Vercel creds: there's no deploy to track, so apply the update optimistically
+        // (promote the version now) and fall back to the deferred-notification flow.
+        await prisma.module.update({
+          where: { id },
+          data: {
+            status: 'pending_deploy',
+            version: release.tag,
+            pendingVersion: null,
+            updateAvailable: null,
+            updateNotes: null,
+          },
+        })
+        try {
+          await clearAlert(`module-update:${id}`)
+        } catch (err) {
+          console.error('[modules] Failed to clear module-update notification:', err)
+        }
         await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag}` })
         return NextResponse.json({ ok: true, status: 'pending_deploy' })
       }
     } catch (err: unknown) {
       await prisma.module.update({
         where: { id },
-        data: { status: 'failed', lastError: err instanceof Error ? err.message : 'Update failed' },
+        data: { status: 'failed', pendingVersion: null, lastError: err instanceof Error ? err.message : 'Update failed' },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
       return errorResponse(`Update failed: ${err instanceof Error ? err.message : 'Unknown'}`, 500)

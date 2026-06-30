@@ -331,7 +331,11 @@ model Module {
   id              String       @id @default(cuid())
   name            String       @unique
   repoUrl         String
+  // Confirmed installed version - the tag of the build that is actually live.
   version         String
+  // Target version while a deploy is in flight; promoted to `version` only once the
+  // deploy succeeds, dropped on failure. null when not mid-update.
+  pendingVersion  String?
   // Short unique namespace for this module's database tables
   tablePrefix     String       @unique
   status          ModuleStatus @default(pending_install)

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 
 type VercelEvent = {
   type: 'deployment.succeeded' | 'deployment.error' | 'deployment.canceled' | string
@@ -42,12 +43,9 @@ export async function POST(request: NextRequest) {
 
   const deploymentId = event.payload?.deployment?.id
 
-  // Update all modules/themes in 'deploying' state
+  // Reconcile any modules left in 'deploying' against the deployment outcome.
   if (event.type === 'deployment.succeeded') {
-    await prisma.module.updateMany({
-      where: { status: 'deploying' },
-      data: { status: 'active' },
-    })
+    await markModulesDeploySucceeded()
     // Release the deploy lock
     await prisma.deployLock.deleteMany({})
     // Deployment is live - release the redeploy gate for any non-null marker.
@@ -57,10 +55,7 @@ export async function POST(request: NextRequest) {
     })
     invalidateSiteConfigCache()
   } else if (event.type === 'deployment.error' || event.type === 'deployment.canceled') {
-    await prisma.module.updateMany({
-      where: { status: 'deploying' },
-      data: { status: 'failed', lastError: `Deployment ${event.type}` },
-    })
+    await markModulesDeployFailed(`Deployment ${event.type}`)
     await prisma.deployLock.deleteMany({})
     // Resolve 'pending' to the real deployment ID so the redeploying page can show failure state
     if (deploymentId) {

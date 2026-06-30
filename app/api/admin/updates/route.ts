@@ -90,15 +90,14 @@ export async function POST() {
     await syncCoreFromUpstream(currentVersion, latestVersion)
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    // Bust the update cache so the panel reflects the new version after redeploy
+    // Bust the update cache so the panel reflects the running version after redeploy.
     invalidateCoreUpdateCache()
 
-    // The update has been applied - clear the "update available" reminder.
-    try {
-      await clearAlert('core-update')
-    } catch (err) {
-      console.error('[updates] Failed to clear core-update notification:', err)
-    }
+    // Deliberately DON'T clear the 'core-update' alert here: the core version is
+    // pkg.version baked into the running build, so getCoreUpdateStatus (the GET handler)
+    // re-derives it truthfully - on a successful deploy it reports up-to-date and clears
+    // the alert; on a failed deploy the old build is still live, so the alert correctly
+    // stays lit rather than falsely signalling the update landed.
 
     // The sync push already triggered a Vercel build. Arm the redeploy gate and capture
     // that build (committedSince mode skips module sync / triggerVercelRedeploy so we

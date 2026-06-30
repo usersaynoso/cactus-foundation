@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { invalidateSiteConfigCache, getPendingRedeployIdUncached, getAdminPathCached } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
+import { getLatestDeploymentStatus } from '@/lib/modules/github'
+import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -25,11 +27,19 @@ export async function DELETE() {
     data: { pendingRedeployId: null, pendingRedeployAt: null },
   })
   invalidateSiteConfigCache()
-  // Activate any modules that finished deploying and release any lingering lock
+  // Release any lingering lock.
   await prisma.deployLock.deleteMany({})
-  await prisma.module.updateMany({
-    where: { status: 'deploying' },
-    data: { status: 'active' },
-  })
+  // Reconcile any modules still 'deploying' against the real deployment outcome rather
+  // than assuming success - dismissing a failed deploy must not mark it active.
+  const deploying = await prisma.module.findMany({ where: { status: 'deploying' }, select: { id: true } })
+  if (deploying.length > 0) {
+    const deployStatus = await getLatestDeploymentStatus()
+    if (deployStatus === 'READY') {
+      await markModulesDeploySucceeded()
+    } else if (deployStatus === 'ERROR') {
+      await markModulesDeployFailed('Vercel deployment failed')
+    }
+    // BUILDING / UNKNOWN: leave as 'deploying'; the next Modules-page check reconciles.
+  }
   return NextResponse.json({ ok: true })
 }

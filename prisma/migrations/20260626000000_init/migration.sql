@@ -259,6 +259,7 @@ CREATE TABLE "Module" (
     "name" TEXT NOT NULL,
     "repoUrl" TEXT NOT NULL,
     "version" TEXT NOT NULL,
+    "pendingVersion" TEXT,
     "tablePrefix" TEXT NOT NULL,
     "status" "ModuleStatus" NOT NULL DEFAULT 'pending_install',
     "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
