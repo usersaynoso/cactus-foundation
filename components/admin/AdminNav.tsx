@@ -87,6 +87,15 @@ export default function AdminNav({ adminPath, userRole, version, collapsed, onNa
             <ThemeToggle compact />
           </div>
         )}
+        <Link
+          href={`${base}/account`}
+          className={`admin-nav-account${collapsed ? ' admin-nav-account--collapsed' : ''}`}
+          title={collapsed ? 'My Account' : undefined}
+          onClick={onNavClick}
+        >
+          <span>👤</span>
+          {!collapsed && <span>My Account</span>}
+        </Link>
         <form action="/api/auth/logout" method="POST">
           <button
             type="submit"
