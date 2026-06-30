@@ -96,6 +96,12 @@ DELETE FROM "RateLimit" WHERE "windowStart" < NOW() - INTERVAL '1 hour';
 
 The retention periods are configurable on the GDPR & Legal tab of the config page. Schedule the cleanup SQL with your Postgres provider's scheduled jobs feature, a Vercel Cron job, or an external cron.
 
+## Module update detection
+
+The **Admin - Modules** page automatically checks for available updates each time it loads. For every installed module it fires a background `GET /api/admin/modules/{id}` call; if a newer GitHub release exists, the "Update" button appears without any manual action required. The check is a no-op when GitHub is not configured.
+
+Enabling or disabling a module refreshes the admin sidebar immediately - nav links for the toggled module appear or disappear without a full page reload.
+
 ## What to monitor
 
 - **Database connection pool saturation** - watch `pg_stat_activity` or your provider's pool metrics. If you're near the limit, check `DATABASE_URL` is a pooled connection string.
