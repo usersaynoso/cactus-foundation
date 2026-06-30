@@ -94,7 +94,7 @@ export interface Env {
   SUPABASE_STORAGE_BUCKET_NAME?: string
 }
 
-export default {
+const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
 
@@ -142,6 +142,7 @@ export default {
     }
   },
 }
+export default worker
 
 // ---------------------------------------------------------------------------
 // Per-provider fetch

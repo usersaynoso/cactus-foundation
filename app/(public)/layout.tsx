@@ -117,13 +117,13 @@ export default async function PublicLayout({ children }: { children: React.React
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />
       {headerData
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         ? <Render config={headerPuckRscConfig as any} data={headerData as Data} />
         : null
       }
       <main>{children}</main>
       {footerData
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         ? <Render config={footerPuckRscConfig as any} data={footerData as Data} />
         : null
       }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 type Props = {
   notificationId: string
@@ -8,12 +8,10 @@ type Props = {
 }
 
 export default function PendingDeployBanner({ notificationId, adminPath }: Props) {
-  const [dismissed, setDismissed] = useState(false)
   const sessionKey = `cactus-pending-deploy-dismissed-${notificationId}`
-
-  useEffect(() => {
-    if (sessionStorage.getItem(sessionKey)) setDismissed(true)
-  }, [sessionKey])
+  const [dismissed, setDismissed] = useState(() =>
+    typeof window !== 'undefined' && sessionStorage.getItem(sessionKey) !== null
+  )
 
   if (dismissed) return null
 

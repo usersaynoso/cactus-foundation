@@ -6,7 +6,7 @@
     "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && next dev",
     "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

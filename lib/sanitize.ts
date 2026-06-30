@@ -11,7 +11,6 @@ function getPurifier(): ReturnType<typeof createDOMPurify> {
   if (typeof window !== 'undefined') {
     _purifier = createDOMPurify(window)
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { JSDOM } = require('jsdom') as typeof import('jsdom')
     const dom = new JSDOM('<!DOCTYPE html>')
     _purifier = createDOMPurify(dom.window as unknown as Parameters<typeof createDOMPurify>[0])

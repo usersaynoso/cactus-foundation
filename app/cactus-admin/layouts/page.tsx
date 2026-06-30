@@ -64,6 +64,7 @@ export default function ThemeBuilderPage() {
 
   useEffect(() => {
     const tab = TABS.find(t => t.key === activeTab)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reload sets loading flag before async fetch; standard data-load pattern
     reload(tab?.type ?? null)
   }, [activeTab])
 

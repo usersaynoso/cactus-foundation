@@ -54,6 +54,7 @@ export default function RedeployingPage() {
       clearTimeout(autoExitTimer)
       cancelPollRef.current?.()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pollForId and startPolling are defined inside this effect; empty deps is intentional (run once on mount)
   }, [])
 
   function pollForId(path: string): () => void {

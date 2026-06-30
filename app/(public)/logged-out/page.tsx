@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoggedOutPage() {
   const router = useRouter()
@@ -23,9 +24,9 @@ export default function LoggedOutPage() {
       <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
         Redirecting to the homepage in {seconds} second{seconds !== 1 ? 's' : ''}…
       </p>
-      <a href="/" style={{ color: 'inherit', textDecoration: 'underline', fontSize: '0.9375rem' }}>
+      <Link href="/" style={{ color: 'inherit', textDecoration: 'underline', fontSize: '0.9375rem' }}>
         Go now
-      </a>
+      </Link>
     </div>
   )
 }

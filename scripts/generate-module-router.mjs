@@ -81,7 +81,6 @@ out.push(``)
 for (const imp of apiImports) out.push(imp)
 if (apiImports.length) out.push(``)
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
 out.push(`type ApiHandlerModule = Record<string, ((...args: any[]) => Promise<Response>) | undefined>`)
 out.push(`type PageModule = () => Promise<{ default: React.ComponentType<any> }>`)

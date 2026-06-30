@@ -77,7 +77,7 @@ export default async function InfoPageRoute({ params }: Props) {
 
     if (layout?.builderData) {
       const pageContent = (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         <Render config={puckRscConfig as any} data={pageData} />
       )
       return (
@@ -91,7 +91,6 @@ export default async function InfoPageRoute({ params }: Props) {
     return (
       <>
         {draftBanner}
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Render config={puckRscConfig as any} data={pageData} />
       </>
     )

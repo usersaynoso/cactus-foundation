@@ -67,6 +67,7 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
     if (!config.enabled) return
 
     const raw = readCookie(CONSENT_COOKIE)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- showing banner immediately when no cookie is intentional (no cascading risk)
     if (!raw) { setVisible(true); return }
 
     let payload: ConsentCookiePayload | null = null

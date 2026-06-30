@@ -39,6 +39,7 @@ export default function MenusPage() {
     }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async load on mount; setLoading(false) only fires after awaits
   useEffect(() => { load() }, [load])
 
   async function handleCreate() {

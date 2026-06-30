@@ -19,7 +19,7 @@ export default async function NotFound() {
       : null
     const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
     const resolved = await resolveTemplateData(layout.builderData, ctx).catch(() => layout.builderData as Data)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     return <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
   }
 

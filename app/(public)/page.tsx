@@ -92,7 +92,7 @@ async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) 
     }
 
     if (layout?.builderData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const pageContent = <Render config={puckRscConfig as any} data={data} />
       return (
         <>
@@ -105,7 +105,6 @@ async function renderHomePage(page: PageData, isDraft: boolean, pageId: string) 
     return (
       <>
         {draftBanner}
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Render config={puckRscConfig as any} data={data} />
       </>
     )

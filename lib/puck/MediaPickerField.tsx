@@ -101,9 +101,10 @@ function MediaPickerModal({ onSelect, onClose }: {
 export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange, field }) => {
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
+  const displayPreview = value ? preview : null
 
   useEffect(() => {
-    if (!value) { setPreview(null); return }
+    if (!value) return
     fetch(`/api/admin/media?id=${value}`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d?.items?.[0] && setPreview(d.items[0].url))
@@ -121,10 +122,10 @@ export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange,
       <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#374151', marginBottom: '0.375rem' }}>
         {(field as { label?: string }).label ?? 'OG image'}
       </label>
-      {preview && (
+      {displayPreview && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={preview}
+          src={displayPreview ?? ''}
           alt=""
           style={{ width: '100%', maxHeight: 100, objectFit: 'cover', borderRadius: 4, marginBottom: '0.5rem', display: 'block', border: '1px solid #e5e7eb' }}
         />
