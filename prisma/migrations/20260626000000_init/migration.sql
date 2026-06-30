@@ -132,6 +132,7 @@ CREATE TABLE "SiteConfig" (
     "trustDeviceDays" INTEGER NOT NULL DEFAULT 28,
     "emailFromName" TEXT,
     "emailFromAddress" TEXT,
+    "adminEmail" TEXT,
     "emailProvider" TEXT,
     "mediaProvider" "MediaProviderType",
     "privacyPolicyPageId" TEXT,
