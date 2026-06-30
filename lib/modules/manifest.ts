@@ -28,6 +28,8 @@ export const ModuleManifestSchema = z.object({
   // Permission keys this module declares. Convention: use _own/_any suffix where meaningful.
   permissions: z.array(z.string()).default([]),
   cookieCategories: z.array(z.string()).default([]),
+  // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
+  teardown: z.array(z.string()).optional(),
 })
 
 export type ModuleManifest = z.infer<typeof ModuleManifestSchema>

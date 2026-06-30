@@ -9,17 +9,23 @@ type GitHubAppStatus = {
   hasPat: boolean
 }
 
-type Module = {
+type DirectoryEntry = {
+  repoUrl: string
+  repoName: string
+  description: string
+  installed: boolean
+  installedId?: string
+  installedVersion?: string
+  status?: ModuleStatus
+  updateAvailable?: string | null
+  lastError?: string | null
+  hasTeardown?: boolean
+}
+
+type UninstallModal = {
   id: string
   name: string
-  repoUrl: string
-  version: string
-  tablePrefix: string
-  status: ModuleStatus
-  installedAt: string
-  lastError: string | null
-  updateAvailable: string | null
-  updateNotes: string | null
+  hasTeardown: boolean
 }
 
 const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> = {
@@ -31,39 +37,63 @@ const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> =
   update_available: { label: 'Update available', className: 'badge-yellow' },
 }
 
-export default function ModulesPage() {
-  const [modules, setModules] = useState<Module[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [installing, setInstalling] = useState(false)
-  const [repoUrl, setRepoUrl] = useState('')
-  const [releaseNotesFor, setReleaseNotesFor] = useState<string | null>(null)
-  const [ghStatus, setGhStatus] = useState<GitHubAppStatus | null>(null)
+function formatModuleName(repoName: string): string {
+  return repoName
+    .replace(/^cactus-module-/, '')
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
 
-  const load = useCallback(async () => {
+export default function ModulesPage() {
+  const [entries, setEntries] = useState<DirectoryEntry[]>([])
+  const [directoryUnavailable, setDirectoryUnavailable] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
+  const [ghStatus, setGhStatus] = useState<GitHubAppStatus | null>(null)
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const [releaseNotesFor, setReleaseNotesFor] = useState<string | null>(null)
+  const [uninstallModal, setUninstallModal] = useState<UninstallModal | null>(null)
+  const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
+  const [uninstalling, setUninstalling] = useState(false)
+
+  const loadDirectory = useCallback(async (refresh = false) => {
     try {
-      const [modulesRes, ghRes] = await Promise.all([
-        fetch('/api/admin/modules'),
+      const [dirRes, ghRes] = await Promise.all([
+        fetch(`/api/admin/modules/directory${refresh ? '?refresh=true' : ''}`),
         fetch('/api/admin/github-app'),
       ])
-      const d = await modulesRes.json()
-      setModules(d.modules ?? [])
+      const d = await dirRes.json()
+      setEntries(d.modules ?? [])
+      setDirectoryUnavailable(d.directoryUnavailable === true)
       if (ghRes.ok) {
         const gh = await ghRes.json()
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
       }
     } catch {
-      setError('Failed to load modules')
+      setError('Failed to load module directory')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { loadDirectory() }, [loadDirectory])
 
-  async function handleInstall() {
+  async function handleRefresh() {
+    setRefreshing(true)
     setError('')
-    setInstalling(true)
+    await loadDirectory(true)
+  }
+
+  function setLoaderFor(key: string, val: boolean) {
+    setActionLoading((prev) => ({ ...prev, [key]: val }))
+  }
+
+  async function handleInstall(repoUrl: string) {
+    setError('')
+    setLoaderFor(repoUrl, true)
     try {
       const res = await fetch('/api/admin/modules', {
         method: 'POST',
@@ -72,17 +102,16 @@ export default function ModulesPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
-      setRepoUrl('')
       window.location.href = '/cactus-status/redeploying'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Install failed')
-    } finally {
-      setInstalling(false)
+      setLoaderFor(repoUrl, false)
     }
   }
 
   async function handleAction(id: string, action: 'update' | 'enable' | 'disable') {
     setError('')
+    setLoaderFor(id, true)
     try {
       const res = await fetch(`/api/admin/modules/${id}`, {
         method: 'PATCH',
@@ -95,13 +124,44 @@ export default function ModulesPage() {
         window.location.href = '/cactus-status/redeploying'
         return
       }
-      await load()
+      await loadDirectory()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed')
+    } finally {
+      setLoaderFor(id, false)
     }
   }
 
-  if (loading) return <p>Loading…</p>
+  function openUninstallModal(entry: DirectoryEntry) {
+    if (!entry.installedId) return
+    setUninstallModal({ id: entry.installedId, name: formatModuleName(entry.repoName), hasTeardown: entry.hasTeardown ?? false })
+    setUninstallMode('code_only')
+  }
+
+  async function confirmUninstall() {
+    if (!uninstallModal) return
+    setUninstalling(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/modules/${uninstallModal.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: uninstallMode }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Uninstall failed')
+      setUninstallModal(null)
+      window.location.href = '/cactus-status/redeploying'
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Uninstall failed')
+      setUninstalling(false)
+    }
+  }
+
+  const installed = entries.filter((e) => e.installed)
+  const available = entries.filter((e) => !e.installed)
+
+  if (loading) return <p>Loading&hellip;</p>
 
   return (
     <div>
@@ -125,108 +185,243 @@ export default function ModulesPage() {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <h2 className="card-title">Install a module</h2>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <input
-            value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
-            placeholder="https://github.com/owner/cactus-module-name"
-            style={{ flex: 1, padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'inherit' }}
-          />
+      {/* Installed modules */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, marginBottom: '1rem' }}>Installed</h2>
+
+        {installed.length === 0 ? (
+          <div className="alert alert-info">No modules installed yet.</div>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Version</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {installed.map((m) => (
+                  <tr key={m.installedId}>
+                    <td>
+                      <strong>{formatModuleName(m.repoName)}</strong>
+                      {m.description && (
+                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{m.description}</div>
+                      )}
+                      {m.lastError && (
+                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)' }}>{m.lastError}</div>
+                      )}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {m.installedVersion && <span className="badge badge-gray">v{m.installedVersion}</span>}
+                      {m.updateAvailable && (
+                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>v{m.updateAvailable} available</span>
+                      )}
+                    </td>
+                    <td>
+                      {m.status && (
+                        <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`}>
+                          {STATUS_BADGE[m.status]?.label ?? m.status}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {m.status === 'update_available' && (
+                        <>
+                          {m.installedId && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setReleaseNotesFor(releaseNotesFor === m.installedId ? null : (m.installedId ?? null))}
+                            >
+                              Release notes
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-primary btn-sm"
+                            disabled={actionLoading[m.installedId ?? '']}
+                            onClick={() => m.installedId && handleAction(m.installedId, 'update')}
+                          >
+                            {actionLoading[m.installedId ?? ''] ? 'Updating…' : 'Update'}
+                          </button>
+                        </>
+                      )}
+                      {m.status === 'active' && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={actionLoading[m.installedId ?? '']}
+                          onClick={() => m.installedId && handleAction(m.installedId, 'disable')}
+                        >
+                          {actionLoading[m.installedId ?? ''] ? 'Disabling…' : 'Disable'}
+                        </button>
+                      )}
+                      {m.status === 'inactive' && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={actionLoading[m.installedId ?? '']}
+                          onClick={() => m.installedId && handleAction(m.installedId, 'enable')}
+                        >
+                          {actionLoading[m.installedId ?? ''] ? 'Enabling…' : 'Enable'}
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-destructive btn-sm"
+                        onClick={() => openUninstallModal(m)}
+                      >
+                        Uninstall
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {releaseNotesFor && (() => {
+          const m = installed.find((e) => e.installedId === releaseNotesFor)
+          if (!m) return null
+          // Release notes are stored on the module - re-fetch from the [id] endpoint isn't needed here
+          // The directory API doesn't carry updateNotes; toggling note from the installed list is cosmetic
+          return (
+            <div className="card" style={{ marginTop: '1rem' }}>
+              <h3 className="card-title">Release notes</h3>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                Update to v{m.updateAvailable} is available. Fetch full notes from the repository.
+              </p>
+            </div>
+          )
+        })()}
+      </section>
+
+      {/* Available modules */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>Available</h2>
           <button
-            className="btn btn-primary"
-            disabled={!repoUrl || installing}
-            onClick={handleInstall}
+            className="btn btn-secondary btn-sm"
+            disabled={refreshing}
+            onClick={handleRefresh}
           >
-            {installing ? 'Installing…' : 'Install'}
+            {refreshing ? 'Refreshing…' : 'Refresh directory'}
           </button>
         </div>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 'var(--space-2) 0 0' }}>
-          The module will be added as a git submodule. A Vercel deployment will be triggered automatically.
-        </p>
-      </div>
 
-      {modules.length === 0 ? (
-        <div className="alert alert-info">No modules installed yet.</div>
-      ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Version</th>
-                <th>Table prefix</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {modules.map((m) => (
-                <tr key={m.id}>
-                  <td>
-                    <strong>{m.name}</strong>
-                    {m.lastError && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)' }}>{m.lastError}</div>}
-                  </td>
-                  <td>{m.version}</td>
-                  <td><code style={{ fontSize: '0.875rem' }}>{m.tablePrefix}</code></td>
-                  <td>
-                    <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`}>
-                      {STATUS_BADGE[m.status]?.label ?? m.status}
-                    </span>
-                    {m.updateAvailable && (
-                      <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>v{m.updateAvailable}</span>
-                    )}
-                  </td>
-                  <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {m.status === 'update_available' && (
-                      <>
-                        {m.updateNotes && (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => setReleaseNotesFor(releaseNotesFor === m.id ? null : m.id)}
-                          >
-                            Release notes
-                          </button>
-                        )}
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleAction(m.id, 'update')}
-                        >
-                          Update
-                        </button>
-                      </>
-                    )}
-                    {m.status === 'active' && (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleAction(m.id, 'disable')}
-                      >
-                        Disable
-                      </button>
-                    )}
-                    {m.status === 'inactive' && (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleAction(m.id, 'enable')}
-                      >
-                        Enable
-                      </button>
-                    )}
-                  </td>
+        {directoryUnavailable ? (
+          <div className="alert alert-warning">Module directory is currently unavailable.</div>
+        ) : available.length === 0 ? (
+          <div className="alert alert-info">All available modules are already installed.</div>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {available.map((m) => (
+                  <tr key={m.repoUrl}>
+                    <td><strong>{formatModuleName(m.repoName)}</strong></td>
+                    <td style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>{m.description}</td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={actionLoading[m.repoUrl]}
+                        onClick={() => handleInstall(m.repoUrl)}
+                      >
+                        {actionLoading[m.repoUrl] ? 'Installing…' : 'Install'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
-      {releaseNotesFor && (
-        <div className="card" style={{ marginTop: '1rem' }}>
-          <h3 className="card-title">Release notes</h3>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', margin: 0 }}>
-            {modules.find((m) => m.id === releaseNotesFor)?.updateNotes}
-          </pre>
+      {/* Uninstall modal */}
+      {uninstallModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setUninstallModal(null) }}
+        >
+          <div className="card" style={{ maxWidth: '480px', width: '100%', margin: '1rem' }}>
+            <h2 className="card-title">Uninstall {uninstallModal.name}</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+              Choose how to remove this module. This cannot be undone.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="uninstall-mode"
+                  value="code_only"
+                  checked={uninstallMode === 'code_only'}
+                  onChange={() => setUninstallMode('code_only')}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>
+                  <strong>Remove code only</strong> (recommended)
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                    Removes the module submodule and its record. Database tables are left intact.
+                  </div>
+                </span>
+              </label>
+
+              <label
+                style={{
+                  display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
+                  cursor: uninstallModal.hasTeardown ? 'pointer' : 'not-allowed',
+                  opacity: uninstallModal.hasTeardown ? 1 : 0.5,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="uninstall-mode"
+                  value="code_and_data"
+                  checked={uninstallMode === 'code_and_data'}
+                  onChange={() => setUninstallMode('code_and_data')}
+                  disabled={!uninstallModal.hasTeardown}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>
+                  <strong>Remove code and data</strong>{' '}
+                  <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>(irreversible)</span>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                    {uninstallModal.hasTeardown
+                      ? 'Drops all database tables owned by this module. All data will be permanently deleted.'
+                      : 'This module has not declared its teardown tables.'}
+                  </div>
+                </span>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setUninstallModal(null)}
+                disabled={uninstalling}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-destructive"
+                onClick={confirmUninstall}
+                disabled={uninstalling}
+              >
+                {uninstalling ? 'Removing…' : 'Confirm uninstall'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
