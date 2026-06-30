@@ -14,6 +14,7 @@ export default function RedeployingPage() {
 
   useEffect(() => {
     let mounted = true
+    let autoExitTimer: ReturnType<typeof setTimeout> | undefined
     const escapeTimer = setTimeout(() => { if (mounted) setShowEscape(true) }, 45_000)
 
     async function init() {
@@ -27,6 +28,10 @@ export default function RedeployingPage() {
           window.location.href = `/${data.adminPath}/`
           return
         }
+        // Hard 2-minute auto-exit: the server time-box is authoritative, but if the
+        // browser is open and startPolling never sees a terminal state, this ensures
+        // the page self-clears within the same window.
+        autoExitTimer = setTimeout(() => clearAndRedirect(data.adminPath), 120_000)
         if (data.deploymentId === 'pending') {
           // Sentinel written synchronously by the admin action; the real Vercel
           // deployment ID arrives shortly via after(). Show the spinner now and
@@ -46,6 +51,7 @@ export default function RedeployingPage() {
     return () => {
       mounted = false
       clearTimeout(escapeTimer)
+      clearTimeout(autoExitTimer)
       cancelPollRef.current?.()
     }
   }, [])

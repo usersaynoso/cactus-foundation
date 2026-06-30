@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { invalidateSiteConfigCache, getPendingRedeployIdUncached, getAdminPathCached } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
 
 export async function GET() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { pendingRedeployId: true, adminPath: true },
-  })
+  const [deploymentId, adminPath] = await Promise.all([
+    getPendingRedeployIdUncached(),
+    getAdminPathCached(),
+  ])
   return NextResponse.json({
-    deploymentId: config?.pendingRedeployId ?? null,
-    adminPath: config?.adminPath ?? '',
+    deploymentId,
+    adminPath: adminPath ?? '',
   })
 }
 
@@ -22,7 +22,7 @@ export async function DELETE() {
   if (!user) return errorResponse('Not authenticated', 401)
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
-    data: { pendingRedeployId: null },
+    data: { pendingRedeployId: null, pendingRedeployAt: null },
   })
   invalidateSiteConfigCache()
   // Activate any modules that finished deploying and release any lingering lock
