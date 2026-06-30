@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { commitSubmoduleUpdate, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
+import { commitSubmoduleUpdate, commitSubmoduleRemove, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 
@@ -134,6 +134,124 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   return errorResponse('Unknown action')
+}
+
+const DeleteBody = z.object({
+  mode: z.enum(['code_only', 'code_and_data']),
+})
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const user = await getSessionFromCookie()
+  if (!user) return errorResponse('Not authenticated', 401)
+  if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
+
+  const { id } = await params
+  const module = await prisma.module.findUnique({ where: { id } })
+  if (!module) return errorResponse('Module not found', 404)
+
+  const ghConfigStatus = await getGitHubConfigStatus()
+  if (ghConfigStatus === 'app_not_installed') {
+    return errorResponse(
+      'GitHub App is connected but not yet installed on a repository.',
+      503
+    )
+  }
+  if (ghConfigStatus === 'not_configured') {
+    return errorResponse('GitHub is not configured. Cannot remove module submodule.', 503)
+  }
+
+  const parsed = DeleteBody.safeParse(await request.json())
+  if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
+
+  const { mode } = parsed.data
+
+  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  if (lock) return errorResponse('Another install or update is in progress', 409)
+
+  const manifest = module.manifest as { teardown?: string[] } | null
+
+  if (mode === 'code_and_data') {
+    const teardown = manifest?.teardown
+    if (!teardown || teardown.length === 0) {
+      return errorResponse(
+        'This module has not declared teardown tables. Use code_only mode instead.',
+        400
+      )
+    }
+  }
+
+  await prisma.deployLock.create({
+    data: { id: 'singleton', lockedBy: `module:uninstall:${module.name}` },
+  })
+
+  const droppedTables: string[] = []
+
+  try {
+    await commitSubmoduleRemove({
+      submodulePath: `modules/${module.name}`,
+      message: `chore: uninstall module ${module.name}\n\n[cactus-uninstall]`,
+    })
+
+    if (mode === 'code_and_data') {
+      const teardown = (manifest?.teardown ?? []) as string[]
+      for (const tableName of teardown) {
+        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${tableName}" CASCADE`)
+
+        // Verify the table is gone
+        const rows = await prisma.$queryRawUnsafe<Array<{ table_name: string }>>(
+          `SELECT table_name FROM information_schema.tables WHERE table_name = $1 AND table_schema = 'public'`,
+          tableName
+        )
+        if (rows.length === 0) {
+          droppedTables.push(tableName)
+        } else {
+          console.warn(`[uninstall] table "${tableName}" still exists after DROP — may not have been created yet`)
+        }
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.permission.deleteMany({ where: { module: module.name } }),
+      prisma.module.delete({ where: { id } }),
+    ])
+
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: 'pending' },
+    })
+    invalidateSiteConfigCache()
+
+    await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+
+    after(async () => {
+      const token = process.env.VERCEL_API_TOKEN
+      const projectId = process.env.VERCEL_PROJECT_ID
+      if (!token || !projectId) return
+      await new Promise(r => setTimeout(r, 8_000))
+      try {
+        const res = await fetch(
+          `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=1`,
+          { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
+        )
+        if (res.ok) {
+          const data = (await res.json()) as { deployments?: Array<{ uid: string }> }
+          const uid = data.deployments?.[0]?.uid
+          if (uid) {
+            await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { pendingRedeployId: uid } })
+            invalidateSiteConfigCache()
+          }
+        }
+      } catch { /* ignore */ }
+    })
+  } catch (err: unknown) {
+    await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+    return errorResponse(
+      `Uninstall failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      500
+    )
+  }
+
+  return NextResponse.json({ ok: true, droppedTables })
 }
 
 // Check for available updates (called periodically by the Modules page)

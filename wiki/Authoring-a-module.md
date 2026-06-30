@@ -60,6 +60,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets. If non-empty, a cookie consent banner will appear until the visitor consents. |
+| `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
 
 ### Permission key convention
 
@@ -197,7 +198,13 @@ Disabled module permissions remain visible in the Roles matrix but are visually 
 
 Disabling a module is a database flag flip - no redeploy, no data loss. The module's tables remain intact. Nav entries disappear immediately. Permissions remain in the Roles matrix but are marked inactive.
 
-Full uninstall (dropping tables) is not supported in v1. Disable covers almost every real use case.
+### Uninstall
+
+1. Admin clicks **Uninstall** on the installed module.
+2. A modal offers two options:
+   - **Remove code only** - removes the submodule git entry and the `Module` DB row. Database tables are preserved.
+   - **Remove code and data** - same as above, plus drops every table listed in `teardown`. Only available if the module declares `teardown` in its manifest.
+3. On confirmation, Cactus commits the submodule removal to the main repo, Vercel rebuilds, and the admin is redirected to the redeploying page.
 
 ## Structuring per-version migrations
 
@@ -207,12 +214,16 @@ For the update flow to apply only new migrations correctly, follow this conventi
 - Use a naming scheme that sorts in the order migrations should run: `001_`, `002_`, `003_`, etc.
 - A migration file should be idempotent where practical (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE IF NOT EXISTS`, etc.) to survive edge cases.
 
-## Publishing a release
+## Publishing to the module directory
 
-Same as themes:
+Modules hosted in the `cactus-foundation-modules` GitHub organisation appear automatically in the **Admin - Modules - Available** directory. To list your module:
 
-1. `git tag v1.0.0 && git push --tags`
-2. Create a GitHub Release for the tag. The release body becomes the "Update notes" shown in the admin.
+1. Create a public repo under `cactus-foundation-modules/your-module-name`.
+2. Push your code there.
+3. Tag a release: `git tag v1.0.0 && git push --tags`.
+4. Create a GitHub Release for the tag. The release body becomes the "Update notes" shown in the admin.
+
+Modules hosted elsewhere can still be installed manually if the admin knows the repo URL - the directory only shows `cactus-foundation-modules` repos as a curated shortlist.
 
 ## Local development loop
 
@@ -237,7 +248,7 @@ Same as themes:
 - **Public repos only.** The install flow fetches the manifest from GitHub. Private repos aren't supported.
 - **No shelling out to git.** All installs and updates go through the GitHub REST API. There is no filesystem mutation at runtime.
 - **Migrations run during the build step, never at runtime.** An API route that calls the migration runner will throw in production - Vercel's filesystem is read-only.
-- **Disable preserves data.** Uninstall (dropping tables) is out of scope for v1.
+- **Declare `teardown` to enable full uninstall.** Without it, admins can only remove the code - database tables are left behind. Declare the exact PascalCase table names Prisma created (e.g. `"ForumThread"`, not `forum_threads`).
 - **`tablePrefix` is permanent.** Once installed, the prefix cannot be changed. Choose it carefully - it's used in every table name and in `ModuleMigration` records.
 
 ## Minimal complete example

@@ -187,6 +187,92 @@ export async function commitSubmoduleUpdate(params: {
   return { commitSha: newCommit.sha }
 }
 
+// Remove an existing submodule from the main repo.
+// Deletes the gitlink entry and rewrites .gitmodules without the removed entry.
+export async function commitSubmoduleRemove(params: {
+  submodulePath: string
+  message: string
+}): Promise<void> {
+  const octokit = await getGithubClient()
+  const { owner, repo } = getMainRepo()
+
+  const { data: ref } = await octokit.rest.git.getRef({
+    owner, repo, ref: 'heads/main',
+  })
+  const headSha = ref.object.sha
+
+  const { data: headCommit } = await octokit.rest.git.getCommit({
+    owner, repo, commit_sha: headSha,
+  })
+  const baseTreeSha = headCommit.tree.sha
+
+  // Read current .gitmodules and strip the entry for this submodule
+  let updatedGitmodules = ''
+  try {
+    const { data: fileData } = await octokit.rest.repos.getContent({
+      owner, repo, path: '.gitmodules',
+    })
+    if ('content' in fileData) {
+      const current = Buffer.from(fileData.content, 'base64').toString('utf8')
+      // Remove the block for this submodule (from [submodule "path"] to the next blank line or EOF)
+      updatedGitmodules = current
+        .replace(
+          new RegExp(
+            `\\[submodule "${params.submodulePath}"\\][^\\[]*`,
+            'g'
+          ),
+          ''
+        )
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+      if (updatedGitmodules) updatedGitmodules += '\n'
+    }
+  } catch {
+    // .gitmodules missing — nothing to rewrite
+  }
+
+  const treeItems: Array<{
+    path: string
+    mode: '100644' | '160000' | '040000' | '100755' | '100664' | '120000'
+    type: 'blob' | 'tree' | 'commit'
+    sha: string | null
+  }> = [
+    // Deleting a gitlink: set sha to null
+    { path: params.submodulePath, mode: '160000', type: 'commit', sha: null },
+  ]
+
+  if (updatedGitmodules) {
+    const { data: blob } = await octokit.rest.git.createBlob({
+      owner, repo,
+      content: Buffer.from(updatedGitmodules).toString('base64'),
+      encoding: 'base64',
+    })
+    treeItems.push({ path: '.gitmodules', mode: '100644', type: 'blob', sha: blob.sha })
+  } else {
+    // No entries left — delete .gitmodules entirely
+    treeItems.push({ path: '.gitmodules', mode: '100644', type: 'blob', sha: null })
+  }
+
+  const { data: newTree } = await octokit.rest.git.createTree({
+    owner, repo,
+    base_tree: baseTreeSha,
+    tree: treeItems,
+  })
+
+  const { data: newCommit } = await octokit.rest.git.createCommit({
+    owner, repo,
+    message: params.message,
+    tree: newTree.sha,
+    parents: [headSha],
+  })
+
+  await octokit.rest.git.updateRef({
+    owner, repo,
+    ref: 'heads/main',
+    sha: newCommit.sha,
+  })
+}
+
 // Check the Vercel deployments API to see if the latest deployment succeeded.
 // Used as a fallback when webhooks aren't configured (Hobby plan).
 export async function getLatestDeploymentStatus(): Promise<
