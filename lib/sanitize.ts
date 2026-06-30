@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import createDOMPurify from 'dompurify'
+import { ALLOWED_TAGS, ALLOWED_ATTR } from '@/lib/sanitize-config'
 
 // DOMPurify needs a DOM environment.
 // Browser: use the native window. Node.js: lazy-require jsdom so it never
@@ -18,25 +19,8 @@ function getPurifier(): ReturnType<typeof createDOMPurify> {
   return _purifier
 }
 
-// Allowed HTML elements after markdown parsing.
-// Raw HTML in the input is stripped before parsing — authors write markdown,
-// not HTML. This list covers what marked legitimately produces.
-const ALLOWED_TAGS = [
-  'p', 'br',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'ul', 'ol', 'li',
-  'blockquote', 'pre', 'code',
-  'strong', 'em', 'del', 's',
-  'a', 'img',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  'hr',
-]
-
-const ALLOWED_ATTR = [
-  'href', 'title', 'target', 'rel',
-  'src', 'alt', 'width', 'height',
-  'id', 'class',
-]
+// Allow-list lives in lib/sanitize-config.ts so the client renderer
+// (lib/markdown-client.ts) produces identical output without importing jsdom.
 
 // Converts markdown to sanitized HTML.
 // Raw HTML blocks in the input are escaped by stripping angle brackets first,

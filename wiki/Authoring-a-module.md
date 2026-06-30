@@ -330,6 +330,7 @@ If operators paste third-party script tags directly into page HTML (e.g. a raw G
 - **Migrations run during the build step, never at runtime.** An API route that calls the migration runner will throw in production - Vercel's filesystem is read-only.
 - **Declare `teardown` to enable full uninstall.** Without it, admins can only remove the code - database tables are left behind. Declare the exact PascalCase table names Prisma created (e.g. `"ForumThread"`, not `forum_threads`).
 - **`tablePrefix` is permanent.** Once installed, the prefix cannot be changed. Choose it carefully - it's used in every table name and in `ModuleMigration` records.
+- **Render markdown in client components with `@cactus/lib/markdown-client`, never `@cactus/lib/sanitize`.** The server sanitiser pulls in jsdom, which must never reach the client bundle - importing it into a `'use client'` component throws at render in the serverless runtime. `lib/markdown-client.ts` does the same job using the browser's own `window` and shares the allow-list, so its output matches. Server components and API routes keep using `@cactus/lib/sanitize`.
 
 ## Minimal complete example
 
