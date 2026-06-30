@@ -12,7 +12,8 @@ CREATE SCHEMA IF NOT EXISTS "public";
 CREATE TYPE "SiteStatus" AS ENUM ('live', 'comingSoon', 'maintenance');
 CREATE TYPE "PageStatus" AS ENUM ('draft', 'published');
 CREATE TYPE "BodyFormat" AS ENUM ('markdown', 'builder');
-CREATE TYPE "ModuleStatus" AS ENUM ('pending_install', 'deploying', 'active', 'inactive', 'failed', 'update_available');
+CREATE TYPE "ModuleStatus" AS ENUM ('pending_install', 'deploying', 'pending_deploy', 'active', 'inactive', 'failed', 'update_available');
+CREATE TYPE "NotificationType" AS ENUM ('deployment');
 CREATE TYPE "MenuItemType" AS ENUM ('PAGE', 'EXTERNAL');
 CREATE TYPE "MediaProviderType" AS ENUM ('B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT');
 
@@ -412,6 +413,25 @@ ALTER TABLE "Media" ADD CONSTRAINT "Media_uploadedById_fkey" FOREIGN KEY ("uploa
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "MenuItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "InfoPage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ---------------------------------------------------------------------------
+-- Notifications
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL DEFAULT 'deployment',
+    "title" TEXT NOT NULL,
+    "reasons" JSONB,
+    "readAt" TIMESTAMP(3),
+    "deployInitiatedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "Notification_type_deployInitiatedAt_idx" ON "Notification"("type", "deployInitiatedAt");
+CREATE INDEX "Notification_readAt_idx" ON "Notification"("readAt");
 
 -- ---------------------------------------------------------------------------
 -- GitHub App Connection

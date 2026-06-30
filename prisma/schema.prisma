@@ -348,10 +348,36 @@ model Module {
 enum ModuleStatus {
   pending_install
   deploying
+  pending_deploy
   active
   inactive
   failed
   update_available
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                String           @id @default(cuid())
+  type              NotificationType @default(deployment)
+  title             String
+  // For deployment type: array of { label, detail?, at } reasons
+  reasons           Json?
+  // null = unread (drives nav badge). Set when admin redeploys or manually marks read.
+  readAt            DateTime?
+  // null = deploy not yet initiated (this is the "open" notification reasons append to)
+  deployInitiatedAt DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([type, deployInitiatedAt])
+  @@index([readAt])
+}
+
+enum NotificationType {
+  deployment
 }
 
 // Applied module SQL migrations, tracked separately from Prisma's own history.

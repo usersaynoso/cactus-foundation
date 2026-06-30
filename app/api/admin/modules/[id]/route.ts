@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -6,7 +6,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { commitSubmoduleUpdate, commitSubmoduleRemove, getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
-import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 
 export const maxDuration = 60
 
@@ -83,8 +83,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data: { id: 'singleton', lockedBy: `module:${module.name}` },
     })
 
-    const deployStartedAt = Date.now()
-
     try {
       await commitSubmoduleUpdate({
         submodulePath: `modules/${module.name}`,
@@ -94,39 +92,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
       await prisma.module.update({
         where: { id },
-        data: { status: 'deploying', updateAvailable: null, updateNotes: null },
+        data: { status: 'pending_deploy', updateAvailable: null, updateNotes: null, version: release.tag },
       })
+      await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      await prisma.siteConfig.update({
-        where: { id: 'singleton' },
-        data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
-      })
-      invalidateSiteConfigCache()
-
-      after(async () => {
-        const token = process.env.VERCEL_API_TOKEN
-        const projectId = process.env.VERCEL_PROJECT_ID
-        if (!token || !projectId) return
-        let uid: string | undefined
-        for (let i = 0; i < 8; i++) {
-          await new Promise(r => setTimeout(r, 5_000))
-          try {
-            const res = await fetch(
-              `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=5`,
-              { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
-            )
-            if (res.ok) {
-              const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
-              uid = data.deployments?.find(d => d.created > deployStartedAt)?.uid
-              if (uid) break
-            }
-          } catch { /* ignore */ }
-        }
-        if (uid) {
-          await prisma.siteConfig.updateMany({ where: { id: 'singleton', pendingRedeployId: 'pending' }, data: { pendingRedeployId: uid } })
-          invalidateSiteConfigCache()
-        }
-      })
+      await recordDeploymentNeeded({ label: `Module '${module.name}' updated to v${release.tag}` })
     } catch (err: unknown) {
       await prisma.module.update({
         where: { id },
@@ -136,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return errorResponse(`Update failed: ${err instanceof Error ? err.message : 'Unknown'}`, 500)
     }
 
-    return NextResponse.json({ ok: true, status: 'deploying' })
+    return NextResponse.json({ ok: true, status: 'pending_deploy' })
   }
 
   return errorResponse('Unknown action')
@@ -191,7 +161,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   })
 
   const droppedTables: string[] = []
-  const deployStartedAt = Date.now()
 
   try {
     await commitSubmoduleRemove({
@@ -222,38 +191,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       prisma.module.delete({ where: { id } }),
     ])
 
-    await prisma.siteConfig.update({
-      where: { id: 'singleton' },
-      data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
-    })
-    invalidateSiteConfigCache()
-
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    after(async () => {
-      const token = process.env.VERCEL_API_TOKEN
-      const projectId = process.env.VERCEL_PROJECT_ID
-      if (!token || !projectId) return
-      let uid: string | undefined
-      for (let i = 0; i < 8; i++) {
-        await new Promise(r => setTimeout(r, 5_000))
-        try {
-          const res = await fetch(
-            `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=5`,
-            { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
-          )
-          if (res.ok) {
-            const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
-            uid = data.deployments?.find(d => d.created > deployStartedAt)?.uid
-            if (uid) break
-          }
-        } catch { /* ignore */ }
-      }
-      if (uid) {
-        await prisma.siteConfig.updateMany({ where: { id: 'singleton', pendingRedeployId: 'pending' }, data: { pendingRedeployId: uid } })
-        invalidateSiteConfigCache()
-      }
-    })
+    await recordDeploymentNeeded({ label: `Module '${module.name}' uninstalled` })
   } catch (err: unknown) {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(

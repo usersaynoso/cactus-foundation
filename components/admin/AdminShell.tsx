@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
+import PendingDeployBanner from './PendingDeployBanner'
 import { AdminPathProvider } from './AdminPathContext'
 import type { Role } from '@prisma/client'
 
@@ -19,12 +20,14 @@ type Props = {
   version: string
   children: React.ReactNode
   moduleNavEntries?: ModuleNavEntry[]
+  unreadCount?: number
+  pendingDeployId?: string
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavEntries }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavEntries, unreadCount, pendingDeployId }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
@@ -115,6 +118,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           collapsed={collapsed}
           onNavClick={() => setMobileOpen(false)}
           moduleNavEntries={moduleNavEntries}
+          unreadCount={unreadCount}
         />
 
         {/* Desktop collapse/expand toggle — pinned to the bottom of the sidebar */}
@@ -130,6 +134,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
       </aside>
 
       <div className="admin-main">
+        {pendingDeployId && <PendingDeployBanner notificationId={pendingDeployId} adminPath={adminPath} />}
         <div className={`admin-content${PUCK_EDITOR_RE.test(pathname) ? ' admin-content--puck' : ''}`}>
           {children}
         </div>

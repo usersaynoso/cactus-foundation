@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
+import { getUnreadCount } from '@/lib/notifications/deployment'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -31,9 +32,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect(`/${adminPath}/login`)
   }
 
-  const [config, activeModules] = await Promise.all([
+  const [config, activeModules, unreadCount, openNotification] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true } }),
     prisma.module.findMany({ where: { status: 'active' }, select: { manifest: true } }),
+    getUnreadCount(),
+    prisma.notification.findFirst({
+      where: { type: 'deployment', deployInitiatedAt: null },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    }),
   ])
 
   const moduleNavEntries: Array<{ label: string; path: string; icon?: string }> = []
@@ -48,7 +55,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell adminPath={adminPath} userRole={user.role} siteName={config?.siteName ?? 'Cactus Foundation'} version={pkg.version} moduleNavEntries={moduleNavEntries}>
+    <AdminShell
+      adminPath={adminPath}
+      userRole={user.role}
+      siteName={config?.siteName ?? 'Cactus Foundation'}
+      version={pkg.version}
+      moduleNavEntries={moduleNavEntries}
+      unreadCount={unreadCount}
+      pendingDeployId={openNotification?.id}
+    >
       {children}
     </AdminShell>
   )
