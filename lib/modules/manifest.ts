@@ -30,6 +30,13 @@ export const ModuleManifestSchema = z.object({
   cookieCategories: z.array(z.string()).default([]),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
   teardown: z.array(z.string()).optional(),
+  // Puck block registrations provided by this module.
+  puckBlocks: z.array(z.object({
+    type: z.string().min(1),
+    import: z.string().min(1),
+    component: z.string().min(1),
+    rscComponent: z.string().optional(),
+  })).optional(),
 })
 
 export type ModuleManifest = z.infer<typeof ModuleManifestSchema>

@@ -61,6 +61,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets. If non-empty, a cookie consent banner will appear until the visitor consents. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
+| `puckBlocks` | `PuckBlock[]` | Optional. Registers Puck blocks provided by this module. See [Module Puck blocks](#module-puck-blocks) below. |
 
 ### Permission key convention
 
@@ -224,6 +225,36 @@ Modules hosted in the `cactus-foundation-modules` GitHub organisation appear aut
 4. Create a GitHub Release for the tag. The release body becomes the "Update notes" shown in the admin.
 
 Modules hosted elsewhere can still be installed manually if the admin knows the repo URL - the directory only shows `cactus-foundation-modules` repos as a curated shortlist.
+
+## Module Puck blocks
+
+A module can register Puck blocks that appear in both the page builder and the layout builder. Declare them in `cactus.module.json`:
+
+```json
+"puckBlocks": [
+  {
+    "type": "MyWidget",
+    "import": "./components/puck/MyWidgetBlock",
+    "component": "myWidgetPuckComponent",
+    "rscComponent": "myWidgetPuckRscComponent"
+  }
+]
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `type` | yes | The Puck component name (PascalCase). Must be unique across all installed modules. |
+| `import` | yes | Module-relative path to the file exporting the component objects (no `.ts` / `.tsx` extension). |
+| `component` | yes | Named export for the editor (synchronous) version of the block config object. |
+| `rscComponent` | no | Named export for the RSC render version. If omitted, `component` is used for both. |
+
+`scripts/generate-module-puck.mjs` runs on every `npm run build` and `npm run dev`. It rewrites `lib/puck/module-components.ts` with the correct import statements. The resulting `moduleComponents`/`moduleRscComponents` records are spread into `puckConfig`, `layoutPuckConfig`, and their RSC variants so your block appears under the **Modules** category in the block picker.
+
+### Block design rules
+
+- **All settings live in the block's Puck fields.** Do not create a separate settings page for per-form configuration - every block instance on the site can carry different settings.
+- **Keep security-sensitive settings server-authoritative.** For example, a contact form block's notification email and CAPTCHA toggle should be stored in the page's `builderData`, never sent by the browser. The submit handler must re-derive the config by looking up the saved `builderData` using the page/layout slug and block `id`.
+- **Use `puck?.id`** in the RSC render function to get the block's unique Puck identifier (available as `props.puck.id` in all render functions).
 
 ## Local development loop
 

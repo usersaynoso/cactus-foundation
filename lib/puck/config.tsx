@@ -1214,6 +1214,7 @@ export const layoutPuckConfig = {
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: false },
+    modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
     render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -1255,6 +1256,7 @@ export const layoutPuckConfig = {
     MenuBlock:    puckConfig.components.MenuBlock,
     LoginButton:  puckConfig.components.LoginButton,
     ThemeToggle:  puckConfig.components.ThemeToggle,
+    ...moduleComponents,
   },
 }
 
@@ -1264,6 +1266,7 @@ export const layoutPuckRscConfig = {
     ...layoutPuckConfig.components,
     RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
     SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+    ...moduleRscComponents,
   },
 }
 
