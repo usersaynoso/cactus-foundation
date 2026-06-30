@@ -50,14 +50,12 @@ export async function POST(request: NextRequest) {
     })
     // Release the deploy lock
     await prisma.deployLock.deleteMany({})
-    // Resolve 'pending' to the real deployment ID so the redeploying page can transition
-    if (deploymentId) {
-      await prisma.siteConfig.updateMany({
-        where: { id: 'singleton', pendingRedeployId: 'pending' },
-        data: { pendingRedeployId: deploymentId },
-      })
-      invalidateSiteConfigCache()
-    }
+    // Deployment is live - release the redeploy gate for any non-null marker.
+    await prisma.siteConfig.updateMany({
+      where: { id: 'singleton', NOT: { pendingRedeployId: null } },
+      data: { pendingRedeployId: null },
+    })
+    invalidateSiteConfigCache()
   } else if (event.type === 'deployment.error' || event.type === 'deployment.canceled') {
     await prisma.module.updateMany({
       where: { status: 'deploying' },
