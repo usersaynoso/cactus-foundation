@@ -11,14 +11,21 @@ import { invalidateSiteConfigCache } from '@/lib/config/site'
 // nothing to commit. Shared by the module lifecycle routes and the "Redeploy now"
 // notification action. Returns { triggered: false } when Vercel creds are missing so
 // callers can fall back to the deferred-notification path.
-export async function startDeferredRedeploy(): Promise<{ triggered: boolean }> {
+//
+// Pass `committedSince` when the caller has ALREADY pushed a commit (e.g. a core
+// update via syncCoreFromUpstream) that triggered a Vercel build. In that mode the
+// helper skips the module sync and the triggerVercelRedeploy fallback - it just arms
+// the gate and polls for the build the existing push created, avoiding a double-deploy.
+export async function startDeferredRedeploy(
+  opts: { committedSince?: number } = {}
+): Promise<{ triggered: boolean }> {
   const token = process.env.VERCEL_API_TOKEN
   const projectId = process.env.VERCEL_PROJECT_ID
   if (!token || !projectId) {
     return { triggered: false }
   }
 
-  const deployStartedAt = Date.now()
+  const deployStartedAt = opts.committedSince ?? Date.now()
 
   // Sentinel written synchronously so the proxy shows the redeploying screen
   // immediately; the real Vercel deployment id is resolved below via after().
@@ -64,6 +71,13 @@ export async function startDeferredRedeploy(): Promise<{ triggered: boolean }> {
         } catch { /* ignore */ }
       }
       return undefined
+    }
+
+    if (opts.committedSince !== undefined) {
+      // The caller already pushed a commit (e.g. a core update) that triggered a
+      // Vercel build. Just capture it - do NOT sync modules or trigger another deploy.
+      await persistDeploymentId(await pollForDeploymentId())
+      return
     }
 
     // Deferred module registry sync. The desired state is the full set of Module rows

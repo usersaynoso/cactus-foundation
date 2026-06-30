@@ -173,7 +173,7 @@ function UpdatesPanel() {
       const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
       if (!res.ok) throw new Error(d.error ?? 'Update failed')
       if (d.redeployTriggered) {
-        window.location.reload()
+        window.location.assign('/cactus-status/redeploying')
         return
       }
     } catch (err: unknown) {

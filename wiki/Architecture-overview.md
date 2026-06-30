@@ -98,14 +98,15 @@ The active provider is `SiteConfig.mediaProvider`. Changing it in Settings → M
 
 ## Notifications and deferred deployment
 
-Env-var and core-update changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall do **not** use this notification: committing `modules.json` is what ships their code, so they commit and redeploy immediately and send the admin straight to the redeploying screen (see below).
+Env-var changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall and core updates do **not** use this notification: pushing a commit (`modules.json` for modules, the upstream sync for core) is what ships their code, so they redeploy immediately and send the admin straight to the redeploying screen (see below).
 
 **What accumulates into a deployment notification (deferred):**
 - Saving email or API-key env vars (`POST /api/admin/env`)
-- Applying a Cactus core update
+- Applying a Cactus core update **only when Vercel creds are missing** (fallback path)
 
 **What redeploys immediately:**
 - Installing, updating, or uninstalling a module - commits `modules.json` (the git push auto-deploys) and redirects to `/cactus-status/redeploying`.
+- Applying a Cactus core update - `syncCoreFromUpstream` pushes a fresh commit to `main` (the git push auto-deploys) and the admin is sent to `/cactus-status/redeploying`.
 - Factory reset (`DELETE /api/admin/env`) - keeps its immediate redeploy to ensure a clean wipe.
 
 ### Notification data model
@@ -122,9 +123,9 @@ Env-var and core-update changes accumulate into a single **deployment notificati
 
 **"Open" notification** - a deployment notification where `deployInitiatedAt IS NULL`. New reasons always append here. If the admin manually marked it read but hasn't deployed yet, `readAt` is cleared so the notification re-surfaces when the next change comes in.
 
-### Deferred deploy flow (env vars / core updates)
+### Deferred deploy flow (env vars; core-update fallback)
 
-1. Admin saves an env var or applies a core update.
+1. Admin saves an env var (or applies a core update on an install with no Vercel creds).
 2. The change handler calls `recordDeploymentNeeded({ label })` (`lib/notifications/deployment.ts`).
 3. The helper upserts the open deployment notification, appending the reason (deduped by label).
 4. The nav bell badge shows the unread count. A dismissible banner appears across admin pages.
@@ -134,21 +135,22 @@ Env-var and core-update changes accumulate into a single **deployment notificati
    - Flips any `pending_deploy` modules to `deploying`.
    - Calls `startDeferredRedeploy()` (`lib/deploy/redeploy.ts`) - see "Shared redeploy helper" below.
 
-### Immediate deploy flow (modules)
+### Immediate deploy flow (modules and core updates)
 
-Module install / update / uninstall ship their code by committing `modules.json`, so there is nothing to defer. After the DB work:
+Module install / update / uninstall and core updates ship their code by pushing a commit, so there is nothing to defer. After the DB work:
 
-1. The module row is set to `deploying` (install/update) or deleted (uninstall).
-2. The handler calls `startDeferredRedeploy()` and returns `{ redeployTriggered: true }`.
+1. The module row is set to `deploying` (install/update) or deleted (uninstall). For a core update there is no row - `syncCoreFromUpstream` (`lib/updates/core.ts`) has already committed and pushed the new core files to `main`, which auto-deploys.
+2. The handler calls `startDeferredRedeploy()` and returns `{ redeployTriggered: true }`. The core-update route (`POST /api/admin/updates`) passes `startDeferredRedeploy({ committedSince })` - the timestamp captured just before the sync push - so the helper captures that build instead of triggering a second one.
 3. The client redirects to `/cactus-status/redeploying`, where the admin watches the build through to completion.
-4. If Vercel creds are missing, `startDeferredRedeploy()` returns `{ triggered: false }` and the handler falls back to the deferred-notification flow (`pending_deploy` + `recordDeploymentNeeded`) so non-Vercel installs still work.
+4. If Vercel creds are missing, `startDeferredRedeploy()` returns `{ triggered: false }` and the handler falls back to the deferred-notification flow (`pending_deploy` + `recordDeploymentNeeded` for modules, `recordDeploymentNeeded` for core updates) so non-Vercel installs still work.
 
 ### Shared redeploy helper
 
-`startDeferredRedeploy()` (`lib/deploy/redeploy.ts`) is used by both the notification redeploy route and the module routes:
+`startDeferredRedeploy(opts?)` (`lib/deploy/redeploy.ts`) is used by the notification redeploy route, the module routes, and the core-update route:
 
 - Sets `SiteConfig.pendingRedeployId = 'pending'` and `pendingRedeployAt` synchronously so the proxy shows the redeploying screen immediately.
-- In an `after()` callback, calls `syncModulesJson(desired)` (`lib/modules/github.ts`), where `desired` is derived from every `Module` row (`name`, `repoUrl`, `version`):
+- **`committedSince` mode** - when the caller has already pushed a commit that triggered a build (e.g. a core update via `syncCoreFromUpstream`), it passes `{ committedSince }` (the timestamp captured before that push). The `after()` callback then **skips** the module sync and `triggerVercelRedeploy()` fallback entirely and just polls Vercel for the build the existing push created, storing its UID. This avoids a double-deploy. The deploy lock guarantees no other deployment exists in that window, so the `created > committedSince` filter reliably catches the right build.
+- Otherwise (no `committedSince`), the `after()` callback calls `syncModulesJson(desired)` (`lib/modules/github.ts`), where `desired` is derived from every `Module` row (`name`, `repoUrl`, `version`):
   - If the registry differs from git, it commits `modules.json` once. That push is what triggers the Vercel build, so `triggerVercelRedeploy()` is **not** called (calling it would double-deploy); the helper polls Vercel for the build the push created and stores its UID.
   - If the registry already matches git (e.g. an env-var-only redeploy), no commit is made and `triggerVercelRedeploy()` rebuilds the current HEAD to pick up env-var changes.
 - If the deployment-id poll comes up empty, the `'pending'` sentinel is **left in place** rather than nulled (nulling would bounce the admin off the redeploying page mid-build). The server-side 2-minute auto-release in `resolvePendingRedeploy()` (`lib/config/site.ts`) is the backstop.
