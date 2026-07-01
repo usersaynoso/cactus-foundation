@@ -8,57 +8,8 @@ import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
-
-type ColourSlot = { name: string; hex: string; darkHex?: string }
-type DesignTokens = {
-  colours?: ColourSlot[]
-  typography?: { fontHeading?: string; fontBody?: string; h1Size?: string; h2Size?: string; h3Size?: string; bodySize?: string; bodyLineHeight?: string }
-  spacing?: { base?: number }
-  radius?: { small?: string; medium?: string; large?: string }
-  shadows?: { subtle?: string; elevated?: string }
-}
-
-function buildTokenStyles(tokens: DesignTokens): string {
-  const colours = tokens.colours ?? []
-  const lightColours = colours.map((c, i) => `--color-${i + 1}: ${c.hex};`).join(' ')
-  const darkColours = colours.map((c, i) => `--color-${i + 1}: ${c.darkHex ?? c.hex};`).join(' ')
-
-  const t = tokens.typography ?? {}
-  const typography = [
-    t.fontHeading ? `--font-heading: ${t.fontHeading};` : '',
-    t.fontBody ? `--font-body: ${t.fontBody};` : '',
-    t.h1Size ? `--h1-size: ${t.h1Size};` : '',
-    t.h2Size ? `--h2-size: ${t.h2Size};` : '',
-    t.h3Size ? `--h3-size: ${t.h3Size};` : '',
-    t.bodySize ? `--body-size: ${t.bodySize};` : '',
-    t.bodyLineHeight ? `--body-line-height: ${t.bodyLineHeight};` : '',
-  ].filter(Boolean).join(' ')
-
-  const sp = tokens.spacing?.base ?? 4
-  const spacingSteps = [1, 2, 3, 4, 6, 8, 12, 16, 24]
-  const spacing = spacingSteps.map((m, i) => `--sp-${i + 1}: ${sp * m}px;`).join(' ')
-
-  const r = tokens.radius ?? {}
-  const radius = [
-    `--radius-sm: ${r.small ?? '2px'};`,
-    `--radius-md: ${r.medium ?? '6px'};`,
-    `--radius-lg: ${r.large ?? '9999px'};`,
-  ].join(' ')
-
-  const s = tokens.shadows ?? {}
-  const shadows = [
-    `--shadow-subtle: ${s.subtle ?? '0 2px 8px rgba(0,0,0,0.08)'};`,
-    `--shadow-elevated: ${s.elevated ?? '0 4px 24px rgba(0,0,0,0.15)'};`,
-  ].join(' ')
-
-  const shared = [typography, spacing, radius, shadows].filter(Boolean).join(' ')
-
-  return [
-    `:root,[data-theme="light"]{${lightColours}${shared}}`,
-    `[data-theme="dark"]{${darkColours}}`,
-    `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}}}`,
-  ].join('\n')
-}
+import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
+import type { DesignTokens } from '@/lib/design/tokens'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const config = await prisma.siteConfig
@@ -107,13 +58,15 @@ export default async function PublicLayout({ children }: { children: React.React
     ? await resolveTemplateData(footerLayout.builderData, ctx).catch(() => null)
     : null
 
-  const tokens = (config?.designTokens ?? {}) as DesignTokens
+  const tokens = config?.designTokens as DesignTokens | undefined
   const cssStyles = buildTokenStyles(tokens)
+  const fontHref = buildFontHref(tokens)
   const consentBannerConfig = config?.consentBannerConfig as ConsentBannerConfig | null
   const privacyPolicyUrl = privacyPage?.slug ? `/${privacyPage.slug}` : undefined
 
   return (
     <>
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />
       {headerData

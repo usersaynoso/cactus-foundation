@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
@@ -30,6 +30,42 @@ function getConfig(type: string | undefined) {
 export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, conditionsPanel }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
+
+  useEffect(() => {
+    let mounted = true
+    let styleEl: HTMLStyleElement | null = null
+    let linkEl: HTMLLinkElement | null = null
+
+    fetch('/api/admin/appearance')
+      .then(r => r.json())
+      .then(async d => {
+        if (!mounted || !d.designTokens) return
+        const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
+        const css = buildTokenStyles(d.designTokens)
+        const href = buildFontHref(d.designTokens)
+        if (!mounted) return
+
+        styleEl = document.createElement('style')
+        styleEl.id = 'cactus-token-styles'
+        styleEl.textContent = css
+        document.head.appendChild(styleEl)
+
+        if (href && !document.getElementById('cactus-token-fonts')) {
+          linkEl = document.createElement('link')
+          linkEl.rel = 'stylesheet'
+          linkEl.href = href
+          linkEl.id = 'cactus-token-fonts'
+          document.head.appendChild(linkEl)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      mounted = false
+      styleEl?.remove()
+      linkEl?.remove()
+    }
+  }, [])
 
   const baseConfig = getConfig(layoutType)
 

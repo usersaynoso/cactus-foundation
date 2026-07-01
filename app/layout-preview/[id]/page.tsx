@@ -12,6 +12,8 @@ import {
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
+import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
+import type { DesignTokens } from '@/lib/design/tokens'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
 
@@ -50,7 +52,7 @@ export default async function LayoutPreviewPage({ params }: Props) {
 
   const siteConfig = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { siteName: true, adminPath: true, logoMediaId: true },
+    select: { siteName: true, adminPath: true, logoMediaId: true, designTokens: true },
   })
   const logoMedia = siteConfig?.logoMediaId
     ? await prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
@@ -61,6 +63,10 @@ export default async function LayoutPreviewPage({ params }: Props) {
     isLoggedIn: false,
     adminPath: siteConfig?.adminPath ?? '',
   }
+
+  const previewTokens = siteConfig?.designTokens as DesignTokens | undefined
+  const cssStyles = buildTokenStyles(previewTokens)
+  const fontHref = buildFontHref(previewTokens)
 
   let builderData: unknown = layout.builderData
   try { builderData = await resolveTemplateData(layout.builderData, ctx) } catch {}
@@ -94,6 +100,8 @@ export default async function LayoutPreviewPage({ params }: Props) {
 
   return (
     <>
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
+      {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       {infoBar}
       <div style={{ paddingTop: '2rem' }}>
         {layout.type === 'header' && (

@@ -417,27 +417,76 @@ All starter layouts have `isStarter: true`, `status: published`, and `displayCon
 
 `lib/layout/resolveLayout.ts` is the original three-tier fallback (`InfoPage.layoutId` → `ModuleLayoutDefault` → `SiteConfig.defaultLayoutId`). It is kept for backwards compatibility with any module that calls it directly but is no longer used by the core public routes. New code should use `resolveThemeLayout`.
 
-## Style Guide
+## Styles (Design System + Theme Style)
 
-**Admin → Style Guide** (formerly "Appearance") controls all visual design tokens.
+**Admin → Appearance → Styles** (`/cacti/appearance/styles`) is a two-panel editor that replaces the old single-page Style Guide. All visual design tokens are stored as `SiteConfig.designTokens` (nullable JSON, `version: 2`). The shape is defined in `lib/design/tokens.ts`.
 
-### Colour palette
+### DesignTokens v2 shape
 
-Up to six colour slots, each with a name, a light-mode hex value, and an optional dark-mode hex. Stored as `SiteConfig.designTokens.colours` (a `ColourSlot[]` array).
-
-`app/(public)/layout.tsx` emits a `<style>` tag via `buildTokenStyles(tokens)` that generates:
-
-```css
-:root, [data-theme="light"] { --color-1: #hex; --color-2: #hex; … }
-[data-theme="dark"] { --color-1: #dark-hex; … }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --color-1: #dark-hex; … } }
+```ts
+{
+  version: 2,
+  designSystem: {
+    colours: GlobalColour[]  // { id, name, light, dark }
+    fonts:   GlobalFont[]    // { id, name, family, weight, ... }
+  },
+  themeStyle: {
+    background: { colour? }
+    body:    Typo & { colour? }
+    links:   { colour?, hoverColour? }
+    headings: { h1..h6: Typo & { colour? } }
+    buttons: { typo: Typo, textColour?, bgColour?, borderColour?,
+               borderWidth?, borderRadius?, padding?,
+               hover: { textColour?, bgColour? } }
+    images:     { borderRadius?, borderColour?, borderWidth? }
+    formFields: { typo: Typo, labelTypo: Typo, textColour?, bgColour?,
+                  borderColour?, borderRadius?, labelColour? }
+  }
+}
 ```
 
-All Puck block colour fields use the `SiteColourField` custom field renderer (`lib/puck/SiteColourField.tsx`). It fetches the palette from `/api/admin/appearance` and renders named swatches. Selecting a swatch stores `var(--color-N)` as the field value, so colour changes in the Style Guide propagate to all blocks automatically without re-saving pages.
+### Design System tab
 
-### Other tokens
+- **Global colours** - up to 12 named colours, each with a light-mode hex and a dark-mode hex. These emit `--color-1..N` CSS vars (used by Puck blocks via `SiteColourField`).
+- **Global fonts** - named font definitions with family, weight, and optional typographic properties.
 
-`designTokens` also carries `typography` (heading/body font families, size scale), `spacing` (9-step scale mapped to `--sp-1` through `--sp-9`), `radius` (sm/md/lg), and `shadows` (sm/md/lg). These are edited in the Style Guide and exposed as CSS variables by the same `buildTokenStyles` call.
+### Theme Style tab
+
+Accordion sections per area: Page background, Body/Typography, Headings (H1-H6), Links, Buttons, Images, Form fields. Colour fields show palette swatches from the Design System tab; selecting a swatch stores the raw hex (not a var reference).
+
+### CSS output
+
+`lib/design/tokens.ts` exports `buildTokenStyles(tokens)` and `buildFontHref(tokens)`. Both accept `unknown` and handle null/v1 data gracefully.
+
+`buildTokenStyles` emits:
+
+```css
+:root, [data-theme="light"] {
+  --color-1..N: <light hex>;          /* from designSystem.colours */
+  --sp-1..9: 4,8,12,16,24,32,48,64,96px;  /* fixed */
+  --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px;  /* fixed */
+  --shadow-subtle: ...; --shadow-elevated: ...;  /* fixed */
+  --font-body: ...; --font-heading: ...;         /* from themeStyle.body.family */
+  --color-link: ...; --color-link-hover: ...;    /* from themeStyle.links */
+  --h1-size..--h6-size, --h1-color..--h6-color;  /* from themeStyle.headings */
+  /* + btn, img, field vars */
+}
+[data-theme="dark"] { --color-1..N: <dark hex>; }
+@media (prefers-color-scheme: dark) { /* same dark colours */ }
+/* scoped defaults: main h1,p,a,button,img,input,label { ... } */
+```
+
+`buildFontHref` inspects all font-family values across the token tree, skips system stacks (system-ui, Arial, Georgia, Helvetica, Times, sans-serif, serif, monospace, -apple-system), and returns a Google Fonts URL or `null`.
+
+### Where styles are injected
+
+- `app/(public)/layout.tsx` - emits `<link rel="stylesheet">` for Google Fonts and `<style>` with token CSS for every public page.
+- `app/layout-preview/[id]/page.tsx` - same injection, so the standalone layout preview matches the live site.
+- `app/cactus-admin/layouts/[id]/LayoutPuckEditor.tsx` - injects token styles into `document.head` via `useEffect` so the inline Puck canvas reflects the current theme (best-effort; Puck renders inline, not in an iframe).
+
+### Colour palette in Puck blocks
+
+`lib/puck/SiteColourField.tsx` fetches colours from `/api/admin/appearance` (path: `designTokens.designSystem.colours`) and renders named swatches. Selecting a swatch stores `var(--color-N)` as the field value, so colour changes propagate to all blocks automatically without re-saving pages.
 
 ### Dark mode
 

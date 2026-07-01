@@ -7,6 +7,7 @@ import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
 import { upsertVercelEnvVar } from '@/lib/vercel/env'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { isLocalMode } from '@/lib/config/env'
+import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
 
 export async function POST() {
   const cfg = await prisma.siteConfig.findUnique({
@@ -50,33 +51,6 @@ export async function POST() {
   // Seed all starter layout templates
   await refreshStarterLayouts(prisma)
 
-  // Default design tokens - new palette format
-  const defaultDesignTokens = {
-    colours: [
-      { name: 'Primary', hex: '#16a34a', darkHex: '#4ade80' },
-      { name: 'Surface', hex: '#ffffff', darkHex: '#0f172a' },
-    ],
-    typography: {
-      fontHeading: 'system-ui, sans-serif',
-      fontBody: 'system-ui, sans-serif',
-      h1Size: '2.5rem',
-      h2Size: '1.875rem',
-      h3Size: '1.5rem',
-      bodySize: '1rem',
-      bodyLineHeight: '1.75',
-    },
-    spacing: { base: 4 },
-    radius: {
-      small: '2px',
-      medium: '6px',
-      large: '9999px',
-    },
-    shadows: {
-      subtle: '0 2px 8px rgba(0,0,0,0.08)',
-      elevated: '0 4px 24px rgba(0,0,0,0.15)',
-    },
-  }
-
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: {
@@ -85,7 +59,7 @@ export async function POST() {
       hideFromCrawlers: true,
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
-      designTokens: defaultDesignTokens,
+      designTokens: DEFAULT_DESIGN_TOKENS,
     },
   })
 

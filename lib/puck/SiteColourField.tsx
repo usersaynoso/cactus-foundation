@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-type ColourSlot = { name: string; hex: string; darkHex?: string }
+type ColourSlot = { id: string; name: string; light: string; dark: string }
 
 type Props = {
   value: string
@@ -15,7 +15,7 @@ export function SiteColourField({ value, onChange }: Props) {
   useEffect(() => {
     fetch('/api/admin/appearance')
       .then(r => r.json())
-      .then(d => setColours(d.designTokens?.colours ?? []))
+      .then(d => setColours(d.designTokens?.designSystem?.colours ?? []))
       .catch(() => {})
   }, [])
 
@@ -31,7 +31,7 @@ export function SiteColourField({ value, onChange }: Props) {
             title={c.name}
             onClick={() => onChange(varName)}
             style={{
-              width: 28, height: 28, borderRadius: 4, background: c.hex,
+              width: 28, height: 28, borderRadius: 4, background: c.light,
               border: isSelected ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
               cursor: 'pointer', padding: 0, outline: isSelected ? '2px solid var(--color-success)' : 'none', outlineOffset: 1,
             }}
