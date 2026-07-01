@@ -8,6 +8,13 @@ The config page lives at `/<adminPath>/config`. All settings are persisted in th
 
 At the top of the General tab, Cactus checks whether your install is on the latest version of Cactus Foundation. The check is made against the upstream GitHub repository (`usersaynoso/cactus-foundation` by default, overridable with `CACTUS_CORE_REPO`) and is cached for 10 minutes.
 
+**Update channel** - two buttons above the status allow you to choose which releases to consider:
+
+- **Public** (default) - stable releases only; pre-releases are ignored.
+- **Beta** - stable and pre-releases; useful for testing upcoming features before they ship.
+
+The preference is saved to `SiteConfig.coreUpdateChannel` immediately and the update check refreshes straight away with no page reload needed.
+
 **States:**
 
 - **Up to date** - green badge; shows the current version number.

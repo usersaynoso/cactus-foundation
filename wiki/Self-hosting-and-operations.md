@@ -183,7 +183,7 @@ If a module migration fails during a build, the build will fail and Vercel will 
 
 ### In-product update (recommended)
 
-The **Settings → General** tab shows an Updates panel that checks the upstream Cactus Foundation repo for newer releases. If one is available, an **Update now** button appears. Clicking it:
+The **Settings → General** tab shows an Updates panel that checks the upstream Cactus Foundation repo for newer releases. Two buttons at the top of the panel let you choose the **update channel**: **Public** (stable releases only, the default) or **Beta** (pre-releases included). The preference is stored in the database and takes effect immediately. If an update is available on the active channel, an **Update now** button appears. Clicking it:
 
 1. Uses the GitHub API to diff between your installed version tag and the latest release tag on `usersaynoso/cactus-foundation`.
 2. Copies changed core files into your GitHub repo (your `GITHUB_REPO` env var), skipping `modules/`, `.gitmodules`, and all database content.
