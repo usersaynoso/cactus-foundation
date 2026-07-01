@@ -45,18 +45,33 @@ const richtextExtensions = [
 const PADDING_MAP: Record<string, string> = {
   none: '0', sm: '0.5rem', md: '1rem', lg: '2rem', xl: '4rem',
 }
-function getPadding(p?: string): string { return PADDING_MAP[p ?? 'none'] ?? '0' }
+// Block padding is horizontal-only: it acts as a left/right gutter so content
+// doesn't run to the page edges, without stacking vertical gaps on top of each
+// block's own margins. 'default' (and unset) pulls the site-wide gutter set in
+// Styles → Spacing, falling back to 1.5rem to match the Section/footer gutters.
+function getPadding(p?: string): string {
+  if (!p || p === 'default') return '0 var(--block-padding, 1.5rem)'
+  const v = PADDING_MAP[p]
+  return v && v !== '0' ? `0 ${v}` : '0'
+}
 
 const paddingField = {
   type: 'select' as const,
-  label: 'Padding',
+  label: 'Padding (left/right)',
   options: [
+    { value: 'default', label: 'Default (site spacing)' },
     { value: 'none', label: 'None' },
     { value: 'sm', label: 'Small (0.5rem)' },
     { value: 'md', label: 'Medium (1rem)' },
     { value: 'lg', label: 'Large (2rem)' },
     { value: 'xl', label: 'Extra large (4rem)' },
   ],
+}
+
+// Reuse a page block inside a container that already provides its own gutter
+// (e.g. the footer/header roots) without inheriting the site default padding.
+function noGutterDefault<T extends { defaultProps?: Record<string, any> }>(component: T): T {
+  return { ...component, defaultProps: { ...component.defaultProps, padding: 'none' } }
 }
 
 const GAP_MAP: Record<string, string> = { none: '0', sm: '0.5rem', md: '1rem', lg: '2rem' }
@@ -604,12 +619,12 @@ const SOCIAL_ICONS: Record<string, string> = {
 }
 
 function SocialLinks(props: any) {
-  const { items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal' } = props
+  const { items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding } = props
   const sizes: Record<string, number> = { sm: 20, md: 28, lg: 40 }
   const gapMap: Record<string, string> = { tight: '0.5rem', normal: '1rem', wide: '1.75rem' }
   const sz = sizes[iconSize] ?? 28
   return (
-    <div style={{ display: 'flex', flexDirection: layout === 'column' ? 'column' : 'row', gap: gapMap[gap] ?? '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: layout === 'column' ? 'column' : 'row', gap: gapMap[gap] ?? '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem', padding: getPadding(padding) }}>
       {items.map((item: any, i: number) => (
         <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
           style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: sz, height: sz, flexShrink: 0 }}
@@ -989,25 +1004,25 @@ const puckConfig = {
         padding: paddingField,
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'none', ...aosDefaults },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'default', ...aosDefaults },
       render: Heading,
     },
     TextBlock: {
       label: 'Text',
       fields: { content: { type: 'textarea' as const, label: 'Content' }, align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField },
-      defaultProps: { content: 'Enter your text here…', align: 'left' as const, padding: 'none' },
+      defaultProps: { content: 'Enter your text here…', align: 'left' as const, padding: 'default' },
       render: TextBlock,
     },
     RichTextBlock: {
       label: 'Rich Text',
       fields: { content: { type: 'richtext' as const, label: 'Content' }, padding: paddingField },
-      defaultProps: { content: '', padding: 'none' },
+      defaultProps: { content: '', padding: 'default' },
       render: RichTextBlock,
     },
     Quote: {
       label: 'Quote',
       fields: { quote: { type: 'textarea' as const, label: 'Quote' }, attribution: { type: 'text' as const, label: 'Attribution' }, padding: paddingField, ...aosFields },
-      defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'none', ...aosDefaults },
+      defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'default', ...aosDefaults },
       render: Quote,
     },
 
@@ -1019,7 +1034,7 @@ const puckConfig = {
         variant: { type: 'select' as const, label: 'Style', options: [{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }, { value: 'outline', label: 'Outline' }] },
         padding: paddingField,
       },
-      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, padding: 'none' },
+      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, padding: 'default' },
       render: ButtonLink,
     },
     CTABanner: {
@@ -1038,19 +1053,19 @@ const puckConfig = {
     ImageBlock: {
       label: 'Image',
       fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, caption: { type: 'text' as const, label: 'Caption' }, padding: paddingField, ...aosFields },
-      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', padding: 'none', ...aosDefaults },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', padding: 'default', ...aosDefaults },
       render: ImageBlock,
     },
     VideoEmbed: {
       label: 'Video',
       fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'select' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }] }, padding: paddingField },
-      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'none' },
+      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'default' },
       render: VideoEmbed,
     },
     Embed: {
       label: 'Embed',
       fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'text' as const, label: 'Height (e.g. 400px)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField },
-      defaultProps: { src: '', height: '400px', title: '', padding: 'none' },
+      defaultProps: { src: '', height: '400px', title: '', padding: 'default' },
       render: Embed,
     },
 
@@ -1089,31 +1104,31 @@ const puckConfig = {
     Badge: {
       label: 'Badge',
       fields: { label: { type: 'text' as const, label: 'Label' }, color: { type: 'select' as const, label: 'Colour', options: [{ value: 'primary', label: 'Brand' }, { value: 'blue', label: 'Blue' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }, { value: 'gray', label: 'Gray' }] }, padding: paddingField },
-      defaultProps: { label: 'New', color: 'primary' as const, padding: 'none' },
+      defaultProps: { label: 'New', color: 'primary' as const, padding: 'default' },
       render: Badge,
     },
     Accordion: {
       label: 'Accordion',
       fields: { items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { question?: string }) => item.question || 'Question', arrayFields: { question: { type: 'text' as const, label: 'Question' }, answer: { type: 'textarea' as const, label: 'Answer' } }, defaultItemProps: { question: 'What is the question?', answer: 'This is the answer.' } }, padding: paddingField },
-      defaultProps: { items: [{ question: 'What is the question?', answer: 'This is the answer.' }], padding: 'none' },
+      defaultProps: { items: [{ question: 'What is the question?', answer: 'This is the answer.' }], padding: 'default' },
       render: Accordion,
     },
     FeatureList: {
       label: 'Feature List',
       fields: { items: { type: 'array' as const, label: 'Features', getItemSummary: (item: { title?: string }) => item.title || 'Feature', arrayFields: { emoji: { type: 'text' as const, label: 'Emoji' }, title: { type: 'text' as const, label: 'Title' }, description: { type: 'textarea' as const, label: 'Description' } }, defaultItemProps: { emoji: '✨', title: 'Feature title', description: 'Describe this feature here.' } }, padding: paddingField, ...aosFields },
-      defaultProps: { items: [{ emoji: '✨', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', title: 'Feature two', description: 'Describe this feature.' }], padding: 'none', ...aosDefaults },
+      defaultProps: { items: [{ emoji: '✨', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
       render: FeatureList,
     },
     Stats: {
       label: 'Stats',
       fields: { items: { type: 'array' as const, label: 'Stats', getItemSummary: (item: { value?: string; label?: string }) => item.value ? `${item.value} — ${item.label}` : 'Stat', arrayFields: { value: { type: 'text' as const, label: 'Value' }, label: { type: 'text' as const, label: 'Label' } }, defaultItemProps: { value: '100%', label: 'Satisfaction' } }, padding: paddingField, ...aosFields },
-      defaultProps: { items: [{ value: '10k+', label: 'Customers' }, { value: '99%', label: 'Uptime' }, { value: '24/7', label: 'Support' }], padding: 'none', ...aosDefaults },
+      defaultProps: { items: [{ value: '10k+', label: 'Customers' }, { value: '99%', label: 'Uptime' }, { value: '24/7', label: 'Support' }], padding: 'default', ...aosDefaults },
       render: Stats,
     },
     Logos: {
       label: 'Logos',
       fields: { items: { type: 'array' as const, label: 'Logos', getItemSummary: (item: { alt?: string }) => item.alt || 'Logo', arrayFields: { logoUrl: { type: 'text' as const, label: 'Logo URL' }, alt: { type: 'text' as const, label: 'Alt text' }, href: { type: 'text' as const, label: 'Link URL' } }, defaultItemProps: { logoUrl: '', alt: 'Company name', href: '' } }, logoHeight: { type: 'select' as const, label: 'Logo height', options: [{ value: 'sm', label: 'Small (32px)' }, { value: 'md', label: 'Medium (48px)' }, { value: 'lg', label: 'Large (64px)' }] }, justify: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField, ...aosFields },
-      defaultProps: { items: [{ logoUrl: '', alt: 'Partner logo', href: '' }], logoHeight: 'md' as const, justify: 'center' as const, padding: 'none', ...aosDefaults },
+      defaultProps: { items: [{ logoUrl: '', alt: 'Partner logo', href: '' }], logoHeight: 'md' as const, justify: 'center' as const, padding: 'default', ...aosDefaults },
       render: Logos,
     },
     SocialLinks: {
@@ -1124,8 +1139,9 @@ const puckConfig = {
         iconColor: { type: 'text' as const, label: 'Icon colour (hex/CSS)' },
         layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }] },
         gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        padding: paddingField,
       },
-      defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' },
+      defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal', padding: 'default' },
       render: SocialLinks,
     },
 
@@ -1278,17 +1294,19 @@ export const footerPuckConfig = {
     SiteLogo:            puckConfig.components.SiteLogo,
     Copyright:           puckConfig.components.Copyright,
     MenuBlock:           puckConfig.components.MenuBlock,
-    SocialLinks:         puckConfig.components.SocialLinks,
-    ButtonLink:          puckConfig.components.ButtonLink,
+    // The footer root already applies a 1.5rem gutter, so blocks default to no
+    // extra padding here (otherwise they'd double up against the site default).
+    SocialLinks:         noGutterDefault(puckConfig.components.SocialLinks),
+    ButtonLink:          noGutterDefault(puckConfig.components.ButtonLink),
     CookieSettingsLink:  puckConfig.components.CookieSettingsLink,
     Grid:                puckConfig.components.Grid,
     Group:               puckConfig.components.Group,
     Split:               puckConfig.components.Split,
     Spacer:              puckConfig.components.Spacer,
     Divider:             puckConfig.components.Divider,
-    Heading:             puckConfig.components.Heading,
-    TextBlock:           puckConfig.components.TextBlock,
-    RichTextBlock:       puckConfig.components.RichTextBlock,
+    Heading:             noGutterDefault(puckConfig.components.Heading),
+    TextBlock:           noGutterDefault(puckConfig.components.TextBlock),
+    RichTextBlock:       noGutterDefault(puckConfig.components.RichTextBlock),
   },
 }
 

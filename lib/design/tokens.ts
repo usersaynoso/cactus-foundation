@@ -52,6 +52,11 @@ export type DesignTokens = {
       textColour?: string; bgColour?: string; borderColour?: string; borderRadius?: string
       labelTypo: Typo; labelColour?: string
     }
+    spacing?: {
+      // Default left/right gutter applied to content blocks on public pages, so
+      // they don't run to the screen edges. Emitted as --block-padding.
+      blockPadding?: string
+    }
   }
 }
 
@@ -81,6 +86,7 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
     buttons: { typo: {}, hover: {} },
     images: {},
     formFields: { typo: {}, labelTypo: {} },
+    spacing: { blockPadding: '1.5rem' },
   },
 }
 
@@ -343,6 +349,9 @@ export function buildTokenStyles(tokens: unknown): string {
   if (fields?.borderRadius) vars.push(`--field-radius: ${fields.borderRadius};`)
   if (fields?.labelTypo)    typoVars('field-label', fields.labelTypo)
   if (fields?.labelColour)  vars.push(`--field-label-color: ${fields.labelColour};`)
+
+  // Default block gutter consumed by Puck blocks via var(--block-padding, 1.5rem).
+  if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${ts.spacing.blockPadding};`)
 
   const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
   const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}}`

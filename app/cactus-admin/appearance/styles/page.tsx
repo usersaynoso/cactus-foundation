@@ -98,7 +98,7 @@ const TEXT_DECORATION_OPTIONS = [
 export default function StylesPage() {
   const router = useRouter()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
-  const [activeTab, setActiveTab] = useState<'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields'>('colours')
+  const [activeTab, setActiveTab] = useState<'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields' | 'spacing'>('colours')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -254,6 +254,11 @@ export default function StylesPage() {
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, ...patch } } }))
   }
 
+  const setSpacing = (patch: Partial<NonNullable<DesignTokens['themeStyle']['spacing']>>) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, spacing: { ...t.themeStyle.spacing, ...patch } } }))
+  }
+
   const setFieldTypo = (patch: Partial<Typo>) => {
     dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, typo: { ...t.themeStyle.formFields.typo, ...patch } } } }))
@@ -300,6 +305,7 @@ export default function StylesPage() {
           ['buttons',    'Buttons'],
           ['images',     'Images'],
           ['formFields', 'Form Fields'],
+          ['spacing',    'Spacing'],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -513,6 +519,15 @@ export default function StylesPage() {
               <ColourInput label="Background colour" value={tokens.themeStyle.formFields.bgColour} onChange={v => { setFormFields({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
               <ColourInput label="Border colour" value={tokens.themeStyle.formFields.borderColour} onChange={v => { setFormFields({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
               <TextField label="Border radius" value={tokens.themeStyle.formFields.borderRadius ?? ''} onChange={v => { setFormFields({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 4px" />
+            </div>
+          </Section>
+        )}
+
+        {activeTab === 'spacing' && (
+          <Section title="Block spacing">
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>The default left/right gutter applied to content blocks on public pages, so they don&apos;t run to the screen edges. Individual blocks can override this from their &ldquo;Padding (left/right)&rdquo; setting.</p>
+            <div style={{ maxWidth: 260 }}>
+              <TextField label="Default block padding (left/right)" value={tokens.themeStyle.spacing?.blockPadding ?? ''} onChange={v => { setSpacing({ blockPadding: v || undefined }); setSaved(false) }} hint="e.g. 1.5rem" />
             </div>
           </Section>
         )}

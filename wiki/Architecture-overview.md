@@ -254,7 +254,9 @@ The Puck editor (`@puckeditor/core`) is lazy-loaded - it ships no bundle to any 
 
 ### Available blocks
 
-All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs). Most blocks expose a **Padding** field so editors can add breathing room without needing an extra Spacer block.
+All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs). Most blocks expose a **Padding (left/right)** field so editors can add breathing room without needing an extra Spacer block.
+
+Block padding is **horizontal-only** - it acts as a left/right gutter so content doesn't run to the page edges, without stacking vertical gaps on top of each block's own margins. The field's default option, **Default (site spacing)**, resolves to `var(--block-padding, 1.5rem)`, i.e. the site-wide gutter set in **Styles → Spacing** (`themeStyle.spacing.blockPadding`, emitted by `buildTokenStyles`). Content-flow blocks (Heading, Text, Rich Text, Image, Video, Embed, Quote, Button, Badge, Accordion, Feature List, Stats, Logos, Social Links, and the Contact Form module block) default to this gutter so a bare page never touches the edges. Self-padded or full-bleed blocks (Hero, CTA Banner, Callout, Card) and structural containers (Section, Grid, Group, Split) default to **None**, as does chrome reused inside the header/footer roots (those roots already apply their own 1.5rem gutter, so `noGutterDefault()` resets the reused blocks to avoid doubling up). `getPadding()` maps `default`/unset → the gutter var, `none` → `0`, and `sm`/`md`/`lg`/`xl` → `0 0.5rem`…`0 4rem`.
 
 Blocks are organised into categories that appear as collapsible groups in the Puck left panel.
 
@@ -480,7 +482,7 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
 
 ## Styles (Design System + Theme Style)
 
-**Admin → Appearance → Styles** (`/cacti/appearance/styles`) is a six-tab editor for all visual design tokens, stored as `SiteConfig.designTokens` (nullable JSON, `version: 2`). The shape is defined in `lib/design/tokens.ts`.
+**Admin → Appearance → Styles** (`/cacti/appearance/styles`) is a seven-tab editor for all visual design tokens, stored as `SiteConfig.designTokens` (nullable JSON, `version: 2`). The shape is defined in `lib/design/tokens.ts`.
 
 ### DesignTokens v2 shape
 
@@ -502,6 +504,7 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
     images:     { borderRadius?, borderColour?, borderWidth? }
     formFields: { typo: Typo, labelTypo: Typo, textColour?, bgColour?,
                   borderColour?, borderRadius?, labelColour? }
+    spacing?:   { blockPadding? }   // default block gutter → --block-padding
   }
 }
 ```
@@ -516,6 +519,7 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
 | **Buttons** | Typography, text/background/border colours, border width/radius/padding, hover state |
 | **Images** | Border radius, border width, border colour |
 | **Form Fields** | Label typography and colour, field typography and colours (text, background, border, radius) |
+| **Spacing** | Default block padding (left/right) - the site-wide gutter (`--block-padding`, default `1.5rem`) applied to content blocks so they don't run to the page edges |
 
 Colour fields on every tab show palette swatches from Global colours; selecting a swatch stores the raw hex (not a var reference).
 
@@ -561,6 +565,7 @@ After a successful save the Styles page calls `router.refresh()`, which re-rende
   --h1-family/-weight/-size/-line-height/-letter-spacing/-transform/-style/-color .. --h6-*;  /* full per-heading typography */
   --btn-family/-weight/-size/-line-height/-letter-spacing/-transform/-style;  /* button typography */
   /* + btn colour/border/radius/padding/hover, img, field vars */
+  --block-padding: 1.5rem;   /* from themeStyle.spacing.blockPadding - default Puck block gutter */
 }
 [data-theme="dark"] {
   --color-1..N: <dark hex>;
