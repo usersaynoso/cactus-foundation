@@ -190,6 +190,8 @@ model SiteConfig {
   designTokens           Json?
   // Cookie consent banner config (null = banner not configured)
   consentBannerConfig    Json?
+  // 'public' = stable releases only; 'beta' = pre-releases included
+  coreUpdateChannel      String     @default("public")
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }

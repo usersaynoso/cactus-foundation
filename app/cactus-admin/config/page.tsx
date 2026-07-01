@@ -154,8 +154,15 @@ type CoreUpdateStatus =
       publishedAt: string | null
     }
 
+type UpdatesApiResponse = {
+  status: CoreUpdateStatus
+  coreUpdateChannel: 'public' | 'beta'
+}
+
 function UpdatesPanel() {
   const [status, setStatus] = useState<CoreUpdateStatus | null>(null)
+  const [channel, setChannel] = useState<'public' | 'beta'>('public')
+  const [channelSaving, setChannelSaving] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [updating, setUpdating] = useState(false)
@@ -164,9 +171,33 @@ function UpdatesPanel() {
   useEffect(() => {
     fetch('/api/admin/updates')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setStatus(d as CoreUpdateStatus) })
+      .then((d: UpdatesApiResponse | null) => {
+        if (d) {
+          setStatus(d.status)
+          setChannel(d.coreUpdateChannel ?? 'public')
+        }
+      })
       .catch(() => {})
   }, [])
+
+  async function handleChannelChange(newChannel: 'public' | 'beta') {
+    if (newChannel === channel || channelSaving) return
+    setChannelSaving(true)
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coreUpdateChannel: newChannel }),
+      })
+      if (!res.ok) return
+      setChannel(newChannel)
+      const updated = await fetch('/api/admin/updates?bust=true')
+        .then((r) => (r.ok ? r.json() : null))
+      if (updated) setStatus((updated as UpdatesApiResponse).status)
+    } finally {
+      setChannelSaving(false)
+    }
+  }
 
   async function handleUpdate() {
     setUpdating(true)
@@ -214,9 +245,39 @@ function UpdatesPanel() {
     )
   }
 
+  const channelSelector = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+      <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginRight: '0.25rem' }}>
+        Update channel:
+      </span>
+      <button
+        type="button"
+        className={channel === 'public' ? 'btn btn-primary' : 'btn btn-secondary'}
+        style={{ fontSize: '0.8125rem' }}
+        disabled={channelSaving}
+        onClick={() => handleChannelChange('public')}
+      >
+        Public
+      </button>
+      <button
+        type="button"
+        className={channel === 'beta' ? 'btn btn-primary' : 'btn btn-secondary'}
+        style={{ fontSize: '0.8125rem' }}
+        disabled={channelSaving}
+        onClick={() => handleChannelChange('beta')}
+      >
+        Beta
+      </button>
+      {channelSaving && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Saving&hellip;</span>
+      )}
+    </div>
+  )
+
   if ('error' in status) {
     return (
       <div style={{ marginBottom: '1.5rem' }}>
+        {channelSelector}
         <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
           Couldn&rsquo;t check for updates right now. Please try again later.
         </div>
@@ -228,6 +289,7 @@ function UpdatesPanel() {
   if (!status.updateAvailable) {
     return (
       <div style={{ marginBottom: '1.5rem' }}>
+        {channelSelector}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
           <span className="badge badge-success">Up to date</span>
           <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
@@ -241,6 +303,7 @@ function UpdatesPanel() {
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
+      {channelSelector}
       <div className="card" style={{ borderColor: 'var(--color-primary)', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
