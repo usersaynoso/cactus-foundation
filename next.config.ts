@@ -23,11 +23,14 @@ const config: NextConfig = {
     loaderFile: './lib/media/loader.ts',
   },
   async headers() {
+    // In development, static chunks and source maps are same-origin. Adding an
+    // Access-Control-Allow-Origin header makes WebKit/Safari treat them as CORS
+    // resources and then reject them ("access control checks"), which breaks
+    // source-map loading and Turbopack HMR. Only emit CORS for production, where
+    // assets may be served from a separate CDN origin.
+    if (process.env.NODE_ENV !== 'production') return []
     return [
       {
-        // Allow browsers and DevTools to load static chunks and source maps.
-        // These files bypass the proxy middleware (which handles all other
-        // security headers), so CORS must be set here via the config instead.
         source: '/_next/static/:path*',
         headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
       },

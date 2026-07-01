@@ -12,6 +12,7 @@ export default function PendingDeployBanner({ notificationId, adminPath }: Props
   const [dismissed, setDismissed] = useState<boolean | null>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; this effect is the only valid place to read it
     setDismissed(sessionStorage.getItem(sessionKey) !== null)
   }, [sessionKey])
 

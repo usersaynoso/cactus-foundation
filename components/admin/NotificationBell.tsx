@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -127,11 +127,12 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[] | null>(null)
-  const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [actionError, setActionError] = useState<Record<string, string>>({})
   const [pos, setPos] = useState({ top: 0, left: 0 })
-  const [mounted, setMounted] = useState(false)
+  // useSyncExternalStore returns false on the server and true on the client,
+  // which is the React-idiomatic way to gate createPortal without a setState-in-effect.
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -139,17 +140,11 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const href = `${base}/notifications`
   const label = unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'
 
-  useEffect(() => { setMounted(true) }, [])
-
   const fetchNotifications = useCallback(() => {
-    setLoading(true)
     fetch('/api/admin/notifications')
       .then(r => r.json())
-      .then(data => {
-        setNotifications(data.notifications ?? [])
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+      .then(data => setNotifications(data.notifications ?? []))
+      .catch(() => setNotifications([]))
   }, [])
 
   const openDropdown = useCallback(() => {
@@ -269,9 +264,9 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       </div>
 
       <div className="admin-bell-dropdown-body">
-        {loading ? (
+        {notifications === null ? (
           <p className="admin-bell-dropdown-empty">Loading&hellip;</p>
-        ) : notifications && notifications.length > 0 ? (
+        ) : notifications.length > 0 ? (
           notifications.slice(0, 5).map(n => (
             <NotificationItem
               key={n.id}

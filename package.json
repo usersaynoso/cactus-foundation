@@ -1,10 +1,10 @@
 {
   "name": "cactus",
-  "version": "0.5.143",
+  "version": "0.5.144",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && next dev",
-    "dev:fresh": "bash scripts/dev-fresh.sh",
+    "dev:warm": "bash scripts/dev-warm.sh",
     "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && next build",
     "start": "next start",
     "lint": "eslint .",
