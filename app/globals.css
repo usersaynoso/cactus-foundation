@@ -453,6 +453,103 @@ a:hover {
   flex-shrink: 0;
 }
 
+/* Notification bell dropdown */
+.admin-bell-dropdown {
+  position: fixed;
+  z-index: 9999;
+  width: 320px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-theme="dark"] .admin-bell-dropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.admin-bell-dropdown-header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.admin-bell-dropdown-title {
+  font-size: 0.8125rem;
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.admin-bell-dropdown-body {
+  overflow-y: auto;
+  max-height: 320px;
+  flex: 1;
+}
+.admin-bell-dropdown-empty {
+  padding: var(--space-4);
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.admin-bell-dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--dur-base);
+}
+.admin-bell-dropdown-item:last-child {
+  border-bottom: none;
+}
+.admin-bell-dropdown-item--unread {
+  background: var(--color-primary-subtle);
+}
+.admin-bell-dropdown-icon {
+  font-size: 1rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.admin-bell-dropdown-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.admin-bell-dropdown-item-title {
+  font-size: 0.875rem;
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-bell-dropdown-time {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.admin-bell-dropdown-footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+  text-align: center;
+}
+.admin-bell-dropdown-viewall {
+  font-size: 0.875rem;
+  font-weight: var(--font-medium);
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--dur-base);
+}
+.admin-bell-dropdown-viewall:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
 /* Theme toggle row — beneath the logo/bell cluster, centred, with the
    header divider below it so logo + bell + toggle read as one group. */
 .admin-sidebar-theme {
