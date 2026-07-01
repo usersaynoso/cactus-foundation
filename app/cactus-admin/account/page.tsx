@@ -87,6 +87,7 @@ export default function AccountPage() {
   const [exportLoading, setExportLoading] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     fetch('/api/account/profile')
@@ -256,12 +257,12 @@ export default function AccountPage() {
 
   async function handleDeleteAccount() {
     setDeleteLoading(true)
+    setDeleteError('')
     try {
       const res = await fetch('/api/account', { method: 'DELETE' })
       const d = await res.json()
       if (!res.ok) {
-        setError(d.error ?? 'Deletion failed')
-        setDeleteConfirm(false)
+        setDeleteError(d.error ?? 'Deletion failed')
       } else {
         window.location.href = '/'
       }
@@ -476,12 +477,20 @@ export default function AccountPage() {
               Set up email (Brevo or SMTP) in <a href={`${adminBase}/config`}>Settings</a> before you can add a password. The password sign-in needs email to send a one-time code.
             </div>
           ) : (
-            <>
+            <form onSubmit={(e) => { e.preventDefault(); handleSavePassword() }}>
               <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
                 {passwordInfo.hasPassword
                   ? 'Change the password you use with the email one-time code sign-in.'
                   : 'Add a password to sign in with an email one-time code, alongside your passkeys.'}
               </p>
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={profile?.email ?? ''}
+                readOnly
+                hidden
+              />
               {passwordInfo.hasPassword && (
                 <div className="field">
                   <label>Current password</label>
@@ -512,9 +521,9 @@ export default function AccountPage() {
                 Sign out of all other devices
               </label>
               <button
+                type="submit"
                 className="btn btn-primary"
                 disabled={passwordLoading || !newPassword || newPassword.length < 8 || (passwordInfo.hasPassword && !currentPassword)}
-                onClick={handleSavePassword}
               >
                 {passwordLoading
                   ? 'Saving…'
@@ -522,7 +531,7 @@ export default function AccountPage() {
                     ? 'Change password'
                     : 'Add password'}
               </button>
-            </>
+            </form>
           )}
         </div>
       </div>
@@ -625,7 +634,7 @@ export default function AccountPage() {
         <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
           Permanent and immediate. Your content will remain but will be attributed to a deleted user.
         </p>
-        <button className="btn btn-danger" onClick={() => setDeleteConfirm(true)}>Delete my account</button>
+        <button className="btn btn-danger" onClick={() => { setDeleteError(''); setDeleteConfirm(true) }}>Delete my account</button>
       </div>
 
       {deleteConfirm && (
@@ -638,6 +647,7 @@ export default function AccountPage() {
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
               This cannot be undone. Your content will remain but will be attributed to a deleted user.
             </p>
+            {deleteError && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{deleteError}</div>}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" disabled={deleteLoading} onClick={() => setDeleteConfirm(false)}>
                 Cancel
