@@ -177,7 +177,9 @@ export default function ModulesPage() {
       })
       if (!res.ok) {
         setEntries((prev) => prev.map((e) => (e.installedId === installedId ? { ...e, updateChannel: current.updateChannel } : e)))
+        return
       }
+      await checkModuleUpdate(installedId, true)
     } catch {
       setEntries((prev) => prev.map((e) => (e.installedId === installedId ? { ...e, updateChannel: current.updateChannel } : e)))
     } finally {

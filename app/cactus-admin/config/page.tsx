@@ -268,34 +268,7 @@ function UpdatesPanel() {
     </div>
   )
 
-  if ('localMode' in status) {
-    return (
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
-          You&rsquo;re running in local-development mode (v{status.currentVersion}). Core updates ship via git and a
-          Vercel redeploy, so they&rsquo;re managed outside the admin here - pull the latest Cactus Foundation release
-          and redeploy to update.
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
-      </div>
-    )
-  }
-
-  if (!status.configured) {
-    return (
-      <div style={{ marginBottom: '1.5rem' }}>
-        {refreshRow}
-        <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
-          Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
-          <code>GITHUB_API_TOKEN</code> in{' '}
-          <a href="?tab=integrations" style={{ color: 'var(--color-primary)' }}>Settings → Integrations</a>.
-        </div>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
-      </div>
-    )
-  }
-
-  const channelSelector = (
+  const channelSelector = !('localMode' in status) && (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
       <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginRight: '0.25rem' }}>
         Update channel:
@@ -324,9 +297,38 @@ function UpdatesPanel() {
     </div>
   )
 
+  if ('localMode' in status) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
+          You&rsquo;re running in local-development mode (v{status.currentVersion}). Core updates ship via git and a
+          Vercel redeploy, so they&rsquo;re managed outside the admin here - pull the latest Cactus Foundation release
+          and redeploy to update.
+        </div>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
+      </div>
+    )
+  }
+
+  if (!status.configured) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        {refreshRow}
+        {channelSelector}
+        <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
+          Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
+          <code>GITHUB_API_TOKEN</code> in{' '}
+          <a href="?tab=integrations" style={{ color: 'var(--color-primary)' }}>Settings → Integrations</a>.
+        </div>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
+      </div>
+    )
+  }
+
   if ('error' in status) {
     return (
       <div style={{ marginBottom: '1.5rem' }}>
+        {refreshRow}
         {channelSelector}
         <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
           Couldn&rsquo;t check for updates right now. Please try again later.
@@ -339,6 +341,7 @@ function UpdatesPanel() {
   if (!status.updateAvailable) {
     return (
       <div style={{ marginBottom: '1.5rem' }}>
+        {refreshRow}
         {channelSelector}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
           <span className="badge badge-success">Up to date</span>
@@ -353,6 +356,7 @@ function UpdatesPanel() {
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
+      {refreshRow}
       {channelSelector}
       <div className="card" style={{ borderColor: 'var(--color-primary)', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
