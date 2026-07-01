@@ -12,6 +12,11 @@ type VercelEnvVar = {
 
 const DEFAULT_TARGETS: VercelEnvTarget[] = ['production', 'preview', 'development']
 
+// Vercel rejects target "development" on type "sensitive" vars (they never
+// decrypt to `vercel dev` / local pulls), so sensitive keys skip that target.
+// Local dev reads secrets from .env.local instead.
+const SENSITIVE_TARGETS: VercelEnvTarget[] = ['production', 'preview']
+
 // Sensitive type marks the value write-only (hidden from the dashboard after
 // creation) for secret-bearing keys; plain for everything else.
 const SENSITIVE_KEYS = new Set([
@@ -31,6 +36,10 @@ const SENSITIVE_KEYS = new Set([
 
 function envType(key: string): VercelEnvType {
   return SENSITIVE_KEYS.has(key) ? 'sensitive' : 'plain'
+}
+
+function envTargets(type: VercelEnvType): VercelEnvTarget[] {
+  return type === 'sensitive' ? SENSITIVE_TARGETS : DEFAULT_TARGETS
 }
 
 // Fetches all env var entries for the project (returns id + key, never value).
@@ -76,7 +85,7 @@ export async function upsertVercelEnvVar(
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ value, type: resolvedType, target: DEFAULT_TARGETS }),
+        body: JSON.stringify({ value, type: resolvedType, target: envTargets(resolvedType) }),
         signal: AbortSignal.timeout(15_000),
       }
     )
@@ -94,7 +103,7 @@ export async function upsertVercelEnvVar(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify([
-          { key, value, type: resolvedType, target: DEFAULT_TARGETS },
+          { key, value, type: resolvedType, target: envTargets(resolvedType) },
         ]),
         signal: AbortSignal.timeout(15_000),
       }
@@ -170,7 +179,7 @@ export async function upsertVercelEnvVars(
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ value, type: resolvedType, target: DEFAULT_TARGETS }),
+            body: JSON.stringify({ value, type: resolvedType, target: envTargets(resolvedType) }),
             signal: AbortSignal.timeout(15_000),
           }
         )
@@ -188,7 +197,7 @@ export async function upsertVercelEnvVars(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify([
-              { key, value, type: resolvedType, target: DEFAULT_TARGETS },
+              { key, value, type: resolvedType, target: envTargets(resolvedType) },
             ]),
             signal: AbortSignal.timeout(15_000),
           }
