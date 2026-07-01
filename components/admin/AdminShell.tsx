@@ -98,7 +98,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         mobileOpen   ? 'admin-sidebar--open'      : '',
         collapsed    ? 'admin-sidebar--collapsed'  : '',
       ].filter(Boolean).join(' ')}>
-        <div className="admin-sidebar-logo">
+        <div className="admin-sidebar-header">
           <a
             href="/"
             target="_blank"
@@ -114,7 +114,6 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             />
             {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
           </a>
-          {!collapsed && <div className="admin-sidebar-logo-theme"><ThemeToggle compact /></div>}
           <button
             className="admin-sidebar-close"
             onClick={() => setMobileOpen(false)}
@@ -124,20 +123,9 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           </button>
         </div>
 
-        {collapsed && (
-          <div className="admin-sidebar-theme admin-sidebar-theme--collapsed">
-            <ThemeToggle compact collapsed />
-          </div>
-        )}
-
-        {collapsed && (
-          <div className="admin-sidebar-bell-row">
-            <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed />
-          </div>
-        )}
-
-        {/* Desktop collapse/expand toggle + notification bell (expanded) */}
-        <div className="admin-sidebar-toggle-row">
+        {/* Utility row: collapse toggle, theme switcher, notifications - grouped so
+            the header reads as one control cluster instead of scattered rows. */}
+        <div className={`admin-sidebar-toolbar${collapsed ? ' admin-sidebar-toolbar--collapsed' : ''}`}>
           <button
             className="admin-sidebar-toggle"
             onClick={toggleCollapsed}
@@ -145,9 +133,9 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <span className="admin-sidebar-toggle-icon">{collapsed ? '›' : '‹'}</span>
-            {!collapsed && <span className="admin-sidebar-toggle-label">Collapse</span>}
           </button>
-          {!collapsed && <NotificationBell adminPath={adminPath} unreadCount={unreadCount} />}
+          <ThemeToggle compact collapsed={collapsed} />
+          <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={collapsed} />
         </div>
 
         <AdminNav

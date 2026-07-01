@@ -399,8 +399,8 @@ a:hover {
   width: 56px;
 }
 
-.admin-sidebar-logo {
-  padding: 0 var(--space-3) var(--space-4);
+.admin-sidebar-header {
+  padding: 0 var(--space-3) var(--space-3);
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
   color: var(--color-text);
@@ -413,10 +413,9 @@ a:hover {
   flex-shrink: 0;
 }
 
-.admin-sidebar--collapsed .admin-sidebar-logo {
+.admin-sidebar--collapsed .admin-sidebar-header {
   padding: 0 var(--space-2) var(--space-3);
   justify-content: center;
-  border-bottom: none;
 }
 
 .admin-sidebar-logo-img {
@@ -500,13 +499,6 @@ a:hover {
   text-align: center;
   box-shadow: 0 0 0 2px var(--admin-sidebar-bg, var(--color-surface));
 }
-.admin-sidebar-bell-row {
-  display: flex;
-  justify-content: center;
-  padding: 0 var(--space-2) var(--space-3);
-  flex-shrink: 0;
-}
-
 /* Notification bell dropdown */
 .admin-bell-dropdown {
   position: fixed;
@@ -617,23 +609,6 @@ a:hover {
 .admin-bell-dropdown-viewall:hover {
   color: var(--color-primary-hover);
   text-decoration: underline;
-}
-
-/* Theme toggle row — beneath the logo/bell cluster, centred, with the
-   header divider below it so logo + bell + toggle read as one group. */
-.admin-sidebar-theme {
-  display: flex;
-  justify-content: center;
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  flex-shrink: 0;
-}
-.admin-sidebar-theme--collapsed {
-  padding: var(--space-2) var(--space-2) var(--space-3);
-}
-
-.admin-sidebar-logo-theme {
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 /* Sidebar nav items */
@@ -865,6 +840,7 @@ a:hover {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-family: inherit;
+  font-weight: var(--font-medium);
   cursor: pointer;
   padding: var(--space-2) var(--space-3);
   width: 100%;
@@ -889,27 +865,46 @@ a:hover {
   margin: 0;
 }
 
-/* Collapse/expand toggle */
-.admin-sidebar-toggle-row {
-  display: flex;
+/* Header toolbar: collapse toggle, theme switcher, notification bell as one
+   row of icon controls instead of separate bordered rows. Grid (not flex
+   space-between) so the theme switcher sits on the true centre line
+   regardless of how wide the toggle/bell icons either side are. */
+.admin-sidebar-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
+.admin-sidebar-toolbar > .admin-sidebar-toggle {
+  justify-self: start;
+}
+.admin-sidebar-toolbar > .admin-sidebar-bell {
+  justify-self: end;
+}
+.admin-sidebar-toolbar--collapsed {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+}
+
 .admin-sidebar-toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex: 1;
-  padding: var(--space-3);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
   background: none;
   border: none;
+  border-radius: var(--radius-lg);
   color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  font-family: inherit;
   cursor: pointer;
   transition: background var(--dur-base), color var(--dur-base);
-  text-align: left;
 }
 .admin-sidebar-toggle:hover {
   background: var(--sand-200);
@@ -918,9 +913,6 @@ a:hover {
 [data-theme="dark"] .admin-sidebar-toggle:hover {
   background: #252320;
   color: var(--color-text);
-}
-.admin-sidebar--collapsed .admin-sidebar-toggle {
-  justify-content: center;
 }
 .admin-sidebar-toggle-icon {
   font-size: 1.125rem;
@@ -1501,7 +1493,7 @@ tbody tr:hover {
     transform: translateX(0);
   }
 
-  .admin-sidebar-logo {
+  .admin-sidebar-header {
     position: relative;
   }
 
