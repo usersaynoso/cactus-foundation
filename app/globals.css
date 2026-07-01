@@ -646,10 +646,10 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  height: 34px;
+  height: 36px;
   padding: 0 10px;
   margin: 1px var(--space-2);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   color: var(--admin-sidebar-text);
   font-size: 14px;
   font-weight: var(--font-medium);
@@ -675,19 +675,25 @@ a:hover {
 .admin-sidebar nav a.active {
   color: var(--color-primary);
   background: var(--color-primary-subtle);
-  border-left: 2px solid var(--color-primary);
-  padding-left: 8px;
+  font-weight: var(--font-semibold);
   text-decoration: none;
 }
-.admin-sidebar--collapsed nav a.active {
-  padding-left: calc(var(--space-2) - 2px);
-  border-left: 2px solid var(--color-primary);
+.admin-sidebar nav a.active .admin-nav-icon {
+  color: var(--color-primary);
 }
 
 .admin-nav-icon {
-  width: 18px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+.admin-sidebar nav a:hover .admin-nav-icon {
+  color: inherit;
 }
 
 .admin-nav-section-label {
@@ -697,6 +703,12 @@ a:hover {
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.admin-nav-divider {
+  height: 1px;
+  margin: var(--space-2) var(--space-3);
+  background: var(--color-border);
 }
 
 /* Sidebar nav footer (account, logout, version) */
