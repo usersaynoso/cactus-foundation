@@ -423,9 +423,13 @@ a:hover {
   background: var(--color-surface-raised);
   color: var(--color-text);
 }
-.admin-sidebar-bell.active {
-  background: var(--color-primary-subtle);
-  color: var(--color-primary);
+.admin-sidebar-bell.active,
+.admin-sidebar-bell--open {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+[data-theme="dark"] .admin-sidebar-bell--open {
+  background: var(--color-surface-raised);
 }
 .admin-sidebar-bell--inline {
   margin-left: auto;
