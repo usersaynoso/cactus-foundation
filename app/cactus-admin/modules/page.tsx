@@ -353,14 +353,8 @@ export default function ModulesPage() {
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
-                      {checkingModules[m.installedId ?? ''] ? (
-                        <span style={{ marginLeft: '0.5rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                          Checking for updates&hellip;
-                        </span>
-                      ) : (
-                        m.updateAvailable && (
-                          <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
-                        )
+                      {m.updateAvailable && (
+                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
                       )}
                       <button
                         type="button"
@@ -370,8 +364,10 @@ export default function ModulesPage() {
                         onClick={() => m.installedId && checkModuleUpdate(m.installedId, true)}
                         style={{
                           marginLeft: '0.5rem', background: 'none', border: 'none',
+                          display: 'inline-block',
                           cursor: checkingModules[m.installedId ?? ''] ? 'default' : 'pointer',
                           fontSize: '0.9rem', color: 'var(--color-text-muted)', verticalAlign: 'middle',
+                          animation: checkingModules[m.installedId ?? ''] ? 'cactus-spin 0.7s linear infinite' : 'none',
                         }}
                       >
                         &#8635;
