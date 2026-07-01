@@ -97,9 +97,19 @@ export default async function AdminDashboard() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <span className={`badge badge-${config?.status === 'live' ? 'green' : config?.status === 'comingSoon' ? 'yellow' : 'red'}`}>
-          {config?.status === 'live' ? 'Live' : config?.status === 'comingSoon' ? 'Coming soon' : 'Maintenance'}
-        </span>
+        <a
+          href={`/${adminPath}/config?tab=status`}
+          className={`badge badge-${config?.status === 'live' ? 'green' : config?.status === 'comingSoon' ? 'yellow' : 'red'}`}
+          style={{ textDecoration: 'none' }}
+        >
+          Site Status: {config?.status === 'live' ? 'Live' : config?.status === 'comingSoon' ? 'Coming soon' : 'Maintenance'}
+        </a>
+      </div>
+
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <p style={{ margin: 0, color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
+          Logged in as <strong>{user?.username}</strong> ({user?.role.name})
+        </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
@@ -189,12 +199,6 @@ export default async function AdminDashboard() {
           </div>
         </div>
       )}
-
-      <div className="card">
-        <p style={{ margin: 0, color: 'var(--color-muted)', fontSize: '0.9375rem' }}>
-          Logged in as <strong>{user?.username}</strong> ({user?.role.name})
-        </p>
-      </div>
     </div>
   )
 }
