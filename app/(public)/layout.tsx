@@ -10,21 +10,37 @@ import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
+import type { Metadata } from 'next'
 
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const config = await prisma.siteConfig
+async function getSiteConfig() {
+  return prisma.siteConfig
     .findUnique({
       where: { id: 'singleton' },
       select: {
         siteName: true,
         adminPath: true,
         logoMediaId: true,
+        faviconMediaId: true,
         designTokens: true,
         consentBannerConfig: true,
         privacyPolicyPageId: true,
       },
     })
     .catch(() => null)
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig()
+  if (!config?.faviconMediaId) return {}
+  const favicon = await prisma.media
+    .findUnique({ where: { id: config.faviconMediaId }, select: { url: true } })
+    .catch(() => null)
+  if (!favicon?.url) return {}
+  return { icons: { icon: favicon.url } }
+}
+
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  const config = await getSiteConfig()
 
   const [logoMedia, privacyPage] = await Promise.all([
     config?.logoMediaId
