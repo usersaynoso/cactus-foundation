@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense, Fragment } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
@@ -42,6 +42,7 @@ type EnvSection = {
   label: string
   description: string
   keys: Array<{ key: string; label: string; type?: 'text' | 'password'; placeholder?: string; hint?: React.ReactNode }>
+  columns?: number
 }
 
 const EMAIL_BREVO_SECTION: EnvSection = {
@@ -57,11 +58,12 @@ const EMAIL_SMTP_SECTION: EnvSection = {
   id: 'email-smtp',
   label: 'SMTP',
   description: 'Transactional email via SMTP',
+  columns: 2,
   keys: [
-    { key: 'SMTP_HOST', label: 'SMTP_HOST', placeholder: 'smtp.example.com' },
-    { key: 'SMTP_PORT', label: 'SMTP_PORT', placeholder: '587' },
-    { key: 'SMTP_USER', label: 'SMTP_USER', placeholder: 'you@example.com' },
-    { key: 'SMTP_PASS', label: 'SMTP_PASS', type: 'password', placeholder: '••••••••' },
+    { key: 'SMTP_HOST', label: 'SMTP Host', placeholder: 'smtp.example.com' },
+    { key: 'SMTP_PORT', label: 'SMTP Port', placeholder: '587' },
+    { key: 'SMTP_USER', label: 'SMTP Username', placeholder: 'you@example.com' },
+    { key: 'SMTP_PASS', label: 'SMTP Password', type: 'password', placeholder: '••••••••' },
   ],
 }
 
@@ -80,14 +82,6 @@ type MigrationJob = {
 }
 
 const INTEGRATION_SECTIONS: EnvSection[] = [
-  {
-    id: 'github-pat',
-    label: 'GitHub - legacy personal access token (fallback)',
-    description: 'Still works if you prefer a PAT. Prefer connecting a GitHub App above.',
-    keys: [
-      { key: 'GITHUB_API_TOKEN', label: 'GITHUB_API_TOKEN', type: 'password', placeholder: 'ghp_…', hint: 'GitHub → Settings → Developer settings → Personal access tokens' },
-    ],
-  },
   {
     id: 'edge-config',
     label: 'Edge Config',
@@ -276,8 +270,7 @@ function UpdatesPanel() {
     subtitle = 'Cactus Foundation core version'
     body = (
       <div className="alert alert-info" style={{ fontSize: 'var(--text-sm)' }}>
-        Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
-        <code>GITHUB_API_TOKEN</code> in{' '}
+        Automatic updates require GitHub to be configured. Connect a GitHub App in{' '}
         <a href="?tab=integrations" style={{ color: 'var(--color-primary)' }}>Settings → Integrations</a>.
       </div>
     )
@@ -932,7 +925,7 @@ function ConfigPageInner() {
     const gh = ghStatus
 
     return (
-      <div className="card" style={{ marginBottom: '1rem' }}>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>GitHub App</h3>
@@ -1011,8 +1004,30 @@ function ConfigPageInner() {
     const isSaving = savingEnvId === section.id
     const isSaved = savedEnvId === section.id
 
+    const fieldRows = section.keys.map((f) => (
+      <div className="field" key={f.key} style={section.columns ? { margin: 0 } : undefined}>
+        <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+          <span>
+            {f.label}
+            {f.label !== f.key && <code style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{f.key}</code>}
+          </span>
+          {envStatus[f.key] && <StatusBadge set />}
+        </label>
+        <input
+          type={f.type ?? 'text'}
+          autoComplete="off"
+          value={envFields[f.key] ?? ''}
+          onChange={(e) => setEnvField(f.key, e.target.value)}
+          placeholder={localMode ? (envStatus[f.key] ? 'Set in .env.local' : 'Not set') : (envStatus[f.key] ? 'Enter new value to change' : (f.placeholder ?? ''))}
+          disabled={localMode}
+          style={{ fontSize: '0.875rem' }}
+        />
+        {f.hint && <span className="field-hint">{f.hint}</span>}
+      </div>
+    ))
+
     return (
-      <div className="card" style={{ marginBottom: '1rem' }}>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{section.label}</h3>
@@ -1025,30 +1040,17 @@ function ConfigPageInner() {
             Managed via <code>.env.local</code> in local-development mode. Edit the file and restart the dev server to change these.
           </div>
         )}
-        {section.keys.map((f) => (
-          <div className="field" key={f.key}>
-            <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
-              <code>{f.key}</code>
-              {envStatus[f.key] && <StatusBadge set />}
-            </label>
-            <input
-              type={f.type ?? 'text'}
-              autoComplete="off"
-              value={envFields[f.key] ?? ''}
-              onChange={(e) => setEnvField(f.key, e.target.value)}
-              placeholder={localMode ? (envStatus[f.key] ? 'Set in .env.local' : 'Not set') : (envStatus[f.key] ? 'Enter new value to change' : (f.placeholder ?? ''))}
-              disabled={localMode}
-              style={{ fontSize: '0.875rem' }}
-            />
-            {f.hint && <span className="field-hint">{f.hint}</span>}
+        {section.columns ? (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${section.columns}, 1fr)`, gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            {fieldRows}
           </div>
-        ))}
+        ) : fieldRows}
         {!localMode && (
           <>
             {envError && savingEnvId === null && savedEnvId === null && (
               <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{envError}</div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 'auto' }}>
               <button
                 className="btn btn-primary"
                 style={{ fontSize: '0.875rem' }}
@@ -1102,59 +1104,65 @@ function ConfigPageInner() {
       {tab === 'general' && (
         <div>
           <UpdatesPanel />
-          <div className="field"><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
-          <div className="field"><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
-          <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
-          <div className="field">
-            <label>Homepage</label>
-            <select
-              value={config.homepageId ?? ''}
-              onChange={(e) => set('homepageId', e.target.value || null)}
-            >
-              <option value="">— None —</option>
-              {pages.map((p) => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
-            <span className="field-hint">The info page shown at the root URL (/).</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
+            <div className="field" style={{ margin: 0 }}><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           </div>
-          <div className="field">
-            <label>Main menu</label>
-            {menus.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <select disabled style={{ flex: 1 }}>
-                  <option>No menus created yet</option>
-                </select>
-                <a href={`/${config.adminPath ?? ''}/menus`} style={{ fontSize: '0.875rem', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-                  Create a menu first
-                </a>
-              </div>
-            ) : (
+          <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Homepage</label>
               <select
-                value={config.mainMenuId ?? ''}
-                onChange={(e) => set('mainMenuId', e.target.value || null)}
+                value={config.homepageId ?? ''}
+                onChange={(e) => set('homepageId', e.target.value || null)}
               >
-                <option value="">— None (header will be empty) —</option>
-                {menus.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
+                <option value="">— None —</option>
+                {pages.map((p) => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
               </select>
-            )}
-            <span className="field-hint">The menu shown in the site header navigation.</span>
+              <span className="field-hint">The info page shown at the root URL (/).</span>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Main menu</label>
+              {menus.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <select disabled style={{ flex: 1 }}>
+                    <option>No menus created yet</option>
+                  </select>
+                  <a href={`/${config.adminPath ?? ''}/menus`} style={{ fontSize: '0.875rem', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
+                    Create a menu first
+                  </a>
+                </div>
+              ) : (
+                <select
+                  value={config.mainMenuId ?? ''}
+                  onChange={(e) => set('mainMenuId', e.target.value || null)}
+                >
+                  <option value="">— None (header will be empty) —</option>
+                  {menus.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              )}
+              <span className="field-hint">The menu shown in the site header navigation.</span>
+            </div>
           </div>
           <div className="field">
             <span className="field-hint">Header and footer are designed in <strong>Appearance</strong>. Layouts are managed under <strong>Layouts</strong>.</span>
           </div>
-          <div className="field">
-            <label>Timezone</label>
-            <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>
-              {['UTC','Europe/London','Europe/Paris','Europe/Berlin','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','Australia/Sydney'].map((tz) => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Timezone</label>
+              <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>
+                {['UTC','Europe/London','Europe/Paris','Europe/Berlin','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','Australia/Sydney'].map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
+            <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
           </div>
-          <div className="field"><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
-          <div className="field"><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
           <div style={{ marginBottom: '2rem' }}>
@@ -1318,26 +1326,30 @@ function ConfigPageInner() {
 
       {tab === 'access' && (
         <div>
-          <div className="field">
-            <label>Admin path</label>
-            <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
-            <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Admin path</label>
+              <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
+              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Trust this browser (days)</label>
+              <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
+            </div>
           </div>
           <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.publicRegistration ?? true} onChange={(e) => set('publicRegistration', e.target.checked)} />
             Allow public registration
           </label>
-          <div className="field">
-            <label>Trust this browser (days)</label>
-            <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
-          </div>
         </div>
       )}
 
       {tab === 'email' && (
         <div>
-          <div className="field"><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
-          <div className="field"><label>From address</label><input type="email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
+            <div className="field" style={{ margin: 0 }}><label>From address</label><input type="email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
+          </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div style={{ marginBottom: '1rem' }}>
@@ -1517,43 +1529,54 @@ function ConfigPageInner() {
                     &ldquo;Necessary&rdquo; is pinned and cannot be removed. Adding or removing categories, or changing their defaults, will re-prompt existing visitors.
                   </p>
 
-                  <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
-                    {cats.map((cat, i) => (
-                      <div key={cat.key} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: '0.5rem', alignItems: 'start', padding: '0.75rem', borderBottom: i < cats.length - 1 ? '1px solid var(--color-border)' : 'none', background: cat.required ? 'var(--color-bg-subtle)' : 'var(--color-surface)' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Key</label>
-                          <input
-                            type="text"
-                            value={cat.key}
-                            disabled={cat.required}
-                            onChange={(e) => updateCategory(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
-                            style={{ width: '100%', fontSize: '0.8125rem' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Label</label>
-                          <input type="text" value={cat.label} onChange={(e) => updateCategory(i, { label: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Description</label>
-                          <input type="text" value={cat.description} onChange={(e) => updateCategory(i, { description: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                          <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>On by default</label>
-                          <input type="checkbox" checked={cat.required ? true : cat.defaultOn} disabled={cat.required} onChange={(e) => updateCategory(i, { defaultOn: e.target.checked })} />
-                        </div>
-                        <div style={{ paddingTop: '1.25rem' }}>
-                          {cat.required ? (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Required</span>
-                          ) : (
-                            <button type="button" onClick={() => removeCategory(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '0.8125rem', padding: '0.25rem 0.5rem' }}>Remove</button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.67fr 0.67fr 2.67fr auto auto', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                    {(() => {
+                      const headerCellStyle = { padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }
+                      return (
+                        <>
+                          <div style={headerCellStyle}>Key</div>
+                          <div style={headerCellStyle}>Label</div>
+                          <div style={headerCellStyle}>Description</div>
+                          <div style={{ ...headerCellStyle, textAlign: 'center' }}>On by default</div>
+                          <div style={headerCellStyle}></div>
+                        </>
+                      )
+                    })()}
+                    {cats.map((cat, i) => {
+                      const cellStyle = { padding: '0.75rem', background: 'var(--color-surface)' }
+                      return (
+                        <Fragment key={cat.key}>
+                          <div className="field" style={{ margin: 0, ...cellStyle }}>
+                            <input
+                              type="text"
+                              value={cat.key}
+                              disabled={cat.required}
+                              onChange={(e) => updateCategory(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
+                              style={{ width: '100%', fontSize: '0.8125rem' }}
+                            />
+                          </div>
+                          <div className="field" style={{ margin: 0, ...cellStyle }}>
+                            <input type="text" value={cat.label} onChange={(e) => updateCategory(i, { label: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
+                          </div>
+                          <div className="field" style={{ margin: 0, ...cellStyle }}>
+                            <input type="text" value={cat.description} onChange={(e) => updateCategory(i, { description: e.target.value })} style={{ width: '100%', fontSize: '0.8125rem' }} />
+                          </div>
+                          <div className="field" style={{ margin: 0, ...cellStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <input type="checkbox" checked={cat.required ? true : cat.defaultOn} disabled={cat.required} onChange={(e) => updateCategory(i, { defaultOn: e.target.checked })} style={{ width: '1.25rem', height: '1.25rem' }} />
+                          </div>
+                          <div style={{ ...cellStyle, display: 'flex', alignItems: 'center' }}>
+                            {cat.required ? (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Required</span>
+                            ) : (
+                              <button type="button" onClick={() => removeCategory(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '0.8125rem', padding: '0.25rem 0.5rem', marginLeft: '-0.5rem' }}>Remove</button>
+                            )}
+                          </div>
+                        </Fragment>
+                      )
+                    })}
                   </div>
 
-                  <button type="button" onClick={addCategory} style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem', marginBottom: availableSuggestions.length > 0 ? '0.5rem' : 0 }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={addCategory} style={{ marginBottom: availableSuggestions.length > 0 ? '0.5rem' : 0 }}>
                     + Add category
                   </button>
 
@@ -1813,11 +1836,13 @@ function ConfigPageInner() {
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.
           </p>
-          {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
-          <GitHubAppCard />
-          {INTEGRATION_SECTIONS.map((section) => (
-            <EnvSectionCard key={section.id} section={section} />
-          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'stretch' }}>
+            {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
+            <GitHubAppCard />
+            {INTEGRATION_SECTIONS.map((section) => (
+              <EnvSectionCard key={section.id} section={section} />
+            ))}
+          </div>
         </div>
       )}
     </div>
