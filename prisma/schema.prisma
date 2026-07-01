@@ -29,6 +29,8 @@ model User {
   updatedAt               DateTime  @updatedAt
   suspendedAt             DateTime?
   acceptedPrivacyPolicyAt DateTime?
+  totpSecretEncrypted     String?
+  totpVerifiedAt          DateTime?
 
   passkeys        Passkey[]
   sessions        Session[]

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-type LoginStep = 'passkey' | 'password' | 'otp'
+type LoginStep = 'passkey' | 'password' | 'otp' | 'totp'
 type NoPasskeyMode = 'register' | 'email' | null
 
 export default function LoginPage() {
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
+  const [totpCode, setTotpCode] = useState('')
   const [userId, setUserId] = useState('')
   const [trustDevice, setTrustDevice] = useState(false)
   const [error, setError] = useState('')
@@ -113,6 +114,27 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code: otp, trustDevice }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Verification failed')
+      const parts = window.location.pathname.split('/')
+      const ap = parts[1] ?? ''
+      redirect(nextUrl || `/${ap}`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Verification failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleTotpLogin() {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/totp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: totpCode }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Verification failed')
@@ -351,6 +373,46 @@ export default function LoginPage() {
                 Use password instead
               </button>
             )}
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setStep('totp'); setError('') }}>
+              Use authenticator app instead
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
+              <button
+                className="btn btn-link"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}
+                onClick={() => { setLostAccessMode(true); setError('') }}
+              >
+                Lost access?
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'totp' && (
+          <div>
+            <div className="field">
+              <label>Email address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </div>
+            <div className="field">
+              <label>Authenticator code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={(e) => { if (e.key === 'Enter' && email && totpCode.length === 6 && !loading) handleTotpLogin() }}
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!email || totpCode.length !== 6 || loading} onClick={handleTotpLogin}>
+              {loading ? 'Verifying…' : 'Sign in'}
+            </button>
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setStep('passkey'); setError('') }}>
+              Use passkey instead
+            </button>
             <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
               <button
                 className="btn btn-link"

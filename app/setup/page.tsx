@@ -141,6 +141,10 @@ export default function SetupPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [userId, setUserId] = useState('')
+  const [authMode, setAuthMode] = useState<'passkey' | 'totp'>('passkey')
+  const [totpQrDataUrl, setTotpQrDataUrl] = useState('')
+  const [totpSecret, setTotpSecret] = useState('')
+  const [totpCode, setTotpCode] = useState('')
 
   // Essentials
   const [siteName, setSiteName] = useState('')
@@ -589,6 +593,66 @@ export default function SetupPage() {
     }
   }
 
+  async function handleStartTotpSetup() {
+    setError('')
+    setLoading(true)
+    try {
+      let uid = userId
+      if (!uid) {
+        const res = await fetch('/api/setup/create-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email }),
+        })
+        if (!res.ok) {
+          const d = await res.json()
+          throw new Error(d.error ?? 'Failed to create account')
+        }
+        const data = (await res.json()) as { userId: string }
+        uid = data.userId
+        setUserId(uid)
+      }
+
+      const optRes = await fetch('/api/auth/totp/setup-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid }),
+      })
+      if (!optRes.ok) {
+        const d = await optRes.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to start authenticator setup')
+      }
+      const opts = (await optRes.json()) as { qrDataUrl: string; secret: string }
+      setTotpQrDataUrl(opts.qrDataUrl)
+      setTotpSecret(opts.secret)
+      setAuthMode('totp')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleVerifyTotpAndComplete() {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/totp/setup-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code: totpCode }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.error ?? 'Verification failed')
+      }
+      await handleConfigureOnly()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setLoading(false)
+    }
+  }
+
   async function handleConfigureOnly() {
     try {
       const pathRes = await fetch('/api/setup/set-admin-path', {
@@ -969,21 +1033,75 @@ npm run dev`}
             </>
           )}
 
-          <button
-            className="btn btn-primary btn-lg"
-            style={{ width: '100%' }}
-            disabled={
-              !siteName || !adminPath || loading ||
-              (!adminAlreadyExists && (!username || !email))
-            }
-            onClick={adminAlreadyExists ? () => { setLoading(true); handleConfigureOnly() } : handleSetPasskeyAndComplete}
-          >
-            {loading
-              ? 'Setting up…'
-              : adminAlreadyExists
-                ? 'Complete setup →'
-                : 'Set passkey →'}
-          </button>
+          {!adminAlreadyExists && authMode === 'totp' ? (
+            <div>
+              <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', textAlign: 'center' }}>
+                {totpQrDataUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- data: URL from our own qrcode render, not an optimizable remote asset
+                  <img src={totpQrDataUrl} alt="Authenticator app QR code" style={{ width: 180, height: 180, margin: '0 auto', display: 'block' }} />
+                )}
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0.75rem 0 0.25rem' }}>
+                  Scan with Google Authenticator, Authy, 1Password, or similar. Can&apos;t scan? Enter this key manually:
+                </p>
+                <code style={{ fontSize: '0.8125rem', wordBreak: 'break-all' }}>{totpSecret}</code>
+              </div>
+              <div className="field" style={{ marginTop: '1rem' }}>
+                <label htmlFor="totpCode">Enter the 6-digit code</label>
+                <input
+                  id="totpCode"
+                  inputMode="numeric"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                />
+              </div>
+              <button
+                className="btn btn-primary btn-lg"
+                style={{ width: '100%' }}
+                disabled={loading || totpCode.length !== 6}
+                onClick={handleVerifyTotpAndComplete}
+              >
+                {loading ? 'Verifying…' : 'Verify and complete →'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', marginTop: '0.5rem' }}
+                onClick={() => { setAuthMode('passkey'); setError('') }}
+              >
+                ← Back to passkey
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                className="btn btn-primary btn-lg"
+                style={{ width: '100%' }}
+                disabled={
+                  !siteName || !adminPath || loading ||
+                  (!adminAlreadyExists && (!username || !email))
+                }
+                onClick={adminAlreadyExists ? () => { setLoading(true); handleConfigureOnly() } : handleSetPasskeyAndComplete}
+              >
+                {loading
+                  ? 'Setting up…'
+                  : adminAlreadyExists
+                    ? 'Complete setup →'
+                    : 'Set passkey →'}
+              </button>
+              {!adminAlreadyExists && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ width: '100%', marginTop: '0.5rem' }}
+                  disabled={loading || !siteName || !adminPath || !username || !email}
+                  onClick={handleStartTotpSetup}
+                >
+                  Use Token instead of Passkeys
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
 

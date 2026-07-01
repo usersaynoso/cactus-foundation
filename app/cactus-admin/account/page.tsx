@@ -55,6 +55,14 @@ export default function AccountPage() {
   const [newPasskeyLoading, setNewPasskeyLoading] = useState(false)
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([])
 
+  // Authenticator app (TOTP)
+  const [totpEnabled, setTotpEnabled] = useState<boolean | null>(null)
+  const [totpSetupLoading, setTotpSetupLoading] = useState(false)
+  const [totpVerifyLoading, setTotpVerifyLoading] = useState(false)
+  const [totpQrDataUrl, setTotpQrDataUrl] = useState('')
+  const [totpSecret, setTotpSecret] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+
   // Password
   const [passwordInfo, setPasswordInfo] = useState<PasswordInfo | null>(null)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -87,6 +95,13 @@ export default function AccountPage() {
     fetch('/api/account/password')
       .then((r) => r.json())
       .then((d: PasswordInfo) => setPasswordInfo(d))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/account/totp')
+      .then((r) => r.json())
+      .then((d: { enabled: boolean }) => setTotpEnabled(d.enabled))
       .catch(() => {})
   }, [])
 
@@ -266,6 +281,59 @@ export default function AccountPage() {
     }
   }
 
+  async function handleStartTotpSetup() {
+    setTotpSetupLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/totp/setup-options', { method: 'POST' })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? 'Failed to start authenticator setup')
+      }
+      const opts = (await res.json()) as { qrDataUrl: string; secret: string }
+      setTotpQrDataUrl(opts.qrDataUrl)
+      setTotpSecret(opts.secret)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to start authenticator setup')
+    } finally {
+      setTotpSetupLoading(false)
+    }
+  }
+
+  async function handleVerifyTotpSetup() {
+    setTotpVerifyLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/totp/setup-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: totpCode }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((d as { error?: string }).error ?? 'Verification failed')
+      setTotpEnabled(true)
+      setTotpQrDataUrl('')
+      setTotpSecret('')
+      setTotpCode('')
+      setMessage('Authenticator app enabled.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Verification failed')
+    } finally {
+      setTotpVerifyLoading(false)
+    }
+  }
+
+  async function handleRemoveTotp() {
+    setError('')
+    const res = await fetch('/api/account/totp', { method: 'DELETE' })
+    if (res.ok) {
+      setTotpEnabled(false)
+    } else {
+      const d = await res.json().catch(() => ({}))
+      setError((d as { error?: string }).error ?? 'Failed to remove authenticator app')
+    }
+  }
+
   const profileDirty = profile && displayName !== (profile.displayName ?? '')
 
   const cardFull: React.CSSProperties = { height: '100%' }
@@ -441,6 +509,62 @@ export default function AccountPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Authenticator app — full width */}
+      <div className="card">
+        <h2 className="card-title">Authenticator app</h2>
+        {totpEnabled === null ? (
+          <p>Loading…</p>
+        ) : totpEnabled ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="badge badge-blue">Enabled</span>
+            <button className="btn btn-secondary btn-sm" onClick={handleRemoveTotp}>Remove</button>
+          </div>
+        ) : totpQrDataUrl ? (
+          <>
+            <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', textAlign: 'center', maxWidth: 320 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from our own qrcode render, not an optimizable remote asset */}
+              <img src={totpQrDataUrl} alt="Authenticator app QR code" style={{ width: 180, height: 180, margin: '0 auto', display: 'block' }} />
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0.75rem 0 0.25rem' }}>
+                Scan with Google Authenticator, Authy, 1Password, or similar. Can&apos;t scan? Enter this key manually:
+              </p>
+              <code style={{ fontSize: '0.8125rem', wordBreak: 'break-all' }}>{totpSecret}</code>
+            </div>
+            <div className="field" style={{ marginTop: '1rem', maxWidth: 200 }}>
+              <label>Enter the 6-digit code</label>
+              <input
+                inputMode="numeric"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+              />
+            </div>
+            <button
+              className="btn btn-primary"
+              disabled={totpVerifyLoading || totpCode.length !== 6}
+              onClick={handleVerifyTotpSetup}
+            >
+              {totpVerifyLoading ? 'Verifying…' : 'Verify and enable'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ marginLeft: '0.5rem' }}
+              onClick={() => { setTotpQrDataUrl(''); setTotpSecret(''); setTotpCode('') }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
+              Sign in with a 6-digit code from an authenticator app, as an alternative to a passkey.
+            </p>
+            <button className="btn btn-secondary" disabled={totpSetupLoading} onClick={handleStartTotpSetup}>
+              {totpSetupLoading ? 'Starting…' : 'Set up authenticator app'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Row 3: Active sessions + Your data */}

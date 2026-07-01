@@ -33,6 +33,8 @@ CREATE TABLE "User" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "suspendedAt" TIMESTAMP(3),
     "acceptedPrivacyPolicyAt" TIMESTAMP(3),
+    "totpSecretEncrypted" TEXT,
+    "totpVerifiedAt" TIMESTAMP(3),
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
