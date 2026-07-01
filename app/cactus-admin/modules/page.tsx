@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
+import { markdownToHtml } from '@/lib/markdown-client'
 
 type GitHubAppStatus = {
   connected: boolean
@@ -368,9 +369,14 @@ export default function ModulesPage() {
           return (
             <div className="card" style={{ marginTop: '1rem' }}>
               <h3 className="card-title">Release notes - {showVersion(m.updateAvailable)}</h3>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>
-                {m.updateNotes || 'No release notes available.'}
-              </p>
+              {m.updateNotes ? (
+                <div
+                  style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem 1rem', maxHeight: '16rem', overflowY: 'auto', lineHeight: 1.6 }}
+                  dangerouslySetInnerHTML={{ __html: markdownToHtml(m.updateNotes) }}
+                />
+              ) : (
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>No release notes available.</p>
+              )}
             </div>
           )
         })()}
