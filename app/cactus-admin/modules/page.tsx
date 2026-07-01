@@ -26,7 +26,7 @@ type DirectoryEntry = {
   updateChannel?: 'public' | 'beta'
 }
 
-const MODULE_UPDATE_CHECK_THROTTLE_MS = 10_000
+const MODULE_UPDATE_CHECK_THROTTLE_MS = 10 * 60 * 1000
 
 type UninstallModal = {
   id: string
@@ -45,6 +45,10 @@ const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> =
 }
 
 const showVersion = (v?: string | null) => v ? 'v' + v.replace(/^v/i, '') : ''
+
+function moduleInitial(repoName: string): string {
+  return formatModuleName(repoName).charAt(0).toUpperCase()
+}
 
 function formatModuleName(repoName: string): string {
   return repoName
@@ -68,9 +72,6 @@ export default function ModulesPage() {
   const [uninstallModal, setUninstallModal] = useState<UninstallModal | null>(null)
   const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
   const [uninstalling, setUninstalling] = useState(false)
-  // Local-development mode: module updates need git push + Vercel redeploy, so the
-  // per-module Update button is hidden in favour of a short note.
-  const [localMode, setLocalMode] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
   const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
 
@@ -112,7 +113,6 @@ export default function ModulesPage() {
       const modules: DirectoryEntry[] = d.modules ?? []
       setEntries(modules)
       setDirectoryUnavailable(d.directoryUnavailable === true)
-      setLocalMode(d.localMode === true)
       if (ghRes.ok) {
         const gh = await ghRes.json()
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
@@ -328,154 +328,136 @@ export default function ModulesPage() {
         {installed.length === 0 ? (
           <div className="alert alert-info">No modules installed yet.</div>
         ) : (
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Version</th>
-                  <th>Channel</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {installed.map((m) => (
-                  <tr key={m.installedId}>
-                    <td>
-                      <strong>{formatModuleName(m.repoName)}</strong>
-                      {m.description && (
-                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{m.description}</div>
-                      )}
-                      {m.lastError && (
-                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)' }}>{m.lastError}</div>
-                      )}
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
-                      {m.updateAvailable && (
-                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
-                      )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 380px))', gap: '1.25rem' }}>
+            {installed.map((m) => (
+              <div key={m.installedId} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', marginBottom: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 'var(--radius-md)', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--color-primary-subtle)', color: 'var(--color-primary-dark)',
+                    fontSize: 'var(--text-base)', fontWeight: 700,
+                  }}>
+                    {moduleInitial(m.repoName)}
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', flex: 1, minWidth: 0 }}>{formatModuleName(m.repoName)}</div>
+                  {m.status && (
+                    <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`} style={{ flexShrink: 0 }}>
+                      {STATUS_BADGE[m.status]?.label ?? m.status}
+                    </span>
+                  )}
+                </div>
+
+                {m.description && (
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{m.description}</div>
+                )}
+
+                {m.lastError && (
+                  <div className="alert alert-danger" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{m.lastError}</div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
+                  {m.updateAvailable && (
+                    <span className="badge badge-yellow">{showVersion(m.updateAvailable)} available</span>
+                  )}
+                  <button
+                    type="button"
+                    title="Check for updates"
+                    aria-label="Check for updates"
+                    disabled={checkingModules[m.installedId ?? '']}
+                    onClick={() => m.installedId && checkModuleUpdate(m.installedId, true)}
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      display: 'inline-flex', alignItems: 'center',
+                      cursor: checkingModules[m.installedId ?? ''] ? 'default' : 'pointer',
+                      fontSize: '0.9rem', color: 'var(--color-text-muted)',
+                      animation: checkingModules[m.installedId ?? ''] ? 'cactus-spin 0.7s linear infinite' : 'none',
+                    }}
+                  >
+                    &#8635;
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Update channel</span>
+                  <div style={{
+                    display: 'inline-flex', padding: 2, gap: 2,
+                    background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
+                    opacity: channelSaving[m.installedId ?? ''] ? 0.6 : 1,
+                  }}>
+                    {(['public', 'beta'] as const).map((channel) => (
                       <button
+                        key={channel}
                         type="button"
-                        title="Check for updates"
-                        aria-label="Check for updates"
-                        disabled={checkingModules[m.installedId ?? '']}
-                        onClick={() => m.installedId && checkModuleUpdate(m.installedId, true)}
+                        disabled={!m.installedId || channelSaving[m.installedId]}
+                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, channel)}
                         style={{
-                          marginLeft: '0.5rem', background: 'none', border: 'none',
-                          display: 'inline-block',
-                          cursor: checkingModules[m.installedId ?? ''] ? 'default' : 'pointer',
-                          fontSize: '0.9rem', color: 'var(--color-text-muted)', verticalAlign: 'middle',
-                          animation: checkingModules[m.installedId ?? ''] ? 'cactus-spin 0.7s linear infinite' : 'none',
+                          border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
+                          fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
+                          background: (m.updateChannel ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
+                          color: (m.updateChannel ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
                         }}
                       >
-                        &#8635;
+                        {channel === 'public' ? 'Public' : 'Beta'}
                       </button>
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <button
-                        type="button"
-                        className={m.updateChannel !== 'beta' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                        disabled={!m.installedId || channelSaving[m.installedId]}
-                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, 'public')}
-                      >
-                        Public
-                      </button>
-                      <button
-                        type="button"
-                        className={m.updateChannel === 'beta' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                        style={{ marginLeft: '0.25rem' }}
-                        disabled={!m.installedId || channelSaving[m.installedId]}
-                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, 'beta')}
-                      >
-                        Beta
-                      </button>
-                    </td>
-                    <td>
-                      {m.status && (
-                        <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`}>
-                          {STATUS_BADGE[m.status]?.label ?? m.status}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {m.status === 'update_available' && (
-                        <>
-                          {m.installedId && (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => setReleaseNotesFor(releaseNotesFor === m.installedId ? null : (m.installedId ?? null))}
-                            >
-                              Release notes
-                            </button>
-                          )}
-                          {localMode ? (
-                            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>
-                              Update via git + redeploy
-                            </span>
-                          ) : (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              disabled={actionLoading[m.installedId ?? '']}
-                              onClick={() => m.installedId && handleAction(m.installedId, 'update')}
-                            >
-                              {actionLoading[m.installedId ?? ''] ? 'Updating…' : 'Update'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {m.status === 'active' && (
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center',
+                  marginTop: 'auto', paddingTop: '0.875rem', borderTop: '1px solid var(--color-border)',
+                }}>
+                  {m.status === 'update_available' && (
+                    <>
+                      {m.installedId && (
                         <button
                           className="btn btn-secondary btn-sm"
-                          disabled={actionLoading[m.installedId ?? '']}
-                          onClick={() => m.installedId && handleAction(m.installedId, 'disable')}
+                          onClick={() => setReleaseNotesFor(m.installedId ?? null)}
                         >
-                          {actionLoading[m.installedId ?? ''] ? 'Disabling…' : 'Disable'}
-                        </button>
-                      )}
-                      {m.status === 'inactive' && (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          disabled={actionLoading[m.installedId ?? '']}
-                          onClick={() => m.installedId && handleAction(m.installedId, 'enable')}
-                        >
-                          {actionLoading[m.installedId ?? ''] ? 'Enabling…' : 'Enable'}
+                          Release notes
                         </button>
                       )}
                       <button
-                        className="btn btn-destructive btn-sm"
-                        onClick={() => openUninstallModal(m)}
+                        className="btn btn-primary btn-sm"
+                        disabled={actionLoading[m.installedId ?? '']}
+                        onClick={() => m.installedId && handleAction(m.installedId, 'update')}
                       >
-                        Uninstall
+                        {actionLoading[m.installedId ?? ''] ? 'Updating…' : 'Update'}
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </>
+                  )}
+                  {m.status === 'active' && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={actionLoading[m.installedId ?? '']}
+                      onClick={() => m.installedId && handleAction(m.installedId, 'disable')}
+                    >
+                      {actionLoading[m.installedId ?? ''] ? 'Disabling…' : 'Disable'}
+                    </button>
+                  )}
+                  {m.status === 'inactive' && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={actionLoading[m.installedId ?? '']}
+                      onClick={() => m.installedId && handleAction(m.installedId, 'enable')}
+                    >
+                      {actionLoading[m.installedId ?? ''] ? 'Enabling…' : 'Enable'}
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-destructive btn-sm"
+                    onClick={() => openUninstallModal(m)}
+                  >
+                    Uninstall
+                  </button>
+                </div>
+
+              </div>
+            ))}
           </div>
         )}
-
-        {releaseNotesFor && (() => {
-          const m = installed.find((e) => e.installedId === releaseNotesFor)
-          if (!m) return null
-          // Release notes are stored on the module - re-fetch from the [id] endpoint isn't needed here
-          // The directory API doesn't carry updateNotes; toggling note from the installed list is cosmetic
-          return (
-            <div className="card" style={{ marginTop: '1rem' }}>
-              <h3 className="card-title">Release notes - {showVersion(m.updateAvailable)}</h3>
-              {m.updateNotes ? (
-                <div
-                  style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem 1rem', maxHeight: '16rem', overflowY: 'auto', lineHeight: 1.6 }}
-                  dangerouslySetInnerHTML={{ __html: markdownToHtml(m.updateNotes) }}
-                />
-              ) : (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>No release notes available.</p>
-              )}
-            </div>
-          )
-        })()}
       </section>
 
       {/* Available modules */}
@@ -496,33 +478,31 @@ export default function ModulesPage() {
         ) : available.length === 0 ? (
           <div className="alert alert-info">All available modules are already installed.</div>
         ) : (
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {available.map((m) => (
-                  <tr key={m.repoUrl}>
-                    <td><strong>{formatModuleName(m.repoName)}</strong></td>
-                    <td style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>{m.description}</td>
-                    <td>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={actionLoading[m.repoUrl]}
-                        onClick={() => handleInstall(m.repoUrl)}
-                      >
-                        {actionLoading[m.repoUrl] ? 'Installing…' : 'Install'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 320px))', gap: '1.25rem' }}>
+            {available.map((m) => (
+              <div key={m.repoUrl} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: 0 }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 'var(--radius-md)', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)',
+                    fontSize: 'var(--text-base)', fontWeight: 700,
+                  }}>
+                    {moduleInitial(m.repoName)}
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', marginTop: 6 }}>{formatModuleName(m.repoName)}</div>
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', flex: 1, lineHeight: 1.4 }}>{m.description}</div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ alignSelf: 'flex-start' }}
+                  disabled={actionLoading[m.repoUrl]}
+                  onClick={() => handleInstall(m.repoUrl)}
+                >
+                  {actionLoading[m.repoUrl] ? 'Installing…' : 'Install'}
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </section>
@@ -607,6 +587,44 @@ export default function ModulesPage() {
           </div>
         </div>
       )}
+
+      {/* Release notes modal */}
+      {releaseNotesFor && (() => {
+        const m = installed.find((e) => e.installedId === releaseNotesFor)
+        if (!m) return null
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setReleaseNotesFor(null) }}
+          >
+            <div className="card" style={{ maxWidth: '560px', width: '100%', margin: '1rem', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                <h2 className="card-title" style={{ margin: 0 }}>
+                  {formatModuleName(m.repoName)} &ndash; {showVersion(m.updateAvailable)}
+                </h2>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={() => setReleaseNotesFor(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: 'var(--color-text-muted)' }}
+                >
+                  &times;
+                </button>
+              </div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.6, overflowY: 'auto' }}>
+                {m.updateNotes ? (
+                  <div dangerouslySetInnerHTML={{ __html: markdownToHtml(m.updateNotes) }} />
+                ) : (
+                  <p style={{ margin: 0 }}>No release notes available.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
