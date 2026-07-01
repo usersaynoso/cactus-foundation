@@ -73,7 +73,15 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           <span />
           <span />
         </button>
-        <span className="admin-mobile-title">{siteName}</span>
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="admin-mobile-title"
+          title={`Open ${siteName} in a new tab`}
+        >
+          {siteName}
+        </a>
       </div>
 
       {/* Backdrop */}
@@ -91,13 +99,21 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         collapsed    ? 'admin-sidebar--collapsed'  : '',
       ].filter(Boolean).join(' ')}>
         <div className="admin-sidebar-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/cactus.svg"
-            alt="Cactus Foundation"
-            className="admin-sidebar-logo-img"
-          />
-          {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="admin-sidebar-logo-link"
+            title={`Open ${siteName} in a new tab`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/cactus.svg"
+              alt="Cactus Foundation"
+              className="admin-sidebar-logo-img"
+            />
+            {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
+          </a>
           {!collapsed && <div className="admin-sidebar-logo-theme"><ThemeToggle compact /></div>}
           <button
             className="admin-sidebar-close"

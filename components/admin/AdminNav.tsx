@@ -19,61 +19,60 @@ type Props = {
   moduleNavEntries?: ModuleNavEntry[]
 }
 
-export default function AdminNav({ adminPath, userRole, version, collapsed, onNavClick, moduleNavEntries }: Props) {
+const CORE_LINKS = [
+  { path: '',            label: 'Dashboard', icon: '◈' },
+  { path: '/pages',      label: 'Pages',     icon: '📄' },
+  { path: '/menus',      label: 'Menus',     icon: '☰' },
+  { path: '/media',      label: 'Media',     icon: '🖼' },
+  { path: '/appearance', label: 'Styles',    icon: '🎨' },
+  { path: '/layouts',    label: 'Layouts',   icon: '📐' },
+  { path: '/users',      label: 'Users',     icon: '👥' },
+  { path: '/roles',      label: 'Roles',     icon: '🔑' },
+  { path: '/modules',    label: 'Modules',   icon: '🧩' },
+  { path: '/config',     label: 'Settings',  icon: '⚙️' },
+]
+
+export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavEntries }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
-  const links = [
-    { href: `${base}`,                 label: 'Dashboard',     icon: '◈' },
-    { href: `${base}/pages`,           label: 'Pages',         icon: '📄' },
-    { href: `${base}/menus`,           label: 'Menus',         icon: '☰' },
-    { href: `${base}/media`,           label: 'Media',         icon: '🖼' },
-    { href: `${base}/appearance`,      label: 'Styles',        icon: '🎨' },
-    { href: `${base}/layouts`,         label: 'Layouts',       icon: '📐' },
-    { href: `${base}/users`,           label: 'Users',         icon: '👥' },
-    { href: `${base}/roles`,           label: 'Roles',         icon: '🔑' },
-    { href: `${base}/modules`,         label: 'Modules',       icon: '🧩' },
-    { href: `${base}/config`,          label: 'Settings',      icon: '⚙️' },
-  ]
+  function isActive(href: string) {
+    return pathname === href || (href !== base && pathname.startsWith(href))
+  }
 
   return (
     <nav>
-      {links.map((link) => {
-        const isActive = pathname === link.href || (link.href !== base && pathname.startsWith(link.href))
+      {CORE_LINKS.map((link) => {
+        const href = `${base}${link.path}`
         return (
           <Link
-            key={link.href}
-            href={link.href}
-            className={isActive ? 'active' : ''}
+            key={href}
+            href={href}
+            className={isActive(href) ? 'active' : ''}
             title={collapsed ? link.label : undefined}
             onClick={onNavClick}
           >
-            <span style={{ width: 18, textAlign: 'center', flexShrink: 0 }}>{link.icon}</span>
-            {!collapsed && <span className="admin-nav-label">{link.label}</span>}
+            <span className="admin-nav-icon">{link.icon}</span>
+            {!collapsed && link.label}
           </Link>
         )
       })}
 
       {moduleNavEntries && moduleNavEntries.length > 0 && (
         <>
-          {!collapsed && (
-            <div style={{ padding: '0.5rem 0.75rem 0.25rem', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.5rem' }}>
-              Modules
-            </div>
-          )}
+          {!collapsed && <div className="admin-nav-section-label">Modules</div>}
           {moduleNavEntries.map((entry) => {
             const href = `${base}${entry.path}`
-            const isActive = pathname === href || pathname.startsWith(href)
             return (
               <Link
-                key={entry.path}
+                key={href}
                 href={href}
-                className={isActive ? 'active' : ''}
+                className={isActive(href) ? 'active' : ''}
                 title={collapsed ? entry.label : undefined}
                 onClick={onNavClick}
               >
-                <span style={{ width: 18, textAlign: 'center', flexShrink: 0 }}>{entry.icon ?? '🧩'}</span>
-                {!collapsed && <span className="admin-nav-label">{entry.label}</span>}
+                <span className="admin-nav-icon">{entry.icon ?? '🧩'}</span>
+                {!collapsed && entry.label}
               </Link>
             )
           })}

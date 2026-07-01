@@ -437,6 +437,19 @@ a:hover {
   text-overflow: ellipsis;
 }
 
+.admin-sidebar-logo-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+  color: inherit;
+  text-decoration: none;
+}
+.admin-sidebar-logo-link:hover .admin-sidebar-logo-text {
+  text-decoration: underline;
+}
+
 /* Notification bell (sidebar header) */
 .admin-sidebar-bell {
   position: relative;
@@ -669,6 +682,21 @@ a:hover {
 .admin-sidebar--collapsed nav a.active {
   padding-left: calc(var(--space-2) - 2px);
   border-left: 2px solid var(--color-primary);
+}
+
+.admin-nav-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.admin-nav-section-label {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Sidebar nav footer (account, logout, version) */
@@ -1398,6 +1426,10 @@ tbody tr:hover {
     font-weight: var(--font-semibold);
     font-size: var(--text-base);
     color: var(--color-text);
+    text-decoration: none;
+  }
+  .admin-mobile-title:hover {
+    text-decoration: underline;
   }
 
   .admin-burger {
