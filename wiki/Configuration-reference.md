@@ -131,7 +131,7 @@ The **Third-party data processors** list is auto-generated from whichever email/
 | Accept all label | Button label for accepting all categories. | `Accept all` |
 | Reject all label | Button label for rejecting all non-necessary categories. | `Reject all` |
 | Manage label | Link/button label that opens the per-category toggle panel. | `Manage preferences` |
-| Cookie categories | Admin-editable list. Each category has a **key** (slug, stable identity), **label**, **description**, and a **default-on** toggle. The **Necessary** category is always present, always on, and cannot be removed. Categories declared by active modules (via their `cookieCategories` manifest field) are surfaced as one-click suggestions. | Necessary, Analytics, Marketing |
+| Cookie categories | Admin-editable list. Each category has a **key** (slug, stable identity), **label**, **description**, and a **default-on** toggle. The **Necessary** category is always present, always on, and cannot be removed. Categories declared by active modules (via their `cookieCategories` manifest field) are surfaced as one-click suggestions. | Necessary, Preferences, Analytics, Marketing |
 | Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again. | `365` |
 | Keep consent records for (days) | Consent log rows older than this will be purged. Blank keeps records indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
 

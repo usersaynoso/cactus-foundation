@@ -94,7 +94,9 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
     notifyConsentChange({ necessary: true, ...payload.decision })
   }, [config])
 
-  async function applyDecision(finalDecision: ConsentDecision, action: 'accept_all' | 'reject_all' | 'custom' | 'withdraw') {
+  const noticeOnly = !config.categories.some((cat) => !cat.required)
+
+  async function applyDecision(finalDecision: ConsentDecision, action: 'accept_all' | 'reject_all' | 'custom' | 'withdraw' | 'acknowledge') {
     const consentId = getOrCreateConsentId()
 
     const payload: ConsentCookiePayload = {
@@ -136,6 +138,12 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
 
   function handleSaveManaged() {
     applyDecision(decision, 'custom')
+  }
+
+  function handleDismiss() {
+    const required: ConsentDecision = {}
+    for (const cat of config.categories) required[cat.key] = true
+    applyDecision(required, 'acknowledge')
   }
 
   function resolveBody(text: string): React.ReactNode {
@@ -236,7 +244,7 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
       <h2 style={titleStyle}>{config.title}</h2>
       <p style={bodyStyle}>{resolveBody(config.body)}</p>
 
-      {managing && (
+      {managing && !noticeOnly && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
           {config.categories.map((cat) => (
             <label
@@ -281,20 +289,28 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
       )}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button style={btnPrimaryStyle} onClick={handleAcceptAll}>
-          {config.acceptAllLabel}
-        </button>
-        <button style={btnSecondaryStyle} onClick={handleRejectAll}>
-          {config.rejectAllLabel}
-        </button>
-        {managing ? (
-          <button style={btnSecondaryStyle} onClick={handleSaveManaged}>
-            Save preferences
+        {noticeOnly ? (
+          <button style={btnPrimaryStyle} onClick={handleDismiss}>
+            {config.dismissLabel}
           </button>
         ) : (
-          <button style={btnLinkStyle} onClick={() => setManaging(true)}>
-            {config.manageLabel}
-          </button>
+          <>
+            <button style={btnPrimaryStyle} onClick={handleAcceptAll}>
+              {config.acceptAllLabel}
+            </button>
+            <button style={btnSecondaryStyle} onClick={handleRejectAll}>
+              {config.rejectAllLabel}
+            </button>
+            {managing ? (
+              <button style={btnSecondaryStyle} onClick={handleSaveManaged}>
+                Save preferences
+              </button>
+            ) : (
+              <button style={btnLinkStyle} onClick={() => setManaging(true)}>
+                {config.manageLabel}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
