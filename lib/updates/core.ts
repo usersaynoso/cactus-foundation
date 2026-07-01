@@ -54,10 +54,9 @@ export type CoreUpdateStatus =
       publishedAt: string | null
     }
 
-// In-memory cache. Successful results live for the full TTL; failures are cached
-// only briefly so a fixed config recovers quickly rather than waiting 10 minutes.
-let _cachedStatus: CoreUpdateStatus | null = null
-let _cachedAt = 0
+// In-memory cache keyed by channel. Successful results live for the full TTL;
+// failures are cached briefly so a fixed config recovers quickly.
+const _cache = new Map<string, { status: CoreUpdateStatus; at: number }>()
 const CACHE_TTL_MS = 10 * 60_000
 const ERROR_CACHE_TTL_MS = 30_000
 
@@ -86,17 +85,21 @@ async function fetchUpstreamReleases(owner: string, repo: string, configured: bo
   return data
 }
 
-export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<CoreUpdateStatus> {
+export async function getCoreUpdateStatus(
+  opts?: { bust?: boolean; channel?: 'public' | 'beta' }
+): Promise<CoreUpdateStatus> {
   // Core updates rewrite the admin's GitHub repo and rely on a Vercel redeploy +
   // webhook. None of that exists locally, so report local mode and skip the check.
   if (isLocalMode()) {
     return { localMode: true, currentVersion: pkg.version }
   }
 
+  const channel = opts?.channel ?? 'public'
   const now = Date.now()
-  if (!opts?.bust && _cachedStatus) {
-    const ttl = isErrorStatus(_cachedStatus) ? ERROR_CACHE_TTL_MS : CACHE_TTL_MS
-    if (now - _cachedAt < ttl) return _cachedStatus
+  const cached = _cache.get(channel)
+  if (!opts?.bust && cached) {
+    const ttl = isErrorStatus(cached.status) ? ERROR_CACHE_TTL_MS : CACHE_TTL_MS
+    if (now - cached.at < ttl) return cached.status
   }
 
   const currentVersion = pkg.version
@@ -107,10 +110,12 @@ export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<Co
   const configured = await isGitHubConfigured()
 
   try {
-    // Fetch all non-draft, non-prerelease releases (up to 100)
+    // Fetch all non-draft releases (up to 100); filter by channel
     const releases = await fetchUpstreamReleases(upOwner, upRepo, configured)
 
-    const published = releases.filter((r) => !r.draft && !r.prerelease)
+    const published = channel === 'beta'
+      ? releases.filter((r) => !r.draft)
+      : releases.filter((r) => !r.draft && !r.prerelease)
     if (published.length === 0) {
       const result: CoreUpdateStatus = {
         configured: true,
@@ -121,8 +126,7 @@ export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<Co
         latestUrl: `https://github.com/${UPSTREAM_REPO}/releases`,
         publishedAt: null,
       }
-      _cachedStatus = result
-      _cachedAt = now
+      _cache.set(channel, { status: result, at: now })
       return result
     }
 
@@ -156,16 +160,14 @@ export async function getCoreUpdateStatus(opts?: { bust?: boolean }): Promise<Co
       latestUrl: latest.html_url,
       publishedAt: latest.published_at ?? null,
     }
-    _cachedStatus = result
-    _cachedAt = now
+    _cache.set(channel, { status: result, at: now })
     return result
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to check for updates'
     const result: CoreUpdateStatus = configured
       ? { configured: true, error: message }
       : { configured: false }
-    _cachedStatus = result
-    _cachedAt = now
+    _cache.set(channel, { status: result, at: now })
     return result
   }
 }
@@ -294,6 +296,5 @@ export async function syncCoreFromUpstream(
 }
 
 export function invalidateCoreUpdateCache() {
-  _cachedStatus = null
-  _cachedAt = 0
+  _cache.clear()
 }
