@@ -46,15 +46,30 @@ export async function POST(request: NextRequest) {
 
   // Reconcile any modules left in 'deploying' against the deployment outcome.
   if (event.type === 'deployment.succeeded') {
-    await markModulesDeploySucceeded()
-    // Release the deploy lock
-    await prisma.deployLock.deleteMany({})
-    // Deployment is live - release the redeploy gate for any non-null marker.
-    await prisma.siteConfig.updateMany({
-      where: { id: 'singleton', NOT: { pendingRedeployId: null } },
-      data: { pendingRedeployId: null, pendingRedeployAt: null },
+    // Only reconcile when this event is about the deployment we're actually
+    // tracking - a webhook for some unrelated deployment on the same Vercel
+    // project (e.g. a manual redeploy) must not promote pendingVersion or
+    // release the gate early. While the tracked marker is still the 'pending'
+    // sentinel (real id not resolved yet), fall back to reconciling anyway -
+    // that's the only signal we have at that point.
+    const cfg = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { pendingRedeployId: true },
     })
-    invalidateSiteConfigCache()
+    const tracked = cfg?.pendingRedeployId
+    const isTrackedDeployment = tracked === 'pending' || (!!deploymentId && deploymentId === tracked)
+
+    if (isTrackedDeployment) {
+      await markModulesDeploySucceeded()
+      // Release the deploy lock
+      await prisma.deployLock.deleteMany({})
+      // Deployment is live - release the redeploy gate for any non-null marker.
+      await prisma.siteConfig.updateMany({
+        where: { id: 'singleton', NOT: { pendingRedeployId: null } },
+        data: { pendingRedeployId: null, pendingRedeployAt: null },
+      })
+      invalidateSiteConfigCache()
+    }
   } else if (event.type === 'deployment.error' || event.type === 'deployment.canceled') {
     await markModulesDeployFailed(`Deployment ${event.type}`)
     await prisma.deployLock.deleteMany({})

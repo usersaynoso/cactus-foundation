@@ -80,6 +80,7 @@ const SETUP_PASS = [
   '/setup',
   '/api/setup',
   '/api/auth/passkey/',
+  '/api/auth/totp/',
   '/api/health',
   '/_next/',
   '/favicon.ico',

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, totpSecretEncrypted: true, totpVerifiedAt: true, suspendedAt: true },
+    select: { id: true, totpSecretEncrypted: true, totpVerifiedAt: true, totpLastStep: true, suspendedAt: true },
   })
 
   // Same generic error whether the account exists, has no TOTP configured, or
@@ -39,13 +39,16 @@ export async function POST(request: NextRequest) {
   }
 
   const secret = decryptSecret(user.totpSecretEncrypted)
-  if (!verifyTotpCode(secret, code)) {
+  const result = verifyTotpCode(secret, code, user.totpLastStep)
+  if (!result.valid) {
     return errorResponse(GENERIC_ERROR, 401)
   }
 
   if (user.suspendedAt) {
     return errorResponse('Account suspended', 403)
   }
+
+  await prisma.user.update({ where: { id: user.id }, data: { totpLastStep: result.step } })
 
   const token = await createSession(user.id)
   await setSessionCookie(token)

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { headers } from 'next/headers'
+import { randomUUID } from 'crypto'
 import type { NextRequest } from 'next/server'
 
 type RateLimitAction =
@@ -97,13 +98,44 @@ export async function recordAttempt(
   )
 }
 
+// Atomic check-and-increment: the INSERT ... ON CONFLICT clause takes a row
+// lock on the (key, action) pair, so concurrent requests serialize on the
+// update instead of all reading the pre-increment count (the TOCTOU window
+// checkRateLimit + recordAttempt has when called separately).
 export async function checkAndRecord(
   action: RateLimitAction,
   identifiers: string[]
 ): Promise<{ allowed: boolean; retryAfterMs?: number }> {
-  const result = await checkRateLimit(action, identifiers)
-  if (result.allowed) {
-    await recordAttempt(action, identifiers)
+  const config = LIMITS[action]
+  const windowStart = new Date(Date.now() - config.windowMs)
+
+  let blocked: { retryAfterMs: number } | null = null
+
+  for (const key of identifiers) {
+    const rows = await prisma.$queryRaw<Array<{ attempts: number; windowStart: Date }>>`
+      INSERT INTO "RateLimit" (id, key, action, attempts, "windowStart")
+      VALUES (${randomUUID()}, ${key}, ${action}, 1, now())
+      ON CONFLICT (key, action) DO UPDATE SET
+        attempts = CASE
+          WHEN "RateLimit"."windowStart" <= ${windowStart} THEN 1
+          ELSE "RateLimit".attempts + 1
+        END,
+        "windowStart" = CASE
+          WHEN "RateLimit"."windowStart" <= ${windowStart} THEN now()
+          ELSE "RateLimit"."windowStart"
+        END
+      RETURNING attempts, "windowStart"
+    `
+
+    const record = rows[0]
+    if (record && record.attempts > config.maxAttempts) {
+      const retryAfterMs = record.windowStart.getTime() + config.windowMs - Date.now()
+      blocked = { retryAfterMs }
+    }
   }
-  return result
+
+  if (blocked) {
+    return { allowed: false, retryAfterMs: blocked.retryAfterMs }
+  }
+  return { allowed: true }
 }

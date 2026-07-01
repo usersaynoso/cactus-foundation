@@ -26,10 +26,23 @@ export async function generateQrDataUrl(uri: string): Promise<string> {
   return QRCode.toDataURL(uri)
 }
 
+export type TotpValidation = { valid: boolean; step: number | null }
+
 // window: 1 allows the code from the previous/next 30s step either side, to
 // tolerate clock drift between the server and the admin's phone.
-export function verifyTotpCode(secret: string, code: string): boolean {
+//
+// lastStep, when given, rejects a code whose absolute time-step is <= the
+// last accepted step for this account — closes the ~90s replay window a
+// bare boolean check leaves open, since the same 6-digit code stays valid
+// for the whole window otherwise.
+export function verifyTotpCode(secret: string, code: string, lastStep?: bigint | number | null): TotpValidation {
   const totp = makeTotp(secret, 'verify')
   const delta = totp.validate({ token: code, window: 1 })
-  return delta !== null
+  if (delta === null) return { valid: false, step: null }
+
+  const step = Math.floor(Date.now() / 1000 / totp.period) + delta
+  if (lastStep != null && step <= Number(lastStep)) {
+    return { valid: false, step: null }
+  }
+  return { valid: true, step }
 }

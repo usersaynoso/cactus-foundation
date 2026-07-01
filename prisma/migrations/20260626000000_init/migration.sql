@@ -35,6 +35,7 @@ CREATE TABLE "User" (
     "acceptedPrivacyPolicyAt" TIMESTAMP(3),
     "totpSecretEncrypted" TEXT,
     "totpVerifiedAt" TIMESTAMP(3),
+    "totpLastStep" BIGINT,
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 

@@ -7,6 +7,13 @@ import { errorResponse } from '@/lib/utils'
 import { getLatestDeploymentStatus } from '@/lib/modules/github'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 
+// No permission gate beyond session, intentionally: proxy.ts traps *every*
+// authenticated admin session (any role, no permission check) on the
+// /cactus-status/redeploying page while a redeploy is pending, and that page
+// polls this route to get deploymentId/adminPath. Gating this on
+// config.manage would leave non-manage roles stuck on a blank page with no
+// way to resolve it during a live redeploy - worse than the info it would
+// hide (a deployment id and the already-reachable admin path).
 export async function GET() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)

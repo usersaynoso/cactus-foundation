@@ -31,6 +31,7 @@ model User {
   acceptedPrivacyPolicyAt DateTime?
   totpSecretEncrypted     String?
   totpVerifiedAt          DateTime?
+  totpLastStep            BigInt?
 
   passkeys        Passkey[]
   sessions        Session[]

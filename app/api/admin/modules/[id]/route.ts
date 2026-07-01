@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getLatestRelease, getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
+import { compareVersions } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
@@ -263,7 +264,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
-  if (!release || release.tag === mod.version) {
+  if (!release || compareVersions(release.tag, mod.version) <= 0) {
     await prisma.module.update({
       where: { id },
       data: { lastCheckedAt: new Date() },

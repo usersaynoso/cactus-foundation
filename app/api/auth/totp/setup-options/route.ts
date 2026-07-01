@@ -17,7 +17,17 @@ export async function POST(request: NextRequest) {
   }
 
   let userId = parsed.data.userId ?? null
-  if (!userId) {
+  if (userId) {
+    // Client-supplied userId only trusted during the first-run setup wizard,
+    // before any user/session exists to prove identity.
+    const [cfg, existingUserCount] = await Promise.all([
+      prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { setupCompleted: true } }),
+      prisma.user.count(),
+    ])
+    if (cfg?.setupCompleted && existingUserCount > 0) {
+      return errorResponse('Setup is already complete', 403)
+    }
+  } else {
     const sessionUser = await getSessionFromCookie()
     if (!sessionUser) {
       return errorResponse('Not authenticated', 401)
@@ -38,7 +48,7 @@ export async function POST(request: NextRequest) {
   // the admin's authenticator app produces a matching code.
   await prisma.user.update({
     where: { id: user.id },
-    data: { totpSecretEncrypted: encryptSecret(secret), totpVerifiedAt: null },
+    data: { totpSecretEncrypted: encryptSecret(secret), totpVerifiedAt: null, totpLastStep: null },
   })
 
   return successResponse({ qrDataUrl, secret, otpauthUri: uri })
