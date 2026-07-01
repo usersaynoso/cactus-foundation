@@ -512,10 +512,28 @@ function ConfigPageInner() {
     if (tab === 'integrations' && !loading) loadGhStatus()
   }, [tab, loading, loadGhStatus])
 
+  const ghAutoInstallTriggered = useRef(false)
+
   useEffect(() => {
     const github = searchParams.get('github')
     // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
     if (github === 'installed' || github === 'connected') loadGhStatus()
+    if (github === 'connected' && !loading && !ghAutoInstallTriggered.current) {
+      ghAutoInstallTriggered.current = true
+      const adminPath = config.adminPath ?? ''
+      setGhBusy(true)
+      void (async () => {
+        try {
+          const res = await fetch(`/${adminPath}/integrations/github/install`)
+          if (!res.ok) { setGhError('Failed to get install URL'); setGhBusy(false); return }
+          const { installUrl } = await res.json() as { installUrl: string }
+          window.location.href = installUrl
+        } catch {
+          setGhError('Failed to get install URL')
+          setGhBusy(false)
+        }
+      })()
+    }
     if (github === 'error') {
       const reason = searchParams.get('reason')
       if (reason === 'encrypt_key_missing') {
@@ -536,7 +554,7 @@ function ConfigPageInner() {
         setGhError('Something went wrong during the GitHub connection. Please try again.')
       }
     }
-  }, [searchParams, loadGhStatus])
+  }, [searchParams, loadGhStatus, config.adminPath, loading])
 
   // GDPR consent banner state
   const [gdprSuggestions, setGdprSuggestions] = useState<string[]>([])
@@ -960,7 +978,9 @@ function ConfigPageInner() {
         {gh && gh.encryptionKeySet && gh.connected && !gh.hasInstallation && (
           <div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-              App <strong>{gh.appSlug}</strong> created. Now install it on your repository to grant access.
+              {ghBusy
+                ? <>App <strong>{gh.appSlug}</strong> created. Redirecting you to GitHub to install it…</>
+                : <>App <strong>{gh.appSlug}</strong> created but not yet installed on a repository. Install it to grant access.</>}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleInstall}>
