@@ -120,7 +120,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         } catch (err) {
           console.error('[modules] Failed to clear module-update notification:', err)
         }
-        await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag}` })
+        await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag.replace(/^v/i, '')}` })
         return NextResponse.json({ ok: true, status: 'pending_deploy' })
       }
     } catch (err: unknown) {
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   // Raise the on-demand per-module "update available" notification so the bell
   // persists the reminder across the admin. Never let this break the endpoint.
   try {
-    await recordModuleUpdate({ moduleId: id, name: mod.name, latestVersion: release.tag })
+    await recordModuleUpdate({ moduleId: id, name: mod.name, latestVersion: release.tag.replace(/^v/i, '') })
   } catch (err) {
     console.error('[modules] Failed to record module-update notification:', err)
   }
