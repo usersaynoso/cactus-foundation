@@ -12,8 +12,10 @@ let cachedPendingRedeployIdAt: number = 0
 const CACHE_TTL_MS = 5_000 // 5 seconds
 // Server-side safety net: the redeploy gate auto-releases after this window so an admin
 // is never permanently trapped if the webhook/client/token path never clears the flag.
-// Deploys here never exceed ~2 min, so 2 min is the agreed maximum.
-const REDEPLOY_MAX_MS = 2 * 60_000
+// Module-update deploys run checkout-modules.mjs (a network git clone) mid-build on top
+// of the normal Next.js build, so plain core deploys and module deploys don't share a
+// ceiling — 4 min covers both with headroom.
+const REDEPLOY_MAX_MS = 4 * 60_000
 
 export async function getSiteConfig(): Promise<SiteConfig | null> {
   return prisma.siteConfig.findUnique({ where: { id: 'singleton' } })

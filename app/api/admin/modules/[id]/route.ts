@@ -103,7 +103,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       // succeeds (markModulesDeploySucceeded), so a failed deploy doesn't masquerade as done.
       await prisma.module.update({
         where: { id },
-        data: { status: 'deploying', pendingVersion: release.tag },
+        data: { status: 'deploying', pendingVersion: release.tag, updateAvailable: null, updateNotes: null },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 

@@ -134,6 +134,20 @@ export default function ModulesPage() {
                 if (!res.ok) return
                 const data = await res.json() as { status?: ModuleStatus }
                 if (data.status && data.status !== 'deploying') {
+                  // check-status just promoted version/updateAvailable server-side too -
+                  // pull the fresh row rather than patching only `status`, or the "update
+                  // available" badge lingers stale until a full page reload.
+                  const dirRes = await fetch('/api/admin/modules/directory')
+                  if (dirRes.ok) {
+                    const dir = await dirRes.json() as { modules?: DirectoryEntry[] }
+                    const fresh = dir.modules?.find((e) => e.installedId === m.installedId)
+                    if (fresh) {
+                      setEntries((prev) =>
+                        prev.map((e) => (e.installedId === m.installedId ? fresh : e))
+                      )
+                      return
+                    }
+                  }
                   setEntries((prev) =>
                     prev.map((e) =>
                       e.installedId === m.installedId ? { ...e, status: data.status } : e
