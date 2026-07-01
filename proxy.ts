@@ -214,6 +214,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return withSecurity(NextResponse.next())
   }
 
+  // Preview routes must always be reachable for logged-in editors,
+  // even when the public site is gated behind coming-soon or maintenance.
+  const isPreviewRoute = pathname.startsWith('/page-preview/') || pathname.startsWith('/layout-preview/')
+  if (isPreviewRoute) {
+    return withSecurity(NextResponse.next())
+  }
+
   const status = await resolveSiteStatus()
 
   if (status && status !== 'live') {

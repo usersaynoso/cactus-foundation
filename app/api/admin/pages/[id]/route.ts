@@ -49,9 +49,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { status, slug, menuIds, ...pageData } = parsed.data
 
   if (status === 'published' && page.status === 'draft') {
-    if (!await hasPermission(user, 'pages.publish')) {
-      return errorResponse('You do not have permission to publish pages', 403)
-    }
+    // Publishing must flow through the /publish endpoint so the history snapshot
+    // logic runs. PATCH can update other fields but cannot flip the status to published.
+    return errorResponse('Use the Publish button in the page editor to publish a page', 400)
   }
 
   if (slug && slug !== page.slug) {

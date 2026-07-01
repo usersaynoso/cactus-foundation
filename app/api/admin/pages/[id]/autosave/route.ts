@@ -1,11 +1,12 @@
 // Autosave endpoint for Puck builder pages.
-// Requires pages.write. ALWAYS persists status=draft regardless of what the
-// client sends in data.root.props.status — this is the only guarantee that
-// keeps autosave from accidentally publishing a page.
-// Reconciliation: slug, metaDescription, ogImageId, title are split out of
-// data.root.props and written to their real InfoPage columns. builderData is
-// stored with root.props containing only those four fields (no status) as a
-// working copy; the DB columns are always canonical.
+// Requires pages.write. Autosave ONLY ever writes `builderData` (the working draft)
+// and menu associations — it can never affect what is live.
+// Rules:
+//   - Never writes publishedData, publishedAt, publishedById, or status.
+//   - For draft pages (never published), reconciles title/slug/metaDescription/ogImageId
+//     columns because those columns describe the draft and it is harmless to update them.
+//   - For published pages, leaves title/slug/metaDescription/ogImageId untouched so the
+//     live page's metadata is frozen to the published state.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -13,7 +14,6 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { revalidatePath } from 'next/cache'
 
 const Body = z.object({
   data: z.object({
@@ -43,43 +43,67 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { data, menuIds } = parsed.data
   const rootProps = (data.root?.props ?? {}) as Record<string, unknown>
 
-  // Extract reconciled fields from root.props
-  const title           = typeof rootProps.title           === 'string' ? rootProps.title.slice(0, 200)   : page.title
-  const rawSlug         = typeof rootProps.slug            === 'string' ? rootProps.slug.slice(0, 200)    : page.slug
-  const metaDescription = typeof rootProps.metaDescription === 'string' ? rootProps.metaDescription.slice(0, 300) : page.metaDescription
-  const ogImageId       = typeof rootProps.ogImageId       === 'string' ? rootProps.ogImageId            : page.ogImageId
-
-  const slug = rawSlug.replace(/[^a-z0-9-]/g, '').slice(0, 200) || page.slug
-
-  if (slug !== page.slug) {
-    const exists = await prisma.infoPage.findFirst({ where: { slug, NOT: { id } } })
-    if (exists) return errorResponse(`Slug "${slug}" is already in use`, 409)
-  }
-
   // Strip status from persisted root.props — status is a real column, never trusted from client
   const { status: _ignored, ...safeRootProps } = rootProps
   void _ignored
 
-  const builderData = {
-    ...data,
-    root: { ...data.root, props: { ...safeRootProps, title, slug, metaDescription, ogImageId } },
+  let pageUpdate: Parameters<typeof prisma.infoPage.update>[0]['data']
+
+  if (page.status === 'draft') {
+    // Draft page: reconcile metadata columns freely (nothing is live yet)
+    const title           = typeof rootProps.title           === 'string' ? rootProps.title.slice(0, 200)            : page.title
+    const rawSlug         = typeof rootProps.slug            === 'string' ? rootProps.slug.slice(0, 200)             : page.slug
+    const metaDescription = typeof rootProps.metaDescription === 'string' ? rootProps.metaDescription.slice(0, 300)  : page.metaDescription
+    const ogImageId       = typeof rootProps.ogImageId       === 'string' ? rootProps.ogImageId                      : page.ogImageId
+
+    const slug = rawSlug.replace(/[^a-z0-9-]/g, '').slice(0, 200) || page.slug
+
+    if (slug !== page.slug) {
+      const exists = await prisma.infoPage.findFirst({ where: { slug, NOT: { id } } })
+      if (exists) return errorResponse(`Slug "${slug}" is already in use`, 409)
+    }
+
+    const builderData = {
+      ...data,
+      root: { ...data.root, props: { ...safeRootProps, title, slug, metaDescription, ogImageId } },
+    }
+
+    pageUpdate = {
+      title,
+      slug,
+      metaDescription: metaDescription ?? null,
+      ogImageId: ogImageId ?? null,
+      bodyFormat: 'builder',
+      builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
+    }
+  } else {
+    // Published page: freeze all metadata columns. Only update the draft content blob.
+    // Reflect the current published metadata back into root.props so the editor
+    // displays the correct values when the page is reopened.
+    const builderData = {
+      ...data,
+      root: {
+        ...data.root,
+        props: {
+          ...safeRootProps,
+          title: page.title,
+          slug: page.slug,
+          metaDescription: page.metaDescription,
+          ogImageId: page.ogImageId,
+        },
+      },
+    }
+
+    pageUpdate = {
+      bodyFormat: 'builder',
+      builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
+    }
   }
 
   const canManageMenus = menuIds !== undefined && await hasPermission(user, 'menus.manage')
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const up = await tx.infoPage.update({
-      where: { id },
-      data: {
-        title,
-        slug,
-        metaDescription: metaDescription ?? null,
-        ogImageId: ogImageId ?? null,
-        status: 'draft',
-        bodyFormat: 'builder',
-        builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
-      },
-    })
+  await prisma.$transaction(async (tx) => {
+    await tx.infoPage.update({ where: { id }, data: pageUpdate })
 
     if (canManageMenus && menuIds !== undefined) {
       const currentItems = await tx.menuItem.findMany({
@@ -112,12 +136,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         await tx.menuItem.delete({ where: { id: item.id } })
       }
     }
-
-    return up
   })
 
-  // Revalidate old slug if it changed (old slug may have been published)
-  if (page.slug !== updated.slug) revalidatePath(`/${page.slug}`)
-
-  return NextResponse.json({ ok: true, slug: updated.slug })
+  return NextResponse.json({ ok: true, slug: page.slug })
 }

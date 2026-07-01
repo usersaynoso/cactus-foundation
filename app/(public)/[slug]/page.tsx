@@ -1,14 +1,8 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
-import { markdownToHtml } from '@/lib/sanitize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
-import { Render } from '@puckeditor/core/rsc'
-import { puckRscConfig } from '@/lib/puck/config'
-import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
-import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
-import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
-import type { Data } from '@puckeditor/core'
+import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
 import type { Metadata } from 'next'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -43,7 +37,8 @@ export default async function InfoPageRoute({ params }: Props) {
   const page = await prisma.infoPage.findUnique({
     where: { slug },
     select: {
-      id: true, title: true, body: true, bodyFormat: true, builderData: true, status: true,
+      id: true, title: true, body: true, bodyFormat: true,
+      builderData: true, publishedData: true, status: true,
     },
   }).catch(() => null)
 
@@ -62,58 +57,5 @@ export default async function InfoPageRoute({ params }: Props) {
     </div>
   ) : null
 
-  const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug })
-
-  if (page.bodyFormat === 'builder') {
-    const pageData = page.builderData as Data | null
-    if (!pageData) {
-      return (
-        <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-          {draftBanner}
-          <p style={{ color: 'var(--color-muted)', textAlign: 'center', padding: '4rem 0' }}>This page has no builder content yet.</p>
-        </div>
-      )
-    }
-
-    if (layout?.builderData) {
-      const pageContent = (
-
-        <Render config={puckRscConfig as any} data={pageData} />
-      )
-      return (
-        <>
-          {draftBanner}
-          {renderLayoutWithContent(layout.builderData as Data, pageContent)}
-        </>
-      )
-    }
-
-    return (
-      <>
-        {draftBanner}
-        <Render config={puckRscConfig as any} data={pageData} />
-      </>
-    )
-  }
-
-  const html = markdownToHtml(page.body)
-  const markdownContent = (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-      <article>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: '0 0 1.5rem', lineHeight: 1.2 }}>{page.title}</h1>
-        <div className="prose" dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.75, color: 'var(--color-fg-secondary)' }} />
-      </article>
-    </div>
-  )
-
-  if (layout?.builderData) {
-    return (
-      <>
-        {draftBanner}
-        {renderLayoutWithContent(layout.builderData as Data, markdownContent)}
-      </>
-    )
-  }
-
-  return <>{draftBanner}{markdownContent}</>
+  return renderInfoPageContent({ ...page, slug }, { draftBanner })
 }

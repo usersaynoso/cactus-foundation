@@ -211,8 +211,17 @@ model InfoPage {
   body            String     @db.Text
   // 'markdown' uses body; 'builder' uses builderData
   bodyFormat      BodyFormat @default(markdown)
-  // Puck Data JSON — only populated when bodyFormat = 'builder'
+  // Puck Data JSON — only populated when bodyFormat = 'builder'. Working draft; autosave target.
   builderData     Json?
+  // Live content — only Publish writes this. What the public sees when status = published.
+  publishedData   Json?
+  // When the current live version was published.
+  publishedAt     DateTime?
+  // Who published the current live version (no Prisma relation, mirrors ogImageId style).
+  publishedById   String?
+  // Capped array of past published versions, newest first, max 10.
+  // Entry shape: { data, title, at, byId }
+  history         Json?
   status          PageStatus @default(draft)
   metaDescription String?
   // FK to Media.id — nullable, no Prisma-level relation to avoid circular ref

@@ -322,24 +322,79 @@ Blocks marked **Template block** are most useful in Header/Footer templates but 
 
 The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button collapses it to icon-only mode (56 px wide), freeing horizontal space. The preference is persisted in `localStorage`. The sidebar **auto-collapses** whenever a page or template editor is opened, so the Puck canvas always has maximum width on load. The footer holds the theme toggle, a **My Account** link (to `/{adminPath}/account`), and **Sign out**, in that order. The theme toggle stays available when collapsed: it becomes a single round button showing the active mode's icon that **cycles** Light → Auto → Dark → Light on each click.
 
+### Page lifecycle - draft vs live split
+
+Every `InfoPage` row separates the **working draft** from the **live content**:
+
+| Column | Purpose |
+|---|---|
+| `builderData` | Working draft. The only target autosave ever writes. What the editor and preview route render. |
+| `publishedData` | The current live content. Only the Publish endpoint writes this. What the public sees when `status = published`. |
+| `publishedAt` | When the live version was last published. |
+| `publishedById` | Who published the live version (plain ID, no Prisma relation). |
+| `history` | Capped array (max 10) of past published versions, newest first. Shape: `{ data, title, at, byId }`. |
+
+The consequence: editing a published page never touches what is live. Autosave writes only `builderData`; the slug and the public page keep serving the old content until Publish is clicked.
+
+#### `status` semantics
+
+- `draft` - never published; `publishedData` is null.
+- `published` - has live content in `publishedData`; keeps serving it even while a newer draft is being edited.
+
+#### Autosave (`POST /api/admin/pages/[id]/autosave`)
+
+- Always writes `builderData` and menu associations.
+- Never writes `publishedData`, `publishedAt`, `publishedById`, or `status`.
+- For **draft** pages only: reconciles `title`, `slug`, `metaDescription`, `ogImageId` columns (nothing is live yet, so updating them is harmless).
+- For **published** pages: leaves those columns frozen to the published values, so the live page's title, slug, routing, and meta never move on autosave.
+
+#### Publish (`POST /api/admin/pages/[id]/publish`)
+
+Requires `pages.publish`. On each call:
+1. Reconciles `title`, `slug`, `metaDescription`, `ogImageId` from the editor state.
+2. If `publishedData` is non-null, archives the current live version as `{ data, title, at, byId }` at the front of `history`, capped at 10 entries.
+3. Sets `publishedData = builderData`, `publishedAt = now`, `publishedById = user.id`, `status = published`.
+4. Calls `revalidatePath` for the old and new slug.
+
+Publishing must always flow through this endpoint. The PATCH route rejects a `draft → published` transition with a message pointing at the Publish button.
+
+#### Version history and restore
+
+`GET /api/admin/pages/[id]/history` returns a lightweight list of published versions, newest first. The **live** version uses `index: "live"`; archived entries use their numeric position in the array (`index: 0` = most recent archive).
+
+Passing `?index=live` or `?index=<n>` to the same endpoint returns the full builder data blob for that version.
+
+**Restore is non-destructive.** "Load into editor" in the version-history panel fetches the chosen version's data, writes it to `builderData` via an immediate autosave (cancelling any pending debounce first), then reloads the editor. The page stays published; the restored content only goes live when Publish is clicked.
+
+#### Frozen published title/slug (intentional)
+
+While editing a **published** page, any title or slug changes you make live in the draft only. The pages list, the browser tab, the public URL, and the site nav all keep showing the **published** title/slug until the next Publish. This is intentional - live metadata must not move on autosave - but it can surprise an editor who renames a page and sees the old name everywhere. It reads as designed, not a bug.
+
+#### Known gap - PATCH and slug changes
+
+`PATCH /api/admin/pages/[id]` can still change the `slug` of a published page directly (with `revalidatePath`), bypassing the Publish flow and the history snapshot. Routing stays correct; it is just an unsnapshotted change. Left out of scope for this feature - follow-on work should funnel slug changes through Publish.
+
 ### Reconciliation
 
 `InfoPage`'s real columns (`title`, `slug`, `status`, `metaDescription`, `ogImageId`) are canonical. `builderData.root.props` is a working copy. On every load, root props are overwritten from the DB row. On every save, those four fields are split back out and written to their real columns. This split happens in exactly one server-side location (the save handlers), never client-side.
 
-### Save / publish split
-
-| Endpoint | Required permission | Status |
-|---|---|---|
-| `POST /api/admin/pages/[id]/autosave` | `pages.write` | Always `draft` |
-| `POST /api/admin/pages/[id]/publish` | `pages.publish` | Always `published` |
-
-The autosave endpoint ignores any `status` field the client sends - it always writes `draft`. Only the publish endpoint can flip status to `published`, and it re-checks `pages.publish` on the server on every call.
-
 ### Public render
 
-The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). Builder pages use `<Render config={puckConfig} data={builderData} />` from `@puckeditor/core/rsc` - a server component. The editor bundle is never included in the public-page response.
+The public `[slug]/page.tsx` route branches on `bodyFormat`. Both branches share the same draft gate (one check at the top). For published pages, the public render uses `publishedData` (with `builderData` as a fallback for any pre-backfill rows); for draft pages it uses `builderData`. Builder pages use `<Render config={puckConfig} data={...} />` from `@puckeditor/core/rsc` - a server component. The editor bundle is never included in the public-page response.
+
+The render logic is shared via `lib/puck/renderInfoPage.tsx` (`renderInfoPageContent`), used by both the public slug route and the preview route.
 
 Page content is wrapped inside a layout resolved by `resolveThemeLayout('infoPage', { pageId, slug })`. The layout is rendered via `renderLayoutWithContent(layoutData, pageContent)`, which patches the Puck config to replace the `ContentSlot` component's render function with one that returns the real page content. This happens entirely server-side with no hydration overhead.
+
+### Preview route (`/page-preview/[id]`)
+
+A login-gated preview route lives at `app/(public)/page-preview/[id]/page.tsx`, inside the `(public)` route group so it inherits the site header/footer. It shows the **current draft** (`builderData`) with a fixed "Draft preview - not live" info bar, and carries `robots: noindex`.
+
+Gate: `getSessionFromCookie` + `hasPermission(user, 'pages.read')`. Visitors who are not logged-in editors receive `notFound()` - there is no public token-based access.
+
+The **Preview** button in the editor toolbar opens `/page-preview/${id}` in a new tab.
+
+`proxy.ts` unconditionally passes both `/page-preview/` and `/layout-preview/` through the site-status gate so a logged-in editor can always reach a preview even when the public site is in coming-soon or maintenance mode.
 
 ## Layout Builder
 

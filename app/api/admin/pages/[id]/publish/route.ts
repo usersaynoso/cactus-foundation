@@ -1,9 +1,9 @@
 // Publish endpoint for Puck builder pages.
 // Requires pages.publish — checked server-side on every call, never inferred
-// from the client. This is the only path that can set status=published for a
-// builder-format page.
-// Same reconciliation as autosave, but writes status=published and triggers
-// on-demand static regeneration for the slug.
+// from the client. This is the ONLY path that can set status=published for a
+// builder-format page and the only path that writes publishedData.
+// On each publish: the previous live version (if any) is prepended to history
+// (capped at HISTORY_CAP entries), then publishedData is set to the new content.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -12,6 +12,15 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
+
+const HISTORY_CAP = 10
+
+type HistoryEntry = {
+  data: unknown
+  title: string
+  at: string
+  byId: string | null
+}
 
 const Body = z.object({
   data: z.object({
@@ -28,7 +37,6 @@ type Params = { params: Promise<{ id: string }> }
 export async function POST(request: NextRequest, { params }: Params) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
-  // Publish requires pages.publish — checked on every call, not inferred from client state
   if (!await hasPermission(user, 'pages.publish')) return errorResponse('Forbidden — pages.publish permission required', 403)
 
   const { id } = await params
@@ -61,6 +69,22 @@ export async function POST(request: NextRequest, { params }: Params) {
     root: { ...data.root, props: { ...safeRootProps, title, slug, metaDescription, ogImageId } },
   }
 
+  // Build updated history: if there is a current live version, archive it first
+  const existingHistory = Array.isArray(page.history) ? (page.history as HistoryEntry[]) : []
+  let newHistory = existingHistory
+
+  if (page.publishedData !== null && page.publishedData !== undefined) {
+    const archivedEntry: HistoryEntry = {
+      data: page.publishedData,
+      title: page.title,
+      at: (page.publishedAt ?? page.updatedAt).toISOString(),
+      byId: page.publishedById ?? null,
+    }
+    newHistory = [archivedEntry, ...existingHistory].slice(0, HISTORY_CAP)
+  }
+
+  const now = new Date()
+
   const updated = await prisma.infoPage.update({
     where: { id },
     data: {
@@ -71,10 +95,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       status: 'published',
       bodyFormat: 'builder',
       builderData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      publishedData: builderData as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      publishedAt: now,
+      publishedById: user.id,
+      history: newHistory as unknown as import('@prisma/client').Prisma.InputJsonValue,
     },
   })
 
-  // Trigger on-demand static regeneration for the published slug
   revalidatePath(`/${updated.slug}`)
   if (page.slug !== updated.slug) revalidatePath(`/${page.slug}`)
 
