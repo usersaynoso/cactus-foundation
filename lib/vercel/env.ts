@@ -1,7 +1,7 @@
 const VERCEL_API = 'https://api.vercel.com'
 
 type VercelEnvTarget = 'production' | 'preview' | 'development'
-type VercelEnvType = 'plain' | 'encrypted'
+type VercelEnvType = 'plain' | 'sensitive'
 
 type VercelEnvVar = {
   id: string
@@ -12,8 +12,9 @@ type VercelEnvVar = {
 
 const DEFAULT_TARGETS: VercelEnvTarget[] = ['production', 'preview', 'development']
 
-// Encrypted type for sensitive keys; plain for everything else.
-const ENCRYPTED_KEYS = new Set([
+// Sensitive type marks the value write-only (hidden from the dashboard after
+// creation) for secret-bearing keys; plain for everything else.
+const SENSITIVE_KEYS = new Set([
   'DATABASE_URL',
   'SESSION_SECRET',
   'VERCEL_API_TOKEN',
@@ -29,7 +30,7 @@ const ENCRYPTED_KEYS = new Set([
 ])
 
 function envType(key: string): VercelEnvType {
-  return ENCRYPTED_KEYS.has(key) ? 'encrypted' : 'plain'
+  return SENSITIVE_KEYS.has(key) ? 'sensitive' : 'plain'
 }
 
 // Fetches all env var entries for the project (returns id + key, never value).

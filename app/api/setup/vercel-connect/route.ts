@@ -144,17 +144,17 @@ export async function POST(req: NextRequest) {
     const sessionSecret = randomBytes(48).toString('hex')
     const encryptionKey = randomBytes(32).toString('hex')
 
-    const vars: Array<{ key: string; value: string; type?: 'plain' | 'encrypted' }> = [
-      { key: 'VERCEL_API_TOKEN', value: token, type: 'encrypted' },
+    const vars: Array<{ key: string; value: string; type?: 'plain' | 'sensitive' }> = [
+      { key: 'VERCEL_API_TOKEN', value: token, type: 'sensitive' },
       { key: 'VERCEL_PROJECT_ID', value: projectId, type: 'plain' },
-      { key: 'SESSION_SECRET', value: sessionSecret, type: 'encrypted' },
-      { key: 'ENCRYPTION_KEY', value: encryptionKey, type: 'encrypted' },
+      { key: 'SESSION_SECRET', value: sessionSecret, type: 'sensitive' },
+      { key: 'ENCRYPTION_KEY', value: encryptionKey, type: 'sensitive' },
       { key: 'SITE_URL', value: siteUrl, type: 'plain' },
       { key: 'NEXT_PUBLIC_SITE_URL', value: siteUrl, type: 'plain' },
     ]
 
     if (neonApiKey) {
-      vars.push({ key: 'NEON_API_KEY', value: neonApiKey.trim(), type: 'encrypted' })
+      vars.push({ key: 'NEON_API_KEY', value: neonApiKey.trim(), type: 'sensitive' })
     }
 
     const ghLink = projectData?.link

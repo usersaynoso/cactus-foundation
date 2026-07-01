@@ -171,7 +171,7 @@ async function writeVercelEnvVars(
     {
       key: 'DATABASE_URL',
       value: databaseUrl,
-      type: 'encrypted',
+      type: 'sensitive',
       target: ['production', 'preview', 'development'],
     },
   ]
@@ -382,7 +382,7 @@ export async function POST(req: NextRequest) {
     }
     try {
       await upsertVercelEnvVars(vercelToken, vercelProjectId, [
-        { key: 'DATABASE_URL', value: databaseUrl, type: 'encrypted' },
+        { key: 'DATABASE_URL', value: databaseUrl, type: 'sensitive' },
       ])
       const deployResult0 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
       return NextResponse.json({ status: 'provisioned', deploymentId: deployResult0.deploymentId })
