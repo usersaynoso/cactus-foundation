@@ -160,7 +160,7 @@ type UpdatesApiResponse = {
 }
 
 const UPDATE_CHECK_CACHE_KEY = 'cactus-core-update-check'
-const UPDATE_CHECK_THROTTLE_MS = 10_000
+const UPDATE_CHECK_THROTTLE_MS = 10 * 60 * 1000
 
 type UpdateCheckCache = { at: number; data: UpdatesApiResponse }
 
