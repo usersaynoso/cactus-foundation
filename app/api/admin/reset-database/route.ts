@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
+import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 
 async function seedStarterContent() {
   const homePage = await prisma.infoPage.upsert({
@@ -18,6 +19,8 @@ async function seedStarterContent() {
   })
 
   await refreshStarterLayouts(prisma)
+
+  await upsertStylesInfoPage(prisma)
 
   await prisma.siteConfig.update({
     where: { id: 'singleton' },

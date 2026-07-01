@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { syncToEdgeConfig } from '@/lib/config/edge-config'
 import { getSessionFromCookie, createSession, setSessionCookie } from '@/lib/auth/session'
 import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
+import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 import { upsertVercelEnvVar } from '@/lib/vercel/env'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { isLocalMode } from '@/lib/config/env'
@@ -50,6 +51,9 @@ export async function POST() {
 
   // Seed all starter layout templates
   await refreshStarterLayouts(prisma)
+
+  // Seed the Styles info page (installed by default as a draft)
+  await upsertStylesInfoPage(prisma)
 
   await prisma.siteConfig.update({
     where: { id: 'singleton' },

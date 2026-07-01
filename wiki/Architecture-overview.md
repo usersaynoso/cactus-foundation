@@ -468,6 +468,12 @@ RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in
 
 All starter layouts have `isStarter: true`, `status: published`, and `displayConditions: entire_site`. They are upserted (never duplicate-inserted), so re-running setup or the refresh button is idempotent.
 
+### Styles info page (`style-guide`)
+
+`lib/setup/stylesInfoPage.ts` seeds a **Styles** info page (slug `style-guide`) alongside the starter layouts. It is installed by default as a **draft** (`bodyFormat: 'builder'`, `status: 'draft'`) by both `app/api/setup/complete/route.ts` and the `reset-database` soft-reset seed, via `upsertStylesInfoPage`. Like the starter layouts it is upserted (only ever writes `builderData`, never `publishedData`), so it never overwrites a published copy and is safe to re-run.
+
+The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Because the public/RSC render pipes the HTML string straight to the DOM inside `<main>`, its `h1`–`h6`, `a`, `button`, `img`, `input`, `select`, `textarea` and `label` elements pick up the `main …` rules from `buildTokenStyles`, so the page is a **live reference** of every option on Appearance → Styles. A scoped `<style>` (targeting a `.sg` wrapper, later in source order so it wins on equal specificity) restores heading size/colour and link colour that the `.puck-richtext` rules in `globals.css` would otherwise override. Preview it at `/page-preview/<id>` while it stays a draft.
+
 ### `resolveLayout` vs `resolveThemeLayout`
 
 `lib/layout/resolveLayout.ts` is the original three-tier fallback (`InfoPage.layoutId` → `ModuleLayoutDefault` → `SiteConfig.defaultLayoutId`). It is kept for backwards compatibility with any module that calls it directly but is no longer used by the core public routes. New code should use `resolveThemeLayout`.
@@ -546,10 +552,11 @@ Weight, transform, style, and text-decoration are dropdowns (not free text). If 
   --sp-1..9: 4,8,12,16,24,32,48,64,96px;  /* fixed */
   --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px;  /* fixed */
   --shadow-subtle: ...; --shadow-elevated: ...;  /* fixed */
-  --font-body: ...; --font-heading: ...;         /* from themeStyle.body.family */
+  --font-body: ...; --font-heading: ...;         /* body.family, else the primary global font */
   --color-link: ...; --color-link-hover: ...;    /* from themeStyle.links */
-  --h1-size..--h6-size, --h1-color..--h6-color;  /* from themeStyle.headings */
-  /* + btn, img, field vars */
+  --h1-family/-weight/-size/-line-height/-letter-spacing/-transform/-style/-color .. --h6-*;  /* full per-heading typography */
+  --btn-family/-weight/-size/-line-height/-letter-spacing/-transform/-style;  /* button typography */
+  /* + btn colour/border/radius/padding/hover, img, field vars */
 }
 [data-theme="dark"] {
   --color-1..N: <dark hex>;
@@ -563,6 +570,10 @@ Weight, transform, style, and text-decoration are dropdowns (not free text). If 
 
 **Why body typography targets `main`:** the body font/size/colour are emitted on `main` itself (not `main p`) so they cascade into rich-text content. `.puck-richtext p` is a class selector that would out-specificity a plain `main p` rule and ignore the chosen body font; setting the font on the `main` ancestor lets it inherit through instead.
 
+**The primary global font is the site default.** The `primary` global font (or the first defined font) provides the default `family`/`weight` for body text: `body.family || primaryFont.family` (same for weight). So changing the primary font actually restyles the site, and leaving the body font-family box empty inherits the primary font rather than the built-in Cactus face (which isn't even loaded on the public frontend, so it falls back to system-ui). Headings inherit this through the `main` cascade unless they set their own family. The admin chrome also adopts this font (see `buildAdminThemeStyles` below).
+
+**Page background:** `themeStyle.background.colour` is emitted only as the `--color-page-bg` variable (no scoped rule). `globals.css` applies it via `body { background: var(--color-page-bg, var(--color-bg)); }`, so it covers the whole page (not just `main`). In the admin the variable is never emitted (`buildAdminThemeStyles` is a primary-only subset), so admin falls back to `--color-bg` and is unaffected.
+
 `buildFontHref` inspects all font-family values across the token tree, skips system stacks (system-ui, Arial, Georgia, Helvetica, Times, sans-serif, serif, monospace, -apple-system), and returns a Google Fonts URL or `null`.
 
 ### Where styles are injected
@@ -570,11 +581,21 @@ Weight, transform, style, and text-decoration are dropdowns (not free text). If 
 - `app/(public)/layout.tsx` - emits `<link rel="stylesheet">` for Google Fonts and `<style>` with token CSS for every public page.
 - `app/layout-preview/[id]/page.tsx` - same injection, so the standalone layout preview matches the live site.
 - `app/cactus-admin/layouts/[id]/LayoutPuckEditor.tsx` - injects token styles into `document.head` via `useEffect` so the inline Puck canvas reflects the current theme (best-effort; Puck renders inline, not in an iframe).
-- `app/cactus-admin/layout.tsx` - injects `buildAdminThemeStyles(designTokens)` so the admin chrome (sidebar active state, buttons, badges, focus accents) white-labels to the site's primary colour. This is a **narrow** subset - only the `--color-primary` family - so the admin keeps its own spacing, radii, shadows and Instrument Sans typeface. Injecting the full `buildTokenStyles` here would be wrong: its fixed `--radius-*`/`--sp-*`/`--shadow-*` block and scoped `main …` rules would clash with the admin design system. The login and setup screens are outside this layout and stay on the base Cactus palette.
+- `app/cactus-admin/layout.tsx` - injects `buildAdminThemeStyles(designTokens)` so the admin chrome (sidebar active state, buttons, badges, focus accents) white-labels to the site's primary colour, and overrides `--font-sans` with the site's primary font so the admin UI typeface matches the site (the mono/code font `--font-mono` is left alone). It also emits `buildFontHref(designTokens)` as a `<link>` so that font actually loads in admin. This is still a **narrow** subset - only the `--color-primary` family plus `--font-sans` - so the admin keeps its own spacing, radii and shadows. Injecting the full `buildTokenStyles` here would be wrong: its fixed `--radius-*`/`--sp-*`/`--shadow-*` block and scoped `main …` rules would clash with the admin design system. The login and setup screens are outside this layout and stay on the base Cactus palette.
 
 ### Colour palette in Puck blocks
 
 `lib/puck/SiteColourField.tsx` fetches colours from `/api/admin/appearance` (path: `designTokens.designSystem.colours`) and renders named swatches. Selecting a swatch stores `var(--color-N)` as the field value, so colour changes propagate to all blocks automatically without re-saving pages.
+
+### How Buttons / Headings / Images tokens reach Puck blocks
+
+The scoped `main …` rules only reach content with no inline styles (rich text, raw HTML). Puck blocks render with inline styles, which out-specificity any stylesheet rule, so a few blocks read the tokens **as CSS variables inline**, each with a fallback to the original built-in look (untouched sites are byte-identical):
+
+- **Button block** (`ButtonLink`) renders `<a class="cactus-btn">` reading `--btn-family/-weight/-size/-line-height/-letter-spacing/-transform/-style`, `--btn-radius`, `--btn-padding` for shape/type (all variants), and `--btn-bg`/`--btn-text-color`/`--btn-border`/`--btn-border-width` for the primary (default) variant's colours. Hover uses the token hover colours via `main a.cactus-btn:hover{…!important}` (the `!important` is required to beat the inline base state). Secondary/outline keep their own colours but still inherit shape/type and the global border.
+- **Heading block** reads `--{level}-family/-size/-weight/-line-height/-letter-spacing/-transform/-style` and, when the colour choice is the default "dark", `--{level}-color`. An explicit muted/brand colour choice still wins.
+- **Image block** (`ImageBlock`) reads `--img-radius`, `--img-border-width`, `--img-border-color`.
+
+So `buildTokenStyles` emits full **typography** variable sets for headings (`--h1-…` through `--h6-…`) and buttons (`--btn-…`), not just the colour/size subset. Composite blocks (Hero, CTABanner, Card CTAs) keep their bespoke styling and deliberately do **not** consume the button/heading tokens, so their contextual designs (e.g. a CTA on a brand-colour background) are preserved.
 
 ### Dark mode
 
