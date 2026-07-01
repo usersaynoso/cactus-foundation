@@ -406,49 +406,47 @@ a:hover {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius);
   color: var(--admin-sidebar-text);
-  font-size: 1rem;
-  line-height: 1;
   flex-shrink: 0;
   text-decoration: none;
-  transition: background var(--dur-base), color var(--dur-base);
+  background: none;
+  border: none;
+  transition: color var(--dur-base);
+}
+.admin-sidebar-bell-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex-shrink: 0;
 }
 .admin-sidebar-bell:hover {
-  background: var(--sand-200);
   color: var(--color-text);
   text-decoration: none;
-}
-[data-theme="dark"] .admin-sidebar-bell:hover {
-  background: var(--color-surface-raised);
-  color: var(--color-text);
+  cursor: pointer;
 }
 .admin-sidebar-bell.active,
 .admin-sidebar-bell--open {
-  background: var(--color-surface-raised);
   color: var(--color-text);
-}
-[data-theme="dark"] .admin-sidebar-bell--open {
-  background: var(--color-surface-raised);
 }
 .admin-sidebar-bell--inline {
   margin-left: auto;
 }
 .admin-sidebar-bell-count {
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -4px;
+  right: -4px;
   z-index: 10;
-  min-width: 16px;
-  height: 16px;
+  min-width: 18px;
+  height: 18px;
   padding: 0 4px;
   border-radius: var(--radius-full);
-  background: var(--color-destructive);
-  color: var(--color-on-primary);
-  font-size: var(--text-xs);
+  background: #e53e3e;
+  color: #fff;
+  font-size: 11px;
   font-weight: var(--font-semibold);
-  line-height: 16px;
+  line-height: 18px;
   text-align: center;
+  box-shadow: 0 0 0 2px var(--admin-sidebar-bg, var(--color-surface));
 }
 .admin-sidebar-bell-row {
   display: flex;
@@ -499,8 +497,8 @@ a:hover {
 }
 .admin-bell-dropdown-item {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   transition: background var(--dur-base);
@@ -511,10 +509,25 @@ a:hover {
 .admin-bell-dropdown-item--unread {
   background: var(--color-primary-subtle);
 }
+.admin-bell-dropdown-item-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
 .admin-bell-dropdown-icon {
   font-size: 1rem;
   line-height: 1.4;
   flex-shrink: 0;
+}
+.admin-bell-dropdown-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.admin-bell-dropdown-action-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-destructive);
 }
 .admin-bell-dropdown-info {
   flex: 1;

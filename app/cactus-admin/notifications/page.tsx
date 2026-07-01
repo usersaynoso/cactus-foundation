@@ -2,7 +2,6 @@ import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { isLocalMode } from '@/lib/config/env'
 import NotificationActions from './NotificationActions'
 import type { Metadata } from 'next'
 import type { NotificationType } from '@prisma/client'
@@ -45,8 +44,6 @@ export default async function NotificationsPage() {
   }
 
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
-  // No Vercel redeploy locally, so the "Redeploy now" action is hidden.
-  const local = isLocalMode()
 
   const notifications = await prisma.notification.findMany({
     orderBy: { createdAt: 'desc' },
@@ -120,7 +117,7 @@ export default async function NotificationsPage() {
                 <NotificationActions
                   id={notification.id}
                   isRead={isRead}
-                  canRedeploy={isDeployPending && !local}
+                  canRedeploy={isDeployPending}
                   viewHref={viewHref}
                   viewLabel={viewLabel}
                 />
