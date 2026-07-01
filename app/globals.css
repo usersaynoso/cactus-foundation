@@ -127,6 +127,8 @@
    SEMANTIC ALIASES — LIGHT MODE
    ============================================================ */
 :root, [data-theme="light"] {
+  color-scheme: light;
+
   /* Page & surface */
   --color-bg:             var(--sand-50);
   --color-bg-subtle:      var(--sand-100);
@@ -203,6 +205,8 @@
    DARK MODE
    ============================================================ */
 [data-theme="dark"] {
+  color-scheme: dark;
+
   --color-bg:             #131210;
   --color-bg-subtle:      #1c1a17;
   --color-surface:        #1c1a17;
@@ -276,6 +280,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
     --color-bg:             #131210;
     --color-bg-subtle:      #1c1a17;
     --color-surface:        #1c1a17;
@@ -397,6 +403,14 @@ a:hover {
 
 .admin-sidebar--collapsed {
   width: 56px;
+}
+
+.admin-sidebar-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--admin-sidebar-bg);
+  flex-shrink: 0;
 }
 
 .admin-sidebar-header {
@@ -820,6 +834,64 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+/* ============================================================
+   ROW ACTION ICON BUTTON — used in table rows (e.g. inbox list)
+   Tooltip visuals match .theme-toggle-tip above.
+   ============================================================ */
+.row-action-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  padding: var(--space-1);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: color var(--dur-base) var(--ease-in-out);
+}
+.row-action-btn:hover:not(:disabled) {
+  color: var(--color-text-secondary);
+}
+.row-action-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.row-action-btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.row-action-btn[data-danger]:hover:not(:disabled) {
+  color: var(--color-destructive);
+}
+
+.row-action-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 10;
+}
+.row-action-btn:hover .row-action-tip,
+.row-action-btn:focus-visible .row-action-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity var(--dur-base), transform var(--dur-base);
+}
+
 .admin-sidebar nav a.admin-nav-account {
   height: auto;
   margin: 0;
@@ -1027,6 +1099,10 @@ a:hover {
 .field input[type="radio"] {
   height: auto;
   width: auto;
+  accent-color: var(--color-primary);
+}
+input[type="checkbox"],
+input[type="radio"] {
   accent-color: var(--color-primary);
 }
 .field-hint {

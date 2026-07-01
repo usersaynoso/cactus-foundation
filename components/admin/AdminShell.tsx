@@ -98,44 +98,46 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         mobileOpen   ? 'admin-sidebar--open'      : '',
         collapsed    ? 'admin-sidebar--collapsed'  : '',
       ].filter(Boolean).join(' ')}>
-        <div className="admin-sidebar-header">
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="admin-sidebar-logo-link"
-            title={`Open ${siteName} in a new tab`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/cactus.svg"
-              alt="Cactus Foundation"
-              className="admin-sidebar-logo-img"
-            />
-            {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
-          </a>
-          <button
-            className="admin-sidebar-close"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation"
-          >
-            ×
-          </button>
-        </div>
+        <div className="admin-sidebar-sticky-top">
+          <div className="admin-sidebar-header">
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="admin-sidebar-logo-link"
+              title={`Open ${siteName} in a new tab`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/cactus.svg"
+                alt="Cactus Foundation"
+                className="admin-sidebar-logo-img"
+              />
+              {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
+            </a>
+            <button
+              className="admin-sidebar-close"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close navigation"
+            >
+              ×
+            </button>
+          </div>
 
-        {/* Utility row: collapse toggle, theme switcher, notifications - grouped so
-            the header reads as one control cluster instead of scattered rows. */}
-        <div className={`admin-sidebar-toolbar${collapsed ? ' admin-sidebar-toolbar--collapsed' : ''}`}>
-          <button
-            className="admin-sidebar-toggle"
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <span className="admin-sidebar-toggle-icon">{collapsed ? '›' : '‹'}</span>
-          </button>
-          <ThemeToggle compact collapsed={collapsed} />
-          <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={collapsed} />
+          {/* Utility row: collapse toggle, theme switcher, notifications - grouped so
+              the header reads as one control cluster instead of scattered rows. */}
+          <div className={`admin-sidebar-toolbar${collapsed ? ' admin-sidebar-toolbar--collapsed' : ''}`}>
+            <button
+              className="admin-sidebar-toggle"
+              onClick={toggleCollapsed}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <span className="admin-sidebar-toggle-icon">{collapsed ? '›' : '‹'}</span>
+            </button>
+            <ThemeToggle compact collapsed={collapsed} />
+            <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={collapsed} />
+          </div>
         </div>
 
         <AdminNav
