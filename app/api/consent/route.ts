@@ -9,7 +9,7 @@ import type { ConsentBannerConfig } from '@/lib/consent/types'
 
 const PostBody = z.object({
   consentId: z.string().uuid(),
-  action: z.enum(['accept_all', 'reject_all', 'custom', 'withdraw']),
+  action: z.enum(['accept_all', 'reject_all', 'custom', 'withdraw', 'acknowledge']),
   decision: z.record(z.string(), z.boolean()),
   categoriesVersion: z.number().int().min(0),
 })

@@ -1297,7 +1297,7 @@ function ConfigPageInner() {
                   <span className="field-hint">Use <code>{'{privacyPolicy}'}</code> to insert a link to your configured privacy policy page.</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
                   <div className="field" style={{ margin: 0 }}>
                     <label>Accept all label</label>
                     <input type="text" value={consent.acceptAllLabel ?? ''} onChange={(e) => setConsent({ acceptAllLabel: e.target.value })} placeholder="Accept all" />
@@ -1309,6 +1309,11 @@ function ConfigPageInner() {
                   <div className="field" style={{ margin: 0 }}>
                     <label>Manage label</label>
                     <input type="text" value={consent.manageLabel ?? ''} onChange={(e) => setConsent({ manageLabel: e.target.value })} placeholder="Manage preferences" />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Dismiss button label</label>
+                    <input type="text" value={consent.dismissLabel ?? ''} onChange={(e) => setConsent({ dismissLabel: e.target.value })} placeholder="Got it" />
+                    <span className="field-hint">Shown only when no optional categories are configured.</span>
                   </div>
                 </div>
 

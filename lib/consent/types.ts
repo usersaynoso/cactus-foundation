@@ -14,6 +14,7 @@ export type ConsentBannerConfig = {
   acceptAllLabel: string
   rejectAllLabel: string
   manageLabel: string
+  dismissLabel: string
   categories: ConsentCategory[]
   reConsentDays: number
   consentLogRetentionDays: number | null
@@ -29,6 +30,7 @@ export const DEFAULT_CONSENT_BANNER_CONFIG: ConsentBannerConfig = {
   acceptAllLabel: 'Accept all',
   rejectAllLabel: 'Reject all',
   manageLabel: 'Manage preferences',
+  dismissLabel: 'Got it',
   categories: [
     {
       key: 'necessary',
@@ -36,6 +38,13 @@ export const DEFAULT_CONSENT_BANNER_CONFIG: ConsentBannerConfig = {
       description: 'Essential cookies required for the site to function. Cannot be disabled.',
       required: true,
       defaultOn: true,
+    },
+    {
+      key: 'preferences',
+      label: 'Preferences',
+      description: 'Remembers your settings and choices, such as language, region, or saved display options.',
+      required: false,
+      defaultOn: false,
     },
     {
       key: 'analytics',
