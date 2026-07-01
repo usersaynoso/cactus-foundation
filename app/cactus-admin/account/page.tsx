@@ -30,6 +30,19 @@ type ProfileInfo = {
   displayName: string | null
 }
 
+const cardFull: React.CSSProperties = { height: '100%' }
+const mutedRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-sm)' }
+
+/** A list row with muted left-hand copy and an optional right-hand action button. */
+function Row({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={mutedRow}>
+      <span style={{ color: 'var(--color-text-muted)' }}>{children}</span>
+      {action}
+    </div>
+  )
+}
+
 export default function AccountPage() {
   const pathname = usePathname()
   const router = useRouter()
@@ -73,6 +86,7 @@ export default function AccountPage() {
   // Misc
   const [exportLoading, setExportLoading] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
     fetch('/api/account/profile')
@@ -241,13 +255,18 @@ export default function AccountPage() {
   }
 
   async function handleDeleteAccount() {
-    const res = await fetch('/api/account', { method: 'DELETE' })
-    const d = await res.json()
-    if (!res.ok) {
-      setError(d.error ?? 'Deletion failed')
-      setDeleteConfirm(false)
-    } else {
-      window.location.href = '/'
+    setDeleteLoading(true)
+    try {
+      const res = await fetch('/api/account', { method: 'DELETE' })
+      const d = await res.json()
+      if (!res.ok) {
+        setError(d.error ?? 'Deletion failed')
+        setDeleteConfirm(false)
+      } else {
+        window.location.href = '/'
+      }
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -335,8 +354,6 @@ export default function AccountPage() {
   }
 
   const profileDirty = profile && displayName !== (profile.displayName ?? '')
-
-  const cardFull: React.CSSProperties = { height: '100%' }
 
   return (
     <div className="account-grid-container">
@@ -428,17 +445,16 @@ export default function AccountPage() {
           {passkeys.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
               {passkeys.map((pk, i) => (
-                <div key={pk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
-                  <span style={{ color: 'var(--color-text-muted)' }}>
-                    {pk.label ?? `Passkey ${i + 1}`} &mdash; added {new Date(pk.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleRemovePasskey(pk.id)}
-                  >
-                    Remove
-                  </button>
-                </div>
+                <Row
+                  key={pk.id}
+                  action={
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleRemovePasskey(pk.id)}>
+                      Remove
+                    </button>
+                  }
+                >
+                  {pk.label ?? `Passkey ${i + 1}`} &mdash; added {new Date(pk.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Row>
               ))}
             </div>
           )}
@@ -456,7 +472,7 @@ export default function AccountPage() {
           {passwordInfo === null ? (
             <p>Loading…</p>
           ) : !passwordInfo.emailConfigured ? (
-            <div className="alert alert-warning" style={{ fontSize: '0.875rem' }}>
+            <div className="alert alert-warning" style={{ fontSize: 'var(--text-sm)' }}>
               Set up email (Brevo or SMTP) in <a href={`${adminBase}/config`}>Settings</a> before you can add a password. The password sign-in needs email to send a one-time code.
             </div>
           ) : (
@@ -517,10 +533,9 @@ export default function AccountPage() {
         {totpEnabled === null ? (
           <p>Loading…</p>
         ) : totpEnabled ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Row action={<button className="btn btn-secondary btn-sm" onClick={handleRemoveTotp}>Remove</button>}>
             <span className="badge badge-blue">Enabled</span>
-            <button className="btn btn-secondary btn-sm" onClick={handleRemoveTotp}>Remove</button>
-          </div>
+          </Row>
         ) : totpQrDataUrl ? (
           <>
             <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', textAlign: 'center', maxWidth: 320 }}>
@@ -575,15 +590,15 @@ export default function AccountPage() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem', maxHeight: '12rem', overflowY: 'auto' }}>
                 {sessions.map((s) => (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
-                    <div>
-                      <span>Session started {new Date(s.createdAt).toLocaleDateString()}</span>
-                      {s.current && <span className="badge badge-blue" style={{ marginLeft: '0.5rem' }}>Current</span>}
-                    </div>
-                    {!s.current && (
+                  <Row
+                    key={s.id}
+                    action={!s.current && (
                       <button className="btn btn-secondary btn-sm" onClick={() => handleRevokeSession(s.id)}>Revoke</button>
                     )}
-                  </div>
+                  >
+                    <span style={{ color: 'var(--color-text)' }}>Session started {new Date(s.createdAt).toLocaleDateString()}</span>
+                    {s.current && <span className="badge badge-blue" style={{ marginLeft: '0.5rem' }}>Current</span>}
+                  </Row>
                 ))}
               </div>
               <button className="btn btn-danger btn-sm" onClick={handleRevokeAll}>
@@ -610,18 +625,30 @@ export default function AccountPage() {
         <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
           Permanent and immediate. Your content will remain but will be attributed to a deleted user.
         </p>
-        {!deleteConfirm ? (
-          <button className="btn btn-danger" onClick={() => setDeleteConfirm(true)}>Delete my account</button>
-        ) : (
-          <div className="alert alert-danger">
-            <p style={{ margin: '0 0 0.75rem' }}>Are you sure? This cannot be undone.</p>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-danger btn-sm" onClick={handleDeleteAccount}>Yes, delete</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setDeleteConfirm(false)}>Cancel</button>
+        <button className="btn btn-danger" onClick={() => setDeleteConfirm(true)}>Delete my account</button>
+      </div>
+
+      {deleteConfirm && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={(e) => { if (e.target === e.currentTarget && !deleteLoading) setDeleteConfirm(false) }}
+        >
+          <div className="card" style={{ maxWidth: '480px', width: '100%' }}>
+            <h2 className="card-title" style={{ color: 'var(--color-destructive)' }}>Delete your account?</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+              This cannot be undone. Your content will remain but will be attributed to a deleted user.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" disabled={deleteLoading} onClick={() => setDeleteConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" disabled={deleteLoading} onClick={handleDeleteAccount}>
+                {deleteLoading ? 'Deleting…' : 'Yes, delete'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
