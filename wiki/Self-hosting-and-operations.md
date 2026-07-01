@@ -1,5 +1,7 @@
 # Self-hosting and operations
 
+> This page is for technical operators and developers. It covers database backups, the Cloudflare Worker, monitoring, and recovery procedures. If you're looking to manage your site's content or settings, see the [site owner guides](Home) instead.
+
 ## Database backups
 
 Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up.
@@ -216,4 +218,4 @@ After changing `SITE_URL`, you **must** also re-register all passkeys - credenti
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)

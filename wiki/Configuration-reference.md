@@ -1,118 +1,117 @@
 # Configuration reference
 
-The config page lives at `/<adminPath>/config`. All settings are persisted in the `SiteConfig` table. Secrets (API keys, passwords) stay in environment variables - they are never stored in the database.
+The configuration page lives at `/<your-admin-path>/config`. All settings are saved to the database. Secrets (API keys, passwords) are stored in environment variables and never in the database.
+
+---
 
 ## General tab
 
-### Updates panel
+### Updates
 
-At the top of the General tab, Cactus checks whether your install is on the latest version of Cactus Foundation. The check is made against the upstream GitHub repository (`usersaynoso/cactus-foundation` by default, overridable with `CACTUS_CORE_REPO`) and is cached for 10 minutes.
+At the top of the General tab, Cactus checks whether a newer version is available. The check runs against the upstream Cactus Foundation repository and is cached for 10 minutes.
 
-**Update channel** - two buttons above the status allow you to choose which releases to consider:
+**Update channel** - choose which releases to consider:
 
-- **Public** (default) - stable releases only; pre-releases are ignored.
-- **Beta** - stable and pre-releases; useful for testing upcoming features before they ship.
+- **Public** (default) - stable releases only.
+- **Beta** - stable and pre-releases. Useful for trying upcoming features before they reach the stable channel.
 
-The preference is saved to `SiteConfig.coreUpdateChannel` immediately and the update check refreshes straight away with no page reload needed.
+The preference is saved immediately and the update check refreshes straight away.
 
-**States:**
+**Update states:**
 
-- **Up to date** - green badge; shows the current version number.
-- **Update available** - shows the version jump (e.g. v0.5.97 → v0.5.100), aggregated release notes for every release since your installed version (newest first), and an **Update now** button.
+- **Up to date** - shows the current version number.
+- **Update available** - shows the version jump (e.g. v0.5.97 → v0.5.100), the combined release notes for every version since yours, and an **Update now** button.
 - **Not configured** - shown when GitHub is not set up; links to Settings → Integrations.
 
-**What the Update button does:**
+**What the Update button does:** Cactus fetches the files that changed between your version and the latest release, copies them into your GitHub repository, and triggers a redeploy. Your content, pages, media, and user accounts are never touched. Only core Cactus files are updated.
 
-1. Fetches the list of files changed between your installed version tag and the latest release tag on the upstream repo.
-2. Copies each changed file (excluding `modules/`, `.gitmodules`, and the database) into your GitHub repo via the Git Data API.
-3. Commits the change as `chore: update Cactus Foundation to vX.Y.Z [cactus-core-update]`.
-4. Triggers a Vercel redeploy - the full-screen redeploying view appears immediately (same as other redeploy flows).
-
-Modules, content, user accounts, and user-created files are never touched. Core files in your repo that you have hand-edited will be overwritten; the Cactus model for customisation is modules and themes, not editing core files directly.
-
-If the upstream repo does not have a matching tag for your current version, the update falls back to a full overlay of the latest upstream tree (all core files are replaced).
+### General site settings
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Site name | Displayed in the admin sidebar, browser title, emails | `My Cactus Site` |
-| Tagline | Short description, appears on the public homepage | - |
-| Description | Longer description, used in metadata | - |
-| Homepage | The info page served at the root URL (`/`) | - |
-| Main menu | Default menu shown in the site header. MenuBlock components can override this per-instance. | - |
-| Timezone | All UTC timestamps are displayed in this zone in the admin UI | `UTC` |
-| Locale | Sets the `lang` attribute and date formatting. Does not translate the UI. | `en-GB` |
-| Date format | Display format for dates (e.g. `DD/MM/YYYY`) | `DD/MM/YYYY` |
-| Time format | Display format for times (e.g. `HH:mm`) | `HH:mm` |
+| Site name | Shown in the admin sidebar, browser title, and any emails your site sends | `My Cactus Site` |
+| Tagline | A short description, shown on the public homepage | — |
+| Description | A longer description used in page metadata | — |
+| Homepage | The page shown at the root of your site (`/`) | — |
+| Main menu | The default navigation menu shown in the site header | — |
+| Timezone | All timestamps in the admin are shown in this time zone | `UTC` |
+| Locale | Sets the language attribute and date formatting. Does not translate the admin interface. | `en-GB` |
+| Date format | How dates are displayed (e.g. `DD/MM/YYYY`) | `DD/MM/YYYY` |
+| Time format | How times are displayed (e.g. `HH:mm`) | `HH:mm` |
 
-**Site URL** is shown read-only. It comes from the `SITE_URL` environment variable. Changing it requires updating the variable and redeploying - and registering new passkeys, since WebAuthn credentials are bound to the RP ID (the domain).
+**Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
+
+### Refresh starter templates
+
+Clicking **Refresh starter templates** resets all the built-in starter layouts (headers, footers, page layouts, 404 pages, and status pages) back to their original designs. Your custom layouts are not affected.
 
 ### Danger zone - Reset Everything
 
-At the bottom of the General tab is a **Reset Everything** button. Pressing it shows a confirmation dialog; confirming will permanently delete all environment variables managed through the admin UI (email, media, integration credentials) from your Vercel project. Core infrastructure variables (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`) are **not** touched. A redeploy is triggered automatically after the reset via Vercel's REST API, and the admin is taken straight to the full-screen redeploying view (see below).
+At the bottom of the General tab is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.
+
+---
 
 ## Branding tab
 
 Upload a logo and favicon. Requires a media provider to be configured in the Media tab. Until set, generic Cactus placeholders are used.
 
+See [Managing media](Managing-media) for how to set up a media provider.
+
+---
+
 ## Auth & Access tab
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Admin path | The secret URL prefix for the admin area. Changing this triggers an Edge Config update automatically (if `VERCEL_API_TOKEN` is set) or takes effect on next cold start. | (set during setup) |
-| Public registration | Whether new accounts can be created by anyone. Off shows a closed message, not a 404. | On |
-| Default role | Role assigned to new registrations | - (no default) |
-| Trust this browser (days) | Duration of the "trust this browser" trusted device cookie | `28` |
+| Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
+| Public registration | Whether new accounts can be created by anyone. When off, visitors see a "registration closed" message rather than a registration form. | On |
+| Default role | Role automatically assigned to new registrations | — |
+| Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
+
+---
 
 ## Email tab
 
 | Field | Description |
 |-------|-------------|
-| From name | Display name on outgoing emails |
-| From address | `From` header on outgoing emails |
+| From name | The display name on outgoing emails (e.g. "My Site") |
+| From address | The email address outgoing messages come from |
 
-Provider (Brevo or SMTP) is set by which credentials are present in environment variables - `BREVO_API_KEY` wins if both are set.
+The email provider is set by whichever credentials you've entered in your environment variables - Brevo takes priority if both Brevo and SMTP are configured.
 
-Saving credentials writes them to Vercel project environment variables and triggers a redeploy automatically via Vercel's REST API. The admin is then taken straight to the full-screen redeploying view (see below).
+Saving email credentials triggers a short redeploy. A progress screen appears while the rebuild runs, then returns you to the admin when done.
 
-### The redeploying view
+If the rebuild takes longer than expected, a **Dismiss and continue** button appears after two minutes. Clicking it returns you to the admin while the rebuild continues in the background.
 
-Whenever an admin action triggers a redeploy (saving env-var credentials, or Reset Everything), the API writes a `pending` sentinel to the site config **synchronously** - before the HTTP response is sent - and the browser hard-reloads. The proxy sees the pending marker and rewrites every admin page to the full-screen `/cactus-status/redeploying` view, so the admin lands on it immediately rather than having to navigate or wait for a cache to expire.
-
-That screen shows a spinner while the real Vercel deployment ID is being recorded (this happens just after the response, via Next's `after()`), then polls the deployment logs and walks through Initialising → Building → Done before redirecting back to the admin. If the redeploy never actually starts, the sentinel is cleared and the screen bounces straight back to the admin instead of stranding the user.
-
-**Escape hatch:** if the page is still showing the spinner after 2 minutes, a "Dismiss and continue" button appears. Clicking it sends `DELETE /api/admin/redeploy-status`, clears the `pendingRedeployId` sentinel, and returns to the admin. Polling keeps running underneath, so a genuinely long build still completes on its own - the button is simply always available once things are taking an unreasonable amount of time.
-
-**Server-side time-box (the permanent fix):** alongside `pendingRedeployId`, the site config now records `pendingRedeployAt` - the moment the sentinel was written. The proxy and the redeploy-status API both run the flag through a resolver that treats it as released - and actively nulls it in the database - once it is older than 2 minutes, or immediately if the timestamp is `NULL` (which covers any flag that predates this column or was set by a previous version). Deploys here never exceed 2 minutes, so the gate is guaranteed to release on its own within that window. This path needs no browser tab, no webhook (never delivered on Vercel Hobby), and no valid `VERCEL_API_TOKEN`. A stuck flag self-heals on the next admin request with no manual database surgery required.
-
-**Proxy confirmation on dismiss:** the proxy caches the `pendingRedeployId` flag in memory for up to 5 seconds per serverless isolate. Because a dismiss DELETE runs in a different isolate than the one serving the next admin request, the proxy could still see a stale non-null value and bounce the admin back to the redeploying page. To prevent this, whenever the cached value appears set, the proxy does one additional uncached DB read to confirm before rewriting. If the flag was just cleared, that read returns null and the admin page renders immediately - no 5-second wait, no ping-pong.
-
-**Server-side release on success:** when Vercel fires the `deployment.succeeded` webhook, the handler clears `pendingRedeployId` unconditionally (for any non-null value, not just the `pending` sentinel). This means a successful deployment always releases the proxy gate, even if the client never reached the log-polling flow.
+---
 
 ## Media tab
 
-Select the active media provider from a dropdown grouped by kind:
+Choose your media storage provider from the dropdown. Options are grouped by type:
 
-- **Object storage (proxied via your Cloudflare Worker)**: B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage. Images are fetched from the private bucket by the Worker, resized, and served from `CLOUDFLARE_WORKER_URL`.
-- **Image CDN (direct)**: Cloudinary, ImageKit. Images are served straight from the provider's CDN; the Worker is not involved.
+- **Object storage** (Backblaze B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage) - images are stored in a private bucket and delivered to visitors via a Cloudflare Worker.
+- **Image CDN** (Cloudinary, ImageKit) - images are uploaded to and served directly from the provider's own delivery network. No Cloudflare Worker needed.
 
-Selecting a provider scopes the credentials checklist beneath it to only that provider's environment variables (✓/✗ per var). No credentials are stored in the database - they live in Vercel project environment variables. Saving credentials triggers a redeploy automatically and takes the admin straight to the full-screen redeploying view (see the Email tab section above).
+Choosing a provider shows a checklist of the credentials it needs. Enter them and save. A redeploy runs automatically to apply the new settings.
 
-**Changing the active provider** opens a confirmation dialog showing how many existing media items live on other providers. You can either **Migrate now** (moves all items to the new provider in batches while the page is open) or **Switch without migrating** (new uploads go to the new provider; existing items keep serving from wherever they currently are until you run a migration later).
+**Changing provider:** Switching to a new provider immediately sends new uploads there. Existing images stay on the old provider until you migrate them. Click **Migrate now** to move them across in batches. The per-provider breakdown on the tab shows how many images are on each provider before you commit.
 
-The per-provider breakdown is always visible on the tab, along with a **Migrate now** action if any rows are on a provider other than the active one.
+For providers that use the Cloudflare Worker, you also need to configure the Worker separately. See [Self-hosting and operations](Self-hosting-and-operations) for the exact steps.
 
-**Worker secrets**: for proxied providers, the same credential values must also be configured as Cloudflare Worker secrets via `wrangler secret put`. See [Self-hosting and operations](Self-hosting-and-operations.md) for the exact commands. The app cannot push Worker secrets automatically.
+---
 
 ## Site Status tab
 
 | Field | Description |
 |-------|-------------|
-| Status | `live`, `comingSoon`, or `maintenance`. Non-live statuses lock all public routes for non-admin visitors. |
-| Coming soon page | Info page shown to visitors when status is `comingSoon`. Falls back to a generic template. |
-| Maintenance page | Info page shown to visitors when status is `maintenance`. Falls back to a generic template. |
-| Hide from search engines | Adds `noindex` to all pages and disallows all crawlers in `robots.txt`. Forced on whenever status ≠ live. |
+| Status | `live`, `coming soon`, or `maintenance`. Non-live statuses block all public pages for visitors who aren't signed in as admin. |
+| Coming soon page | The page shown to visitors when status is `coming soon`. Falls back to a built-in template. |
+| Maintenance page | The page shown to visitors when status is `maintenance`. Falls back to a built-in template. |
+| Hide from search engines | Adds a "don't index this" instruction to all pages and blocks search engine crawlers. Automatically on whenever status is not `live`. |
 
 A **Preview as visitor** link opens the status page exactly as a real visitor would see it.
+
+---
 
 ## GDPR & Legal tab
 
@@ -120,95 +119,98 @@ A **Preview as visitor** link opens the status page exactly as a real visitor wo
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Privacy policy page | Info page linked in the public footer and required at registration (once set). | — |
-| Terms of service page | Info page linked in the public footer and required at registration (once set). | — |
-| Purge expired sessions after (days) | Stale sessions older than this are deleted. | `30` |
-| Purge unused recovery requests after (days) | Unused recovery tokens older than this are deleted. | `7` |
+| Privacy policy page | The page linked in your public footer. Also shown at registration once set. | — |
+| Terms of service page | The page linked in your public footer. Also shown at registration once set. | — |
+| Purge expired sessions after (days) | Old sign-in sessions older than this are deleted automatically | `30` |
+| Purge unused recovery requests after (days) | Unused password-recovery tokens older than this are deleted | `7` |
 
-The **Third-party data processors** list is auto-generated from whichever email/media/hosting providers are actually configured, so it never drifts out of sync.
+The **Third-party data processors** list is generated automatically from the email, media, and hosting providers you've actually configured, so it stays accurate without manual maintenance.
 
 ### Privacy policy generator
 
-The **Generate a privacy policy** button (shown next to the Privacy policy page dropdown) opens a six-step wizard that produces a draft privacy policy page in the Puck builder.
+The **Generate a privacy policy** button opens a six-step wizard that produces a draft privacy policy page in the page builder.
 
 The wizard asks about:
 
-1. **About your site** - name, URL, contact email, business address
-2. **Data you collect** - multi-select from common categories (names, emails, IP addresses, analytics, payment info, etc.). The items Cactus core always collects (email addresses, IP addresses, device/browser info for passkeys and sessions) are pre-ticked and read-only.
-3. **Why you collect it** - purposes such as service provision, analytics, legal compliance. The purposes Cactus always has (operating the service, managing accounts, security/fraud prevention) are pre-ticked and read-only.
-4. **Third-party services** - pre-populated from your cookie consent categories; you can also add custom services with a name and description. Generic descriptions only, no vendor names.
-5. **Jurisdiction** - EU/UK (GDPR rights clause), US (CCPA/CPRA rights clause), both, or unsure
-6. **Extras** - cookies clause, minimum age (children's privacy clause), optional DPO details
+1. **Your site** - name, URL, contact email, business address
+2. **Data you collect** - tick the relevant categories. The data Cactus always collects (email addresses, IP addresses, device and browser info for sign-in) is pre-ticked and cannot be removed.
+3. **Why you collect it** - purposes such as providing the service, analytics, or legal compliance. The purposes Cactus always has (running the service, managing accounts, security) are pre-ticked.
+4. **Third-party services** - pre-filled from your cookie consent categories; you can add others with a name and description.
+5. **Jurisdiction** - EU/UK (GDPR), US (CCPA/CPRA), both, or unsure.
+6. **Extras** - a cookies clause, minimum age (for children's privacy), and optional data protection officer details.
 
-The wizard pre-fills the site name and contact email from your General and Email settings. If the cookie consent banner is enabled, cookies and third-party service categories are pre-ticked from your existing consent configuration.
+The wizard pre-fills your site name and contact email from your General and Email settings.
 
-**Output** - a single draft `InfoPage` with `bodyFormat: builder`, containing one RichTextBlock with the full policy. The page is always saved as a draft; you must review and publish it manually.
+**Output:** A single draft page with the full policy. The page is always saved as a draft - review it and publish it manually when ready.
 
-**Legal disclaimer** - the generated policy is a starting point only and does not constitute legal advice. A prominent disclaimer appears at the top of the wizard and is embedded as the first block of the generated document. Review the output with a qualified legal professional before publishing.
+**Important:** The generated policy is a starting point only and is not legal advice. A notice to this effect appears throughout the wizard and at the top of the generated document. Have a qualified legal professional review it before publishing.
 
-**Re-running the wizard** always creates a new draft page (slug-suffixed if `privacy-policy` is already taken). The existing linked page is never overwritten. If a privacy policy page is already linked when you finish, the wizard asks whether you want to update the link to the new page or keep the existing one.
+Running the wizard again always creates a new draft - it never overwrites the existing page. If a privacy policy is already linked, the wizard asks whether to update the link to the new draft or keep the existing one.
 
 ### Cookie consent banner
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Enable cookie consent banner | Master toggle. When off the banner never appears and no consent records are logged. | Off |
-| Banner style | `bottom-bar` renders a strip at the foot of the viewport; `modal` renders a centred overlay with a backdrop. | `bottom-bar` |
-| Banner title | Heading text shown to the visitor. | `Cookie preferences` |
-| Banner body text | Explanatory copy. Use `{privacyPolicy}` to insert a hyperlink to the configured privacy policy page. | — |
-| Accept all label | Button label for accepting all categories. | `Accept all` |
-| Reject all label | Button label for rejecting all non-necessary categories. | `Reject all` |
-| Manage label | Link/button label that opens the per-category toggle panel. | `Manage preferences` |
-| Cookie categories | Admin-editable list. Each category has a **key** (slug, stable identity), **label**, **description**, and a **default-on** toggle. The **Necessary** category is always present, always on, and cannot be removed. Categories declared by active modules (via their `cookieCategories` manifest field) are surfaced as one-click suggestions. | Necessary, Preferences, Analytics, Marketing |
-| Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again. | `365` |
-| Keep consent records for (days) | Consent log rows older than this will be purged. Blank keeps records indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
+| Enable cookie consent banner | Master toggle. When off, no banner appears and no consent is logged. | Off |
+| Banner style | `bottom-bar` - a strip at the foot of the page. `modal` - a centred overlay. | `bottom-bar` |
+| Banner title | Heading shown to visitors | `Cookie preferences` |
+| Banner body text | Explanatory text. Use `{privacyPolicy}` to insert a link to your privacy policy. | — |
+| Accept all label | Button label for accepting all categories | `Accept all` |
+| Reject all label | Button label for rejecting non-essential categories | `Reject all` |
+| Manage label | Link/button label that opens the per-category toggle panel | `Manage preferences` |
+| Cookie categories | The list of cookie categories visitors can accept or reject. The **Necessary** category is always present, always on, and cannot be removed. | Necessary, Preferences, Analytics, Marketing |
+| Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again | `365` |
+| Keep consent records for (days) | How long consent records are kept. Leave blank to keep them indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
 
-**Category versioning** - the server tracks `categoriesVersion` internally. It increments automatically whenever you add or remove a category, or change a category's `required` or `defaultOn` flag. A returning visitor whose stored version is older than the current version will be re-prompted. Purely cosmetic changes (renaming a category's label, editing copy) increment `copyVersion` instead and do not trigger re-consent.
+**Category changes:** Adding or removing a category, or changing whether a category is required or on by default, automatically triggers re-consent for returning visitors. Purely cosmetic changes (renaming a label, editing copy) do not.
 
-**Consent log** - every visitor decision (accept all, reject all, custom, withdraw) is written to the `ConsentRecord` table. Anonymous visitors are identified by a first-party `cactus-consent-id` UUID cookie. When a visitor is authenticated their `userId` is linked at write time. On account deletion, `userId` is nulled on the visitor's records (the rows themselves survive as proof-of-consent). Records are included in the self-service data export (GDPR Art. 20).
-
-**Programmatic access** - after a visitor makes their choice, `window.__cactusConsent` is populated with the per-category decision and `window.cactusConsent.open()` re-opens the preferences panel. Use the `CookieSettingsLink` Puck block in your footer to give visitors a persistent entry point.
-
-## Integrations tab
-
-Shows the configuration status of:
-- GitHub API token (for module/theme installs)
-- Vercel API token and project ID (required for Edge Config writes, deployment status checks, and writing `DATABASE_URL` during automatic database provisioning)
-- Neon API key (for automatic database provisioning during setup only - not shown after setup is complete)
-
-These are read from environment variables. Values are never shown.
-
-### Environment variables reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL pooled connection string. Provisioned automatically if `NEON_API_KEY` is set. |
-| `SESSION_SECRET` | Yes | Min 32 random characters for signing session tokens. |
-| `SITE_URL` | Yes | Canonical public domain. WebAuthn relying party ID - immutable after first passkey. |
-| `VERCEL_API_TOKEN` | Yes | Vercel REST API token. Create at Vercel → Account Settings → Tokens. |
-| `VERCEL_PROJECT_ID` | Yes | Vercel project ID. Find at Vercel → your project → Settings → General. |
-| `NEON_API_KEY` | No | Neon API key for one-click DB provisioning during setup. Leave unset if supplying own `DATABASE_URL`. |
-| `BREVO_API_KEY` | No | Brevo email API key (gates email login, verification, recovery, and adding/changing a password in Account settings). |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | No | SMTP fallback for email (alternative to Brevo). |
-| `CLOUDFLARE_WORKER_URL` / `CLOUDFLARE_WORKER_HOSTNAME` | No | Shared Cloudflare Worker URL for all proxied media providers. |
-| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 - object storage. |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 - object storage. |
-| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 - object storage. |
-| `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | No | DigitalOcean Spaces - object storage. |
-| `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | No | Wasabi - object storage. |
-| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | No | MinIO - self-hosted object storage. |
-| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob - managed object storage. |
-| `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage - object storage. Use the service role key, not the anon key. |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary - direct image CDN (no Worker involvement). |
-| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit - direct image CDN (no Worker involvement). |
-| `GITHUB_API_TOKEN` | No | GitHub personal access token (needs `repo` scope). Legacy fallback - prefer connecting a GitHub App via Config → Integrations. |
-| `ENCRYPTION_KEY` | No | 64-character hex string (32 bytes) for encrypting GitHub App credentials in the database. Required for the GitHub App connect flow. Generate with `openssl rand -hex 32`. The format is validated before GitHub redirects begin - connecting will fail immediately with a clear error if the value is wrong. Must not change once an App is connected (re-encryption would be required). |
-| `EDGE_CONFIG` | No | Vercel Edge Config read connection string for fast path lookups. |
-| `VERCEL_EDGE_CONFIG_ID` | No | Edge Config ID for writes via Vercel REST API. |
-| `VERCEL_WEBHOOK_SECRET` | No | Webhook secret for automatic deployment status updates (Pro/Enterprise only). |
-| `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile bot protection. |
-| `SENTRY_DSN` | No | Sentry error reporting DSN. |
+**Cookie settings link:** To give visitors a persistent way to change their preferences, add a **Cookie settings link** block to your footer. See [Appearance and design](Appearance-and-design).
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+## Integrations tab
+
+Shows the connection status of:
+
+- **GitHub** - needed to install and update modules and themes, and to apply Cactus core updates.
+- **Vercel** - needed to save settings that require a redeploy and to check deployment status.
+- **Neon** - only shown during initial setup. Used for automatic database provisioning.
+
+Credentials are read from environment variables. Their values are never displayed here.
+
+### Environment variables reference
+
+This table lists every environment variable Cactus recognises. Variables marked **Required** block setup or core features if absent. Everything else is optional and only affects the feature it describes.
+
+| Variable | Required | What it's for |
+|----------|----------|----------------|
+| `DATABASE_URL` | Yes | Connection string for your PostgreSQL database. Provisioned automatically if `NEON_API_KEY` is set. |
+| `SESSION_SECRET` | Yes | A secret key (at least 32 random characters) used to secure sign-in sessions. |
+| `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. |
+| `VERCEL_API_TOKEN` | Yes | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
+| `VERCEL_PROJECT_ID` | Yes | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
+| `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
+| `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |
+| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | No | Your Cloudflare Worker's URL. Required for all proxied media providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase). |
+| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 credentials. |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 credentials. |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 credentials. |
+| `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | No | DigitalOcean Spaces credentials. |
+| `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | No | Wasabi credentials. |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | No | MinIO credentials. |
+| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob token. |
+| `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage credentials. Use the service role key, not the anon key. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary credentials. |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit credentials. |
+| `GITHUB_API_TOKEN` | No | GitHub personal access token (`repo` scope). Used for module and theme installs when a GitHub App is not connected. |
+| `ENCRYPTION_KEY` | No | 64-character hex key for encrypting GitHub App credentials. Required to connect a GitHub App. Generate with `openssl rand -hex 32`. Must not change after a GitHub App is connected. |
+| `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | No | Vercel Edge Config credentials. Used for faster admin-path and site-status lookups. |
+| `VERCEL_WEBHOOK_SECRET` | No | Enables automatic deployment status updates. Requires a Vercel Pro or Enterprise plan. |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile credentials. Adds bot protection to public-facing forms. |
+| `SENTRY_DSN` | No | Sentry error-reporting address. |
+| `CACTUS_CORE_REPO` | No | Override the upstream repository the Updates panel checks. Set this if you maintain a fork of Cactus Foundation. |
+
+---
+
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

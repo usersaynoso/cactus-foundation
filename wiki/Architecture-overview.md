@@ -1,5 +1,7 @@
 # Architecture overview
 
+> This page is a technical reference for developers building on or contributing to Cactus Foundation. If you're looking to manage your site day-to-day, see the [site owner guides](Home) instead.
+
 ## Request flow
 
 ```
@@ -657,4 +659,4 @@ Cactus can only gate scripts it injects itself. Third-party snippets pasted dire
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)

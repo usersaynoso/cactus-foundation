@@ -4,21 +4,35 @@
 
 # Cactus Foundation
 
-Cactus is a minimal, extensible, fast website platform built on Next.js 16, PostgreSQL, and Prisma. It ships with everything you need to run a content site — authentication, site configuration, roles and permissions, info pages with a visual page builder, navigation menus, user administration, a fully visual Appearance system, and a module registry — and nothing you don't.
+Cactus Foundation is a website platform. It gives you a fast, flexible website with pages, navigation, user accounts, a visual design system, and a growing library of add-ons (modules) - and nothing you don't need.
 
-## Philosophy: core plus modules
+Everything visitors see is built and customised through an admin area that only you can access. Managing your site day-to-day requires no coding.
 
-The Cactus core is deliberately narrow. Forums, articles, comments, e-commerce — these are separate **modules** added as git submodules. The core's job is to be a solid foundation that gets out of the way. A module adds its own database tables (namespaced so they never collide with core or each other), its own admin pages, its own permissions, and optionally its own public routes.
+---
 
-Every visual aspect of the frontend is user-configurable through the **Appearance** system: the header and footer are each a Puck visual editor, **Design Tokens** control colours/fonts/spacing as CSS variables, and **Layouts** define reusable page body structures. No hardcoded frontend design exists in the codebase.
+## For site owners
 
-## Wiki map
+If you manage a Cactus site and want to know how to use it, start here:
 
-| Page | Contents |
-|------|----------|
+| Page | What's in it |
+|------|--------------|
+| [Getting started](Getting-started) | Setting up a brand-new Cactus site |
+| [Managing pages](Managing-pages) | Creating, editing, and publishing pages; the drag-and-drop page builder; available blocks |
+| [Appearance and design](Appearance-and-design) | Colours, fonts, layouts, header, footer, and starter templates |
+| [Managing media](Managing-media) | Uploading and organising images and files |
+| [Managing users](Managing-users) | User accounts, roles, and permissions |
+| [Modules](Modules) | Installing and managing add-ons |
+| [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
+
+## For developers
+
+If you're setting up a new install, building modules or themes, or need to understand the internals:
+
+| Page | What's in it |
+|------|--------------|
 | [Getting started](Getting-started) | Prerequisites, cloning, environment variables, first deploy, setup wizard |
-| [Running locally](Running-locally) | Local-development mode: `VERCEL !== '1'` detection, `.env.local` config, and which admin features are degraded |
-| [Configuration reference](Configuration-reference) | Every config-page tab and field |
-| [Architecture overview](Architecture-overview) | Request flow, auth, sessions, media pipeline, Appearance system, module system |
-| [Authoring a module](Authoring-a-module) | Complete guide to building and shipping a Cactus module |
-| [Self-hosting and operations](Self-hosting-and-operations) | Backups, stale-row cleanup, monitoring, recovery procedures |
+| [Running locally](Running-locally) | Running Cactus on your own machine for development |
+| [Architecture overview](Architecture-overview) | Request flow, auth, sessions, media pipeline, module system, page builder internals |
+| [Authoring a module](Authoring-a-module) | Building and publishing a Cactus module from scratch |
+| [Authoring a theme](Authoring-a-theme) | Building and publishing a Cactus theme from scratch |
+| [Self-hosting and operations](Self-hosting-and-operations) | Backups, monitoring, recovery procedures, Cloudflare Worker setup |

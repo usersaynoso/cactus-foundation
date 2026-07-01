@@ -1,5 +1,15 @@
 # Getting started
 
+Cactus Foundation is deployed to [Vercel](https://vercel.com) - a hosting platform that handles the technical side for you. If someone is setting up Cactus on your behalf, point them to the technical sections below. If you're setting it up yourself and comfortable with a terminal, read on.
+
+Once your site is up and running, you don't need any of the information on this page for day-to-day use. Head to [Managing pages](Managing-pages), [Appearance and design](Appearance-and-design), or the [Configuration reference](Configuration-reference) instead.
+
+---
+
+## Technical setup
+
+> The rest of this page is for developers and technical users setting up a new Cactus install.
+
 ## Prerequisites
 
 - Node.js ≥ 22
@@ -155,4 +165,4 @@ The site defaults to `comingSoon` status. To go live:
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Architecture overview](Architecture-overview) · [Configuration reference](Configuration-reference) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

@@ -1,5 +1,7 @@
 # Running locally (local-development mode)
 
+> This page is for developers running Cactus on their own machine. If you're managing a live site, see the [site owner guides](Home) instead.
+
 Cactus is built to run on Vercel, but it also runs cleanly on your own machine for
 local development. When it detects that it is not on Vercel, it switches into
 **local-development mode**: it skips the Vercel control plane entirely and reads its
@@ -76,3 +78,7 @@ permissions, passkeys - works exactly as it does on Vercel.
 Local mode is a development convenience. It does not write `.env.local` at runtime,
 does not rebuild on update, and is not intended as a production self-hosting setup.
 For production, deploy to Vercel and use the standard setup flow.
+
+---
+
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)
