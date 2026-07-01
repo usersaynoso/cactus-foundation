@@ -51,6 +51,9 @@ const SECURITY_HEADERS: [string, string][] = [
 ]
 
 function withSecurity(res: NextResponse): NextResponse {
+  // Security headers serve no purpose on localhost and actively break Turbopack
+  // HMR (blob: workers), source maps, and DevTools in development.
+  if (process.env.NODE_ENV === 'development') return res
   for (const [name, value] of SECURITY_HEADERS) {
     res.headers.set(name, value)
   }
@@ -104,7 +107,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   // ── Always-pass paths ──────────────────────────────────────────────────────
   if (ALWAYS_PASS.some((p) => pathname.startsWith(p))) {
-    return withSecurity(NextResponse.next())
+    const res = NextResponse.next()
+    // Turbopack loads chunks with crossorigin="anonymous" for accurate error
+    // stacks. Without this header the browser blocks them as a CORS failure.
+    if (pathname.startsWith('/_next/')) {
+      res.headers.set('Access-Control-Allow-Origin', '*')
+    }
+    return withSecurity(res)
   }
 
   // ── Block direct access to the internal admin prefix ──────────────────────
@@ -248,5 +257,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|.*\\.(?:ico|png|jpg|jpeg|svg|webp|gif|woff|woff2|ttf|eot|css|js)).*)',
+    // Run for _next/static too — Turbopack needs CORS headers on chunks/maps
+    '/_next/static/:path*',
   ],
 }
