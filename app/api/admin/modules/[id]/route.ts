@@ -83,7 +83,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
     if (lock) return errorResponse('Another install or update is in progress', 409)
 
-    const release = await getLatestRelease(mod.repoUrl)
+    const channelCfg = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { moduleUpdateChannel: true },
+    })
+    const updateChannel = (channelCfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
+    const release = await getLatestRelease(mod.repoUrl, updateChannel)
     if (!release) return errorResponse('No tagged releases found', 404)
 
     await prisma.deployLock.create({
@@ -256,7 +261,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
-  const release = await getLatestRelease(mod.repoUrl)
+  const channelCfg = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { moduleUpdateChannel: true },
+  })
+  const checkChannel = (channelCfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
+  const release = await getLatestRelease(mod.repoUrl, checkChannel)
   if (!release || release.tag === mod.version) {
     await prisma.module.update({
       where: { id },

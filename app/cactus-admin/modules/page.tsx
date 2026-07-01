@@ -68,6 +68,8 @@ export default function ModulesPage() {
   // Local-development mode: module updates need git push + Vercel redeploy, so the
   // per-module Update button is hidden in favour of a short note.
   const [localMode, setLocalMode] = useState(false)
+  const [moduleUpdateChannel, setModuleUpdateChannel] = useState<'public' | 'beta'>('public')
+  const [channelSaving, setChannelSaving] = useState(false)
 
   const loadDirectory = useCallback(async (refresh = false) => {
     try {
@@ -80,6 +82,7 @@ export default function ModulesPage() {
       setEntries(modules)
       setDirectoryUnavailable(d.directoryUnavailable === true)
       setLocalMode(d.localMode === true)
+      setModuleUpdateChannel(d.moduleUpdateChannel ?? 'public')
       if (ghRes.ok) {
         const gh = await ghRes.json()
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
@@ -139,6 +142,22 @@ export default function ModulesPage() {
     setRefreshing(true)
     setError('')
     await loadDirectory(true)
+  }
+
+  async function handleChannelChange(newChannel: 'public' | 'beta') {
+    if (newChannel === moduleUpdateChannel || channelSaving) return
+    setChannelSaving(true)
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moduleUpdateChannel: newChannel }),
+      })
+      if (!res.ok) return
+      setModuleUpdateChannel(newChannel)
+    } finally {
+      setChannelSaving(false)
+    }
   }
 
   function setLoaderFor(key: string, val: boolean) {
@@ -260,6 +279,34 @@ export default function ModulesPage() {
           <a href="../config?tab=integrations">Go to Settings &rarr; Integrations</a> and click &ldquo;Install app on repository&rdquo;.
         </div>
       )}
+
+      {/* Update channel selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginRight: '0.25rem' }}>
+          Update channel:
+        </span>
+        <button
+          type="button"
+          className={moduleUpdateChannel === 'public' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ fontSize: '0.8125rem' }}
+          disabled={channelSaving}
+          onClick={() => handleChannelChange('public')}
+        >
+          Public
+        </button>
+        <button
+          type="button"
+          className={moduleUpdateChannel === 'beta' ? 'btn btn-primary' : 'btn btn-secondary'}
+          style={{ fontSize: '0.8125rem' }}
+          disabled={channelSaving}
+          onClick={() => handleChannelChange('beta')}
+        >
+          Beta
+        </button>
+        {channelSaving && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Saving&hellip;</span>
+        )}
+      </div>
 
       {/* Installed modules */}
       <section style={{ marginBottom: '2.5rem' }}>

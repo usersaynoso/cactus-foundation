@@ -148,7 +148,8 @@ CREATE TABLE "SiteConfig" (
     "pendingRedeployAt" TIMESTAMP(3),
     "designTokens" JSONB,
     "consentBannerConfig" JSONB,
-    "coreUpdateChannel"   TEXT NOT NULL DEFAULT 'public',
+    "coreUpdateChannel"     TEXT NOT NULL DEFAULT 'public',
+    "moduleUpdateChannel"   TEXT NOT NULL DEFAULT 'public',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")

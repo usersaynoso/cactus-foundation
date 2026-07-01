@@ -192,6 +192,7 @@ model SiteConfig {
   consentBannerConfig    Json?
   // 'public' = stable releases only; 'beta' = pre-releases included
   coreUpdateChannel      String     @default("public")
+  moduleUpdateChannel    String     @default("public")
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }

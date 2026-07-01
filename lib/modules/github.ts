@@ -14,25 +14,44 @@ function getMainRepo(): { owner: string; repo: string } {
   return { owner, repo }
 }
 
+async function resolveTagToCommit(
+  octokit: Awaited<ReturnType<typeof getGithubClient>>,
+  owner: string,
+  repo: string,
+  tagName: string,
+): Promise<string> {
+  const tagRef = await octokit.rest.git.getRef({ owner, repo, ref: `tags/${tagName}` })
+  const tagSha = tagRef.data.object.sha
+  if (tagRef.data.object.type === 'tag') {
+    const tag = await octokit.rest.git.getTag({ owner, repo, tag_sha: tagSha })
+    return tag.data.object.sha
+  }
+  return tagSha
+}
+
 export async function getLatestRelease(
-  repoUrl: string
+  repoUrl: string,
+  channel: 'public' | 'beta' = 'public',
 ): Promise<{ tag: string; sha: string; body: string | null } | null> {
   const octokit = await getGithubClient()
   const { owner, repo } = parseGitHubRepo(repoUrl)
 
   try {
-    const { data } = await octokit.rest.repos.getLatestRelease({ owner, repo })
-    const tagRef = await octokit.rest.git.getRef({
-      owner,
-      repo,
-      ref: `tags/${data.tag_name}`,
-    })
-    const tagSha = tagRef.data.object.sha
-    let commitSha = tagSha
-    if (tagRef.data.object.type === 'tag') {
-      const tag = await octokit.rest.git.getTag({ owner, repo, tag_sha: tagSha })
-      commitSha = tag.data.object.sha
+    if (channel === 'beta') {
+      // Fetch all non-draft releases and pick the newest by tag (pre-releases included)
+      const { data: releases } = await octokit.rest.repos.listReleases({ owner, repo, per_page: 100 })
+      const candidates = releases.filter((r) => !r.draft)
+      if (candidates.length === 0) return null
+      // Sort descending by published date to pick the most recently published
+      candidates.sort((a, b) => new Date(b.published_at ?? 0).getTime() - new Date(a.published_at ?? 0).getTime())
+      const latest = candidates[0]!
+      const commitSha = await resolveTagToCommit(octokit, owner, repo, latest.tag_name)
+      return { tag: latest.tag_name, sha: commitSha, body: latest.body ?? null }
     }
+
+    // Public channel: use the GitHub "latest release" API (stable only, no pre-releases)
+    const { data } = await octokit.rest.repos.getLatestRelease({ owner, repo })
+    const commitSha = await resolveTagToCommit(octokit, owner, repo, data.tag_name)
     return { tag: data.tag_name, sha: commitSha, body: data.body ?? null }
   } catch (err: unknown) {
     if ((err as { status?: number }).status === 404) return null
