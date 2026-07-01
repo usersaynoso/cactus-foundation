@@ -156,20 +156,20 @@ export default function StylesPage() {
       setSaved(true); dirtyRef.current = false; return true
     } catch { setError('Save failed'); return false }
     finally { setSaving(false) }
-  }, [tokens])
+  }, [tokens, dirtyRef])
 
   const leaveNow = useCallback((href: string) => {
     dirtyRef.current = false
     setPendingHref(null)
     router.push(href)
-  }, [router])
+  }, [router, dirtyRef, setPendingHref])
 
   const saveAndLeave = useCallback(async () => {
     const href = pendingHref
     const ok = await handleSave()
     if (ok && href) { setPendingHref(null); router.push(href) }
     else setPendingHref(null) // save failed - stay put so the error toast is visible
-  }, [pendingHref, handleSave, router])
+  }, [pendingHref, handleSave, router, setPendingHref])
 
   const handleApplyPreset = useCallback((preset: ColourPreset) => {
     if (dirtyRef.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved colour changes will be replaced.`)) return
@@ -193,7 +193,7 @@ export default function StylesPage() {
     })
     dirtyRef.current = false
     setSaved(false)
-  }, [])
+  }, [dirtyRef])
 
   const setDsColours = (colours: GlobalColour[]) => {
     dirtyRef.current = true

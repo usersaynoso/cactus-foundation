@@ -519,7 +519,9 @@ The Colours tab opens with a horizontally-scrollable row of ten named presets (P
 
 ### Unsaved-changes guard
 
-A `dirty` ref flips true on any token edit and resets on save or preset apply. While dirty, leaving the page is guarded two ways: a `beforeunload` handler covers hard navigations (reload, tab close), and a capture-phase document click listener intercepts in-app admin link clicks, showing a modal offering **Save & leave**, **Discard & leave**, or **Cancel**. "Save & leave" only navigates if the save succeeds; a failed save keeps the admin on the page with the error visible.
+Shared across admin settings pages via the `useUnsavedChanges` hook and `UnsavedChangesModal` component (both in `components/admin/`). The hook owns a `dirtyRef` the page flips true on edit and resets on save. While dirty, leaving the page is guarded two ways: a `beforeunload` handler covers hard navigations (reload, tab close), and a capture-phase document click listener intercepts in-app admin link clicks, setting a `pendingHref` that renders the modal. The modal offers **Save & leave**, **Discard & leave**, and **Cancel**; "Save & leave" only navigates if the save succeeds, so a failed save keeps the admin on the page with the error visible. Pages with no single save action (e.g. Account) render the modal without an `onSave`, so only **Discard & leave** / **Cancel** show.
+
+The guard is wired into **Styles** (dirty on any token edit; also resets on preset apply), **Settings** (`/config` - dirty when the form diverges from the last-saved fingerprint, which excludes `mediaProvider` since that saves immediately on its own), and **Account** (dirty when the display name changes or any email/password field has input).
 
 ### Enum-constrained typography inputs
 
