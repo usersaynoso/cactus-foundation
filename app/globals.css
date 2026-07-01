@@ -256,6 +256,22 @@
   --admin-sidebar-bg:     #1c1a17;
   --admin-sidebar-text:   #a89f91;
   --admin-sidebar-active: var(--cactus-400);
+
+  /* Puck editor */
+  --puck-color-surface:                   #1c1a17;
+  --puck-color-surface-muted:             #252320;
+  --puck-color-surface-subtle:            #1c1a17;
+  --puck-color-border:                    #3a3630;
+  --puck-color-border-hover:              #514d44;
+  --puck-color-border-muted:              #3a3630;
+  --puck-color-text:                      #f0ede8;
+  --puck-color-text-secondary:            #a89f91;
+  --puck-color-text-muted:                #6e6657;
+  --puck-color-text-subtle:               #4a4540;
+  --puck-color-interactive-neutral-hover: #2e2b27;
+  --puck-color-interactive-soft:          #1e2b20;
+  --puck-color-interactive-soft-hover:    #232e25;
+  --puck-color-interactive-subtle:        #1a271c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -313,6 +329,22 @@
     --admin-sidebar-bg:     #1c1a17;
     --admin-sidebar-text:   #a89f91;
     --admin-sidebar-active: var(--cactus-400);
+
+    /* Puck editor */
+    --puck-color-surface:                   #1c1a17;
+    --puck-color-surface-muted:             #252320;
+    --puck-color-surface-subtle:            #1c1a17;
+    --puck-color-border:                    #3a3630;
+    --puck-color-border-hover:              #514d44;
+    --puck-color-border-muted:              #3a3630;
+    --puck-color-text:                      #f0ede8;
+    --puck-color-text-secondary:            #a89f91;
+    --puck-color-text-muted:                #6e6657;
+    --puck-color-text-subtle:               #4a4540;
+    --puck-color-interactive-neutral-hover: #2e2b27;
+    --puck-color-interactive-soft:          #1e2b20;
+    --puck-color-interactive-soft-hover:    #232e25;
+    --puck-color-interactive-subtle:        #1a271c;
   }
 }
 
