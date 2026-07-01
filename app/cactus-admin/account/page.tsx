@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
+import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 
 type SessionInfo = {
   id: string
@@ -30,6 +32,8 @@ type ProfileInfo = {
 
 export default function AccountPage() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
   const adminBase = pathname.replace(/\/account$/, '')
 
   const [sessions, setSessions] = useState<SessionInfo[]>([])
@@ -94,6 +98,20 @@ export default function AccountPage() {
   }
 
   useEffect(() => { fetchPasskeys() }, [])
+
+  // Track unsaved input across the account forms so we can warn before leaving.
+  useEffect(() => {
+    dirtyRef.current =
+      (profile ? displayName !== (profile.displayName ?? '') : false) ||
+      newEmail.trim() !== '' || emailPassword !== '' ||
+      currentPassword !== '' || newPassword !== ''
+  }, [dirtyRef, profile, displayName, newEmail, emailPassword, currentPassword, newPassword])
+
+  function leaveNow(href: string) {
+    dirtyRef.current = false
+    setPendingHref(null)
+    router.push(href)
+  }
 
   async function handleSaveProfile() {
     setProfileLoading(true)
@@ -260,6 +278,13 @@ export default function AccountPage() {
 
       {error && <div className="alert alert-danger">{error}</div>}
       {message && <div className="alert alert-success">{message}</div>}
+
+      <UnsavedChangesModal
+        pendingHref={pendingHref}
+        message="You have unsaved changes on this page. Save them first, or they will be lost."
+        onCancel={() => setPendingHref(null)}
+        onDiscard={() => leaveNow(pendingHref!)}
+      />
 
       {/* Row 1: Profile + Email */}
       <div className="account-grid">

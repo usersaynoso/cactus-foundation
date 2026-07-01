@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
+import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
+import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
@@ -323,8 +325,20 @@ function UpdatesPanel() {
   )
 }
 
+// Fingerprint of the config the top "Save changes" button persists. Excludes
+// mediaProvider, which is saved immediately on its own and so never counts as an
+// unsaved change.
+function configFingerprint(c: Partial<SiteConfig>): string {
+  const { mediaProvider: _mediaProvider, ...rest } = c
+  return JSON.stringify(rest)
+}
+
 function ConfigPageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
+  // Baseline for unsaved-change detection: set on load and after each save.
+  const savedFingerprint = useRef<string | null>(null)
   const initialTab = TABS.includes(searchParams.get('tab') as Tab) ? (searchParams.get('tab') as Tab) : 'general'
   const [tab, setTab] = useState<Tab>(initialTab)
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
@@ -463,6 +477,7 @@ function ConfigPageInner() {
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
     ]).then(([cfg, pagesData, envData, menusData]) => {
       setConfig(cfg)
+      savedFingerprint.current = configFingerprint(cfg)
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
@@ -475,7 +490,13 @@ function ConfigPageInner() {
     }).catch(() => { setError('Failed to load config'); setLoading(false) })
   }, [])
 
-  async function handleSave() {
+  // Flag unsaved changes whenever the form diverges from the last saved baseline.
+  useEffect(() => {
+    if (savedFingerprint.current === null) return
+    dirtyRef.current = configFingerprint(config) !== savedFingerprint.current
+  }, [config, dirtyRef])
+
+  async function handleSave(): Promise<boolean> {
     setSaving(true)
     setError('')
     setSaved(false)
@@ -487,13 +508,30 @@ function ConfigPageInner() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Save failed')
+      savedFingerprint.current = configFingerprint(config)
+      dirtyRef.current = false
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      return true
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed')
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  function leaveNow(href: string) {
+    dirtyRef.current = false
+    setPendingHref(null)
+    router.push(href)
+  }
+
+  async function saveAndLeave() {
+    const href = pendingHref
+    const ok = await handleSave()
+    if (ok && href) { setPendingHref(null); router.push(href) }
+    else setPendingHref(null) // save failed - stay put so the error is visible
   }
 
   async function handleSaveEnv(sectionId: string, keys: string[]) {
@@ -634,7 +672,9 @@ function ConfigPageInner() {
     })
     const d = (await res.json()) as { ok?: boolean; breakdown?: Record<string, number>; error?: string }
     if (!res.ok) throw new Error(d.error ?? 'Failed to save provider')
-    set('mediaProvider', provider)
+    // Persisted immediately by this call, so update state without flagging the
+    // main form dirty.
+    setConfig((prev) => ({ ...prev, mediaProvider: provider }))
     return d.breakdown ?? {}
   }
 
@@ -907,6 +947,15 @@ function ConfigPageInner() {
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
+
+      <UnsavedChangesModal
+        pendingHref={pendingHref}
+        saving={saving}
+        message="You have unsaved changes. Would you like to save them before leaving?"
+        onCancel={() => setPendingHref(null)}
+        onDiscard={() => leaveNow(pendingHref!)}
+        onSave={saveAndLeave}
+      />
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--color-border)', marginBottom: '2rem', overflowX: 'auto' }}>
