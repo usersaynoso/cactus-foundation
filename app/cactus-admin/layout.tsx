@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
+import { buildAdminThemeStyles } from '@/lib/design/tokens'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -33,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const [config, activeModules, unreadCount, openNotification] = await Promise.all([
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true } }),
+    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true } }),
     prisma.module.findMany({ where: { status: 'active' }, select: { manifest: true } }),
     getUnreadCount(),
     prisma.notification.findFirst({
@@ -54,17 +55,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     }
   }
 
+  // White-label the admin chrome to the site's primary colour. Only the
+  // --color-primary family is injected (see buildAdminThemeStyles) so admin
+  // spacing, radii and typography stay on the Cactus design system.
+  const adminThemeStyles = buildAdminThemeStyles(config?.designTokens)
+
   return (
-    <AdminShell
-      adminPath={adminPath}
-      userRole={user.role}
-      siteName={config?.siteName ?? 'Cactus Foundation'}
-      version={pkg.version}
-      moduleNavEntries={moduleNavEntries}
-      unreadCount={unreadCount}
-      pendingDeployId={openNotification?.id}
-    >
-      {children}
-    </AdminShell>
+    <>
+      {adminThemeStyles && <style dangerouslySetInnerHTML={{ __html: adminThemeStyles }} />}
+      <AdminShell
+        adminPath={adminPath}
+        userRole={user.role}
+        siteName={config?.siteName ?? 'Cactus Foundation'}
+        version={pkg.version}
+        moduleNavEntries={moduleNavEntries}
+        unreadCount={unreadCount}
+        pendingDeployId={openNotification?.id}
+      >
+        {children}
+      </AdminShell>
+    </>
   )
 }

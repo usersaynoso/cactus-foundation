@@ -570,6 +570,7 @@ Weight, transform, style, and text-decoration are dropdowns (not free text). If 
 - `app/(public)/layout.tsx` - emits `<link rel="stylesheet">` for Google Fonts and `<style>` with token CSS for every public page.
 - `app/layout-preview/[id]/page.tsx` - same injection, so the standalone layout preview matches the live site.
 - `app/cactus-admin/layouts/[id]/LayoutPuckEditor.tsx` - injects token styles into `document.head` via `useEffect` so the inline Puck canvas reflects the current theme (best-effort; Puck renders inline, not in an iframe).
+- `app/cactus-admin/layout.tsx` - injects `buildAdminThemeStyles(designTokens)` so the admin chrome (sidebar active state, buttons, badges, focus accents) white-labels to the site's primary colour. This is a **narrow** subset - only the `--color-primary` family - so the admin keeps its own spacing, radii, shadows and Instrument Sans typeface. Injecting the full `buildTokenStyles` here would be wrong: its fixed `--radius-*`/`--sp-*`/`--shadow-*` block and scoped `main …` rules would clash with the admin design system. The login and setup screens are outside this layout and stay on the base Cactus palette.
 
 ### Colour palette in Puck blocks
 

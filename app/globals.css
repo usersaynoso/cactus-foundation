@@ -137,7 +137,8 @@
   /* Borders */
   --color-border:         var(--sand-200);
   --color-border-strong:  var(--sand-300);
-  --color-border-focus:   var(--cactus-400);
+  --color-border-focus:   var(--color-primary);
+  --color-primary-glow:   rgba(69, 149, 120, 0.2);
 
   /* Text */
   --color-text:           var(--sand-900);
@@ -945,7 +946,7 @@ a:hover {
 .field textarea:focus {
   outline: none;
   border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 3px rgba(69, 149, 120, 0.2);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 .field input:disabled,
 .field select:disabled,
@@ -1188,7 +1189,7 @@ tbody tr:hover {
 }
 .badge-primary {
   background: var(--color-primary-subtle);
-  color: var(--cactus-700);
+  color: var(--color-primary-dark);
   border: 1px solid var(--color-primary-border);
 }
 .badge-success,
@@ -1211,10 +1212,6 @@ tbody tr:hover {
 .badge-blue {
   background: var(--color-info-bg);
   color: var(--color-info);
-}
-
-[data-theme="dark"] .badge-primary {
-  color: var(--cactus-300);
 }
 
 /* ============================================================

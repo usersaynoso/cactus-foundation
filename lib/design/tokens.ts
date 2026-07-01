@@ -211,7 +211,8 @@ function onColour(hex: string): string {
 // mode lightens. Falls back to just --color-primary if the value isn't hex.
 function primaryVars(hex: string, mode: 'light' | 'dark'): string {
   const parts = [`--color-primary: ${hex};`]
-  if (!parseHex(hex)) return parts.join(' ')
+  const rgb = parseHex(hex)
+  if (!rgb) return parts.join(' ')
   if (mode === 'light') {
     parts.push(`--color-primary-hover: ${darken(hex, 0.12)};`)
     parts.push(`--color-primary-active: ${darken(hex, 0.22)};`)
@@ -226,6 +227,8 @@ function primaryVars(hex: string, mode: 'light' | 'dark'): string {
     parts.push(`--color-primary-border: ${darken(hex, 0.5)};`)
   }
   parts.push(`--color-on-primary: ${onColour(hex)};`)
+  // Translucent primary, used for input focus rings.
+  parts.push(`--color-primary-glow: rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2);`)
   return parts.join(' ')
 }
 
