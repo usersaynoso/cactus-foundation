@@ -1,3 +1,9 @@
 {
-  "modules": []
+  "modules": [
+    {
+      "name": "contact-form",
+      "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
+      "version": "v0.1.18"
+    }
+  ]
 }
