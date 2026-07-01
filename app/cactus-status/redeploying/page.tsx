@@ -15,7 +15,7 @@ export default function RedeployingPage() {
   useEffect(() => {
     let mounted = true
     let autoExitTimer: ReturnType<typeof setTimeout> | undefined
-    const escapeTimer = setTimeout(() => { if (mounted) setShowEscape(true) }, 120_000)
+    const escapeTimer = setTimeout(() => { if (mounted) setShowEscape(true) }, 150_000)
 
     async function init() {
       try {
