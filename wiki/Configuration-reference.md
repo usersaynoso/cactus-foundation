@@ -10,6 +10,8 @@ The configuration page lives at `/<your-admin-path>/config`. All settings are sa
 
 At the top of the General tab, Cactus checks whether a newer version is available. The check runs against the upstream Cactus Foundation repository and is cached for 10 minutes.
 
+The panel shows "Checking for updates..." while a check is in flight, and only auto-checks once per visit - reloading the page or navigating back within 10 seconds reuses the last known result instead of checking again. A **Refresh** button forces an immediate re-check at any time, bypassing both the 10-second client-side window and the server's 10-minute cache.
+
 **Update channel** - choose which releases to consider:
 
 - **Public** (default) - stable releases only.

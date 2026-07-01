@@ -159,25 +159,53 @@ type UpdatesApiResponse = {
   coreUpdateChannel: 'public' | 'beta'
 }
 
+const UPDATE_CHECK_CACHE_KEY = 'cactus-core-update-check'
+const UPDATE_CHECK_THROTTLE_MS = 10_000
+
+type UpdateCheckCache = { at: number; data: UpdatesApiResponse }
+
 function UpdatesPanel() {
   const [status, setStatus] = useState<CoreUpdateStatus | null>(null)
   const [channel, setChannel] = useState<'public' | 'beta'>('public')
   const [channelSaving, setChannelSaving] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updateError, setUpdateError] = useState('')
 
+  async function runCheck(bust = false) {
+    setChecking(true)
+    try {
+      const res = await fetch(`/api/admin/updates${bust ? '?bust=true' : ''}`)
+      if (!res.ok) return
+      const d = (await res.json()) as UpdatesApiResponse
+      setStatus(d.status)
+      setChannel(d.coreUpdateChannel ?? 'public')
+      sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify({ at: Date.now(), data: d } satisfies UpdateCheckCache))
+    } catch {
+      // ignore
+    } finally {
+      setChecking(false)
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/admin/updates')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: UpdatesApiResponse | null) => {
-        if (d) {
-          setStatus(d.status)
-          setChannel(d.coreUpdateChannel ?? 'public')
+    const cached = sessionStorage.getItem(UPDATE_CHECK_CACHE_KEY)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as UpdateCheckCache
+        if (Date.now() - parsed.at < UPDATE_CHECK_THROTTLE_MS) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from sessionStorage cache read; must happen on mount
+          setStatus(parsed.data.status)
+          setChannel(parsed.data.coreUpdateChannel ?? 'public')
+          return
         }
-      })
-      .catch(() => {})
+      } catch {
+        // ignore malformed cache
+      }
+    }
+    runCheck()
   }, [])
 
   async function handleChannelChange(newChannel: 'public' | 'beta') {
@@ -191,9 +219,7 @@ function UpdatesPanel() {
       })
       if (!res.ok) return
       setChannel(newChannel)
-      const updated = await fetch('/api/admin/updates?bust=true')
-        .then((r) => (r.ok ? r.json() : null))
-      if (updated) setStatus((updated as UpdatesApiResponse).status)
+      await runCheck(true)
     } finally {
       setChannelSaving(false)
     }
@@ -217,7 +243,30 @@ function UpdatesPanel() {
     }
   }
 
+  if (checking && !status) {
+    return (
+      <div style={{ marginBottom: '1.5rem' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Checking for updates&hellip;</p>
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0 0' }} />
+      </div>
+    )
+  }
+
   if (!status) return null
+
+  const refreshRow = !('localMode' in status) && (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        style={{ fontSize: '0.8125rem' }}
+        disabled={checking}
+        onClick={() => runCheck(true)}
+      >
+        {checking ? 'Checking…' : 'Refresh'}
+      </button>
+    </div>
+  )
 
   if ('localMode' in status) {
     return (
@@ -235,6 +284,7 @@ function UpdatesPanel() {
   if (!status.configured) {
     return (
       <div style={{ marginBottom: '1.5rem' }}>
+        {refreshRow}
         <div className="alert alert-info" style={{ fontSize: '0.875rem' }}>
           Automatic updates require GitHub to be configured. Connect a GitHub App or set{' '}
           <code>GITHUB_API_TOKEN</code> in{' '}

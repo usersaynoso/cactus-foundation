@@ -23,7 +23,10 @@ type DirectoryEntry = {
   updateNotes?: string | null
   lastError?: string | null
   hasTeardown?: boolean
+  updateChannel?: 'public' | 'beta'
 }
+
+const MODULE_UPDATE_CHECK_THROTTLE_MS = 10_000
 
 type UninstallModal = {
   id: string
@@ -68,8 +71,36 @@ export default function ModulesPage() {
   // Local-development mode: module updates need git push + Vercel redeploy, so the
   // per-module Update button is hidden in favour of a short note.
   const [localMode, setLocalMode] = useState(false)
-  const [moduleUpdateChannel, setModuleUpdateChannel] = useState<'public' | 'beta'>('public')
-  const [channelSaving, setChannelSaving] = useState(false)
+  const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
+  const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
+
+  const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
+    const sessionKey = `cactus-module-update-check-${installedId}`
+    if (!force) {
+      const lastChecked = Number(sessionStorage.getItem(sessionKey))
+      if (!Number.isNaN(lastChecked) && Date.now() - lastChecked < MODULE_UPDATE_CHECK_THROTTLE_MS) return
+    }
+    setCheckingModules((prev) => ({ ...prev, [installedId]: true }))
+    try {
+      const res = await fetch(`/api/admin/modules/${installedId}`)
+      if (!res.ok) return
+      const data = await res.json() as { updateAvailable?: string | null; notes?: string | null }
+      if (data.updateAvailable) {
+        setEntries((prev) =>
+          prev.map((e) =>
+            e.installedId === installedId
+              ? { ...e, updateAvailable: data.updateAvailable, updateNotes: data.notes, status: 'update_available' as const }
+              : e
+          )
+        )
+      }
+      sessionStorage.setItem(sessionKey, String(Date.now()))
+    } catch {
+      // ignore per-module check failures
+    } finally {
+      setCheckingModules((prev) => ({ ...prev, [installedId]: false }))
+    }
+  }, [])
 
   const loadDirectory = useCallback(async (refresh = false) => {
     try {
@@ -82,19 +113,19 @@ export default function ModulesPage() {
       setEntries(modules)
       setDirectoryUnavailable(d.directoryUnavailable === true)
       setLocalMode(d.localMode === true)
-      setModuleUpdateChannel(d.moduleUpdateChannel ?? 'public')
       if (ghRes.ok) {
         const gh = await ghRes.json()
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
       }
       // For each installed module: reconcile stale 'deploying' status (Hobby-plan fallback
-      // for when the redeploying screen was closed mid-build), otherwise check for updates.
+      // for when the redeploying screen was closed mid-build), otherwise check for updates
+      // (respecting the per-module throttle unless this was a deliberate refresh).
       const installedModules = modules.filter((m) => m.installed && m.installedId)
       if (installedModules.length > 0) {
         Promise.all(
           installedModules.map(async (m) => {
-            try {
-              if (m.status === 'deploying') {
+            if (m.status === 'deploying') {
+              try {
                 const res = await fetch(`/api/admin/modules/${m.installedId}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
@@ -109,21 +140,10 @@ export default function ModulesPage() {
                     )
                   )
                 }
-                return
-              }
-              const res = await fetch(`/api/admin/modules/${m.installedId}`)
-              if (!res.ok) return
-              const data = await res.json() as { updateAvailable?: string | null; notes?: string | null }
-              if (data.updateAvailable) {
-                setEntries((prev) =>
-                  prev.map((e) =>
-                    e.installedId === m.installedId
-                      ? { ...e, updateAvailable: data.updateAvailable, updateNotes: data.notes, status: 'update_available' as const }
-                      : e
-                  )
-                )
-              }
-            } catch { /* ignore per-module check failures */ }
+              } catch { /* ignore per-module check failures */ }
+              return
+            }
+            await checkModuleUpdate(m.installedId as string, refresh)
           })
         )
       }
@@ -133,7 +153,7 @@ export default function ModulesPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [checkModuleUpdate])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async directory load on mount; all state updates are after awaits
   useEffect(() => { loadDirectory() }, [loadDirectory])
@@ -144,19 +164,24 @@ export default function ModulesPage() {
     await loadDirectory(true)
   }
 
-  async function handleChannelChange(newChannel: 'public' | 'beta') {
-    if (newChannel === moduleUpdateChannel || channelSaving) return
-    setChannelSaving(true)
+  async function handleModuleChannelChange(installedId: string, newChannel: 'public' | 'beta') {
+    const current = entries.find((e) => e.installedId === installedId)
+    if (!current || current.updateChannel === newChannel || channelSaving[installedId]) return
+    setChannelSaving((prev) => ({ ...prev, [installedId]: true }))
+    setEntries((prev) => prev.map((e) => (e.installedId === installedId ? { ...e, updateChannel: newChannel } : e)))
     try {
-      const res = await fetch('/api/admin/config', {
+      const res = await fetch(`/api/admin/modules/${installedId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moduleUpdateChannel: newChannel }),
+        body: JSON.stringify({ updateChannel: newChannel }),
       })
-      if (!res.ok) return
-      setModuleUpdateChannel(newChannel)
+      if (!res.ok) {
+        setEntries((prev) => prev.map((e) => (e.installedId === installedId ? { ...e, updateChannel: current.updateChannel } : e)))
+      }
+    } catch {
+      setEntries((prev) => prev.map((e) => (e.installedId === installedId ? { ...e, updateChannel: current.updateChannel } : e)))
     } finally {
-      setChannelSaving(false)
+      setChannelSaving((prev) => ({ ...prev, [installedId]: false }))
     }
   }
 
@@ -280,34 +305,6 @@ export default function ModulesPage() {
         </div>
       )}
 
-      {/* Update channel selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginRight: '0.25rem' }}>
-          Update channel:
-        </span>
-        <button
-          type="button"
-          className={moduleUpdateChannel === 'public' ? 'btn btn-primary' : 'btn btn-secondary'}
-          style={{ fontSize: '0.8125rem' }}
-          disabled={channelSaving}
-          onClick={() => handleChannelChange('public')}
-        >
-          Public
-        </button>
-        <button
-          type="button"
-          className={moduleUpdateChannel === 'beta' ? 'btn btn-primary' : 'btn btn-secondary'}
-          style={{ fontSize: '0.8125rem' }}
-          disabled={channelSaving}
-          onClick={() => handleChannelChange('beta')}
-        >
-          Beta
-        </button>
-        {channelSaving && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Saving&hellip;</span>
-        )}
-      </div>
-
       {/* Installed modules */}
       <section style={{ marginBottom: '2.5rem' }}>
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, marginBottom: '1rem' }}>Installed</h2>
@@ -321,6 +318,7 @@ export default function ModulesPage() {
                 <tr>
                   <th>Name</th>
                   <th>Version</th>
+                  <th>Channel</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -339,9 +337,48 @@ export default function ModulesPage() {
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
-                      {m.updateAvailable && (
-                        <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
+                      {checkingModules[m.installedId ?? ''] ? (
+                        <span style={{ marginLeft: '0.5rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                          Checking for updates&hellip;
+                        </span>
+                      ) : (
+                        m.updateAvailable && (
+                          <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{showVersion(m.updateAvailable)} available</span>
+                        )
                       )}
+                      <button
+                        type="button"
+                        title="Check for updates"
+                        aria-label="Check for updates"
+                        disabled={checkingModules[m.installedId ?? '']}
+                        onClick={() => m.installedId && checkModuleUpdate(m.installedId, true)}
+                        style={{
+                          marginLeft: '0.5rem', background: 'none', border: 'none',
+                          cursor: checkingModules[m.installedId ?? ''] ? 'default' : 'pointer',
+                          fontSize: '0.9rem', color: 'var(--color-text-muted)', verticalAlign: 'middle',
+                        }}
+                      >
+                        &#8635;
+                      </button>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button
+                        type="button"
+                        className={m.updateChannel !== 'beta' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        disabled={!m.installedId || channelSaving[m.installedId]}
+                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, 'public')}
+                      >
+                        Public
+                      </button>
+                      <button
+                        type="button"
+                        className={m.updateChannel === 'beta' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        style={{ marginLeft: '0.25rem' }}
+                        disabled={!m.installedId || channelSaving[m.installedId]}
+                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, 'beta')}
+                      >
+                        Beta
+                      </button>
                     </td>
                     <td>
                       {m.status && (

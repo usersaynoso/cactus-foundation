@@ -127,7 +127,6 @@ const Patch = z.object({
   homepageId: z.string().optional().nullable(),
   consentBannerConfig: ConsentBannerConfigPatch.optional().nullable(),
   coreUpdateChannel: z.enum(['public', 'beta']).optional(),
-  moduleUpdateChannel: z.enum(['public', 'beta']).optional(),
 })
 
 export async function PATCH(request: NextRequest) {

@@ -22,12 +22,8 @@ export async function GET() {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
 
-  const [modules, cfg] = await Promise.all([
-    prisma.module.findMany({ orderBy: { installedAt: 'asc' } }),
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { moduleUpdateChannel: true } }),
-  ])
-  const moduleUpdateChannel = (cfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
-  return NextResponse.json({ modules, moduleUpdateChannel })
+  const modules = await prisma.module.findMany({ orderBy: { installedAt: 'asc' } })
+  return NextResponse.json({ modules })
 }
 
 const InstallBody = z.object({
@@ -86,13 +82,9 @@ export async function POST(request: NextRequest) {
     return errorResponse(`Module "${manifest.name}" is already installed`)
   }
 
-  // Get the latest release SHA (respecting the configured module update channel)
-  const channelCfg = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { moduleUpdateChannel: true },
-  })
-  const installChannel = (channelCfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
-  const release = await getLatestRelease(repoUrl, installChannel)
+  // New modules install from the public channel by default; the channel can be
+  // switched per-module afterwards.
+  const release = await getLatestRelease(repoUrl, 'public')
   if (!release) {
     return errorResponse('No tagged releases found in this repository. Publish a GitHub release first.')
   }

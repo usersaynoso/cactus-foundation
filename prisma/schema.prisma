@@ -192,7 +192,6 @@ model SiteConfig {
   consentBannerConfig    Json?
   // 'public' = stable releases only; 'beta' = pre-releases included
   coreUpdateChannel      String     @default("public")
-  moduleUpdateChannel    String     @default("public")
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -358,6 +357,8 @@ model Module {
   // Set when a newer tagged release is available
   updateAvailable String?
   updateNotes     String?      @db.Text
+  // 'public' = stable releases only; 'beta' = pre-releases included
+  updateChannel   String       @default("public")
   // Parsed cactus.module.json stored at install time for runtime access (nav entries, permissions)
   manifest        Json?
 }

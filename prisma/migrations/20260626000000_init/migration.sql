@@ -149,7 +149,6 @@ CREATE TABLE "SiteConfig" (
     "designTokens" JSONB,
     "consentBannerConfig" JSONB,
     "coreUpdateChannel"     TEXT NOT NULL DEFAULT 'public',
-    "moduleUpdateChannel"   TEXT NOT NULL DEFAULT 'public',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
@@ -274,6 +273,7 @@ CREATE TABLE "Module" (
     "lastCheckedAt" TIMESTAMP(3),
     "updateAvailable" TEXT,
     "updateNotes" TEXT,
+    "updateChannel" TEXT NOT NULL DEFAULT 'public',
     "manifest" JSONB,
     CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
 );

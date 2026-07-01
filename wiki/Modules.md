@@ -44,7 +44,11 @@ To toggle a module on or off, go to **Modules** in the admin and use the **Enabl
 
 ## Updating a module
 
-When a newer version of a module is available, an update notice appears on the **Modules** page.
+Cactus checks each installed module for updates once when you open the **Modules** page. While it's checking, you'll see "Checking for updates..." next to the module's version - this only takes a moment.
+
+If you want to check again straight away, click the small refresh icon (↻) next to a module's version. To avoid hammering GitHub, the automatic check only runs once every ten seconds per module - reloading the page again within that window reuses what was last found rather than checking again. Clicking refresh always checks right away, ignoring that wait.
+
+When a newer version is available, an update notice appears next to the module.
 
 1. Click **Update** next to the module.
 2. Cactus installs the new version and triggers a short rebuild.
@@ -65,14 +69,18 @@ When a newer version of a module is available, an update notice appears on the *
 
 ---
 
-## The update channel
+## Cactus's own update channel
 
-Cactus itself (not just modules) can be updated from **Settings → General**. There are two update channels:
+Cactus itself (not the modules) is updated from **Settings → General**, which is covered on the [Configuration reference](Configuration-reference) page.
+
+## Each module's update channel
+
+Every installed module has its own update channel, set independently of every other module and of Cactus's own channel:
 
 - **Public** (default) - stable releases only.
-- **Beta** - stable releases plus pre-releases. Useful for trying new features early, though they may have rough edges.
+- **Beta** - stable releases plus pre-releases. Useful for trying a module's new features early, though they may have rough edges.
 
-Switch between them using the buttons at the top of the Updates panel. The change takes effect immediately with no page reload needed.
+You'll find **Public** / **Beta** buttons next to each module on the **Modules** page. Switching a module's channel takes effect immediately - the next time Cactus checks that module for updates (automatically or via the refresh icon), it checks against the newly chosen channel.
 
 ---
 

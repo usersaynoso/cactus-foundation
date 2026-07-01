@@ -22,6 +22,7 @@ type DirectoryEntry = {
   updateNotes?: string | null
   lastError?: string | null
   hasTeardown?: boolean
+  updateChannel?: 'public' | 'beta'
 }
 
 let cachedDir: DirectoryEntry[] | null = null
@@ -89,6 +90,7 @@ type InstalledModule = {
   updateNotes: string | null
   lastError: string | null
   manifest: unknown
+  updateChannel: string
 }
 
 function buildInstalledEntry(m: InstalledModule): DirectoryEntry {
@@ -105,6 +107,7 @@ function buildInstalledEntry(m: InstalledModule): DirectoryEntry {
     updateNotes: m.updateNotes,
     lastError: m.lastError,
     hasTeardown: Array.isArray(manifest?.teardown) && manifest.teardown.length > 0,
+    updateChannel: m.updateChannel as 'public' | 'beta',
   }
 }
 
@@ -126,6 +129,7 @@ function mergeWithInstalled(dir: DirectoryEntry[], installed: InstalledModule[])
       updateNotes: match.updateNotes,
       lastError: match.lastError,
       hasTeardown: Array.isArray(manifest?.teardown) && manifest.teardown.length > 0,
+      updateChannel: match.updateChannel as 'public' | 'beta',
     }
   })
 

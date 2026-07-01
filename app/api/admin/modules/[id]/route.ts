@@ -14,7 +14,8 @@ import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deplo
 export const maxDuration = 60
 
 const Patch = z.object({
-  action: z.enum(['update', 'enable', 'disable', 'check-status']),
+  action: z.enum(['update', 'enable', 'disable', 'check-status']).optional(),
+  updateChannel: z.enum(['public', 'beta']).optional(),
 })
 
 type Params = { params: Promise<{ id: string }> }
@@ -31,7 +32,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { action } = parsed.data
+  const { action, updateChannel: newUpdateChannel } = parsed.data
+
+  if (newUpdateChannel) {
+    await prisma.module.update({ where: { id }, data: { updateChannel: newUpdateChannel } })
+    return NextResponse.json({ ok: true })
+  }
 
   if (action === 'disable') {
     await prisma.module.update({ where: { id }, data: { status: 'inactive' } })
@@ -83,12 +89,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
     if (lock) return errorResponse('Another install or update is in progress', 409)
 
-    const channelCfg = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { moduleUpdateChannel: true },
-    })
-    const updateChannel = (channelCfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
-    const release = await getLatestRelease(mod.repoUrl, updateChannel)
+    const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
 
     await prisma.deployLock.create({
@@ -261,12 +262,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
-  const channelCfg = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { moduleUpdateChannel: true },
-  })
-  const checkChannel = (channelCfg?.moduleUpdateChannel ?? 'public') as 'public' | 'beta'
-  const release = await getLatestRelease(mod.repoUrl, checkChannel)
+  const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
   if (!release || release.tag === mod.version) {
     await prisma.module.update({
       where: { id },

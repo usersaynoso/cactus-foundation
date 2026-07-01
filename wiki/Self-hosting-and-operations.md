@@ -100,7 +100,9 @@ The retention periods are configurable on the GDPR & Legal tab of the config pag
 
 ## Module update detection
 
-The **Admin - Modules** page automatically checks for available updates each time it loads. For every installed module it fires a background `GET /api/admin/modules/{id}` call; if a newer GitHub release exists, the "Update" button appears without any manual action required. The check is a no-op when GitHub is not configured.
+The **Admin - Modules** page checks each installed module for available updates once per page visit, throttled per module via a `sessionStorage` timestamp (`cactus-module-update-check-{id}`, 10s window) so a reload or quick navigate-away-and-back doesn't refire the check. For every installed module not already throttled, it fires a background `GET /api/admin/modules/{id}` call; if a newer GitHub release exists on that module's configured channel, the "Update" button appears without any manual action required. A per-module refresh icon (↻) forces an immediate re-check, bypassing the throttle. The check is a no-op when GitHub is not configured.
+
+Each module has its own update channel (`Module.updateChannel`, `'public'` or `'beta'`), set independently via the Public/Beta buttons on its row - there is no longer a site-wide module update channel.
 
 Enabling or disabling a module refreshes the admin sidebar immediately - nav links for the toggled module appear or disappear without a full page reload.
 
@@ -185,7 +187,7 @@ If a module migration fails during a build, the build will fail and Vercel will 
 
 ### In-product update (recommended)
 
-The **Settings → General** tab shows an Updates panel that checks the upstream Cactus Foundation repo for newer releases. Two buttons at the top of the panel let you choose the **update channel**: **Public** (stable releases only, the default) or **Beta** (pre-releases included). The preference is stored in the database and takes effect immediately. If an update is available on the active channel, an **Update now** button appears. Clicking it:
+The **Settings → General** tab shows an Updates panel that checks the upstream Cactus Foundation repo for newer releases. It auto-checks once per visit (throttled client-side via `sessionStorage` for 10 seconds, so a reload doesn't refire it) and shows "Checking for updates..." while a check is in flight; a **Refresh** button forces an immediate re-check, bypassing both that 10-second window and the server's 10-minute cache. Two buttons at the top of the panel let you choose the **update channel**: **Public** (stable releases only, the default) or **Beta** (pre-releases included). The preference is stored in the database and takes effect immediately. If an update is available on the active channel, an **Update now** button appears. Clicking it:
 
 1. Uses the GitHub API to diff between your installed version tag and the latest release tag on `usersaynoso/cactus-foundation`.
 2. Copies changed core files into your GitHub repo (your `GITHUB_REPO` env var), skipping `modules/`, `.gitmodules`, and all database content.
