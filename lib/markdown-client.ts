@@ -26,10 +26,10 @@ function getPurifier(): ReturnType<typeof createDOMPurify> {
 // Converts markdown to sanitized HTML.
 // Raw HTML blocks in the input are escaped by stripping angle brackets first,
 // so <script> etc. never reach the parser.
-export function markdownToHtml(markdown: string): string {
+export function markdownToHtml(markdown: string, opts?: { breaks?: boolean }): string {
   const stripped = markdown.replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-  const rawHtml = marked.parse(stripped, { async: false }) as string
+  const rawHtml = marked.parse(stripped, { async: false, breaks: opts?.breaks ?? false }) as string
 
   return getPurifier().sanitize(rawHtml, {
     ALLOWED_TAGS,
