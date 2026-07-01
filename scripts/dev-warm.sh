@@ -2,11 +2,14 @@
 # dev-warm.sh: Start a clean dev server and pre-warm key routes before you open
 # the browser.
 #
-# Why: Turbopack compiles routes lazily. Each new route changes the shared entry
-# chunk list hash. When a browser tab refreshes, it tells the HMR server "I'm
-# subscribed to the old hash", gets back {type:"notFound"}, and calls
-# location.reload() — creating a cascade of ChunkLoadErrors. Pre-warming all
-# route groups up-front stabilises the chunk list so refreshes are clean.
+# Why: `npm run dev` now runs Next.js with --webpack (see package.json) instead
+# of Turbopack, specifically because Turbopack's lazy per-route compilation
+# changes the hash of a shared entry chunk list on every new route compiled.
+# A browser tab subscribed to the old hash gets {type:"notFound"} from the HMR
+# server and calls location.reload() — a cascade of ChunkLoadErrors. webpack's
+# dev server doesn't have that failure mode, so this no longer bites. This
+# script still pre-warms routes up-front purely to avoid first-request compile
+# latency on whichever route you open first.
 #
 # Usage: npm run dev:warm
 #        PORT=4000 npm run dev:warm
@@ -48,14 +51,14 @@ else
 fi
 
 # ── Clear .next ───────────────────────────────────────────────────────────────
-# A clean build directory means Turbopack starts from a single compilation
+# A clean build directory means webpack starts from a single compilation
 # context with no stale chunk variants from previous sessions.
 echo "→ Clearing .next cache…"
 rm -rf .next
 
 # ── Background pre-warmer ─────────────────────────────────────────────────────
 # This subshell runs concurrently with the dev server. It waits until the server
-# is accepting requests, then hits each route group so Turbopack compiles all
+# is accepting requests, then hits each route group so webpack compiles all
 # layouts and page handlers before any browser tab connects.
 (
   # Wait up to 90s for the server to be ready.
@@ -75,12 +78,12 @@ rm -rf .next
   fi
 
   echo ""
-  echo "→ Pre-warming routes (stabilising Turbopack chunk graph)…"
+  echo "→ Pre-warming routes (avoiding first-request compile latency)…"
 
   # One URL per route group is enough to trigger compilation of that handler.
   # The [slug] pattern only needs one hit regardless of which slug you use.
-  # Include every route group the browser might navigate to so Turbopack
-  # compiles them all before any browser HMR subscription arrives.
+  # Include every route group the browser might navigate to so webpack
+  # compiles them all before any browser tab connects.
   ROUTES=(
     "/"              # root public page + shared public layout
     "/home"          # [slug] dynamic page handler
@@ -95,8 +98,7 @@ rm -rf .next
     echo "  ${route}: HTTP ${code}"
   done
 
-  # Allow Turbopack to finish any background compilation triggered above.
-  # 10 s gives the Rust compiler time to flush all deferred chunks.
+  # Allow webpack to finish any background compilation triggered above.
   sleep 10
   echo "✓ Warm-up done — safe to open http://localhost:${PORT} in your browser."
 ) &
