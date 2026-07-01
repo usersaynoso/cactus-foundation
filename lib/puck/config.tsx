@@ -3,6 +3,24 @@
 
 import React from 'react'
 import type { Config } from '@puckeditor/core'
+import { generateHTML } from '@tiptap/html'
+import type { JSONContent } from '@tiptap/core'
+import { Document } from '@tiptap/extension-document'
+import { Paragraph } from '@tiptap/extension-paragraph'
+import { Text } from '@tiptap/extension-text'
+import { Bold } from '@tiptap/extension-bold'
+import { Italic } from '@tiptap/extension-italic'
+import { Strike } from '@tiptap/extension-strike'
+import { Underline } from '@tiptap/extension-underline'
+import { Heading as TiptapHeading } from '@tiptap/extension-heading'
+import { Blockquote } from '@tiptap/extension-blockquote'
+import { Code } from '@tiptap/extension-code'
+import { CodeBlock } from '@tiptap/extension-code-block'
+import { HardBreak } from '@tiptap/extension-hard-break'
+import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
+import { Link } from '@tiptap/extension-link'
+import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
+import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
@@ -10,6 +28,15 @@ import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleRscComponents } from '@/lib/puck/module-components'
 
  
+
+// Extensions matching Puck's default richtext configuration — used to convert
+// TipTap JSON stored in publishedData back to HTML for the RSC render path.
+const richtextExtensions = [
+  Document, Paragraph, Text, Bold, Italic, Strike, Underline,
+  TiptapHeading, Blockquote, Code, CodeBlock, HardBreak, HorizontalRule,
+  Link, BulletList, OrderedList, ListItem,
+  TextAlign.configure({ types: ['heading', 'paragraph'] }),
+]
 
 // ---------------------------------------------------------------------------
 // Shared utilities
@@ -344,6 +371,24 @@ function RichTextBlock(props: any) {
   const { content, padding } = props
   if (!content) {
     return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>Rich text — edit in the panel</div>
+  }
+  if (typeof content !== 'string') {
+    // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
+    // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
+    // Render it directly rather than passing to dangerouslySetInnerHTML.
+    if (React.isValidElement(content)) {
+      return <div className="puck-richtext" style={{ padding: getPadding(padding) }}>{content}</div>
+    }
+    // In the RSC render path, publishedData may contain TipTap JSON if the user edited
+    // in the builder (Puck stores richtext content as TipTap JSON internally).
+    // Convert it back to HTML so dangerouslySetInnerHTML receives a string.
+    let html = ''
+    try {
+      html = generateHTML(content as JSONContent, richtextExtensions)
+    } catch {
+      html = ''
+    }
+    return <div className="puck-richtext" style={{ padding: getPadding(padding) }} dangerouslySetInnerHTML={{ __html: html }} />
   }
   return <div className="puck-richtext" style={{ padding: getPadding(padding) }} dangerouslySetInnerHTML={{ __html: content }} />
 }

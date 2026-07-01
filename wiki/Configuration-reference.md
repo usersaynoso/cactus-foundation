@@ -120,6 +120,27 @@ A **Preview as visitor** link opens the status page exactly as a real visitor wo
 
 The **Third-party data processors** list is auto-generated from whichever email/media/hosting providers are actually configured, so it never drifts out of sync.
 
+### Privacy policy generator
+
+The **Generate a privacy policy** button (shown next to the Privacy policy page dropdown) opens a six-step wizard that produces a draft privacy policy page in the Puck builder.
+
+The wizard asks about:
+
+1. **About your site** - name, URL, contact email, business address
+2. **Data you collect** - multi-select from common categories (names, emails, IP addresses, analytics, payment info, etc.). The items Cactus core always collects (email addresses, IP addresses, device/browser info for passkeys and sessions) are pre-ticked and read-only.
+3. **Why you collect it** - purposes such as service provision, analytics, legal compliance. The purposes Cactus always has (operating the service, managing accounts, security/fraud prevention) are pre-ticked and read-only.
+4. **Third-party services** - pre-populated from your cookie consent categories; you can also add custom services with a name and description. Generic descriptions only, no vendor names.
+5. **Jurisdiction** - EU/UK (GDPR rights clause), US (CCPA/CPRA rights clause), both, or unsure
+6. **Extras** - cookies clause, minimum age (children's privacy clause), optional DPO details
+
+The wizard pre-fills the site name and contact email from your General and Email settings. If the cookie consent banner is enabled, cookies and third-party service categories are pre-ticked from your existing consent configuration.
+
+**Output** - a single draft `InfoPage` with `bodyFormat: builder`, containing one RichTextBlock with the full policy. The page is always saved as a draft; you must review and publish it manually.
+
+**Legal disclaimer** - the generated policy is a starting point only and does not constitute legal advice. A prominent disclaimer appears at the top of the wizard and is embedded as the first block of the generated document. Review the output with a qualified legal professional before publishing.
+
+**Re-running the wizard** always creates a new draft page (slug-suffixed if `privacy-policy` is already taken). The existing linked page is never overwritten. If a privacy policy page is already linked when you finish, the wizard asks whether you want to update the link to the new page or keep the existing one.
+
 ### Cookie consent banner
 
 | Field | Description | Default |

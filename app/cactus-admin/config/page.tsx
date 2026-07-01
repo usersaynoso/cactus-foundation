@@ -1232,27 +1232,41 @@ function ConfigPageInner() {
 
         return (
           <div>
-            <div className="field">
-              <label>Privacy policy page</label>
-              <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
-                <option value="">— Not set —</option>
-                {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Privacy policy page</label>
+                <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
+                  <option value="">— Not set —</option>
+                  {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Terms of service page</label>
+                <select value={config.termsPageId ?? ''} onChange={(e) => set('termsPageId', e.target.value || null as unknown as string)}>
+                  <option value="">— Not set —</option>
+                  {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="field">
-              <label>Terms of service page</label>
-              <select value={config.termsPageId ?? ''} onChange={(e) => set('termsPageId', e.target.value || null as unknown as string)}>
-                <option value="">— Not set —</option>
-                {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-              </select>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <a href={`/${config.adminPath ?? ''}/config/privacy-generator`} className="btn btn-secondary btn-sm">
+                {config.privacyPolicyPageId ? 'Generate a new privacy policy' : 'Generate a privacy policy'}
+              </a>
+              {config.privacyPolicyPageId && (
+                <p className="field-hint" style={{ marginTop: '0.5rem' }}>
+                  A privacy policy is already linked. Generating a new one will create a separate draft page.
+                </p>
+              )}
             </div>
-            <div className="field">
-              <label>Purge expired sessions after (days)</label>
-              <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
-            </div>
-            <div className="field">
-              <label>Purge unused recovery requests after (days)</label>
-              <input type="number" min={1} max={30} value={config.recoveryPurgeAfterDays ?? 7} onChange={(e) => set('recoveryPurgeAfterDays', parseInt(e.target.value))} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Purge expired sessions after (days)</label>
+                <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Purge unused recovery requests after (days)</label>
+                <input type="number" min={1} max={30} value={config.recoveryPurgeAfterDays ?? 7} onChange={(e) => set('recoveryPurgeAfterDays', parseInt(e.target.value))} />
+              </div>
             </div>
 
             {/* ----------------------------------------------------------------
@@ -1278,17 +1292,18 @@ function ConfigPageInner() {
 
             {consent && (
               <>
-                <div className="field">
-                  <label>Banner style</label>
-                  <select value={consent.style ?? 'bottom-bar'} onChange={(e) => setConsent({ style: e.target.value as 'bottom-bar' | 'modal' })}>
-                    <option value="bottom-bar">Bottom bar</option>
-                    <option value="modal">Modal (centred overlay)</option>
-                  </select>
-                </div>
-
-                <div className="field">
-                  <label>Banner title</label>
-                  <input type="text" value={consent.title ?? ''} onChange={(e) => setConsent({ title: e.target.value })} placeholder="Cookie preferences" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Banner style</label>
+                    <select value={consent.style ?? 'bottom-bar'} onChange={(e) => setConsent({ style: e.target.value as 'bottom-bar' | 'modal' })}>
+                      <option value="bottom-bar">Bottom bar</option>
+                      <option value="modal">Modal (centred overlay)</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Banner title</label>
+                    <input type="text" value={consent.title ?? ''} onChange={(e) => setConsent({ title: e.target.value })} placeholder="Cookie preferences" />
+                  </div>
                 </div>
 
                 <div className="field">

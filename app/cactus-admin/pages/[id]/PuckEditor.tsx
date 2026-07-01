@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
@@ -33,6 +33,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   const [saveError, setSaveError] = useState('')
   const [publishError, setPublishError] = useState('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const rootProps = initialData.root?.props as Record<string, unknown> | undefined
   const [isPublished, setIsPublished] = useState(rootProps?.status === 'published')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -65,8 +66,12 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [pageId])
 
-  useEffect(() => {
-    if (showHistory) loadHistory()
+  // Toggle the history panel, loading versions when it opens. Fetching here (in the
+  // event handler) rather than in an effect avoids a synchronous setState-in-effect.
+  const toggleHistory = useCallback(() => {
+    const next = !showHistory
+    setShowHistory(next)
+    if (next) loadHistory()
   }, [showHistory, loadHistory])
 
   // Build editor config inside the component so canManageMenus can gate menuIds field
@@ -198,6 +203,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       } else {
         setIsPublished(true)
         setLastSaved(new Date())
+        if (d.slug) setPublishedSlug(d.slug)
         // Refresh history list if panel is open
         if (showHistory) loadHistory()
       }
@@ -280,6 +286,25 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
               Published
             </span>
           )}
+          {publishedSlug && (
+            <a
+              href={`/${publishedSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '0.25rem 0.75rem',
+                borderRadius: 4,
+                background: 'var(--color-success-bg)',
+                border: '1px solid var(--color-success)',
+                color: 'var(--color-success)',
+                textDecoration: 'none',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+              }}
+            >
+              View live page →
+            </a>
+          )}
           <a
             href={`/page-preview/${pageId}`}
             target="_blank"
@@ -299,7 +324,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             Preview
           </a>
           <button
-            onClick={() => setShowHistory((v) => !v)}
+            onClick={toggleHistory}
             style={{
               padding: '0.25rem 0.75rem',
               borderRadius: 4,
