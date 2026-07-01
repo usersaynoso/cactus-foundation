@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset } from '@/lib/design/tokens'
 import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
+import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
+import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 
 const POPULAR_FONTS = [
   'system-ui, sans-serif',
@@ -60,15 +63,51 @@ const POPULAR_FONTS = [
   'Inconsolata',
 ]
 
+const FONT_WEIGHT_OPTIONS = [
+  { value: '100', label: '100 - Thin' },
+  { value: '200', label: '200 - Extra Light' },
+  { value: '300', label: '300 - Light' },
+  { value: '400', label: '400 - Regular' },
+  { value: '500', label: '500 - Medium' },
+  { value: '600', label: '600 - Semi Bold' },
+  { value: '700', label: '700 - Bold' },
+  { value: '800', label: '800 - Extra Bold' },
+  { value: '900', label: '900 - Black' },
+]
+
+const TRANSFORM_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'uppercase', label: 'Uppercase' },
+  { value: 'lowercase', label: 'Lowercase' },
+  { value: 'capitalize', label: 'Capitalize' },
+]
+
+const FONT_STYLE_OPTIONS = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'italic', label: 'Italic' },
+  { value: 'oblique', label: 'Oblique' },
+]
+
+const TEXT_DECORATION_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'underline', label: 'Underline' },
+  { value: 'overline', label: 'Overline' },
+  { value: 'line-through', label: 'Line-through' },
+]
+
 export default function StylesPage() {
+  const router = useRouter()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
-  const [activeTab, setActiveTab] = useState<'design' | 'theme'>('design')
+  const [activeTab, setActiveTab] = useState<'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields'>('colours')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [openHeadings, setOpenHeadings] = useState<Set<string>>(new Set(['h1']))
-  const dirty = useRef(false)
+  const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
+  const presetsScrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
 
   const activePreset = useMemo(() => {
     const primaryColour = tokens.designSystem.colours.find(c => c.id === 'primary')
@@ -77,9 +116,24 @@ export default function StylesPage() {
     return COLOUR_PRESETS.find(p =>
       p.primary.light === primaryColour.light &&
       p.primary.dark === primaryColour.dark &&
-      p.linkColour === (tokens.themeStyle.links.colour ?? '')
+      p.linkColour === (tokens.themeStyle.links.colour ?? '') &&
+      p.linkHoverColour === (tokens.themeStyle.links.hoverColour ?? '')
     ) ?? null
   }, [tokens])
+
+  useEffect(() => {
+    if (loading || activeTab !== 'colours') return
+    const el = presetsScrollRef.current
+    if (!el) return
+    const check = () => {
+      setCanScrollLeft(el.scrollLeft > 0)
+      setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1)
+    }
+    check()
+    el.addEventListener('scroll', check)
+    window.addEventListener('resize', check)
+    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check) }
+  }, [loading, activeTab])
 
   useEffect(() => {
     fetch('/api/admin/appearance')
@@ -91,21 +145,34 @@ export default function StylesPage() {
       .catch(() => { setError('Failed to load styles'); setLoading(false) })
   }, [])
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
     setSaving(true); setSaved(false); setError('')
     try {
       const res = await fetch('/api/admin/appearance', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ designTokens: tokens }),
       })
-      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed') }
-      else { setSaved(true); dirty.current = false }
-    } catch { setError('Save failed') }
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed'); return false }
+      setSaved(true); dirtyRef.current = false; return true
+    } catch { setError('Save failed'); return false }
     finally { setSaving(false) }
   }, [tokens])
 
+  const leaveNow = useCallback((href: string) => {
+    dirtyRef.current = false
+    setPendingHref(null)
+    router.push(href)
+  }, [router])
+
+  const saveAndLeave = useCallback(async () => {
+    const href = pendingHref
+    const ok = await handleSave()
+    if (ok && href) { setPendingHref(null); router.push(href) }
+    else setPendingHref(null) // save failed - stay put so the error toast is visible
+  }, [pendingHref, handleSave, router])
+
   const handleApplyPreset = useCallback((preset: ColourPreset) => {
-    if (dirty.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved edits will be replaced.`)) return
+    if (dirtyRef.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved colour changes will be replaced.`)) return
     setTokens(t => {
       const hasPrimary = t.designSystem.colours.some(c => c.id === 'primary')
       return {
@@ -124,72 +191,72 @@ export default function StylesPage() {
         },
       }
     })
-    dirty.current = false
+    dirtyRef.current = false
     setSaved(false)
   }, [])
 
   const setDsColours = (colours: GlobalColour[]) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, designSystem: { ...t.designSystem, colours } }))
   }
 
   const setDsFonts = (fonts: GlobalFont[]) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, designSystem: { ...t.designSystem, fonts } }))
   }
 
   const setBackground = (patch: Partial<DesignTokens['themeStyle']['background']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, background: { ...t.themeStyle.background, ...patch } } }))
   }
 
   const setBody = (patch: Partial<DesignTokens['themeStyle']['body']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, body: { ...t.themeStyle.body, ...patch } } }))
   }
 
   const setLinks = (patch: Partial<DesignTokens['themeStyle']['links']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, links: { ...t.themeStyle.links, ...patch } } }))
   }
 
   const setHeading = (tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', patch: Record<string, unknown>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, headings: { ...t.themeStyle.headings, [tag]: { ...t.themeStyle.headings[tag], ...patch } } } }))
   }
 
   const setButtons = (patch: Partial<DesignTokens['themeStyle']['buttons']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, ...patch } } }))
   }
 
   const setButtonTypo = (patch: Partial<Typo>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, typo: { ...t.themeStyle.buttons.typo, ...patch } } } }))
   }
 
   const setButtonHover = (patch: Partial<DesignTokens['themeStyle']['buttons']['hover']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, hover: { ...t.themeStyle.buttons.hover, ...patch } } } }))
   }
 
   const setImages = (patch: Partial<DesignTokens['themeStyle']['images']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, images: { ...t.themeStyle.images, ...patch } } }))
   }
 
   const setFormFields = (patch: Partial<DesignTokens['themeStyle']['formFields']>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, ...patch } } }))
   }
 
   const setFieldTypo = (patch: Partial<Typo>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, typo: { ...t.themeStyle.formFields.typo, ...patch } } } }))
   }
 
   const setLabelTypo = (patch: Partial<Typo>) => {
-    dirty.current = true
+    dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, labelTypo: { ...t.themeStyle.formFields.labelTypo, ...patch } } } }))
   }
 
@@ -199,59 +266,84 @@ export default function StylesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1.25rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem', position: 'sticky', top: 0, zIndex: 10 }}>
-        <span style={{ fontWeight: 600, color: 'var(--color-fg)', fontSize: '0.9375rem' }}>Styles</span>
-        <span style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {error && <span style={{ color: 'var(--color-danger)' }}>{error}</span>}
-          {saved && <span style={{ color: 'var(--color-success)' }}>Saved ✓</span>}
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: '0.8125rem', padding: '0.375rem 1rem' }}>
-            {saving ? 'Saving…' : 'Save Styles'}
-          </button>
-        </span>
+      <div className="page-header">
+        <h1 className="page-title">Styles</h1>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Styles'}
+        </button>
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', padding: '0 1.25rem', background: 'var(--color-bg)' }}>
-        {(['design', 'theme'] as const).map(tab => (
+      {error && (
+        <div className="alert alert-danger" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 60, maxWidth: 360, margin: 0, boxShadow: 'var(--shadow-elevated)' }}>
+          {error}
+        </div>
+      )}
+
+      <UnsavedChangesModal
+        pendingHref={pendingHref}
+        saving={saving}
+        message="You have unsaved style changes. Would you like to save them before leaving?"
+        onCancel={() => setPendingHref(null)}
+        onDiscard={() => leaveNow(pendingHref!)}
+        onSave={saveAndLeave}
+      />
+
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', padding: '0 1.25rem', background: 'var(--color-bg)', overflowX: 'auto' }}>
+        {([
+          ['colours',    'Colours'],
+          ['typography', 'Fonts & Typography'],
+          ['headings',   'Headings'],
+          ['buttons',    'Buttons'],
+          ['images',     'Images'],
+          ['formFields', 'Form Fields'],
+        ] as const).map(([id, label]) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{ padding: '0.625rem 1rem', background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-muted)', fontSize: '0.875rem', fontFamily: 'inherit', marginBottom: -1 }}
+            key={id}
+            onClick={() => setActiveTab(id)}
+            style={{ padding: '0.625rem 1rem', background: 'none', border: 'none', borderBottom: activeTab === id ? '2px solid var(--color-primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: activeTab === id ? 600 : 400, color: activeTab === id ? 'var(--color-primary)' : 'var(--color-muted)', fontSize: '0.875rem', fontFamily: 'inherit', marginBottom: -1, whiteSpace: 'nowrap' }}
           >
-            {tab === 'design' ? 'Design System' : 'Theme Style'}
+            {label}
           </button>
         ))}
       </div>
 
-      <div style={{ padding: '2rem', maxWidth: 780 }}>
+      <div style={{ padding: '2rem' }}>
 
-        {activeTab === 'design' && (
+        {activeTab === 'colours' && (
           <>
             <Section
-              title="Presets"
+              title="Colour Presets"
               aside={!activePreset ? <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontStyle: 'italic' }}>Customised</span> : undefined}
             >
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Quick-start colour schemes. Applying a preset updates your colour palette and link colours - everything else stays as you left it.</p>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                {COLOUR_PRESETS.map(preset => {
-                  const isActive = activePreset?.id === preset.id
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit' }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        {preset.name}
-                        {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.3125rem' }}>
-                        <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
-                        <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
-                      </div>
-                    </button>
-                  )
-                })}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollLeft ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>‹</button>
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                  <div ref={presetsScrollRef} className="no-scrollbar" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                    {COLOUR_PRESETS.map(preset => {
+                      const isActive = activePreset?.id === preset.id
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleApplyPreset(preset)}
+                          style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit', flexShrink: 0 }}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            {preset.name}
+                            {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3125rem' }}>
+                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
+                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 64, background: 'linear-gradient(to right, transparent, var(--color-bg))', pointerEvents: 'none', visibility: canScrollRight ? 'visible' : 'hidden' }} />
+                </div>
+                <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollRight ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>›</button>
               </div>
             </Section>
 
@@ -293,8 +385,23 @@ export default function StylesPage() {
               )}
             </Section>
 
+            <Section title="Page background">
+              <ColourInput label="Background colour" value={tokens.themeStyle.background.colour} onChange={v => { setBackground({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+            </Section>
+
+            <Section title="Links">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <ColourInput label="Link colour" value={tokens.themeStyle.links.colour} onChange={v => { setLinks({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+                <ColourInput label="Hover colour" value={tokens.themeStyle.links.hoverColour} onChange={v => { setLinks({ hoverColour: v || undefined }); setSaved(false) }} colours={colours} />
+              </div>
+            </Section>
+          </>
+        )}
+
+        {activeTab === 'typography' && (
+          <>
             <Section title="Global fonts">
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Named font definitions. Reference these in Theme Style to maintain consistency across the site.</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Named font definitions. Reference these when choosing fonts in other typography settings on this page.</p>
               {tokens.designSystem.fonts.map((f, i) => (
                 <div key={i} style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--admin-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'end', marginBottom: '0.5rem' }}>
@@ -304,7 +411,14 @@ export default function StylesPage() {
                     </div>
                     <div className="field" style={{ margin: 0 }}>
                       <label style={{ fontSize: '0.75rem' }}>Weight</label>
-                      <input type="text" value={f.weight} onChange={e => { setDsFonts(tokens.designSystem.fonts.map((x, j) => j === i ? { ...x, weight: e.target.value } : x)); setSaved(false) }} placeholder="400" />
+                      <select value={f.weight} onChange={e => { setDsFonts(tokens.designSystem.fonts.map((x, j) => j === i ? { ...x, weight: e.target.value } : x)); setSaved(false) }}>
+                        {f.weight && !FONT_WEIGHT_OPTIONS.some(o => o.value === f.weight) && (
+                          <option value={f.weight}>{f.weight} (custom)</option>
+                        )}
+                        {FONT_WEIGHT_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </div>
                     {tokens.designSystem.fonts.length > 1 && (
                       <button onClick={() => { setDsFonts(tokens.designSystem.fonts.filter((_, j) => j !== i)); setSaved(false) }} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '0.25rem', fontSize: '1rem', lineHeight: 1, alignSelf: 'end', paddingBottom: '0.5rem' }} title="Remove font">✕</button>
@@ -317,20 +431,16 @@ export default function StylesPage() {
                 + Add font
               </button>
             </Section>
-          </>
-        )}
 
-        {activeTab === 'theme' && (
-          <>
-            <Section title="Page background">
-              <ColourInput label="Background colour" value={tokens.themeStyle.background.colour} onChange={v => { setBackground({ colour: v || undefined }); setSaved(false) }} colours={colours} />
-            </Section>
-
-            <Section title="Body / typography">
+            <Section title="Body text">
               <TypoGroup value={tokens.themeStyle.body} onChange={patch => { setBody(patch as Partial<Typo>); setSaved(false) }} />
               <ColourInput label="Text colour" value={tokens.themeStyle.body.colour} onChange={v => { setBody({ colour: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
+          </>
+        )}
 
+        {activeTab === 'headings' && (
+          <>
             <Section title="Headings">
               {(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).map(tag => (
                 <div key={tag} style={{ marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden' }}>
@@ -351,56 +461,56 @@ export default function StylesPage() {
               ))}
             </Section>
 
-            <Section title="Links">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <ColourInput label="Link colour" value={tokens.themeStyle.links.colour} onChange={v => { setLinks({ colour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Hover colour" value={tokens.themeStyle.links.hoverColour} onChange={v => { setLinks({ hoverColour: v || undefined }); setSaved(false) }} colours={colours} />
-              </div>
-            </Section>
-
-            <Section title="Buttons">
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Default button appearance for public pages. Individual Puck blocks may override these.</p>
-              <TypoGroup value={tokens.themeStyle.buttons.typo} onChange={patch => { setButtonTypo(patch); setSaved(false) }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
-                <ColourInput label="Text colour" value={tokens.themeStyle.buttons.textColour} onChange={v => { setButtons({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Background colour" value={tokens.themeStyle.buttons.bgColour} onChange={v => { setButtons({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Border colour" value={tokens.themeStyle.buttons.borderColour} onChange={v => { setButtons({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
-                <TextField label="Border width" value={tokens.themeStyle.buttons.borderWidth ?? ''} onChange={v => { setButtons({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
-                <TextField label="Border radius" value={tokens.themeStyle.buttons.borderRadius ?? ''} onChange={v => { setButtons({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 6px" />
-                <TextField label="Padding" value={tokens.themeStyle.buttons.padding ?? ''} onChange={v => { setButtons({ padding: v || undefined }); setSaved(false) }} hint="e.g. 0.5rem 1rem" />
-              </div>
-              <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Hover state</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.hover.textColour} onChange={v => { setButtonHover({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
-              </div>
-            </Section>
-
-            <Section title="Images">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                <TextField label="Border radius" value={tokens.themeStyle.images.borderRadius ?? ''} onChange={v => { setImages({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 8px" />
-                <TextField label="Border width" value={tokens.themeStyle.images.borderWidth ?? ''} onChange={v => { setImages({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
-                <ColourInput label="Border colour" value={tokens.themeStyle.images.borderColour} onChange={v => { setImages({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
-              </div>
-            </Section>
-
-            <Section title="Form fields">
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Styles applied to inputs, textareas, and selects on public pages.</p>
-              <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--color-fg)' }}>Label typography</p>
-              <TypoGroup value={tokens.themeStyle.formFields.labelTypo} onChange={patch => { setLabelTypo(patch); setSaved(false) }} />
-              <ColourInput label="Label colour" value={tokens.themeStyle.formFields.labelColour} onChange={v => { setFormFields({ labelColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Field typography</p>
-              <TypoGroup value={tokens.themeStyle.formFields.typo} onChange={patch => { setFieldTypo(patch); setSaved(false) }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
-                <ColourInput label="Text colour" value={tokens.themeStyle.formFields.textColour} onChange={v => { setFormFields({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Background colour" value={tokens.themeStyle.formFields.bgColour} onChange={v => { setFormFields({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Border colour" value={tokens.themeStyle.formFields.borderColour} onChange={v => { setFormFields({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
-                <TextField label="Border radius" value={tokens.themeStyle.formFields.borderRadius ?? ''} onChange={v => { setFormFields({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 4px" />
-              </div>
-            </Section>
           </>
+        )}
+
+        {activeTab === 'buttons' && (
+          <Section title="Buttons">
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Default button appearance for public pages. Individual Puck blocks may override these.</p>
+            <TypoGroup value={tokens.themeStyle.buttons.typo} onChange={patch => { setButtonTypo(patch); setSaved(false) }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
+              <ColourInput label="Text colour" value={tokens.themeStyle.buttons.textColour} onChange={v => { setButtons({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.buttons.bgColour} onChange={v => { setButtons({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.buttons.borderColour} onChange={v => { setButtons({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
+              <TextField label="Border width" value={tokens.themeStyle.buttons.borderWidth ?? ''} onChange={v => { setButtons({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
+              <TextField label="Border radius" value={tokens.themeStyle.buttons.borderRadius ?? ''} onChange={v => { setButtons({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 6px" />
+              <TextField label="Padding" value={tokens.themeStyle.buttons.padding ?? ''} onChange={v => { setButtons({ padding: v || undefined }); setSaved(false) }} hint="e.g. 0.5rem 1rem" />
+            </div>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Hover state</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.hover.textColour} onChange={v => { setButtonHover({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+          </Section>
+        )}
+
+        {activeTab === 'images' && (
+          <Section title="Images">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              <TextField label="Border radius" value={tokens.themeStyle.images.borderRadius ?? ''} onChange={v => { setImages({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 8px" />
+              <TextField label="Border width" value={tokens.themeStyle.images.borderWidth ?? ''} onChange={v => { setImages({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
+              <ColourInput label="Border colour" value={tokens.themeStyle.images.borderColour} onChange={v => { setImages({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+          </Section>
+        )}
+
+        {activeTab === 'formFields' && (
+          <Section title="Form fields">
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Styles applied to inputs, textareas, and selects on public pages.</p>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--color-fg)' }}>Label typography</p>
+            <TypoGroup value={tokens.themeStyle.formFields.labelTypo} onChange={patch => { setLabelTypo(patch); setSaved(false) }} />
+            <ColourInput label="Label colour" value={tokens.themeStyle.formFields.labelColour} onChange={v => { setFormFields({ labelColour: v || undefined }); setSaved(false) }} colours={colours} />
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Field typography</p>
+            <TypoGroup value={tokens.themeStyle.formFields.typo} onChange={patch => { setFieldTypo(patch); setSaved(false) }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
+              <ColourInput label="Text colour" value={tokens.themeStyle.formFields.textColour} onChange={v => { setFormFields({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.formFields.bgColour} onChange={v => { setFormFields({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.formFields.borderColour} onChange={v => { setFormFields({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <TextField label="Border radius" value={tokens.themeStyle.formFields.borderRadius ?? ''} onChange={v => { setFormFields({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 4px" />
+            </div>
+          </Section>
         )}
       </div>
     </div>
@@ -425,6 +535,22 @@ function TextField({ label, value, onChange, hint }: { label: string; value: str
       <label>{label}</label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)} />
       {hint && <span className="field-hint">{hint}</span>}
+    </div>
+  )
+}
+
+function SelectField({ label, value, onChange, options }: { label: string; value?: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  const isCustom = !!value && !options.some(o => o.value === value)
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <select value={value ?? ''} onChange={e => onChange(e.target.value)}>
+        <option value="">Inherit</option>
+        {isCustom && <option value={value}>{value} (custom)</option>}
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
     </div>
   )
 }
@@ -455,13 +581,13 @@ function TypoGroup({ value, onChange }: { value: Typo; onChange: (patch: Partial
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
       <FontPickerField label="Font family" value={value.family ?? ''} onChange={v => onChange({ ...value, family: v || undefined })} />
-      <TextField label="Weight" value={value.weight ?? ''} onChange={v => onChange({ ...value, weight: v || undefined })} hint="e.g. 400 or 700" />
+      <SelectField label="Weight" value={value.weight} onChange={v => onChange({ ...value, weight: v || undefined })} options={FONT_WEIGHT_OPTIONS} />
       <TextField label="Size" value={value.size ?? ''} onChange={v => onChange({ ...value, size: v || undefined })} hint="e.g. 1rem" />
       <TextField label="Line height" value={value.lineHeight ?? ''} onChange={v => onChange({ ...value, lineHeight: v || undefined })} hint="e.g. 1.75" />
       <TextField label="Letter spacing" value={value.letterSpacing ?? ''} onChange={v => onChange({ ...value, letterSpacing: v || undefined })} hint="e.g. 0.05em" />
-      <TextField label="Transform" value={value.transform ?? ''} onChange={v => onChange({ ...value, transform: v || undefined })} hint="uppercase / lowercase / capitalize" />
-      <TextField label="Style" value={value.style ?? ''} onChange={v => onChange({ ...value, style: v || undefined })} hint="italic / normal" />
-      <TextField label="Decoration" value={value.decoration ?? ''} onChange={v => onChange({ ...value, decoration: v || undefined })} hint="underline / none" />
+      <SelectField label="Transform" value={value.transform} onChange={v => onChange({ ...value, transform: v || undefined })} options={TRANSFORM_OPTIONS} />
+      <SelectField label="Style" value={value.style} onChange={v => onChange({ ...value, style: v || undefined })} options={FONT_STYLE_OPTIONS} />
+      <SelectField label="Decoration" value={value.decoration} onChange={v => onChange({ ...value, decoration: v || undefined })} options={TEXT_DECORATION_OPTIONS} />
     </div>
   )
 }

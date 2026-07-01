@@ -474,7 +474,7 @@ All starter layouts have `isStarter: true`, `status: published`, and `displayCon
 
 ## Styles (Design System + Theme Style)
 
-**Admin → Appearance → Styles** (`/cacti/appearance/styles`) is a two-panel editor that replaces the old single-page Style Guide. All visual design tokens are stored as `SiteConfig.designTokens` (nullable JSON, `version: 2`). The shape is defined in `lib/design/tokens.ts`.
+**Admin → Appearance → Styles** (`/cacti/appearance/styles`) is a six-tab editor for all visual design tokens, stored as `SiteConfig.designTokens` (nullable JSON, `version: 2`). The shape is defined in `lib/design/tokens.ts`.
 
 ### DesignTokens v2 shape
 
@@ -500,14 +500,34 @@ All starter layouts have `isStarter: true`, `status: published`, and `displayCon
 }
 ```
 
-### Design System tab
+### Tabs
 
-- **Global colours** - up to 12 named colours, each with a light-mode hex and a dark-mode hex. These emit `--color-1..N` CSS vars (used by Puck blocks via `SiteColourField`).
-- **Global fonts** - named font definitions with family, weight, and optional typographic properties.
+| Tab | Sections |
+|---|---|
+| **Colours** | Colour Presets, Global colours (up to 12, with light/dark variants), Page background, Links (colour and hover colour) |
+| **Fonts & Typography** | Global fonts (named font definitions), Body text |
+| **Headings** | H1-H6 (collapsible, each with full typographic controls and colour) |
+| **Buttons** | Typography, text/background/border colours, border width/radius/padding, hover state |
+| **Images** | Border radius, border width, border colour |
+| **Form Fields** | Label typography and colour, field typography and colours (text, background, border, radius) |
 
-### Theme Style tab
+Colour fields on every tab show palette swatches from Global colours; selecting a swatch stores the raw hex (not a var reference).
 
-Accordion sections per area: Page background, Body/Typography, Headings (H1-H6), Links, Buttons, Images, Form fields. Colour fields show palette swatches from the Design System tab; selecting a swatch stores the raw hex (not a var reference).
+### Colour Presets
+
+The Colours tab opens with a horizontally-scrollable row of ten named presets (Prickly, Bloom, Desert, Dusk, Spine, Mirage, Ember, Mesa, Monsoon, Sagebrush). Applying a preset updates the `primary` palette colour (light and dark variants) and `themeStyle.links.colour` / `themeStyle.links.hoverColour`. All other tokens are unchanged. If the user has unsaved colour edits, a confirmation prompt fires before applying. The active preset is detected by matching the current primary colour, link colour, and link hover colour against the preset definitions; custom values show a "Customised" label instead.
+
+### Unsaved-changes guard
+
+A `dirty` ref flips true on any token edit and resets on save or preset apply. While dirty, leaving the page is guarded two ways: a `beforeunload` handler covers hard navigations (reload, tab close), and a capture-phase document click listener intercepts in-app admin link clicks, showing a modal offering **Save & leave**, **Discard & leave**, or **Cancel**. "Save & leave" only navigates if the save succeeds; a failed save keeps the admin on the page with the error visible.
+
+### Enum-constrained typography inputs
+
+Weight, transform, style, and text-decoration are dropdowns (not free text). If saved data holds a value outside the option list, it is surfaced as a "`<value>` (custom)" option so it is preserved rather than silently dropped. Size, line-height, and letter-spacing remain free-text (arbitrary CSS units).
+
+### Validation
+
+`PATCH /api/admin/appearance` requires `appearance.manage` and shape-guards the payload: `designTokens` must be `null` (clear) or an object with `version === 2`; anything else is rejected with 400 rather than persisted.
 
 ### CSS output
 
@@ -518,6 +538,9 @@ Accordion sections per area: Page background, Body/Typography, Headings (H1-H6),
 ```css
 :root, [data-theme="light"] {
   --color-1..N: <light hex>;          /* from designSystem.colours */
+  --color-primary: <primary light hex>;           /* the `primary` colour (or first) */
+  --color-primary-hover/-active/-dark/-subtle/-border;  /* derived shades (darken) */
+  --color-on-primary: #111111 | #ffffff;           /* legible foreground (WCAG luminance) */
   --sp-1..9: 4,8,12,16,24,32,48,64,96px;  /* fixed */
   --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px;  /* fixed */
   --shadow-subtle: ...; --shadow-elevated: ...;  /* fixed */
@@ -526,10 +549,17 @@ Accordion sections per area: Page background, Body/Typography, Headings (H1-H6),
   --h1-size..--h6-size, --h1-color..--h6-color;  /* from themeStyle.headings */
   /* + btn, img, field vars */
 }
-[data-theme="dark"] { --color-1..N: <dark hex>; }
-@media (prefers-color-scheme: dark) { /* same dark colours */ }
-/* scoped defaults: main h1,p,a,button,img,input,label { ... } */
+[data-theme="dark"] {
+  --color-1..N: <dark hex>;
+  --color-primary + shades: <primary dark hex>;  /* dark mode lightens for hover/active */
+}
+@media (prefers-color-scheme: dark) { /* same dark colours + primary */ }
+/* scoped defaults: main { body typo } main h1,a,button,img,input,label { ... } */
 ```
+
+**Why the primary mapping matters:** buttons, links, rich text accents and every Puck component consume the semantic `--color-primary` family (defined for the admin in `globals.css`). Mapping the `primary` design colour onto these variables (rather than only the indexed `--color-N`) is what makes a colour or preset change actually recolour the public site and the Puck editor canvas. The hover/active/subtle/border shades are derived from the single primary hex - darkened in light mode, lightened in dark mode - and `--color-on-primary` is chosen by WCAG relative luminance.
+
+**Why body typography targets `main`:** the body font/size/colour are emitted on `main` itself (not `main p`) so they cascade into rich-text content. `.puck-richtext p` is a class selector that would out-specificity a plain `main p` rule and ignore the chosen body font; setting the font on the `main` ancestor lets it inherit through instead.
 
 `buildFontHref` inspects all font-family values across the token tree, skips system stacks (system-ui, Arial, Georgia, Helvetica, Times, sans-serif, serif, monospace, -apple-system), and returns a Google Fonts URL or `null`.
 

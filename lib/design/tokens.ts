@@ -59,7 +59,7 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
   version: 2,
   designSystem: {
     colours: [
-      { id: 'primary',   name: 'Primary',   light: '#16a34a', dark: '#4ade80' },
+      { id: 'primary',   name: 'Primary',   light: '#2c7558', dark: '#459578' },
       { id: 'secondary', name: 'Secondary', light: '#ffffff', dark: '#0f172a' },
     ],
     fonts: [
@@ -68,8 +68,8 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
   },
   themeStyle: {
     background: {},
-    body: { family: 'system-ui, sans-serif', size: '1rem', lineHeight: '1.75' },
-    links: { colour: '#16a34a' },
+    body: { size: '1rem', lineHeight: '1.75' },
+    links: { colour: '#2c7558', hoverColour: '#22604a' },
     headings: {
       h1: { size: '2.5rem' },
       h2: { size: '1.875rem' },
@@ -96,9 +96,9 @@ export const COLOUR_PRESETS: ColourPreset[] = [
   {
     id: 'prickly',
     name: 'Prickly',
-    primary: { light: '#16a34a', dark: '#4ade80' },
-    linkColour: '#16a34a',
-    linkHoverColour: '#15803d',
+    primary: { light: '#2c7558', dark: '#459578' },
+    linkColour: '#2c7558',
+    linkHoverColour: '#22604a',
   },
   {
     id: 'bloom',
@@ -121,9 +121,132 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     linkColour: '#4f46e5',
     linkHoverColour: '#4338ca',
   },
+  {
+    id: 'spine',
+    name: 'Spine',
+    primary: { light: '#0d9488', dark: '#2dd4bf' },
+    linkColour: '#0d9488',
+    linkHoverColour: '#0f766e',
+  },
+  {
+    id: 'mirage',
+    name: 'Mirage',
+    primary: { light: '#7c3aed', dark: '#a78bfa' },
+    linkColour: '#7c3aed',
+    linkHoverColour: '#6d28d9',
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    primary: { light: '#dc2626', dark: '#f87171' },
+    linkColour: '#dc2626',
+    linkHoverColour: '#b91c1c',
+  },
+  {
+    id: 'mesa',
+    name: 'Mesa',
+    primary: { light: '#d97706', dark: '#fbbf24' },
+    linkColour: '#d97706',
+    linkHoverColour: '#b45309',
+  },
+  {
+    id: 'monsoon',
+    name: 'Monsoon',
+    primary: { light: '#0284c7', dark: '#38bdf8' },
+    linkColour: '#0284c7',
+    linkHoverColour: '#0369a1',
+  },
+  {
+    id: 'sagebrush',
+    name: 'Sagebrush',
+    primary: { light: '#4d7c0f', dark: '#84cc16' },
+    linkColour: '#4d7c0f',
+    linkHoverColour: '#3f6212',
+  },
 ]
 
 const SPACING_STEPS = [1, 2, 3, 4, 6, 8, 12, 16, 24]
+
+// --- Colour helpers: derive a coherent primary palette from a single hex ---
+
+function parseHex(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  let h = m[1] as string
+  if (h.length === 3) h = h.split('').map(c => c + c).join('')
+  const n = parseInt(h, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+function toHex(r: number, g: number, b: number): string {
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')
+  return `#${c(r)}${c(g)}${c(b)}`
+}
+
+// Mix a hex colour towards white (ratio>0 lightens) or black, by ratio 0..1.
+function mixTowards(hex: string, target: 0 | 255, ratio: number): string {
+  const rgb = parseHex(hex)
+  if (!rgb) return hex
+  const [r, g, b] = rgb
+  return toHex(r + (target - r) * ratio, g + (target - g) * ratio, b + (target - b) * ratio)
+}
+
+const darken  = (hex: string, ratio: number) => mixTowards(hex, 0, ratio)
+const lighten = (hex: string, ratio: number) => mixTowards(hex, 255, ratio)
+
+// Pick a legible foreground for a given background, using WCAG relative luminance.
+function onColour(hex: string): string {
+  const rgb = parseHex(hex)
+  if (!rgb) return '#ffffff'
+  const linear = (v: number) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+  const luminance = 0.2126 * linear(rgb[0]) + 0.7152 * linear(rgb[1]) + 0.0722 * linear(rgb[2])
+  return luminance > 0.4 ? '#111111' : '#ffffff'
+}
+
+// Emit the semantic --color-primary family the app actually consumes, derived
+// from the primary design colour. Light mode darkens for hover/active; dark
+// mode lightens. Falls back to just --color-primary if the value isn't hex.
+function primaryVars(hex: string, mode: 'light' | 'dark'): string {
+  const parts = [`--color-primary: ${hex};`]
+  if (!parseHex(hex)) return parts.join(' ')
+  if (mode === 'light') {
+    parts.push(`--color-primary-hover: ${darken(hex, 0.12)};`)
+    parts.push(`--color-primary-active: ${darken(hex, 0.22)};`)
+    parts.push(`--color-primary-dark: ${darken(hex, 0.15)};`)
+    parts.push(`--color-primary-subtle: ${lighten(hex, 0.9)};`)
+    parts.push(`--color-primary-border: ${lighten(hex, 0.7)};`)
+  } else {
+    parts.push(`--color-primary-hover: ${lighten(hex, 0.12)};`)
+    parts.push(`--color-primary-active: ${lighten(hex, 0.22)};`)
+    parts.push(`--color-primary-dark: ${lighten(hex, 0.15)};`)
+    parts.push(`--color-primary-subtle: ${darken(hex, 0.78)};`)
+    parts.push(`--color-primary-border: ${darken(hex, 0.5)};`)
+  }
+  parts.push(`--color-on-primary: ${onColour(hex)};`)
+  return parts.join(' ')
+}
+
+// Emit ONLY the semantic --color-primary family (light + dark) so the admin
+// chrome white-labels to the site's primary colour. Deliberately excludes the
+// spacing/radius/shadow and scoped `main …` rules from buildTokenStyles, which
+// would clash with the admin design system (e.g. its own --radius-lg) and must
+// not restyle admin content. Returns '' when there's no primary colour.
+export function buildAdminThemeStyles(tokens: unknown): string {
+  const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
+  const colours = t.designSystem?.colours ?? []
+  const primary = colours.find(c => c.id === 'primary') ?? colours[0]
+  if (!primary) return ''
+  const light = primaryVars(primary.light, 'light')
+  const dark = primaryVars(primary.dark || primary.light, 'dark')
+  return [
+    `:root,[data-theme="light"]{${light}}`,
+    `[data-theme="dark"]{${dark}}`,
+    `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${dark}}}`,
+  ].join('\n')
+}
 
 export function buildTokenStyles(tokens: unknown): string {
   const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
@@ -134,6 +257,13 @@ export function buildTokenStyles(tokens: unknown): string {
   const colours = ds.colours ?? []
   const lightColours = colours.map((c, i) => `--color-${i + 1}: ${c.light};`).join(' ')
   const darkColours = colours.map((c, i) => `--color-${i + 1}: ${c.dark};`).join(' ')
+
+  // Map the primary design colour onto the semantic --color-primary family that
+  // buttons, links, richtext and Puck components consume. Without this, changing
+  // the primary colour or applying a preset has no visible effect.
+  const primary = colours.find(c => c.id === 'primary') ?? colours[0]
+  const lightPrimary = primary ? primaryVars(primary.light, 'light') : ''
+  const darkPrimary = primary ? primaryVars(primary.dark || primary.light, 'dark') : ''
 
   const spacing = SPACING_STEPS.map((m, i) => `--sp-${i + 1}: ${4 * m}px;`).join(' ')
   const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
@@ -177,9 +307,9 @@ export function buildTokenStyles(tokens: unknown): string {
   if (fields?.borderRadius) vars.push(`--field-radius: ${fields.borderRadius};`)
   if (fields?.labelColour)  vars.push(`--field-label-color: ${fields.labelColour};`)
 
-  const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${vars.join(' ')}}`
-  const darkBlock = `[data-theme="dark"]{${darkColours}}`
-  const mediaDark = `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}}}`
+  const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
+  const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}}`
+  const mediaDark = `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}${darkPrimary}}}`
 
   const scoped: string[] = []
 
@@ -196,9 +326,12 @@ export function buildTokenStyles(tokens: unknown): string {
     return p
   }
 
+  // Apply body typography to `main` itself so it cascades to all content -
+  // including rich text, whose `.puck-richtext p` rule out-specificities a
+  // plain `main p` selector and would otherwise ignore the chosen body font.
   const bodyProps = [...typoProps(body)]
   if (body.colour) bodyProps.push(`color: ${body.colour};`)
-  if (bodyProps.length) scoped.push(`main p{${bodyProps.join('')}}`)
+  if (bodyProps.length) scoped.push(`main{${bodyProps.join('')}}`)
 
   for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
     const h = (ts?.headings?.[tag] ?? {}) as HeadingStyle

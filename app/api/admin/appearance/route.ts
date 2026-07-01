@@ -28,9 +28,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'designTokens required' }, { status: 400 })
     }
 
+    // Shape guard: allow null (clear) or a v2 token object. Reject anything else
+    // rather than persisting a malformed blob.
+    const dt = body.designTokens
+    if (dt !== null && (typeof dt !== 'object' || Array.isArray(dt) || dt.version !== 2)) {
+      return NextResponse.json({ error: 'Invalid designTokens: expected a version 2 object' }, { status: 400 })
+    }
+
     const config = await prisma.siteConfig.update({
       where: { id: 'singleton' },
-      data: { designTokens: body.designTokens },
+      data: { designTokens: dt },
     })
     return NextResponse.json(config)
   } catch {
