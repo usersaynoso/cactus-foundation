@@ -181,6 +181,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       // Login page: rewrite without auth check
       if (sub === loginSub || sub.startsWith(loginSub + '/')) {
         const target = new URL(`${ADMIN_INTERNAL}${sub}`, request.url)
+        target.search = request.nextUrl.search
         const res = NextResponse.rewrite(target)
         res.headers.set('x-cactus-admin-path', adminPath)
         res.headers.set('x-cactus-is-login', '1')
@@ -207,6 +208,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
               return withSecurity(res)
             }
             const target = new URL(`${ADMIN_INTERNAL}${sub}`, request.url)
+            target.search = request.nextUrl.search
             const res = NextResponse.rewrite(target)
             res.headers.set('x-cactus-admin-path', adminPath)
             res.headers.set('x-cactus-user-id', user.id)

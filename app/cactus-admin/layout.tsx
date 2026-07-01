@@ -35,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const [config, activeModules, unreadCount] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true } }),
-    prisma.module.findMany({ where: { status: 'active' }, select: { manifest: true } }),
+    prisma.module.findMany({ where: { status: { in: ['active', 'update_available'] } }, select: { manifest: true } }),
     getUnreadCount(),
   ])
 
