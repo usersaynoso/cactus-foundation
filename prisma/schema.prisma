@@ -51,6 +51,7 @@ model Passkey {
   publicKey    Bytes
   counter      BigInt   @default(0)
   transports   String[]
+  label        String?
   createdAt    DateTime @default(now())
 
   @@index([userId])

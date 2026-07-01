@@ -1455,6 +1455,23 @@ tbody tr:hover {
   }
 }
 
+.account-grid-container {
+  container-type: inline-size;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@container (min-width: 640px) {
+  .account-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ============================================================
    RICH TEXT (PUCK OUTPUT)
    ============================================================ */

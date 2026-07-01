@@ -1,14 +1,16 @@
+import { cookies } from 'next/headers'
+import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, deleteAllUserSessions } from '@/lib/auth/session'
 import {
   hashPassword,
   verifyPassword,
   validateNewPassword,
 } from '@/lib/auth/password'
 import { sendPasswordChangedNotification } from '@/lib/email/index'
-import { isEmailConfigured } from '@/lib/config/env'
+import { isEmailConfigured, getSessionSecret } from '@/lib/config/env'
 import { errorResponse } from '@/lib/utils'
 
 // GET: report whether a password is set and whether email is configured.
@@ -27,6 +29,7 @@ export async function GET() {
 const Body = z.object({
   currentPassword: z.string().optional(),
   newPassword: z.string(),
+  signOutOtherSessions: z.boolean().optional(),
 })
 
 // POST: add or change the signed-in user's password.
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return errorResponse('Invalid input', 400)
   }
-  const { currentPassword, newPassword } = parsed.data
+  const { currentPassword, newPassword, signOutOtherSessions } = parsed.data
 
   // Re-read the current hash from the DB; the session object may be stale.
   const dbUser = await prisma.user.findUnique({
@@ -71,6 +74,13 @@ export async function POST(request: NextRequest) {
 
   const passwordHash = await hashPassword(newPassword)
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } })
+
+  if (signOutOtherSessions) {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('cactus_session')?.value ?? ''
+    const currentHash = createHash('sha256').update(token + getSessionSecret()).digest('hex')
+    await deleteAllUserSessions(user.id, currentHash)
+  }
 
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },

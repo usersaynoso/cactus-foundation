@@ -84,6 +84,45 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
   },
 }
 
+export type ColourPreset = {
+  id: string
+  name: string
+  primary: { light: string; dark: string }
+  linkColour: string
+  linkHoverColour: string
+}
+
+export const COLOUR_PRESETS: ColourPreset[] = [
+  {
+    id: 'prickly',
+    name: 'Prickly',
+    primary: { light: '#16a34a', dark: '#4ade80' },
+    linkColour: '#16a34a',
+    linkHoverColour: '#15803d',
+  },
+  {
+    id: 'bloom',
+    name: 'Bloom',
+    primary: { light: '#db2777', dark: '#f472b6' },
+    linkColour: '#db2777',
+    linkHoverColour: '#be185d',
+  },
+  {
+    id: 'desert',
+    name: 'Desert',
+    primary: { light: '#c2410c', dark: '#fb923c' },
+    linkColour: '#c2410c',
+    linkHoverColour: '#9a3412',
+  },
+  {
+    id: 'dusk',
+    name: 'Dusk',
+    primary: { light: '#4f46e5', dark: '#818cf8' },
+    linkColour: '#4f46e5',
+    linkHoverColour: '#4338ca',
+  },
+]
+
 const SPACING_STEPS = [1, 2, 3, 4, 6, 8, 12, 16, 24]
 
 export function buildTokenStyles(tokens: unknown): string {

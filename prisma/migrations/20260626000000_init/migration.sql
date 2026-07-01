@@ -43,6 +43,7 @@ CREATE TABLE "Passkey" (
     "publicKey" BYTEA NOT NULL,
     "counter" BIGINT NOT NULL DEFAULT 0,
     "transports" TEXT[],
+    "label" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Passkey_pkey" PRIMARY KEY ("id")
 );

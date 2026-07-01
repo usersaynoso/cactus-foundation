@@ -94,12 +94,35 @@ export async function verifyRegistration(
   return { verification, userId: stored.userId }
 }
 
+export function labelFromUserAgent(ua: string): string {
+  const s = ua.toLowerCase()
+
+  const os =
+    /iphone|ipad|ipod/.test(s) ? 'iOS' :
+    /android/.test(s) ? 'Android' :
+    /mac os x|macintosh/.test(s) ? 'macOS' :
+    /windows/.test(s) ? 'Windows' :
+    /linux/.test(s) ? 'Linux' :
+    'Unknown OS'
+
+  const browser =
+    /edg\//.test(s) ? 'Edge' :
+    /opr\/|opera/.test(s) ? 'Opera' :
+    /chrome\//.test(s) ? 'Chrome' :
+    /firefox\//.test(s) ? 'Firefox' :
+    /safari\//.test(s) ? 'Safari' :
+    'Unknown browser'
+
+  return `${browser} on ${os}`
+}
+
 export async function savePasskey(
   userId: string,
   info: NonNullable<
     Awaited<ReturnType<typeof verifyRegistrationResponse>>['registrationInfo']
   >,
-  transports: AuthenticatorTransportFuture[]
+  transports: AuthenticatorTransportFuture[],
+  label?: string
 ) {
   await prisma.passkey.create({
     data: {
@@ -108,6 +131,7 @@ export async function savePasskey(
       publicKey: Buffer.from(info.credential.publicKey),
       counter: BigInt(info.credential.counter),
       transports: transports as string[],
+      label: label ?? null,
     },
   })
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { DesignTokens, GlobalColour, GlobalFont, Typo } from '@/lib/design/tokens'
-import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset } from '@/lib/design/tokens'
+import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 
 const POPULAR_FONTS = [
   'system-ui, sans-serif',
@@ -68,6 +68,18 @@ export default function StylesPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [openHeadings, setOpenHeadings] = useState<Set<string>>(new Set(['h1']))
+  const dirty = useRef(false)
+
+  const activePreset = useMemo(() => {
+    const primaryColour = tokens.designSystem.colours.find(c => c.id === 'primary')
+      ?? tokens.designSystem.colours[0]
+    if (!primaryColour) return null
+    return COLOUR_PRESETS.find(p =>
+      p.primary.light === primaryColour.light &&
+      p.primary.dark === primaryColour.dark &&
+      p.linkColour === (tokens.themeStyle.links.colour ?? '')
+    ) ?? null
+  }, [tokens])
 
   useEffect(() => {
     fetch('/api/admin/appearance')
@@ -87,49 +99,99 @@ export default function StylesPage() {
         body: JSON.stringify({ designTokens: tokens }),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed') }
-      else setSaved(true)
+      else { setSaved(true); dirty.current = false }
     } catch { setError('Save failed') }
     finally { setSaving(false) }
   }, [tokens])
 
-  const setDsColours = (colours: GlobalColour[]) =>
+  const handleApplyPreset = useCallback((preset: ColourPreset) => {
+    if (dirty.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved edits will be replaced.`)) return
+    setTokens(t => {
+      const hasPrimary = t.designSystem.colours.some(c => c.id === 'primary')
+      return {
+        ...t,
+        designSystem: {
+          ...t.designSystem,
+          colours: t.designSystem.colours.map((c, i) =>
+            (c.id === 'primary' || (!hasPrimary && i === 0))
+              ? { ...c, light: preset.primary.light, dark: preset.primary.dark }
+              : c
+          ),
+        },
+        themeStyle: {
+          ...t.themeStyle,
+          links: { ...t.themeStyle.links, colour: preset.linkColour, hoverColour: preset.linkHoverColour },
+        },
+      }
+    })
+    dirty.current = false
+    setSaved(false)
+  }, [])
+
+  const setDsColours = (colours: GlobalColour[]) => {
+    dirty.current = true
     setTokens(t => ({ ...t, designSystem: { ...t.designSystem, colours } }))
+  }
 
-  const setDsFonts = (fonts: GlobalFont[]) =>
+  const setDsFonts = (fonts: GlobalFont[]) => {
+    dirty.current = true
     setTokens(t => ({ ...t, designSystem: { ...t.designSystem, fonts } }))
+  }
 
-  const setBackground = (patch: Partial<DesignTokens['themeStyle']['background']>) =>
+  const setBackground = (patch: Partial<DesignTokens['themeStyle']['background']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, background: { ...t.themeStyle.background, ...patch } } }))
+  }
 
-  const setBody = (patch: Partial<DesignTokens['themeStyle']['body']>) =>
+  const setBody = (patch: Partial<DesignTokens['themeStyle']['body']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, body: { ...t.themeStyle.body, ...patch } } }))
+  }
 
-  const setLinks = (patch: Partial<DesignTokens['themeStyle']['links']>) =>
+  const setLinks = (patch: Partial<DesignTokens['themeStyle']['links']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, links: { ...t.themeStyle.links, ...patch } } }))
+  }
 
-  const setHeading = (tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', patch: Record<string, unknown>) =>
+  const setHeading = (tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', patch: Record<string, unknown>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, headings: { ...t.themeStyle.headings, [tag]: { ...t.themeStyle.headings[tag], ...patch } } } }))
+  }
 
-  const setButtons = (patch: Partial<DesignTokens['themeStyle']['buttons']>) =>
+  const setButtons = (patch: Partial<DesignTokens['themeStyle']['buttons']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, ...patch } } }))
+  }
 
-  const setButtonTypo = (patch: Partial<Typo>) =>
+  const setButtonTypo = (patch: Partial<Typo>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, typo: { ...t.themeStyle.buttons.typo, ...patch } } } }))
+  }
 
-  const setButtonHover = (patch: Partial<DesignTokens['themeStyle']['buttons']['hover']>) =>
+  const setButtonHover = (patch: Partial<DesignTokens['themeStyle']['buttons']['hover']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, hover: { ...t.themeStyle.buttons.hover, ...patch } } } }))
+  }
 
-  const setImages = (patch: Partial<DesignTokens['themeStyle']['images']>) =>
+  const setImages = (patch: Partial<DesignTokens['themeStyle']['images']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, images: { ...t.themeStyle.images, ...patch } } }))
+  }
 
-  const setFormFields = (patch: Partial<DesignTokens['themeStyle']['formFields']>) =>
+  const setFormFields = (patch: Partial<DesignTokens['themeStyle']['formFields']>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, ...patch } } }))
+  }
 
-  const setFieldTypo = (patch: Partial<Typo>) =>
+  const setFieldTypo = (patch: Partial<Typo>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, typo: { ...t.themeStyle.formFields.typo, ...patch } } } }))
+  }
 
-  const setLabelTypo = (patch: Partial<Typo>) =>
+  const setLabelTypo = (patch: Partial<Typo>) => {
+    dirty.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, formFields: { ...t.themeStyle.formFields, labelTypo: { ...t.themeStyle.formFields.labelTypo, ...patch } } } }))
+  }
 
   const colours = tokens.designSystem.colours
 
@@ -164,6 +226,35 @@ export default function StylesPage() {
 
         {activeTab === 'design' && (
           <>
+            <Section
+              title="Presets"
+              aside={!activePreset ? <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontStyle: 'italic' }}>Customised</span> : undefined}
+            >
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Quick-start colour schemes. Applying a preset updates your colour palette and link colours - everything else stays as you left it.</p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {COLOUR_PRESETS.map(preset => {
+                  const isActive = activePreset?.id === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit' }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        {preset.name}
+                        {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.3125rem' }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
+                        <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </Section>
+
             <Section title="Global colours">
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Named colours with light and dark variants. These become the colour palette available throughout Layouts.</p>
               {tokens.designSystem.colours.map((c, i) => (
@@ -316,10 +407,13 @@ export default function StylesPage() {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '2.5rem' }}>
-      <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 1rem', color: 'var(--color-fg)', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>{title}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
+        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0, color: 'var(--color-fg)' }}>{title}</h2>
+        {aside}
+      </div>
       {children}
     </div>
   )

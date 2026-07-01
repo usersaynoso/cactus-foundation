@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server'
-import { verifyRegistration, savePasskey } from '@/lib/auth/passkey'
+import { verifyRegistration, savePasskey, labelFromUserAgent } from '@/lib/auth/passkey'
 import { getSessionFromCookie } from '@/lib/auth/session'
 
 const Body = z.object({
@@ -49,10 +49,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Could not determine user for passkey registration')
     }
 
+    const label = labelFromUserAgent(request.headers.get('user-agent') ?? '')
     await savePasskey(
       targetUserId,
       verification.registrationInfo,
-      ((attestation as { response?: { transports?: string[] } })?.response?.transports ?? []) as AuthenticatorTransportFuture[]
+      ((attestation as { response?: { transports?: string[] } })?.response?.transports ?? []) as AuthenticatorTransportFuture[],
+      label
     )
 
     return NextResponse.json({ verified: true })
