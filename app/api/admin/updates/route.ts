@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
@@ -15,12 +15,20 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 
 export const maxDuration = 60
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
 
-  const status = await getCoreUpdateStatus()
+  const bust = request.nextUrl.searchParams.get('bust') === 'true'
+
+  const cfg = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { coreUpdateChannel: true },
+  })
+  const channel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'
+
+  const status = await getCoreUpdateStatus({ bust, channel })
 
   // Raise (or clear) the on-demand "update available" notification so the bell
   // persists the reminder across the admin. Never let this break the endpoint.
@@ -35,7 +43,7 @@ export async function GET() {
     console.error('[updates] Failed to sync core-update notification:', err)
   }
 
-  return NextResponse.json(status)
+  return NextResponse.json({ status, coreUpdateChannel: channel })
 }
 
 export async function POST() {
