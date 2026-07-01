@@ -22,6 +22,17 @@ const config: NextConfig = {
     loader: 'custom',
     loaderFile: './lib/media/loader.ts',
   },
+  async headers() {
+    return [
+      {
+        // Allow browsers and DevTools to load static chunks and source maps.
+        // These files bypass the proxy middleware (which handles all other
+        // security headers), so CORS must be set here via the config instead.
+        source: '/_next/static/:path*',
+        headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
+      },
+    ]
+  },
   experimental: {
     // typedRoutes: true, // enable once stable in Next.js 16
   },
