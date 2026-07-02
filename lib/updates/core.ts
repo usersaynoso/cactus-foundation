@@ -200,12 +200,23 @@ export type SyncResult = {
   fileCount: number
 }
 
+export type ModuleRegistryEntry = { name: string; repoUrl: string; version: string }
+
 // Copies changed core files from the upstream release into the admin's repo.
-// Skips anything under modules/ or equal to .gitmodules.
+// Skips anything under modules/, .gitmodules, or modules.json.
 // Uses createTree(base_tree=adminHEAD) so user files outside the delta are preserved.
+//
+// `modulesJson`, when given, pins the module registry to it in the SAME commit as the
+// core sync (rather than a separate push) - this is what makes checkout-modules.mjs's
+// per-module `--branch <version>` clone (see that script) actually pin module code to
+// a specific tag instead of always fetching upstream HEAD on every build the core
+// update triggers. Callers pass the full desired module list (untouched modules keep
+// their current confirmed version, selected-for-update modules pass their target tag) -
+// omitting an installed module here would silently drop its registry entry.
 export async function syncCoreFromUpstream(
   fromVersion: string,
-  toVersion: string
+  toVersion: string,
+  modulesJson?: ModuleRegistryEntry[]
 ): Promise<SyncResult> {
   const octokit = await getGithubClient()
   const { owner: adminOwner, repo: adminRepo } = getMainRepo()
@@ -251,7 +262,7 @@ export async function syncCoreFromUpstream(
   }
 
   const treeEntries: TreeEntry[] = []
-  const skipped = (path: string) => path === '.gitmodules' || path.startsWith('modules/')
+  const skipped = (path: string) => path === '.gitmodules' || path === 'modules.json' || path.startsWith('modules/')
 
   for (const [path, toEntry] of toTree) {
     if (skipped(path)) continue
@@ -276,6 +287,16 @@ export async function syncCoreFromUpstream(
   for (const path of fromTree.keys()) {
     if (skipped(path) || toTree.has(path)) continue
     treeEntries.push({ path, mode: '100644', type: 'blob', sha: null })
+  }
+
+  if (modulesJson) {
+    const jsonContent = JSON.stringify({ modules: modulesJson }, null, 2) + '\n'
+    const { data: blob } = await octokit.rest.git.createBlob({
+      owner: adminOwner, repo: adminRepo,
+      content: Buffer.from(jsonContent).toString('base64'),
+      encoding: 'base64',
+    })
+    treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', sha: blob.sha })
   }
 
   if (treeEntries.length === 0) {
