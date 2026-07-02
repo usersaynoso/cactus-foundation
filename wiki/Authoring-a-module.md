@@ -62,6 +62,8 @@ Every module repo must contain `cactus.module.json` at its root:
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
 | `puckBlocks` | `PuckBlock[]` | Optional. Registers Puck blocks provided by this module. See [Module Puck blocks](#module-puck-blocks) below. |
+| `requiresModules` | `Array<{name: string, minVersion: string}>` | Optional. Other modules that must already be installed and active, at or above `minVersion`, before this one can be installed. The install route rejects the install with a clear message if a dependency is missing or too old. Uninstalling a module that another active module still depends on is blocked the same way, in reverse. |
+| `cronJobs` | `Array<{path: string, schedule: string}>` | Optional. Vercel Cron entries this module needs. `path` must be under `/api/m/<your-module-name>/...` (it's dispatched through the same generic module router as any other module API route). `schedule` is a standard cron expression. Every installed module's `cronJobs` are collected into a single generated `vercel.json` at build/dev time - see [Module cron jobs](#module-cron-jobs) below. **Vercel's Hobby plan caps cron invocations to once per day per job**, however often you write the schedule. |
 
 ### Permission key convention
 
@@ -224,7 +226,7 @@ Call it (fire-and-forget, `.catch(...)`) after **every** mutation that changes t
 
 1. Site admin enters your GitHub URL in **Admin → Modules → Install a module**.
 2. Cactus fetches `cactus.module.json` from your repo.
-3. Validates: manifest schema, `tablePrefix` uniqueness, required env vars.
+3. Validates: manifest schema, `tablePrefix` uniqueness, required env vars, and `requiresModules` (every declared dependency must already be installed, `active`, and at or above `minVersion` - install is rejected with a clear message otherwise).
 4. Finds your latest tagged release and its commit SHA.
 5. Commits your repo as a git submodule at `modules/<name>` via the GitHub API.
 6. Vercel builds → `generate-module-router.mjs` wires admin pages and API routes, then `run-module-migrations.mjs` applies `001_create_tables.sql`, etc.
@@ -248,6 +250,7 @@ Disabling a module is a database flag flip - no redeploy, no data loss. The modu
    - **Remove code only** - removes the submodule git entry and the `Module` DB row. Database tables are preserved.
    - **Remove code and data** - same as above, plus drops every table listed in `teardown`. Only available if the module declares `teardown` in its manifest.
 3. On confirmation, Cactus commits the submodule removal to the main repo, Vercel rebuilds, and the admin is redirected to the redeploying page.
+4. Uninstall is blocked if another active module's `requiresModules` still points at this one - remove the dependent module first.
 
 ## Structuring per-version migrations
 
@@ -298,6 +301,30 @@ A module can register Puck blocks that appear in both the page builder and the l
 - **Keep security-sensitive settings server-authoritative.** For example, a contact form block's notification email and CAPTCHA toggle should be stored in the page's `builderData`, never sent by the browser. The submit handler must re-derive the config by looking up the saved `builderData` using the page/layout slug and block `id`.
 - **Use `puck?.id`** in the RSC render function to get the block's unique Puck identifier (available as `props.puck.id` in all render functions).
 - **Gate settings behind real config status with `resolveFields`.** If your block depends on integrations that may not be configured (e.g. email delivery, a third-party API), add an async `resolveFields` function to your editor component object. It receives `(data, { fields })` and returns the fields to display. When the required integration is absent, return a single custom field that renders a warning banner instead of the normal controls - this prevents editors from configuring features that can't work. Use `fetch('/api/auth/config')` to check email and Turnstile status; cache the promise at module scope with a short TTL (60 s) so the function doesn't refetch on every panel keystroke.
+
+## Module cron jobs
+
+A module can register Vercel Cron jobs by declaring `cronJobs` in `cactus.module.json`:
+
+```json
+"cronJobs": [
+  { "path": "/api/m/my-module/cron/sync", "schedule": "0 6 * * *" }
+]
+```
+
+`path` is dispatched through the same generic `/api/m/[module]/[...path]` router as any other module API route - just create `app/api/cron/sync/route.ts` in your module and it's reachable at that path. `schedule` is a standard cron expression. **Vercel's Hobby plan caps cron invocations to once per day per job**, regardless of what the schedule says, so design for "runs roughly daily" rather than anything finer-grained. Pair a daily cron with a manual "Check now" admin button for anything time-sensitive.
+
+`scripts/generate-module-cron.mjs` runs on every `npm run build` and `npm run dev`. It collects `cronJobs` from every installed module's manifest into a single generated `vercel.json` at the project root - gitignored, never committed, same pattern as `lib/modules/router.ts`.
+
+**Authenticating cron requests.** Set a `CRON_SECRET` environment variable and Vercel automatically appends `Authorization: Bearer $CRON_SECRET` to its own cron requests - no custom secret scheme needed. Your cron route just checks that header:
+
+```ts
+const secret = process.env.CRON_SECRET
+if (!secret) return errorResponse('CRON_SECRET is not configured', 503)
+if (request.headers.get('authorization') !== `Bearer ${secret}`) return errorResponse('Unauthorized', 401)
+```
+
+Note that module route files **cannot** export their own `maxDuration` - the generated router imports every route file as a plain object of HTTP-method handlers, and a `maxDuration` export breaks that structural type. The shared dispatcher at `app/api/m/[module]/[...path]/route.ts` sets one `maxDuration` (currently 60s) for every module route instead.
 
 ## Local development loop
 

@@ -158,6 +158,21 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const mod = await prisma.module.findUnique({ where: { id } })
   if (!mod) return errorResponse('Module not found', 404)
 
+  // Block uninstalling a module that another active module still depends on.
+  const others = await prisma.module.findMany({
+    where: { name: { not: mod.name }, status: 'active' },
+    select: { name: true, manifest: true },
+  })
+  const dependents = others.filter((other) => {
+    const otherManifest = other.manifest as { requiresModules?: { name: string }[] } | null
+    return otherManifest?.requiresModules?.some((dep) => dep.name === mod.name)
+  })
+  if (dependents.length > 0) {
+    return errorResponse(
+      `Cannot remove "${mod.name}" - it is required by: ${dependents.map((d) => d.name).join(', ')}. Remove those first.`
+    )
+  }
+
   const ghConfigStatus = await getGitHubConfigStatus()
   if (ghConfigStatus === 'app_not_installed') {
     return errorResponse(

@@ -1,6 +1,10 @@
 import { dispatchModuleApi } from '@/lib/modules/router'
 
 export const dynamic = 'force-dynamic'
+// Module route files can't export their own maxDuration (breaks the generated
+// router's structural typing), so this shared dispatcher sets one ceiling for
+// every module route - generous enough for slower operations like IMAP polling.
+export const maxDuration = 60
 
 type Ctx = { params: Promise<{ module: string; path: string[] }> }
 
