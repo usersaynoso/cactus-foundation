@@ -1608,6 +1608,12 @@ tbody tr:hover {
     background: #252320;
   }
 
+  /* Rail-collapse is a desktop space-saving feature; the mobile drawer is
+     already a full-screen overlay so the toggle has nothing to do here. */
+  .admin-sidebar-toggle {
+    display: none;
+  }
+
   .admin-content {
     padding: var(--space-4);
   }

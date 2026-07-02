@@ -489,6 +489,22 @@ function ConfigPageInner() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const tabsScrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false)
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false)
+
+  useEffect(() => {
+    const el = tabsScrollRef.current
+    if (!el) return
+    const check = () => {
+      setCanScrollTabsLeft(el.scrollLeft > 0)
+      setCanScrollTabsRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1)
+    }
+    check()
+    el.addEventListener('scroll', check)
+    window.addEventListener('resize', check)
+    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check) }
+  }, [])
 
   // Env var state
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({})
@@ -1128,17 +1144,21 @@ function ConfigPageInner() {
       />
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--color-border)', marginBottom: '2rem', overflowX: 'auto' }}>
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '0.625rem 1rem', border: 'none', background: 'none',
-            borderBottom: t === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
-            color: t === tab ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: t === tab ? 600 : 400,
-            cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', whiteSpace: 'nowrap',
-          }}>
-            {tabLabels[t]}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+        <button type="button" onClick={() => tabsScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollTabsLeft ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>‹</button>
+        <div ref={tabsScrollRef} className="no-scrollbar" style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--color-border)', overflowX: 'auto', flex: 1 }}>
+          {TABS.map((t) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '0.625rem 1rem', border: 'none', background: 'none',
+              borderBottom: t === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
+              color: t === tab ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: t === tab ? 600 : 400,
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', whiteSpace: 'nowrap',
+            }}>
+              {tabLabels[t]}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => tabsScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollTabsRight ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>›</button>
       </div>
 
       {tab === 'general' && (

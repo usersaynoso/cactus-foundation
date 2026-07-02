@@ -32,9 +32,22 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
   const [collapsed, setCollapsed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('cactus-sidebar-collapsed') === 'true'
   )
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
   const pathname = usePathname()
   // Track whether the sidebar was auto-collapsed by the editor so we can restore it on exit
   const autoCollapsedRef = useRef(false)
+
+  // The rail-collapse preference is a desktop-only concept; the mobile drawer
+  // is a full-width overlay so it must never inherit the collapsed rail state.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const update = () => setIsMobileViewport(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  const effectiveCollapsed = collapsed && !isMobileViewport
 
   // Auto-collapse when entering puck editor; auto-expand when leaving
   useEffect(() => {
@@ -95,8 +108,8 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
 
       <aside className={[
         'admin-sidebar',
-        mobileOpen   ? 'admin-sidebar--open'      : '',
-        collapsed    ? 'admin-sidebar--collapsed'  : '',
+        mobileOpen        ? 'admin-sidebar--open'      : '',
+        effectiveCollapsed ? 'admin-sidebar--collapsed'  : '',
       ].filter(Boolean).join(' ')}>
         <div className="admin-sidebar-sticky-top">
           <div className="admin-sidebar-header">
@@ -113,7 +126,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
                 alt="Cactus Foundation"
                 className="admin-sidebar-logo-img"
               />
-              {!collapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
+              {!effectiveCollapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
             </a>
             <button
               className="admin-sidebar-close"
@@ -126,17 +139,17 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
 
           {/* Utility row: collapse toggle, theme switcher, notifications - grouped so
               the header reads as one control cluster instead of scattered rows. */}
-          <div className={`admin-sidebar-toolbar${collapsed ? ' admin-sidebar-toolbar--collapsed' : ''}`}>
+          <div className={`admin-sidebar-toolbar${effectiveCollapsed ? ' admin-sidebar-toolbar--collapsed' : ''}`}>
             <button
               className="admin-sidebar-toggle"
               onClick={toggleCollapsed}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <span className="admin-sidebar-toggle-icon">{collapsed ? '›' : '‹'}</span>
+              <span className="admin-sidebar-toggle-icon">{effectiveCollapsed ? '›' : '‹'}</span>
             </button>
-            <ThemeToggle compact collapsed={collapsed} />
-            <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={collapsed} />
+            <ThemeToggle compact collapsed={effectiveCollapsed} />
+            <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={effectiveCollapsed} />
           </div>
         </div>
 
@@ -145,7 +158,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             adminPath={adminPath}
             userRole={userRole}
             version={version}
-            collapsed={collapsed}
+            collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
             moduleNavEntries={moduleNavEntries}
           />
