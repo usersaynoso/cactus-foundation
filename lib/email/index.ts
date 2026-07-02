@@ -73,9 +73,20 @@ async function getEmailConfig() {
     where: { id: 'singleton' },
     select: { emailFromName: true, emailFromAddress: true, siteName: true },
   })
+
+  let fromAddress = config?.emailFromAddress
+  if (!fromAddress) {
+    const admin = await prisma.user.findFirst({
+      where: { role: { isProtected: true } },
+      orderBy: { createdAt: 'asc' },
+      select: { email: true },
+    })
+    fromAddress = admin?.email ?? 'noreply@example.com'
+  }
+
   return {
     fromName: config?.emailFromName ?? config?.siteName ?? 'Cactus Foundation',
-    fromAddress: config?.emailFromAddress ?? 'noreply@example.com',
+    fromAddress,
   }
 }
 
