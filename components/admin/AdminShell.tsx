@@ -140,14 +140,16 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           </div>
         </div>
 
-        <AdminNav
-          adminPath={adminPath}
-          userRole={userRole}
-          version={version}
-          collapsed={collapsed}
-          onNavClick={() => setMobileOpen(false)}
-          moduleNavEntries={moduleNavEntries}
-        />
+        <div className="admin-sidebar-nav-scroll">
+          <AdminNav
+            adminPath={adminPath}
+            userRole={userRole}
+            version={version}
+            collapsed={collapsed}
+            onNavClick={() => setMobileOpen(false)}
+            moduleNavEntries={moduleNavEntries}
+          />
+        </div>
       </aside>
 
       <div className="admin-main">

@@ -392,8 +392,7 @@ a:hover {
   flex-direction: column;
   padding: var(--space-4) 0 0;
   transition: width var(--dur-slow) var(--ease-in-out);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -405,12 +404,20 @@ a:hover {
   width: 56px;
 }
 
+/* Header/toolbar block sits outside the scrollable nav area below, so it can
+   never be scrolled under or repainted over - no position:sticky needed, and
+   no nested-sticky-inside-scroll-container quirks. */
 .admin-sidebar-sticky-top {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   background: var(--admin-sidebar-bg);
   flex-shrink: 0;
+}
+
+/* Only this wrapper scrolls; the header above stays structurally outside it. */
+.admin-sidebar-nav-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .admin-sidebar-header {
@@ -1566,7 +1573,7 @@ tbody tr:hover {
     transform: translateX(-100%);
     transition: transform var(--dur-slow) var(--ease-in-out);
     padding-top: 0;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .admin-sidebar--open {
