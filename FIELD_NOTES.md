@@ -1,5 +1,5 @@
 # FIELD_NOTES.md
-Last updated: 2026-07-03 (module directory beta-only detection)
+Last updated: 2026-07-03 (media/[id] DELETE route, admin GET session checks, contact-form retention cron, EnvBanner + resolveLayout removed; module directory beta-only detection)
 Produced by: Claude Code agent
 
 ---
@@ -594,7 +594,8 @@ Stored entirely in the Puck block's props (per form instance) inside the owning 
 Core email (Brevo/SMTP) for notification, auto-reply, and reply emails; Cloudflare Turnstile via core config. No credentials of its own.
 
 **Cron Jobs**
-None.
+
+- `0 3 * * *` (daily 03:00, clear of the reply-catcher poll at 06:00) → `/api/m/contact-form/cron/retention`; registered via `cronJobs` in `cactus.module.json`, emitted into the generated `vercel.json`. Calls `runRetentionPolicy()` (`lib/retention.ts`), which prunes `cf_contact_submissions` past each Puck block's `retentionDays` setting.
 
 **Scripts**
 None.
@@ -602,7 +603,6 @@ None.
 **Known Limitations**
 
 - `requiredEnvVars` is empty: the form block degrades in the editor when email is unconfigured, but submissions still store even if notification emails fail.
-- Retention pruning (`lib/retention.ts:runRetentionPolicy`) exists but has no caller anywhere in the module or core - per-block `retentionDays` is currently inert.
 - README's install instructions (git submodule, "Admin > Contact > Settings") describe an older mechanism; installation actually flows through the Cactus Modules admin and `modules.json`, and there is no settings page.
 
 ### Contact Form Reply Catcher
