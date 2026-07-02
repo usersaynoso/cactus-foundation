@@ -7,6 +7,7 @@ export default function RedeployingPage() {
   const [deploymentId, setDeploymentId] = useState<string | null>(null)
   const [adminPath, setAdminPath] = useState<string>('')
   const [deployState, setDeployState] = useState<string>('')
+  const [deployDone, setDeployDone] = useState(false)
   const [deployLogs, setDeployLogs] = useState<string[]>([])
   const [failed, setFailed] = useState(false)
   const [showEscape, setShowEscape] = useState(false)
@@ -124,6 +125,7 @@ export default function RedeployingPage() {
                 postReadyPolls >= MAX_POST_READY_POLLS
               if (tailDone) {
                 cancelled = true
+                setDeployDone(true)
                 await new Promise(r => setTimeout(r, 2_000))
                 await clearAndRedirect(path)
                 return
@@ -165,13 +167,13 @@ export default function RedeployingPage() {
   const stateLabel =
     deployState === 'INITIALIZING' ? 'Initialising' :
     deployState === 'BUILDING' ? 'Building' :
-    deployState === 'READY' ? 'Done' :
+    deployState === 'READY' ? (deployDone ? 'Done' : 'Finishing up') :
     deployState === 'ERROR' ? 'Failed' :
     deployState === 'CANCELED' ? 'Cancelled' :
     deployState || 'Starting'
 
   const badgeClass =
-    deployState === 'READY' ? 'badge-success' :
+    deployState === 'READY' ? (deployDone ? 'badge-success' : 'badge-info') :
     deployState === 'ERROR' || deployState === 'CANCELED' ? 'badge-danger' :
     deployState === 'BUILDING' ? 'badge-info' :
     'badge-default'
