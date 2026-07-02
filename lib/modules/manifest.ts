@@ -17,6 +17,18 @@ const NavEntrySchema = z.object({
   permission: z.string().optional(), // permission key required to see this nav entry
 })
 
+const ModuleDependencySchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Dependency name must be lowercase kebab-case'),
+  minVersion: z.string().regex(/^\d+\.\d+\.\d+/, 'minVersion must be semver'),
+})
+
+const CronJobSchema = z.object({
+  // Must resolve through the generic module router (app/api/m/[module]/[...path]),
+  // so no module ever needs a hand-written entry in a committed core file.
+  path: z.string().regex(/^\/api\/m\/[a-z][a-z0-9-]*\//, 'cron path must be under /api/m/<module-name>/'),
+  schedule: z.string().min(1), // standard cron expression, e.g. "0 6 * * *"
+})
+
 export const ModuleManifestSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Module name must be lowercase kebab-case'),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Version must be semver'),
@@ -37,6 +49,12 @@ export const ModuleManifestSchema = z.object({
     component: z.string().min(1),
     rscComponent: z.string().optional(),
   })).optional(),
+  // Other modules (by name + minimum version) that must be installed and active
+  // before this module can be installed. Enforced by the install/uninstall routes.
+  requiresModules: z.array(ModuleDependencySchema).default([]),
+  // Vercel Cron entries this module needs. Collected across all installed modules
+  // into a single generated vercel.json by scripts/generate-module-cron.mjs.
+  cronJobs: z.array(CronJobSchema).default([]),
 })
 
 export type ModuleManifest = z.infer<typeof ModuleManifestSchema>

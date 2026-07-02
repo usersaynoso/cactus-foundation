@@ -17,8 +17,11 @@ You can also install any module directly from a public GitHub repository if you 
 **From the directory:**
 
 1. Go to **Modules → Available**.
-2. Click **Install** next to the module you want.
-3. Cactus installs it and triggers a short rebuild. A progress screen appears - this typically takes under two minutes.
+2. Each module has a **Public** / **Beta** switch. Leave it on **Public** for the stable release, or switch to **Beta** to install the latest pre-release instead - useful for trying new features early, though they may have rough edges.
+3. Click **Install** (it reads **Install beta** when the Beta switch is on).
+4. Cactus installs it and triggers a short rebuild. A progress screen appears - this typically takes under two minutes.
+
+A module installed from the Beta switch starts life on the **Beta** update channel, marked with a **Beta** badge next to its version once installed. You can switch it back to **Public** at any time - see "Each module's update channel" below.
 
 **From a GitHub URL:**
 
@@ -84,4 +87,4 @@ You'll find **Public** / **Beta** buttons next to each module on the **Modules**
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
