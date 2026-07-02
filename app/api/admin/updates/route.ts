@@ -153,7 +153,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await syncCoreFromUpstream(currentVersion, latestVersion)
+    // Pin every installed module's registry entry into the SAME commit as the core
+    // sync, using each module's confirmed version unless it was just queued above -
+    // otherwise checkout-modules.mjs (which clones the tag pinned here) would leave
+    // untouched modules floating on whatever upstream HEAD happens to be at build time.
+    const allModules = await prisma.module.findMany()
+    const modulesJson = allModules.length > 0
+      ? allModules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.pendingVersion ?? m.version }))
+      : undefined
+
+    await syncCoreFromUpstream(currentVersion, latestVersion, modulesJson)
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
     // Bust the update cache so the panel reflects the running version after redeploy.
