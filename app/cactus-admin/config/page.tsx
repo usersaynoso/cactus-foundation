@@ -148,9 +148,24 @@ type CoreUpdateStatus =
       publishedAt: string | null
     }
 
+type ModuleUpdateInfo = {
+  id: string
+  name: string
+  currentVersion: string
+  latestTag: string
+}
+
 type UpdatesApiResponse = {
   status: CoreUpdateStatus
   coreUpdateChannel: 'public' | 'beta'
+  modulesWithUpdates?: ModuleUpdateInfo[]
+}
+
+function formatModuleUpdateName(name: string): string {
+  return name
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
 }
 
 const UPDATE_CHECK_CACHE_KEY = 'cactus-core-update-check'
@@ -167,6 +182,8 @@ function UpdatesPanel() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updateError, setUpdateError] = useState('')
+  const [modulesWithUpdates, setModulesWithUpdates] = useState<ModuleUpdateInfo[]>([])
+  const [updateModulesToo, setUpdateModulesToo] = useState(true)
 
   async function runCheck(bust = false) {
     setChecking(true)
@@ -176,6 +193,7 @@ function UpdatesPanel() {
       const d = (await res.json()) as UpdatesApiResponse
       setStatus(d.status)
       setChannel(d.coreUpdateChannel ?? 'public')
+      setModulesWithUpdates(d.modulesWithUpdates ?? [])
       sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify({ at: Date.now(), data: d } satisfies UpdateCheckCache))
     } catch {
       // ignore
@@ -193,6 +211,7 @@ function UpdatesPanel() {
           // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from sessionStorage cache read; must happen on mount
           setStatus(parsed.data.status)
           setChannel(parsed.data.coreUpdateChannel ?? 'public')
+          setModulesWithUpdates(parsed.data.modulesWithUpdates ?? [])
           return
         }
       } catch {
@@ -223,7 +242,11 @@ function UpdatesPanel() {
     setUpdating(true)
     setUpdateError('')
     try {
-      const res = await fetch('/api/admin/updates', { method: 'POST' })
+      const res = await fetch('/api/admin/updates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updateModules: modulesWithUpdates.length > 0 && updateModulesToo }),
+      })
       const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
       if (!res.ok) throw new Error(d.error ?? 'Update failed')
       if (d.redeployTriggered) {
@@ -343,10 +366,27 @@ function UpdatesPanel() {
         >
           <div className="card" style={{ maxWidth: '480px', width: '100%', margin: '1rem' }}>
             <h2 className="card-title">Update to v{status.latestVersion}</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: modulesWithUpdates.length > 0 ? '1rem' : '1.5rem' }}>
               This copies the updated core files from the upstream Cactus Foundation repository into your
-              GitHub repo and triggers a redeploy. Your modules, content, and database are not affected.
+              GitHub repo and triggers a redeploy. Your content and database are not affected.
             </p>
+            {modulesWithUpdates.length > 0 && (
+              <label style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '1.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={updateModulesToo}
+                  disabled={updating}
+                  onChange={(e) => setUpdateModulesToo(e.target.checked)}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span style={{ fontSize: 'var(--text-sm)' }}>
+                  Also update {modulesWithUpdates.length === 1 ? 'the module' : `all ${modulesWithUpdates.length} modules`} with updates available
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                    {modulesWithUpdates.map((m) => `${formatModuleUpdateName(m.name)} → v${m.latestTag.replace(/^v/i, '')}`).join(', ')}
+                  </div>
+                </span>
+              </label>
+            )}
             {updateError && (
               <div className="alert alert-danger" style={{ fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>
                 {updateError}

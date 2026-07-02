@@ -172,6 +172,16 @@ Module install / update / uninstall and core updates ship their code by pushing 
 3. The client redirects to `/cactus-status/redeploying`, where the admin watches the build through to completion.
 4. If Vercel creds are missing, `startDeferredRedeploy()` returns `{ triggered: false }` and the handler falls back to the deferred-notification flow (`pending_deploy` + `recordDeploymentNeeded` for modules, `recordDeploymentNeeded` for core updates) so non-Vercel installs still work.
 
+### Core update: bundling module updates into the same deploy
+
+`scripts/checkout-modules.mjs` always does a fresh `git clone` of every registered module on every Vercel build - it doesn't read the version pinned in `modules.json`. That means a **core-only** update already silently refreshes module code (since it triggers a build), while the `Module.version` DB field - what the Modules page compares against the latest GitHub release to decide "update available" - never moves, because core updates never touched module rows. Result: after a core update, modules that got refreshed on disk still showed "update available".
+
+The core-update confirm dialog (`app/cactus-admin/config/page.tsx`) now offers a checkbox, ticked by default when any installed module has an update, to bundle those module updates into the same deploy:
+
+- `GET /api/admin/updates` calls `findModuleUpdates()` (`lib/modules/updates.ts`) - a pure, non-persisting live check against each installed module's latest release - only when a core update is available, and returns the list as `modulesWithUpdates` for the dialog to display and default-check.
+- `POST /api/admin/updates` accepts `{ updateModules: boolean }`. When true, it re-runs `findModuleUpdates()` and, under the same deploy lock as the core sync, sets each stale module to `status: 'deploying', pendingVersion: <latest tag>` (clearing `updateAvailable`/`updateNotes`) **before** calling `syncCoreFromUpstream`. Because `startDeferredRedeploy` is invoked with `committedSince` either way, this doesn't add a second build - the module rows just ride the deploy the core sync already pushes, and get reconciled by the normal `deploying` → `active` machinery (see "Confirmed vs in-flight version" below) once that build lands.
+- If the push fails, queued modules are rolled back to `update_available` in the `catch` block. If Vercel creds are missing (`triggered: false`), queued modules are promoted optimistically (`pending_deploy` + `version` set) the same way the no-Vercel-creds module-update fallback does, since there's no deploy left to reconcile them.
+
 ### Shared redeploy helper
 
 `startDeferredRedeploy(opts?)` (`lib/deploy/redeploy.ts`) is used by the notification redeploy route, the module routes, and the core-update route:

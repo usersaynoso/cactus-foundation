@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getGitHubConfigStatus } from '@/lib/config/env'
+import { z } from 'zod'
 import {
   getCoreUpdateStatus,
   syncCoreFromUpstream,
@@ -12,6 +13,7 @@ import {
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { findModuleUpdates } from '@/lib/modules/updates'
 
 export const maxDuration = 60
 
@@ -29,12 +31,13 @@ export async function GET(request: NextRequest) {
   const channel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'
 
   const status = await getCoreUpdateStatus({ bust, channel })
+  const coreUpdateAvailable = !('localMode' in status) && status.configured && 'updateAvailable' in status && status.updateAvailable
 
   // Raise (or clear) the on-demand "update available" notification so the bell
   // persists the reminder across the admin. Never let this break the endpoint.
   // (Local mode never has an update available, so this clears any stale alert.)
   try {
-    if (!('localMode' in status) && status.configured && 'updateAvailable' in status && status.updateAvailable) {
+    if (coreUpdateAvailable && !('localMode' in status) && status.configured && 'updateAvailable' in status) {
       await recordCoreUpdate(status.latestVersion)
     } else {
       await clearAlert('core-update')
@@ -43,13 +46,37 @@ export async function GET(request: NextRequest) {
     console.error('[updates] Failed to sync core-update notification:', err)
   }
 
-  return NextResponse.json({ status, coreUpdateChannel: channel })
+  // Only worth the extra GitHub calls when the confirm dialog (which offers to
+  // bundle module updates in) is actually going to be shown.
+  let modulesWithUpdates: Awaited<ReturnType<typeof findModuleUpdates>> = []
+  if (coreUpdateAvailable) {
+    try {
+      modulesWithUpdates = await findModuleUpdates()
+    } catch (err) {
+      console.error('[updates] Failed to check module updates:', err)
+    }
+  }
+
+  return NextResponse.json({ status, coreUpdateChannel: channel, modulesWithUpdates })
 }
 
-export async function POST() {
+const PostBody = z.object({ updateModules: z.boolean().optional() })
+
+export async function POST(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
+
+  // Body is optional for backwards compatibility with any existing callers that POST
+  // with no payload - those just skip the module bundling.
+  let updateModules = false
+  try {
+    const raw = await request.text()
+    if (raw) {
+      const parsed = PostBody.safeParse(JSON.parse(raw))
+      if (parsed.success) updateModules = parsed.data.updateModules ?? false
+    }
+  } catch { /* malformed body: fall back to core-only update */ }
 
   const ghConfigStatus = await getGitHubConfigStatus()
   if (ghConfigStatus === 'app_not_installed') {
@@ -103,7 +130,29 @@ export async function POST() {
   // deployment exists in this window).
   const deployStartedAt = Date.now()
 
+  let queuedModules: Awaited<ReturnType<typeof findModuleUpdates>> = []
+
   try {
+    // Queue any modules with an available update into the SAME build the core sync is
+    // about to trigger: checkout-modules.mjs pulls latest module code on every build
+    // regardless of the version pinned in modules.json, so a core-only update already
+    // silently refreshes module code - this just lets the DB's tracked version catch up
+    // in that same deploy instead of drifting (leaving the Modules page falsely showing
+    // "update available" for code that's already live). Held under the same deploy lock
+    // as the core sync. Reconciled to 'active' by the existing redeploying-screen poll /
+    // webhook once this deploy lands (lib/deploy/reconcile.ts), same as a solo module update.
+    if (updateModules) {
+      queuedModules = await findModuleUpdates()
+      await Promise.all(
+        queuedModules.map((m) =>
+          prisma.module.update({
+            where: { id: m.id },
+            data: { status: 'deploying', pendingVersion: m.latestTag, updateAvailable: null, updateNotes: null },
+          })
+        )
+      )
+    }
+
     await syncCoreFromUpstream(currentVersion, latestVersion)
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
@@ -121,11 +170,38 @@ export async function POST() {
     // don't double-deploy), then send the admin to the redeploying screen.
     const { triggered } = await startDeferredRedeploy({ committedSince: deployStartedAt })
     if (!triggered) {
+      // No Vercel creds: there's no deploy to track, so promote any queued module
+      // updates optimistically now (mirrors the solo module-update route's fallback) -
+      // otherwise they'd sit in 'deploying' forever with nothing left to reconcile them.
+      await Promise.all(
+        queuedModules.map((m) =>
+          prisma.module.update({
+            where: { id: m.id },
+            data: { status: 'pending_deploy', version: m.latestTag, pendingVersion: null },
+          })
+        )
+      )
       // No Vercel creds: fall back to the deferred-notification flow.
       await recordDeploymentNeeded({ label: `Cactus core updated to v${latestVersion}` })
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, moduleUpdatesQueued: queuedModules.length })
     }
   } catch (err: unknown) {
+    // Nothing was pushed (or the push itself failed), so roll any queued module rows
+    // back to where they were - otherwise they'd be stranded in 'deploying' with no
+    // deploy coming to reconcile them.
+    await Promise.all(
+      queuedModules.map((m) =>
+        prisma.module.update({
+          where: { id: m.id },
+          data: {
+            status: 'update_available',
+            pendingVersion: null,
+            updateAvailable: m.latestTag,
+            updateNotes: m.releaseBody,
+          },
+        })
+      )
+    )
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
     return errorResponse(
       `Update failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -133,5 +209,5 @@ export async function POST() {
     )
   }
 
-  return NextResponse.json({ ok: true, redeployTriggered: true })
+  return NextResponse.json({ ok: true, redeployTriggered: true, moduleUpdatesQueued: queuedModules.length })
 }
