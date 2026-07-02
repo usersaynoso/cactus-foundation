@@ -14,6 +14,7 @@ import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { compareVersions } from '@/lib/updates/core'
 
 export const maxDuration = 60
 
@@ -28,6 +29,7 @@ export async function GET() {
 
 const InstallBody = z.object({
   repoUrl: z.string().url(),
+  channel: z.enum(['public', 'beta']).default('public'),
 })
 
 export async function POST(request: NextRequest) {
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
   const parsed = InstallBody.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { repoUrl } = parsed.data
+  const { repoUrl, channel } = parsed.data
 
   // Check deploy lock
   const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
@@ -70,7 +72,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Check tablePrefix uniqueness
-  const existing = await prisma.module.findMany({ select: { tablePrefix: true, name: true } })
+  const existing = await prisma.module.findMany({
+    select: { tablePrefix: true, name: true, status: true, version: true },
+  })
   try {
     validateTablePrefixUnique(manifest.tablePrefix, existing.map((m) => m.tablePrefix))
   } catch (err: unknown) {
@@ -82,11 +86,29 @@ export async function POST(request: NextRequest) {
     return errorResponse(`Module "${manifest.name}" is already installed`)
   }
 
-  // New modules install from the public channel by default; the channel can be
-  // switched per-module afterwards.
-  const release = await getLatestRelease(repoUrl, 'public')
+  // Check declared module dependencies are installed, active, and at minVersion+
+  for (const dep of manifest.requiresModules) {
+    const found = existing.find((m) => m.name === dep.name)
+    if (!found || found.status !== 'active') {
+      return errorResponse(
+        `"${manifest.name}" requires the "${dep.name}" module (v${dep.minVersion}+) to be installed and active first.`
+      )
+    }
+    if (compareVersions(found.version, dep.minVersion) < 0) {
+      return errorResponse(
+        `"${manifest.name}" requires "${dep.name}" v${dep.minVersion}+, but v${found.version.replace(/^v/i, '')} is installed. Update it first.`
+      )
+    }
+  }
+
+  // Channel chosen at install time; can be switched per-module afterwards.
+  const release = await getLatestRelease(repoUrl, channel)
   if (!release) {
-    return errorResponse('No tagged releases found in this repository. Publish a GitHub release first.')
+    return errorResponse(
+      channel === 'beta'
+        ? 'No releases (stable or pre-release) found in this repository. Publish a GitHub release first.'
+        : 'No tagged releases found in this repository. Publish a GitHub release first.'
+    )
   }
 
   // Check required env vars
@@ -114,6 +136,7 @@ export async function POST(request: NextRequest) {
         tablePrefix: manifest.tablePrefix,
         status: 'pending_install',
         manifest: manifest as object,
+        updateChannel: channel,
       },
     }),
   ])

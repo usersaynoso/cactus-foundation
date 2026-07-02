@@ -74,6 +74,7 @@ export default function ModulesPage() {
   const [uninstalling, setUninstalling] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
   const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
+  const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
 
   const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
     const sessionKey = `cactus-module-update-check-${installedId}`
@@ -209,11 +210,12 @@ export default function ModulesPage() {
     setError('')
     setNotice('')
     setLoaderFor(repoUrl, true)
+    const channel = installChannel[repoUrl] ?? 'public'
     try {
       const res = await fetch('/api/admin/modules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl }),
+        body: JSON.stringify({ repoUrl, channel }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
@@ -221,7 +223,11 @@ export default function ModulesPage() {
         window.location.assign('/cactus-status/redeploying')
         return
       }
-      setNotice('Module installed. Your changes are waiting to go live - review and redeploy from Notifications.')
+      setNotice(
+        channel === 'beta'
+          ? 'Beta module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
+          : 'Module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
+      )
       await loadDirectory()
       router.refresh()
     } catch (err: unknown) {
@@ -358,6 +364,7 @@ export default function ModulesPage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
+                  {m.updateChannel === 'beta' && <span className="badge badge-primary">Beta</span>}
                   {m.updateAvailable && (
                     <span className="badge badge-yellow">{showVersion(m.updateAvailable)} available</span>
                   )}
@@ -493,13 +500,41 @@ export default function ModulesPage() {
                   <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', marginTop: 6 }}>{formatModuleName(m.repoName)}</div>
                 </div>
                 <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', flex: 1, lineHeight: 1.4 }}>{m.description}</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Channel</span>
+                  <div style={{
+                    display: 'inline-flex', padding: 2, gap: 2,
+                    background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
+                  }}>
+                    {(['public', 'beta'] as const).map((channel) => (
+                      <button
+                        key={channel}
+                        type="button"
+                        disabled={actionLoading[m.repoUrl]}
+                        onClick={() => setInstallChannel((prev) => ({ ...prev, [m.repoUrl]: channel }))}
+                        style={{
+                          border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
+                          fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
+                          background: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
+                          color: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
+                        }}
+                      >
+                        {channel === 'public' ? 'Public' : 'Beta'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   className="btn btn-primary btn-sm"
                   style={{ alignSelf: 'flex-start' }}
                   disabled={actionLoading[m.repoUrl]}
                   onClick={() => handleInstall(m.repoUrl)}
                 >
-                  {actionLoading[m.repoUrl] ? 'Installing…' : 'Install'}
+                  {actionLoading[m.repoUrl]
+                    ? 'Installing…'
+                    : (installChannel[m.repoUrl] ?? 'public') === 'beta' ? 'Install beta' : 'Install'}
                 </button>
               </div>
             ))}
