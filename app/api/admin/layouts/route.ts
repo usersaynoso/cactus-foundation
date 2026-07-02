@@ -5,6 +5,9 @@ import { hasPermission } from '@/lib/permissions/check'
 
 export async function GET(req: Request) {
   try {
+    const user = await getSessionFromCookie()
+    if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type')
     const layouts = await prisma.layout.findMany({
