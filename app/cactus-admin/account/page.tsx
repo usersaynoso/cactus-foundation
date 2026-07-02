@@ -378,18 +378,20 @@ export default function AccountPage() {
           <h2 className="card-title">Profile</h2>
           {profile === null ? <p>Loading…</p> : (
             <>
-              <div className="field">
-                <label>Username</label>
-                <p style={{ margin: 0, fontSize: 'var(--text-base)', color: 'var(--color-text-muted)' }}>{profile.username}</p>
-              </div>
-              <div className="field">
-                <label>Display name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Optional — shown instead of your username"
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="field">
+                  <label>Username</label>
+                  <input type="text" value={profile.username} disabled />
+                </div>
+                <div className="field">
+                  <label>Display name</label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Optional — shown instead of your username"
+                  />
+                </div>
               </div>
               <button
                 className="btn btn-primary"
@@ -409,26 +411,28 @@ export default function AccountPage() {
               Current: <strong>{profile.email}</strong>
             </p>
           )}
-          <div className="field">
-            <label>New email address</label>
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
-          {passwordInfo?.hasPassword && (
+          <div style={{ display: 'grid', gridTemplateColumns: passwordInfo?.hasPassword ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
             <div className="field">
-              <label>Current password</label>
+              <label>New email address</label>
               <input
-                type="password"
-                value={emailPassword}
-                onChange={(e) => setEmailPassword(e.target.value)}
-                autoComplete="current-password"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                autoComplete="email"
               />
             </div>
-          )}
+            {passwordInfo?.hasPassword && (
+              <div className="field">
+                <label>Current password</label>
+                <input
+                  type="password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
+          </div>
           <button
             className="btn btn-primary"
             disabled={emailLoading || !newEmail || (passwordInfo?.hasPassword ? !emailPassword : false)}
@@ -439,10 +443,12 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Row 2: Passkeys + Password */}
+      {/* Row 2: Passkeys & authenticator app + Password */}
       <div className="account-grid">
         <div className="card" style={cardFull}>
-          <h2 className="card-title">Passkeys</h2>
+          <h2 className="card-title">Passkeys &amp; authenticator app</h2>
+
+          <h3 style={{ fontSize: 'var(--text-sm)', margin: '0 0 0.5rem', color: 'var(--color-text-muted)' }}>Passkeys</h3>
           {passkeys.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
               {passkeys.map((pk, i) => (
@@ -466,6 +472,58 @@ export default function AccountPage() {
           >
             {newPasskeyLoading ? 'Registering…' : '+ Add a new passkey'}
           </button>
+
+          <h3 style={{ fontSize: 'var(--text-sm)', margin: '1.5rem 0 0.5rem', color: 'var(--color-text-muted)' }}>Authenticator app</h3>
+          {totpEnabled === null ? (
+            <p>Loading…</p>
+          ) : totpEnabled ? (
+            <Row action={<button className="btn btn-secondary btn-sm" onClick={handleRemoveTotp}>Remove</button>}>
+              <span className="badge badge-blue">Enabled</span>
+            </Row>
+          ) : totpQrDataUrl ? (
+            <>
+              <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', textAlign: 'center', maxWidth: 320 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from our own qrcode render, not an optimizable remote asset */}
+                <img src={totpQrDataUrl} alt="Authenticator app QR code" style={{ width: 180, height: 180, margin: '0 auto', display: 'block' }} />
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0.75rem 0 0.25rem' }}>
+                  Scan with Google Authenticator, Authy, 1Password, or similar. Can&apos;t scan? Enter this key manually:
+                </p>
+                <code style={{ fontSize: '0.8125rem', wordBreak: 'break-all' }}>{totpSecret}</code>
+              </div>
+              <div className="field" style={{ marginTop: '1rem', maxWidth: 200 }}>
+                <label>Enter the 6-digit code</label>
+                <input
+                  inputMode="numeric"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                disabled={totpVerifyLoading || totpCode.length !== 6}
+                onClick={handleVerifyTotpSetup}
+              >
+                {totpVerifyLoading ? 'Verifying…' : 'Verify and enable'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ marginLeft: '0.5rem' }}
+                onClick={() => { setTotpQrDataUrl(''); setTotpSecret(''); setTotpCode('') }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
+                Sign in with a 6-digit code from an authenticator app, as an alternative to a passkey.
+              </p>
+              <button className="btn btn-secondary" disabled={totpSetupLoading} onClick={handleStartTotpSetup}>
+                {totpSetupLoading ? 'Starting…' : 'Set up authenticator app'}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="card" style={cardFull}>
@@ -491,35 +549,47 @@ export default function AccountPage() {
                 readOnly
                 hidden
               />
-              {passwordInfo.hasPassword && (
+              <div style={{ display: 'grid', gridTemplateColumns: passwordInfo.hasPassword ? '1fr 1fr' : '1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                {passwordInfo.hasPassword && (
+                  <div className="field">
+                    <label>Current password</label>
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 'var(--text-sm)', cursor: 'pointer', marginTop: 'var(--space-1)' }}>
+                      <input
+                        type="checkbox"
+                        checked={signOutOtherSessions}
+                        onChange={(e) => setSignOutOtherSessions(e.target.checked)}
+                      />
+                      Sign out of all other devices
+                    </label>
+                  </div>
+                )}
                 <div className="field">
-                  <label>Current password</label>
+                  <label>New password</label>
                   <input
                     type="password"
-                    autoComplete="current-password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                   />
+                  <span className="field-hint">At least 8 characters. Breached passwords are rejected.</span>
                 </div>
-              )}
-              <div className="field">
-                <label>New password</label>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-                <span className="field-hint">At least 8 characters. Breached passwords are rejected.</span>
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 'var(--text-sm)', cursor: 'pointer', marginBottom: '0.75rem' }}>
-                <input
-                  type="checkbox"
-                  checked={signOutOtherSessions}
-                  onChange={(e) => setSignOutOtherSessions(e.target.checked)}
-                />
-                Sign out of all other devices
-              </label>
+              {!passwordInfo.hasPassword && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 'var(--text-sm)', cursor: 'pointer', marginBottom: '0.75rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={signOutOtherSessions}
+                    onChange={(e) => setSignOutOtherSessions(e.target.checked)}
+                  />
+                  Sign out of all other devices
+                </label>
+              )}
               <button
                 type="submit"
                 className="btn btn-primary"
@@ -534,61 +604,6 @@ export default function AccountPage() {
             </form>
           )}
         </div>
-      </div>
-
-      {/* Authenticator app — full width */}
-      <div className="card">
-        <h2 className="card-title">Authenticator app</h2>
-        {totpEnabled === null ? (
-          <p>Loading…</p>
-        ) : totpEnabled ? (
-          <Row action={<button className="btn btn-secondary btn-sm" onClick={handleRemoveTotp}>Remove</button>}>
-            <span className="badge badge-blue">Enabled</span>
-          </Row>
-        ) : totpQrDataUrl ? (
-          <>
-            <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', textAlign: 'center', maxWidth: 320 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from our own qrcode render, not an optimizable remote asset */}
-              <img src={totpQrDataUrl} alt="Authenticator app QR code" style={{ width: 180, height: 180, margin: '0 auto', display: 'block' }} />
-              <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0.75rem 0 0.25rem' }}>
-                Scan with Google Authenticator, Authy, 1Password, or similar. Can&apos;t scan? Enter this key manually:
-              </p>
-              <code style={{ fontSize: '0.8125rem', wordBreak: 'break-all' }}>{totpSecret}</code>
-            </div>
-            <div className="field" style={{ marginTop: '1rem', maxWidth: 200 }}>
-              <label>Enter the 6-digit code</label>
-              <input
-                inputMode="numeric"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-              />
-            </div>
-            <button
-              className="btn btn-primary"
-              disabled={totpVerifyLoading || totpCode.length !== 6}
-              onClick={handleVerifyTotpSetup}
-            >
-              {totpVerifyLoading ? 'Verifying…' : 'Verify and enable'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              style={{ marginLeft: '0.5rem' }}
-              onClick={() => { setTotpQrDataUrl(''); setTotpSecret(''); setTotpCode('') }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
-              Sign in with a 6-digit code from an authenticator app, as an alternative to a passkey.
-            </p>
-            <button className="btn btn-secondary" disabled={totpSetupLoading} onClick={handleStartTotpSetup}>
-              {totpSetupLoading ? 'Starting…' : 'Set up authenticator app'}
-            </button>
-          </>
-        )}
       </div>
 
       {/* Row 3: Active sessions + Your data */}
