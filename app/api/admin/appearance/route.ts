@@ -5,6 +5,9 @@ import { hasPermission } from '@/lib/permissions/check'
 
 export async function GET() {
   try {
+    const user = await getSessionFromCookie()
+    if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
       select: { designTokens: true },

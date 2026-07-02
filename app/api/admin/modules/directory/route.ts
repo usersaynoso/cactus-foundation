@@ -23,6 +23,7 @@ type DirectoryEntry = {
   lastError?: string | null
   hasTeardown?: boolean
   updateChannel?: 'public' | 'beta'
+  hasPublicRelease?: boolean
 }
 
 let cachedDir: DirectoryEntry[] | null = null
@@ -44,8 +45,8 @@ export async function GET(request: NextRequest) {
   }
 
   let orgRepos: Array<{ name: string; html_url: string; description: string | null }>
+  const octokit = await getGithubClient()
   try {
-    const octokit = await getGithubClient()
     const { data } = await octokit.rest.repos.listForOrg({
       org: MODULE_ORG,
       type: 'public',
@@ -65,11 +66,24 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  cachedDir = orgRepos.map((r) => ({
+  const hasPublicReleaseByRepo = await Promise.all(
+    orgRepos.map(async (r) => {
+      try {
+        await octokit.rest.repos.getLatestRelease({ owner: MODULE_ORG, repo: r.name })
+        return true
+      } catch (err: unknown) {
+        if ((err as { status?: number }).status === 404) return false
+        return true // unexpected error - don't block install on an unrelated failure
+      }
+    })
+  )
+
+  cachedDir = orgRepos.map((r, i) => ({
     repoUrl: r.html_url,
     repoName: r.name,
     description: r.description ?? '',
     installed: false,
+    hasPublicRelease: hasPublicReleaseByRepo[i],
   }))
   cachedAt = now
 

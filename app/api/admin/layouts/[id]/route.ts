@@ -8,6 +8,9 @@ type Ctx = { params: Promise<{ id: string }> }
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params
   try {
+    const user = await getSessionFromCookie()
+    if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
     const layout = await prisma.layout.findUnique({ where: { id } })
     if (!layout) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(layout)

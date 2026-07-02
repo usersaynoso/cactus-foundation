@@ -24,6 +24,7 @@ type DirectoryEntry = {
   lastError?: string | null
   hasTeardown?: boolean
   updateChannel?: 'public' | 'beta'
+  hasPublicRelease?: boolean
 }
 
 const MODULE_UPDATE_CHECK_THROTTLE_MS = 10 * 60 * 1000
@@ -210,7 +211,8 @@ export default function ModulesPage() {
     setError('')
     setNotice('')
     setLoaderFor(repoUrl, true)
-    const channel = installChannel[repoUrl] ?? 'public'
+    const entry = entries.find((e) => e.repoUrl === repoUrl)
+    const channel = entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public')
     try {
       const res = await fetch('/api/admin/modules', {
         method: 'POST',
@@ -503,27 +505,31 @@ export default function ModulesPage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
                   <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Channel</span>
-                  <div style={{
-                    display: 'inline-flex', padding: 2, gap: 2,
-                    background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
-                  }}>
-                    {(['public', 'beta'] as const).map((channel) => (
-                      <button
-                        key={channel}
-                        type="button"
-                        disabled={actionLoading[m.repoUrl]}
-                        onClick={() => setInstallChannel((prev) => ({ ...prev, [m.repoUrl]: channel }))}
-                        style={{
-                          border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
-                          fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
-                          background: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
-                          color: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
-                        }}
-                      >
-                        {channel === 'public' ? 'Public' : 'Beta'}
-                      </button>
-                    ))}
-                  </div>
+                  {m.hasPublicRelease === false ? (
+                    <span className="badge badge-primary">Beta only</span>
+                  ) : (
+                    <div style={{
+                      display: 'inline-flex', padding: 2, gap: 2,
+                      background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
+                    }}>
+                      {(['public', 'beta'] as const).map((channel) => (
+                        <button
+                          key={channel}
+                          type="button"
+                          disabled={actionLoading[m.repoUrl]}
+                          onClick={() => setInstallChannel((prev) => ({ ...prev, [m.repoUrl]: channel }))}
+                          style={{
+                            border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
+                            fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
+                            background: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
+                            color: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
+                          }}
+                        >
+                          {channel === 'public' ? 'Public' : 'Beta'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -534,7 +540,7 @@ export default function ModulesPage() {
                 >
                   {actionLoading[m.repoUrl]
                     ? 'Installing…'
-                    : (installChannel[m.repoUrl] ?? 'public') === 'beta' ? 'Install beta' : 'Install'}
+                    : m.hasPublicRelease === false || (installChannel[m.repoUrl] ?? 'public') === 'beta' ? 'Install beta' : 'Install'}
                 </button>
               </div>
             ))}
