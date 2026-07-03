@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie, type SessionUser } from '@/lib/auth/session'
 import { hasPermission, isAdmin } from '@/lib/permissions/check'
+import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
 import { TabStrip } from '@/components/admin/TabStrip'
 import PeopleListClient from './PeopleListClient'
 import PendingApprovalClient from './PendingApprovalClient'
@@ -51,7 +52,8 @@ export default async function UsersPage({ searchParams }: Props) {
 }
 
 async function UsersTab({ currentUser, canViewMembers }: { currentUser: SessionUser; canViewMembers: boolean }) {
-  const roles = await prisma.role.findMany({ orderBy: { name: 'asc' } })
+  // Members role is Member-facing, not assignable to staff accounts.
+  const roles = await prisma.role.findMany({ where: { name: { not: MEMBERS_ROLE_NAME } }, orderBy: { name: 'asc' } })
 
   return (
     <PeopleListClient

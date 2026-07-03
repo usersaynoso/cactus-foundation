@@ -3,6 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
 import ConfigPageClient from './ConfigPageClient'
 
 type ModuleSettingsTab = { id: string; label: string; permission?: string }
@@ -41,6 +42,9 @@ export default async function ConfigPage() {
   if (canManageRoles && user) {
     const [roles, permissions, activeRoleModules] = await Promise.all([
       prisma.role.findMany({
+        // Members role is Member-facing, not a staff role - it has no bearing
+        // on the admin panel, so it doesn't belong in this list.
+        where: { name: { not: MEMBERS_ROLE_NAME } },
         include: {
           permissions: { select: { permissionKey: true } },
           _count: { select: { users: true } },
