@@ -41,11 +41,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ])
 
   // Most modules share one flat "Modules" bucket in the sidebar; a module can opt
-  // into its own labelled section (e.g. "Gazette") by setting navGroupLabel.
+  // into its own labelled section (e.g. "Gazette") by setting navGroupLabel. Sections
+  // sort by navGroupOrder (lowest first, unset sorts last) so a module can request a
+  // spot near the top of the module list without core hardcoding any module's name.
   const ungroupedLinks: NavGroup['links'] = []
   const labelledGroups = new Map<string, NavGroup['links']>()
+  const labelledGroupOrder = new Map<string, number>()
   for (const mod of activeModules) {
-    const manifest = mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string } | null
+    const manifest = mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string; navGroupOrder?: number } | null
     if (!manifest?.navEntries) continue
     const links: NavGroup['links'] = []
     for (const entry of manifest.navEntries) {
@@ -56,13 +59,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     if (links.length === 0) continue
     if (manifest.navGroupLabel) {
       labelledGroups.set(manifest.navGroupLabel, [...(labelledGroups.get(manifest.navGroupLabel) ?? []), ...links])
+      const order = manifest.navGroupOrder ?? Infinity
+      const existingOrder = labelledGroupOrder.get(manifest.navGroupLabel)
+      if (existingOrder === undefined || order < existingOrder) labelledGroupOrder.set(manifest.navGroupLabel, order)
     } else {
       ungroupedLinks.push(...links)
     }
   }
   const moduleNavGroups: NavGroup[] = []
   if (ungroupedLinks.length > 0) moduleNavGroups.push({ label: null, links: ungroupedLinks })
-  for (const [label, links] of labelledGroups) moduleNavGroups.push({ label, links })
+  const sortedLabels = [...labelledGroups.keys()].sort((a, b) => (labelledGroupOrder.get(a) ?? Infinity) - (labelledGroupOrder.get(b) ?? Infinity))
+  for (const label of sortedLabels) moduleNavGroups.push({ label, links: labelledGroups.get(label)! })
 
   // White-label the admin chrome to the site's primary colour and font. Only the
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)

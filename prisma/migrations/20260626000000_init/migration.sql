@@ -132,8 +132,6 @@ CREATE TABLE "SiteConfig" (
     "setupCompleted" BOOLEAN NOT NULL DEFAULT false,
     "status" "SiteStatus" NOT NULL DEFAULT 'comingSoon',
     "hideFromCrawlers" BOOLEAN NOT NULL DEFAULT true,
-    "publicRegistration" BOOLEAN NOT NULL DEFAULT true,
-    "defaultRoleId" TEXT,
     "trustDeviceDays" INTEGER NOT NULL DEFAULT 28,
     "emailFromName" TEXT,
     "emailFromAddress" TEXT,
@@ -152,6 +150,7 @@ CREATE TABLE "SiteConfig" (
     "designTokens" JSONB,
     "consentBannerConfig" JSONB,
     "coreUpdateChannel"     TEXT NOT NULL DEFAULT 'public',
+    "membersConfig" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
@@ -330,6 +329,7 @@ CREATE TABLE "RateLimit" (
 CREATE TABLE "WebAuthnChallenge" (
     "id" TEXT NOT NULL,
     "userId" TEXT,
+    "memberId" TEXT,
     "challenge" TEXT NOT NULL,
     "purpose" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
@@ -398,6 +398,7 @@ CREATE INDEX "RateLimit_windowStart_idx" ON "RateLimit"("windowStart");
 
 CREATE UNIQUE INDEX "WebAuthnChallenge_challenge_key" ON "WebAuthnChallenge"("challenge");
 CREATE INDEX "WebAuthnChallenge_userId_idx" ON "WebAuthnChallenge"("userId");
+CREATE INDEX "WebAuthnChallenge_memberId_idx" ON "WebAuthnChallenge"("memberId");
 CREATE INDEX "WebAuthnChallenge_expiresAt_idx" ON "WebAuthnChallenge"("expiresAt");
 
 -- ---------------------------------------------------------------------------
@@ -405,6 +406,7 @@ CREATE INDEX "WebAuthnChallenge_expiresAt_idx" ON "WebAuthnChallenge"("expiresAt
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Member" ADD CONSTRAINT "Member_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -465,3 +467,315 @@ CREATE TABLE "GithubAppConnection" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "GithubAppConnection_pkey" PRIMARY KEY ("id")
 );
+
+-- ---------------------------------------------------------------------------
+-- Members (frontend identity layer — see MEMBERS_SPEC.md)
+-- ---------------------------------------------------------------------------
+
+CREATE TYPE "MemberStatus" AS ENUM ('PENDING_VERIFICATION', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'DELETED');
+CREATE TYPE "AvatarChoice" AS ENUM ('UPLOAD', 'GRAVATAR', 'GENERATED');
+CREATE TYPE "TwoFactorMethod" AS ENUM ('EMAIL', 'AUTHENTICATOR_APP');
+CREATE TYPE "NotificationChannel" AS ENUM ('EMAIL');
+CREATE TYPE "DigestMode" AS ENUM ('INSTANT', 'DAILY', 'WEEKLY', 'DISABLED');
+CREATE TYPE "DataExportStatus" AS ENUM ('PENDING', 'PROCESSING', 'READY', 'EXPIRED');
+
+CREATE TABLE "Member" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "displayName" TEXT,
+    "avatarMediaId" TEXT,
+    "avatarChoice" "AvatarChoice" NOT NULL DEFAULT 'GENERATED',
+    "bio" TEXT,
+    "websiteUrl" TEXT,
+    "trusted" BOOLEAN NOT NULL DEFAULT false,
+    "status" "MemberStatus" NOT NULL DEFAULT 'PENDING_VERIFICATION',
+    "roleId" TEXT,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "emailVerifiedAt" TIMESTAMP(3),
+    "backupEmail" TEXT,
+    "suspendedUntil" TIMESTAMP(3),
+    "suspensionReason" TEXT,
+    "suspensionNotified" BOOLEAN NOT NULL DEFAULT false,
+    "deletionRequestedAt" TIMESTAMP(3),
+    "deletionScheduledAt" TIMESTAMP(3),
+    "deletionExportReady" BOOLEAN NOT NULL DEFAULT false,
+    "usernameChangedAt" TIMESTAMP(3),
+    "previousUsername" TEXT,
+    "previousUsernameExpiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "Member_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberPasskey" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "publicKey" BYTEA NOT NULL,
+    "counter" BIGINT NOT NULL DEFAULT 0,
+    "transports" TEXT[],
+    "deviceName" TEXT,
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberPasskey_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberPassword" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberPassword_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberTwoFactor" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "method" "TwoFactorMethod" NOT NULL,
+    "secretEncrypted" TEXT,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "lastStep" BIGINT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberTwoFactor_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberTrustedBrowser" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "deviceInfo" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberTrustedBrowser_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberSession" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "location" TEXT,
+    "lastActiveAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberSession_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberMagicLink" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberMagicLink_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberVerificationToken" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberVerificationToken_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberEmailChallenge" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberEmailChallenge_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberRecoveryCode" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberRecoveryCode_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberNotificationPreference" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "channel" "NotificationChannel" NOT NULL DEFAULT 'EMAIL',
+    "category" TEXT NOT NULL,
+    "digestMode" "DigestMode" NOT NULL DEFAULT 'INSTANT',
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberNotificationPreference_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberConsentRecord" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "consentType" TEXT NOT NULL,
+    "granted" BOOLEAN NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberConsentRecord_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberDataExportRequest" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "status" "DataExportStatus" NOT NULL DEFAULT 'PENDING',
+    "mediaId" TEXT,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+    CONSTRAINT "MemberDataExportRequest_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberActivityEvent" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "source" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberActivityEvent_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberProfileVisibility" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "showBio" BOOLEAN NOT NULL DEFAULT true,
+    "showJoinDate" BOOLEAN NOT NULL DEFAULT true,
+    "showWebsite" BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT "MemberProfileVisibility_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberInvite" (
+    "id" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "createdById" TEXT,
+    "createdByName" TEXT,
+    "usedAt" TIMESTAMP(3),
+    "usedByMemberId" TEXT,
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "MemberInvite_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberAdminNote" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "authorId" TEXT,
+    "authorName" TEXT,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberAdminNote_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MemberAdminActionLog" (
+    "id" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "actorId" TEXT,
+    "actorName" TEXT,
+    "action" TEXT NOT NULL,
+    "detail" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MemberAdminActionLog_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "EmailTemplate" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "bodyHtml" TEXT NOT NULL,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- Members indexes
+
+CREATE UNIQUE INDEX "Member_email_key" ON "Member"("email");
+CREATE UNIQUE INDEX "Member_username_key" ON "Member"("username");
+CREATE INDEX "Member_status_idx" ON "Member"("status");
+CREATE INDEX "Member_previousUsername_idx" ON "Member"("previousUsername");
+CREATE INDEX "Member_deletionScheduledAt_idx" ON "Member"("deletionScheduledAt");
+CREATE INDEX "Member_createdAt_idx" ON "Member"("createdAt");
+
+CREATE UNIQUE INDEX "MemberPasskey_credentialId_key" ON "MemberPasskey"("credentialId");
+CREATE INDEX "MemberPasskey_memberId_idx" ON "MemberPasskey"("memberId");
+
+CREATE UNIQUE INDEX "MemberPassword_memberId_key" ON "MemberPassword"("memberId");
+
+CREATE UNIQUE INDEX "MemberTwoFactor_memberId_method_key" ON "MemberTwoFactor"("memberId", "method");
+
+CREATE UNIQUE INDEX "MemberTrustedBrowser_tokenHash_key" ON "MemberTrustedBrowser"("tokenHash");
+CREATE INDEX "MemberTrustedBrowser_memberId_idx" ON "MemberTrustedBrowser"("memberId");
+CREATE INDEX "MemberTrustedBrowser_expiresAt_idx" ON "MemberTrustedBrowser"("expiresAt");
+
+CREATE UNIQUE INDEX "MemberSession_tokenHash_key" ON "MemberSession"("tokenHash");
+CREATE INDEX "MemberSession_memberId_idx" ON "MemberSession"("memberId");
+CREATE INDEX "MemberSession_expiresAt_idx" ON "MemberSession"("expiresAt");
+
+CREATE UNIQUE INDEX "MemberMagicLink_tokenHash_key" ON "MemberMagicLink"("tokenHash");
+CREATE INDEX "MemberMagicLink_memberId_idx" ON "MemberMagicLink"("memberId");
+CREATE INDEX "MemberMagicLink_expiresAt_idx" ON "MemberMagicLink"("expiresAt");
+
+CREATE UNIQUE INDEX "MemberVerificationToken_tokenHash_key" ON "MemberVerificationToken"("tokenHash");
+CREATE INDEX "MemberVerificationToken_memberId_idx" ON "MemberVerificationToken"("memberId");
+CREATE INDEX "MemberVerificationToken_expiresAt_idx" ON "MemberVerificationToken"("expiresAt");
+
+CREATE INDEX "MemberEmailChallenge_memberId_purpose_idx" ON "MemberEmailChallenge"("memberId", "purpose");
+CREATE INDEX "MemberEmailChallenge_expiresAt_idx" ON "MemberEmailChallenge"("expiresAt");
+
+CREATE UNIQUE INDEX "MemberRecoveryCode_codeHash_key" ON "MemberRecoveryCode"("codeHash");
+CREATE INDEX "MemberRecoveryCode_memberId_idx" ON "MemberRecoveryCode"("memberId");
+
+CREATE UNIQUE INDEX "MemberNotificationPreference_memberId_channel_category_key" ON "MemberNotificationPreference"("memberId", "channel", "category");
+
+CREATE INDEX "MemberConsentRecord_memberId_idx" ON "MemberConsentRecord"("memberId");
+CREATE INDEX "MemberConsentRecord_createdAt_idx" ON "MemberConsentRecord"("createdAt");
+
+CREATE INDEX "MemberDataExportRequest_memberId_idx" ON "MemberDataExportRequest"("memberId");
+CREATE INDEX "MemberDataExportRequest_status_idx" ON "MemberDataExportRequest"("status");
+
+CREATE INDEX "MemberActivityEvent_memberId_createdAt_idx" ON "MemberActivityEvent"("memberId", "createdAt" DESC);
+
+CREATE UNIQUE INDEX "MemberProfileVisibility_memberId_key" ON "MemberProfileVisibility"("memberId");
+
+CREATE UNIQUE INDEX "MemberInvite_tokenHash_key" ON "MemberInvite"("tokenHash");
+CREATE INDEX "MemberInvite_expiresAt_idx" ON "MemberInvite"("expiresAt");
+
+CREATE INDEX "MemberAdminNote_memberId_createdAt_idx" ON "MemberAdminNote"("memberId", "createdAt" DESC);
+
+CREATE INDEX "MemberAdminActionLog_memberId_createdAt_idx" ON "MemberAdminActionLog"("memberId", "createdAt" DESC);
+
+CREATE UNIQUE INDEX "EmailTemplate_key_key" ON "EmailTemplate"("key");
+
+-- Members foreign keys
+
+ALTER TABLE "MemberPasskey" ADD CONSTRAINT "MemberPasskey_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberPassword" ADD CONSTRAINT "MemberPassword_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberTwoFactor" ADD CONSTRAINT "MemberTwoFactor_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberTrustedBrowser" ADD CONSTRAINT "MemberTrustedBrowser_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberSession" ADD CONSTRAINT "MemberSession_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberMagicLink" ADD CONSTRAINT "MemberMagicLink_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberVerificationToken" ADD CONSTRAINT "MemberVerificationToken_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberEmailChallenge" ADD CONSTRAINT "MemberEmailChallenge_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberRecoveryCode" ADD CONSTRAINT "MemberRecoveryCode_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberNotificationPreference" ADD CONSTRAINT "MemberNotificationPreference_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberConsentRecord" ADD CONSTRAINT "MemberConsentRecord_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberDataExportRequest" ADD CONSTRAINT "MemberDataExportRequest_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberActivityEvent" ADD CONSTRAINT "MemberActivityEvent_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberProfileVisibility" ADD CONSTRAINT "MemberProfileVisibility_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberAdminNote" ADD CONSTRAINT "MemberAdminNote_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MemberAdminActionLog" ADD CONSTRAINT "MemberAdminActionLog_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;

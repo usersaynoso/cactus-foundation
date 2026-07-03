@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
+import MembersGdprClient from './MembersGdprClient'
+import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
+import RolesClient from './RolesClient'
+import EmailTemplatesClient from './EmailTemplatesClient'
 import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
@@ -22,7 +26,7 @@ type SiteConfig = {
   siteName: string; tagline: string; description: string;
   timezone: string; locale: string; dateFormat: string; timeFormat: string;
   adminPath: string; status: string; hideFromCrawlers: boolean;
-  publicRegistration: boolean; trustDeviceDays: number;
+  trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null;
   privacyPolicyPageId: string; termsPageId: string;
@@ -35,7 +39,7 @@ type SiteConfig = {
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
 
-const TABS = ['general', 'branding', 'access', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
+const TABS = ['general', 'branding', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
 
 // Env var sections: each section has a label, description, and its managed keys.
@@ -477,16 +481,32 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 }
 
 type ModuleTab = { id: string; label: string }
+type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
 
-function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
+type ConfigPageInnerProps = {
+  moduleTabs: ModuleTab[]
+  canManageMembersSettings: boolean
+  canManageRoles: boolean
+  canManageEmailTemplates: boolean
+  canViewMembersGdpr: boolean
+  rolesData: RolesData | null
+  roleExtensions: ReactNode
+  membersGdprExtensions: ReactNode
+}
+
+function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
   // Baseline for unsaved-change detection: set on load and after each save.
   const savedFingerprint = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) ? (tabParam as string) : 'general'
+  const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
+  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
+  const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles' | 'email-templates'>(
+    canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
+  )
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
@@ -927,7 +947,7 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
   if (loading) return <p>Loading…</p>
 
   const tabLabels: Record<Tab, string> = {
-    general: 'General', branding: 'Branding', access: 'Auth & Access',
+    general: 'General', branding: 'Branding',
     email: 'Email', media: 'Media', status: 'Site Status', gdpr: 'GDPR & Legal', integrations: 'Integrations',
   }
 
@@ -1161,6 +1181,7 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
         style={{ marginBottom: '2rem' }}
         items={[
           ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => setTab(t) })),
+          ...(showUsersTab ? [{ key: 'users', label: 'Users', active: tab === 'users', onClick: () => setTab('users') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => setTab(t.id) })),
         ]}
       />
@@ -1226,6 +1247,18 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
             </div>
             <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Admin path</label>
+              <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
+              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Trust this browser (days)</label>
+              <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
+              <span className="field-hint">How long an admin who ticks &quot;trust this browser&quot; at login skips the email code.</span>
+            </div>
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
@@ -1388,23 +1421,37 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
         </div>
       )}
 
-      {tab === 'access' && (
+      {tab === 'users' && showUsersTab && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Admin path</label>
-              <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
-              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Trust this browser (days)</label>
-              <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
-            </div>
-          </div>
-          <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={config.publicRegistration ?? true} onChange={(e) => set('publicRegistration', e.target.checked)} />
-            Allow public registration
-          </label>
+          <TabStrip
+            items={[
+              ...(canManageMembersSettings ? [
+                { key: 'registration', label: 'Registration', active: usersSubTab === 'registration', onClick: () => setUsersSubTab('registration') },
+                { key: 'avatars', label: 'Avatars', active: usersSubTab === 'avatars', onClick: () => setUsersSubTab('avatars') },
+                { key: 'usernames', label: 'Usernames', active: usersSubTab === 'usernames', onClick: () => setUsersSubTab('usernames') },
+                { key: 'sections', label: 'Account sections', active: usersSubTab === 'sections', onClick: () => setUsersSubTab('sections') },
+                { key: 'access', label: 'Access control', active: usersSubTab === 'access', onClick: () => setUsersSubTab('access') },
+              ] : []),
+              ...(canManageRoles ? [{ key: 'roles', label: 'Roles', active: usersSubTab === 'roles', onClick: () => setUsersSubTab('roles') }] : []),
+              ...(canManageEmailTemplates ? [{ key: 'email-templates', label: 'Email templates', active: usersSubTab === 'email-templates', onClick: () => setUsersSubTab('email-templates') }] : []),
+            ]}
+          />
+
+          {canManageMembersSettings && (usersSubTab === 'registration' || usersSubTab === 'avatars' || usersSubTab === 'usernames' || usersSubTab === 'sections' || usersSubTab === 'access') && (
+            <MembersSettingsTab tab={usersSubTab} />
+          )}
+
+          {usersSubTab === 'roles' && canManageRoles && rolesData && (
+            <>
+              <p style={{ margin: '0 0 1.25rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>
+                Pick a role on the left, then choose what people with that role are allowed to do.
+              </p>
+              <RolesClient roles={rolesData.roles} permissions={rolesData.permissions} activeModuleNames={rolesData.activeModuleNames} />
+              {roleExtensions}
+            </>
+          )}
+
+          {usersSubTab === 'email-templates' && canManageEmailTemplates && <EmailTemplatesClient />}
         </div>
       )}
 
@@ -1701,6 +1748,13 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
                     Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
                   </p>
                 )}
+              </>
+            )}
+
+            {canViewMembersGdpr && (
+              <>
+                <MembersGdprClient />
+                {membersGdprExtensions}
               </>
             )}
           </div>

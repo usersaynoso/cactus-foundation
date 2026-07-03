@@ -135,6 +135,11 @@ const BLOCKLIST = new Set([
   'logout',
   'register',
   'auth',
+  // Members system: default member-area path, public profile prefix, and
+  // the verification holding page (see MEMBERS_SPEC.md)
+  'account',
+  'members',
+  'verify-email',
   'health',
   'sitemap',
   'robots',

@@ -65,6 +65,7 @@ cp .env.example .env.local
 | `VERCEL_WEBHOOK_SECRET` | Automatic deploy status (Pro/Enterprise only) |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile bot protection |
 | `SENTRY_DSN` | Error reporting |
+| `MEMBER_AREA_PATH` | Web address prefix for the member account area (see [Members](Members)). Defaults to `account`. Deploy-time only - changing it needs a redeploy. |
 
 ## Local development
 
@@ -165,4 +166,4 @@ The site defaults to `comingSoon` status. To go live:
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)

@@ -59,6 +59,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. |
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. |
+| `navGroupOrder` | `number` | Optional, only meaningful alongside `navGroupLabel`. Lower numbers sort earlier among labelled module sections; modules that omit it sort after any that set it, in their existing order. Use this if your module's section should appear above another module's, rather than wherever install order happens to put it. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
@@ -164,7 +165,7 @@ Each `navEntry` in the manifest becomes a link in the admin sidebar when the mod
 - `path` is relative to the admin root (the internal `/_cactus_admin` prefix).
 - If `permission` is set, the nav entry is only shown to users with that permission (or admins).
 - Nav entries from disabled modules are hidden immediately when the module is disabled.
-- Without `navGroupLabel`, your entries render as plain links directly under **Dashboard**, no section heading - not bucketed with other modules, not at the bottom of the sidebar. With `navGroupLabel`, your entries get their own named, collapsible section instead, rendered after **System**.
+- Without `navGroupLabel`, your entries render as plain links directly under **Dashboard**, no section heading - not bucketed with other modules, not at the bottom of the sidebar. With `navGroupLabel`, your entries get their own named, collapsible section instead, rendered right after **Content** - use `navGroupOrder` to control ordering relative to other modules' labelled sections.
 
 ## Linking between admin pages
 
@@ -336,7 +337,7 @@ Your tab's content renders with no extra chrome - no page title, no wrapping car
 
 ## Module extension points
 
-`settingsTabs` and `puckBlocks` are extension points *core* publishes. Core's own `/cactus-admin/roles` page publishes one too - `core.roles-page` - for modules that need their own per-user role assignment UI outside the core `Role`/permission model (Gazette's Contributor/Author/Editor roles are the example: they're assigned per-user in a module table, not built from core permission keys, so they don't fit `settingsTabs` or the Roles page's own permission matrix). A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
+`settingsTabs` and `puckBlocks` are extension points *core* publishes. Core's own Roles subtab (**Settings → Users → Roles**) publishes one too - `core.roles-page` - for modules that need their own per-user role assignment UI outside the core `Role`/permission model (Gazette's Contributor/Author/Editor roles are the example: they're assigned per-user in a module table, not built from core permission keys, so they don't fit `settingsTabs` or the Roles subtab's own permission matrix). A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
 
 **Publishing a point (in the host module, e.g. `contact-form`):** pick a namespaced string id for the point (convention: `<your-module-name>.<page-or-area>`, e.g. `contact-form.submission-detail`), document what data your components receive, and read/render contributions from `lib/modules/extension-points.ts` in your own page - live permission-filtering happens in your page code, exactly like `navEntries` are filtered in `layout.tsx`:
 

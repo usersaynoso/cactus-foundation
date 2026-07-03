@@ -8,7 +8,7 @@ The forum lives at `/boards` on your site (or `/boards/general` for a board, `/b
 
 ## Who can do what
 
-Moderating Boards is just another permission on your core roles, set from **Roles & Permissions**:
+Moderating Boards is just another permission on your core roles, set from **Settings → Users → Roles**:
 
 - `boards.access` - see the Boards section in the admin sidebar at all.
 - `boards.manage` - get at structure, tags, templates and the settings/import tab.
@@ -24,10 +24,10 @@ Core admins always have full run of Boards, permissions or no permissions.
 
 From **Boards → Structure**, an admin (with `boards.manage`) can:
 
-- Create **Categories** to group boards visually on the front page (optional - uncategorised boards just show in a trailing group).
-- Create **Boards**, each with its own title, description, icon (emoji or an uploaded image), visibility (Public, Members-only, or Private to moderators), a "hide from search engines" toggle, a minimum post length, and a word filter (one flagged term per line - a hit sends the post to the moderation queue instead of publishing it straight away).
-- Add **Sub-boards** underneath any board (one level deep).
-- Manage **Tags** and reusable thread **Templates**.
+- Create **Categories** to group boards visually on the front page (optional - uncategorised boards just show in a trailing group). Rename a category any time by editing its title in the list.
+- Create **Boards**, each with its own title, description, icon (emoji or an uploaded image), visibility (Public, Members-only, or Private to moderators), a "hide from search engines" toggle, a minimum post length, and a word filter (one flagged term per line - a hit sends the post to the moderation queue instead of publishing it straight away). A board's title and category can both be changed later from the same list.
+- Add **Sub-boards** underneath any board (one level deep). A sub-board's title and parent board can be edited later too.
+- Manage **Tags** (rename them any time) and reusable thread **Templates**.
 
 Board-wide settings - how many threads/posts show per page, reactions, signatures, posting limits, and the RSS feed - live under **Settings → Boards** (alongside the forum importer, see below).
 
@@ -83,4 +83,4 @@ Click **Preview (dry run)** first to see counts before anything is written. Re-r
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

@@ -11,6 +11,13 @@ type RateLimitAction =
   | 'passkey_authenticate'
   | 'consent'
   | 'totp_verify'
+  // Members system (see MEMBERS_SPEC.md)
+  | 'member_register'
+  | 'member_magic_link'
+  | 'member_login'
+  | 'member_2fa'
+  | 'member_verify'
+  | 'member_username'
 
 type RateLimitConfig = {
   windowMs: number
@@ -25,6 +32,12 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   passkey_authenticate: { windowMs: 15 * 60 * 1000, maxAttempts: 20 },
   consent: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
   totp_verify: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  member_register: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
+  member_magic_link: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  member_login: { windowMs: 15 * 60 * 1000, maxAttempts: 10 },
+  member_2fa: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  member_verify: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
+  member_username: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
 }
 
 // Accepts an optional NextRequest for use in API route handlers.

@@ -123,6 +123,7 @@ model Role {
   createdAt   DateTime @default(now())
 
   users       User[]
+  members     Member[]
   permissions RolePermission[]
 }
 
@@ -163,8 +164,6 @@ model SiteConfig {
   setupCompleted         Boolean    @default(false)
   status                 SiteStatus @default(comingSoon)
   hideFromCrawlers       Boolean    @default(true)
-  publicRegistration     Boolean    @default(true)
-  defaultRoleId          String?
   trustDeviceDays        Int        @default(28)
   emailFromName          String?
   emailFromAddress       String?
@@ -195,6 +194,8 @@ model SiteConfig {
   consentBannerConfig    Json?
   // 'public' = stable releases only; 'beta' = pre-releases included
   coreUpdateChannel      String     @default("public")
+  // Members system settings (null = defaults; see lib/members/config.ts)
+  membersConfig          Json?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }
@@ -541,12 +542,362 @@ model WebAuthnChallenge {
   id        String   @id @default(cuid())
   // null for new registrations during setup (no user yet), set after
   userId    String?
+  // Set for member passkey flows instead of userId (Members system)
+  memberId  String?
   challenge String   @unique
-  // 'registration' | 'authentication'
+  // 'registration' | 'authentication' | 'member_registration' | 'member_authentication'
   purpose   String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([memberId])
   @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Members (frontend identity layer — fully separate from admin User auth)
+// ---------------------------------------------------------------------------
+// See MEMBERS_SPEC.md. All token columns store hashes only; raw tokens are
+// never persisted. Members never share sessions, cookies, or tables with
+// the admin User model.
+
+enum MemberStatus {
+  PENDING_VERIFICATION
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AvatarChoice {
+  UPLOAD
+  GRAVATAR
+  GENERATED
+}
+
+enum TwoFactorMethod {
+  EMAIL
+  AUTHENTICATOR_APP
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum DigestMode {
+  INSTANT
+  DAILY
+  WEEKLY
+  DISABLED
+}
+
+enum DataExportStatus {
+  PENDING
+  PROCESSING
+  READY
+  EXPIRED
+}
+
+model Member {
+  id                        String       @id @default(cuid())
+  email                     String       @unique
+  // Stored lowercase; validated against the shared path/username blocklist
+  username                  String       @unique
+  displayName               String?
+  // FK to Media.id — plain string, no Prisma relation (mirrors ogImageId style)
+  avatarMediaId             String?
+  avatarChoice              AvatarChoice @default(GENERATED)
+  bio                       String?
+  websiteUrl                String?
+  trusted                   Boolean      @default(false)
+  status                    MemberStatus @default(PENDING_VERIFICATION)
+  // Assigned at registration to the site's protected "Members" role; nullable so
+  // pre-existing rows (created before this field existed) don't need a backfill.
+  roleId                    String?
+  role                      Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  emailVerified             Boolean      @default(false)
+  emailVerifiedAt           DateTime?
+  // Recovery contact shown in the account Security section
+  backupEmail               String?
+  suspendedUntil            DateTime?
+  suspensionReason          String?
+  suspensionNotified        Boolean      @default(false)
+  deletionRequestedAt       DateTime?
+  deletionScheduledAt       DateTime?
+  deletionExportReady       Boolean      @default(false)
+  usernameChangedAt         DateTime?
+  previousUsername          String?
+  previousUsernameExpiresAt DateTime?
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  passkeys           MemberPasskey[]
+  password           MemberPassword?
+  sessions           MemberSession[]
+  twoFactorConfigs   MemberTwoFactor[]
+  trustedBrowsers    MemberTrustedBrowser[]
+  magicLinks         MemberMagicLink[]
+  verificationTokens MemberVerificationToken[]
+  emailChallenges    MemberEmailChallenge[]
+  recoveryCodes      MemberRecoveryCode[]
+  notificationPrefs  MemberNotificationPreference[]
+  consentRecords     MemberConsentRecord[]
+  dataExportRequests MemberDataExportRequest[]
+  activityEvents     MemberActivityEvent[]
+  profileVisibility  MemberProfileVisibility?
+  adminNotes         MemberAdminNote[]
+  adminActionLogs    MemberAdminActionLog[]
+
+  @@index([status])
+  @@index([previousUsername])
+  @@index([deletionScheduledAt])
+  @@index([createdAt])
+}
+
+model MemberPasskey {
+  id           String    @id @default(cuid())
+  memberId     String
+  member       Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  transports   String[]
+  deviceName   String?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([memberId])
+}
+
+model MemberPassword {
+  id        String   @id @default(cuid())
+  memberId  String   @unique
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  hash      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MemberTwoFactor {
+  id              String          @id @default(cuid())
+  memberId        String
+  member          Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  method          TwoFactorMethod
+  // AES-256-GCM encrypted TOTP secret (lib/crypto/secrets.ts); null for EMAIL method
+  secretEncrypted String?
+  verified        Boolean         @default(false)
+  // TOTP replay guard — last accepted time step (mirrors User.totpLastStep)
+  lastStep        BigInt?
+  createdAt       DateTime        @default(now())
+
+  @@unique([memberId, method])
+}
+
+model MemberTrustedBrowser {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  deviceInfo String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model MemberSession {
+  id           String   @id @default(cuid())
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?
+  location     String?
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model MemberMagicLink {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model MemberVerificationToken {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+// 2FA email codes for members (mirrors EmailChallenge, which FKs User)
+// Purpose values: 'login_2fa' | 'setup_2fa'
+model MemberEmailChallenge {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  codeHash  String
+  purpose   String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([memberId, purpose])
+  @@index([expiresAt])
+}
+
+// One-time recovery codes, shown once at generation and stored hashed
+model MemberRecoveryCode {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([memberId])
+}
+
+model MemberNotificationPreference {
+  id         String              @id @default(cuid())
+  memberId   String
+  member     Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  channel    NotificationChannel @default(EMAIL)
+  // Core or module-registered category key (e.g. "forum:replies")
+  category   String
+  digestMode DigestMode          @default(INSTANT)
+  enabled    Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([memberId, channel, category])
+}
+
+model MemberConsentRecord {
+  id          String   @id @default(cuid())
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  consentType String
+  granted     Boolean
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([memberId])
+  @@index([createdAt])
+}
+
+model MemberDataExportRequest {
+  id          String           @id @default(cuid())
+  memberId    String
+  member      Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status      DataExportStatus @default(PENDING)
+  // FK to Media.id — plain string, no Prisma relation (mirrors ogImageId style)
+  mediaId     String?
+  // Download availability cut-off (48 hours after READY)
+  expiresAt   DateTime?
+  createdAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  @@index([memberId])
+  @@index([status])
+}
+
+model MemberActivityEvent {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // Core type (e.g. 'login') or module-registered type key
+  type      String
+  // null = core; otherwise the module name that emitted the event
+  source    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt(sort: Desc)])
+}
+
+model MemberProfileVisibility {
+  id           String  @id @default(cuid())
+  memberId     String  @unique
+  member       Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  showBio      Boolean @default(true)
+  showJoinDate Boolean @default(true)
+  showWebsite  Boolean @default(true)
+}
+
+// Single-use registration invites for INVITE_ONLY mode
+model MemberInvite {
+  id             String    @id @default(cuid())
+  tokenHash      String    @unique
+  // Admin User.id — plain string, survives via snapshot if the admin goes
+  createdById    String?
+  createdByName  String?
+  usedAt         DateTime?
+  usedByMemberId String?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+}
+
+// Append-only internal admin notes on a member (never edited after save)
+model MemberAdminNote {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // Admin User.id + display-name snapshot (no relation; survives admin deletion)
+  authorId   String?
+  authorName String?
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([memberId, createdAt(sort: Desc)])
+}
+
+// Audit log of admin actions taken on a member (suspend, approve, edit, …)
+model MemberAdminActionLog {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actorName String?
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt(sort: Desc)])
+}
+
+// Admin overrides for member email templates; absence of a row = code default
+// (registry in lib/email/templates.ts). Reset-to-default deletes the row.
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  // e.g. "member.verify-email"
+  key         String   @unique
+  subject     String
+  bodyHtml    String   @db.Text
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }

@@ -8,7 +8,7 @@ Posts live at `/gazette` on your site (or `/gazette/your-post-title` for an indi
 
 ## Who can write for the Gazette
 
-Gazette has three writing permissions, set on your core roles from **Roles & Permissions** alongside everything else:
+Gazette has three writing permissions, set on your core roles from **Settings → Users → Roles** alongside everything else:
 
 - `gazette.contributor` - can write and edit their own drafts, but can't publish. Handy for guest writers you want to check over before anything goes live.
 - `gazette.author` - can write, edit and publish their own posts.
@@ -106,4 +106,4 @@ Any page that includes one of these blocks always shows the very latest posts on
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

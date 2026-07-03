@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
@@ -53,9 +53,6 @@ const NAV_ICONS: Record<string, ReactNode> = {
   users: (
     <svg {...ICON_PROPS}><circle cx="8.5" cy="8" r="3" /><path d="M2.5 20a6 6 0 0 1 12 0" /><path d="M15.5 6.5a3 3 0 0 1 0 5.8" /><path d="M21.5 20a5.5 5.5 0 0 0-5-5.47" /></svg>
   ),
-  roles: (
-    <svg {...ICON_PROPS}><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8" /><path d="M16 7l2.5 2.5" /><path d="M19 4l2.5 2.5" /></svg>
-  ),
   modules: (
     <svg {...ICON_PROPS}><path d="M9 3.5v3a1.5 1.5 0 0 0 3 0v-3H16a1 1 0 0 1 1 1V8a1.5 1.5 0 0 0 0 3v4a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 0-3 0H6a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 0 0-3V5a1 1 0 0 1 1-1z" /></svg>
   ),
@@ -92,19 +89,13 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
     ],
   },
   {
-    label: 'People',
-    links: [
-      { path: '/users', label: 'Users', icon: 'users' },
-      { path: '/roles', label: 'Roles', icon: 'roles' },
-    ],
-  },
-  {
     label: 'System',
     links: [
+      { path: '/config',     label: 'System',   icon: 'config' },
       { path: '/appearance', label: 'Styles',   icon: 'appearance' },
       { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
       { path: '/modules',    label: 'Modules',  icon: 'modules' },
-      { path: '/config',     label: 'Settings', icon: 'config' },
+      { path: '/users',      label: 'Users',    icon: 'users' },
     ],
   },
 ]
@@ -114,15 +105,20 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   const base = `/${adminPath}`
   // Maps section label -> true when the user has minimised it. Defaults to
   // empty (i.e. everything maximised) when there's no saved state.
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
-    if (typeof window === 'undefined') return {}
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+
+  // Read the saved preference after mount — reading localStorage synchronously in a
+  // useState initializer makes the client's first render diverge from the
+  // server-rendered HTML and trips a hydration error.
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(SECTIONS_COLLAPSE_KEY)
-      return raw ? JSON.parse(raw) : {}
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- must read after mount, not in the initializer, or the client's first render diverges from server HTML
+      if (raw) setCollapsedSections(JSON.parse(raw))
     } catch {
-      return {}
+      // ignore malformed cache
     }
-  })
+  }, [])
 
   function toggleSection(label: string) {
     setCollapsedSections((prev) => {
@@ -139,11 +135,11 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   // Ungrouped module links (e.g. contact-form's Inbox) sit directly under
   // Dashboard as plain links (no "Modules" heading) so they read as part of
   // the Dashboard section, not a separate collapsible bucket. Labelled module
-  // groups (their own named section, e.g. "Gazette") keep rendering after System.
+  // groups (their own named section, e.g. "Gazette") render right after Content.
   const ungroupedModuleLinks = moduleNavGroups?.filter((group) => !group.label).flatMap((group) => group.links) ?? []
   const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label) ?? []
 
-  function renderModuleGroup(group: ModuleNavGroup, key: string) {
+  function renderModuleGroup(group: ModuleNavGroup, key: string, fallbackIcon: keyof typeof NAV_ICONS = 'modules') {
     const groupLabel = group.label ?? 'Modules'
     const groupOpen = collapsed || !collapsedSections[groupLabel]
     return (
@@ -175,7 +171,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
                 {entry.icon?.trimStart().startsWith('<') ? (
                   <svg {...ICON_PROPS} dangerouslySetInnerHTML={{ __html: entry.icon }} />
                 ) : (
-                  NAV_ICONS.modules
+                  NAV_ICONS[fallbackIcon]
                 )}
               </span>
               {!collapsed && entry.label}
@@ -240,11 +236,11 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               </Link>
             )
           })}
+          {section.label === 'Content' &&
+            labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
         </div>
         )
       })}
-
-      {labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
 
       <div className="admin-nav-footer">
         <Link

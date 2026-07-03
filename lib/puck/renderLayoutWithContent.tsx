@@ -7,10 +7,15 @@ export function renderLayoutWithContent(
   layoutData: Data,
   pageContent: React.ReactNode,
 ): React.ReactNode {
+  // Members blocks' RSC render functions are async Server Components (see
+  // MEMBERS_SPEC.md Phase 7) - Puck's Config type models render() as
+  // synchronous, so the direct cast below needs to go through `unknown`
+  // first; this is a type-modeling gap only, Next.js renders async Server
+  // Components from RSC-composed JSX like this just fine at runtime.
   const config: Config = {
-    ...(layoutPuckRscConfig as Config),
+    ...(layoutPuckRscConfig as unknown as Config),
     components: {
-      ...(layoutPuckRscConfig as Config).components,
+      ...(layoutPuckRscConfig as unknown as Config).components,
       ContentSlot: {
         render: () => <>{pageContent}</>,
       },

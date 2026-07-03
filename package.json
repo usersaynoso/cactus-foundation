@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.198",
+  "version": "0.5.210",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && next dev --webpack",
@@ -42,6 +42,8 @@
     "email-reply-parser": "^2.3.5",
     "imapflow": "^1.4.3",
     "jsdom": "^26.1.0",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "mailparser": "^3.9.12",
     "marked": "^15.0.0",
     "nanoid": "^5.0.0",
@@ -60,6 +62,8 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/dompurify": "^3.0.5",
     "@types/jsdom": "^21.1.7",
+    "@types/leaflet": "^1.9.21",
+    "@types/leaflet.markercluster": "^1.5.6",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^6.4.15",

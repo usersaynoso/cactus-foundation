@@ -22,11 +22,31 @@ proxy.ts  (Node.js runtime - NOT Edge)
       │               (validate session; redirect to /<adminPath>/login if missing)
       │         no  → falls through (404 from Next.js for unknown routes)
       │
-      └── Site status gate (public routes only)
-            → status = live?  → pass through
-            → status ≠ live and requester has admin session? → pass through
-            → status = comingSoon → rewrite to /_status/coming-soon
-            → status = maintenance → rewrite to /_status/maintenance
+      ├── Member area rewrite
+      │     → request matches /<memberAreaPath>[/*] ?
+      │         members system disabled → 404
+      │         yes → rewrite to /_cactus_member_area[/*]
+      │               (sets x-cactus-member-full-path so the layout can build
+      │                an accurate post-login redirect target)
+      │
+      ├── Site status gate (public routes only)
+      │     → status = live?  → pass through
+      │     → status ≠ live and requester has admin session? → pass through
+      │     → status = comingSoon → rewrite to /_status/coming-soon
+      │     → status = maintenance → rewrite to /_status/maintenance
+      │
+      └── Members-only site access gate (public routes only)
+            → resolve route tier: site-wide members-only setting, OR a
+              module-declared route tier (PUBLIC / MEMBER / TRUSTED_MEMBER)
+              for this path
+            → tier = PUBLIC and site-wide gate off → pass through
+            → path is a declared site-wide exception → pass through
+            → requester has an admin session → pass through
+            → requester has a valid member session (trusted, if required)?
+                yes → pass through
+                no  → guest preview enabled? → pass through, flagged
+                      no member session at all? → redirect to member login
+                      signed in but insufficiently privileged? → 404
 ```
 
 **Why `proxy.ts` instead of `middleware.ts`?** Next.js 16 moved the request-interception layer from the Edge runtime to Node.js and renamed the file. Running on Node.js means Prisma works directly - no edge-compatible ORM, no edge Config only as a fallback. The admin path and site status checks can use real database reads.
@@ -56,6 +76,46 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 - **Password + OTP fallback** (when email is configured): bcrypt, Pwned Passwords k-anonymity check on registration, mandatory 6-digit email OTP as second factor.
 - **Trust this browser**: a `TrustedDevice` cookie skips the OTP step for a configurable number of days.
 - **Recovery**: offline single-use recovery code (generated at setup), or email link (30-minute expiry). Both land on the login page's recovery UI.
+
+## Members system
+
+The Members system is a parallel, independent account system for site visitors - entirely separate from the admin `User` model above. A `Member` never has admin permissions and a `User` never appears in the member directory; the two tables, sessions, and cookies never mix. See [Members](Members) for the site-owner-facing explanation.
+
+### Configuration
+
+All settings live in a single `SiteConfig.membersConfig` JSON column (`lib/members/config.ts`, `MembersConfigSchema`, Zod-validated with safe defaults on parse failure - a corrupted column never takes the site down). `getMembersConfigCached()` gives proxy.ts a 5-second in-memory cache, matching the existing `getAdminPathCached` pattern. The member area's own URL prefix (default `account`) is set separately, via the `MEMBER_AREA_PATH` env var (`lib/members/paths.ts`), since - like the admin path - changing it needs a redeploy.
+
+### Registration and verification
+
+`lib/members/registration.ts` and `lib/members/tokens.ts` handle username/email validation, invite-token validation (invite-only mode), and email verification tokens (`sha256(token)`, single-use, short-lived - see the token-hashing convention below). `deriveInitialStatus`/`deriveActivatedStatus` compute a member's status (`PENDING_VERIFICATION`, `PENDING_APPROVAL`, `ACTIVE`, etc.) from the registration mode and verification requirement, so the same deterministic status is reachable from multiple code paths (a genuine registration, and the enumeration-safe branch below) without ever hardcoding it.
+
+**Enumeration safety:** every member-facing auth endpoint (registration, verification resend, magic link, username availability) returns the same response shape regardless of whether an account or email actually exists, so a visitor can't use response differences to discover who is registered.
+
+### Sessions and sign-in
+
+`lib/members/session.ts` mirrors the admin session module but is entirely separate: its own table (`MemberSession`), its own cookie (`cactus_member_session`), its own trusted-browser cookie (`cactus_member_trusted`). Session validation only ever succeeds for `ACTIVE` members; a suspended, deleted, or not-yet-approved member's session token stops working immediately even if the cookie is still present.
+
+Three sign-in methods, each independently toggleable in config: **passkeys** (`lib/members/passkey.ts`, mirrors the admin passkey module against `Member`/`MemberPasskey`), **magic links** (`lib/members/magic-link.ts`, single-use emailed token), and **password + mandatory two-factor** (email code or TOTP via `otpauth`, same as the admin password fallback - a password alone is never sufficient). Token hashing follows the existing project convention: long-lived credentials (sessions, trusted browsers) are hashed as `sha256(token + SESSION_SECRET)`; short-lived single-use tokens (verification, magic links, invites) are plain `sha256(token)`.
+
+Security-sensitive changes (passkey added/removed, password changed, 2FA changed, new trusted browser) trigger an email via `lib/members/security-alerts.ts`, independent of whatever notification preferences the member has set for module-driven notifications.
+
+### Account area and public profile
+
+The member-facing account area (`/<memberAreaPath>/...`, e.g. `/account`) has five independently-toggleable sections: Profile, Security, Notifications, Activity, Danger Zone. Its layout gate reads the `x-cactus-member-full-path` header set by proxy.ts to build an accurate post-login redirect.
+
+Every member gets a public profile at `/members/<username>`, whose visibility (`PUBLIC` / `MEMBERS_ONLY` / `HIDDEN`) is config-driven, plus an optional member directory. Avatars resolve through `lib/members/avatar.ts` (`resolveEffectiveAvatarChoice`) across three sources - an uploaded photo, Gravatar (proxied server-side through `/api/members/avatar-proxy/[id]` so a member's email is never exposed to a client-side Gravatar request), or a generated initials avatar - respecting the `avatarUploadsEnabled`/`gravatarEnabled` config toggles even if a member's stored choice predates a toggle being switched off.
+
+### GDPR and email
+
+Members can request a full data export (assembled server-side, downloadable for 48 hours, `lib/members/export.ts`) or delete their account (soft-deleted with a config-driven grace period before a cron job purges it, `lib/members/deletion.ts`). Every member-facing email (verification, magic link, security alerts, digests, and any module-contributed notification) flows through a single template registry (`lib/email/templates.ts`, `MEMBER_EMAIL_TEMPLATES`) that admins can customise per-key from **Settings → Users → Email templates**, with a merge-tag list, test-send, and reset-to-default.
+
+### Puck blocks
+
+Six member-aware Puck blocks (login, register, account link, member gate, trusted-member gate, profile) are defined in `lib/puck/config.tsx` alongside the rest of the block library, but their actual render logic lives in a separate `lib/puck/components/MembersBlocksRsc.tsx` - each an async Server Component starting with `await connection()` to force per-request dynamic rendering (so a gate block always reflects the current visitor's session, never a cached render). This mirrors the existing `moduleComponents`/`moduleRscComponents` editor/RSC split used for module-contributed blocks, keeping session-dependent code out of the shared editor-bundle file.
+
+### Module extension points
+
+Modules declare member-related extensions declaratively via an optional `memberExtensions` manifest field (`lib/modules/manifest.ts`) - `activityTypes`, `notificationCategories`, `dataExportPath`, and `routeTiers`. Unlike `extensionPoints`/`settingsTabs`, this is pure data (no static component imports, no codegen step): `lib/modules/member-extensions.ts` reads installed modules' manifests directly, and proxy.ts's site-access gate consults a 5-second-cached `getModuleRouteTiersCached()` to resolve whether a given path is `PUBLIC`, `MEMBER`, or `TRUSTED_MEMBER`, independent of the site-wide members-only toggle - either trigger can gate a path, so a module can lock one route tier down without the site owner switching on site-wide members-only mode.
 
 ## Media pipeline
 
@@ -702,4 +762,4 @@ Cactus can only gate scripts it injects itself. Third-party snippets pasted dire
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Running locally](Running-locally) · [Architecture overview](Architecture-overview) · [Members](Members) · [Authoring a module](Authoring-a-module) · [Authoring a theme](Authoring-a-theme) · [Self-hosting and operations](Self-hosting-and-operations)

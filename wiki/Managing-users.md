@@ -2,19 +2,21 @@
 
 The **Users** section in the admin lets you see who has access to your site and control what each person can do.
 
+This covers admin **Users** only - people who can access your admin area. For visitor accounts (registration, sign-in, public profiles), see [Members](Members).
+
 ---
 
 ## Roles and permissions
 
 Every user is assigned a **role**. A role is a named set of permissions that determines which parts of the admin that user can access and what actions they can take.
 
-Cactus comes with one built-in role: **Admin**. The Admin role always has full access and cannot be edited or deleted.
+Cactus comes with one built-in role: **Admin**. The Admin role always has full access and cannot be edited or deleted. If you switch on the [Members](Members) system, a second protected role called **Members** appears the moment your first visitor registers - it's just a label so members show a role badge in the combined Users list; it carries no admin permissions and members never use it to access the admin area.
 
 You can create as many additional roles as you need - for example, an Editor who can manage pages but not change site settings, or a Moderator for a specific module.
 
 ### Creating a role
 
-1. Go to **Users → Roles**.
+1. Go to **Settings → Users → Roles**.
 2. Click **New role**.
 3. Give the role a name.
 4. Tick the permissions you want this role to have. Permissions are grouped by area (Pages, Media, Users, Settings, and so on). Installed modules add their own permissions to the list.
@@ -32,26 +34,13 @@ Deleting a role does not delete users who had that role - those users simply end
 
 Go to **Users** in the admin sidebar to see a list of everyone with an account on your site.
 
-The list shows each user's name, email address, role, and when they last signed in.
+The list shows each user's name, email address, role, and when they joined - and it's a combined list: admin staff and site [members](Members) both appear here, side by side, with a **Type** column telling them apart. Staff rows still have the role/suspend/delete controls right there in the table; click a member row to open their full profile and management options instead (approve, suspend, trust, and so on).
 
 ---
 
 ## Adding users
 
-### Public registration
-
-If **public registration** is turned on (see **Settings → Auth & Access**), anyone can create an account via the registration page on your public site. You can set a **default role** that new registrations are automatically assigned.
-
-If you only want specific people to have accounts, turn registration off and create accounts manually.
-
-### Creating an account manually
-
-Currently, new accounts are created through the public registration flow. To add someone without opening registration to the public:
-
-1. Temporarily turn on public registration (**Settings → Auth & Access**).
-2. Have the person register on the public site.
-3. Turn registration off again.
-4. Find the new user in the **Users** list and change their role to the appropriate one.
+There's no public sign-up for admin accounts - the only admin user created automatically is the one made during setup. To give someone else access to the admin, add them through the [Members](Members) system instead (invite or registration, depending on how you've configured it), then assign them a role with the permissions they need from the **Users** list.
 
 ---
 
@@ -119,14 +108,15 @@ If email is set up on your site, you can also sign in with a password and a one-
 
 ---
 
-## Registration and access settings
+## Access settings
 
-Go to **Settings → Auth & Access** to control:
+Go to **Settings → General** to control:
 
-- **Public registration** - whether new visitors can create accounts.
-- **Default role** - the role automatically assigned to new registrations.
+- **Admin path** - the secret URL prefix for your admin area.
 - **Trust this browser** - how long a "trust this browser" cookie lasts before asking for a one-time code again.
+
+For visitor registration settings, see [Members](Members).
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)

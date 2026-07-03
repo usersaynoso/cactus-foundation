@@ -51,10 +51,22 @@ export default async function AdminDashboard() {
   }
   const widgetComponents = moduleExtensionPointComponents['core.admin-dashboard-widgets'] ?? {}
 
-  const [pageCount, userCount, mediaCount] = await Promise.all([
+  const canViewMembers = user ? await hasPermission(user, 'members.list') : false
+
+  const [pageCount, userCount, mediaCount, memberCounts] = await Promise.all([
     prisma.infoPage.count(),
     prisma.user.count(),
     prisma.media.count(),
+    canViewMembers
+      ? Promise.all([
+          prisma.member.count(),
+          prisma.member.count({ where: { status: 'ACTIVE' } }),
+          prisma.member.count({ where: { status: 'PENDING_APPROVAL' } }),
+          prisma.member.count({ where: { status: 'PENDING_VERIFICATION' } }),
+          prisma.member.count({ where: { status: 'SUSPENDED' } }),
+          prisma.member.count({ where: { deletionScheduledAt: { not: null } } }),
+        ])
+      : Promise.resolve(null),
   ])
 
   const emailConfigured = !!(process.env.BREVO_API_KEY || process.env.SMTP_HOST)
@@ -143,6 +155,14 @@ export default async function AdminDashboard() {
           { label: 'Pages', value: pageCount },
           { label: 'Users', value: userCount },
           { label: 'Media files', value: mediaCount },
+          ...(memberCounts ? [
+            { label: 'Total members', value: memberCounts[0] },
+            { label: 'Active members', value: memberCounts[1] },
+            { label: 'Pending approval', value: memberCounts[2] },
+            { label: 'Pending verification', value: memberCounts[3] },
+            { label: 'Suspended members', value: memberCounts[4] },
+            { label: 'Scheduled for deletion', value: memberCounts[5] },
+          ] : []),
         ].map((stat) => (
           <div key={stat.label} className="card" style={{ textAlign: 'center', padding: '1.25rem' }}>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{stat.value}</div>

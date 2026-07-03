@@ -16,6 +16,20 @@ export const CORE_PERMISSIONS = [
   { key: 'menus.manage', description: 'Create and manage navigation menus' },
   { key: 'appearance.manage', description: 'Edit site header, footer, and design tokens' },
   { key: 'layouts.manage', description: 'Create, edit, and assign page layouts' },
+  // Members system (see MEMBERS_SPEC.md)
+  { key: 'members.manage', description: 'Full access to the Members admin section' },
+  { key: 'members.list', description: 'View the member list' },
+  { key: 'members.view', description: 'View individual member detail' },
+  { key: 'members.edit', description: 'Edit member profiles and settings' },
+  { key: 'members.suspend', description: 'Suspend and unsuspend members' },
+  { key: 'members.delete', description: 'Delete member accounts' },
+  { key: 'members.invite', description: 'Generate and revoke member invite links' },
+  { key: 'members.approve', description: 'Approve pending members' },
+  { key: 'members.trust', description: 'Set and unset the trusted member flag' },
+  { key: 'members.notes', description: 'Add internal admin notes on members' },
+  { key: 'members.settings', description: 'Edit Members system settings' },
+  { key: 'members.gdpr', description: 'Access the members GDPR dashboard' },
+  { key: 'members.email-templates', description: 'Edit member email templates' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']
