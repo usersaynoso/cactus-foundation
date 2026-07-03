@@ -12,20 +12,6 @@ import type { Metadata } from 'next'
 type NavEntry = { label: string; path: string; icon?: string; permission?: string }
 type NavGroup = { label: string | null; links: Array<{ label: string; path: string; icon?: string }> }
 
-// Members system (MEMBERS_SPEC.md) - a core feature, not a module, but its
-// sidebar section is permission-filtered the same way module navEntries are
-// (existing core sections like Content/People/System are not - see
-// FIELD_NOTES.md Admin UI section for why this is a deliberate departure).
-const MEMBERS_NAV_ENTRIES: Array<{ label: string; path: string; permission: string }> = [
-  { label: 'Overview', path: '/members', permission: 'members.list' },
-  { label: 'Members', path: '/members/list', permission: 'members.list' },
-  { label: 'Pending approval', path: '/members/pending-approval', permission: 'members.approve' },
-  { label: 'Invites', path: '/members/invites', permission: 'members.invite' },
-  { label: 'Email templates', path: '/members/email-templates', permission: 'members.email-templates' },
-  { label: 'GDPR', path: '/members/gdpr', permission: 'members.gdpr' },
-  { label: 'Settings', path: '/members/settings', permission: 'members.settings' },
-]
-
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
@@ -78,13 +64,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (ungroupedLinks.length > 0) moduleNavGroups.push({ label: null, links: ungroupedLinks })
   for (const [label, links] of labelledGroups) moduleNavGroups.push({ label, links })
 
-  const membersLinks: Array<{ path: string; label: string }> = []
-  for (const entry of MEMBERS_NAV_ENTRIES) {
-    if (await hasPermission(user, entry.permission)) {
-      membersLinks.push({ path: entry.path, label: entry.label })
-    }
-  }
-
   // White-label the admin chrome to the site's primary colour and font. Only the
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)
   // so admin spacing, radii and the mono/code font stay on the Cactus design system.
@@ -102,7 +81,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         siteName={config?.siteName ?? 'Cactus Foundation'}
         version={pkg.version}
         moduleNavGroups={moduleNavGroups}
-        membersLinks={membersLinks}
         unreadCount={unreadCount}
       >
         {children}

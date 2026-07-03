@@ -1,9 +1,13 @@
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, type SessionUser } from '@/lib/auth/session'
 import { hasPermission, isAdmin } from '@/lib/permissions/check'
 import { parsePaginationParams } from '@/lib/utils'
 import Link from 'next/link'
+import { TabStrip } from '@/components/admin/TabStrip'
 import UserActions from './UserActions'
+import MembersListClient from './MembersListClient'
+import PendingApprovalClient from './PendingApprovalClient'
+import InvitesClient from './InvitesClient'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Users — Admin' }
@@ -17,8 +21,43 @@ export default async function UsersPage({ searchParams }: Props) {
     return <div className="alert alert-danger">You do not have permission to manage users.</div>
   }
 
+  const [canViewMembers, canApprove, canInvite] = await Promise.all([
+    hasPermission(currentUser, 'members.list'),
+    hasPermission(currentUser, 'members.approve'),
+    hasPermission(currentUser, 'members.invite'),
+  ])
+
   const sp = await searchParams
-  const params = new URLSearchParams(sp)
+  const tab = sp.tab === 'members' && canViewMembers ? 'members'
+    : sp.tab === 'pending-approval' && canApprove ? 'pending-approval'
+    : sp.tab === 'invites' && canInvite ? 'invites'
+    : 'users'
+
+  const tabItems = [
+    { key: 'users', label: 'Users', href: '?tab=users' },
+    ...(canViewMembers ? [{ key: 'members', label: 'Members', href: '?tab=members' }] : []),
+    ...(canApprove ? [{ key: 'pending-approval', label: 'Pending Approval', href: '?tab=pending-approval' }] : []),
+    ...(canInvite ? [{ key: 'invites', label: 'Invites', href: '?tab=invites' }] : []),
+  ].map((t) => ({ ...t, active: t.key === tab }))
+
+  return (
+    <div>
+      <div className="page-header">
+        <h1 className="page-title">Users</h1>
+      </div>
+
+      {tabItems.length > 1 && <TabStrip items={tabItems} />}
+
+      {tab === 'users' && <UsersTab currentUser={currentUser} searchParams={sp} />}
+      {tab === 'members' && canViewMembers && <MembersTab currentUser={currentUser} />}
+      {tab === 'pending-approval' && canApprove && <PendingApprovalTab />}
+      {tab === 'invites' && canInvite && <InvitesClient />}
+    </div>
+  )
+}
+
+async function UsersTab({ currentUser, searchParams }: { currentUser: SessionUser; searchParams: Record<string, string> }) {
+  const params = new URLSearchParams(searchParams)
   const { skip, perPage, page } = parsePaginationParams(params)
 
   const [users, total, roles] = await Promise.all([
@@ -35,8 +74,7 @@ export default async function UsersPage({ searchParams }: Props) {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Users</h1>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-2)' }}>
         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>{total} total</span>
       </div>
 
@@ -101,6 +139,32 @@ export default async function UsersPage({ searchParams }: Props) {
           {page < totalPages && <Link href={`?page=${page + 1}`}>→</Link>}
         </div>
       )}
+    </div>
+  )
+}
+
+async function MembersTab({ currentUser }: { currentUser: SessionUser }) {
+  const [canSuspend, canApprove, canTrust, canDelete] = await Promise.all([
+    hasPermission(currentUser, 'members.suspend'),
+    hasPermission(currentUser, 'members.approve'),
+    hasPermission(currentUser, 'members.trust'),
+    hasPermission(currentUser, 'members.delete'),
+  ])
+
+  return <MembersListClient permissions={{ canSuspend, canApprove, canTrust, canDelete }} />
+}
+
+async function PendingApprovalTab() {
+  const members = await prisma.member.findMany({
+    where: { status: 'PENDING_APPROVAL' },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, username: true, email: true, createdAt: true },
+  })
+
+  return (
+    <div>
+      <PendingApprovalClient members={members.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }))} />
+      {members.length === 0 && <p style={{ color: 'var(--color-text-muted)' }}>No members awaiting approval.</p>}
     </div>
   )
 }

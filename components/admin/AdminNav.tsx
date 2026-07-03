@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
@@ -17,7 +17,6 @@ type Props = {
   collapsed?: boolean
   onNavClick?: () => void
   moduleNavGroups?: ModuleNavGroup[]
-  membersLinks?: Array<{ path: string; label: string }>
 }
 
 const ICON_PROPS = {
@@ -53,12 +52,6 @@ const NAV_ICONS: Record<string, ReactNode> = {
   ),
   users: (
     <svg {...ICON_PROPS}><circle cx="8.5" cy="8" r="3" /><path d="M2.5 20a6 6 0 0 1 12 0" /><path d="M15.5 6.5a3 3 0 0 1 0 5.8" /><path d="M21.5 20a5.5 5.5 0 0 0-5-5.47" /></svg>
-  ),
-  members: (
-    <svg {...ICON_PROPS}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M5.5 16a3 3 0 0 1 6 0" /><path d="M13 9.5h6" /><path d="M13 13h4" /></svg>
-  ),
-  roles: (
-    <svg {...ICON_PROPS}><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8" /><path d="M16 7l2.5 2.5" /><path d="M19 4l2.5 2.5" /></svg>
   ),
   modules: (
     <svg {...ICON_PROPS}><path d="M9 3.5v3a1.5 1.5 0 0 0 3 0v-3H16a1 1 0 0 1 1 1V8a1.5 1.5 0 0 0 0 3v4a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 0-3 0H6a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 0 0-3V5a1 1 0 0 1 1-1z" /></svg>
@@ -96,15 +89,9 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
     ],
   },
   {
-    label: 'People',
-    links: [
-      { path: '/users', label: 'Users', icon: 'users' },
-      { path: '/roles', label: 'Roles', icon: 'roles' },
-    ],
-  },
-  {
     label: 'System',
     links: [
+      { path: '/users',      label: 'Users',    icon: 'users' },
       { path: '/appearance', label: 'Styles',   icon: 'appearance' },
       { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
       { path: '/modules',    label: 'Modules',  icon: 'modules' },
@@ -113,20 +100,25 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   },
 ]
 
-export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups, membersLinks }: Props) {
+export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
   // Maps section label -> true when the user has minimised it. Defaults to
   // empty (i.e. everything maximised) when there's no saved state.
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
-    if (typeof window === 'undefined') return {}
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+
+  // Read the saved preference after mount — reading localStorage synchronously in a
+  // useState initializer makes the client's first render diverge from the
+  // server-rendered HTML and trips a hydration error.
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(SECTIONS_COLLAPSE_KEY)
-      return raw ? JSON.parse(raw) : {}
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- must read after mount, not in the initializer, or the client's first render diverges from server HTML
+      if (raw) setCollapsedSections(JSON.parse(raw))
     } catch {
-      return {}
+      // ignore malformed cache
     }
-  })
+  }, [])
 
   function toggleSection(label: string) {
     setCollapsedSections((prev) => {
@@ -247,8 +239,6 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         </div>
         )
       })}
-
-      {membersLinks && membersLinks.length > 0 && renderModuleGroup({ label: 'Members', links: membersLinks }, 'members-section', 'members')}
 
       {labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
 

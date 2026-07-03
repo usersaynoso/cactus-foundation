@@ -20,22 +20,27 @@ type Props = {
   version: string
   children: React.ReactNode
   moduleNavGroups?: ModuleNavGroup[]
-  membersLinks?: Array<{ path: string; label: string }>
   unreadCount?: number
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, membersLinks, unreadCount }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(() =>
-    typeof window !== 'undefined' && localStorage.getItem('cactus-sidebar-collapsed') === 'true'
-  )
+  const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const pathname = usePathname()
   // Track whether the sidebar was auto-collapsed by the editor so we can restore it on exit
   const autoCollapsedRef = useRef(false)
+
+  // Read the saved preference after mount, not during the initial render — reading
+  // localStorage synchronously in a useState initializer makes the client's first
+  // render diverge from the server-rendered HTML and trips a hydration error.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- must read after mount, not in the initializer, or the client's first render diverges from server HTML
+    setCollapsed(localStorage.getItem('cactus-sidebar-collapsed') === 'true')
+  }, [])
 
   // The rail-collapse preference is a desktop-only concept; the mobile drawer
   // is a full-width overlay so it must never inherit the collapsed rail state.
@@ -161,7 +166,6 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
             moduleNavGroups={moduleNavGroups}
-            membersLinks={membersLinks}
           />
         </div>
       </aside>

@@ -26,7 +26,7 @@ export async function notifyAdminMemberPendingApproval(memberId: string, usernam
     type: 'message',
     dedupeKey: `member-pending-approval:${memberId}`,
     title: `New member awaiting approval: ${username}`,
-    link: '/members/pending-approval',
+    link: '/users?tab=pending-approval',
   })
 
   if (!isEmailConfigured()) return

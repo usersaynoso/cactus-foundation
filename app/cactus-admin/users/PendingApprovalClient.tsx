@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 type PendingMember = { id: string; username: string; email: string; createdAt: string }
 
-export default function PendingApprovalClient({ members, adminPath }: { members: PendingMember[]; adminPath: string }) {
+export default function PendingApprovalClient({ members }: { members: PendingMember[] }) {
+  const adminPath = useAdminPath()
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
 

@@ -9,7 +9,7 @@ type ExportRequest = { id: string; status: string; createdAt: string; expiresAt:
 type DeletionRequest = { id: string; username: string; deletionRequestedAt: string; deletionScheduledAt: string }
 type LogEntry = { id: string; action: string; createdAt: string; member: { username: string } | null }
 
-export default function GdprClient() {
+export default function MembersGdprClient() {
   const adminPath = useAdminPath()
   const [consentRecords, setConsentRecords] = useState<ConsentRecord[]>([])
   const [exportRequests, setExportRequests] = useState<ExportRequest[]>([])
@@ -27,6 +27,9 @@ export default function GdprClient() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      <hr style={{ margin: 0, border: 'none', borderTop: '1px solid var(--color-border)' }} />
+      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>Member data &amp; requests</h3>
+
       <div className="card">
         <h2 className="card-title">Pending deletion requests</h2>
         {deletionRequests.length === 0 && <p style={{ color: 'var(--color-text-muted)' }}>None.</p>}

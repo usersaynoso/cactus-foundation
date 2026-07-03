@@ -85,8 +85,7 @@ export default function MembersListClient({ permissions }: { permissions: Permis
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Members</h1>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-2)' }}>
         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>{total} total</span>
       </div>
 

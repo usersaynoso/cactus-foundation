@@ -4,7 +4,7 @@ import type { ModuleManifest } from '@/lib/modules/manifest'
 // Live reads of every active module's `memberExtensions` manifest field (see
 // MEMBERS_SPEC.md amendment 5). Pure data - no codegen step, unlike
 // extensionPoints/settingsTabs which need static component imports resolved
-// at build time. Same active-module filter as app/cactus-admin/roles/page.tsx.
+// at build time. Same active-module filter as app/cactus-admin/config/page.tsx.
 
 async function getActiveModuleManifests(): Promise<ModuleManifest[]> {
   const modules = await prisma.module.findMany({

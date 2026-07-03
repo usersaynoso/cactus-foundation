@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
+import MembersGdprClient from './MembersGdprClient'
+import MembersSettingsTab from './MembersSettingsTab'
+import RolesClient from './RolesClient'
+import EmailTemplatesClient from './EmailTemplatesClient'
 import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
@@ -477,16 +481,32 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 }
 
 type ModuleTab = { id: string; label: string }
+type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
 
-function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
+type ConfigPageInnerProps = {
+  moduleTabs: ModuleTab[]
+  canManageMembersSettings: boolean
+  canManageRoles: boolean
+  canManageEmailTemplates: boolean
+  canViewMembersGdpr: boolean
+  rolesData: RolesData | null
+  roleExtensions: ReactNode
+  membersGdprExtensions: ReactNode
+}
+
+function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
   // Baseline for unsaved-change detection: set on load and after each save.
   const savedFingerprint = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) ? (tabParam as string) : 'general'
+  const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
+  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
+  const [usersSubTab, setUsersSubTab] = useState<'members' | 'roles' | 'email-templates'>(
+    canManageMembersSettings ? 'members' : canManageRoles ? 'roles' : 'email-templates'
+  )
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
@@ -1161,6 +1181,7 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
         style={{ marginBottom: '2rem' }}
         items={[
           ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => setTab(t) })),
+          ...(showUsersTab ? [{ key: 'users', label: 'Users', active: tab === 'users', onClick: () => setTab('users') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => setTab(t.id) })),
         ]}
       />
@@ -1405,6 +1426,32 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
             <input type="checkbox" checked={config.publicRegistration ?? true} onChange={(e) => set('publicRegistration', e.target.checked)} />
             Allow public registration
           </label>
+        </div>
+      )}
+
+      {tab === 'users' && showUsersTab && (
+        <div>
+          <TabStrip
+            items={[
+              ...(canManageMembersSettings ? [{ key: 'members', label: 'Members', active: usersSubTab === 'members', onClick: () => setUsersSubTab('members') }] : []),
+              ...(canManageRoles ? [{ key: 'roles', label: 'Roles', active: usersSubTab === 'roles', onClick: () => setUsersSubTab('roles') }] : []),
+              ...(canManageEmailTemplates ? [{ key: 'email-templates', label: 'Email templates', active: usersSubTab === 'email-templates', onClick: () => setUsersSubTab('email-templates') }] : []),
+            ]}
+          />
+
+          {usersSubTab === 'members' && canManageMembersSettings && <MembersSettingsTab />}
+
+          {usersSubTab === 'roles' && canManageRoles && rolesData && (
+            <>
+              <p style={{ margin: '0 0 1.25rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>
+                Pick a role on the left, then choose what people with that role are allowed to do.
+              </p>
+              <RolesClient roles={rolesData.roles} permissions={rolesData.permissions} activeModuleNames={rolesData.activeModuleNames} />
+              {roleExtensions}
+            </>
+          )}
+
+          {usersSubTab === 'email-templates' && canManageEmailTemplates && <EmailTemplatesClient />}
         </div>
       )}
 
@@ -1701,6 +1748,13 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
                     Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
                   </p>
                 )}
+              </>
+            )}
+
+            {canViewMembersGdpr && (
+              <>
+                <MembersGdprClient />
+                {membersGdprExtensions}
               </>
             )}
           </div>

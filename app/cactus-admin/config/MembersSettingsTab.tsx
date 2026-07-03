@@ -47,7 +47,7 @@ function textToList(text: string): string[] {
   return text.split('\n').map((s) => s.trim()).filter(Boolean)
 }
 
-export default function SettingsClient() {
+export default function MembersSettingsTab() {
   const [tab, setTab] = useState<Tab>('registration')
   const [config, setConfig] = useState<Config | null>(null)
   const [memberAreaPath, setMemberAreaPath] = useState('')
