@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { parsePaginationParams, generateSlug, errorResponse } from '@/lib/utils'
+import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { revalidatePath } from 'next/cache'
 
 const Body = z.object({
@@ -47,6 +48,10 @@ export async function POST(request: NextRequest) {
 
   const existing = await prisma.infoPage.findUnique({ where: { slug } })
   if (existing) return errorResponse(`Slug "${slug}" is already in use`, 409)
+
+  const moduleBases = await getInstalledPublicBasePaths()
+  const reservedBy = moduleBases.get(slug)
+  if (reservedBy) return errorResponse(`Slug "${slug}" is reserved by the ${reservedBy} module`, 409)
 
   if (status === 'published' && !await hasPermission(user, 'pages.publish')) {
     return errorResponse('You do not have permission to publish pages', 403)

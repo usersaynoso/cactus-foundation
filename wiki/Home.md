@@ -22,6 +22,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Managing media](Managing-media) | Uploading and organising images and files |
 | [Managing users](Managing-users) | User accounts, roles, and permissions |
 | [Modules](Modules) | Installing and managing add-ons |
+| [Gazette](Gazette) | Writing, scheduling and publishing blog posts, with tags, series, comments and reactions |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
 

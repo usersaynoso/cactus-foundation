@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
+import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { revalidatePath } from 'next/cache'
 
 const Patch = z.object({
@@ -57,6 +58,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (slug && slug !== page.slug) {
     const exists = await prisma.infoPage.findUnique({ where: { slug } })
     if (exists) return errorResponse(`Slug "${slug}" is already in use`, 409)
+
+    const moduleBases = await getInstalledPublicBasePaths()
+    const reservedBy = moduleBases.get(slug)
+    if (reservedBy) return errorResponse(`Slug "${slug}" is reserved by the ${reservedBy} module`, 409)
   }
 
   const canManageMenus = menuIds !== undefined && await hasPermission(user, 'menus.manage')
