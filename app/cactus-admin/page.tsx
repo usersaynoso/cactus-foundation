@@ -1,11 +1,15 @@
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
+import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { Metadata } from 'next'
 import type { MediaProviderType } from '@prisma/client'
 
 export const metadata: Metadata = { title: 'Dashboard — Admin' }
+
+type ExtensionPointEntry = { point: string; id: string; permission?: string }
 
 type FeatureItem = {
   id: string
@@ -24,6 +28,28 @@ export default async function AdminDashboard() {
     where: { id: 'singleton' },
     select: { siteName: true, status: true, timezone: true, mediaProvider: true },
   })
+
+  // Modules can contribute their own dashboard summary widget here (e.g.
+  // Boards' thread/post/queue counts) via the generic "core.admin-dashboard-widgets"
+  // extension point, permission-filtered live from Module.manifest - the
+  // dashboard knows the point name only, never any module name.
+  const widgetModules = await prisma.module.findMany({
+    where: { status: { in: ['active', 'update_available'] } },
+    select: { manifest: true },
+  })
+  const widgetIds: string[] = []
+  for (const mod of widgetModules) {
+    const manifest = mod.manifest as { extensionPoints?: ExtensionPointEntry[] } | null
+    if (!manifest?.extensionPoints) continue
+    for (const entry of manifest.extensionPoints) {
+      if (entry.point !== 'core.admin-dashboard-widgets') continue
+      if (!user) continue
+      if (!entry.permission || (await hasPermission(user, entry.permission))) {
+        widgetIds.push(entry.id)
+      }
+    }
+  }
+  const widgetComponents = moduleExtensionPointComponents['core.admin-dashboard-widgets'] ?? {}
 
   const [pageCount, userCount, mediaCount] = await Promise.all([
     prisma.infoPage.count(),
@@ -197,6 +223,15 @@ export default async function AdminDashboard() {
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Your site is fully set up. You can manage all settings in <a href={`/${adminPath}/config`}>Settings</a>.</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {widgetIds.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+          {widgetIds.map((id) => {
+            const Widget = widgetComponents[id]
+            return Widget ? <Widget key={id} /> : null
+          })}
         </div>
       )}
     </div>

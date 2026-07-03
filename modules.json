@@ -9,6 +9,11 @@
       "name": "contact-form-reply-catcher",
       "repoUrl": "https://github.com/cactus-foundation-modules/reply-catcher",
       "version": "v0.1.4"
+    },
+    {
+      "name": "boards",
+      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
+      "version": "v0.1.0"
     }
   ]
 }
