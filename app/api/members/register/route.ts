@@ -13,6 +13,7 @@ import {
   sendVerificationEmail,
 } from '@/lib/members/registration'
 import { sendMagicLink } from '@/lib/members/magic-link'
+import { getOrCreateMembersRoleId } from '@/lib/members/default-role'
 import { verifyTurnstile } from '@/lib/auth/turnstile'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
@@ -109,12 +110,15 @@ export async function POST(request: NextRequest) {
   const requireVerification = config.emailVerificationRequired && isEmailConfigured()
   const status = deriveInitialStatus(requireVerification, config.registrationMode)
 
+  const roleId = await getOrCreateMembersRoleId()
+
   const member = await prisma.member.create({
     data: {
       email,
       username,
       displayName: displayName || null,
       status,
+      roleId,
     },
   })
 

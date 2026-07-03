@@ -163,9 +163,56 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 
 ---
 
-## Members tab
+## Integrations tab
 
-See [Members](Members) for a plain-English walkthrough. This tab only exists once **Members system enabled** is ticked.
+Shows the connection status of:
+
+- **GitHub** - needed to install and update modules and themes, and to apply Cactus core updates.
+- **Vercel** - needed to save settings that require a redeploy and to check deployment status.
+- **Neon** - only shown during initial setup. Used for automatic database provisioning.
+
+Credentials are read from environment variables. Their values are never displayed here.
+
+### Environment variables reference
+
+This table lists every environment variable Cactus recognises. Variables marked **Required** block setup or core features if absent. Everything else is optional and only affects the feature it describes.
+
+| Variable | Required | What it's for |
+|----------|----------|----------------|
+| `DATABASE_URL` | Yes | Connection string for your PostgreSQL database. Provisioned automatically if `NEON_API_KEY` is set. |
+| `SESSION_SECRET` | Yes | A secret key (at least 32 random characters) used to secure sign-in sessions. |
+| `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. |
+| `VERCEL_API_TOKEN` | Yes | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
+| `VERCEL_PROJECT_ID` | Yes | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
+| `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
+| `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |
+| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | No | Your Cloudflare Worker's URL. Required for all proxied media providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase). |
+| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 credentials. |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 credentials. |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 credentials. |
+| `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | No | DigitalOcean Spaces credentials. |
+| `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | No | Wasabi credentials. |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | No | MinIO credentials. |
+| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob token. |
+| `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage credentials. Use the service role key, not the anon key. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary credentials. |
+| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit credentials. |
+| `GITHUB_API_TOKEN` | No | GitHub personal access token (`repo` scope). Used for module and theme installs when a GitHub App is not connected. |
+| `ENCRYPTION_KEY` | No | 64-character hex key for encrypting GitHub App credentials. Required to connect a GitHub App. Generate with `openssl rand -hex 32`. Must not change after a GitHub App is connected. |
+| `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | No | Vercel Edge Config credentials. Used for faster admin-path and site-status lookups. |
+| `VERCEL_WEBHOOK_SECRET` | No | Enables automatic deployment status updates. Requires a Vercel Pro or Enterprise plan. |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile credentials. Adds bot protection to public-facing forms. |
+| `SENTRY_DSN` | No | Sentry error-reporting address. |
+| `MEMBER_AREA_PATH` | No | The web address prefix for the member account area (login, registration, profile). Defaults to `account`. Set at deploy time only - changing it requires a redeploy. Lowercase letters, numbers and hyphens; unusable values quietly fall back to the default. |
+| `CACTUS_CORE_REPO` | No | Override the upstream repository the Updates panel checks. Set this if you maintain a fork of Cactus Foundation. |
+| `CRON_SECRET` | No | Enables Vercel Cron jobs declared by installed modules (e.g. the Reply Catcher contact-form add-on). When set, Vercel automatically sends it as a bearer token on its own cron requests, and each module's cron route checks it before running. Not required unless an installed module ships a `cronJobs` entry. |
+
+---
+
+## Users tab
+
+Only shown once you (or someone) holds at least one of the permissions below - see [Managing users](Managing-users). The member-settings sub-tabs below (Registration through Data & deletion) sit directly on the Users tab, alongside Roles and Email templates - see [Members](Members) for a plain-English walkthrough.
 
 ### Registration
 
@@ -211,52 +258,13 @@ See [Members](Members) for a plain-English walkthrough. This tab only exists onc
 | Account deletion grace period (days) | How long a member has to change their mind after requesting deletion, before it's permanent | `14` |
 | Notify admins on deletion request | Sends an admin notification whenever a member requests account deletion | Off |
 
----
+### Roles
 
-## Integrations tab
+Manage roles and permissions - see [Managing users](Managing-users).
 
-Shows the connection status of:
+### Email templates
 
-- **GitHub** - needed to install and update modules and themes, and to apply Cactus core updates.
-- **Vercel** - needed to save settings that require a redeploy and to check deployment status.
-- **Neon** - only shown during initial setup. Used for automatic database provisioning.
-
-Credentials are read from environment variables. Their values are never displayed here.
-
-### Environment variables reference
-
-This table lists every environment variable Cactus recognises. Variables marked **Required** block setup or core features if absent. Everything else is optional and only affects the feature it describes.
-
-| Variable | Required | What it's for |
-|----------|----------|----------------|
-| `DATABASE_URL` | Yes | Connection string for your PostgreSQL database. Provisioned automatically if `NEON_API_KEY` is set. |
-| `SESSION_SECRET` | Yes | A secret key (at least 32 random characters) used to secure sign-in sessions. |
-| `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. |
-| `VERCEL_API_TOKEN` | Yes | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
-| `VERCEL_PROJECT_ID` | Yes | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
-| `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
-| `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |
-| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | No | Your Cloudflare Worker's URL. Required for all proxied media providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase). |
-| `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 credentials. |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 credentials. |
-| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 credentials. |
-| `SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`, `SPACES_BUCKET_NAME`, `SPACES_REGION` | No | DigitalOcean Spaces credentials. |
-| `WASABI_ACCESS_KEY_ID`, `WASABI_SECRET_ACCESS_KEY`, `WASABI_BUCKET_NAME`, `WASABI_REGION` | No | Wasabi credentials. |
-| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`, `MINIO_USE_SSL` | No | MinIO credentials. |
-| `BLOB_READ_WRITE_TOKEN` | No | Vercel Blob token. |
-| `SUPABASE_STORAGE_PROJECT_URL`, `SUPABASE_STORAGE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET_NAME` | No | Supabase Storage credentials. Use the service role key, not the anon key. |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary credentials. |
-| `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit credentials. |
-| `GITHUB_API_TOKEN` | No | GitHub personal access token (`repo` scope). Used for module and theme installs when a GitHub App is not connected. |
-| `ENCRYPTION_KEY` | No | 64-character hex key for encrypting GitHub App credentials. Required to connect a GitHub App. Generate with `openssl rand -hex 32`. Must not change after a GitHub App is connected. |
-| `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | No | Vercel Edge Config credentials. Used for faster admin-path and site-status lookups. |
-| `VERCEL_WEBHOOK_SECRET` | No | Enables automatic deployment status updates. Requires a Vercel Pro or Enterprise plan. |
-| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile credentials. Adds bot protection to public-facing forms. |
-| `SENTRY_DSN` | No | Sentry error-reporting address. |
-| `MEMBER_AREA_PATH` | No | The web address prefix for the member account area (login, registration, profile). Defaults to `account`. Set at deploy time only - changing it requires a redeploy. Lowercase letters, numbers and hyphens; unusable values quietly fall back to the default. |
-| `CACTUS_CORE_REPO` | No | Override the upstream repository the Updates panel checks. Set this if you maintain a fork of Cactus Foundation. |
-| `CRON_SECRET` | No | Enables Vercel Cron jobs declared by installed modules (e.g. the Reply Catcher contact-form add-on). When set, Vercel automatically sends it as a bearer token on its own cron requests, and each module's cron route checks it before running. Not required unless an installed module ships a `cronJobs` entry. |
+Customise the wording of every email members receive, with a merge-tag list and a test-send button - see [Members](Members#admin-tools).
 
 ---
 

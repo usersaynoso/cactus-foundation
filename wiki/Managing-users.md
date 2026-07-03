@@ -10,13 +10,13 @@ This covers admin **Users** only - people who can access your admin area. For vi
 
 Every user is assigned a **role**. A role is a named set of permissions that determines which parts of the admin that user can access and what actions they can take.
 
-Cactus comes with one built-in role: **Admin**. The Admin role always has full access and cannot be edited or deleted.
+Cactus comes with one built-in role: **Admin**. The Admin role always has full access and cannot be edited or deleted. If you switch on the [Members](Members) system, a second protected role called **Members** appears the moment your first visitor registers - it's just a label so members show a role badge in the combined Users list; it carries no admin permissions and members never use it to access the admin area.
 
 You can create as many additional roles as you need - for example, an Editor who can manage pages but not change site settings, or a Moderator for a specific module.
 
 ### Creating a role
 
-1. Go to **Users → Roles**.
+1. Go to **Settings → Users → Roles**.
 2. Click **New role**.
 3. Give the role a name.
 4. Tick the permissions you want this role to have. Permissions are grouped by area (Pages, Media, Users, Settings, and so on). Installed modules add their own permissions to the list.
@@ -34,7 +34,7 @@ Deleting a role does not delete users who had that role - those users simply end
 
 Go to **Users** in the admin sidebar to see a list of everyone with an account on your site.
 
-The list shows each user's name, email address, role, and when they last signed in.
+The list shows each user's name, email address, role, and when they joined - and it's a combined list: admin staff and site [members](Members) both appear here, side by side, with a **Type** column telling them apart. Staff rows still have the role/suspend/delete controls right there in the table; click a member row to open their full profile and management options instead (approve, suspend, trust, and so on).
 
 ---
 
