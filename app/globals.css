@@ -87,7 +87,7 @@
   --space-24:  96px;
 
   /* Layout constants */
-  --sidebar-width:      240px;
+  --sidebar-width:      200px;
   --content-max-width:  860px;
   --settings-max-width: 680px;
   --panel-padding:      var(--space-6);
@@ -639,7 +639,9 @@ a:hover {
 /* Sidebar nav items */
 .admin-sidebar nav {
   padding: var(--space-2) 0;
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .admin-sidebar nav a {
@@ -732,11 +734,16 @@ a:hover {
   background: var(--color-border);
 }
 
-/* Sidebar nav footer (account, logout, version) */
+/* Sidebar nav footer (account, logout, version) - pinned to bottom of the
+   scrollable nav area, stays visible while links above it scroll under it. */
 .admin-nav-footer {
   margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  background: var(--admin-sidebar-bg);
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 
 /* Single cycling button shown when the sidebar is collapsed */
