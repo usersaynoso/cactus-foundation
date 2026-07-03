@@ -92,8 +92,12 @@ for (const moduleName of moduleNames) {
       // Strip optional leading slash + route.ts from end
       const withoutRoute = rel.replace(/(?:\/)?route\.ts$/, '')
       const rawSegments = withoutRoute ? withoutRoute.split('/') : []
-      // Remove any segment that exactly equals the module name
-      const pattern = rawSegments.filter(s => s !== moduleName)
+      // Strip only the module-name wrapper segment (app/api/admin/<moduleName>/...).
+      // Filtering every occurrence would also eat a legitimate resource segment that
+      // happens to share the module's own name, e.g. the Board-entity endpoints
+      // nested at admin/boards/boards/... for the "boards" module.
+      const nameIdx = rawSegments.indexOf(moduleName)
+      const pattern = nameIdx === -1 ? rawSegments : [...rawSegments.slice(0, nameIdx), ...rawSegments.slice(nameIdx + 1)]
       const ident = makeIdent(moduleName, pattern)
       const importPath = `@/modules/${moduleName}/app/api/${rel.replace(/\.ts$/, '')}`
       apiImports.push(`import * as ${ident} from '${importPath}'`)
