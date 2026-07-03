@@ -1,19 +1,19 @@
 {
   "modules": [
     {
-      "name": "gazette",
-      "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.2"
-    },
-    {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.25"
     },
     {
+      "name": "gazette",
+      "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
+      "version": "v0.1.2"
+    },
+    {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.2"
+      "version": "v0.1.3"
     }
   ]
 }
