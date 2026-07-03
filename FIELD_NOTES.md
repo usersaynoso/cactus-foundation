@@ -1,5 +1,5 @@
 # FIELD_NOTES.md
-Last updated: 2026-07-03 (generic module extension points: new manifest `extensionPoints` field + `generate-module-extension-points.mjs` generator, contact-form-reply-catcher's Caught Replies moved off the sidebar into a button on the contact-form inbox + an inline panel on the submission thread; module-registered settings tabs on /cactus-admin/config: new manifest `settingsTabs` field + `generate-module-settings-tabs.mjs` generator, replacing contact-form-reply-catcher's standalone settings page/nav entry; media/[id] DELETE route, admin GET session checks, contact-form retention cron, EnvBanner + resolveLayout removed; module directory beta-only detection)
+Last updated: 2026-07-03 (Gazette module added - new manifest `publicBasePath` field + generic module public-routes mechanism (`resolveModulePublicPage`/`dispatchModulePublicRoute`/`getModulePublicBases`/`collectModuleSitemapEntries` in the generated router, new `app/(public)/[slug]/[...path]/page.tsx` catch-all + `app/(public)/[slug]/feed.xml/route.ts` delegate, `lib/modules/public.ts` slug-collision helper, `shiki` added as a core dependency; generic module extension points: new manifest `extensionPoints` field + `generate-module-extension-points.mjs` generator, contact-form-reply-catcher's Caught Replies moved off the sidebar into a button on the contact-form inbox + an inline panel on the submission thread; module-registered settings tabs on /cactus-admin/config: new manifest `settingsTabs` field + `generate-module-settings-tabs.mjs` generator, replacing contact-form-reply-catcher's standalone settings page/nav entry; media/[id] DELETE route, admin GET session checks, contact-form retention cron, EnvBanner + resolveLayout removed; module directory beta-only detection)
 Produced by: Claude Code agent
 
 ---
@@ -11,7 +11,9 @@ Produced by: Claude Code agent
 Pages (public):
 
 - `/` - `app/(public)/page.tsx` - redirects to `/setup` until setup completes; renders the InfoPage set as `homepageId` (draft only for admins, with draft banner), else a welcome card with siteName/tagline/description. `force-dynamic`.
-- `/[slug]` - `app/(public)/[slug]/page.tsx` - renders an InfoPage by slug; drafts 404 for non-admins; `generateMetadata` (title, metaDescription, OG image), `generateStaticParams` for published slugs, `revalidate = false`.
+- `/[slug]` - `app/(public)/[slug]/page.tsx` - renders an InfoPage by slug; drafts 404 for non-admins; `generateMetadata` (title, metaDescription, OG image), `generateStaticParams` for published slugs, `revalidate = false`. On an InfoPage miss, falls back to a module's public index via `resolveModulePublicPage(slug, [])` (InfoPage always wins a collision) - calls `getSessionFromCookie()` first so that fallback path always renders dynamically rather than being cached under `revalidate = false`.
+- `/[slug]/[...path]` - `app/(public)/[slug]/[...path]/page.tsx` - generic catch-all for a module's public sub-pages, via `resolveModulePublicPage`. `force-dynamic`.
+- `/[slug]/feed.xml` - `app/(public)/[slug]/feed.xml/route.ts` - delegates to a module's `feed.xml` route via `dispatchModulePublicRoute`; a dedicated literal segment because `route.ts` can't share a folder with the `[...path]` page catch-all. `force-dynamic`.
 - `/logged-out` - `app/(public)/logged-out/page.tsx` - client page, 3-second countdown then redirect to `/`.
 - `/page-preview/[id]` - `app/(public)/page-preview/[id]/page.tsx` - draft preview of an InfoPage; requires session + `pages.read`; always renders `builderData` with a fixed preview bar; noindex.
 - `/layout-preview/[id]` - `app/layout-preview/[id]/page.tsx` - preview of a Layout; requires admin (protected role); renders with the type-matched Puck RSC config plus placeholder content blocks; noindex. Outside the `(public)` group so header/footer are not applied.
@@ -399,7 +401,7 @@ Provider selection control: `SiteConfig.mediaProvider` (admin Settings → Media
 
 - `scripts/build-migrate.mjs` - conditional migration runner for Vercel builds. Skips entirely without DATABASE_URL; swaps Neon pooler URL for the direct endpoint (or DIRECT_URL); sets `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`; resolves one known-bad historical migration record; runs `prisma migrate deploy` then `run-module-migrations.mjs`, each with 3 retries and backoff.
 - `scripts/checkout-modules.mjs` - clones every `modules.json` entry into `/modules`, pinned to the recorded `version` tag (`git clone --depth=1 --branch`). On Vercel always a fresh clone; locally tries `git checkout HEAD -- .` in the existing clone first (this reverts uncommitted local edits to tracked module files).
-- `scripts/generate-module-router.mjs` - scans `modules/*/app/api/**/route.ts` and `modules/*/app/cactus-admin/<name>/**/page.tsx`; writes the gitignored `lib/modules/router.ts` (API dispatch table + lazy page loaders). Runs on every dev start and build.
+- `scripts/generate-module-router.mjs` - scans `modules/*/app/api/**/route.ts` and `modules/*/app/cactus-admin/<name>/**/page.tsx`; writes the gitignored `lib/modules/router.ts` (API dispatch table + lazy page loaders). For any module declaring `publicBasePath` in its manifest, also scans `modules/<name>/app/public/<base>/**/{page.tsx,route.ts}` and emits `resolveModulePublicPage`, `dispatchModulePublicRoute`, `getModulePublicBases`, and (if `modules/<name>/lib/sitemap.ts` exists, exporting `getPublicSitemapEntries(siteUrl)`) wires it into `collectModuleSitemapEntries`; fails the build if two modules declare the same `publicBasePath`. Runs on every dev start and build.
 - `scripts/generate-module-puck.mjs` - collects `puckBlocks` from every module manifest; writes the gitignored `lib/puck/module-components.ts` (client + RSC component maps).
 - `scripts/generate-module-cron.mjs` - collects `cronJobs` from every module manifest; writes the gitignored `vercel.json` (`{crons: [...]}`).
 - `scripts/generate-module-settings-tabs.mjs` - collects `settingsTabs` from every module manifest (`{id, label, permission, import, component}`); writes the gitignored `lib/modules/settings-tabs.ts` (`moduleSettingsTabComponents: Record<id, Component>`). Consumed by `app/cactus-admin/config/ConfigPageClient.tsx` to render module-registered settings tabs generically (id/label/permission list comes from `app/cactus-admin/config/page.tsx`, which permission-filters live from `Module.manifest`, same pattern as `navEntries` in `layout.tsx`).
@@ -554,7 +556,7 @@ No standalone `types/` directory or `.d.ts` files beyond `next-env.d.ts` (genera
 
 ## Modules
 
-Modules live in `/modules` (gitignored), cloned at build time by `scripts/checkout-modules.mjs` from the tags pinned in `modules.json`. Wiring into core is exclusively via the three generated files (router, puck components, cron). Two modules are present on disk.
+Modules live in `/modules` (gitignored), cloned at build time by `scripts/checkout-modules.mjs` from the tags pinned in `modules.json`. Wiring into core is exclusively via the generated files (router, puck components, cron, settings tabs, extension points). Three modules are present on disk.
 
 ### Contact Form
 
@@ -665,3 +667,79 @@ None.
 - Requires `ENCRYPTION_KEY` (declared required) and `CRON_SECRET` (declared optional, but the cron endpoint returns 503 without it - only manual check-now works then).
 - Hard-depends on `contact-form` ≥ 0.1.0 (enforced at install/uninstall by core).
 - Vercel Hobby plan caps crons at one invocation per day, so the daily schedule is the effective floor there.
+
+### Gazette
+
+- Slug: `gazette` (table prefix `gz_`), repo `github.com/cactus-foundation-modules/gazette`, manifest version 0.1.0. Not in `modules.json` (present on disk only; not part of the shipped registry).
+- Writing-first blog/news module: Posts with Tags, Series, comments, reactions, view counts, an RSS feed, a WordPress/Medium/Substack importer, and a Puck-based body palette (five prose-focused blocks) separate from the page-builder palette. First consumer of the new core `publicBasePath` mechanism (`publicBasePath: "gazette"` → `/gazette/*`).
+
+**Database**
+Table prefix: `gz_`
+
+- `gz_posts` - `id`, `title`, `slug` (unique), `excerpt?`, `status` (DRAFT | PUBLISHED | SCHEDULED, checked, default DRAFT), `published_at?`, `scheduled_for?`, `featured_image_id?` (Media.id, no FK), `author_id?` FK → core `User` (set null), `imported_author_name?`, `seo_title?`, `seo_description?`, `canonical_url?`, `builder_data?` (JSONB, Puck Data), `is_pinned` (default false), `is_private` (default false), `view_count` (default 0), `series_id?` FK → gz_series (set null), `series_order?`, `preview_token_hash?`, `preview_token_expires_at?`, timestamps. Indexes: (status, published_at desc), scheduled_for, author_id, (series_id, series_order), is_pinned (partial), preview_token_hash.
+- `gz_series` - `id`, `title`, `slug` (unique), `description?`, timestamps.
+- `gz_tags` - `id`, `name`, `slug` (unique), `created_at`. `gz_post_tags` - (post_id, tag_id) join, cascade both ways.
+- `gz_author_profiles` - `id`, `user_id` FK → core `User` (cascade, unique), `bio?` (markdown), `avatar_id?`, timestamps.
+- `gz_comments` - `id`, `post_id` FK → gz_posts (cascade), `parent_id?` FK → self (cascade, one level enforced in app code), `author_name`, `author_email`, `author_user_id?` FK → core `User` (set null, set when an editor replies from the admin), `body`, `status` (PENDING | APPROVED | REJECTED, checked, default PENDING), `ip_address?`, timestamps. Indexes: (post_id, status), (status, created_at desc), parent_id, (ip_address, created_at).
+- `gz_reactions` - `id`, `post_id` FK → gz_posts (cascade), `emoji`, `visitor_token`, `created_at`. Unique (post_id, emoji, visitor_token).
+- `gz_post_views` - `id`, `post_id` FK → gz_posts (cascade), `visitor_token`, `viewed_at`. Unique (post_id, visitor_token) - dedup gate for the view-count increment.
+- `gz_settings` - singleton (`id = 'singleton'`): `posts_per_page` (default 10), `rss_enabled` (default true), `feed_title?`, `feed_description?`, `comments_enabled` (default true), `comments_visibility` (PUBLIC | MEMBERS_ONLY, checked, default PUBLIC), `comment_moderation` (PRE | POST, checked, default PRE), `comments_threaded` (default true), `reactions_enabled` (default true), `reaction_set?` (JSONB array; null falls back to code default `['👍','❤️','🔥','💡']`), `show_view_counts` (default false), `updated_at`.
+- `gz_user_roles` - `user_id` PK FK → core `User` (cascade), `role` (GAZETTE_CONTRIBUTOR | GAZETTE_AUTHOR | GAZETTE_EDITOR, checked), `assigned_by?`, `created_at`. One row per user.
+- `gz_post_templates` - `id`, `title`, `builder_data?` (JSONB), timestamps.
+
+**Permissions**
+
+- `gazette.access` - the only manifest-declared permission; gates the "Gazette" admin nav entry. Page-level access is independently governed by `gz_user_roles` (see below) - a user can have `gazette.access` with no Gazette role (sees a "no permission" alert) or a Gazette role with no `gazette.access` (can still deep-link to admin pages, just has no sidebar link).
+
+**Gazette roles** (module-level, not core `Role` rows - a core `User` has exactly one core role but can additionally hold at most one Gazette role via `gz_user_roles`)
+
+- `GAZETTE_CONTRIBUTOR` - write/edit own posts while DRAFT only; cannot publish.
+- `GAZETTE_AUTHOR` - write/edit/publish own posts.
+- `GAZETTE_EDITOR` - edit/publish anyone's posts; manage tags, series, comments, templates, settings.
+- Core admins (`isAdmin`) always pass every Gazette permission check regardless of role.
+- **Role assignment is core-admin only** (`isAdmin`, not `isGazetteEditor`) - `/admin/roles*` endpoints and the Roles admin screen are gated on `isAdminUser`. The Roles tab/screen is not just permission-checked but omitted/404'd for any non-admin, including Gazette editors, so its existence isn't revealed to them.
+
+**API Routes** (all served through `/api/m/gazette/…` via the generated router)
+
+Admin (`/api/m/gazette/admin/…`, session + `gz_user_roles`/`isAdmin` gated per-route):
+- `GET/POST /posts`, `GET/PATCH/DELETE /posts/[id]`, `POST /posts/bulk` (bulk delete), `POST /posts/[id]/publish` (publish | schedule | unpublish), `POST /posts/[id]/duplicate`, `POST /posts/[id]/preview-token` (regenerate; overwrites the previous hash, invalidating the old link).
+- `GET/POST /tags`, `PATCH/DELETE /tags/[id]` (editor only; DELETE 409s with `{count}` if still in use).
+- `GET/POST /series`, `GET/PATCH/DELETE /series/[id]`, `PATCH /series/[id]/reorder` (editor only).
+- `GET /authors`, `GET/PATCH /authors/[userId]` (PATCH: editor any, else self only).
+- `GET /comments`, `PATCH/DELETE /comments/[id]`, `POST /comments/[id]/reply`, `POST /comments/bulk` (editor only).
+- `GET /roles`, `PUT/DELETE /roles/[userId]` - **`isAdmin` only**, not editor.
+- `GET /users` (picker, editor only), `GET/POST /templates`, `PATCH/DELETE /templates/[id]` (editor only), `GET/PATCH /settings` (editor only), `POST /import` (multipart, editor only).
+
+Public (`/api/m/gazette/public/…`, no session required):
+- `POST /comments` - zod-validated; checks post visibility, `comments_enabled`, `MEMBERS_ONLY` → session required else 403 with "Only members can comment.", Turnstile (fail-open if unconfigured), IP rate limit (5 per 10 min), threading rules; status PRE→PENDING / POST→APPROVED.
+- `POST /reactions` - toggle (insert or delete on conflict), validates emoji against the configured set, returns fresh counts.
+- `POST /views` - `recordView`, dedup via `gz_post_views` unique constraint before incrementing `view_count`.
+
+Admin pages (`/cactus-admin/m/gazette/…`, all RSC-gated on `canViewGazetteAdmin`): `posts` (list, tabs/search/bulk - `PostList.tsx`), `posts/new` (template chooser), `posts/[id]` (two-column editor - `PostEditor.tsx`, embeds a gazette-only Puck config for the body), `tags`, `series`, `series/[id]` (drag-to-reorder), `authors`, `authors/[userId]`, `comments`, `templates`, `import`, `settings`, `roles` (admin-only, 404 not alert for everyone else).
+
+Public pages (`/gazette/…`, via the core `publicBasePath` mechanism, `force-dynamic`): index (paginated, pinned-first), `[slug]` (post - TOC, reading time, reactions, share buttons, series nav, author bio, related posts, comments), `tag/[slug]`, `series/[slug]`, `archive/[year]`, `archive/[year]/[month]`, `preview/[token]` (no auth, `noindex`), `feed.xml` (RSS 2.0, 20 items).
+
+**Puck Blocks**
+
+- `GazetteFeed` (client `gazetteFeedPuckComponent`, RSC `gazetteFeedPuckRscComponent` from `components/puck/GazetteFeedBlock.tsx`) - registered in the manifest, appears in the site-wide "Modules" palette. Layout (Grid/List/Compact), count, tag filter (resolved live from `/api/m/gazette/admin/tags`), show excerpt/author/date/image toggles, "Read more" label. RSC render calls `connection()` first so any page embedding it renders dynamically.
+- `GazetteFeatured` (client `gazetteFeaturedPuckComponent`, RSC `gazetteFeaturedPuckRscComponent`) - source (Latest/Pinned), layout (Hero/Card/Minimal). Same `connection()` treatment.
+- Body palette (module-internal, NOT in the manifest, only used inside the post editor's own embedded Puck config): `GazetteProse` (richtext, heading levels 2-4 only, code/codeBlock/strike/underline/horizontalRule/textAlign disabled - no Image extension available, see Known Limitations), `GazettePullQuote`, `GazetteCode` (editor: plain `<pre>`; RSC: `shiki` `codeToHtml` with `createCssVariablesTheme`, `--gz-shiki-*` CSS variables), `GazetteImage` (custom media-picker field, editor-only), `GazetteDivider`.
+
+**Configuration**
+Global, in the `gz_settings` singleton row (see Database). No `requiredEnvVars`.
+
+**External Integrations**
+Core Turnstile (comment spam check, fail-open if unconfigured), core media (`Media.id` for featured images/avatars), `shiki` (core dependency, added for this module) for code-block highlighting.
+
+**Cron Jobs**
+None - scheduled posts go live lazily: `PUBLIC_VISIBLE_SQL` treats a SCHEDULED row as visible once `scheduled_for <= NOW()`, and `normaliseScheduledPosts()` opportunistically flips the DB status to PUBLISHED on admin reads/writes. No Vercel Cron needed for correctness.
+
+**Scripts**
+None.
+
+**Known Limitations**
+
+- `@tiptap/extension-image` is not a transitive dependency of `@puckeditor/core` and modules can't add npm packages, so the prose richtext schema has no Image node - an `<img>` inside imported HTML is silently dropped rather than embedded (images are handled as a separate `GazetteImage` block instead).
+- `MEMBERS_ONLY` comment visibility currently just means "any logged-in core user" - there's no public membership system yet. Documented as designed interim behaviour in `wiki/Gazette.md`, not a bug.
+- Zip imports (Medium/Substack raw exports) aren't supported - no zip dependency available to modules. Admins unzip first and select the extracted files.
+- `teardown` in the manifest correctly lists literal snake_case table names (`gz_posts` etc) - contact-form's manifest gets this wrong (PascalCase); do not copy that pattern.
