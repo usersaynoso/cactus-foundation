@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
 import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached, getPendingRedeployIdUncached } from '@/lib/config/site'
 import { validateSession } from '@/lib/auth/session'
-import { isEdgeConfigWritable } from '@/lib/config/env'
+import { isEdgeConfigWritable, isLocalMode } from '@/lib/config/env'
 
 // CSP allows inline styles/scripts because Next.js server components inject them.
 // External image origins are added when CLOUDFLARE_WORKER_HOSTNAME is set.
@@ -194,7 +194,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         try {
           const user = await validateSession(token)
           if (user) {
-              let pendingRedeployId = await getPendingRedeployIdCached()
+            // Local dev points at the shared Tester DB (see CLAUDE.md); a live
+            // redeploy there sets this flag and would otherwise trap local admin
+            // sessions on the redeploying screen too. Local never has a Vercel
+            // deploy of its own, so this gate is meaningless here.
+            let pendingRedeployId = isLocalMode() ? null : await getPendingRedeployIdCached()
             if (pendingRedeployId) {
               // The cached value can be stale across serverless isolates: the dismiss DELETE
               // clears the flag and the API isolate's cache, but not this isolate's copy.
