@@ -86,11 +86,9 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   {
     label: 'Content',
     links: [
-      { path: '/pages',      label: 'Pages',   icon: 'pages' },
-      { path: '/menus',      label: 'Menus',   icon: 'menus' },
-      { path: '/media',      label: 'Media',   icon: 'media' },
-      { path: '/appearance', label: 'Styles',  icon: 'appearance' },
-      { path: '/layouts',    label: 'Layouts', icon: 'layouts' },
+      { path: '/pages', label: 'Pages', icon: 'pages' },
+      { path: '/menus', label: 'Menus', icon: 'menus' },
+      { path: '/media', label: 'Media', icon: 'media' },
     ],
   },
   {
@@ -103,8 +101,10 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   {
     label: 'System',
     links: [
-      { path: '/modules', label: 'Modules',  icon: 'modules' },
-      { path: '/config',  label: 'Settings', icon: 'config' },
+      { path: '/appearance', label: 'Styles',   icon: 'appearance' },
+      { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
+      { path: '/modules',    label: 'Modules',  icon: 'modules' },
+      { path: '/config',     label: 'Settings', icon: 'config' },
     ],
   },
 ]
@@ -134,6 +134,56 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
 
   function isActive(href: string) {
     return pathname === href || (href !== base && pathname.startsWith(href))
+  }
+
+  // Ungrouped module links (e.g. contact-form's Inbox) sit directly under
+  // Dashboard as plain links (no "Modules" heading) so they read as part of
+  // the Dashboard section, not a separate collapsible bucket. Labelled module
+  // groups (their own named section, e.g. "Gazette") keep rendering after System.
+  const ungroupedModuleLinks = moduleNavGroups?.filter((group) => !group.label).flatMap((group) => group.links) ?? []
+  const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label) ?? []
+
+  function renderModuleGroup(group: ModuleNavGroup, key: string) {
+    const groupLabel = group.label ?? 'Modules'
+    const groupOpen = collapsed || !collapsedSections[groupLabel]
+    return (
+      <div key={key}>
+        {collapsed ? (
+          <div className="admin-nav-divider" />
+        ) : (
+          <button
+            type="button"
+            className="admin-nav-section-label"
+            onClick={() => toggleSection(groupLabel)}
+            aria-expanded={groupOpen}
+          >
+            <span>{groupLabel}</span>
+            <span className={`admin-nav-section-chevron${groupOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+          </button>
+        )}
+        {groupOpen && group.links.map((entry) => {
+          const href = `${base}${entry.path}`
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={isActive(href) ? 'active' : ''}
+              title={collapsed ? entry.label : undefined}
+              onClick={onNavClick}
+            >
+              <span className="admin-nav-icon">
+                {entry.icon?.trimStart().startsWith('<') ? (
+                  <svg {...ICON_PROPS} dangerouslySetInnerHTML={{ __html: entry.icon }} />
+                ) : (
+                  NAV_ICONS.modules
+                )}
+              </span>
+              {!collapsed && entry.label}
+            </Link>
+          )
+        })}
+      </div>
+    )
   }
 
   return (
@@ -169,29 +219,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               </Link>
             )
           })}
-        </div>
-        )
-      })}
-
-      {moduleNavGroups?.map((group, groupIndex) => {
-        const groupLabel = group.label ?? 'Modules'
-        const groupOpen = collapsed || !collapsedSections[groupLabel]
-        return (
-        <div key={group.label ?? `modules-${groupIndex}`}>
-          {collapsed ? (
-            <div className="admin-nav-divider" />
-          ) : (
-            <button
-              type="button"
-              className="admin-nav-section-label"
-              onClick={() => toggleSection(groupLabel)}
-              aria-expanded={groupOpen}
-            >
-              <span>{groupLabel}</span>
-              <span className={`admin-nav-section-chevron${groupOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
-            </button>
-          )}
-          {groupOpen && group.links.map((entry) => {
+          {sectionIndex === 0 && ungroupedModuleLinks.map((entry) => {
             const href = `${base}${entry.path}`
             return (
               <Link
@@ -215,6 +243,8 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         </div>
         )
       })}
+
+      {labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
 
       <div className="admin-nav-footer">
         <Link

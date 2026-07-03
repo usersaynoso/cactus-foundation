@@ -3,7 +3,7 @@
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.1"
+      "version": "v0.1.2"
     },
     {
       "name": "contact-form",
@@ -13,7 +13,7 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.0"
+      "version": "v0.1.2"
     }
   ]
 }

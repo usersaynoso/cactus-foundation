@@ -8,17 +8,17 @@ Posts live at `/gazette` on your site (or `/gazette/your-post-title` for an indi
 
 ## Who can write for the Gazette
 
-Gazette has its own three writing roles, separate from your core Cactus user roles:
+Gazette has three writing permissions, set on your core roles from **Roles & Permissions** alongside everything else:
 
-- **Contributor** - can write and edit their own drafts, but can't publish. Handy for guest writers you want to check over before anything goes live.
-- **Author** - can write, edit and publish their own posts.
-- **Editor** - can do everything: edit and publish anyone's posts, manage tags, series, comments, templates and settings.
+- `gazette.contributor` - can write and edit their own drafts, but can't publish. Handy for guest writers you want to check over before anything goes live.
+- `gazette.author` - can write, edit and publish their own posts.
+- `gazette.editor` - can do everything: edit and publish anyone's posts, manage tags, series, comments, templates and settings.
 
-**Only a core admin can hand out these roles**, from **Roles & Permissions** in your core admin (look for the "Gazette" card underneath the main permissions table) - even a Gazette Editor can't promote anyone else. This is deliberate: who gets to publish under your name is exactly the sort of thing that shouldn't be self-service.
+Give someone more than one and the highest wins, so there's no need to worry about ticking the "wrong" combination. Because these live on a role rather than on an individual person, two writers who need different tiers need different roles - set one up per tier if you want to hand out Author to one person and Contributor to another. Even a Gazette Editor can't grant these to anyone else; that stays with a core admin. This is deliberate: who gets to publish under your name is exactly the sort of thing that shouldn't be self-service.
 
-One more thing: to see the Gazette links in the admin sidebar at all, someone also needs the `gazette.access` permission on their core role (also set from **Roles & Permissions**). A Gazette role on its own won't surface the sidebar links - think of it as "does this person work in the newsroom" (`gazette.access`) plus "what can they do once they're in there" (the Gazette role).
+One more thing: to see the Gazette links in the admin sidebar at all, someone also needs the `gazette.access` permission on their core role. On its own it won't surface the sidebar links - think of it as "does this person work in the newsroom" (`gazette.access`) plus "what can they do once they're in there" (the three permissions above).
 
-Core admins always have full run of the Gazette, roles or no roles.
+Core admins always have full run of the Gazette, permissions or no permissions.
 
 ---
 
