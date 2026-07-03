@@ -10,6 +10,7 @@ import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
 type NavEntry = { label: string; path: string; icon?: string; permission?: string }
+type NavGroup = { label: string | null; links: Array<{ label: string; path: string; icon?: string }> }
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -39,16 +40,29 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     getUnreadCount(),
   ])
 
-  const moduleNavEntries: Array<{ label: string; path: string; icon?: string }> = []
+  // Most modules share one flat "Modules" bucket in the sidebar; a module can opt
+  // into its own labelled section (e.g. "Gazette") by setting navGroupLabel.
+  const ungroupedLinks: NavGroup['links'] = []
+  const labelledGroups = new Map<string, NavGroup['links']>()
   for (const mod of activeModules) {
-    const manifest = mod.manifest as { navEntries?: NavEntry[] } | null
+    const manifest = mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string } | null
     if (!manifest?.navEntries) continue
+    const links: NavGroup['links'] = []
     for (const entry of manifest.navEntries) {
       if (!entry.permission || await hasPermission(user, entry.permission)) {
-        moduleNavEntries.push({ label: entry.label, path: entry.path, icon: entry.icon })
+        links.push({ label: entry.label, path: entry.path, icon: entry.icon })
       }
     }
+    if (links.length === 0) continue
+    if (manifest.navGroupLabel) {
+      labelledGroups.set(manifest.navGroupLabel, [...(labelledGroups.get(manifest.navGroupLabel) ?? []), ...links])
+    } else {
+      ungroupedLinks.push(...links)
+    }
   }
+  const moduleNavGroups: NavGroup[] = []
+  if (ungroupedLinks.length > 0) moduleNavGroups.push({ label: null, links: ungroupedLinks })
+  for (const [label, links] of labelledGroups) moduleNavGroups.push({ label, links })
 
   // White-label the admin chrome to the site's primary colour and font. Only the
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)
@@ -66,7 +80,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         userRole={user.role}
         siteName={config?.siteName ?? 'Cactus Foundation'}
         version={pkg.version}
-        moduleNavEntries={moduleNavEntries}
+        moduleNavGroups={moduleNavGroups}
         unreadCount={unreadCount}
       >
         {children}

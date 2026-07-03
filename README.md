@@ -60,7 +60,7 @@ Forums, comments, job boards, e-commerce — these are separate **modules** you 
 **Available modules:**
 
 - [Contact Form](https://github.com/cactus-foundation-modules/contact-form) — a contact form for any page, with an admin inbox and reply composer.
-- [Contact Form Reply Catcher](https://github.com/cactus-foundation-modules/contact-form-reply-catcher) — threads real mailbox replies back into the Contact Form inbox.
+- [Contact Form Reply Catcher](https://github.com/cactus-foundation-modules/reply-catcher) — threads real mailbox replies back into the Contact Form inbox.
 
 ### 📸 Image storage that won't bankrupt you
 

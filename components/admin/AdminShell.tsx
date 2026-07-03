@@ -8,10 +8,9 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import type { Role } from '@prisma/client'
 
-type ModuleNavEntry = {
-  label: string
-  path: string
-  icon?: string
+type ModuleNavGroup = {
+  label: string | null
+  links: Array<{ label: string; path: string; icon?: string }>
 }
 
 type Props = {
@@ -20,14 +19,14 @@ type Props = {
   siteName: string
   version: string
   children: React.ReactNode
-  moduleNavEntries?: ModuleNavEntry[]
+  moduleNavGroups?: ModuleNavGroup[]
   unreadCount?: number
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavEntries, unreadCount }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('cactus-sidebar-collapsed') === 'true'
@@ -160,7 +159,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             version={version}
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
-            moduleNavEntries={moduleNavEntries}
+            moduleNavGroups={moduleNavGroups}
           />
         </div>
       </aside>

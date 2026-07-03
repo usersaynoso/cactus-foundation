@@ -3,12 +3,12 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.23"
+      "version": "v0.1.25"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.0"
+      "version": "v0.1.1"
     }
   ]
 }
