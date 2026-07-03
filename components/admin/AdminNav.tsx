@@ -91,11 +91,11 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   {
     label: 'System',
     links: [
-      { path: '/users',      label: 'Users',    icon: 'users' },
+      { path: '/config',     label: 'System',   icon: 'config' },
       { path: '/appearance', label: 'Styles',   icon: 'appearance' },
       { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
       { path: '/modules',    label: 'Modules',  icon: 'modules' },
-      { path: '/config',     label: 'Settings', icon: 'config' },
+      { path: '/users',      label: 'Users',    icon: 'users' },
     ],
   },
 ]
