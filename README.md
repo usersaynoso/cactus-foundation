@@ -57,6 +57,11 @@ No hardcoded design. Every pixel is yours to move about.
 
 Forums, comments, job boards, e-commerce — these are separate **modules** you add only when you actually want them. They install via a GitHub URL, run their own database setup during the next build, and appear in the admin panel as though they were always there. They're properly isolated so one module can't accidentally break another. The core has no idea they exist and isn't bothered.
 
+**Available modules:**
+
+- [Contact Form](https://github.com/cactus-foundation-modules/contact-form) — a contact form for any page, with an admin inbox and reply composer.
+- [Contact Form Reply Catcher](https://github.com/cactus-foundation-modules/contact-form-reply-catcher) — threads real mailbox replies back into the Contact Form inbox.
+
 ### 📸 Image storage that won't bankrupt you
 
 Photos and images go into cloud storage (your choice of provider — Backblaze, Amazon S3, Cloudflare, Cloudinary, and several others) and are served through a **Cloudflare Worker** — a fast, cheap middleman that handles resizing and caching. This matters because some hosting platforms charge handsomely for serving large files through their infrastructure. The Worker handles all of that outside the expensive bits. Your bank account remains in better shape than anticipated.
