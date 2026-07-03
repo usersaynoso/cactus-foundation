@@ -25,7 +25,17 @@ function getModuleNames() {
     .sort()
 }
 
-const crons = []
+// Core Members system cron jobs (see MEMBERS_SPEC.md amendment 7) - declared
+// here rather than committed to vercel.json directly, since that file is
+// gitignored and rebuilt from scratch by this script on every build.
+const CORE_CRONS = [
+  { path: '/api/cron/members/purge', schedule: '0 3 * * *' },
+  { path: '/api/cron/members/exports', schedule: '0 4 * * *' },
+  { path: '/api/cron/members/digest?mode=daily', schedule: '0 7 * * *' },
+  { path: '/api/cron/members/digest?mode=weekly', schedule: '0 7 * * 1' },
+]
+
+const crons = [...CORE_CRONS]
 
 for (const moduleName of getModuleNames()) {
   const manifestPath = join(modulesDir, moduleName, 'cactus.module.json')

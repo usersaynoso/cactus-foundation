@@ -21,6 +21,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Appearance and design](Appearance-and-design) | Colours, fonts, layouts, header, footer, and starter templates |
 | [Managing media](Managing-media) | Uploading and organising images and files |
 | [Managing users](Managing-users) | User accounts, roles, and permissions |
+| [Members](Members) | Visitor accounts, sign-in, profiles, and admin management |
 | [Modules](Modules) | Installing and managing add-ons |
 | [Gazette](Gazette) | Writing, scheduling and publishing blog posts, with tags, series, comments and reactions |
 | [Boards](Boards) | Running a discussion forum, with polls, moderation and a phpBB/Discourse importer |

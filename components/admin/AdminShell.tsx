@@ -20,13 +20,14 @@ type Props = {
   version: string
   children: React.ReactNode
   moduleNavGroups?: ModuleNavGroup[]
+  membersLinks?: Array<{ path: string; label: string }>
   unreadCount?: number
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, membersLinks, unreadCount }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('cactus-sidebar-collapsed') === 'true'
@@ -160,6 +161,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
             moduleNavGroups={moduleNavGroups}
+            membersLinks={membersLinks}
           />
         </div>
       </aside>

@@ -404,7 +404,10 @@ export async function saveMediaRecord(data: {
   provider: MediaProviderType
   mimeType: string
   sizeBytes: number
-  uploadedById: string
+  // Optional: Media.uploadedById is a FK to the core User table, so uploads
+  // from a Member (a separate table entirely, see MEMBERS_SPEC.md) have no
+  // valid value to put here and just leave it null.
+  uploadedById?: string
   altText?: string
   isDecorative?: boolean
 }): Promise<Media> {
@@ -417,7 +420,7 @@ export async function saveMediaRecord(data: {
       url,
       mimeType: data.mimeType,
       sizeBytes: data.sizeBytes,
-      uploadedById: data.uploadedById,
+      uploadedById: data.uploadedById ?? null,
       altText: data.altText ?? null,
       isDecorative: data.isDecorative ?? false,
     },

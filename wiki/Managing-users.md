@@ -2,6 +2,8 @@
 
 The **Users** section in the admin lets you see who has access to your site and control what each person can do.
 
+This covers admin **Users** only - people who can access your admin area. For visitor accounts (registration, sign-in, public profiles), see [Members](Members).
+
 ---
 
 ## Roles and permissions
@@ -129,4 +131,4 @@ Go to **Settings → Auth & Access** to control:
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)

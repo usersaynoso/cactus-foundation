@@ -82,6 +82,23 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     component: z.string().min(1),
   })).default([]),
+  // Declarative contributions to the core Members system (see MEMBERS_SPEC.md
+  // amendment 5). Pure data, read live from this manifest at request time by
+  // core Members code (lib/modules/member-extensions.ts) - no codegen step,
+  // since (unlike extensionPoints/settingsTabs) nothing here needs a static
+  // component import.
+  memberExtensions: z.object({
+    activityTypes: z.array(z.object({ type: z.string().min(1), label: z.string().min(1) })).default([]),
+    notificationCategories: z.array(z.object({ category: z.string().min(1), label: z.string().min(1) })).default([]),
+    // Path under this module's own API namespace that core calls internally
+    // (self-origin fetch, internal bearer) to collect this module's
+    // contribution to a member's data export.
+    dataExportPath: z.string().regex(/^\/api\/m\/[a-z][a-z0-9-]*\//, 'dataExportPath must be under /api/m/<module-name>/').optional(),
+    routeTiers: z.array(z.object({
+      pathPrefix: z.string().min(1),
+      tier: z.enum(['PUBLIC', 'MEMBER', 'TRUSTED_MEMBER']),
+    })).default([]),
+  }).optional(),
 })
 
 export type ModuleManifest = z.infer<typeof ModuleManifestSchema>

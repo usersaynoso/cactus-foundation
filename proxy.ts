@@ -20,6 +20,11 @@ import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/c
 import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached, getPendingRedeployIdUncached } from '@/lib/config/site'
 import { validateSession } from '@/lib/auth/session'
 import { isEdgeConfigWritable, isLocalMode } from '@/lib/config/env'
+import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
+import { getMembersConfigCached } from '@/lib/members/config'
+import { validateMemberSession } from '@/lib/members/session'
+import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
+import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 
 // CSP allows inline styles/scripts because Next.js server components inject them.
 // External image origins are added when CLOUDFLARE_WORKER_HOSTNAME is set.
@@ -133,6 +138,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return new NextResponse(null, { status: 404 })
   }
 
+  // ── Block direct access to the internal member-area prefix ────────────────
+  if (pathname.startsWith(MEMBER_INTERNAL)) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   // ── 1. First-run gate ──────────────────────────────────────────────────────
   // Also treat the site as not-set-up when setupCompleted is true but all
   // user accounts were deleted — lets /api/setup/reset trigger a re-run.
@@ -233,6 +243,26 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // ── 2.5 Member-area path rewrite ───────────────────────────────────────────
+  // Rewrite only, no session validation here — the account layout
+  // (app/(public)/cactus-account/layout.tsx) does its own session gate and
+  // needs the original public path to build an accurate post-login redirect,
+  // hence x-cactus-member-full-path below (the internal pathname is useless
+  // for that — it's the same for every memberAreaPath value).
+  const memberAreaPath = getMemberAreaPath()
+  const memberPrefix = `/${memberAreaPath}`
+  const isMemberRequest = pathname === memberPrefix || pathname.startsWith(memberPrefix + '/')
+
+  if (isMemberRequest) {
+    const sub = pathname.slice(memberPrefix.length) || '/'
+    const target = new URL(`${MEMBER_INTERNAL}${sub}`, request.url)
+    target.search = request.nextUrl.search
+    const res = NextResponse.rewrite(target)
+    res.headers.set('x-cactus-member-path', memberAreaPath)
+    res.headers.set('x-cactus-member-full-path', pathname + request.nextUrl.search)
+    return withSecurity(res)
+  }
+
   // ── 3. Site status gate for public routes ─────────────────────────────────
   // API routes must always reach their handlers regardless of site status —
   // blocking them would break authentication, passkey registration, and all
@@ -270,6 +300,74 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         ? '/cactus-status/coming-soon'
         : '/cactus-status/maintenance'
     return withSecurity(NextResponse.rewrite(new URL(statusPage, request.url)))
+  }
+
+  // ── 4. Members-only site access modes (Phase 8 of MEMBERS_SPEC.md) ────────
+  // Only ordinary public content reaches this point — admin, api, preview,
+  // and member-area (login/register/verify-email/account) requests have all
+  // already returned above, so member-area paths are automatically excepted
+  // without needing an explicit rule for them here. Two independent triggers:
+  // membersConfig.siteWideMembersOnly (an all-or-nothing site lock, subject
+  // to its own exceptions list) and per-path route tiers a module declares
+  // via memberExtensions.routeTiers (gates that one path regardless of the
+  // site-wide setting).
+  const membersConfig = await getMembersConfigCached()
+  const routeTiers = membersConfig.enabled ? await getModuleRouteTiersCached() : []
+  const tier = resolveRouteTier(pathname, routeTiers)
+  const siteWideGate = membersConfig.enabled && membersConfig.siteWideMembersOnly
+  const requiresMember = siteWideGate || tier !== 'PUBLIC'
+
+  if (requiresMember) {
+    const excepted = siteWideGate && isPathExcepted(pathname, membersConfig.siteWideMembersOnlyExceptions)
+    if (!excepted) {
+      // Admins always bypass, same as the status gate above.
+      const adminToken = sessionToken(request)
+      if (adminToken) {
+        try {
+          const adminUser = await validateSession(adminToken)
+          if (adminUser?.role.isProtected) return withSecurity(NextResponse.next())
+        } catch {
+          // Fall through
+        }
+      }
+
+      const memberToken = request.cookies.get('cactus_member_session')?.value ?? null
+      let member = null
+      if (memberToken) {
+        try {
+          member = await validateMemberSession(memberToken)
+        } catch {
+          member = null
+        }
+      }
+
+      const needsTrust = tier === 'TRUSTED_MEMBER'
+      const satisfied = !!member && (!needsTrust || member.trusted)
+
+      if (!satisfied) {
+        if (membersConfig.guestPreviewEnabled) {
+          // Teaser UI is scoped to what MemberGate/TrustedMemberGate blocks
+          // render for this header today - a broader per-page teaser design
+          // is flagged for review, not built here (see MEMBERS_SPEC.md Phase 8).
+          const res = NextResponse.next()
+          res.headers.set('x-cactus-guest-preview', '1')
+          return withSecurity(res)
+        }
+
+        if (!member) {
+          const loginUrl = new URL(`/${getMemberAreaPath()}/login`, request.url)
+          loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
+          return withSecurity(NextResponse.redirect(loginUrl))
+        }
+
+        // Signed in but not trusted enough for a TRUSTED_MEMBER route - no
+        // sensible page to redirect to (they're already logged in), and no
+        // dedicated status page exists for this narrow case; 404 rather than
+        // invent one, consistent with this codebase's "don't reveal existence"
+        // handling elsewhere (e.g. HIDDEN profile visibility).
+        return new NextResponse(null, { status: 404 })
+      }
+    }
   }
 
   return withSecurity(NextResponse.next())

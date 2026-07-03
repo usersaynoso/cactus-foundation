@@ -17,6 +17,7 @@ type Props = {
   collapsed?: boolean
   onNavClick?: () => void
   moduleNavGroups?: ModuleNavGroup[]
+  membersLinks?: Array<{ path: string; label: string }>
 }
 
 const ICON_PROPS = {
@@ -52,6 +53,9 @@ const NAV_ICONS: Record<string, ReactNode> = {
   ),
   users: (
     <svg {...ICON_PROPS}><circle cx="8.5" cy="8" r="3" /><path d="M2.5 20a6 6 0 0 1 12 0" /><path d="M15.5 6.5a3 3 0 0 1 0 5.8" /><path d="M21.5 20a5.5 5.5 0 0 0-5-5.47" /></svg>
+  ),
+  members: (
+    <svg {...ICON_PROPS}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M5.5 16a3 3 0 0 1 6 0" /><path d="M13 9.5h6" /><path d="M13 13h4" /></svg>
   ),
   roles: (
     <svg {...ICON_PROPS}><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8" /><path d="M16 7l2.5 2.5" /><path d="M19 4l2.5 2.5" /></svg>
@@ -109,7 +113,7 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   },
 ]
 
-export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups }: Props) {
+export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups, membersLinks }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
   // Maps section label -> true when the user has minimised it. Defaults to
@@ -143,7 +147,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   const ungroupedModuleLinks = moduleNavGroups?.filter((group) => !group.label).flatMap((group) => group.links) ?? []
   const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label) ?? []
 
-  function renderModuleGroup(group: ModuleNavGroup, key: string) {
+  function renderModuleGroup(group: ModuleNavGroup, key: string, fallbackIcon: keyof typeof NAV_ICONS = 'modules') {
     const groupLabel = group.label ?? 'Modules'
     const groupOpen = collapsed || !collapsedSections[groupLabel]
     return (
@@ -175,7 +179,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
                 {entry.icon?.trimStart().startsWith('<') ? (
                   <svg {...ICON_PROPS} dangerouslySetInnerHTML={{ __html: entry.icon }} />
                 ) : (
-                  NAV_ICONS.modules
+                  NAV_ICONS[fallbackIcon]
                 )}
               </span>
               {!collapsed && entry.label}
@@ -243,6 +247,8 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         </div>
         )
       })}
+
+      {membersLinks && membersLinks.length > 0 && renderModuleGroup({ label: 'Members', links: membersLinks }, 'members-section', 'members')}
 
       {labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
 

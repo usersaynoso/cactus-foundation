@@ -26,6 +26,16 @@ import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleRscComponents } from '@/lib/puck/module-components'
+import LoginForm from '@/components/members/LoginForm'
+import RegisterForm from '@/components/members/RegisterForm'
+import {
+  MembersLoginRsc,
+  MembersRegisterRsc,
+  MembersAccountLinkRsc,
+  MemberGateRsc,
+  TrustedMemberGateRsc,
+  MembersProfileRsc,
+} from '@/lib/puck/components/MembersBlocksRsc'
 
  
 
@@ -862,6 +872,73 @@ function LoginButton(props: any) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Members blocks — editor-side previews (MEMBERS_SPEC.md Phase 7).
+// The editor has no member session to check (it runs under an admin session,
+// never a member one), so these always render a fixed preview state rather
+// than trying to guess; the live-site behaviour lives in
+// lib/puck/components/MembersBlocksRsc.tsx, swapped in via rscComponents
+// below. MembersLogin/MembersRegister reuse the exact same client
+// components as the real login/register pages, so those two previews are
+// pixel-identical to production, not just a placeholder.
+const MEMBERS_GATE_LABEL_STYLE: React.CSSProperties = { fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.02em' }
+
+function MembersLoginBlock(props: any) {
+  return <LoginForm redirectTo={props.redirectTo || '/'} />
+}
+
+function MembersRegisterBlock() {
+  return <RegisterForm registrationMode="OPEN" />
+}
+
+function MembersAccountLinkBlock(props: any) {
+  const { loginLabel, registerLabel } = props
+  // Built via a variable rather than a literal "/account/..." string, same
+  // as LoginButton above - this is only an editor preview, never real
+  // navigation, and a literal internal-looking path trips the Next.js
+  // no-html-link-for-pages lint rule that a computed one doesn't.
+  const base = '/account'
+  const linkStyle: React.CSSProperties = { padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-text-secondary)', fontSize: '0.875rem', fontWeight: 500 }
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <a href={`${base}/login`} style={linkStyle}>{loginLabel || 'Sign in'}</a>
+      <a href={`${base}/register`} style={{ ...linkStyle, background: 'var(--color-primary)', border: '1px solid var(--color-primary)', color: 'var(--color-bg)' }}>{registerLabel || 'Register'}</a>
+    </div>
+  )
+}
+
+function MemberGateBlock(props: any) {
+  const { content } = props
+  return (
+    <div style={{ border: '1px dashed var(--color-border)', borderRadius: 6, padding: '0.75rem' }}>
+      <div style={MEMBERS_GATE_LABEL_STYLE}>Member gate — signed-in members only, live</div>
+      {typeof content === 'function' ? content() : null}
+    </div>
+  )
+}
+
+function TrustedMemberGateBlock(props: any) {
+  const { content } = props
+  return (
+    <div style={{ border: '1px dashed var(--color-border)', borderRadius: 6, padding: '0.75rem' }}>
+      <div style={MEMBERS_GATE_LABEL_STYLE}>Trusted member gate — trusted members only, live</div>
+      {typeof content === 'function' ? content() : null}
+    </div>
+  )
+}
+
+function MembersProfileBlock() {
+  return (
+    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '0.75rem', background: 'var(--color-bg-subtle)', borderRadius: 6 }}>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-border)', flexShrink: 0 }} />
+      <div>
+        <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>Member name</div>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>Preview — shows the signed-in member&apos;s own profile live</div>
+      </div>
+    </div>
+  )
+}
+
 // RSC-safe SiteLogo (no client hooks)
 function SiteLogoRsc(props: any) {
   const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
@@ -900,6 +977,7 @@ const puckConfig = {
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
+    members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -1191,6 +1269,51 @@ const puckConfig = {
       defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
       render: LoginButton,
     },
+    // ── Members (MEMBERS_SPEC.md Phase 7) ──────────────────────────────────────
+    // Editor renders here; the live site swaps in the RSC versions from
+    // MembersBlocksRsc.tsx via rscComponents/layoutPuckRscConfig/headerPuckRscConfig.
+    MembersLogin: {
+      label: 'Members: Login',
+      fields: { redirectTo: { type: 'text' as const, label: 'Redirect after sign-in' } },
+      defaultProps: { redirectTo: '/' },
+      render: MembersLoginBlock,
+    },
+    MembersRegister: {
+      label: 'Members: Register',
+      fields: {},
+      defaultProps: {},
+      render: MembersRegisterBlock,
+    },
+    MembersAccountLink: {
+      label: 'Members: Account Link',
+      fields: { loginLabel: { type: 'text' as const, label: 'Sign-in label' }, registerLabel: { type: 'text' as const, label: 'Register label' } },
+      defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
+      render: MembersAccountLinkBlock,
+    },
+    MemberGate: {
+      label: 'Member Gate',
+      fields: {
+        content: { type: 'slot' as const },
+        fallbackMessage: { type: 'text' as const, label: 'Message shown to guests' },
+      },
+      defaultProps: { fallbackMessage: 'Sign in to view this content.' },
+      render: MemberGateBlock,
+    },
+    TrustedMemberGate: {
+      label: 'Trusted Member Gate',
+      fields: {
+        content: { type: 'slot' as const },
+        fallbackMessage: { type: 'text' as const, label: 'Message shown to non-trusted visitors' },
+      },
+      defaultProps: { fallbackMessage: 'This content is only available to trusted members.' },
+      render: TrustedMemberGateBlock,
+    },
+    MembersProfile: {
+      label: 'Members: My Profile',
+      fields: {},
+      defaultProps: {},
+      render: MembersProfileBlock,
+    },
     ThemeToggle: {
       label: 'Theme Toggle',
       fields: {},
@@ -1255,6 +1378,12 @@ const rscComponents = {
   ...puckConfig.components,
   RichTextBlock: { ...puckConfig.components.RichTextBlock, fields: { ...puckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
   SiteLogo: { ...puckConfig.components.SiteLogo, render: SiteLogoRsc },
+  MembersLogin: { ...puckConfig.components.MembersLogin, render: MembersLoginRsc },
+  MembersRegister: { ...puckConfig.components.MembersRegister, render: MembersRegisterRsc },
+  MembersAccountLink: { ...puckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
+  MemberGate: { ...puckConfig.components.MemberGate, render: MemberGateRsc },
+  TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
+  MembersProfile: { ...puckConfig.components.MembersProfile, render: MembersProfileRsc },
   ...moduleRscComponents,
 }
 
@@ -1331,6 +1460,7 @@ export const layoutPuckConfig = {
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
+    members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -1374,6 +1504,12 @@ export const layoutPuckConfig = {
     LoginButton:        puckConfig.components.LoginButton,
     ThemeToggle:        puckConfig.components.ThemeToggle,
     CookieSettingsLink: puckConfig.components.CookieSettingsLink,
+    MembersLogin:       puckConfig.components.MembersLogin,
+    MembersRegister:    puckConfig.components.MembersRegister,
+    MembersAccountLink: puckConfig.components.MembersAccountLink,
+    MemberGate:         puckConfig.components.MemberGate,
+    TrustedMemberGate:  puckConfig.components.TrustedMemberGate,
+    MembersProfile:     puckConfig.components.MembersProfile,
     ...moduleComponents,
   },
 }
@@ -1384,6 +1520,12 @@ export const layoutPuckRscConfig = {
     ...layoutPuckConfig.components,
     RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
     SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+    MembersLogin: { ...layoutPuckConfig.components.MembersLogin, render: MembersLoginRsc },
+    MembersRegister: { ...layoutPuckConfig.components.MembersRegister, render: MembersRegisterRsc },
+    MembersAccountLink: { ...layoutPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
+    MemberGate: { ...layoutPuckConfig.components.MemberGate, render: MemberGateRsc },
+    TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
+    MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: MembersProfileRsc },
     ...moduleRscComponents,
   },
 }
@@ -1424,7 +1566,7 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
 
 export const headerPuckConfig = {
   categories: {
-    site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle'], defaultExpanded: true },
+    site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
     layout: { title: 'Structure', components: ['Grid', 'Group', 'Spacer'], defaultExpanded: true },
   },
   root: {
@@ -1445,6 +1587,7 @@ export const headerPuckConfig = {
     MenuBlock:    puckConfig.components.MenuBlock,
     LoginButton:  puckConfig.components.LoginButton,
     ThemeToggle:  puckConfig.components.ThemeToggle,
+    MembersAccountLink: puckConfig.components.MembersAccountLink,
     Grid:         puckConfig.components.Grid,
     Group:        puckConfig.components.Group,
     Spacer:       puckConfig.components.Spacer,
@@ -1460,6 +1603,7 @@ export const headerPuckRscConfig = {
   components: {
     ...headerPuckConfig.components,
     SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+    MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
   },
 }
 

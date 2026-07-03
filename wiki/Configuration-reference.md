@@ -172,6 +172,56 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 
 ---
 
+## Members tab
+
+See [Members](Members) for a plain-English walkthrough. This tab only exists once **Members system enabled** is ticked.
+
+### Registration
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Members system enabled | Master switch. Off hides every member-facing page and admin section. | Off |
+| Registration mode | `Open`, `Invite only`, or `Approval required` | `Open` |
+| Require email verification | New accounts must click a verification link before they're active | On |
+| Allowed email domains | If set, only these domains can register | — |
+| Blocked email domains | Domains that are never allowed to register | — |
+| Post-registration redirect | Page to send members to right after registering | — |
+| Notify admins on pending approval | Sends an admin notification whenever a new registration is waiting for approval | On |
+
+### Access control
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Allowed sign-in methods | Which of Passkey, Magic link, Password are offered | Passkey, Magic link |
+| Passwords enabled | Whether password sign-in is offered (mirrors the toggle above; two-factor is compulsory whenever this is on) | Off |
+| Trust this browser (days) | How long a member's "trust this browser" cookie lasts before a two-factor code is required again | `30` |
+| Session length (days) | How long a member stays signed in (sliding expiry) | `30` |
+| Site-wide members-only mode | Locks the entire public site behind member sign-in | Off |
+| Site-wide members-only exceptions | Pages that stay visible to everyone even when the above is on | — |
+| Guest preview | Shows a locked-down preview to signed-out visitors instead of blocking them outright, when site-wide members-only is on | Off |
+
+### Profile & directory
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Profile visibility | `Public`, `Members only`, or `Hidden` | `Public` |
+| Member directory enabled | Whether a page listing all members is available | Off |
+| Avatar uploads enabled | Whether members can upload their own avatar photo | On |
+| Gravatar enabled | Whether Gravatar is checked as a fallback avatar source | On |
+| Username changes enabled | Whether members can change their own username | Off |
+| Username change cooldown (days) | Minimum gap between username changes, once enabled | `90` |
+| Old username redirect (days) | How long a changed-from username keeps redirecting to the profile | `30` |
+| Account sections enabled | Which of Profile, Security, Notifications, Activity, Danger Zone appear in the member account area | All on |
+
+### Data & deletion
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Account deletion grace period (days) | How long a member has to change their mind after requesting deletion, before it's permanent | `14` |
+| Notify admins on deletion request | Sends an admin notification whenever a member requests account deletion | Off |
+
+---
+
 ## Integrations tab
 
 Shows the connection status of:
@@ -213,9 +263,10 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `VERCEL_WEBHOOK_SECRET` | No | Enables automatic deployment status updates. Requires a Vercel Pro or Enterprise plan. |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile credentials. Adds bot protection to public-facing forms. |
 | `SENTRY_DSN` | No | Sentry error-reporting address. |
+| `MEMBER_AREA_PATH` | No | The web address prefix for the member account area (login, registration, profile). Defaults to `account`. Set at deploy time only - changing it requires a redeploy. Lowercase letters, numbers and hyphens; unusable values quietly fall back to the default. |
 | `CACTUS_CORE_REPO` | No | Override the upstream repository the Updates panel checks. Set this if you maintain a fork of Cactus Foundation. |
 | `CRON_SECRET` | No | Enables Vercel Cron jobs declared by installed modules (e.g. the Reply Catcher contact-form add-on). When set, Vercel automatically sends it as a bearer token on its own cron requests, and each module's cron route checks it before running. Not required unless an installed module ships a `cronJobs` entry. |
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
