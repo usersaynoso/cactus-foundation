@@ -4,6 +4,11 @@
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.18"
+    },
+    {
+      "name": "contact-form-reply-catcher",
+      "repoUrl": "https://github.com/cactus-foundation-modules/contact-form-reply-catcher",
+      "version": "v0.1.4"
     }
   ]
 }
