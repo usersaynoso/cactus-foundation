@@ -107,7 +107,7 @@ Every member gets a public profile at `/members/<username>`, whose visibility (`
 
 ### GDPR and email
 
-Members can request a full data export (assembled server-side, downloadable for 48 hours, `lib/members/export.ts`) or delete their account (soft-deleted with a config-driven grace period before a cron job purges it, `lib/members/deletion.ts`). Every member-facing email (verification, magic link, security alerts, digests, and any module-contributed notification) flows through a single template registry (`lib/email/templates.ts`, `MEMBER_EMAIL_TEMPLATES`) that admins can customise per-key from **Members → Email templates**, with a merge-tag list, test-send, and reset-to-default.
+Members can request a full data export (assembled server-side, downloadable for 48 hours, `lib/members/export.ts`) or delete their account (soft-deleted with a config-driven grace period before a cron job purges it, `lib/members/deletion.ts`). Every member-facing email (verification, magic link, security alerts, digests, and any module-contributed notification) flows through a single template registry (`lib/email/templates.ts`, `MEMBER_EMAIL_TEMPLATES`) that admins can customise per-key from **Settings → Users → Email templates**, with a merge-tag list, test-send, and reset-to-default.
 
 ### Puck blocks
 
