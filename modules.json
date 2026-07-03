@@ -9,6 +9,11 @@
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.25"
+    },
+    {
+      "name": "boards",
+      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
+      "version": "v0.1.0"
     }
   ]
 }
