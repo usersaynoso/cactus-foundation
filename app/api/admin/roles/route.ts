@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
 import { errorResponse } from '@/lib/utils'
 
 const Body = z.object({
@@ -16,8 +15,6 @@ export async function GET() {
   if (!await hasPermission(user, 'roles.manage')) return errorResponse('Forbidden', 403)
 
   const roles = await prisma.role.findMany({
-    // Members role is Member-facing, not a staff role - exclude from this list.
-    where: { name: { not: MEMBERS_ROLE_NAME } },
     include: { permissions: { select: { permissionKey: true } } },
     orderBy: { name: 'asc' },
   })

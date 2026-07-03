@@ -16,10 +16,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!role) return errorResponse('Not found', 404)
   if (role.isProtected) return errorResponse('Cannot delete a protected role', 403)
 
-  // Check no users currently hold this role
-  const count = await prisma.user.count({ where: { roleId: id } })
+  // Check no staff users or members currently hold this role
+  const [userCount, memberCount] = await Promise.all([
+    prisma.user.count({ where: { roleId: id } }),
+    prisma.member.count({ where: { roleId: id } }),
+  ])
+  const count = userCount + memberCount
   if (count > 0) {
-    return errorResponse(`Cannot delete role "${role.name}" — ${count} user(s) still have it assigned`, 409)
+    return errorResponse(`Cannot delete role "${role.name}" — ${count} account(s) still have it assigned`, 409)
   }
 
   await prisma.role.delete({ where: { id } })
