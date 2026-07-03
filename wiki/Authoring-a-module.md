@@ -59,6 +59,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. |
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. |
+| `navGroupOrder` | `number` | Optional, only meaningful alongside `navGroupLabel`. Lower numbers sort earlier among labelled module sections; modules that omit it sort after any that set it, in their existing order. Use this if your module's section should appear above another module's, rather than wherever install order happens to put it. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
@@ -164,7 +165,7 @@ Each `navEntry` in the manifest becomes a link in the admin sidebar when the mod
 - `path` is relative to the admin root (the internal `/_cactus_admin` prefix).
 - If `permission` is set, the nav entry is only shown to users with that permission (or admins).
 - Nav entries from disabled modules are hidden immediately when the module is disabled.
-- Without `navGroupLabel`, your entries render as plain links directly under **Dashboard**, no section heading - not bucketed with other modules, not at the bottom of the sidebar. With `navGroupLabel`, your entries get their own named, collapsible section instead, rendered right after **Content**.
+- Without `navGroupLabel`, your entries render as plain links directly under **Dashboard**, no section heading - not bucketed with other modules, not at the bottom of the sidebar. With `navGroupLabel`, your entries get their own named, collapsible section instead, rendered right after **Content** - use `navGroupOrder` to control ordering relative to other modules' labelled sections.
 
 ## Linking between admin pages
 
