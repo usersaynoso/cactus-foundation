@@ -1,11 +1,11 @@
 {
   "name": "cactus",
-  "version": "0.5.180",
+  "version": "0.5.183",
   "private": true,
   "scripts": {
-    "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && next dev --webpack",
+    "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && next dev --webpack",
     "dev:warm": "bash scripts/dev-warm.sh",
-    "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && next build",
+    "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -32,6 +32,7 @@
     "@types/aos": "^3.0.8",
     "@vercel/blob": "^2.4.1",
     "@vercel/edge-config": "^1.0.0",
+    "@vercel/speed-insights": "^2.0.0",
     "aos": "^2.3.4",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",

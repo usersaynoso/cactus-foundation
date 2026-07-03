@@ -49,12 +49,32 @@ export const ModuleManifestSchema = z.object({
     component: z.string().min(1),
     rscComponent: z.string().optional(),
   })).optional(),
+  // Settings tabs this module contributes to the core admin's /config page.
+  // Rendered generically, permission-filtered the same way as navEntries.
+  settingsTabs: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    permission: z.string().optional(),
+    import: z.string().min(1),
+    component: z.string().min(1),
+  })).default([]),
   // Other modules (by name + minimum version) that must be installed and active
   // before this module can be installed. Enforced by the install/uninstall routes.
   requiresModules: z.array(ModuleDependencySchema).default([]),
   // Vercel Cron entries this module needs. Collected across all installed modules
   // into a single generated vercel.json by scripts/generate-module-cron.mjs.
   cronJobs: z.array(CronJobSchema).default([]),
+  // Components this module contributes to extension points published by other
+  // modules' own pages (e.g. a hard dependency's admin UI). `point` is an
+  // arbitrary string namespace the publishing module documents and reads live
+  // from Module.manifest; core has no knowledge of any specific point name.
+  extensionPoints: z.array(z.object({
+    point: z.string().min(1),
+    id: z.string().min(1),
+    permission: z.string().optional(),
+    import: z.string().min(1),
+    component: z.string().min(1),
+  })).default([]),
 })
 
 export type ModuleManifest = z.infer<typeof ModuleManifestSchema>

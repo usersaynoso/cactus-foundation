@@ -1,14 +1,14 @@
 {
   "modules": [
     {
-      "name": "contact-form-reply-catcher",
-      "repoUrl": "https://github.com/cactus-foundation-modules/contact-form-reply-catcher",
-      "version": "v0.1.1"
-    },
-    {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.21"
+      "version": "v0.1.22"
+    },
+    {
+      "name": "contact-form-reply-catcher",
+      "repoUrl": "https://github.com/cactus-foundation-modules/contact-form-reply-catcher",
+      "version": "v0.1.2"
     }
   ]
 }

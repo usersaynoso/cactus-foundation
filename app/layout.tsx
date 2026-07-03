@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />
         <Script id="consent-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: consentInitScript }} />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   )
