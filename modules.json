@@ -8,7 +8,12 @@
     {
       "name": "contact-form-reply-catcher",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form-reply-catcher",
-      "version": "v0.1.3"
+      "version": "v0.1.4"
+    },
+    {
+      "name": "gazette",
+      "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
+      "version": "v0.1.0"
     }
   ]
 }
