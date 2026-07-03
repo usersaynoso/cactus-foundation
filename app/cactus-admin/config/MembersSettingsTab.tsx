@@ -94,13 +94,12 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
       {error && <div className="alert alert-danger">{error}</div>}
       {message && <div className="alert alert-success">{message}</div>}
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', cursor: 'pointer' }}>
-        <input type="checkbox" checked={config.enabled} onChange={(e) => update('enabled', e.target.checked)} />
-        <strong>Members system enabled</strong>
-      </label>
-
       {tab === 'registration' && (
         <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={config.enabled} onChange={(e) => update('enabled', e.target.checked)} />
+            <strong>Members system enabled</strong>
+          </label>
           <div className="field">
             <label>Registration mode</label>
             <select value={config.registrationMode} onChange={(e) => update('registrationMode', e.target.value as Config['registrationMode'])}>
