@@ -9,7 +9,9 @@ import {
   parseModuleManifest,
   parseGitHubRepo,
   validateTablePrefixUnique,
+  validatePublicBasePathUnique,
 } from '@/lib/modules/manifest'
+import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
@@ -84,6 +86,24 @@ export async function POST(request: NextRequest) {
   // Check if already installed
   if (existing.some((m) => m.name === manifest.name)) {
     return errorResponse(`Module "${manifest.name}" is already installed`)
+  }
+
+  // Check publicBasePath uniqueness among installed modules, and against InfoPage slugs
+  if (manifest.publicBasePath) {
+    const moduleBases = await getInstalledPublicBasePaths()
+    try {
+      validatePublicBasePathUnique(manifest.publicBasePath, [...moduleBases.keys()])
+    } catch (err: unknown) {
+      return errorResponse(err instanceof Error ? err.message : 'Public base path conflict')
+    }
+
+    const collidingPage = await prisma.infoPage.findUnique({ where: { slug: manifest.publicBasePath } })
+    if (collidingPage) {
+      return errorResponse(
+        `Slug "${manifest.publicBasePath}" is already in use by an existing page. Rename or remove that page first.`,
+        409
+      )
+    }
   }
 
   // Check declared module dependencies are installed, active, and at minVersion+

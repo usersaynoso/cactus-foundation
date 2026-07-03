@@ -87,4 +87,4 @@ You'll find **Public** / **Beta** buttons next to each module on the **Modules**
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

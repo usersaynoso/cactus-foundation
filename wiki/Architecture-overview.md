@@ -259,6 +259,27 @@ During each build and dev start, `scripts/generate-module-puck.mjs` scans all in
 
 Block settings should live entirely in the block's Puck field definitions - not in a separate settings page. This gives each instance of the block its own independent configuration. Abuse-sensitive settings (API keys, rate limits, notification emails) must be kept server-authoritative: the submit handler should re-derive the block's config from the page or layout's saved `builderData` using the block's `id`, never trusting values sent by the browser.
 
+### Module public routes
+
+A module can optionally own a top-level public URL segment by declaring `publicBasePath` in its manifest (e.g. `"gazette"`). This is generic, reusable infrastructure - core has no knowledge of any specific module's public routes, only the mechanism.
+
+`scripts/generate-module-router.mjs` scans every installed module's `app/public/<base>/` directory (same manifest-driven pattern as the admin/API scan) and emits four additional exports into the gitignored `lib/modules/router.ts`:
+
+- `resolveModulePublicPage(base, path)` - resolves a module's `page.tsx` for a given base + path, matching literal segments before dynamic `[param]` segments so resolution is deterministic.
+- `dispatchModulePublicRoute(base, path, method, req)` - resolves and invokes a module's `route.ts` handler.
+- `getModulePublicBases()` - the list of all installed bases.
+- `collectModuleSitemapEntries(siteUrl)` - calls `getPublicSitemapEntries(siteUrl)` from each module's `lib/sitemap.ts` (if present), swallowing per-module errors.
+
+Core resolves requests to a module's public base through three routes, in order:
+
+1. `app/(public)/[slug]/page.tsx` - the existing InfoPage-by-slug route. It looks up an `InfoPage` first (InfoPage always wins a slug collision); on a miss, it falls back to `resolveModulePublicPage(slug, [])` for the module's index page.
+2. `app/(public)/[slug]/[...path]/page.tsx` - a generic catch-all for a module's sub-pages (`/<base>/<...path>`), added specifically for this mechanism.
+3. `app/(public)/[slug]/feed.xml/route.ts` - a dedicated literal-segment delegate to `dispatchModulePublicRoute(slug, ['feed.xml'], 'GET', req)`, since a `route.ts` can't share a folder with the `[...path]` page catch-all.
+
+All three are `force-dynamic`. The index fallback in particular calls `getSessionFromCookie()` (a dynamic API) before rendering the module component - without that, the route would be cached forever under the InfoPage route's `revalidate = false` after its first render, and content like Gazette's scheduled posts would never go live on time. This was the riskiest part of the mechanism to get right; it's covered by an explicit build-time acceptance check (`/gazette` renders fresh on each request) rather than relying on convention alone.
+
+`publicBasePath` uniqueness is enforced twice: at build time (`generate-module-router.mjs` fails the build if two modules declare the same base) and at module-install time (`POST /api/admin/modules` rejects a colliding base, and also rejects one that matches an existing InfoPage slug). The reverse direction is enforced in the pages API: creating or renaming an `InfoPage` to a slug reserved by an installed module's `publicBasePath` (via `lib/modules/public.ts`'s `getInstalledPublicBasePaths()`) returns 409.
+
 ## Info pages and the Puck builder
 
 Info pages (`InfoPage` model) always use the Puck builder. `bodyFormat` is always `'builder'` for new pages - the admin UI offers no markdown option. Legacy rows with `bodyFormat: 'markdown'` are auto-migrated to `'builder'` the first time they are opened in the admin editor (a PATCH is sent in the background; the public render still falls back to the markdown pipeline for any rows that haven't been migrated yet).

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
+import { collectModuleSitemapEntries } from '@/lib/modules/router'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.SITE_URL
@@ -16,16 +17,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { status: 'published' },
       select: { slug: true, updatedAt: true },
     })
-    return [
-      ...base,
+    base.push(
       ...pages.map((p) => ({
         url: `${siteUrl}/${p.slug}`,
         lastModified: p.updatedAt,
         changeFrequency: 'monthly' as const,
         priority: 0.8,
       })),
-    ]
+    )
   } catch {
-    return base
+    // InfoPages unavailable — still try module entries below.
   }
+
+  try {
+    base.push(...await collectModuleSitemapEntries(siteUrl))
+  } catch {
+    // Module sitemap entries are best-effort.
+  }
+
+  return base
 }

@@ -64,6 +64,9 @@ export const ModuleManifestSchema = z.object({
   // Vercel Cron entries this module needs. Collected across all installed modules
   // into a single generated vercel.json by scripts/generate-module-cron.mjs.
   cronJobs: z.array(CronJobSchema).default([]),
+  // Single top-level public URL segment this module owns (e.g. "gazette" for
+  // /gazette/*). Optional — most modules have no public-facing routes.
+  publicBasePath: z.string().regex(/^[a-z][a-z0-9-]*$/, 'publicBasePath must be a single lowercase URL segment').optional(),
   // Components this module contributes to extension points published by other
   // modules' own pages (e.g. a hard dependency's admin UI). `point` is an
   // arbitrary string namespace the publishing module documents and reads live
@@ -113,6 +116,18 @@ export function validateTablePrefixUnique(
   if (existingPrefixes.includes(prefix)) {
     throw new Error(
       `Table prefix "${prefix}" is already used by an installed module. Choose a unique prefix.`
+    )
+  }
+}
+
+// Validates that a publicBasePath is unique among already-installed modules.
+export function validatePublicBasePathUnique(
+  base: string,
+  existingBases: string[]
+): void {
+  if (existingBases.includes(base)) {
+    throw new Error(
+      `Public base path "${base}" is already used by an installed module. Choose a unique publicBasePath.`
     )
   }
 }
