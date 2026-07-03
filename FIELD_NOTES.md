@@ -323,7 +323,7 @@ Where checks occur:
 
 ### Admin UI
 
-Navigation (defined in `components/admin/AdminNav.tsx`): Dashboard; Content → Pages, Menus, Media, Styles, Layouts; People → Users, Roles; System → Modules, Settings; then module nav entries from manifests; footer: My Account, Sign out, version. Sidebar collapses to a rail (auto-collapses inside Puck editors), mobile drawer with backdrop; toolbar has collapse toggle, ThemeToggle, NotificationBell. Each labelled section is independently collapsible (click the label, chevron flips) - state persisted per-label in `localStorage` (`cactus-sidebar-sections-collapsed`), defaults to all sections maximised; only visible when the rail itself isn't collapsed.
+Navigation (defined in `components/admin/AdminNav.tsx`): Dashboard; Content → Pages, Menus, Media; People → Users, Roles; System → Styles, Layouts, Modules, Settings; then module nav entries from manifests; footer: My Account, Sign out, version. Sidebar collapses to a rail (auto-collapses inside Puck editors), mobile drawer with backdrop; toolbar has collapse toggle, ThemeToggle, NotificationBell. Each labelled section is independently collapsible (click the label, chevron flips) - state persisted per-label in `localStorage` (`cactus-sidebar-sections-collapsed`), defaults to all sections maximised; only visible when the rail itself isn't collapsed.
 
 Pages and routes: listed in the Routes section above.
 

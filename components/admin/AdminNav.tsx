@@ -86,11 +86,9 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   {
     label: 'Content',
     links: [
-      { path: '/pages',      label: 'Pages',   icon: 'pages' },
-      { path: '/menus',      label: 'Menus',   icon: 'menus' },
-      { path: '/media',      label: 'Media',   icon: 'media' },
-      { path: '/appearance', label: 'Styles',  icon: 'appearance' },
-      { path: '/layouts',    label: 'Layouts', icon: 'layouts' },
+      { path: '/pages', label: 'Pages', icon: 'pages' },
+      { path: '/menus', label: 'Menus', icon: 'menus' },
+      { path: '/media', label: 'Media', icon: 'media' },
     ],
   },
   {
@@ -103,8 +101,10 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   {
     label: 'System',
     links: [
-      { path: '/modules', label: 'Modules',  icon: 'modules' },
-      { path: '/config',  label: 'Settings', icon: 'config' },
+      { path: '/appearance', label: 'Styles',   icon: 'appearance' },
+      { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
+      { path: '/modules',    label: 'Modules',  icon: 'modules' },
+      { path: '/config',     label: 'Settings', icon: 'config' },
     ],
   },
 ]
