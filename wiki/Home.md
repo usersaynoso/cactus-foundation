@@ -25,6 +25,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Modules](Modules) | Installing and managing add-ons |
 | [Gazette](Gazette) | Writing, scheduling and publishing blog posts, with tags, series, comments and reactions |
 | [Boards](Boards) | Running a discussion forum, with polls, moderation and a phpBB/Discourse importer |
+| [Directory](Directory) | Map-based listings with categories, featured entries, geocoding and a CSV importer |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
 
