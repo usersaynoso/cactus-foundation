@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TabStrip } from '@/components/admin/TabStrip'
 
 type Config = {
   enabled: boolean
@@ -36,7 +35,8 @@ type Config = {
   directoryEnabled: boolean
 }
 
-type Tab = 'registration' | 'avatars' | 'usernames' | 'sections' | 'access'
+export type MembersSettingsTabKey = 'registration' | 'avatars' | 'usernames' | 'sections' | 'access'
+type Tab = MembersSettingsTabKey
 
 const AUTH_METHODS = ['PASSKEY', 'MAGIC_LINK', 'PASSWORD'] as const
 
@@ -47,11 +47,9 @@ function textToList(text: string): string[] {
   return text.split('\n').map((s) => s.trim()).filter(Boolean)
 }
 
-export default function MembersSettingsTab() {
-  const [tab, setTab] = useState<Tab>('registration')
+export default function MembersSettingsTab({ tab }: { tab: Tab }) {
   const [config, setConfig] = useState<Config | null>(null)
   const [memberAreaPath, setMemberAreaPath] = useState('')
-  const [publicRegistrationEnabled, setPublicRegistrationEnabled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -60,7 +58,6 @@ export default function MembersSettingsTab() {
     fetch('/api/admin/members/settings').then((r) => r.json()).then((d) => {
       setConfig(d.config)
       setMemberAreaPath(d.memberAreaPath)
-      setPublicRegistrationEnabled(d.publicRegistrationEnabled)
     })
   }, [])
 
@@ -102,23 +99,8 @@ export default function MembersSettingsTab() {
         <strong>Members system enabled</strong>
       </label>
 
-      <TabStrip
-        items={[
-          { key: 'registration', label: 'Registration', onClick: () => setTab('registration'), active: tab === 'registration' },
-          { key: 'avatars', label: 'Avatars', onClick: () => setTab('avatars'), active: tab === 'avatars' },
-          { key: 'usernames', label: 'Usernames', onClick: () => setTab('usernames'), active: tab === 'usernames' },
-          { key: 'sections', label: 'Account sections', onClick: () => setTab('sections'), active: tab === 'sections' },
-          { key: 'access', label: 'Access control', onClick: () => setTab('access'), active: tab === 'access' },
-        ]}
-      />
-
       {tab === 'registration' && (
         <div>
-          {publicRegistrationEnabled && (
-            <div className="alert alert-warning">
-              The core &quot;Public registration&quot; setting is also enabled (Settings → Users), which creates admin-side accounts, not members. Consider whether you want both systems open at once.
-            </div>
-          )}
           <div className="field">
             <label>Registration mode</label>
             <select value={config.registrationMode} onChange={(e) => update('registrationMode', e.target.value as Config['registrationMode'])}>

@@ -40,20 +40,7 @@ The list shows each user's name, email address, role, and when they last signed 
 
 ## Adding users
 
-### Public registration
-
-If **public registration** is turned on (see **Settings → Auth & Access**), anyone can create an account via the registration page on your public site. You can set a **default role** that new registrations are automatically assigned.
-
-If you only want specific people to have accounts, turn registration off and create accounts manually.
-
-### Creating an account manually
-
-Currently, new accounts are created through the public registration flow. To add someone without opening registration to the public:
-
-1. Temporarily turn on public registration (**Settings → Auth & Access**).
-2. Have the person register on the public site.
-3. Turn registration off again.
-4. Find the new user in the **Users** list and change their role to the appropriate one.
+There's no public sign-up for admin accounts - the only admin user created automatically is the one made during setup. To give someone else access to the admin, add them through the [Members](Members) system instead (invite or registration, depending on how you've configured it), then assign them a role with the permissions they need from the **Users** list.
 
 ---
 
@@ -121,13 +108,14 @@ If email is set up on your site, you can also sign in with a password and a one-
 
 ---
 
-## Registration and access settings
+## Access settings
 
-Go to **Settings → Auth & Access** to control:
+Go to **Settings → General** to control:
 
-- **Public registration** - whether new visitors can create accounts.
-- **Default role** - the role automatically assigned to new registrations.
+- **Admin path** - the secret URL prefix for your admin area.
 - **Trust this browser** - how long a "trust this browser" cookie lasts before asking for a one-time code again.
+
+For visitor registration settings, see [Members](Members).
 
 ---
 

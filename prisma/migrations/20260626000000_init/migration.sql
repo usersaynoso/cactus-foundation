@@ -132,8 +132,6 @@ CREATE TABLE "SiteConfig" (
     "setupCompleted" BOOLEAN NOT NULL DEFAULT false,
     "status" "SiteStatus" NOT NULL DEFAULT 'comingSoon',
     "hideFromCrawlers" BOOLEAN NOT NULL DEFAULT true,
-    "publicRegistration" BOOLEAN NOT NULL DEFAULT true,
-    "defaultRoleId" TEXT,
     "trustDeviceDays" INTEGER NOT NULL DEFAULT 28,
     "emailFromName" TEXT,
     "emailFromAddress" TEXT,
@@ -408,6 +406,7 @@ CREATE INDEX "WebAuthnChallenge_expiresAt_idx" ON "WebAuthnChallenge"("expiresAt
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Member" ADD CONSTRAINT "Member_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -491,6 +490,7 @@ CREATE TABLE "Member" (
     "websiteUrl" TEXT,
     "trusted" BOOLEAN NOT NULL DEFAULT false,
     "status" "MemberStatus" NOT NULL DEFAULT 'PENDING_VERIFICATION',
+    "roleId" TEXT,
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "emailVerifiedAt" TIMESTAMP(3),
     "backupEmail" TEXT,

@@ -123,6 +123,7 @@ model Role {
   createdAt   DateTime @default(now())
 
   users       User[]
+  members     Member[]
   permissions RolePermission[]
 }
 
@@ -163,8 +164,6 @@ model SiteConfig {
   setupCompleted         Boolean    @default(false)
   status                 SiteStatus @default(comingSoon)
   hideFromCrawlers       Boolean    @default(true)
-  publicRegistration     Boolean    @default(true)
-  defaultRoleId          String?
   trustDeviceDays        Int        @default(28)
   emailFromName          String?
   emailFromAddress       String?
@@ -613,6 +612,10 @@ model Member {
   websiteUrl                String?
   trusted                   Boolean      @default(false)
   status                    MemberStatus @default(PENDING_VERIFICATION)
+  // Assigned at registration to the site's protected "Members" role; nullable so
+  // pre-existing rows (created before this field existed) don't need a backfill.
+  roleId                    String?
+  role                      Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
   emailVerified             Boolean      @default(false)
   emailVerifiedAt           DateTime?
   // Recovery contact shown in the account Security section

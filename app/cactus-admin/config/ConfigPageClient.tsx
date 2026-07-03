@@ -8,7 +8,7 @@ import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import MembersGdprClient from './MembersGdprClient'
-import MembersSettingsTab from './MembersSettingsTab'
+import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
 import RolesClient from './RolesClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
 import {
@@ -26,7 +26,7 @@ type SiteConfig = {
   siteName: string; tagline: string; description: string;
   timezone: string; locale: string; dateFormat: string; timeFormat: string;
   adminPath: string; status: string; hideFromCrawlers: boolean;
-  publicRegistration: boolean; trustDeviceDays: number;
+  trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null;
   privacyPolicyPageId: string; termsPageId: string;
@@ -39,7 +39,7 @@ type SiteConfig = {
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
 
-const TABS = ['general', 'branding', 'access', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
+const TABS = ['general', 'branding', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
 
 // Env var sections: each section has a label, description, and its managed keys.
@@ -504,8 +504,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
   const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
-  const [usersSubTab, setUsersSubTab] = useState<'members' | 'roles' | 'email-templates'>(
-    canManageMembersSettings ? 'members' : canManageRoles ? 'roles' : 'email-templates'
+  const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles' | 'email-templates'>(
+    canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
   )
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
@@ -947,7 +947,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   if (loading) return <p>Loading…</p>
 
   const tabLabels: Record<Tab, string> = {
-    general: 'General', branding: 'Branding', access: 'Auth & Access',
+    general: 'General', branding: 'Branding',
     email: 'Email', media: 'Media', status: 'Site Status', gdpr: 'GDPR & Legal', integrations: 'Integrations',
   }
 
@@ -1248,6 +1248,18 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Admin path</label>
+              <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
+              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Trust this browser (days)</label>
+              <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
+              <span className="field-hint">How long an admin who ticks &quot;trust this browser&quot; at login skips the email code.</span>
+            </div>
+          </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
           <div style={{ marginBottom: '2rem' }}>
@@ -1409,37 +1421,25 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
         </div>
       )}
 
-      {tab === 'access' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Admin path</label>
-              <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
-              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Trust this browser (days)</label>
-              <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
-            </div>
-          </div>
-          <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={config.publicRegistration ?? true} onChange={(e) => set('publicRegistration', e.target.checked)} />
-            Allow public registration
-          </label>
-        </div>
-      )}
-
       {tab === 'users' && showUsersTab && (
         <div>
           <TabStrip
             items={[
-              ...(canManageMembersSettings ? [{ key: 'members', label: 'Members', active: usersSubTab === 'members', onClick: () => setUsersSubTab('members') }] : []),
+              ...(canManageMembersSettings ? [
+                { key: 'registration', label: 'Registration', active: usersSubTab === 'registration', onClick: () => setUsersSubTab('registration') },
+                { key: 'avatars', label: 'Avatars', active: usersSubTab === 'avatars', onClick: () => setUsersSubTab('avatars') },
+                { key: 'usernames', label: 'Usernames', active: usersSubTab === 'usernames', onClick: () => setUsersSubTab('usernames') },
+                { key: 'sections', label: 'Account sections', active: usersSubTab === 'sections', onClick: () => setUsersSubTab('sections') },
+                { key: 'access', label: 'Access control', active: usersSubTab === 'access', onClick: () => setUsersSubTab('access') },
+              ] : []),
               ...(canManageRoles ? [{ key: 'roles', label: 'Roles', active: usersSubTab === 'roles', onClick: () => setUsersSubTab('roles') }] : []),
               ...(canManageEmailTemplates ? [{ key: 'email-templates', label: 'Email templates', active: usersSubTab === 'email-templates', onClick: () => setUsersSubTab('email-templates') }] : []),
             ]}
           />
 
-          {usersSubTab === 'members' && canManageMembersSettings && <MembersSettingsTab />}
+          {canManageMembersSettings && (usersSubTab === 'registration' || usersSubTab === 'avatars' || usersSubTab === 'usernames' || usersSubTab === 'sections' || usersSubTab === 'access') && (
+            <MembersSettingsTab tab={usersSubTab} />
+          )}
 
           {usersSubTab === 'roles' && canManageRoles && rolesData && (
             <>

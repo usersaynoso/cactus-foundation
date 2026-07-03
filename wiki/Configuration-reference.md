@@ -40,6 +40,8 @@ The preference is saved immediately and the update check refreshes straight away
 | Locale | Sets the language attribute and date formatting. Does not translate the admin interface. | `en-GB` |
 | Date format | How dates are displayed (e.g. `DD/MM/YYYY`) | `DD/MM/YYYY` |
 | Time format | How times are displayed (e.g. `HH:mm`) | `HH:mm` |
+| Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
+| Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 
@@ -58,17 +60,6 @@ At the bottom of the General tab is a **Reset Everything** button. Confirming wi
 Upload a logo and favicon. Requires a media provider to be configured in the Media tab. Until set, generic Cactus placeholders are used.
 
 See [Managing media](Managing-media) for how to set up a media provider.
-
----
-
-## Auth & Access tab
-
-| Field | Description | Default |
-|-------|-------------|---------|
-| Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
-| Public registration | Whether new accounts can be created by anyone. When off, visitors see a "registration closed" message rather than a registration form. | On |
-| Default role | Role automatically assigned to new registrations | — |
-| Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
 
 ---
 

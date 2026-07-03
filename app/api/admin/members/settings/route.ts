@@ -12,15 +12,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const [config, siteConfig] = await Promise.all([
-    getMembersConfig(),
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { publicRegistration: true } }),
-  ])
+  const config = await getMembersConfig()
 
   return NextResponse.json({
     config,
     memberAreaPath: getMemberAreaPath(),
-    publicRegistrationEnabled: siteConfig?.publicRegistration ?? false,
   })
 }
 
