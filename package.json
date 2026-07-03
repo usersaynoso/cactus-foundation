@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.180",
+  "version": "0.5.181",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && next dev --webpack",
