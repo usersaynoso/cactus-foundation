@@ -164,6 +164,7 @@ Each `navEntry` in the manifest becomes a link in the admin sidebar when the mod
 - `path` is relative to the admin root (the internal `/_cactus_admin` prefix).
 - If `permission` is set, the nav entry is only shown to users with that permission (or admins).
 - Nav entries from disabled modules are hidden immediately when the module is disabled.
+- Without `navGroupLabel`, your entries render as plain links directly under **Dashboard**, no section heading - not bucketed with other modules, not at the bottom of the sidebar. With `navGroupLabel`, your entries get their own named, collapsible section instead, rendered after **System**.
 
 ## Linking between admin pages
 
