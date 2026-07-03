@@ -18,7 +18,10 @@ export default async function RolesPage() {
 
   const [roles, permissions, activeModules, extensionModules] = await Promise.all([
     prisma.role.findMany({
-      include: { permissions: { select: { permissionKey: true } } },
+      include: {
+        permissions: { select: { permissionKey: true } },
+        _count: { select: { users: true } },
+      },
       orderBy: { name: 'asc' },
     }),
     prisma.permission.findMany({ orderBy: { key: 'asc' } }),
@@ -45,7 +48,12 @@ export default async function RolesPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Roles & Permissions</h1>
+        <div>
+          <h1 className="page-title">Roles & Permissions</h1>
+          <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>
+            Pick a role on the left, then choose what people with that role are allowed to do.
+          </p>
+        </div>
       </div>
       <RolesClient
         roles={roles.map((r) => ({
@@ -53,6 +61,7 @@ export default async function RolesPage() {
           name: r.name,
           isProtected: r.isProtected,
           permissionKeys: r.permissions.map((p) => p.permissionKey),
+          userCount: r._count.users,
         }))}
         permissions={permissions}
         activeModuleNames={activeModules.map((m) => m.name)}
