@@ -6,6 +6,7 @@ import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset } from 
 import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
+import { TabStrip } from '@/components/admin/TabStrip'
 
 const POPULAR_FONTS = [
   'system-ui, sans-serif',
@@ -297,8 +298,8 @@ export default function StylesPage() {
         onSave={saveAndLeave}
       />
 
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', padding: '0 1.25rem', background: 'var(--color-bg)', overflowX: 'auto' }}>
-        {([
+      <TabStrip
+        items={([
           ['colours',    'Colours'],
           ['typography', 'Fonts & Typography'],
           ['headings',   'Headings'],
@@ -306,16 +307,8 @@ export default function StylesPage() {
           ['images',     'Images'],
           ['formFields', 'Form Fields'],
           ['spacing',    'Spacing'],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            style={{ padding: '0.625rem 1rem', background: 'none', border: 'none', borderBottom: activeTab === id ? '2px solid var(--color-primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: activeTab === id ? 600 : 400, color: activeTab === id ? 'var(--color-primary)' : 'var(--color-muted)', fontSize: '0.875rem', fontFamily: 'inherit', marginBottom: -1, whiteSpace: 'nowrap' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        ] as const).map(([id, label]) => ({ key: id, label, active: activeTab === id, onClick: () => setActiveTab(id) }))}
+      />
 
       <div style={{ padding: '2rem' }}>
 
@@ -326,34 +319,41 @@ export default function StylesPage() {
               aside={!activePreset ? <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontStyle: 'italic' }}>Customised</span> : undefined}
             >
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Quick-start colour schemes. Applying a preset updates your colour palette and link colours - everything else stays as you left it.</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollLeft ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>‹</button>
-                <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                  <div ref={presetsScrollRef} className="no-scrollbar" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-                    {COLOUR_PRESETS.map(preset => {
-                      const isActive = activePreset?.id === preset.id
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => handleApplyPreset(preset)}
-                          style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit', flexShrink: 0 }}
-                        >
-                          <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            {preset.name}
-                            {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.3125rem' }}>
-                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
-                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 64, background: 'linear-gradient(to right, transparent, var(--color-bg))', pointerEvents: 'none', visibility: canScrollRight ? 'visible' : 'hidden' }} />
+              <div style={{ position: 'relative' }}>
+                <div ref={presetsScrollRef} className="no-scrollbar" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                  {COLOUR_PRESETS.map(preset => {
+                    const isActive = activePreset?.id === preset.id
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset)}
+                        style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit', flexShrink: 0 }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {preset.name}
+                          {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.3125rem' }}>
+                          <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
+                          <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
-                <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })} style={{ flexShrink: 0, visibility: canScrollRight ? 'visible' : 'hidden', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>›</button>
+                {canScrollLeft && (
+                  <>
+                    <div aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: '0.25rem', width: 68, background: 'linear-gradient(to right, var(--color-bg) 40%, transparent)', pointerEvents: 'none' }} />
+                    <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })} aria-label="Scroll presets left" style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>‹</button>
+                  </>
+                )}
+                {canScrollRight && (
+                  <>
+                    <div aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: '0.25rem', width: 68, background: 'linear-gradient(to left, var(--color-bg) 40%, transparent)', pointerEvents: 'none' }} />
+                    <button type="button" onClick={() => presetsScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })} aria-label="Scroll presets right" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, borderRadius: '50%', background: 'var(--color-bg)', border: '1px solid var(--color-border)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-fg)', fontSize: '1.125rem', padding: 0, fontFamily: 'inherit' }}>›</button>
+                  </>
+                )}
               </div>
             </Section>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
+import { TabStrip } from '@/components/admin/TabStrip'
 
 type Layout = {
   id: string
@@ -87,24 +88,10 @@ export default function LayoutBuilderPage() {
         <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0' }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '0.5rem 1rem', border: 'none', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', cursor: 'pointer',
-              background: activeTab === tab.key ? 'var(--color-surface)' : 'transparent',
-              borderBottom: activeTab === tab.key ? '2px solid var(--color-primary)' : '2px solid transparent',
-              color: activeTab === tab.key ? 'var(--color-primary)' : 'var(--color-text-muted)',
-              fontWeight: activeTab === tab.key ? 600 : 400,
-              fontSize: 'var(--text-sm)', fontFamily: 'inherit',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <TabStrip
+        style={{ marginBottom: '1.5rem' }}
+        items={TABS.map((tab) => ({ key: tab.key, label: tab.label, active: activeTab === tab.key, onClick: () => setActiveTab(tab.key) }))}
+      />
 
       {loading && <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}
       {error && <div style={{ padding: '1rem', color: 'var(--color-destructive)' }}>{error}</div>}
