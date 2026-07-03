@@ -520,6 +520,10 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
   const [savedEnvId, setSavedEnvId] = useState<string | null>(null)
   const [envError, setEnvError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
+  const [testEmailTo, setTestEmailTo] = useState('')
+  const [testEmailSending, setTestEmailSending] = useState(false)
+  const [testEmailSent, setTestEmailSent] = useState('')
+  const [testEmailError, setTestEmailError] = useState('')
 
   // Refresh templates state
   const [refreshingTemplates, setRefreshingTemplates] = useState(false)
@@ -758,6 +762,26 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
       setEnvError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSavingEnvId(null)
+    }
+  }
+
+  async function handleSendTestEmail() {
+    setTestEmailSending(true)
+    setTestEmailError('')
+    setTestEmailSent('')
+    try {
+      const res = await fetch('/api/admin/config/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testEmailTo.trim() ? { to: testEmailTo.trim() } : {}),
+      })
+      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      setTestEmailSent(d.to ?? testEmailTo.trim())
+    } catch (err: unknown) {
+      setTestEmailError(err instanceof Error ? err.message : 'Failed to send test email')
+    } finally {
+      setTestEmailSending(false)
     }
   }
 
@@ -1446,6 +1470,28 @@ function ConfigPageInner({ moduleTabs }: { moduleTabs: ModuleTab[] }) {
           </div>
           {/* eslint-disable-next-line react-hooks/static-components -- EnvSectionCard is a render helper defined in this file; extracting it would require threading ~20 state values as props */}
           <EnvSectionCard section={emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION} />
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send a test email</div>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
+              Sends using the settings above. Leave blank to send to your own admin address.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={testEmailTo}
+                onChange={(e) => { setTestEmailTo(e.target.value); setTestEmailSent(''); setTestEmailError('') }}
+                style={{ flex: 1 }}
+              />
+              <button className="btn btn-secondary" disabled={testEmailSending} onClick={handleSendTestEmail}>
+                {testEmailSending ? 'Sending…' : 'Send test email'}
+              </button>
+            </div>
+            {testEmailSent && <div className="alert alert-success" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>Sent to {testEmailSent}.</div>}
+            {testEmailError && <div className="alert alert-danger" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{testEmailError}</div>}
+          </div>
         </div>
       )}
 

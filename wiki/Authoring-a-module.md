@@ -62,6 +62,8 @@ Every module repo must contain `cactus.module.json` at its root:
 | `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
 | `puckBlocks` | `PuckBlock[]` | Optional. Registers Puck blocks provided by this module. See [Module Puck blocks](#module-puck-blocks) below. |
+| `settingsTabs` | `SettingsTab[]` | Optional. Registers tabs your module contributes to the core admin's **Settings** (`/config`) page. See [Module settings tabs](#module-settings-tabs) below. |
+| `extensionPoints` | `ExtensionPoint[]` | Optional. Registers components your module contributes to extension points published by *another* module's own pages (typically a hard dependency from `requiresModules`). See [Module extension points](#module-extension-points) below. |
 | `requiresModules` | `Array<{name: string, minVersion: string}>` | Optional. Other modules that must already be installed and active, at or above `minVersion`, before this one can be installed. The install route rejects the install with a clear message if a dependency is missing or too old. Uninstalling a module that another active module still depends on is blocked the same way, in reverse. |
 | `cronJobs` | `Array<{path: string, schedule: string}>` | Optional. Vercel Cron entries this module needs. `path` must be under `/api/m/<your-module-name>/...` (it's dispatched through the same generic module router as any other module API route). `schedule` is a standard cron expression. Every installed module's `cronJobs` are collected into a single generated `vercel.json` at build/dev time - see [Module cron jobs](#module-cron-jobs) below. **Vercel's Hobby plan caps cron invocations to once per day per job**, however often you write the schedule. |
 
@@ -302,6 +304,94 @@ A module can register Puck blocks that appear in both the page builder and the l
 - **Use `puck?.id`** in the RSC render function to get the block's unique Puck identifier (available as `props.puck.id` in all render functions).
 - **Gate settings behind real config status with `resolveFields`.** If your block depends on integrations that may not be configured (e.g. email delivery, a third-party API), add an async `resolveFields` function to your editor component object. It receives `(data, { fields })` and returns the fields to display. When the required integration is absent, return a single custom field that renders a warning banner instead of the normal controls - this prevents editors from configuring features that can't work. Use `fetch('/api/auth/config')` to check email and Turnstile status; cache the promise at module scope with a short TTL (60 s) so the function doesn't refetch on every panel keystroke.
 
+## Module settings tabs
+
+A module can add a tab to the core admin's **Settings** (`/config`) page instead of shipping its own standalone settings screen. Declare it in `cactus.module.json`:
+
+```json
+"settingsTabs": [
+  {
+    "id": "my-module",
+    "label": "My Module",
+    "permission": "my-module.manage",
+    "import": "./components/SettingsTab",
+    "component": "MyModuleSettingsTab"
+  }
+]
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Unique tab id, used as the `?tab=` query value and as the key modules key off (e.g. in OAuth-callback redirects back to `/config?tab=<id>`). |
+| `label` | yes | Tab label shown in the settings tab bar. |
+| `permission` | no | Permission key required to see the tab. Omit for a tab visible to anyone who can reach `/config`. |
+| `import` | yes | Module-relative path to the file exporting the tab component (no `.ts` / `.tsx` extension). |
+| `component` | yes | Named export for the tab's React component. Must be a client component (`'use client'`) - it's rendered directly inside the client-side settings page. It receives no props and manages its own state/fetching, exactly like a standalone admin page would. |
+
+`scripts/generate-module-settings-tabs.mjs` runs on every `npm run build` and `npm run dev`. It rewrites `lib/modules/settings-tabs.ts` (gitignored, same pattern as `lib/puck/module-components.ts`) with a `moduleSettingsTabComponents` record keyed by `id`. The core settings page (`app/cactus-admin/config/page.tsx`, a server component) reads every active module's `settingsTabs` live from `Module.manifest`, permission-filters them the same way `navEntries` are filtered for the sidebar, and passes the visible list into the client page - which looks up each visible tab's component from the generated record.
+
+Your tab's content renders with no extra chrome - no page title, no wrapping card - since it sits directly under the shared tab bar. Add your own heading only if the tab label alone wouldn't be enough context.
+
+## Module extension points
+
+`settingsTabs` and `puckBlocks` are extension points *core* publishes. A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
+
+**Publishing a point (in the host module, e.g. `contact-form`):** pick a namespaced string id for the point (convention: `<your-module-name>.<page-or-area>`, e.g. `contact-form.submission-detail`), document what data your components receive, and read/render contributions from `lib/modules/extension-points.ts` in your own page - live permission-filtering happens in your page code, exactly like `navEntries` are filtered in `layout.tsx`:
+
+```tsx
+// modules/contact-form/app/cactus-admin/contact-form/inbox/[id]/page.tsx
+import { prisma } from '@/lib/db/prisma'
+import { hasPermission } from '@/lib/permissions/check'
+import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+
+// ...inside the page component, after loading `user`:
+const activeModules = await prisma.module.findMany({
+  where: { status: { in: ['active', 'update_available'] } },
+  select: { manifest: true },
+})
+const visibleIds: string[] = []
+for (const mod of activeModules) {
+  const manifest = mod.manifest as { extensionPoints?: Array<{ point: string; id: string; permission?: string }> } | null
+  for (const entry of manifest?.extensionPoints ?? []) {
+    if (entry.point !== 'contact-form.submission-detail') continue
+    if (!entry.permission || await hasPermission(user, entry.permission)) visibleIds.push(entry.id)
+  }
+}
+const components = moduleExtensionPointComponents['contact-form.submission-detail'] ?? {}
+
+// ...in the JSX, wherever the contributed content should render:
+{visibleIds.map((id) => {
+  const Extra = components[id]
+  return Extra ? <Extra key={id} submissionId={id} /> : null
+})}
+```
+
+The props your point passes (`submissionId` above) are your own contract - document them so contributors know what to expect. Contributed components can be plain (even async) server components if your page is a server component, or client components if you render them from a client page - match whatever your own page already is.
+
+**Contributing to a point (in the contributing module, e.g. `contact-form-reply-catcher`):** declare an `extensionPoints` entry in `cactus.module.json`:
+
+```json
+"extensionPoints": [
+  {
+    "point": "contact-form.submission-detail",
+    "id": "my-module-contribution",
+    "permission": "my-module.manage",
+    "import": "./components/MyContribution",
+    "component": "MyContribution"
+  }
+]
+```
+
+| Field | Required | Description |
+|-------|----------|--------------|
+| `point` | yes | The extension point id, as documented by the module that publishes it. |
+| `id` | yes | Unique id for this contribution within the point (a point can have contributions from more than one module). |
+| `permission` | no | Permission key required for the contribution to render. Omit to always render when the point itself is reachable. |
+| `import` | yes | Module-relative path to the file exporting the component (no `.ts` / `.tsx` extension). |
+| `component` | yes | Named export for the contributed React component. |
+
+`scripts/generate-module-extension-points.mjs` runs on every `npm run build` and `npm run dev`. It collects `extensionPoints` from every installed module's manifest, groups them by `point`, and writes the gitignored `lib/modules/extension-points.ts` (`moduleExtensionPointComponents: Record<point, Record<id, Component>>`) - same generated-file pattern as `lib/puck/module-components.ts` and `lib/modules/settings-tabs.ts`.
+
 ## Module cron jobs
 
 A module can register Vercel Cron jobs by declaring `cronJobs` in `cactus.module.json`:
@@ -325,6 +415,49 @@ if (request.headers.get('authorization') !== `Bearer ${secret}`) return errorRes
 ```
 
 Note that module route files **cannot** export their own `maxDuration` - the generated router imports every route file as a plain object of HTTP-method handlers, and a `maxDuration` export breaks that structural type. The shared dispatcher at `app/api/m/[module]/[...path]/route.ts` sets one `maxDuration` (currently 60s) for every module route instead.
+
+## Public routes
+
+Most modules only need admin pages and API routes. A module that also needs a public-facing area of the site (a blog, a forum, a directory) can declare a single top-level URL segment it owns:
+
+```json
+"publicBasePath": "gazette"
+```
+
+`publicBasePath` must be a single lowercase URL segment (letters, digits, hyphens). It is validated for uniqueness at install time against every other installed module's `publicBasePath`, and against existing InfoPage slugs - installing a module whose base collides with an existing page, or creating/renaming a page to match an installed module's base, is rejected with a 409. **An InfoPage always wins a collision that slips through** (e.g. a page created before the module was installed) - this never causes data loss, it just hides the module's public index until the page is renamed or removed.
+
+### Conventions
+
+Place public pages and routes under `app/public/<base>/` in your module, mirroring the Next.js App Router conventions you'd use for `app/`:
+
+```
+modules/my-module/app/public/my-module/
+├── page.tsx                # /my-module (index)
+├── [slug]/page.tsx         # /my-module/<slug>
+├── archive/[year]/page.tsx # /my-module/archive/<year>
+└── feed.xml/route.ts       # /my-module/feed.xml (RSS or similar)
+```
+
+- `page.tsx` files export a default React component and may export `generateMetadata`, same as any Next.js page.
+- `route.ts` files export `GET`/`POST`/etc, same as any Next.js route handler.
+- `scripts/generate-module-router.mjs` scans this directory and generates `resolveModulePublicPage`, `dispatchModulePublicRoute` and `getModulePublicBases` in `lib/modules/router.ts` (gitignored, regenerated on every build/dev start - same pattern as the admin/API router).
+- Core resolves `/<base>` via `app/(public)/[slug]/page.tsx`'s fallback path (InfoPage lookup first, module index second) and `/<base>/<...rest>` via the generic catch-all `app/(public)/[slug]/[...path]/page.tsx`. A literal `app/(public)/[slug]/feed.xml/route.ts` delegates `/<base>/feed.xml` specifically, since a `route.ts` can't share a folder with a `page.tsx`.
+
+### Rendering is always dynamic
+
+Every module public page renders per-request (`force-dynamic`) - there is no static generation or ISR for module public routes. This is deliberate: modules like Gazette need scheduled content to appear exactly on time with no cron job, which only works if the page is never cached. Budget for this when designing a public page that does expensive work; cache within your own module's DB queries rather than relying on route-level caching.
+
+### Sitemap entries
+
+If your module has public pages worth indexing, add `lib/sitemap.ts` to your module exporting:
+
+```ts
+export async function getPublicSitemapEntries(siteUrl: string): Promise<MetadataRoute.Sitemap> {
+  // return an array of { url, lastModified, changeFrequency, priority }
+}
+```
+
+The generator wires this into `collectModuleSitemapEntries()`, which core's `app/sitemap.ts` calls and appends to the site sitemap. Errors are swallowed per-module so one broken module's sitemap code can't take down the whole sitemap.
 
 ## Local development loop
 

@@ -150,6 +150,15 @@ export async function sendPasswordChangedNotification(
   })
 }
 
+export async function sendTestEmail(to: string, siteName: string) {
+  await sendEmail({
+    to,
+    subject: `${siteName} test email`,
+    html: `<p>This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.</p>`,
+    text: `This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.`,
+  })
+}
+
 export async function sendRecoveryRequestNotification(
   to: string,
   siteName: string

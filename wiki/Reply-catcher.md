@@ -6,7 +6,7 @@ If you reply to a contact form message from the Cactus admin inbox, your visitor
 
 It never changes anything in your mailbox - nothing gets marked read, moved, or deleted. It only reads. And it never changes anything about the contact form module itself - it keeps its own records alongside, so sites that don't install it carry none of this.
 
-Because of that separation, matched replies show up in Reply Catcher's own **Caught Replies** page rather than inside the contact form's own inbox screen - each entry links out to the original conversation there too, so you always have both views.
+Because of that separation, matched replies are Reply Catcher's own records - but they still show up right where you'd expect: inline on the original conversation in the contact form's own inbox, tagged "Caught" so you know it came from your mailbox rather than Cactus. There's also a dedicated **Caught Replies** list - reachable via the button on the Contact Inbox page, next to "Edit My Signature" - for a quick scan of every conversation Reply Catcher has picked something up on.
 
 ---
 
@@ -18,7 +18,7 @@ Reply Catcher needs the contact form module installed first. If you try to insta
 
 ## Setting it up
 
-Go to **Reply Catcher** in your admin sidebar once it's installed, and choose how it connects to your mailbox.
+Go to **Settings → Reply Catcher** (a tab alongside your other site settings) once it's installed, and choose how it connects to your mailbox.
 
 ### Option A: IMAP with an app password (most providers, including iCloud)
 
@@ -52,7 +52,7 @@ The settings page always shows when it last checked and whether that went smooth
 
 Reply Catcher matches mail to a conversation by sender's email address and by comparing subject lines - it doesn't (and, by design, can't) reach into the contact form module to read its private threading details, so it's a best-effort match rather than a guarantee:
 
-- A reply your visitor sends, from an address that matches a recent submission, with a subject that still resembles the original: caught, tagged "Caught" on the Caught Replies page.
+- A reply your visitor sends, from an address that matches a recent submission, with a subject that still resembles the original: caught, tagged "Caught" on the original conversation.
 - A reply you send by hand, from your own mail app, to your visitor: also caught the same way, so nothing gets lost even if you didn't reply from the admin panel.
 - A visitor who submits the contact form more than once in a short space of time, or who wildly changes the subject line before replying, may occasionally get matched to the wrong (or no) conversation. Check the matched thread looks right before treating it as gospel.
 
