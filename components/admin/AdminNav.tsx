@@ -5,10 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
 
-type ModuleNavEntry = {
-  label: string
-  path: string
-  icon?: string
+type ModuleNavGroup = {
+  label: string | null
+  links: Array<{ label: string; path: string; icon?: string }>
 }
 
 type Props = {
@@ -17,7 +16,7 @@ type Props = {
   version: string
   collapsed?: boolean
   onNavClick?: () => void
-  moduleNavEntries?: ModuleNavEntry[]
+  moduleNavGroups?: ModuleNavGroup[]
 }
 
 const ICON_PROPS = {
@@ -102,7 +101,7 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
   },
 ]
 
-export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavEntries }: Props) {
+export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
 
@@ -134,10 +133,10 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         </div>
       ))}
 
-      {moduleNavEntries && moduleNavEntries.length > 0 && (
-        <>
-          {collapsed ? <div className="admin-nav-divider" /> : <div className="admin-nav-section-label">Modules</div>}
-          {moduleNavEntries.map((entry) => {
+      {moduleNavGroups?.map((group, groupIndex) => (
+        <div key={group.label ?? `modules-${groupIndex}`}>
+          {collapsed ? <div className="admin-nav-divider" /> : <div className="admin-nav-section-label">{group.label ?? 'Modules'}</div>}
+          {group.links.map((entry) => {
             const href = `${base}${entry.path}`
             return (
               <Link
@@ -158,8 +157,8 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               </Link>
             )
           })}
-        </>
-      )}
+        </div>
+      ))}
 
       <div className="admin-nav-footer">
         <Link

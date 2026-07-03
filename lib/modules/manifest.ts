@@ -37,6 +37,10 @@ export const ModuleManifestSchema = z.object({
   description: z.string().optional(),
   requiredEnvVars: z.array(EnvVarSchema).default([]),
   navEntries: z.array(NavEntrySchema).default([]),
+  // When set, this module's navEntries render under their own sidebar section
+  // label (e.g. "Gazette") instead of being bucketed into the generic "Modules"
+  // section shared by all other modules.
+  navGroupLabel: z.string().optional(),
   // Permission keys this module declares. Convention: use _own/_any suffix where meaningful.
   permissions: z.array(z.string()).default([]),
   cookieCategories: z.array(z.string()).default([]),
