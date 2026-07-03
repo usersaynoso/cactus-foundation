@@ -8,16 +8,15 @@ The forum lives at `/boards` on your site (or `/boards/general` for a board, `/b
 
 ## Who can do what
 
-Boards has its own moderator roles, separate from your core Cactus user roles:
+Moderating Boards is just another permission on your core roles, set from **Roles & Permissions**:
 
-- **Board Moderator** - can hide, delete, lock, pin, archive, move and split threads and posts, but only within the board(s) they've been assigned to.
-- **Global Moderator** - the same powers everywhere, plus bans, IP bans, and global announcements.
+- `boards.access` - see the Boards section in the admin sidebar at all.
+- `boards.manage` - get at structure, tags, templates and the settings/import tab.
+- `boards.moderate` - the full moderator toolkit everywhere: hide, delete, lock, pin, archive, move and split threads and posts, resolve reports, and hand out bans.
 
-**Only a core admin can hand these out**, from **Boards → Moderators** in your admin - even a Global Moderator can't promote anyone else. Anyone with a login can read public boards, start threads and reply; a board can also be restricted to logged-in members only, or to moderators only (handy for a staff-only area).
+There's no separate moderator list to maintain and no "just this one board" option any more - tick the box on a role and everyone with that role can moderate every board on the site. Anyone with a login can read public boards, start threads and reply; a board can also be restricted to logged-in members only, or to moderators only (handy for a staff-only area).
 
-To see the Boards links in the admin sidebar, someone also needs the `boards.access` permission on their core role, and `boards.manage` to get at structure, settings, tags, templates and imports - both set from **Roles & Permissions**.
-
-Core admins always have full run of Boards, roles or no roles.
+Core admins always have full run of Boards, permissions or no permissions.
 
 ---
 
@@ -30,7 +29,7 @@ From **Boards → Structure**, an admin (with `boards.manage`) can:
 - Add **Sub-boards** underneath any board (one level deep).
 - Manage **Tags** and reusable thread **Templates**.
 
-Board-wide settings - how many threads/posts show per page, reactions, signatures, posting limits, and the RSS feed - live at **Boards → Settings**.
+Board-wide settings - how many threads/posts show per page, reactions, signatures, posting limits, and the RSS feed - live under **Settings → Boards** (alongside the forum importer, see below).
 
 ---
 
@@ -40,7 +39,7 @@ Any member can start a thread from a board or sub-board page - click **New Threa
 
 Replies use a simpler text box, with support for quoting an earlier reply. Everything you're writing autosaves as a draft, so a dropped connection or an accidental tab close won't lose your post.
 
-New members' first few posts (configurable in **Settings**) land in the moderation queue for a quick check before going live - established members skip straight past it.
+New members' first few posts (configurable in **Settings → Boards**) land in the moderation queue for a quick check before going live - established members skip straight past it.
 
 ---
 
@@ -50,7 +49,7 @@ Moderators get a full toolkit at **Boards → Moderation**:
 
 - **Queue** - pending threads and posts (new-member posts, or anything that tripped a board's word filter), approve or reject with one click.
 - **Reports** - things members have flagged, resolve or dismiss.
-- **Bans** and **IP Bans** (Global Moderators) - block a member or an address from posting, for a set time or indefinitely.
+- **Bans** and **IP Bans** - block a member or an address from posting, for a set time or indefinitely.
 - **Log** - a read-only history of every moderation action taken, by whom.
 
 From any thread or reply, a moderator can also hide, delete, lock, pin, archive, move to a different board, or split a thread from a chosen reply onwards into a brand new thread - handy when a conversation has wandered off-topic.
@@ -61,7 +60,7 @@ From any thread or reply, a moderator can also hide, delete, lock, pin, archive,
 
 Any thread can carry one poll, created alongside it - single or multiple choice, with an optional closing date. Results show live once someone's voted.
 
-Members can react to individual replies with emoji (which emoji are available is set in **Settings**), subscribe to a thread or a whole board to get notified of new activity, and bookmark threads to find them again later from their own profile.
+Members can react to individual replies with emoji (which emoji are available is set in **Settings → Boards**), subscribe to a thread or a whole board to get notified of new activity, and bookmark threads to find them again later from their own profile.
 
 Until Cactus's own site-wide notification bell arrives, subscription and moderation notifications go out by email only (or not at all, if a member switches notifications off, or picks the daily digest instead of immediate emails).
 
@@ -69,13 +68,13 @@ Until Cactus's own site-wide notification bell arrives, subscription and moderat
 
 ## Search and RSS
 
-A search box on the forum front page looks across thread titles and reply text, scoped to whatever boards a visitor is actually allowed to see. Every board (and the forum as a whole) publishes an RSS feed, switchable from **Settings**.
+A search box on the forum front page looks across thread titles and reply text, scoped to whatever boards a visitor is actually allowed to see. Every board (and the forum as a whole) publishes an RSS feed, switchable from **Settings → Boards**.
 
 ---
 
 ## Importing from an existing forum
 
-The importer, at **Boards → Import**, brings threads and posts in from:
+The importer, at the bottom of **Settings → Boards**, brings threads and posts in from:
 
 - **phpBB** - export your forum as XML and upload the file directly.
 - **Discourse** - export your forum as JSON and upload the file directly.
