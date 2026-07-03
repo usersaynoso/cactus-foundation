@@ -1,5 +1,5 @@
 # FIELD_NOTES.md
-Last updated: 2026-07-03 (media/[id] DELETE route, admin GET session checks, contact-form retention cron, EnvBanner + resolveLayout removed; module directory beta-only detection)
+Last updated: 2026-07-03 (generic module extension points: new manifest `extensionPoints` field + `generate-module-extension-points.mjs` generator, contact-form-reply-catcher's Caught Replies moved off the sidebar into a button on the contact-form inbox + an inline panel on the submission thread; module-registered settings tabs on /cactus-admin/config: new manifest `settingsTabs` field + `generate-module-settings-tabs.mjs` generator, replacing contact-form-reply-catcher's standalone settings page/nav entry; media/[id] DELETE route, admin GET session checks, contact-form retention cron, EnvBanner + resolveLayout removed; module directory beta-only detection)
 Produced by: Claude Code agent
 
 ---
@@ -52,7 +52,7 @@ Pages (admin, live under internal `/cactus-admin/*`, reached only via the rewrit
 - `/cactus-admin/roles` - role list + permission matrix (`RolesClient.tsx`); protected role shows all-granted and is immutable; permissions grouped Core vs module, inactive-module groups disabled.
 - `/cactus-admin/modules` - module directory (org `cactus-foundation-modules`), install with public/beta channel choice, update / enable / disable / uninstall (code-only or code+data teardown), per-module update channel, release-notes modal, stale-`deploying` reconciliation.
 - `/cactus-admin/notifications` - notification list with per-type icon, reasons list, read/unread toggle, delete, "Redeploy now" for open deployment notifications (`NotificationActions.tsx`).
-- `/cactus-admin/config` - Settings, 8 tabs (see Admin UI section).
+- `/cactus-admin/config` - Settings, 8 core tabs + module-registered tabs (see Admin UI section). Server component fetches active modules' `manifest.settingsTabs`, permission-filters, passes to client `ConfigPageClient`.
 - `/cactus-admin/config/privacy-generator` - 6-step privacy-policy wizard; assembles markdown from `lib/privacy/template.ts` and creates a draft InfoPage, optionally linking it as the privacy policy page.
 - `/cactus-admin/m/[module]/[...path]` - generic module page host; delegates to `resolveModulePage` in generated `lib/modules/router.ts`.
 - `app/cactus-admin/layout.tsx` - admin shell: reads `x-cactus-admin-path` / `x-cactus-is-login` headers, secondary session check, module nav entries from `Module.manifest.navEntries` (permission-filtered), unread notification count, admin white-labelling (primary colour family + sans font only).
@@ -334,6 +334,7 @@ Settings tabs (`/cactus-admin/config`):
 - Site Status: status select (live/comingSoon/maintenance), hideFromCrawlers, link to statusPage layouts.
 - GDPR & Legal: privacyPolicyPageId, termsPageId, privacy-generator link, sessionPurgeAfterDays, recoveryPurgeAfterDays, cookie-consent banner editor (enable, style, copy fields, category table with pinned "necessary", module-suggested categories, reConsentDays, consentLogRetentionDays, categoriesVersion display).
 - Integrations: GitHub App connect/install/disconnect card; env-var cards for Edge Config, Turnstile, Vercel webhook, Sentry, Neon.
+- Module tabs: rendered generically, appended after the core tabs, one per `settingsTabs` entry in an active module's manifest (permission-filtered server-side, same gating as `navEntries`). Currently: `contact-form-reply-catcher` ("Reply Catcher", tab id `contact-form-reply-catcher`) - mailbox provider (IMAP/Outlook OAuth), credentials, folder overrides, last-poll status, check-now, OAuth connect.
 
 Settings keys stored in the database = the SiteConfig columns (types and defaults listed in the Database Schema section). `designTokens` (Json) holds the v2 design-token object (defaults in `lib/design/tokens.ts:DEFAULT_DESIGN_TOKENS`: primary #2c7558/#459578, secondary white/#0f172a, system-ui font, heading sizes 2.5rem→1rem, link colours, blockPadding 1.5rem). `consentBannerConfig` (Json) holds `ConsentBannerConfig` (defaults in `lib/consent/types.ts`: disabled, bottom-bar, four categories necessary/preferences/analytics/marketing, reConsentDays 365, retention null, versions 0).
 
@@ -401,12 +402,14 @@ Provider selection control: `SiteConfig.mediaProvider` (admin Settings → Media
 - `scripts/generate-module-router.mjs` - scans `modules/*/app/api/**/route.ts` and `modules/*/app/cactus-admin/<name>/**/page.tsx`; writes the gitignored `lib/modules/router.ts` (API dispatch table + lazy page loaders). Runs on every dev start and build.
 - `scripts/generate-module-puck.mjs` - collects `puckBlocks` from every module manifest; writes the gitignored `lib/puck/module-components.ts` (client + RSC component maps).
 - `scripts/generate-module-cron.mjs` - collects `cronJobs` from every module manifest; writes the gitignored `vercel.json` (`{crons: [...]}`).
+- `scripts/generate-module-settings-tabs.mjs` - collects `settingsTabs` from every module manifest (`{id, label, permission, import, component}`); writes the gitignored `lib/modules/settings-tabs.ts` (`moduleSettingsTabComponents: Record<id, Component>`). Consumed by `app/cactus-admin/config/ConfigPageClient.tsx` to render module-registered settings tabs generically (id/label/permission list comes from `app/cactus-admin/config/page.tsx`, which permission-filters live from `Module.manifest`, same pattern as `navEntries` in `layout.tsx`).
+- `scripts/generate-module-extension-points.mjs` - collects `extensionPoints` from every module manifest (`{point, id, permission, import, component}`); writes the gitignored `lib/modules/extension-points.ts` (`moduleExtensionPointComponents: Record<point, Record<id, Component>>`), grouped by the arbitrary `point` string. Core has no knowledge of any specific point name - a *publishing* module (e.g. `contact-form`) defines its own point names in its own page code and permission-filters live from `Module.manifest` (same pattern as `navEntries`/`settingsTabs`); a *contributing* module (e.g. `contact-form-reply-catcher`) declares entries against that point name in its manifest. See the "Module extension points" section in wiki/Authoring-a-module.md.
 - `scripts/run-module-migrations.mjs` - build-step-only runner: for modules with status active/deploying/update_available, applies unapplied `modules/<name>/migrations/*.sql` files in lexicographic order, each in a transaction, recording name+checksum in `ModuleMigration`.
 - `scripts/sync-module-manifests.mjs` - build-step-only: rewrites `Module.manifest` from each deployed module's `cactus.module.json` so nav entries/teardown stay in step with shipped code. Skips without DATABASE_URL.
 - `scripts/sync-wiki.mjs` - `npm run sync-wiki`: pulls all `.md` files from the GitHub wiki repo (`WIKI_SOURCE_REPO` or GITHUB_REPO + `.wiki`) into `/wiki` via the API.
 - `scripts/dev-warm.sh` - `npm run dev:warm`: kills anything on the port, clears `.next`, starts `next dev --webpack` (webpack chosen over Turbopack to avoid an HMR chunk-hash reload cascade), and pre-warms `/`, `/home`, `/logged-out`, `/setup`, `/style-guide`, `/privacy-policy` in the background.
 
-Build-time order (from `package.json` `build`): checkout-modules → prisma generate → build-migrate → sync-module-manifests → generate-module-router → generate-module-puck → generate-module-cron → next build. Dev (`npm run dev`) runs the three generators then `next dev --webpack`.
+Build-time order (from `package.json` `build`): checkout-modules → prisma generate → build-migrate → sync-module-manifests → generate-module-router → generate-module-puck → generate-module-cron → generate-module-settings-tabs → generate-module-extension-points → next build. Dev (`npm run dev`) runs the five generators then `next dev --webpack`.
 
 ### Build and Deploy
 
@@ -533,6 +536,8 @@ No standalone `types/` directory or `.d.ts` files beyond `next-env.d.ts` (genera
 - `eslint.config.mjs` - flat config, `eslint-config-next/core-web-vitals`; ignores `lib/modules/**`, `lib/puck/module-components.ts`, `.next`, `node_modules`, `.claude`.
 - `prisma/schema.prisma` - see Database Schema. `prisma/migrations/20260626000000_init/migration.sql` is the single init migration, edited in place.
 - `vercel.json` - AUTO-GENERATED by `generate-module-cron.mjs`, gitignored. Current content: one cron - `/api/m/contact-form-reply-catcher/cron/poll` at `0 6 * * *`.
+- `lib/modules/settings-tabs.ts` - AUTO-GENERATED by `generate-module-settings-tabs.mjs`, gitignored (covered by the `lib/modules/**` eslint ignore). Current content: one tab - `contact-form-reply-catcher`.
+- `lib/modules/extension-points.ts` - AUTO-GENERATED by `generate-module-extension-points.mjs`, gitignored (covered by the `lib/modules/**` eslint ignore). Current content: two entries - `contact-form-reply-catcher` contributing to `contact-form.inbox-actions` and `contact-form.submission-detail`.
 - `modules.json` - module registry committed to the repo: `contact-form` pinned to `v0.1.18` at `github.com/cactus-foundation-modules/contact-form`. (`contact-form-reply-catcher` exists on disk but is not in the registry.)
 - `.claudeignore` - `.next/`, `node_modules/`, `prisma/migrations/`, `.git/`, `*.log`, `.env*`, `coverage/`, `dist/`, `out/`.
 - No tracked `.gitignore` exists. All ignore rules live machine-locally in `.git/info/exclude`: node_modules, .next, env files, PROGRESS.md, tsbuildinfo, next-env.d.ts, .vercel, `/modules/`, `/lib/modules/router.ts`, `/lib/puck/module-components.ts`, `/vercel.json`, `.claude/`, `CLAUDE.md`, `.claudeignore` (CLAUDE.md itself is untracked).
@@ -583,6 +588,8 @@ Table prefix: `cf_`
 
 Admin pages (served through `/cactus-admin/m/contact-form/…`): `inbox` (list, tabs, bulk actions - `SubmissionList.tsx`), `inbox/[id]` (detail + reply thread incl. caught replies + `ReplyComposer` markdown editor), `my-signature` (markdown signature editor).
 
+Both `inbox` and `inbox/[id]` publish extension points other modules can contribute to (permission-filtered live from `Module.manifest`, resolved via the generated `lib/modules/extension-points.ts`, see `scripts/generate-module-extension-points.mjs` above): `contact-form.inbox-actions` (button row on `inbox`, left of "Edit My Signature", receives `{adminPath}`) and `contact-form.submission-detail` (block on `inbox/[id]`, rendered after the native Replies section and before the reply composer, receives `{submissionId}`). Currently consumed only by `contact-form-reply-catcher` (Caught Replies button + inline caught-reply panel).
+
 **Puck Blocks**
 
 - `ContactForm` (client `contactFormPuckComponent`, RSC `contactFormPuckRscComponent` from `components/puck/ContactFormBlock.tsx`). Props: formTitle, introText, submitLabel, padding; showPhone/showCompany/showSubject + require* (yes/no strings), nameValidationMode (first_only | both); notificationEmail, emailNotifyMode (full | notify | off), ccEmails (newline list), autoReplyEnabled, autoReplyBody (markdown); turnstileEnabled, rateLimitEnabled, rateLimitMaxAttempts (default 3), rateLimitWindowMin (default 10); gdprConsentEnabled, gdprConsentLabel; retentionDays (0 = never); successMessage. `resolveFields` swaps the field set for a "email not configured" notice and disables the Turnstile toggle when unconfigured. Renders the public form (`ContactFormClient.tsx`) posting to the submit endpoint.
@@ -619,7 +626,7 @@ Table prefix: `rc_`
 
 **Permissions**
 
-- `replycatcher.manage` - settings page/API, OAuth flow, check-now, caught-replies inbox pages.
+- `replycatcher.manage` - settings tab/API, OAuth flow, check-now, caught-replies inbox pages.
 
 **API Routes** (via `/api/m/contact-form-reply-catcher/…`)
 
@@ -627,9 +634,11 @@ Table prefix: `rc_`
 - `POST /api/m/contact-form-reply-catcher/admin/check-now` - manual poll (`replycatcher.manage`), 60-second cooldown.
 - `GET/PATCH /api/m/contact-form-reply-catcher/admin/settings` - mailbox config; secrets returned only as booleans; PATCH requires ENCRYPTION_KEY and encrypts IMAP password / OAuth client credentials at rest.
 - `GET /api/m/contact-form-reply-catcher/admin/oauth/microsoft/start` - builds the Microsoft authorize URL (scope `offline_access` + `IMAP.AccessAsUser.All`), state cookie `cactus_rc_oauth_state` (10 min).
-- `GET /api/m/contact-form-reply-catcher/admin/oauth/microsoft/callback` - state check, code→token exchange, stores encrypted token pair, redirects to the settings page with `oauth=connected|error`.
+- `GET /api/m/contact-form-reply-catcher/admin/oauth/microsoft/callback` - state check, code→token exchange, stores encrypted token pair, redirects to `/<adminPath>/config?tab=contact-form-reply-catcher` with `oauth=connected|error`.
 
-Admin pages: `settings` (provider choice, IMAP/Outlook credentials, folder overrides, last-poll status, check-now, OAuth connect), `inbox` + `inbox/[id]` (caught replies).
+Settings live as a tab on core `/cactus-admin/config` (id `contact-form-reply-catcher`, registered via manifest `settingsTabs`, component `modules/contact-form-reply-catcher/components/SettingsTab.tsx`) rather than a standalone admin page - provider choice, IMAP/Outlook credentials, folder overrides, last-poll status, check-now, OAuth connect. Admin pages: `inbox` + `inbox/[id]` (own "Caught Replies" list + merged per-submission timeline, unchanged) only; `navEntries` is empty - no sidebar link at all any more.
+
+Discoverability instead runs through two `extensionPoints` entries registered in `cactus.module.json` (see `scripts/generate-module-extension-points.mjs` above), both gated on `replycatcher.manage`: `contact-form.inbox-actions` → `components/CaughtRepliesButton.tsx` (a "Caught Replies" button on the core contact-form inbox list, left of "Edit My Signature", linking to this module's own `inbox` page), and `contact-form.submission-detail` → `components/CaughtRepliesPanel.tsx` (an async server component querying `listCaughtRepliesBySubmission`, rendered inline on the contact-form submission thread page - a "Caught replies" block with a "Reply Catcher" badge, separate from and below contact-form's own native Replies block, not interleaved with it).
 
 **Puck Blocks**
 None.
