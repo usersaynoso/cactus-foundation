@@ -135,7 +135,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   // Ungrouped module links (e.g. contact-form's Inbox) sit directly under
   // Dashboard as plain links (no "Modules" heading) so they read as part of
   // the Dashboard section, not a separate collapsible bucket. Labelled module
-  // groups (their own named section, e.g. "Gazette") keep rendering after System.
+  // groups (their own named section, e.g. "Gazette") render right after Content.
   const ungroupedModuleLinks = moduleNavGroups?.filter((group) => !group.label).flatMap((group) => group.links) ?? []
   const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label) ?? []
 
@@ -236,11 +236,11 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               </Link>
             )
           })}
+          {section.label === 'Content' &&
+            labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
         </div>
         )
       })}
-
-      {labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
 
       <div className="admin-nav-footer">
         <Link
