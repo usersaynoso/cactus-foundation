@@ -14,9 +14,9 @@ Gazette has its own three writing roles, separate from your core Cactus user rol
 - **Author** - can write, edit and publish their own posts.
 - **Editor** - can do everything: edit and publish anyone's posts, manage tags, series, comments, templates and settings.
 
-**Only a core admin can hand out these roles**, from **Gazette → Roles** - even a Gazette Editor can't promote anyone else. This is deliberate: who gets to publish under your name is exactly the sort of thing that shouldn't be self-service. Non-admin Gazette users don't see the Roles screen at all - it isn't just locked, it's invisible.
+**Only a core admin can hand out these roles**, from **Roles & Permissions** in your core admin (look for the "Gazette" card underneath the main permissions table) - even a Gazette Editor can't promote anyone else. This is deliberate: who gets to publish under your name is exactly the sort of thing that shouldn't be self-service.
 
-One more thing: to see the "Gazette" link in the admin sidebar at all, someone also needs the `gazette.access` permission on their core role (**Settings → Roles**). A Gazette role on its own won't surface the nav link - think of it as "does this person work in the newsroom" (`gazette.access`) plus "what can they do once they're in there" (the Gazette role).
+One more thing: to see the Gazette links in the admin sidebar at all, someone also needs the `gazette.access` permission on their core role (also set from **Roles & Permissions**). A Gazette role on its own won't surface the sidebar links - think of it as "does this person work in the newsroom" (`gazette.access`) plus "what can they do once they're in there" (the Gazette role).
 
 Core admins always have full run of the Gazette, roles or no roles.
 
@@ -58,7 +58,7 @@ Every writer gets an **author profile** (bio and photo) from **Gazette → Autho
 
 ## Comments
 
-Turn comments on or off, and choose how they're moderated, from **Gazette → Settings**:
+Turn comments on or off, and choose how they're moderated, from **Settings → Gazette**:
 
 - **Before publishing** - a comment sits as Pending until an Editor approves it.
 - **After publishing** - comments appear straight away and can be taken down afterwards if needed.
@@ -71,7 +71,7 @@ Editors moderate everything from **Gazette → Comments** - approve, reject, del
 
 ## Reactions and view counts
 
-Turn emoji reactions on or off, and pick which emoji show up, from **Gazette → Settings**. Visitors react anonymously - Gazette remembers who reacted to what using a small cookie (`cactus-gazette-vid`) rather than requiring a login.
+Turn emoji reactions on or off, and pick which emoji show up, from **Settings → Gazette**. Visitors react anonymously - Gazette remembers who reacted to what using a small cookie (`cactus-gazette-vid`) rather than requiring a login.
 
 View counts are tracked either way, but only shown publicly if you switch **Show view counts** on.
 
@@ -79,13 +79,13 @@ View counts are tracked either way, but only shown publicly if you switch **Show
 
 ## RSS feed
 
-Every Gazette install publishes an RSS feed at `/gazette/feed.xml`, ready to plug into a reader or a newsletter tool. Turn it off, and set its title and description, from **Gazette → Settings**.
+Every Gazette install publishes an RSS feed at `/gazette/feed.xml`, ready to plug into a reader or a newsletter tool. Turn it off, and set its title and description, from **Settings → Gazette**.
 
 ---
 
 ## Importing from somewhere else
 
-**Gazette → Import** can bring posts in from:
+The importer, at the bottom of **Settings → Gazette**, can bring posts in from:
 
 - **WordPress** - export your site as WordPress XML and upload the file directly.
 - **Medium** - request your data export from Medium, unzip it, and choose the HTML files from inside the `posts` folder.
@@ -106,4 +106,4 @@ Any page that includes one of these blocks always shows the very latest posts on
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

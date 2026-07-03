@@ -363,6 +363,8 @@ Blocks marked **Template block** are most useful in Header/Footer templates but 
 
 The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button collapses it to icon-only mode (56 px wide), freeing horizontal space. The preference is persisted in `localStorage`. The sidebar **auto-collapses** whenever a page or template editor is opened, so the Puck canvas always has maximum width on load. The footer holds the theme toggle, a **My Account** link (to `/{adminPath}/account`), and **Sign out**, in that order. The theme toggle stays available when collapsed: it becomes a single round button showing the active mode's icon that **cycles** Light → Auto → Dark → Light on each click.
 
+Each labelled section (Content, People, System, and any module nav group) is independently collapsible: clicking the section label toggles a chevron and hides/shows that section's links. This is separate from the rail collapse above and only applies when the rail is expanded (icon-only mode always shows every link, ungrouped). Each section's open/closed state is persisted per-label in `localStorage`, so it's remembered across navigation, refreshes, and later visits. Sections default to open (maximised) until the user collapses one.
+
 The logo + site name at the top of the sidebar (and the site name in the mobile topbar) is a link to `/` with `target="_blank"`, so clicking it opens the live frontend in a new tab without losing the admin session.
 
 ### Page lifecycle - draft vs live split

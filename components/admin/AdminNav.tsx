@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
@@ -70,6 +70,14 @@ const NAV_ICONS: Record<string, ReactNode> = {
   ),
 }
 
+const SECTION_CHEVRON = (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+)
+
+const SECTIONS_COLLAPSE_KEY = 'cactus-sidebar-sections-collapsed'
+
 const NAV_SECTIONS: { label: string | null; links: { path: string; label: string; icon: string }[] }[] = [
   {
     label: null,
@@ -104,6 +112,25 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
 export default function AdminNav({ adminPath, version, collapsed, onNavClick, moduleNavGroups }: Props) {
   const pathname = usePathname()
   const base = `/${adminPath}`
+  // Maps section label -> true when the user has minimised it. Defaults to
+  // empty (i.e. everything maximised) when there's no saved state.
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const raw = localStorage.getItem(SECTIONS_COLLAPSE_KEY)
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  function toggleSection(label: string) {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [label]: !prev[label] }
+      localStorage.setItem(SECTIONS_COLLAPSE_KEY, JSON.stringify(next))
+      return next
+    })
+  }
 
   function isActive(href: string) {
     return pathname === href || (href !== base && pathname.startsWith(href))
@@ -111,11 +138,23 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
 
   return (
     <nav>
-      {NAV_SECTIONS.map((section, sectionIndex) => (
+      {NAV_SECTIONS.map((section, sectionIndex) => {
+        const sectionOpen = collapsed || !section.label || !collapsedSections[section.label]
+        return (
         <div key={section.label ?? `section-${sectionIndex}`}>
           {sectionIndex > 0 && (collapsed ? <div className="admin-nav-divider" /> : null)}
-          {!collapsed && section.label && <div className="admin-nav-section-label">{section.label}</div>}
-          {section.links.map((link) => {
+          {!collapsed && section.label && (
+            <button
+              type="button"
+              className="admin-nav-section-label"
+              onClick={() => toggleSection(section.label!)}
+              aria-expanded={sectionOpen}
+            >
+              <span>{section.label}</span>
+              <span className={`admin-nav-section-chevron${sectionOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+            </button>
+          )}
+          {sectionOpen && section.links.map((link) => {
             const href = `${base}${link.path}`
             return (
               <Link
@@ -131,12 +170,28 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
             )
           })}
         </div>
-      ))}
+        )
+      })}
 
-      {moduleNavGroups?.map((group, groupIndex) => (
+      {moduleNavGroups?.map((group, groupIndex) => {
+        const groupLabel = group.label ?? 'Modules'
+        const groupOpen = collapsed || !collapsedSections[groupLabel]
+        return (
         <div key={group.label ?? `modules-${groupIndex}`}>
-          {collapsed ? <div className="admin-nav-divider" /> : <div className="admin-nav-section-label">{group.label ?? 'Modules'}</div>}
-          {group.links.map((entry) => {
+          {collapsed ? (
+            <div className="admin-nav-divider" />
+          ) : (
+            <button
+              type="button"
+              className="admin-nav-section-label"
+              onClick={() => toggleSection(groupLabel)}
+              aria-expanded={groupOpen}
+            >
+              <span>{groupLabel}</span>
+              <span className={`admin-nav-section-chevron${groupOpen ? '' : ' admin-nav-section-chevron--collapsed'}`}>{SECTION_CHEVRON}</span>
+            </button>
+          )}
+          {groupOpen && group.links.map((entry) => {
             const href = `${base}${entry.path}`
             return (
               <Link
@@ -158,7 +213,8 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
             )
           })}
         </div>
-      ))}
+        )
+      })}
 
       <div className="admin-nav-footer">
         <Link
