@@ -322,7 +322,8 @@ function SectionBlock(props: any) {
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
 
   return (
-    <div style={outerStyle} {...aosAttrs}>
+    <div style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
+      {bgType === 'grid-scan' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
       {overlayColor && overlayOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
       )}
@@ -369,14 +370,19 @@ function ContentSlot(_props: any) {
 // ---------------------------------------------------------------------------
 
 function Heading(props: any) {
-  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none' } = props
   const colors: Record<string, string> = { muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
-  const sizes: Record<string, string> = { h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
-  const weights: Record<string, number> = { h2: 800, h3: 700, h4: 700, h5: 600 }
-  const lvl = (level ?? 'h2') as 'h2' | 'h3' | 'h4' | 'h5'
+  const sizes: Record<string, string> = { display: '3rem', h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
+  const weights: Record<string, number> = { display: 800, h2: 800, h3: 700, h4: 700, h5: 600 }
+  const lvl = (level ?? 'h2') as 'display' | 'h2' | 'h3' | 'h4' | 'h5'
   // Reflect the Styles → Headings tokens per level, falling back to the built-in
   // presets when unset. An explicit muted/brand colour choice still wins; the
   // default "dark" defers to the heading colour token (then --color-fg).
+  // "Display" is the largest level (hero/campaign banners, above H1) - it has
+  // no native tag of its own, so it renders as an actual H1 (builder-format
+  // info pages don't auto-inject their own page-title H1) styled via the
+  // separate --display-* tokens (Styles → Headings → Display), read by class
+  // rather than tag since --${lvl}-* already resolves to --display-* here.
   const style: React.CSSProperties = {
     fontFamily: `var(--${lvl}-family)`,
     fontSize: `var(--${lvl}-size, ${sizes[lvl] ?? sizes.h2})`,
@@ -389,11 +395,22 @@ function Heading(props: any) {
     textAlign: align ?? 'left',
     margin: '0 0 1rem',
   }
-  const Tag = lvl
+  const Tag = lvl === 'display' ? 'h1' : lvl
+  const headingClassName = lvl === 'display' ? 'cactus-display' : undefined
+  // Stagger-lines: each newline in `text` becomes its own clipped line that
+  // rises into place, staggered by 120ms per line — a one-shot reveal on
+  // mount, independent of the scroll-triggered AOS effect above.
+  const content = revealAnimation === 'stagger-lines'
+    ? text.split('\n').map((line: string, i: number) => (
+        <span key={i} className="cactus-stagger-line">
+          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{line}</span>
+        </span>
+      ))
+    : text
   return (
     <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      <Tag style={style}>
-        {text}
+      <Tag style={style} className={headingClassName}>
+        {content}
       </Tag>
     </div>
   )
@@ -446,6 +463,28 @@ function Quote(props: any) {
   )
 }
 
+function Caption(props: any) {
+  const { text, align, padding } = props
+  return (
+    <p
+      className="cactus-caption"
+      style={{
+        margin: 0, padding: getPadding(padding), textAlign: align ?? 'left',
+        fontFamily: 'var(--caption-family)',
+        fontWeight: 'var(--caption-weight, 500)' as React.CSSProperties['fontWeight'],
+        fontSize: 'var(--caption-size, 0.75rem)',
+        lineHeight: 'var(--caption-line-height, 1.4)',
+        letterSpacing: 'var(--caption-letter-spacing, normal)',
+        textTransform: 'var(--caption-transform, none)' as React.CSSProperties['textTransform'],
+        fontStyle: 'var(--caption-style, normal)',
+        color: 'var(--caption-color, var(--color-muted))',
+      }}
+    >
+      {text}
+    </p>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Action blocks
 // ---------------------------------------------------------------------------
@@ -467,11 +506,15 @@ function ButtonLink(props: any) {
     padding: 'var(--btn-padding, 0.625rem 1.5rem)',
   }
   // Colours: the primary (default) button reflects the button colour tokens;
-  // secondary/outline keep their distinct identity but still pick up the global
-  // border width/colour. Hover is applied via the .cactus-btn rule (tokens.ts).
+  // secondary/outline read the site's brand primary colour directly (not the
+  // button-specific override), so all three variants stay theme-aware without
+  // any hardcoded colour. `--color-on-primary` is a WCAG-derived contrasting
+  // text colour computed from the primary hex (lib/design/tokens.ts), so
+  // secondary's fill always keeps legible text regardless of brand colour.
+  // Hover is applied via the .cactus-btn rule (tokens.ts).
   const variants: Record<string, React.CSSProperties> = {
     primary:   { background: 'var(--btn-bg, var(--color-primary))', color: 'var(--btn-text-color, var(--color-bg))', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
-    secondary: { background: 'var(--color-fg-secondary)', color: 'var(--color-bg)', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
+    secondary: { background: 'var(--color-primary)', color: 'var(--color-on-primary, var(--color-bg))', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
     outline:   { background: 'transparent', color: 'var(--color-primary)', border: 'var(--btn-border-width, 2px) solid var(--btn-border, var(--color-primary))' },
   }
   return (
@@ -648,6 +691,72 @@ function SocialLinks(props: any) {
 // ---------------------------------------------------------------------------
 // Content blocks
 // ---------------------------------------------------------------------------
+
+function Eyebrow(props: any) {
+  const { text, showPulse = 'false', padding } = props
+  const pulse = showPulse === 'true' || showPulse === true
+  return (
+    <div style={{ padding: getPadding(padding), marginBottom: '1rem' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 9999, padding: '7px 16px' }}>
+        {pulse && <span className="cactus-eyebrow-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} aria-hidden="true" />}
+        {text}
+      </span>
+    </div>
+  )
+}
+
+const TRUST_ICONS: Record<string, string> = {
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  truck: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h13v13H1zM14 8h4l4 4v4h-8zM6 21a2 2 0 100-4 2 2 0 000 4zM19 21a2 2 0 100-4 2 2 0 000 4z"/></svg>',
+  shield: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>',
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  star: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>',
+  tag: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 009.58 3.24L3.24 9.58A2 2 0 003.83 11l9.58 9.59a2 2 0 002.82 0l4.36-4.36a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+}
+
+function Trustline(props: any) {
+  const { items = [], gap = 'normal', padding } = props
+  const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>No trust items yet — add some in the panel.</div>
+  return (
+    <div style={{ display: 'flex', gap: gapMap[gap] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)', padding: getPadding(padding) }}>
+      {items.map((item: any, i: number) => (
+        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: (TRUST_ICONS[item.icon] ?? TRUST_ICONS.check) as string }} />
+          {item.text}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+const CHIP_POSITIONS: Record<string, React.CSSProperties> = {
+  static: {},
+  'top-left': { position: 'absolute', top: 16, left: 16 },
+  'top-right': { position: 'absolute', top: 16, right: 16 },
+  'bottom-left': { position: 'absolute', bottom: 16, left: 16 },
+  'bottom-right': { position: 'absolute', bottom: 16, right: 16 },
+  'bottom-center': { position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)' },
+}
+
+function Chip(props: any) {
+  const { label, value, position = 'static', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  return (
+    <div
+      style={{
+        ...(CHIP_POSITIONS[position] ?? CHIP_POSITIONS.static),
+        background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 8,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.10)', padding: '10px 14px', fontSize: '0.75rem',
+        lineHeight: 1.45, marginBottom: position === 'static' ? '0.75rem' : 0, maxWidth: 220,
+      }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}
+    >
+      {label && <b style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--color-primary)' }}>{label}</b>}
+      {value}
+    </div>
+  )
+}
 
 function Card(props: any) {
   const { mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
@@ -972,10 +1081,10 @@ function SiteLogoRsc(props: any) {
 const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
-    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],          defaultExpanded: true },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
-    content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
@@ -989,7 +1098,7 @@ const puckConfig = {
       label: 'Section',
       fields: {
         content: { type: 'slot' as const },
-        bgType: { type: 'select' as const, label: 'Background type', options: [{ value: 'none', label: 'None' }, { value: 'color', label: 'Colour' }, { value: 'gradient', label: 'Gradient (CSS)' }, { value: 'image', label: 'Image URL' }] },
+        bgType: { type: 'select' as const, label: 'Background type', options: [{ value: 'none', label: 'None' }, { value: 'color', label: 'Colour' }, { value: 'gradient', label: 'Gradient (CSS)' }, { value: 'image', label: 'Image URL' }, { value: 'grid-scan', label: 'Grid + scan beam (decorative)' }] },
         bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
@@ -1075,14 +1184,15 @@ const puckConfig = {
     Heading: {
       label: 'Heading',
       fields: {
-        text: { type: 'text' as const, label: 'Text' },
-        level: { type: 'select' as const, label: 'Level', options: [{ value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
+        text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
+        level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
         padding: paddingField,
+        revealAnimation: { type: 'select' as const, label: 'Reveal animation (on load)', options: [{ value: 'none', label: 'None' }, { value: 'stagger-lines', label: 'Stagger lines in' }] },
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'default', ...aosDefaults },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
       render: Heading,
     },
     TextBlock: {
@@ -1102,6 +1212,16 @@ const puckConfig = {
       fields: { quote: { type: 'textarea' as const, label: 'Quote' }, attribution: { type: 'text' as const, label: 'Attribution' }, padding: paddingField, ...aosFields },
       defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'default', ...aosDefaults },
       render: Quote,
+    },
+    Caption: {
+      label: 'Caption',
+      fields: {
+        text: { type: 'text' as const, label: 'Text' },
+        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        padding: paddingField,
+      },
+      defaultProps: { text: 'Caption text', align: 'left' as const, padding: 'default' },
+      render: Caption,
     },
 
     // ── Actions ──────────────────────────────────────────────────────────────
@@ -1184,6 +1304,37 @@ const puckConfig = {
       fields: { label: { type: 'text' as const, label: 'Label' }, color: { type: 'select' as const, label: 'Colour', options: [{ value: 'primary', label: 'Brand' }, { value: 'blue', label: 'Blue' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }, { value: 'gray', label: 'Gray' }] }, padding: paddingField },
       defaultProps: { label: 'New', color: 'primary' as const, padding: 'default' },
       render: Badge,
+    },
+    Eyebrow: {
+      label: 'Eyebrow',
+      fields: {
+        text: { type: 'text' as const, label: 'Text' },
+        showPulse: { type: 'select' as const, label: 'Pulsing dot', options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }] },
+        padding: paddingField,
+      },
+      defaultProps: { text: 'New', showPulse: 'false', padding: 'default' },
+      render: Eyebrow,
+    },
+    Trustline: {
+      label: 'Trust Row',
+      fields: {
+        items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { text?: string }) => item.text || 'Item', arrayFields: { icon: { type: 'select' as const, label: 'Icon', options: [{ value: 'check', label: 'Checkmark' }, { value: 'truck', label: 'Delivery' }, { value: 'shield', label: 'Shield' }, { value: 'clock', label: 'Clock' }, { value: 'star', label: 'Star' }, { value: 'tag', label: 'Price tag' }] }, text: { type: 'text' as const, label: 'Text' } }, defaultItemProps: { icon: 'check', text: 'Reassurance point' } },
+        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        padding: paddingField,
+      },
+      defaultProps: { items: [{ icon: 'check', text: 'Reassurance point' }], gap: 'normal' as const, padding: 'default' },
+      render: Trustline,
+    },
+    Chip: {
+      label: 'Chip',
+      fields: {
+        label: { type: 'text' as const, label: 'Label (bold line)' },
+        value: { type: 'text' as const, label: 'Value / detail text' },
+        position: { type: 'select' as const, label: 'Position', options: [{ value: 'static', label: 'In flow (stacked)' }, { value: 'top-left', label: 'Float: top left' }, { value: 'top-right', label: 'Float: top right' }, { value: 'bottom-left', label: 'Float: bottom left' }, { value: 'bottom-right', label: 'Float: bottom right' }, { value: 'bottom-center', label: 'Float: bottom centre' }] },
+        ...aosFields,
+      },
+      defaultProps: { label: 'Label', value: 'Detail text', position: 'static' as const, ...aosDefaults },
+      render: Chip,
     },
     Accordion: {
       label: 'Accordion',
@@ -1455,10 +1606,10 @@ export const footerPuckRscConfig = {
 export const layoutPuckConfig = {
   categories: {
     layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
-    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],                         defaultExpanded: false },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
-    content:    { title: 'Content',    components: ['Hero', 'Card', 'Callout', 'Badge', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
@@ -1483,15 +1634,19 @@ export const layoutPuckConfig = {
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,
     Quote:        puckConfig.components.Quote,
+    Caption:      puckConfig.components.Caption,
     ButtonLink:   puckConfig.components.ButtonLink,
     CTABanner:    puckConfig.components.CTABanner,
     ImageBlock:   puckConfig.components.ImageBlock,
     VideoEmbed:   puckConfig.components.VideoEmbed,
     Embed:        puckConfig.components.Embed,
     Hero:         puckConfig.components.Hero,
+    Eyebrow:      puckConfig.components.Eyebrow,
     Card:         puckConfig.components.Card,
     Callout:      puckConfig.components.Callout,
     Badge:        puckConfig.components.Badge,
+    Trustline:    puckConfig.components.Trustline,
+    Chip:         puckConfig.components.Chip,
     Accordion:    puckConfig.components.Accordion,
     FeatureList:  puckConfig.components.FeatureList,
     Stats:        puckConfig.components.Stats,

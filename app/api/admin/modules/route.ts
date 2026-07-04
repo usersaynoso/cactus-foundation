@@ -13,8 +13,9 @@ import {
 } from '@/lib/modules/manifest'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
-import { getGitHubConfigStatus } from '@/lib/config/env'
+import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
+import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { compareVersions } from '@/lib/updates/core'
 
@@ -201,4 +202,96 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, name: manifest.name, status: 'deploying', redeployTriggered: true })
+}
+
+const BulkPatch = z.object({
+  action: z.literal('update-all'),
+})
+
+// Updates every installed module with a pending release in a single deploy, rather
+// than one push+build per module (which would also collide on the deploy lock).
+export async function PATCH(request: NextRequest) {
+  const user = await getSessionFromCookie()
+  if (!user) return errorResponse('Not authenticated', 401)
+  if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
+
+  const parsed = BulkPatch.safeParse(await request.json())
+  if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
+
+  if (isLocalMode()) {
+    return errorResponse('Module updates are not available in local-development mode. Update the module repo and redeploy on Vercel.', 503)
+  }
+
+  const ghConfigStatus = await getGitHubConfigStatus()
+  if (ghConfigStatus === 'app_not_installed') {
+    return errorResponse(
+      'GitHub App is connected but not yet installed on a repository. Go to Settings → Integrations and click "Install app on repository".',
+      503
+    )
+  }
+  if (ghConfigStatus === 'not_configured') {
+    return errorResponse(
+      'GitHub is not configured. Connect a GitHub App or set GITHUB_API_TOKEN to update modules.',
+      503
+    )
+  }
+
+  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  if (lock) return errorResponse('Another install or update is in progress', 409)
+
+  const pending = await prisma.module.findMany({ where: { status: 'update_available' } })
+  if (pending.length === 0) {
+    return NextResponse.json({ ok: true, updated: 0, failed: [] })
+  }
+
+  await prisma.deployLock.create({ data: { id: 'singleton', lockedBy: 'modules:update-all' } })
+
+  const updated: { id: string; name: string; tag: string }[] = []
+  const failed: string[] = []
+
+  try {
+    for (const mod of pending) {
+      const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
+      if (!release) {
+        failed.push(mod.name)
+        continue
+      }
+      await prisma.module.update({
+        where: { id: mod.id },
+        data: { status: 'deploying', pendingVersion: release.tag, updateAvailable: null, updateNotes: null },
+      })
+      updated.push({ id: mod.id, name: mod.name, tag: release.tag })
+    }
+  } finally {
+    await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+  }
+
+  if (updated.length === 0) {
+    return NextResponse.json({ ok: true, updated: 0, failed })
+  }
+
+  const { triggered } = await startDeferredRedeploy()
+  if (!triggered) {
+    // No Vercel creds: apply each update optimistically, same as the single-module path.
+    for (const m of updated) {
+      await prisma.module.update({
+        where: { id: m.id },
+        data: { status: 'pending_deploy', version: m.tag, pendingVersion: null, updateAvailable: null, updateNotes: null },
+      })
+      try {
+        await clearAlert(`module-update:${m.id}`)
+      } catch (err) {
+        console.error('[modules] Failed to clear module-update notification:', err)
+      }
+    }
+    const [first] = updated
+    await recordDeploymentNeeded({
+      label: updated.length === 1 && first
+        ? `Module '${first.name}' updated to v${first.tag.replace(/^v/i, '')}`
+        : `${updated.length} modules updated`,
+    })
+    return NextResponse.json({ ok: true, updated: updated.length, failed, status: 'pending_deploy' })
+  }
+
+  return NextResponse.json({ ok: true, updated: updated.length, failed, status: 'deploying', redeployTriggered: true })
 }

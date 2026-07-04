@@ -7,6 +7,9 @@ import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
+
+const MAX_FONT_SEARCH_RESULTS = 50
 
 const POPULAR_FONTS = [
   'system-ui, sans-serif',
@@ -230,6 +233,16 @@ export default function StylesPage() {
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, headings: { ...t.themeStyle.headings, [tag]: { ...t.themeStyle.headings[tag], ...patch } } } }))
   }
 
+  const setDisplay = (patch: Record<string, unknown>) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, display: { ...t.themeStyle.display, ...patch } } }))
+  }
+
+  const setCaption = (patch: Record<string, unknown>) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, caption: { ...t.themeStyle.caption, ...patch } } }))
+  }
+
   const setButtons = (patch: Partial<DesignTokens['themeStyle']['buttons']>) => {
     dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, ...patch } } }))
@@ -446,11 +459,23 @@ export default function StylesPage() {
               <TypoGroup value={tokens.themeStyle.body} onChange={patch => { setBody(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
               <ColourInput label="Text colour" value={tokens.themeStyle.body.colour} onChange={v => { setBody({ colour: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
+
+            <Section title="Caption / small text">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Small text for labels, badges, and footnotes. Available anywhere via the Caption block, not just form-field labels.</p>
+              <TypoGroup value={tokens.themeStyle.caption ?? {}} onChange={patch => { setCaption(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
+              <ColourInput label="Text colour" value={tokens.themeStyle.caption?.colour} onChange={v => { setCaption({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+            </Section>
           </>
         )}
 
         {activeTab === 'headings' && (
           <>
+            <Section title="Display (hero heading, largest - above H1)">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>For homepage heroes and campaign banners. Set a Heading block&apos;s level to &ldquo;Display&rdquo; in Puck to use it.</p>
+              <TypoGroup value={tokens.themeStyle.display ?? {}} onChange={patch => { setDisplay(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
+              <ColourInput label="Colour" value={tokens.themeStyle.display?.colour} onChange={v => { setDisplay({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+            </Section>
+
             <Section title="Headings">
               {(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).map(tag => (
                 <div key={tag} style={{ marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden' }}>
@@ -630,9 +655,8 @@ function FontPickerField({ label, value, onChange, globalFonts }: { label: strin
   const filteredGlobals = (globalFonts ?? []).filter(f =>
     f.family && (!q || f.name.toLowerCase().includes(q) || f.family.toLowerCase().includes(q))
   )
-  const filtered = search
-    ? POPULAR_FONTS.filter(f => f.toLowerCase().includes(q))
-    : POPULAR_FONTS
+  const matches = search ? (GOOGLE_FONTS as string[]).filter(f => f.toLowerCase().includes(q)) : POPULAR_FONTS
+  const filtered = search ? matches.slice(0, MAX_FONT_SEARCH_RESULTS) : matches
 
   return (
     <div className="field" ref={ref} style={{ position: 'relative' }}>
@@ -674,6 +698,11 @@ function FontPickerField({ label, value, onChange, globalFonts }: { label: strin
               {font}
             </button>
           ))}
+          {search && matches.length > MAX_FONT_SEARCH_RESULTS && (
+            <div style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+              {matches.length - MAX_FONT_SEARCH_RESULTS} more match - keep typing to narrow down
+            </div>
+          )}
         </div>
       )}
     </div>

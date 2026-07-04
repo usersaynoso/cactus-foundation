@@ -1775,6 +1775,60 @@ tbody tr:hover {
 }
 
 /* ============================================================
+   PUCK: EYEBROW PULSE DOT
+   ============================================================ */
+@keyframes cactus-pulse-dot {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 9px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.cactus-eyebrow-dot {
+  animation: cactus-pulse-dot 2.2s infinite;
+}
+
+/* ============================================================
+   PUCK: HEADING STAGGER-LINE REVEAL
+   ============================================================ */
+@keyframes cactus-stagger-rise {
+  to { transform: translateY(0); opacity: 1; }
+}
+.cactus-stagger-line {
+  display: block;
+  overflow: hidden;
+}
+.cactus-stagger-line-inner {
+  display: block;
+  transform: translateY(110%);
+  opacity: 0;
+  animation: cactus-stagger-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+/* ============================================================
+   PUCK: SECTION GRID-SCAN DECORATIVE BACKGROUND
+   ============================================================ */
+@keyframes cactus-scan-sweep {
+  from { top: -40%; }
+  to   { top: 110%; }
+}
+.cactus-section-grid-scan {
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.cactus-section-scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -40%;
+  height: 38%;
+  background: linear-gradient(180deg, transparent, var(--color-primary-subtle, transparent), transparent);
+  opacity: 0.5;
+  animation: cactus-scan-sweep 5.5s linear infinite;
+  pointer-events: none;
+}
+
+/* ============================================================
    RESPONSIVE VISIBILITY
    ============================================================ */
 @media (min-width: 1024px)  { .hide-desktop { display: none !important; } }

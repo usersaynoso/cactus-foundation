@@ -24,7 +24,7 @@ You can customise further after applying a preset, or ignore presets entirely an
 
 ### Fonts and typography tab
 
-- **Global fonts** - define named font styles (for example, "Brand heading font"). Cactus loads them from Google Fonts automatically.
+- **Global fonts** - define named font styles (for example, "Brand heading font"). Search any Google Font by name and Cactus loads it automatically - no coding, no separate download step.
 - **Body text** - the font, size, line height, and weight used for ordinary paragraph text.
 
 ### Headings tab
