@@ -7,6 +7,7 @@ const config = [
     ignores: [
       'lib/modules/**',
       'lib/puck/module-components.ts',
+      'lib/puck/module-rsc-components.ts',
       'lib/layout/module-layout-types.ts',
       'lib/setup/module-starter-layouts.ts',
       '.next/**',

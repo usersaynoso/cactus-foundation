@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { Render } from '@puckeditor/core/rsc'
-import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config'
+import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config.rsc'
 import type { Data } from '@puckeditor/core'
 import AosInit from '@/lib/puck/components/AosInit'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'

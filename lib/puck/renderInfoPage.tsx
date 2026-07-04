@@ -1,5 +1,5 @@
 import { Render } from '@puckeditor/core/rsc'
-import { puckRscConfig } from '@/lib/puck/config'
+import { puckRscConfig } from '@/lib/puck/config.rsc'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { markdownToHtml } from '@/lib/sanitize'
