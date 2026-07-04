@@ -56,7 +56,7 @@ Visitors land on a front page showing your categories, a map of everything publi
 
 ## Linking to Directory content from a menu
 
-When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Directory** to link directly to a category or a listing, instead of typing out the address by hand.
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Directory** to link directly to the Directory home page, a category, or a listing, instead of typing out the address by hand.
 
 ---
 

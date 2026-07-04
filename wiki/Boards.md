@@ -74,7 +74,7 @@ Every tag has its own page listing threads carrying it, at `/boards/tag/tag-name
 
 ## Linking to Boards content from a menu
 
-When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Boards** to link directly to a category, board, sub-board or tag, instead of typing out the address by hand.
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Boards** to link directly to the Boards home page, a category, board, sub-board or tag, instead of typing out the address by hand.
 
 ---
 

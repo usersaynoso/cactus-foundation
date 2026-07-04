@@ -32,6 +32,10 @@ type EntityKind = { id: string; label: string }
 type ModuleEntityGroup = { moduleId: string; moduleLabel: string; kinds: EntityKind[] }
 type EntitySearchResult = { id: string; label: string; hint?: string }
 
+// Steps of the "Add item" lightbox: root (choose a source) -> a leaf picker.
+// module-kinds sits between picking a module and picking a specific entity kind of that module.
+type ModalStep = 'root' | 'page' | 'external' | 'module-kinds' | 'module-search' | null
+
 function effectiveLabel(item: MenuItemFull): string {
   if (item.type === 'PAGE') return item.label ?? item.page?.title ?? '(untitled)'
   if (item.type === 'MODULE_ENTITY') return item.label ?? item.moduleEntity?.label ?? '(no label)'
@@ -76,7 +80,7 @@ export default function MenuDetailPage() {
   const [saving, setSaving] = useState(false)
 
   // Add item modal state
-  const [addMode, setAddMode] = useState<'page' | 'external' | 'module' | null>(null)
+  const [modalStep, setModalStep] = useState<ModalStep>(null)
   const [addParentId, setAddParentId] = useState<string | null>(null)
   // Page picker
   const [pageSearch, setPageSearch] = useState('')
@@ -124,9 +128,64 @@ export default function MenuDetailPage() {
 
   useEffect(() => { load() }, [load])
 
+  function openAddModal(parentId: string | null = null) {
+    setAddParentId(parentId)
+    setModalStep('root')
+  }
+
+  function selectModule(moduleId: string) {
+    setSelectedModuleId(moduleId)
+    setModalStep('module-kinds')
+  }
+
+  function selectKind(kindId: string) {
+    setSelectedKind(kindId)
+    setEntitySearch('')
+    setModalStep('module-search')
+  }
+
+  function backToRoot() {
+    setSelectedModuleId('')
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+    setModalStep('root')
+  }
+
+  function backToKinds() {
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+    setModalStep('module-kinds')
+  }
+
+  function closeModal() {
+    setModalStep(null)
+    setAddParentId(null)
+    setPageSearch('')
+    setPageResults([])
+    setExtLabel('')
+    setExtUrl('')
+    setExtNewTab(false)
+    setAddError('')
+    setSelectedModuleId('')
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+  }
+
+  // Load the module list (and each module's entity kinds) once the root screen opens
+  useEffect(() => {
+    if (modalStep !== 'root') return
+    fetch('/api/admin/menus/module-entities')
+      .then((res) => res.json())
+      .then((d) => setModuleGroups(d.modules ?? []))
+      .catch(() => setModuleGroups([]))
+  }, [modalStep])
+
   // Page search for the page picker
   useEffect(() => {
-    if (addMode !== 'page') return
+    if (modalStep !== 'page') return
     setPageSearchLoading(true)
     const timeout = setTimeout(async () => {
       try {
@@ -147,7 +206,7 @@ export default function MenuDetailPage() {
       }
     }, 200)
     return () => clearTimeout(timeout)
-  }, [pageSearch, addMode, menu])
+  }, [pageSearch, modalStep, menu])
 
   async function addPageItem(page: PageResult) {
     setAddError('')
@@ -159,25 +218,16 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
     }
   }
 
-  // Load the module list (and each module's entity kinds) once when the module tab opens
-  useEffect(() => {
-    if (addMode !== 'module') return
-    fetch('/api/admin/menus/module-entities')
-      .then((res) => res.json())
-      .then((d) => setModuleGroups(d.modules ?? []))
-      .catch(() => setModuleGroups([]))
-  }, [addMode])
-
   // Search entities once a module + kind is chosen
   useEffect(() => {
-    if (addMode !== 'module' || !selectedModuleId || !selectedKind) { setEntityResults([]); return }
+    if (modalStep !== 'module-search' || !selectedModuleId || !selectedKind) { setEntityResults([]); return }
     setEntitySearchLoading(true)
     const timeout = setTimeout(async () => {
       try {
@@ -192,7 +242,7 @@ export default function MenuDetailPage() {
       }
     }, 200)
     return () => clearTimeout(timeout)
-  }, [addMode, selectedModuleId, selectedKind, entitySearch])
+  }, [modalStep, selectedModuleId, selectedKind, entitySearch])
 
   async function addModuleEntityItem(result: EntitySearchResult) {
     setAddError('')
@@ -210,7 +260,7 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
@@ -228,26 +278,11 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
     }
-  }
-
-  function closeAddModal() {
-    setAddMode(null)
-    setAddParentId(null)
-    setPageSearch('')
-    setPageResults([])
-    setExtLabel('')
-    setExtUrl('')
-    setExtNewTab(false)
-    setAddError('')
-    setSelectedModuleId('')
-    setSelectedKind('')
-    setEntitySearch('')
-    setEntityResults([])
   }
 
   function startEdit(item: MenuItemFull) {
@@ -368,6 +403,35 @@ export default function MenuDetailPage() {
   if (!menu) return <div className="alert alert-danger">{error || 'Menu not found'}</div>
 
   const topLevel = [...menu.items].filter((i) => !i.parentId).sort((a, b) => a.order - b.order)
+  const activeModuleGroup = moduleGroups.find((m) => m.moduleId === selectedModuleId) ?? null
+  const activeKind = activeModuleGroup?.kinds.find((k) => k.id === selectedKind) ?? null
+  const modalTitle =
+    modalStep === 'page' ? 'Link to a page'
+    : modalStep === 'external' ? 'External link'
+    : modalStep === 'module-kinds' ? (activeModuleGroup?.moduleLabel ?? 'Module content')
+    : modalStep === 'module-search' ? `${activeModuleGroup?.moduleLabel ?? 'Module content'} · ${activeKind?.label ?? ''}`
+    : addParentId ? 'Add child item' : 'Add menu item'
+
+  // A full-width selectable row used on the root and module-kinds screens of the add-item lightbox.
+  function OptionRow({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick: () => void }) {
+    return (
+      <button
+        onClick={onClick}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem',
+          width: '100%', padding: '0.75rem 1rem',
+          border: '1px solid var(--color-border)', borderRadius: 'var(--radius)',
+          background: 'var(--color-surface)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.125rem' }}>
+          <span style={{ fontWeight: 500 }}>{title}</span>
+          {subtitle && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{subtitle}</span>}
+        </span>
+        <span style={{ color: 'var(--color-text-muted)' }} aria-hidden>›</span>
+      </button>
+    )
+  }
 
   function ItemRow({ item, depth = 0 }: { item: MenuItemFull; depth?: number }) {
     const children = menu!.items.filter((c) => c.parentId === item.id).sort((a, b) => a.order - b.order)
@@ -524,9 +588,7 @@ export default function MenuDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {saving && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>Saving…</span>}
-          <button className="btn btn-secondary" onClick={() => setAddMode('page')}>+ Page link</button>
-          <button className="btn btn-secondary" onClick={() => setAddMode('module')}>+ Module content</button>
-          <button className="btn btn-secondary" onClick={() => setAddMode('external')}>+ External link</button>
+          <button className="btn btn-primary" onClick={() => openAddModal(null)}>+ Add item</button>
         </div>
       </div>
 
@@ -538,13 +600,11 @@ export default function MenuDetailPage() {
       )}
 
       {/* Add parent context banner */}
-      {addParentId && !addMode && (
+      {addParentId && !modalStep && (
         <div style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: '1rem', fontSize: 'var(--text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Adding a child item under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong></span>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('page')}>+ Page link</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('module')}>+ Module content</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('external')}>+ External link</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setModalStep('root')}>+ Add item</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setAddParentId(null)}>Cancel</button>
           </div>
         </div>
@@ -552,7 +612,7 @@ export default function MenuDetailPage() {
 
       {menu.items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-          This menu has no items yet. Use the buttons above to add links.
+          This menu has no items yet. Use &quot;+ Add item&quot; above to add links.
         </div>
       )}
 
@@ -580,37 +640,51 @@ export default function MenuDetailPage() {
         Drag rows to reorder. Use &quot;+ Child&quot; to add nested items, &quot;↑ Promote&quot; to move an item up one level, or &quot;Nest under…&quot; to re-parent.
       </p>
 
-      {/* Add item modal */}
-      {(addMode === 'page' || addMode === 'external' || addMode === 'module') && (
+      {/* Add item lightbox */}
+      {modalStep !== null && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={(e) => e.target === e.currentTarget && closeAddModal()}
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
         >
           <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', width: '90vw', maxWidth: 560, padding: 'var(--space-6)', boxShadow: 'var(--shadow-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.125rem' }}>
-                {addParentId ? 'Add child item' : 'Add menu item'}
-              </h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  className={addMode === 'page' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('page')}
-                >Link to page</button>
-                <button
-                  className={addMode === 'module' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('module')}
-                >Module content</button>
-                <button
-                  className={addMode === 'external' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('external')}
-                >External link</button>
-                <button type="button" aria-label="Close" onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {modalStep !== 'root' && (
+                  <button
+                    type="button"
+                    aria-label="Back"
+                    onClick={modalStep === 'module-search' ? backToKinds : backToRoot}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1, padding: 0 }}
+                  >
+                    ←
+                  </button>
+                )}
+                <h2 style={{ margin: 0, fontSize: '1.125rem' }}>{modalTitle}</h2>
               </div>
+              <button type="button" aria-label="Close" onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
             </div>
 
             {addError && <div className="alert alert-danger" style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>{addError}</div>}
 
-            {addMode === 'page' && (
+            {modalStep === 'root' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <OptionRow title="Page" subtitle="Link to one of your site's pages" onClick={() => setModalStep('page')} />
+                {moduleGroups.map((m) => (
+                  <OptionRow key={m.moduleId} title={m.moduleLabel} subtitle={`Link to ${m.moduleLabel} content`} onClick={() => selectModule(m.moduleId)} />
+                ))}
+                <OptionRow title="External link" subtitle="Link to any other web address" onClick={() => setModalStep('external')} />
+              </div>
+            )}
+
+            {modalStep === 'module-kinds' && activeModuleGroup && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {activeModuleGroup.kinds.map((k) => (
+                  <OptionRow key={k.id} title={k.label} onClick={() => selectKind(k.id)} />
+                ))}
+              </div>
+            )}
+
+            {modalStep === 'page' && (
               <>
                 <div className="field" style={{ marginBottom: '0.5rem' }}>
                   <input
@@ -646,69 +720,41 @@ export default function MenuDetailPage() {
               </>
             )}
 
-            {addMode === 'module' && (
+            {modalStep === 'module-search' && (
               <>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <select
-                    value={selectedModuleId}
-                    onChange={(e) => { setSelectedModuleId(e.target.value); setSelectedKind(''); setEntitySearch('') }}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Choose module…</option>
-                    {moduleGroups.map((m) => (
-                      <option key={m.moduleId} value={m.moduleId}>{m.moduleLabel}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedKind}
-                    onChange={(e) => { setSelectedKind(e.target.value); setEntitySearch('') }}
-                    disabled={!selectedModuleId}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Choose type…</option>
-                    {moduleGroups.find((m) => m.moduleId === selectedModuleId)?.kinds.map((k) => (
-                      <option key={k.id} value={k.id}>{k.label}</option>
-                    ))}
-                  </select>
+                <div className="field" style={{ marginBottom: '0.5rem' }}>
+                  <input
+                    value={entitySearch}
+                    onChange={(e) => setEntitySearch(e.target.value)}
+                    placeholder="Search…"
+                    autoFocus
+                  />
                 </div>
-
-                {selectedModuleId && selectedKind && (
-                  <>
-                    <div className="field" style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        value={entitySearch}
-                        onChange={(e) => setEntitySearch(e.target.value)}
-                        placeholder="Search…"
-                        autoFocus
-                      />
-                    </div>
-                    <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
-                      {entitySearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
-                      {!entitySearchLoading && entityResults.length === 0 && (
-                        <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>No matches</p>
-                      )}
-                      {entityResults.map((result) => (
-                        <button
-                          key={result.id}
-                          onClick={() => addModuleEntityItem(result)}
-                          style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            width: '100%', padding: '0.625rem 0.875rem',
-                            border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
-                            background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                          }}
-                        >
-                          <span style={{ fontWeight: 500 }}>{result.label}</span>
-                          {result.hint && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{result.hint}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
+                  {entitySearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
+                  {!entitySearchLoading && entityResults.length === 0 && (
+                    <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>No matches</p>
+                  )}
+                  {entityResults.map((result) => (
+                    <button
+                      key={result.id}
+                      onClick={() => addModuleEntityItem(result)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        width: '100%', padding: '0.625rem 0.875rem',
+                        border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
+                        background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>{result.label}</span>
+                      {result.hint && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{result.hint}</span>}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
 
-            {addMode === 'external' && (
+            {modalStep === 'external' && (
               <>
                 <div className="field">
                   <label>Label</label>

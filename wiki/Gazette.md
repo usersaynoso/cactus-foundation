@@ -58,7 +58,7 @@ Every author also gets a page listing everything they've written, at `/gazette/a
 
 ## Linking to Gazette content from a menu
 
-When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Gazette** to link directly to a post, tag, series or author, instead of typing out the address by hand.
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Gazette** to link directly to the Gazette home page, a post, tag, series or author, instead of typing out the address by hand.
 
 ---
 
