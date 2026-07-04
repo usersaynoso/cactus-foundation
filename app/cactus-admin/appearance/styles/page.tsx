@@ -7,6 +7,9 @@ import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
+
+const MAX_FONT_SEARCH_RESULTS = 50
 
 const POPULAR_FONTS = [
   'system-ui, sans-serif',
@@ -630,9 +633,8 @@ function FontPickerField({ label, value, onChange, globalFonts }: { label: strin
   const filteredGlobals = (globalFonts ?? []).filter(f =>
     f.family && (!q || f.name.toLowerCase().includes(q) || f.family.toLowerCase().includes(q))
   )
-  const filtered = search
-    ? POPULAR_FONTS.filter(f => f.toLowerCase().includes(q))
-    : POPULAR_FONTS
+  const matches = search ? (GOOGLE_FONTS as string[]).filter(f => f.toLowerCase().includes(q)) : POPULAR_FONTS
+  const filtered = search ? matches.slice(0, MAX_FONT_SEARCH_RESULTS) : matches
 
   return (
     <div className="field" ref={ref} style={{ position: 'relative' }}>
@@ -674,6 +676,11 @@ function FontPickerField({ label, value, onChange, globalFonts }: { label: strin
               {font}
             </button>
           ))}
+          {search && matches.length > MAX_FONT_SEARCH_RESULTS && (
+            <div style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+              {matches.length - MAX_FONT_SEARCH_RESULTS} more match - keep typing to narrow down
+            </div>
+          )}
         </div>
       )}
     </div>

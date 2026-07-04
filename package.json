@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.222",
+  "version": "0.5.223",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && node scripts/generate-module-layout-types.mjs && next dev --webpack",
@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:status": "prisma migrate status",
-    "sync-wiki": "node scripts/sync-wiki.mjs"
+    "sync-wiki": "node scripts/sync-wiki.mjs",
+    "fonts:refresh": "node scripts/fetch-google-fonts.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
