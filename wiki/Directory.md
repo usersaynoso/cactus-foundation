@@ -19,7 +19,7 @@ Give someone `directory.manage` without `directory.access` and they can still wo
 
 ## Categories
 
-From **Directory → Categories**, anyone with `directory.manage` can add a category with a name, an optional description, and an emoji icon. Drag rows to change the order they appear in on the public front page. A category can't be deleted while it still has entries in it - move or remove those first, then the category will delete cleanly.
+From **Directory → Categories**, anyone with `directory.manage` can add a category with a name, an optional description, and an emoji icon. Drag rows, or use the up/down arrows if dragging isn't your thing, to change the order they appear in on the public front page. Click an entry count to jump straight to that category's entries. A category can't be deleted while it still has entries in it - move or remove those first, then the category will delete cleanly.
 
 ---
 
@@ -34,25 +34,25 @@ From **Directory → Entries → New entry**, fill in:
 - **Media** - add one or more images from your media library; drag to reorder, the first one becomes the cover photo.
 - **Tags** - free-text, with suggestions drawn from tags you've already used elsewhere.
 
-**Save Draft** keeps it hidden from the public site; **Publish** makes it live straight away. **Duplicate** copies an existing entry (handy for near-identical listings), and **Copy preview link** gives you a private link to a draft, safe to share for a look before it goes live - generating a new one cuts off the old link.
+**Save Draft** keeps it hidden from the public site; **Publish** makes it live straight away, and a quiet "Saved" tick confirms it went through. Once an entry is published, a **View live** link appears so you can jump straight to its public page. **Duplicate** copies an existing entry (handy for near-identical listings), and **Copy preview link** gives you a private link to a draft, safe to share for a look before it goes live - generating a new one cuts off the old link.
 
 ---
 
 ## Finding entries
 
-**Directory → Entries** lists everything with filters for category, status, featured, and a "missing location" flag for anything without coordinates yet, plus a search box and bulk publish/unpublish/delete for tidying up in one go.
+**Directory → Entries** lists everything with filters for category, status, featured, and a "missing location" flag for anything without coordinates yet, plus a search box, a running count of how many entries match, and bulk publish/unpublish/delete for tidying up in one go. Click anywhere on a row to open it, and anything without a map pin gets a little ⚠️ next to its area so it doesn't slip through unnoticed.
 
 ---
 
 ## Bringing in a spreadsheet
 
-If you've got listings sitting in a spreadsheet, **Import CSV** on the Entries page takes a CSV file with columns for name, category, coordinates, description, contact details and tags (piped together with a `|`). Cactus checks every row before anything is written, flags anything it can't make sense of, and lets you download a report of just the problem rows to fix and try again. Everything comes in as a draft, so you can give it a once-over before publishing. Turn the importer off entirely from **Settings → Directory**, if you'd rather nobody used it.
+If you've got listings sitting in a spreadsheet, **Import CSV** on the Entries page takes a CSV file with columns for name, category, coordinates, description, contact details and tags (piped together with a `|`). Not sure of the format? Grab the **Download example CSV** button for a template with one filled-in row to copy from. Drop your file onto the page or click to choose it as normal; Cactus checks every row before anything is written, flags anything it can't make sense of, and lets you download a report of just the problem rows to fix and try again. Everything comes in as a draft, so you can give it a once-over before publishing, and once it's done you're offered a direct link through to the entries list. Turn the importer off entirely from **Settings → Directory**, if you'd rather nobody used it.
 
 ---
 
 ## The public directory
 
-Visitors land on a front page showing your categories, a map of everything published, and a paginated list with featured entries pinned to the top. Each category has its own page with a filterable map, an area filter, sorting (newest, alphabetical, or by route marker if any entry in that category has one set), and a live search box. An entry's own page shows its photos, write-up, contact details and a single-pin map.
+Visitors land on a front page showing your categories, a map of everything published, and a paginated "All listings" section with featured entries pinned to the top and a running count of how many there are. Each category has its own page with a breadcrumb back to the directory, a filterable map, an area filter, sorting (newest, alphabetical, or by route marker if any entry in that category has one set), a live search box, and a count of what's currently showing. An entry's own page shows a breadcrumb trail, its photos, write-up, a click-to-call phone number, and a **Get directions** link that opens the address in Google Maps - handy for anyone actually trying to get there.
 
 ## Linking to Directory content from a menu
 
