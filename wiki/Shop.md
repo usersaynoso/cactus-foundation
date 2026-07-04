@@ -1,6 +1,6 @@
 # Shop
 
-**Shop** turns your Cactus site into a fully working shop: products, a cart, checkout, orders, discounts, reviews and more - all from your own admin, no third-party shop platform needed.
+**Shop** turns your Cactus site into a fully working shop: products, a cart, checkout, orders, discounts and more - all from your own admin, no third-party shop platform needed.
 
 The shop lives at `/shop` on your site (`/shop/products/your-product` for a product, `/shop/categories/mugs` for a category, and so on).
 
@@ -12,7 +12,7 @@ Shop has seven permissions, set on your core roles from **Settings → Users →
 
 - `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
 - `shop.manage` - full run of the shop: settings, email templates, storefront page layouts, tax and shipping setup. Overrides every other Shop permission below.
-- `shop.products` - create, edit and delete products, categories, tags and collections; moderate reviews; run CSV imports and exports.
+- `shop.products` - create, edit and delete products, categories, tags and collections; run CSV imports and exports.
 - `shop.orders` - view and manage orders and refunds.
 - `shop.customers` - view customer records.
 - `shop.discounts` - create and manage coupon codes and automatic discounts.
@@ -72,12 +72,6 @@ Refunds go back through whichever payment method the customer used automatically
 
 - **Coupon codes** - a code customers type in at checkout. Percentage off, a fixed amount off, or free shipping. Set a minimum order value, a total usage limit, and a per-customer limit if you like.
 - **Automatic discounts** - apply themselves with no code needed, whenever their conditions are met. Useful for a blanket "10% off everything this weekend" or a free-shipping threshold. When several could apply at once, priority decides which wins.
-
----
-
-## Reviews
-
-Customers can leave a star rating and a written review on any product once they've bought it (or without buying it, if you'd rather not require that). Every review sits in a moderation queue at **Shop → Reviews** until you approve or reject it - nothing goes live unmoderated. Reviews from a genuine buyer show a "Verified purchase" badge automatically.
 
 ---
 
