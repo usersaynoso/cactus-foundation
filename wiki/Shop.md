@@ -118,6 +118,10 @@ The look of every kind of shop page can be customised in **Appearance → Layout
 
 Shop Home, Product, Checkout and Confirmation always show one of these designs (a plain default is published from the moment Shop is switched on, so there's never a blank page). Category and Collection pages keep their current simple grid look until you publish a starter for them - nothing changes there until you actively pick one.
 
+The product grid shows each item as a card with its photo, price and a short line of detail, and can flag an item with a small badge - **New**, **Low stock** or a **Trade price** - worked out from the product's tags and its stock level. Give a product the `new` or `trade` tag to earn its badge; the low-stock badge appears on its own once stock drops to your warning threshold.
+
+You can also drop a whole **Category** layout onto any other page - your homepage, for instance - using the **Embed Layout** block, then pick the category and the number of products to show. See [Managing pages](Managing-pages) for how that block works.
+
 Editing layouts is covered by the core **Appearance → Layouts** permission, same as your header and footer - not by any of the Shop permissions above. A role with `shop.manage` but not that permission can run every other part of the shop but won't see the Layouts screen.
 
 ---

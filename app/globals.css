@@ -1829,6 +1829,46 @@ tbody tr:hover {
 }
 
 /* ============================================================
+   PUCK: FEATURE-LIST GLYPH ROW (hover lift for the "beliefs" variant)
+   ============================================================ */
+.cactus-feature-glyph-row {
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.cactus-feature-glyph-row:hover {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+}
+
+/* ============================================================
+   PUCK: TICKER / MARQUEE BAND
+   ============================================================ */
+@keyframes cactus-ticker {
+  to { transform: translateX(-50%); }
+}
+.cactus-ticker {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  animation-name: cactus-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.cactus-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 34px;
+  font-family: var(--display-family, Georgia, serif);
+  font-weight: 500;
+  font-size: 1.375rem;
+}
+.cactus-ticker-item::after {
+  content: "·";
+  margin-left: 34px;
+  color: var(--color-heading-mark, #E3A857);
+}
+
+/* ============================================================
    RESPONSIVE VISIBILITY
    ============================================================ */
 @media (min-width: 1024px)  { .hide-desktop { display: none !important; } }

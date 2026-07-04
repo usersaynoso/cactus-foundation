@@ -89,6 +89,12 @@ Use these to structure the page and create visual sections.
 | **Stats** | A row of numbers with labels. Good for displaying key metrics. |
 | **Logos** | A horizontal strip of logo images. |
 
+### Embed
+
+| Block | What it does |
+|-------|--------------|
+| **Embed Layout** | Drop a saved layout straight into any page. Pick the layout you want in the settings panel and its own options appear - for a shop **Category** layout, for example, you choose which category to show and how many products. Handy for putting a slice of your shop on the homepage without rebuilding it by hand. Only layouts that support embedding show up in the picker. |
+
 ### Site
 
 These blocks read from your site settings automatically - no manual content to enter.

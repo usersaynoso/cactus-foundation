@@ -9,7 +9,7 @@ import {
   layoutPuckRscConfig,
   fullPagePuckRscConfig,
   getModuleLayoutPuckRscConfig,
-} from '@/lib/puck/config'
+} from '@/lib/puck/config.rsc'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Render } from '@puckeditor/core/rsc'
-import { layoutPuckRscConfig } from './config'
+import { layoutPuckRscConfig } from './config.rsc'
 import type { Data, Config } from '@puckeditor/core'
 
 export function renderLayoutWithContent(

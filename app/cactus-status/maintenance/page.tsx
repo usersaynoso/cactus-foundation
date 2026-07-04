@@ -1,5 +1,5 @@
 import { Render } from '@puckeditor/core/rsc'
-import { fullPagePuckRscConfig } from '@/lib/puck/config'
+import { fullPagePuckRscConfig } from '@/lib/puck/config.rsc'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { prisma } from '@/lib/db/prisma'

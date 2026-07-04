@@ -24,18 +24,12 @@ import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
+import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
+import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
-import { moduleComponents, moduleRscComponents, moduleComponentsByLayoutType, moduleRscComponentsByLayoutType } from '@/lib/puck/module-components'
+import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
-import {
-  MembersLoginRsc,
-  MembersRegisterRsc,
-  MembersAccountLinkRsc,
-  MemberGateRsc,
-  TrustedMemberGateRsc,
-  MembersProfileRsc,
-} from '@/lib/puck/components/MembersBlocksRsc'
 
  
 
@@ -369,6 +363,10 @@ function ContentSlot(_props: any) {
 // Typography blocks
 // ---------------------------------------------------------------------------
 
+// Splits a line of heading text around every case-sensitive occurrence of
+// `needle`, wrapping the matches in an emphasised span. Non-matching runs stay
+// plain strings. Returns the original line untouched when there's no needle or
+// no hit, so the common (no-highlight) path allocates nothing extra.
 function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string): React.ReactNode {
   if (!needle) return line
   const parts = line.split(needle)
@@ -750,6 +748,20 @@ const TRUST_ICONS: Record<string, string> = {
   tag: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 009.58 3.24L3.24 9.58A2 2 0 003.83 11l9.58 9.59a2 2 0 002.82 0l4.36-4.36a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
 }
 
+// Larger (22px) line icons for the FeatureList "glyph" variant, where each icon
+// sits centred in a solid teal rounded square (the concept's belief rows). Kept
+// separate from TRUST_ICONS so the inline-row 15px set isn't disturbed.
+const GLYPH_ICONS: Record<string, string> = {
+  share: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>',
+  tag: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 009.58 3.24L3.24 9.58A2 2 0 003.83 11l9.58 9.59a2 2 0 002.82 0l4.36-4.36a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+  compass: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+  check: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  shield: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>',
+  clock: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  star: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>',
+  truck: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h13v13H1zM14 8h4l4 4v4h-8zM6 21a2 2 0 100-4 2 2 0 000 4zM19 21a2 2 0 100-4 2 2 0 000 4z"/></svg>',
+}
+
 function Trustline(props: any) {
   const { items = [], gap = 'normal', padding } = props
   const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
@@ -927,19 +939,88 @@ function Stats(props: any) {
 }
 
 function FeatureList(props: any) {
-  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { items, iconStyle = 'emoji', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No features yet — add some in the panel.</div>
+  // "glyph" variant: each row leads with a solid teal rounded square holding a
+  // white line-icon, with larger serif titles — the concept's "beliefs" rows.
+  // "emoji" (default) keeps the original inline emoji + compact title layout so
+  // existing FeatureList blocks render unchanged.
+  const glyph = iconStyle === 'glyph'
   return (
     <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {items.map((item: any, i: number) => (
-        <div key={i} style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', alignItems: 'flex-start' }}>
-          {item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
+        <div
+          key={i}
+          className={glyph ? 'cactus-feature-glyph-row' : undefined}
+          style={glyph
+            ? { display: 'flex', gap: '1.125rem', padding: '1.375rem 1.5rem', borderRadius: 12, alignItems: 'flex-start', border: '1px solid transparent' }
+            : { display: 'flex', gap: '1rem', marginBottom: '1.25rem', alignItems: 'flex-start' }}
+        >
+          {glyph
+            ? <span aria-hidden="true" style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'var(--color-primary)', color: 'var(--color-bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                dangerouslySetInnerHTML={{ __html: (GLYPH_ICONS[item.icon] ?? GLYPH_ICONS.check) as string }} />
+            : item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
           <div>
-            {item.title && <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{item.title}</h4>}
-            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: '0.9375rem', whiteSpace: 'pre-wrap' }}>{item.description}</p>}
+            {item.title && (glyph
+              ? <h3 style={{ margin: '0 0 0.375rem', fontFamily: 'var(--display-family, Georgia, serif)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--color-fg)', lineHeight: 1.2 }}>{item.title}</h3>
+              : <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{item.title}</h4>)}
+            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: glyph ? '0.9375rem' : '0.9375rem', maxWidth: glyph ? '48ch' : undefined, whiteSpace: 'pre-wrap' }}>{item.description}</p>}
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Spec data panel (concept's ".xcard": a windowed table with a dot title-bar
+//    and an optional "same price for all" pill on a highlighted row) ──────────
+function SpecPanel(props: any) {
+  const { title = '', rows = [], boxShadow = 'md', borderRadius = 'lg', padding } = props
+  const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.10)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
+  const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
+  return (
+    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
+      <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: radiusMap[borderRadius] ?? '16px', boxShadow: shadowMap[boxShadow] ?? shadowMap.md, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--color-border)', background: 'linear-gradient(90deg, var(--color-primary-subtle, rgba(0,0,0,0.03)), transparent)' }}>
+          <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-primary)', flexShrink: 0 }} />
+          <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-border)', flexShrink: 0 }} />
+          <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-border)', flexShrink: 0 }} />
+          {title && <b style={{ marginLeft: 6, fontSize: '0.875rem', color: 'var(--color-fg)' }}>{title}</b>}
+        </div>
+        <div>
+          {rows.map((row: any, i: number) => (
+            <div key={i} style={{ display: 'flex', gap: '1rem', padding: '12px 20px', borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--color-bg-subtle)', alignItems: 'baseline' }}>
+              <span style={{ flex: '0 0 44%', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{row.label}</span>
+              <span style={{ flex: '1 1 auto', color: 'var(--color-fg-secondary)', fontSize: '0.875rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+                {row.highlight
+                  ? <b style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>{row.value}</b>
+                  : <span>{row.value}</span>}
+                {row.badge && (
+                  <span style={{ background: 'color-mix(in srgb, var(--color-success) 12%, transparent)', color: 'var(--color-success)', borderRadius: 9999, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{row.badge}</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Ticker / marquee band (concept's ".ticker-band": a teal strip of phrases
+//    scrolling seamlessly; items are duplicated so the -50% loop is invisible) ─
+function Ticker(props: any) {
+  const { items = [], speed = 'normal' } = props
+  const speedMap: Record<string, string> = { slow: '45s', normal: '30s', fast: '20s' }
+  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No ticker phrases yet — add some in the panel.</div>
+  const loop = [...items, ...items]
+  return (
+    <div style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '16px 0', overflow: 'hidden', marginBottom: '1.5rem' }}>
+      <div className="cactus-ticker" style={{ animationDuration: speedMap[speed] ?? '30s' }}>
+        {loop.map((it: any, i: number) => (
+          <span key={i} className="cactus-ticker-item" aria-hidden={i >= items.length ? 'true' : undefined}>{it.text}</span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -1133,8 +1214,10 @@ function MembersProfileBlock() {
   )
 }
 
-// RSC-safe SiteLogo (no client hooks)
-function SiteLogoRsc(props: any) {
+// RSC-safe SiteLogo (no client hooks). Plain function, no server-only APIs —
+// safe to live in the client-reachable base config (SiteHeaderBlock below
+// renders it directly, in both the editor and the real page).
+export function SiteLogoRsc(props: any) {
   const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
@@ -1163,15 +1246,16 @@ function SiteLogoRsc(props: any) {
 // Main puckConfig
 // ---------------------------------------------------------------------------
 
-const puckConfig = {
+export const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
-    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
+    embed:      { title: 'Embed',      components: ['LayoutEmbed'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -1263,6 +1347,39 @@ const puckConfig = {
       },
       defaultProps: { style: 'solid' as const, color: 'gray' as const, thickness: 'thin' as const },
       render: Divider,
+    },
+    // ── Embed ───────────────────────────────────────────────────────────────
+    // Drop a saved Layout (e.g. a shop Category layout) into any page. Picking
+    // a layout reveals that layout type's options (module-declared) via
+    // resolveFields; the live render happens server-side (LayoutEmbedRsc in
+    // config.rsc). Editor shows a placeholder card. Kept in the `embed`
+    // category (not a module-layout category) so layouts can't embed layouts.
+    LayoutEmbed: {
+      label: 'Embed Layout',
+      fields: {
+        layoutRef: { type: 'custom' as const, label: 'Layout', render: ({ value, onChange }: any) => <LayoutPickerField value={value} onChange={onChange} /> },
+      },
+      defaultProps: { layoutRef: null },
+      resolveFields: (data: any) => {
+        const type: string | undefined = data?.props?.layoutRef?.type
+        const optionFields: Record<string, unknown> = {}
+        for (const opt of type ? moduleEmbedOptions[type] ?? [] : []) {
+          if (opt.type === 'number') optionFields[opt.key] = { type: 'number', label: opt.label }
+          else if (opt.type === 'select') optionFields[opt.key] = { type: 'select', label: opt.label, options: opt.options ?? [] }
+          else optionFields[opt.key] = { type: 'text', label: opt.label }
+        }
+        return {
+          layoutRef: { type: 'custom', label: 'Layout', render: ({ value, onChange }: any) => <LayoutPickerField value={value} onChange={onChange} /> },
+          ...optionFields,
+        }
+      },
+      render: ({ layoutRef }: any) => (
+        <div style={{ padding: '1.25rem', border: '1px dashed var(--color-border)', borderRadius: 8, background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', fontSize: '0.875rem', textAlign: 'center' }}>
+          {layoutRef?.name
+            ? <>Embedded layout: <strong style={{ color: 'var(--color-text)' }}>{layoutRef.name}</strong> <span style={{ opacity: 0.7 }}>(renders on the live page)</span></>
+            : 'Embed Layout - pick a layout in the settings panel on the right.'}
+        </div>
+      ),
     },
 
     // ── Typography ───────────────────────────────────────────────────────────
@@ -1475,9 +1592,51 @@ const puckConfig = {
     },
     FeatureList: {
       label: 'Feature List',
-      fields: { items: { type: 'array' as const, label: 'Features', getItemSummary: (item: { title?: string }) => item.title || 'Feature', arrayFields: { emoji: { type: 'text' as const, label: 'Emoji' }, title: { type: 'text' as const, label: 'Title' }, description: { type: 'textarea' as const, label: 'Description' } }, defaultItemProps: { emoji: '✨', title: 'Feature title', description: 'Describe this feature here.' } }, padding: paddingField, ...aosFields },
-      defaultProps: { items: [{ emoji: '✨', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
+      fields: {
+        iconStyle: { type: 'select' as const, label: 'Icon style', options: [{ value: 'emoji', label: 'Emoji' }, { value: 'glyph', label: 'Teal glyph square' }] },
+        items: { type: 'array' as const, label: 'Features', getItemSummary: (item: { title?: string }) => item.title || 'Feature', arrayFields: { emoji: { type: 'text' as const, label: 'Emoji (emoji style)' }, icon: { type: 'select' as const, label: 'Icon (glyph style)', options: [{ value: 'share', label: 'Share' }, { value: 'tag', label: 'Price tag' }, { value: 'compass', label: 'Compass' }, { value: 'check', label: 'Checkmark' }, { value: 'shield', label: 'Shield' }, { value: 'clock', label: 'Clock' }, { value: 'star', label: 'Star' }, { value: 'truck', label: 'Delivery' }] }, title: { type: 'text' as const, label: 'Title' }, description: { type: 'textarea' as const, label: 'Description' } }, defaultItemProps: { emoji: '✨', icon: 'check', title: 'Feature title', description: 'Describe this feature here.' } },
+        padding: paddingField, ...aosFields,
+      },
+      defaultProps: { iconStyle: 'emoji' as const, items: [{ emoji: '✨', icon: 'check', title: 'Feature one', description: 'Describe this feature.' }, { emoji: '🚀', icon: 'star', title: 'Feature two', description: 'Describe this feature.' }], padding: 'default', ...aosDefaults },
       render: FeatureList,
+    },
+    SpecPanel: {
+      label: 'Spec Panel',
+      fields: {
+        title: { type: 'text' as const, label: 'Panel title' },
+        rows: {
+          type: 'array' as const, label: 'Rows',
+          getItemSummary: (item: { label?: string }) => item.label || 'Row',
+          arrayFields: {
+            label: { type: 'text' as const, label: 'Label' },
+            value: { type: 'text' as const, label: 'Value' },
+            highlight: { type: 'select' as const, label: 'Emphasise value', options: [{ value: '', label: 'No' }, { value: 'true', label: 'Yes (brand, bold)' }] },
+            badge: { type: 'text' as const, label: 'Badge (green pill, optional)' },
+          },
+          defaultItemProps: { label: 'Label', value: 'Value', highlight: '', badge: '' },
+        },
+        boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
+        padding: paddingField,
+      },
+      defaultProps: {
+        title: 'Product record',
+        rows: [
+          { label: 'Price', value: '£249.00', highlight: 'true', badge: '✓ same for every buyer' },
+          { label: 'Lead time', value: '3 to 5 working days', highlight: '', badge: '' },
+        ],
+        boxShadow: 'md' as const, borderRadius: 'lg' as const, padding: 'none',
+      },
+      render: SpecPanel,
+    },
+    Ticker: {
+      label: 'Ticker',
+      fields: {
+        items: { type: 'array' as const, label: 'Phrases', getItemSummary: (item: { text?: string }) => item.text || 'Phrase', arrayFields: { text: { type: 'text' as const, label: 'Text' } }, defaultItemProps: { text: 'A short phrase' } },
+        speed: { type: 'select' as const, label: 'Speed', options: [{ value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }] },
+      },
+      defaultProps: { items: [{ text: 'One price for all' }, { text: 'Every answer on the page' }, { text: 'Direct from supplier to door' }], speed: 'normal' as const },
+      render: Ticker,
     },
     Stats: {
       label: 'Stats',
@@ -1553,7 +1712,7 @@ const puckConfig = {
     },
     // ── Members (MEMBERS_SPEC.md Phase 7) ──────────────────────────────────────
     // Editor renders here; the live site swaps in the RSC versions from
-    // MembersBlocksRsc.tsx via rscComponents/layoutPuckRscConfig/headerPuckRscConfig.
+    // MembersBlocksRsc.tsx — see lib/puck/config.rsc.tsx.
     MembersLogin: {
       label: 'Members: Login',
       fields: { redirectTo: { type: 'text' as const, label: 'Redirect after sign-in' } },
@@ -1653,25 +1812,6 @@ export default puckConfig
 export type PuckConfig = typeof puckConfig
 
 // ---------------------------------------------------------------------------
-// RSC-safe variants (no richtext field, SiteLogoRsc instead of client)
-// ---------------------------------------------------------------------------
-
-const rscComponents = {
-  ...puckConfig.components,
-  RichTextBlock: { ...puckConfig.components.RichTextBlock, fields: { ...puckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
-  SiteLogo: { ...puckConfig.components.SiteLogo, render: SiteLogoRsc },
-  MembersLogin: { ...puckConfig.components.MembersLogin, render: MembersLoginRsc },
-  MembersRegister: { ...puckConfig.components.MembersRegister, render: MembersRegisterRsc },
-  MembersAccountLink: { ...puckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
-  MemberGate: { ...puckConfig.components.MemberGate, render: MemberGateRsc },
-  TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
-  MembersProfile: { ...puckConfig.components.MembersProfile, render: MembersProfileRsc },
-  ...moduleRscComponents,
-}
-
-export const puckRscConfig = { ...puckConfig, components: rscComponents }
-
-// ---------------------------------------------------------------------------
 // Footer Puck config — used in Appearance > Footer editor
 // ---------------------------------------------------------------------------
 
@@ -1721,15 +1861,6 @@ export const footerPuckConfig = {
   },
 }
 
-export const footerPuckRscConfig = {
-  ...footerPuckConfig,
-  components: {
-    ...footerPuckConfig.components,
-    SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-    RichTextBlock: { ...footerPuckConfig.components.RichTextBlock, fields: { ...footerPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
-  },
-}
-
 // ---------------------------------------------------------------------------
 // Layout Puck config — used in Layouts editor (structural blocks + ContentSlot)
 // ---------------------------------------------------------------------------
@@ -1740,7 +1871,7 @@ export const layoutPuckConfig = {
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
-    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
@@ -1781,6 +1912,8 @@ export const layoutPuckConfig = {
     Chip:         puckConfig.components.Chip,
     Accordion:    puckConfig.components.Accordion,
     FeatureList:  puckConfig.components.FeatureList,
+    SpecPanel:    puckConfig.components.SpecPanel,
+    Ticker:       puckConfig.components.Ticker,
     Stats:        puckConfig.components.Stats,
     Logos:        puckConfig.components.Logos,
     SocialLinks:  puckConfig.components.SocialLinks,
@@ -1798,22 +1931,6 @@ export const layoutPuckConfig = {
     TrustedMemberGate:  puckConfig.components.TrustedMemberGate,
     MembersProfile:     puckConfig.components.MembersProfile,
     ...moduleComponents,
-  },
-}
-
-export const layoutPuckRscConfig = {
-  ...layoutPuckConfig,
-  components: {
-    ...layoutPuckConfig.components,
-    RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
-    SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-    MembersLogin: { ...layoutPuckConfig.components.MembersLogin, render: MembersLoginRsc },
-    MembersRegister: { ...layoutPuckConfig.components.MembersRegister, render: MembersRegisterRsc },
-    MembersAccountLink: { ...layoutPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
-    MemberGate: { ...layoutPuckConfig.components.MemberGate, render: MemberGateRsc },
-    TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
-    MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: MembersProfileRsc },
-    ...moduleRscComponents,
   },
 }
 
@@ -1881,30 +1998,11 @@ export const headerPuckConfig = {
   },
 }
 
-export const headerPuckRscConfig = {
-  ...headerPuckConfig,
-  root: {
-    ...headerPuckConfig.root,
-    render: headerRootRender,
-  },
-  components: {
-    ...headerPuckConfig.components,
-    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-    MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
-  },
-}
-
-// ---------------------------------------------------------------------------
-// Footer Puck config RSC — same as footerPuckConfig but kept for completeness
-// (footerPuckRscConfig already defined above)
-// ---------------------------------------------------------------------------
-
 // ---------------------------------------------------------------------------
 // Full-page Puck config — for notFound + statusPage types (no ContentSlot)
 // ---------------------------------------------------------------------------
 
 export const fullPagePuckConfig = puckConfig
-export const fullPagePuckRscConfig = puckRscConfig
 
 // ---------------------------------------------------------------------------
 // Module layout Puck config — used for module-declared layout types (e.g.
@@ -1916,8 +2014,9 @@ export const fullPagePuckRscConfig = puckRscConfig
 
 const MODULE_LAYOUT_CATEGORY_KEYS = ['layout', 'typography', 'actions', 'media', 'content'] as const
 
-function buildModuleLayoutConfig(layoutType: string, rsc: boolean) {
-  const modBlocks = (rsc ? moduleRscComponentsByLayoutType : moduleComponentsByLayoutType)[layoutType] ?? {}
+// Shared by both the editor (here) and the RSC render path (lib/puck/config.rsc.tsx)
+// so the "module declares its own blocks" wiring only exists in one place.
+export function getModuleLayoutSharedParts() {
   const sharedCategories = Object.fromEntries(
     MODULE_LAYOUT_CATEGORY_KEYS.map((k) => [k, puckConfig.categories[k]])
   )
@@ -1925,6 +2024,12 @@ function buildModuleLayoutConfig(layoutType: string, rsc: boolean) {
     MODULE_LAYOUT_CATEGORY_KEYS.flatMap((k) => puckConfig.categories[k].components)
       .map((name) => [name, (puckConfig.components as any)[name]])
   )
+  return { sharedCategories, sharedComponents }
+}
+
+export function getModuleLayoutPuckConfig(layoutType: string) {
+  const modBlocks = moduleComponentsByLayoutType[layoutType] ?? {}
+  const { sharedCategories, sharedComponents } = getModuleLayoutSharedParts()
   return {
     categories: {
       blocks: { title: 'Blocks', components: Object.keys(modBlocks), defaultExpanded: true },
@@ -1935,12 +2040,4 @@ function buildModuleLayoutConfig(layoutType: string, rsc: boolean) {
     },
     components: { ...sharedComponents, ...modBlocks },
   }
-}
-
-export function getModuleLayoutPuckConfig(layoutType: string) {
-  return buildModuleLayoutConfig(layoutType, false)
-}
-
-export function getModuleLayoutPuckRscConfig(layoutType: string) {
-  return buildModuleLayoutConfig(layoutType, true)
 }

@@ -355,7 +355,9 @@ The Puck editor (`@puckeditor/core`) is lazy-loaded - it ships no bundle to any 
 
 All blocks are defined in `lib/puck/config.tsx` and are safe for server-side rendering (no hooks, no browser APIs). Most blocks expose a **Padding (left/right)** field so editors can add breathing room without needing an extra Spacer block.
 
-Block padding is **horizontal-only** - it acts as a left/right gutter so content doesn't run to the page edges, without stacking vertical gaps on top of each block's own margins. The field's default option, **Default (site spacing)**, resolves to `var(--block-padding, 1.5rem)`, i.e. the site-wide gutter set in **Styles → Spacing** (`themeStyle.spacing.blockPadding`, emitted by `buildTokenStyles`). Content-flow blocks (Heading, Text, Rich Text, Image, Video, Embed, Quote, Button, Badge, Accordion, Feature List, Stats, Logos, Social Links, and the Contact Form module block) default to this gutter so a bare page never touches the edges. Self-padded or full-bleed blocks (Hero, CTA Banner, Callout, Card) and structural containers (Section, Grid, Group, Split) default to **None**, as does chrome reused inside the header/footer roots (those roots already apply their own 1.5rem gutter, so `noGutterDefault()` resets the reused blocks to avoid doubling up). `getPadding()` maps `default`/unset → the gutter var, `none` → `0`, and `sm`/`md`/`lg`/`xl` → `0 0.5rem`…`0 4rem`.
+Block padding is **horizontal-only** - it acts as a left/right gutter so content doesn't run to the page edges, without stacking vertical gaps on top of each block's own margins. The field's default option, **Default (site spacing)**, resolves to `var(--block-padding, 1.5rem)`, i.e. the site-wide gutter set in **Styles → Spacing & Breakpoints** (`themeStyle.spacing.blockPadding`, emitted by `buildTokenStyles`). Content-flow blocks (Heading, Text, Rich Text, Image, Video, Embed, Quote, Button, Badge, Accordion, Feature List, Stats, Logos, Social Links, and the Contact Form module block) default to this gutter so a bare page never touches the edges. Self-padded or full-bleed blocks (Hero, CTA Banner, Callout, Card) and structural containers (Section, Grid, Group, Split) default to **None**, as does chrome reused inside the header/footer roots (those roots already apply their own 1.5rem gutter, so `noGutterDefault()` resets the reused blocks to avoid doubling up). `getPadding()` maps `default`/unset → the gutter var, `none` → `0`, and `sm`/`md`/`lg`/`xl` → `0 0.5rem`…`0 4rem`.
+
+**Responsive breakpoints:** Grid and Split render fixed CSS grid templates inline (e.g. `repeat(3, 1fr)`), which don't reflow on their own. `buildTokenStyles` also emits two `@media` rules, driven by **Styles → Spacing & Breakpoints** → Tablet/Mobile breakpoint (`themeStyle.spacing.tabletBreakpoint`/`mobileBreakpoint`, default `1024px`/`640px`), that override those templates with `!important` below each width: under the mobile breakpoint, any `.puck-grid`/`.puck-split` collapses to a single column; between mobile and tablet, a `.puck-grid` with 3 or 4 columns (matched via its `data-cols` attribute) drops to 2. These two values can't be exposed as ordinary `var()`-based tokens the way colours/fonts are - a `@media` width can't read a CSS custom property - so `buildTokenStyles` always bakes literal pixel values into the rule, falling back to `1024px`/`640px` even on a fresh install that has never saved a Styles page. Since the same generated stylesheet is injected on the public frontend and into both the Pages and Layouts Puck editor canvases, resizing the editor's viewport preview (Small/Medium/Large in the Puck toolbar) shows the same stacking behaviour live.
 
 Blocks are organised into categories that appear as collapsible groups in the Puck left panel.
 
@@ -363,10 +365,10 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **Section** | Full-width container with background (colour, gradient, image), vertical padding, max-width, sticky positioning, border, box-shadow, and AOS scroll animation controls. Content rendered via an inline slot (`content` prop). |
-| **Grid** | CSS grid container (2-4 columns) with configurable gap, padding, column-width ratios (30/70, 40/60, etc.), per-column horizontal alignment, vertical alignment across all cells, and space below. Each column (`col1`-`col4`) is an inline slot. |
-| **Group** | Flexbox container with direction (row / column), justify-content, align-items, wrap, gap, and padding controls. Children rendered via an inline slot (`items` prop). Replaces the old Flex and Row blocks. Available in all configs; Split is preferred when you need independently droppable zones. |
-| **Split** | Two-column layout (50/50, 60/40, 40/60, 70/30, 30/70) using `renderDropZone` - each column is a live Puck drop zone backed by `data.zones`. Shows an 80 px placeholder when empty so editors can always see and drag into the column. Not available in `headerPuckConfig`. |
+| **Section** | Full-width container with background (colour, gradient, image, or a decorative "Grid + scan beam" preset - a faint graph-paper grid with a looping light sweep, useful as an ambient backdrop panel), vertical padding, max-width, sticky positioning, border, box-shadow, and AOS scroll animation controls. Content rendered via an inline slot (`content` prop). |
+| **Grid** | CSS grid container (2-4 columns) with configurable gap, padding, column-width ratios (30/70, 40/60, etc.), per-column horizontal alignment, vertical alignment across all cells, and space below. Each column (`col1`-`col4`) is an inline slot. Renders with a `puck-grid` class and `data-cols` attribute - see Responsive breakpoints below. |
+| **Group** | Flexbox container with direction (row / column), justify-content, align-items, wrap, gap, and padding controls. Children rendered via an inline slot (`items` prop). Replaces the old Flex and Row blocks. Available in all configs; Split is preferred when you need independently droppable zones. Already responsive via `flexWrap: 'wrap'`, so it isn't part of the breakpoint stacking below. |
+| **Split** | Two-column layout (50/50, 60/40, 40/60, 70/30, 30/70) using `renderDropZone` - each column is a live Puck drop zone backed by `data.zones`. Shows an 80 px placeholder when empty so editors can always see and drag into the column. Not available in `headerPuckConfig`. Renders with a `puck-split` class - see Responsive breakpoints below. |
 | **Spacer** *(displayed as "Space")* | Fixed vertical gap (8 px - 96 px) |
 | **Divider** | Horizontal rule - solid, dashed, or dotted; thin / medium / thick |
 
@@ -374,10 +376,11 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 
 | Block | Purpose |
 |---|---|
-| **Heading** | Standalone heading (H2–H5) with alignment, colour, and padding |
+| **Heading** | Standalone heading (Display, H2–H5) with alignment, colour, and padding. "Display" is the largest level, above H1 - for homepage heroes/campaign banners, styled from the Styles → Headings → Display tokens and rendered as a real `<h1>` tag (builder-format info pages don't auto-inject their own page-title H1). Optional "Reveal animation" (`stagger-lines`) splits the text on line breaks and animates each line rising into place on load, staggered - independent of the separate scroll-triggered animation controls on the same block. |
 | **TextBlock** *(displayed as "Text")* | Paragraph text with left / centre / right alignment |
 | **RichTextBlock** *(displayed as "Rich Text")* | Full WYSIWYG rich text editor (bold, italic, lists, blockquote, links); stores HTML |
 | **Quote** | Styled blockquote with optional attribution |
+| **Caption** | Small text styled from the Styles → Fonts & Typography → Caption tokens - for labels, footnotes, or small print anywhere on a page, not just form-field labels |
 
 #### Actions
 
@@ -399,9 +402,12 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 | Block | Purpose |
 |---|---|
 | **Hero** | Large hero section with heading, sub-heading, and CTA button |
+| **Eyebrow** | Small pill label above a heading, with an optional pulsing dot for a "live" feel |
 | **Card** | Image + heading + body text + optional CTA button |
 | **Callout** | Alert/notice box - info, success, warning, or error |
 | **Badge** | Small coloured pill label |
+| **Trustline** *(displayed as "Trust Row")* | Row of small icon + text reassurance points (checkmark, delivery, shield, clock, star, or price-tag icon) |
+| **Chip** | Small label + value card - sits in the normal flow, or floats over a `position: relative` parent (e.g. a Section) via a corner preset, for callouts pinned over an image or decorative panel |
 | **Accordion** | Collapsible FAQ using native `<details>`/`<summary>` - no JS required |
 | **FeatureList** | List of features with emoji icon, title, and description |
 | **Stats** | Row of statistic items (value + label) |
@@ -601,6 +607,8 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
   themeStyle: {
     background: { colour? }
     body:    Typo & { colour? }
+    display?: Typo & { colour? }   // hero/largest heading, above h1 - added post-launch, optional
+    caption?: Typo & { colour? }   // small label/footnote text, usable anywhere - added post-launch, optional
     links:   { colour?, hoverColour? }
     headings: { h1..h6: Typo & { colour? } }
     buttons: { typo: Typo, textColour?, bgColour?, borderColour?,
@@ -609,7 +617,7 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
     images:     { borderRadius?, borderColour?, borderWidth? }
     formFields: { typo: Typo, labelTypo: Typo, textColour?, bgColour?,
                   borderColour?, borderRadius?, labelColour? }
-    spacing?:   { blockPadding? }   // default block gutter → --block-padding
+    spacing?:   { blockPadding?, tabletBreakpoint?, mobileBreakpoint? }   // block gutter (--block-padding) + Grid/Split responsive breakpoints, defaults '1024px'/'640px'
   }
 }
 ```
@@ -619,12 +627,12 @@ The page is a single `RichTextBlock` of raw HTML inside a boxed `Section`. Becau
 | Tab | Sections |
 |---|---|
 | **Colours** | Colour Presets, Global colours (up to 12, with light/dark variants), Page background, Links (colour and hover colour) |
-| **Fonts & Typography** | Global fonts (named font definitions), Body text |
-| **Headings** | H1-H6 (collapsible, each with full typographic controls and colour) |
+| **Fonts & Typography** | Global fonts (named font definitions), Body text, Caption / small text (for labels, badges, footnotes - used by the Caption Puck block and available anywhere, not just form-field labels) |
+| **Headings** | Display (hero/largest, above H1 - used by the Heading block's "Display" level, for homepage heroes and campaign banners), H1-H6 (collapsible, each with full typographic controls and colour) |
 | **Buttons** | Typography, text/background/border colours, border width/radius/padding, hover state |
 | **Images** | Border radius, border width, border colour |
 | **Form Fields** | Label typography and colour, field typography and colours (text, background, border, radius) |
-| **Spacing** | Default block padding (left/right) - the site-wide gutter (`--block-padding`, default `1.5rem`) applied to content blocks so they don't run to the page edges |
+| **Spacing & Breakpoints** | Default block padding (left/right) - the site-wide gutter (`--block-padding`, default `1.5rem`) applied to content blocks so they don't run to the page edges; Tablet/Mobile breakpoint (default `1024px`/`640px`) - screen widths where Grid/Split blocks drop to fewer columns, see Responsive breakpoints above |
 
 Colour fields on every tab show palette swatches from Global colours; selecting a swatch stores the raw hex (not a var reference).
 
@@ -668,6 +676,8 @@ After a successful save the Styles page calls `router.refresh()`, which re-rende
   --font-body: ...; --font-heading: ...;         /* body.family, else the primary global font */
   --color-link: ...; --color-link-hover: ...;    /* from themeStyle.links */
   --h1-family/-weight/-size/-line-height/-letter-spacing/-transform/-style/-color .. --h6-*;  /* full per-heading typography */
+  --display-family/-weight/-size/-line-height/-letter-spacing/-transform/-style/-color;  /* from themeStyle.display */
+  --caption-family/-weight/-size/-line-height/-letter-spacing/-transform/-style/-color;  /* from themeStyle.caption */
   --btn-family/-weight/-size/-line-height/-letter-spacing/-transform/-style;  /* button typography */
   /* + btn colour/border/radius/padding/hover, img, field vars */
   --block-padding: 1.5rem;   /* from themeStyle.spacing.blockPadding - default Puck block gutter */
@@ -678,7 +688,15 @@ After a successful save the Styles page calls `router.refresh()`, which re-rende
 }
 @media (prefers-color-scheme: dark) { /* same dark colours + primary */ }
 /* scoped defaults: main { body typo } main h1,a,button,img,input,label { ... } */
+/* main .cactus-display { ... } main .cactus-caption { ... } - class-based, since neither has one native tag */
+@media (max-width: 640px) { .puck-grid,.puck-split { grid-template-columns: 1fr !important } }
+@media (min-width: 640px) and (max-width: 1024px) { .puck-grid[data-cols="3"],.puck-grid[data-cols="4"] { grid-template-columns: repeat(2,1fr) !important } }
+/* tabletBreakpoint/mobileBreakpoint (default 1024px/640px) - not a var(), since a @media
+   width can't read a CSS custom property; always emitted regardless of whether spacing
+   is set, unlike the other rules above */
 ```
+
+`display`/`caption` are optional in the type (unlike the always-present `headings`/`buttons`/etc): they were added after initial launch, so a site's already-stored `designTokens` row - or the fresh-install default before a first Styles save - may not have these keys yet. Every read goes through `ts?.display`/`ts?.caption` with a `?? {}` fallback, both in `buildTokenStyles`/`buildFontHref` and in the Styles page's own React state, so an old row with neither key present renders exactly as before (the Heading block's "Display" level and the Caption block just fall back to their own built-in defaults until a site owner sets real values).
 
 **Why the primary mapping matters:** buttons, links, rich text accents and every Puck component consume the semantic `--color-primary` family (defined for the admin in `globals.css`). Mapping the `primary` design colour onto these variables (rather than only the indexed `--color-N`) is what makes a colour or preset change actually recolour the public site and the Puck editor canvas. The hover/active/subtle/border shades are derived from the single primary hex - darkened in light mode, lightened in dark mode - and `--color-on-primary` is chosen by WCAG relative luminance.
 
