@@ -370,7 +370,7 @@ export default function ModulesPage() {
       <section style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>Installed</h2>
-          {updatableCount > 0 && (
+          {updatableCount > 1 && (
             <button
               className="btn btn-primary btn-sm"
               disabled={updatingAll}
