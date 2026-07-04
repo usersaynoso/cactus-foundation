@@ -1,8 +1,20 @@
 import { cookies } from 'next/headers'
-import { createHash, randomBytes } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
-import { getSessionSecret } from '@/lib/config/env'
 import { getMembersConfigCached } from '@/lib/members/config'
+import {
+  hashToken,
+  generateMemberSessionToken,
+  createMemberSession,
+  validateMemberSession,
+  deleteMemberSession,
+  deleteAllMemberSessions,
+  listMemberSessions,
+  revokeMemberSessionById,
+  createMemberTrustedBrowser,
+  revokeAllMemberTrustedBrowsers,
+  listMemberTrustedBrowsers,
+  revokeMemberTrustedBrowserById,
+} from '@/lib/members/session-core'
 import type { Member } from '@prisma/client'
 
 // Member session/cookie layer. Deliberately separate from lib/auth/session.ts:
@@ -12,43 +24,22 @@ import type { Member } from '@prisma/client'
 // for long-lived credentials; the shorter-lived tokens in lib/members/tokens.ts
 // intentionally omit it, matching lib/auth/recovery.ts).
 
+export {
+  generateMemberSessionToken,
+  createMemberSession,
+  validateMemberSession,
+  deleteMemberSession,
+  deleteAllMemberSessions,
+  listMemberSessions,
+  revokeMemberSessionById,
+  createMemberTrustedBrowser,
+  revokeAllMemberTrustedBrowsers,
+  listMemberTrustedBrowsers,
+  revokeMemberTrustedBrowserById,
+}
+
 const SESSION_COOKIE = 'cactus_member_session'
 const TRUSTED_BROWSER_COOKIE = 'cactus_member_trusted'
-
-function hashToken(token: string): string {
-  const secret = getSessionSecret()
-  return createHash('sha256').update(token + secret).digest('hex')
-}
-
-export function generateMemberSessionToken(): string {
-  return randomBytes(32).toString('hex')
-}
-
-// ---------------------------------------------------------------------------
-// Session create / validate / revoke / list
-// ---------------------------------------------------------------------------
-
-export async function createMemberSession(
-  memberId: string,
-  opts?: { ipAddress?: string; userAgent?: string }
-): Promise<string> {
-  const config = await getMembersConfigCached()
-  const token = generateMemberSessionToken()
-  const tokenHash = hashToken(token)
-  const expiresAt = new Date(Date.now() + config.sessionDays * 24 * 60 * 60 * 1000)
-
-  await prisma.memberSession.create({
-    data: {
-      memberId,
-      tokenHash,
-      ipAddress: opts?.ipAddress,
-      userAgent: opts?.userAgent,
-      expiresAt,
-    },
-  })
-
-  return token
-}
 
 export async function setMemberSessionCookie(token: string): Promise<void> {
   const config = await getMembersConfigCached()
@@ -85,99 +76,6 @@ export async function getCurrentMemberSessionTokenHash(): Promise<string | null>
   return token ? hashToken(token) : null
 }
 
-// Only ever returns a member whose status is ACTIVE — every other status
-// (PENDING_VERIFICATION, PENDING_APPROVAL, SUSPENDED, DELETED) is rejected
-// here even if the session row itself is unexpired. Non-ACTIVE members are
-// never supposed to hold a live session in the first place (login endpoints
-// refuse to create one for them - see the passkey/magic-link/password routes),
-// so this check mainly guards the case where a member's status changes to
-// something other than ACTIVE while an already-issued session is still live.
-// Sliding expiry: every valid check pushes expiresAt forward by sessionDays.
-export async function validateMemberSession(token: string): Promise<Member | null> {
-  const tokenHash = hashToken(token)
-  const session = await prisma.memberSession.findUnique({
-    where: { tokenHash },
-    include: { member: true },
-  })
-
-  if (!session) return null
-  if (session.expiresAt < new Date()) {
-    await prisma.memberSession.delete({ where: { id: session.id } })
-    return null
-  }
-  if (session.member.status !== 'ACTIVE') return null
-
-  const config = await getMembersConfigCached()
-  const expiresAt = new Date(Date.now() + config.sessionDays * 24 * 60 * 60 * 1000)
-  await prisma.memberSession.update({
-    where: { id: session.id },
-    data: { expiresAt, lastActiveAt: new Date() },
-  })
-
-  return session.member
-}
-
-export async function deleteMemberSession(token: string): Promise<void> {
-  const tokenHash = hashToken(token)
-  await prisma.memberSession.deleteMany({ where: { tokenHash } })
-}
-
-export async function deleteAllMemberSessions(
-  memberId: string,
-  exceptTokenHash?: string
-): Promise<void> {
-  await prisma.memberSession.deleteMany({
-    where: {
-      memberId,
-      ...(exceptTokenHash ? { NOT: { tokenHash: exceptTokenHash } } : {}),
-    },
-  })
-}
-
-export async function listMemberSessions(memberId: string) {
-  return prisma.memberSession.findMany({
-    where: { memberId, expiresAt: { gt: new Date() } },
-    orderBy: { lastActiveAt: 'desc' },
-    select: {
-      id: true,
-      ipAddress: true,
-      userAgent: true,
-      location: true,
-      lastActiveAt: true,
-      createdAt: true,
-      expiresAt: true,
-      tokenHash: true,
-    },
-  })
-}
-
-export async function revokeMemberSessionById(
-  sessionId: string,
-  memberId: string
-): Promise<void> {
-  await prisma.memberSession.deleteMany({ where: { id: sessionId, memberId } })
-}
-
-// ---------------------------------------------------------------------------
-// Trusted browser
-// ---------------------------------------------------------------------------
-
-export async function createMemberTrustedBrowser(
-  memberId: string,
-  deviceInfo?: string
-): Promise<string> {
-  const config = await getMembersConfigCached()
-  const token = generateMemberSessionToken()
-  const tokenHash = hashToken(token)
-  const expiresAt = new Date(Date.now() + config.trustedBrowserDays * 24 * 60 * 60 * 1000)
-
-  await prisma.memberTrustedBrowser.create({
-    data: { memberId, tokenHash, deviceInfo, expiresAt },
-  })
-
-  return token
-}
-
 export async function setMemberTrustedBrowserCookie(token: string): Promise<void> {
   const config = await getMembersConfigCached()
   const cookieStore = await cookies()
@@ -211,22 +109,6 @@ export async function isMemberBrowserTrusted(memberId: string): Promise<boolean>
   })
 
   return true
-}
-
-export async function revokeAllMemberTrustedBrowsers(memberId: string): Promise<void> {
-  await prisma.memberTrustedBrowser.deleteMany({ where: { memberId } })
-}
-
-export async function listMemberTrustedBrowsers(memberId: string) {
-  return prisma.memberTrustedBrowser.findMany({
-    where: { memberId, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, deviceInfo: true, createdAt: true, expiresAt: true, tokenHash: true },
-  })
-}
-
-export async function revokeMemberTrustedBrowserById(id: string, memberId: string): Promise<void> {
-  await prisma.memberTrustedBrowser.deleteMany({ where: { id, memberId } })
 }
 
 export async function getCurrentMemberTrustedBrowserTokenHash(): Promise<string | null> {

@@ -18,11 +18,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
 import { getAdminPathCached, getSiteStatusCached, getPendingRedeployIdCached, getPendingRedeployIdUncached } from '@/lib/config/site'
-import { validateSession } from '@/lib/auth/session'
+import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable, isLocalMode } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
 import { getMembersConfigCached } from '@/lib/members/config'
-import { validateMemberSession } from '@/lib/members/session'
+import { validateMemberSession } from '@/lib/members/session-core'
 import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 
