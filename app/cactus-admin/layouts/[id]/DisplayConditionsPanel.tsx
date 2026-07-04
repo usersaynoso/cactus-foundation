@@ -41,7 +41,7 @@ type Props = {
 }
 
 export default function DisplayConditionsPanel({ layoutType, existing, onSave }: Props) {
-  const availableTypes: ConditionType[] = TYPES_BY_LAYOUT[layoutType] ?? DEFAULT_TYPES
+  const availableTypes: ConditionType[] = TYPES_BY_LAYOUT[layoutType] ?? ['entire_site']
 
   const parseExisting = (): DisplayConditions => {
     const c = existing as DisplayConditions | null

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 
 type Layout = {
   id: string
@@ -18,7 +19,7 @@ type Layout = {
 
 type Tab = { key: string; label: string; type: string | null }
 
-const TABS: Tab[] = [
+const BUILTIN_TABS: Tab[] = [
   { key: 'all',        label: 'All',          type: null },
   { key: 'header',     label: 'Header',       type: 'header' },
   { key: 'footer',     label: 'Footer',       type: 'footer' },
@@ -26,6 +27,9 @@ const TABS: Tab[] = [
   { key: 'notFound',   label: '404',          type: 'notFound' },
   { key: 'statusPage', label: 'Status Page',  type: 'statusPage' },
 ]
+
+// Top-level tab key for a module group is its moduleName (unique per manifest).
+const MODULE_GROUP_TABS: Tab[] = moduleLayoutTypeGroups.map((g) => ({ key: g.moduleName, label: g.groupLabel, type: null }))
 
 const TYPE_LABELS: Record<string, string> = {
   header: 'Header', footer: 'Footer', infoPage: 'Page Layout',
@@ -49,10 +53,16 @@ function conditionSummary(layout: Layout): string {
 
 export default function LayoutBuilderPage() {
   const adminPath = useAdminPath()
-  const [activeTab, setActiveTab] = useState<string>('all')
+  const [activeTop, setActiveTop] = useState<string>('all')
+  const [activeModuleSub, setActiveModuleSub] = useState<string | null>(null)
   const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
+  const activeType = activeGroup
+    ? (activeModuleSub ?? activeGroup.types[0]?.key ?? null)
+    : (BUILTIN_TABS.find(t => t.key === activeTop)?.type ?? null)
 
   function reload(type: string | null) {
     setLoading(true)
@@ -64,17 +74,20 @@ export default function LayoutBuilderPage() {
   }
 
   useEffect(() => {
-    const tab = TABS.find(t => t.key === activeTab)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reload sets loading flag before async fetch; standard data-load pattern
-    reload(tab?.type ?? null)
-  }, [activeTab])
+    reload(activeType)
+  }, [activeType])
+
+  function handleTopClick(key: string) {
+    setActiveTop(key)
+    setActiveModuleSub(null)
+  }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this layout? This cannot be undone.')) return
     try {
       await fetch(`/api/admin/layouts/${id}`, { method: 'DELETE' })
-      const tab = TABS.find(t => t.key === activeTab)
-      reload(tab?.type ?? null)
+      reload(activeType)
     } catch { setError('Failed to delete layout') }
   }
 
@@ -89,9 +102,16 @@ export default function LayoutBuilderPage() {
       </div>
 
       <TabStrip
-        style={{ marginBottom: '1.5rem' }}
-        items={TABS.map((tab) => ({ key: tab.key, label: tab.label, active: activeTab === tab.key, onClick: () => setActiveTab(tab.key) }))}
+        style={{ marginBottom: activeGroup ? '0.75rem' : '1.5rem' }}
+        items={[...BUILTIN_TABS, ...MODULE_GROUP_TABS].map((tab) => ({ key: tab.key, label: tab.label, active: activeTop === tab.key, onClick: () => handleTopClick(tab.key) }))}
       />
+
+      {activeGroup && (
+        <TabStrip
+          style={{ marginBottom: '1.5rem' }}
+          items={activeGroup.types.map((t) => ({ key: t.key, label: t.label, active: activeType === t.key, onClick: () => setActiveModuleSub(t.key) }))}
+        />
+      )}
 
       {loading && <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}
       {error && <div style={{ padding: '1rem', color: 'var(--color-destructive)' }}>{error}</div>}
@@ -140,7 +160,7 @@ export default function LayoutBuilderPage() {
 function TypeBadge({ type }: { type: string }) {
   return (
     <span className="badge badge-blue" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>
-      {TYPE_LABELS[type] ?? type}
+      {TYPE_LABELS[type] ?? moduleLayoutTypeToGroup[type]?.label ?? type}
     </span>
   )
 }

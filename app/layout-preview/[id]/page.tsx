@@ -8,7 +8,9 @@ import {
   footerPuckRscConfig,
   layoutPuckRscConfig,
   fullPagePuckRscConfig,
+  getModuleLayoutPuckRscConfig,
 } from '@/lib/puck/config'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
@@ -31,7 +33,11 @@ function getConfig(type: string): any {
     case 'header':     return headerPuckRscConfig
     case 'footer':     return footerPuckRscConfig
     case 'infoPage':   return layoutPuckRscConfig
-    default:           return fullPagePuckRscConfig
+    case 'notFound':
+    case 'statusPage': return fullPagePuckRscConfig
+    default:
+      if (moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckRscConfig(type)
+      return fullPagePuckRscConfig
   }
 }
 
@@ -72,7 +78,7 @@ export default async function LayoutPreviewPage({ params }: Props) {
   try { builderData = await resolveTemplateData(layout.builderData, ctx) } catch {}
 
   const config = getConfig(layout.type)
-  const typeLabel = TYPE_LABELS[layout.type] ?? layout.type
+  const typeLabel = TYPE_LABELS[layout.type] ?? moduleLayoutTypeToGroup[layout.type]?.label ?? layout.type
 
   const infoBar = (
     <div style={{

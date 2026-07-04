@@ -20,6 +20,8 @@ const moduleNames = getModuleNames()
 const imports = []
 const clientEntries = []
 const rscEntries = []
+// layoutType -> [{ type, clientIdent, rscIdent }]
+const byLayoutType = new Map()
 
 for (const moduleName of moduleNames) {
   const manifestPath = join(modulesDir, moduleName, 'cactus.module.json')
@@ -46,8 +48,9 @@ for (const moduleName of moduleNames) {
     const safeModule = moduleName.replace(/-/g, '_')
     const clientIdent = `_${safeModule}_${block.component}`
 
+    let rscIdent = clientIdent
     if (block.rscComponent) {
-      const rscIdent = `_${safeModule}_${block.rscComponent}`
+      rscIdent = `_${safeModule}_${block.rscComponent}`
       imports.push(`import { ${block.component} as ${clientIdent}, ${block.rscComponent} as ${rscIdent} } from '${importPath}'`)
       clientEntries.push(`  ${JSON.stringify(block.type)}: ${clientIdent},`)
       rscEntries.push(`  ${JSON.stringify(block.type)}: ${rscIdent},`)
@@ -55,6 +58,13 @@ for (const moduleName of moduleNames) {
       imports.push(`import { ${block.component} as ${clientIdent} } from '${importPath}'`)
       clientEntries.push(`  ${JSON.stringify(block.type)}: ${clientIdent},`)
       rscEntries.push(`  ${JSON.stringify(block.type)}: ${clientIdent},`)
+    }
+
+    if (Array.isArray(block.layoutTypes)) {
+      for (const layoutType of block.layoutTypes) {
+        if (!byLayoutType.has(layoutType)) byLayoutType.set(layoutType, [])
+        byLayoutType.get(layoutType).push({ type: block.type, clientIdent, rscIdent })
+      }
     }
   }
 }
@@ -75,6 +85,26 @@ out.push(``)
 out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
 out.push(`export const moduleRscComponents: Record<string, any> = {`)
 for (const e of rscEntries) out.push(e)
+out.push(`}`)
+out.push(``)
+
+out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
+out.push(`export const moduleComponentsByLayoutType: Record<string, Record<string, any>> = {`)
+for (const [layoutType, blocks] of byLayoutType) {
+  out.push(`  ${JSON.stringify(layoutType)}: {`)
+  for (const b of blocks) out.push(`    ${JSON.stringify(b.type)}: ${b.clientIdent},`)
+  out.push(`  },`)
+}
+out.push(`}`)
+out.push(``)
+
+out.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
+out.push(`export const moduleRscComponentsByLayoutType: Record<string, Record<string, any>> = {`)
+for (const [layoutType, blocks] of byLayoutType) {
+  out.push(`  ${JSON.stringify(layoutType)}: {`)
+  for (const b of blocks) out.push(`    ${JSON.stringify(b.type)}: ${b.rscIdent},`)
+  out.push(`  },`)
+}
 out.push(`}`)
 
 writeFileSync(outPath, out.join('\n') + '\n')

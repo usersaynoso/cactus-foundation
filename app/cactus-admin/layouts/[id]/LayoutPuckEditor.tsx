@@ -5,7 +5,8 @@ import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
-import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig } from '@/lib/puck/config'
+import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig } from '@/lib/puck/config'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 
 type Props = {
@@ -23,7 +24,10 @@ function getConfig(type: string | undefined) {
     case 'footer': return footerPuckConfig
     case 'notFound':
     case 'statusPage': return fullPagePuckConfig
-    default: return layoutPuckConfig
+    case 'infoPage': return layoutPuckConfig
+    default:
+      if (type && moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckConfig(type)
+      return layoutPuckConfig
   }
 }
 

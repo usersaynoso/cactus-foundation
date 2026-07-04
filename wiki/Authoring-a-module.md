@@ -307,6 +307,52 @@ A module can register Puck blocks that appear in both the page builder and the l
 - **Use `puck?.id`** in the RSC render function to get the block's unique Puck identifier (available as `props.puck.id` in all render functions).
 - **Gate settings behind real config status with `resolveFields`.** If your block depends on integrations that may not be configured (e.g. email delivery, a third-party API), add an async `resolveFields` function to your editor component object. It receives `(data, { fields })` and returns the fields to display. When the required integration is absent, return a single custom field that renders a warning banner instead of the normal controls - this prevents editors from configuring features that can't work. Use `fetch('/api/auth/config')` to check email and Turnstile status; cache the promise at module scope with a short TTL (60 s) so the function doesn't refetch on every panel keystroke.
 
+## Module layout types
+
+A module with its own public "listing" and "single item" pages (Directory's category/entry pages, Gazette's post listing/post pages, Boards' board/thread pages) can let site owners design those pages through the core Puck-based **Appearance → Layouts** editor, the same mechanism used for Header/Footer/Page Layout/404/Status Page - instead of a fully hardcoded page. Declare the group and its sub-types in `cactus.module.json`:
+
+```json
+"layoutTypes": {
+  "groupLabel": "My Module",
+  "types": [
+    { "key": "myModuleCategory", "label": "Category", "starterImport": "./lib/starterLayouts", "starterExport": "myModuleCategoryStarters" },
+    { "key": "myModuleEntry", "label": "Entry", "starterImport": "./lib/starterLayouts", "starterExport": "myModuleEntryStarters" }
+  ]
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `groupLabel` | yes | Label for the top-level tab shown on the admin Layouts list/wizard (e.g. "Directory"). |
+| `types[].key` | yes | camelCase layout type string, convention `<moduleName><Kind>` (e.g. `directoryCategory`). Becomes the value stored in `Layout.type`. |
+| `types[].label` | yes | Sub-tab label (e.g. "Category"). |
+| `types[].starterImport`/`starterExport` | no | Module-relative path (no extension) and named export of a `() => Array<{id, name, description, data}>` function providing starter templates for this type. Omit if you don't want to ship any starters. |
+
+Then tag any `puckBlocks[]` entries this layout type should offer, in addition to the usual page-builder palette:
+
+```json
+"puckBlocks": [
+  { "type": "MyModuleCategoryHeader", "import": "./components/puck/MyModuleCategoryHeaderBlock", "component": "myModuleCategoryHeaderPuckComponent", "rscComponent": "myModuleCategoryHeaderPuckRscComponent", "layoutTypes": ["myModuleCategory"] }
+]
+```
+
+`scripts/generate-module-layout-types.mjs` runs on every `npm run build`/`npm run dev`, alongside the Puck block generator. It writes two gitignored files: `lib/layout/module-layout-types.ts` (pure data - the groups list and a flat type→group lookup, consumed by the admin Layouts list/wizard, `LayoutPuckEditor.tsx`, `app/layout-preview/[id]/page.tsx`, and `DisplayConditionsPanel.tsx`) and `lib/setup/module-starter-layouts.ts` (the starter-template loader functions, consumed by `lib/setup/starterLayouts.ts`'s generic seeding loop). Your tagged blocks additionally appear in `moduleComponentsByLayoutType`/`moduleRscComponentsByLayoutType` (from `lib/puck/module-components.ts`), scoped per layout type - core's `getModuleLayoutPuckConfig(type)`/`getModuleLayoutPuckRscConfig(type)` build an editor config from those blocks plus the shared layout/typography/actions/media/content categories (no site/members chrome, which doesn't make sense on a module content page).
+
+**Rendering your public page with the published layout.** Your page fetches its data as normal, keeps its existing `notFound()`/visibility gating, and only then tries the layout:
+
+```ts
+const layout = await resolveThemeLayout('myModuleCategory', { moduleName: 'my-module', slug: category.slug })
+if (layout?.builderData) {
+  const data = injectCategoryContext(layout.builderData as PuckData, { categorySlug: category.slug /* ...whatever your blocks need */ })
+  return <Render config={getModuleLayoutPuckRscConfig('myModuleCategory') as any} data={data as any} />
+}
+// else: fall through to your existing hardcoded JSX, unchanged
+```
+
+`injectCategoryContext` is your own small helper (`lib/inject-category-context.ts`), one per layout type - clone the stored Puck `Data`, walk `content`/`zones` recursively, and for any block whose `type` is in a fixed `Set` of your context-consuming block names, `Object.assign` your live request values into that block's `props`. This mirrors Shop's pre-existing `injectProductContext` (`modules/shop/lib/inject-product-context.ts`) - copy that file's shape rather than inventing a new one. Each context-consuming block should be a self-contained "anchor" (`permissions: { delete: false, duplicate: false }` for anything core to the page, e.g. the entry list or a reply list) that re-fetches its own data from the injected props - blocks don't share a data-fetch, each is independently sufficient.
+
+**Seeding is opt-in by design.** Starter templates for a module layout type always seed as `draft` with no display conditions (core's generic loop in `lib/setup/starterLayouts.ts`, not something you control per-module) - unlike header/footer/infoPage, your module's pages already have a working hardcoded look, so nothing on a live site changes until the owner explicitly picks a starter and publishes it.
+
 ## Module settings tabs
 
 A module can add a tab to the core admin's **Settings** (`/config`) page instead of shipping its own standalone settings screen. Declare it in `cactus.module.json`:

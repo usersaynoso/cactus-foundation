@@ -72,6 +72,10 @@ A search box on the forum front page looks across thread titles and reply text, 
 
 Every tag has its own page listing threads carrying it, at `/boards/tag/tag-name`. Categories don't get a page of their own - a link to one jumps to that group on the main forum page.
 
+## Designing board and thread pages
+
+The look of a board (or sub-board) page and a thread's own page can be customised in **Appearance → Layouts**, under the **Boards** tab (with **Category** and **Entry** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Boards' own blocks (thread list, sub-board list, reply list, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+
 ## Linking to Boards content from a menu
 
 When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Boards** to link directly to the Boards home page, a category, board, sub-board or tag, instead of typing out the address by hand.
