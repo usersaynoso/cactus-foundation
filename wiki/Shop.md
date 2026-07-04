@@ -1,6 +1,6 @@
 # Shop
 
-**Shop** turns your Cactus site into a fully working shop: products, a cart, checkout, orders, discounts, reviews and more - all from your own admin, no third-party shop platform needed.
+**Shop** turns your Cactus site into a fully working shop: products, a cart, checkout, orders, discounts and more - all from your own admin, no third-party shop platform needed.
 
 The shop lives at `/shop` on your site (`/shop/products/your-product` for a product, `/shop/categories/mugs` for a category, and so on).
 
@@ -11,8 +11,8 @@ The shop lives at `/shop` on your site (`/shop/products/your-product` for a prod
 Shop has seven permissions, set on your core roles from **Settings → Users → Roles**:
 
 - `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
-- `shop.manage` - full run of the shop: settings, email templates, storefront page layouts, tax and shipping setup. Overrides every other Shop permission below.
-- `shop.products` - create, edit and delete products, categories, tags and collections; moderate reviews; run CSV imports and exports.
+- `shop.manage` - full run of the shop: settings, email templates, tax and shipping setup. Overrides every other Shop permission below.
+- `shop.products` - create, edit and delete products, categories, tags and collections; run CSV imports and exports.
 - `shop.orders` - view and manage orders and refunds.
 - `shop.customers` - view customer records.
 - `shop.discounts` - create and manage coupon codes and automatic discounts.
@@ -75,12 +75,6 @@ Refunds go back through whichever payment method the customer used automatically
 
 ---
 
-## Reviews
-
-Customers can leave a star rating and a written review on any product once they've bought it (or without buying it, if you'd rather not require that). Every review sits in a moderation queue at **Shop → Reviews** until you approve or reject it - nothing goes live unmoderated. Reviews from a genuine buyer show a "Verified purchase" badge automatically.
-
----
-
 ## Back-in-stock alerts
 
 When a product is out of stock, visitors can leave their email address to be notified the moment it's back. The moment you top the stock back up (or switch it to allow backorders), Cactus emails everyone waiting automatically - no extra step needed on your part.
@@ -115,6 +109,16 @@ Tax is always worked out on the server at checkout, never left to the customer's
 Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop** if you'd rather not).
 
 Anyone can look up an order's status without an account too, using their order number and the email address it was placed under.
+
+---
+
+## Designing your shop pages
+
+The look of every kind of shop page can be customised in **Appearance → Layouts**, under the **Shop** tab - the same drag-and-drop editor used for your header and footer, with six sub-tabs, one per page type: **Shop Home**, **Category**, **Collection**, **Product**, **Checkout**, and **Confirmation**. Each comes with three ready-made starter designs and Shop's own blocks (product grid, featured collection, promo banner, checkout steps, and more) alongside the usual layout and content blocks - pick one, tweak it as you like, and publish.
+
+Shop Home, Product, Checkout and Confirmation always show one of these designs (a plain default is published from the moment Shop is switched on, so there's never a blank page). Category and Collection pages keep their current simple grid look until you publish a starter for them - nothing changes there until you actively pick one.
+
+Editing layouts is covered by the core **Appearance → Layouts** permission, same as your header and footer - not by any of the Shop permissions above. A role with `shop.manage` but not that permission can run every other part of the shop but won't see the Layouts screen.
 
 ---
 

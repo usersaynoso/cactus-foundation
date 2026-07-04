@@ -488,17 +488,21 @@ export async function refreshStarterLayouts(db: typeof prisma) {
     })
   }
 
-  // Module-declared layout types (e.g. directoryCategory, gazetteEntry). Unlike
-  // header/footer/infoPage above, these always seed as draft with no display
-  // conditions: Directory/Gazette/Boards already have a fully-working hardcoded
-  // fallback page, so installing this feature must never silently change a
-  // live page's look without the site owner opting in.
+  // Module-declared layout types (e.g. directoryCategory, gazetteEntry). These
+  // seed as draft with no display conditions by default: most module pages
+  // already have a fully-working hardcoded fallback, so installing this
+  // feature must never silently change a live page's look without the site
+  // owner opting in. A template may set publishByDefault when the module page
+  // has no such fallback (e.g. Shop's index/checkout/confirmation, which are
+  // Puck-only) - exactly one per type should do so, so the page keeps working
+  // out of the box. Only affects first-time creation, never an existing row.
   for (const [layoutType, buildTemplates] of Object.entries(moduleStarterLayouts)) {
     const templates = buildTemplates()
-    for (const t of templates as { id: string; name: string; description: string; data: any }[]) {
+    for (const t of templates as { id: string; name: string; description: string; data: any; publishByDefault?: boolean }[]) {
+      const published = t.publishByDefault === true
       await db.layout.upsert({
         where: { id: t.id },
-        create: { id: t.id, name: t.name, type: layoutType, description: t.description, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS, builderData: t.data },
+        create: { id: t.id, name: t.name, type: layoutType, description: t.description, isStarter: true, status: published ? 'published' : 'draft', displayConditions: published ? ENTIRE_SITE_CONDITIONS : DRAFT_CONDITIONS, builderData: t.data },
         update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
       })
     }

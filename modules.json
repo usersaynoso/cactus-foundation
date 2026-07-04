@@ -1,9 +1,9 @@
 {
   "modules": [
     {
-      "name": "boards",
-      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.6"
+      "name": "directory",
+      "repoUrl": "https://github.com/cactus-foundation-modules/directory",
+      "version": "v0.1.7"
     },
     {
       "name": "contact-form",
@@ -13,17 +13,17 @@
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.5"
+      "version": "v0.1.6"
     },
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.2"
+      "version": "v0.1.4"
     },
     {
-      "name": "directory",
-      "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.6"
+      "name": "boards",
+      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
+      "version": "v0.1.7"
     }
   ]
 }

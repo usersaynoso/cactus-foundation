@@ -75,7 +75,7 @@ Layouts use exactly the same drag-and-drop editor as pages, with all the same bl
 | **404 page** | What visitors see when a page doesn't exist. |
 | **Status page** | What visitors see when your site is in coming-soon or maintenance mode. |
 
-Some modules add their own layout types too, shown as an extra tab alongside the built-in ones (with a second row of tabs underneath for that module's own sub-types). At the moment: **Directory** (Category, Entry), **Gazette** (Category, Entry), and **Boards** (Category, Entry) - so you can design the look of a directory category page, a blog article, or a forum thread the same way you design your header or footer. See each module's own wiki page for what a "category" or "entry" layout means for that module.
+Some modules add their own layout types too, shown as an extra tab alongside the built-in ones (with a second row of tabs underneath for that module's own sub-types). At the moment: **Directory** (Category, Entry), **Gazette** (Listing, Post), **Boards** (Board, Thread), and **Shop** (Shop Home, Category, Collection, Product, Checkout, Confirmation) - so you can design the look of a directory category page, a blog article, a forum thread, or a shop product the same way you design your header or footer. See each module's own wiki page for what its sub-tabs mean.
 
 ### Starter templates
 
@@ -112,7 +112,7 @@ When multiple layouts match a page, the most specific one wins.
 
 Like pages, layouts have a draft state and a published state. Changes stay in draft until you click **Publish**. The **Preview** button lets you see the layout before making it live.
 
-Module layout types (Directory/Gazette/Boards Category and Entry) come with a few starter templates, same as headers and footers - but none of them publish automatically. Those pages already have a perfectly good built-in look, so nothing changes until you pick a starter and hit Publish yourself.
+Module layout types come with a few starter templates each, same as headers and footers. Most don't publish automatically - Directory, Gazette and Boards' pages, plus Shop's Category and Collection pages, already have a perfectly good built-in look, so nothing changes until you pick a starter and hit Publish yourself. Shop's Home, Product, Checkout and Confirmation pages are the exception: they have no built-in look of their own to fall back on, so a plain default is published automatically from the moment Shop is switched on - swap it for one of the other starters, or your own design, whenever you like.
 
 ---
 
