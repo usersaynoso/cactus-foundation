@@ -70,6 +70,12 @@ Until Cactus's own site-wide notification bell arrives, subscription and moderat
 
 A search box on the forum front page looks across thread titles and reply text, scoped to whatever boards a visitor is actually allowed to see. Every board (and the forum as a whole) publishes an RSS feed, switchable from **Settings → Boards**.
 
+Every tag has its own page listing threads carrying it, at `/boards/tag/tag-name`. Categories don't get a page of their own - a link to one jumps to that group on the main forum page.
+
+## Linking to Boards content from a menu
+
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Boards** to link directly to a category, board, sub-board or tag, instead of typing out the address by hand.
+
 ---
 
 ## Importing from an existing forum

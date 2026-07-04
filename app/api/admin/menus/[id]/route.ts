@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
+import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -24,7 +25,25 @@ export async function GET(request: NextRequest, { params }: Params) {
   })
   if (!menu) return errorResponse('Not found', 404)
 
-  return NextResponse.json(menu)
+  // Resolve each MODULE_ENTITY item's current label/href for display (item
+  // itself only stores moduleId/entityKind/entityId - no FK into module tables).
+  const items = await Promise.all(
+    menu.items.map(async (item) => {
+      if (item.type !== 'MODULE_ENTITY' || !item.moduleId || !item.entityKind || !item.entityId) {
+        return { ...item, moduleEntity: null }
+      }
+      const provider = getMenuEntityProvider(item.moduleId)
+      const resolved = provider ? await provider.resolveEntity(item.entityKind, item.entityId) : null
+      return {
+        ...item,
+        moduleEntity: resolved
+          ? { moduleLabel: provider!.moduleLabel, ...resolved }
+          : null,
+      }
+    })
+  )
+
+  return NextResponse.json({ ...menu, items })
 }
 
 const PatchBody = z.object({

@@ -461,6 +461,7 @@ model GithubAppConnection {
 enum MenuItemType {
   PAGE
   EXTERNAL
+  MODULE_ENTITY
 }
 
 model Menu {
@@ -483,6 +484,12 @@ model MenuItem {
   page         InfoPage?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
   label        String?
   url          String?
+  // MODULE_ENTITY target: moduleId is the module slug (e.g. "boards"), entityKind
+  // a provider-defined kind (e.g. "board", "tag"), entityId the raw row id. No FK -
+  // module tables live outside Prisma (see modules/*/migrations).
+  moduleId     String?
+  entityKind   String?
+  entityId     String?
   openInNewTab Boolean      @default(false)
   order        Int
   createdAt    DateTime     @default(now())

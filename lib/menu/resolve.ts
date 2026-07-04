@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
 
 export type PublicMenuItem = {
   id: string
@@ -21,7 +22,7 @@ export async function resolveMenu(menuId: string): Promise<PublicMenuItem[]> {
 
   type RawItem = (typeof items)[number]
 
-  function resolveItem(item: RawItem): PublicMenuItem | null {
+  async function resolveItem(item: RawItem): Promise<PublicMenuItem | null> {
     let label: string
     let href: string
 
@@ -29,6 +30,14 @@ export async function resolveMenu(menuId: string): Promise<PublicMenuItem[]> {
       if (!item.page || item.page.status !== 'published') return null
       label = item.label ?? item.page.title
       href = `/${item.page.slug}`
+    } else if (item.type === 'MODULE_ENTITY') {
+      if (!item.moduleId || !item.entityKind || !item.entityId) return null
+      const provider = getMenuEntityProvider(item.moduleId)
+      if (!provider) return null
+      const resolved = await provider.resolveEntity(item.entityKind, item.entityId)
+      if (!resolved || !resolved.publiclyVisible) return null
+      label = item.label ?? resolved.label
+      href = resolved.href
     } else {
       label = item.label ?? ''
       href = item.url ?? '#'
@@ -42,13 +51,13 @@ export async function resolveMenu(menuId: string): Promise<PublicMenuItem[]> {
     }
   }
 
-  function buildTree(parentId: string | null): PublicMenuItem[] {
+  async function buildTree(parentId: string | null): Promise<PublicMenuItem[]> {
     const children = items.filter((i) => i.parentId === parentId)
     const result: PublicMenuItem[] = []
     for (const item of children) {
-      const resolved = resolveItem(item)
+      const resolved = await resolveItem(item)
       if (!resolved) continue
-      const nestedChildren = buildTree(item.id)
+      const nestedChildren = await buildTree(item.id)
       if (nestedChildren.length > 0) resolved.children = nestedChildren
       result.push(resolved)
     }

@@ -8,9 +8,13 @@ type MenuItemFull = {
   id: string
   menuId: string
   parentId: string | null
-  type: 'PAGE' | 'EXTERNAL'
+  type: 'PAGE' | 'EXTERNAL' | 'MODULE_ENTITY'
   pageId: string | null
   page: { id: string; title: string; slug: string; status: string } | null
+  moduleId: string | null
+  entityKind: string | null
+  entityId: string | null
+  moduleEntity: { moduleLabel: string; label: string; href: string; publiclyVisible: boolean } | null
   label: string | null
   url: string | null
   openInNewTab: boolean
@@ -24,9 +28,13 @@ type Menu = {
 }
 
 type PageResult = { id: string; title: string; slug: string; status: string }
+type EntityKind = { id: string; label: string }
+type ModuleEntityGroup = { moduleId: string; moduleLabel: string; kinds: EntityKind[] }
+type EntitySearchResult = { id: string; label: string; hint?: string }
 
 function effectiveLabel(item: MenuItemFull): string {
   if (item.type === 'PAGE') return item.label ?? item.page?.title ?? '(untitled)'
+  if (item.type === 'MODULE_ENTITY') return item.label ?? item.moduleEntity?.label ?? '(no label)'
   return item.label ?? '(no label)'
 }
 
@@ -68,7 +76,7 @@ export default function MenuDetailPage() {
   const [saving, setSaving] = useState(false)
 
   // Add item modal state
-  const [addMode, setAddMode] = useState<'page' | 'external' | null>(null)
+  const [addMode, setAddMode] = useState<'page' | 'external' | 'module' | null>(null)
   const [addParentId, setAddParentId] = useState<string | null>(null)
   // Page picker
   const [pageSearch, setPageSearch] = useState('')
@@ -79,6 +87,13 @@ export default function MenuDetailPage() {
   const [extUrl, setExtUrl] = useState('')
   const [extNewTab, setExtNewTab] = useState(false)
   const [addError, setAddError] = useState('')
+  // Module entity picker
+  const [moduleGroups, setModuleGroups] = useState<ModuleEntityGroup[]>([])
+  const [selectedModuleId, setSelectedModuleId] = useState('')
+  const [selectedKind, setSelectedKind] = useState('')
+  const [entitySearch, setEntitySearch] = useState('')
+  const [entityResults, setEntityResults] = useState<EntitySearchResult[]>([])
+  const [entitySearchLoading, setEntitySearchLoading] = useState(false)
 
   // Edit item state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -151,6 +166,57 @@ export default function MenuDetailPage() {
     }
   }
 
+  // Load the module list (and each module's entity kinds) once when the module tab opens
+  useEffect(() => {
+    if (addMode !== 'module') return
+    fetch('/api/admin/menus/module-entities')
+      .then((res) => res.json())
+      .then((d) => setModuleGroups(d.modules ?? []))
+      .catch(() => setModuleGroups([]))
+  }, [addMode])
+
+  // Search entities once a module + kind is chosen
+  useEffect(() => {
+    if (addMode !== 'module' || !selectedModuleId || !selectedKind) { setEntityResults([]); return }
+    setEntitySearchLoading(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ moduleId: selectedModuleId, kind: selectedKind, q: entitySearch })
+        const res = await fetch(`/api/admin/menus/module-entities?${params}`)
+        const d = await res.json()
+        setEntityResults(d.results ?? [])
+      } catch {
+        setEntityResults([])
+      } finally {
+        setEntitySearchLoading(false)
+      }
+    }, 200)
+    return () => clearTimeout(timeout)
+  }, [addMode, selectedModuleId, selectedKind, entitySearch])
+
+  async function addModuleEntityItem(result: EntitySearchResult) {
+    setAddError('')
+    try {
+      const res = await fetch(`/api/admin/menus/${menuId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'MODULE_ENTITY',
+          moduleId: selectedModuleId,
+          entityKind: selectedKind,
+          entityId: result.id,
+          parentId: addParentId,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
+      closeAddModal()
+      await load()
+    } catch {
+      setAddError('Failed to add item')
+    }
+  }
+
   async function addExternalItem() {
     if (!extLabel.trim() || !extUrl.trim()) { setAddError('Label and URL are required'); return }
     setAddError('')
@@ -178,6 +244,10 @@ export default function MenuDetailPage() {
     setExtUrl('')
     setExtNewTab(false)
     setAddError('')
+    setSelectedModuleId('')
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
   }
 
   function startEdit(item: MenuItemFull) {
@@ -360,17 +430,22 @@ export default function MenuDetailPage() {
                 {item.openInNewTab && (
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>↗ new tab</span>
                 )}
+                {item.type === 'MODULE_ENTITY' && item.moduleEntity && !item.moduleEntity.publiclyVisible && (
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-warning)' }}>not published - hidden from site</span>
+                )}
               </div>
             )}
           </td>
           <td style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
             {item.type === 'PAGE'
               ? (item.page ? `/${item.page.slug}` : '(deleted)')
+              : item.type === 'MODULE_ENTITY'
+              ? (item.moduleEntity ? item.moduleEntity.href : '(deleted)')
               : item.url}
           </td>
           <td>
-            <span className={`badge ${item.type === 'PAGE' ? 'badge-green' : 'badge-gray'}`}>
-              {item.type === 'PAGE' ? 'Page' : 'Link'}
+            <span className={`badge ${item.type === 'PAGE' ? 'badge-green' : item.type === 'MODULE_ENTITY' ? 'badge-blue' : 'badge-gray'}`}>
+              {item.type === 'PAGE' ? 'Page' : item.type === 'MODULE_ENTITY' ? (item.moduleEntity?.moduleLabel ?? 'Module') : 'Link'}
             </span>
           </td>
           <td>
@@ -450,6 +525,7 @@ export default function MenuDetailPage() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {saving && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>Saving…</span>}
           <button className="btn btn-secondary" onClick={() => setAddMode('page')}>+ Page link</button>
+          <button className="btn btn-secondary" onClick={() => setAddMode('module')}>+ Module content</button>
           <button className="btn btn-secondary" onClick={() => setAddMode('external')}>+ External link</button>
         </div>
       </div>
@@ -467,6 +543,7 @@ export default function MenuDetailPage() {
           <span>Adding a child item under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong></span>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('page')}>+ Page link</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('module')}>+ Module content</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('external')}>+ External link</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setAddParentId(null)}>Cancel</button>
           </div>
@@ -504,7 +581,7 @@ export default function MenuDetailPage() {
       </p>
 
       {/* Add item modal */}
-      {(addMode === 'page' || addMode === 'external') && (
+      {(addMode === 'page' || addMode === 'external' || addMode === 'module') && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={(e) => e.target === e.currentTarget && closeAddModal()}
@@ -519,6 +596,10 @@ export default function MenuDetailPage() {
                   className={addMode === 'page' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
                   onClick={() => setAddMode('page')}
                 >Link to page</button>
+                <button
+                  className={addMode === 'module' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                  onClick={() => setAddMode('module')}
+                >Module content</button>
                 <button
                   className={addMode === 'external' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
                   onClick={() => setAddMode('external')}
@@ -562,6 +643,68 @@ export default function MenuDetailPage() {
                     </button>
                   ))}
                 </div>
+              </>
+            )}
+
+            {addMode === 'module' && (
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <select
+                    value={selectedModuleId}
+                    onChange={(e) => { setSelectedModuleId(e.target.value); setSelectedKind(''); setEntitySearch('') }}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">Choose module…</option>
+                    {moduleGroups.map((m) => (
+                      <option key={m.moduleId} value={m.moduleId}>{m.moduleLabel}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedKind}
+                    onChange={(e) => { setSelectedKind(e.target.value); setEntitySearch('') }}
+                    disabled={!selectedModuleId}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">Choose type…</option>
+                    {moduleGroups.find((m) => m.moduleId === selectedModuleId)?.kinds.map((k) => (
+                      <option key={k.id} value={k.id}>{k.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedModuleId && selectedKind && (
+                  <>
+                    <div className="field" style={{ marginBottom: '0.5rem' }}>
+                      <input
+                        value={entitySearch}
+                        onChange={(e) => setEntitySearch(e.target.value)}
+                        placeholder="Search…"
+                        autoFocus
+                      />
+                    </div>
+                    <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
+                      {entitySearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
+                      {!entitySearchLoading && entityResults.length === 0 && (
+                        <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>No matches</p>
+                      )}
+                      {entityResults.map((result) => (
+                        <button
+                          key={result.id}
+                          onClick={() => addModuleEntityItem(result)}
+                          style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            width: '100%', padding: '0.625rem 0.875rem',
+                            border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
+                            background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{result.label}</span>
+                          {result.hint && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{result.hint}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             )}
 

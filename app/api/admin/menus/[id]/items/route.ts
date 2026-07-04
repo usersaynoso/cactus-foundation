@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
+import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -18,6 +19,15 @@ const AddItemBody = z.discriminatedUnion('type', [
     type: z.literal('EXTERNAL'),
     label: z.string().min(1).max(100),
     url: z.string().url(),
+    openInNewTab: z.boolean().default(false),
+    parentId: z.string().optional().nullable(),
+  }),
+  z.object({
+    type: z.literal('MODULE_ENTITY'),
+    moduleId: z.string().min(1),
+    entityKind: z.string().min(1),
+    entityId: z.string().min(1),
+    label: z.string().max(100).optional().nullable(),
     openInNewTab: z.boolean().default(false),
     parentId: z.string().optional().nullable(),
   }),
@@ -59,6 +69,16 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (existing) return errorResponse('This page is already in this menu', 409)
   }
 
+  // For MODULE_ENTITY: the provider is the source of truth for whether the entity exists
+  let moduleEntityLabel: string | null = null
+  if (parsed.data.type === 'MODULE_ENTITY') {
+    const provider = getMenuEntityProvider(parsed.data.moduleId)
+    if (!provider) return errorResponse('Unknown module', 400)
+    const resolved = await provider.resolveEntity(parsed.data.entityKind, parsed.data.entityId)
+    if (!resolved) return errorResponse('Entity not found', 404)
+    moduleEntityLabel = resolved.label
+  }
+
   // Compute next order within the same parentId scope
   const maxOrder = await prisma.menuItem.aggregate({
     where: { menuId, parentId: parentId ?? null },
@@ -76,11 +96,23 @@ export async function POST(request: NextRequest, { params }: Params) {
           parentId: parentId ?? null,
           order,
         }
-      : {
+      : parsed.data.type === 'EXTERNAL'
+      ? {
           menuId,
           type: 'EXTERNAL' as const,
           label: parsed.data.label,
           url: parsed.data.url,
+          openInNewTab: parsed.data.openInNewTab,
+          parentId: parentId ?? null,
+          order,
+        }
+      : {
+          menuId,
+          type: 'MODULE_ENTITY' as const,
+          moduleId: parsed.data.moduleId,
+          entityKind: parsed.data.entityKind,
+          entityId: parsed.data.entityId,
+          label: parsed.data.label ?? moduleEntityLabel,
           openInNewTab: parsed.data.openInNewTab,
           parentId: parentId ?? null,
           order,
