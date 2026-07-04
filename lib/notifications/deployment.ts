@@ -39,6 +39,7 @@ export async function getUnreadCount(): Promise<number> {
 }
 
 const EMAIL_KEYS = new Set(['BREVO_API_KEY', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'])
+const PAYMENT_KEYS = new Set(['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'PAYPAL_MODE'])
 const INTEGRATION_KEYS = new Set([
   'GITHUB_API_TOKEN',
   'ENCRYPTION_KEY',
@@ -55,6 +56,7 @@ const INTEGRATION_KEYS = new Set([
 
 export function labelForEnvKeys(keys: string[]): string {
   if (keys.some((k) => EMAIL_KEYS.has(k))) return 'Email settings updated'
+  if (keys.some((k) => PAYMENT_KEYS.has(k))) return 'Payment provider keys updated'
   if (keys.some((k) => INTEGRATION_KEYS.has(k))) return 'Integration keys updated'
   return 'Media storage settings updated'
 }

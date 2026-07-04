@@ -35,6 +35,14 @@ const ALLOWED_KEYS = new Set([
   'TURNSTILE_SITE_KEY',
   'TURNSTILE_SECRET_KEY',
   'SENTRY_DSN',
+  // Shop module — Stripe/PayPal (gates the two card/wallet payment methods at checkout)
+  'STRIPE_SECRET_KEY',
+  'STRIPE_PUBLISHABLE_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'PAYPAL_CLIENT_ID',
+  'PAYPAL_CLIENT_SECRET',
+  'PAYPAL_WEBHOOK_ID',
+  'PAYPAL_MODE',
   // Setup-phase vars cleared on factory reset
   'NEON_PROJECT_ID',
   'NEXT_PUBLIC_SITE_URL',
