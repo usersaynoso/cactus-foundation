@@ -369,8 +369,36 @@ function ContentSlot(_props: any) {
 // Typography blocks
 // ---------------------------------------------------------------------------
 
+function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string): React.ReactNode {
+  if (!needle) return line
+  const parts = line.split(needle)
+  if (parts.length === 1) return line
+  const emColor = 'var(--color-primary)'
+  // The "mark" is a chunky bar that sits UNDER the word (a thick underline),
+  // never behind the glyphs. Drawn with text-decoration so it always tracks the
+  // baseline. Kept a solid accent (mustard) colour rather than a translucent
+  // one, so a tinted hero background can't bleed through and muddy it.
+  const markStyle: React.CSSProperties = mark === 'none' ? {} : {
+    textDecorationLine: 'underline',
+    textDecorationColor: 'var(--color-heading-mark, #E3A857)',
+    textDecorationThickness: '0.16em',
+    textUnderlineOffset: '0.04em',
+    textDecorationSkipInk: 'none',
+  }
+  const out: React.ReactNode[] = []
+  parts.forEach((seg, i) => {
+    if (seg) out.push(seg)
+    if (i < parts.length - 1) {
+      out.push(
+        <em key={`${keyPrefix}-em-${i}`} style={{ fontStyle: 'normal', color: emColor, ...markStyle }}>{needle}</em>,
+      )
+    }
+  })
+  return out
+}
+
 function Heading(props: any) {
-  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none' } = props
+  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline' } = props
   const colors: Record<string, string> = { muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
   const sizes: Record<string, string> = { display: '3rem', h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
   const weights: Record<string, number> = { display: 800, h2: 800, h3: 700, h4: 700, h5: 600 }
@@ -403,10 +431,10 @@ function Heading(props: any) {
   const content = revealAnimation === 'stagger-lines'
     ? text.split('\n').map((line: string, i: number) => (
         <span key={i} className="cactus-stagger-line">
-          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{line}</span>
+          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`)}</span>
         </span>
       ))
-    : text
+    : renderHighlight(text, highlightText, highlightMark, 'h')
   return (
     <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       <Tag style={style} className={headingClassName}>
@@ -417,9 +445,17 @@ function Heading(props: any) {
 }
 
 function TextBlock(props: any) {
-  const { content, align, padding } = props
+  const { content, align, padding, size = 'base', maxWidth = 'none', color = 'default' } = props
+  const sizeMap: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
+  const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
+  const colorMap: Record<string, string> = { default: 'var(--color-fg-secondary)', muted: 'var(--color-muted)', dark: 'var(--color-fg)' }
+  const mw = maxWidthMap[maxWidth]
+  // When width is capped, anchor the block to its text alignment (centre/right)
+  // via auto side margins rather than letting it always sit flush-left.
+  const marginLeft = mw && (align === 'center' || align === 'right') ? 'auto' : undefined
+  const marginRight = mw && align === 'center' ? 'auto' : undefined
   return (
-    <div style={{ marginBottom: '1.5rem', lineHeight: 1.75, color: 'var(--color-fg-secondary)', textAlign: align ?? 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
+    <div style={{ marginBottom: '1.5rem', marginLeft, marginRight, fontSize: sizeMap[size] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: align ?? 'left', maxWidth: mw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
       {content}
     </div>
   )
@@ -775,22 +811,46 @@ function Card(props: any) {
 }
 
 function ImageChipPanel(props: any) {
-  const { mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none', borderColor = 'var(--color-border)', borderWidth = '1px', padding } = props
+  const {
+    mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none',
+    borderColor = 'var(--color-border)', borderWidth = '1px', padding,
+    framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off',
+  } = props
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
+  const framePadMap: Record<string, string> = { none: '0', sm: '16px', md: '30px', lg: '44px' }
   if (!mediaUrl) {
     return <div style={{ marginBottom: '1.5rem', background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>No image selected</div>
   }
+  const panelRadius = radiusMap[borderRadius] ?? '0'
+  const innerPad = framePadMap[framePadding] ?? '0'
+  const hasFrame = framePadding !== 'none'
+  // Blueprint "holo" panel background: a subtle fill or a two-tone gradient
+  // behind the inset image, so the grid lines and frame gutter read the way the
+  // concept's self-drawing desk panel does.
+  const bgMap: Record<string, string | undefined> = {
+    none: undefined,
+    subtle: 'var(--color-bg-subtle)',
+    gradient: 'linear-gradient(180deg, var(--color-bg), var(--color-bg-subtle))',
+  }
   return (
-    <div style={{
-      position: 'relative', overflow: 'hidden', marginBottom: '1.5rem',
-      boxShadow: shadowMap[boxShadow] ?? 'none',
-      borderRadius: radiusMap[borderRadius] ?? '0',
-      border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
-      padding: getPadding(padding),
-    }}>
+    <div
+      className={gridPattern !== 'none' ? 'cactus-section-grid-scan' : undefined}
+      style={{
+        position: 'relative', overflow: 'hidden', marginBottom: '1.5rem',
+        boxShadow: shadowMap[boxShadow] ?? 'none',
+        borderRadius: panelRadius,
+        border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
+        background: bgMap[frameBg],
+        padding: hasFrame ? innerPad : getPadding(padding),
+      }}
+    >
+      {scanEffect === 'on' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
+      {/* No z-index on the image: the grid sits in the panel background (always
+          behind), while the scan beam and chips come later in the DOM so they
+          paint over the image without needing an explicit stacking order. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 'auto', display: 'block' }} />
+      <img src={mediaUrl} alt={alt ?? ''} style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -1213,17 +1273,26 @@ const puckConfig = {
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
+        highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
+        highlightMark: { type: 'select' as const, label: 'Emphasis mark', options: [{ value: 'underline', label: 'Highlighter underline' }, { value: 'none', label: 'Colour only' }] },
         padding: paddingField,
         revealAnimation: { type: 'select' as const, label: 'Reveal animation (on load)', options: [{ value: 'none', label: 'None' }, { value: 'stagger-lines', label: 'Stagger lines in' }] },
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, highlightText: '', highlightMark: 'underline' as const, padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
       render: Heading,
     },
     TextBlock: {
       label: 'Text',
-      fields: { content: { type: 'textarea' as const, label: 'Content' }, align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField },
-      defaultProps: { content: 'Enter your text here…', align: 'left' as const, padding: 'default' },
+      fields: {
+        content: { type: 'textarea' as const, label: 'Content' },
+        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        size: { type: 'select' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }] },
+        maxWidth: { type: 'select' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }] },
+        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'default', label: 'Secondary' }, { value: 'muted', label: 'Muted' }, { value: 'dark', label: 'Dark' }] },
+        padding: paddingField,
+      },
+      defaultProps: { content: 'Enter your text here…', align: 'left' as const, size: 'base' as const, maxWidth: 'none' as const, color: 'default' as const, padding: 'default' },
       render: TextBlock,
     },
     RichTextBlock: {
@@ -1340,12 +1409,17 @@ const puckConfig = {
         borderColor: { type: 'text' as const, label: 'Border colour' },
         borderWidth: { type: 'select' as const, label: 'Border width', options: [{ value: '1px', label: '1px' }, { value: '2px', label: '2px' }, { value: '4px', label: '4px' }] },
         borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
+        framePadding: { type: 'select' as const, label: 'Frame padding (blueprint gutter)', options: [{ value: 'none', label: 'None (image fills panel)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (30px)' }, { value: 'lg', label: 'Large (44px)' }] },
+        frameBg: { type: 'select' as const, label: 'Panel background', options: [{ value: 'none', label: 'None' }, { value: 'subtle', label: 'Subtle fill' }, { value: 'gradient', label: 'Gradient' }] },
+        gridPattern: { type: 'select' as const, label: 'Blueprint grid', options: [{ value: 'none', label: 'Off' }, { value: 'subtle', label: 'On' }] },
+        scanEffect: { type: 'select' as const, label: 'Scan sheen (animated)', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
         padding: paddingField,
       },
       defaultProps: {
         mediaUrl: '', alt: '',
         chips: [{ label: 'Label', value: 'Detail text', position: 'top-right' as const, animationType: 'none' as const, animationDelay: 'none' as const }],
         boxShadow: 'md' as const, borderStyle: 'solid' as const, borderColor: 'var(--color-border)', borderWidth: '1px' as const, borderRadius: 'lg' as const,
+        framePadding: 'none' as const, frameBg: 'none' as const, gridPattern: 'none' as const, scanEffect: 'off' as const,
         padding: 'none',
       },
       render: ImageChipPanel,
