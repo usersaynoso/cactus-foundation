@@ -63,8 +63,8 @@ export type DesignTokens = {
       blockPadding?: string
       // Screen widths where Grid/Split blocks collapse to fewer columns. Media
       // queries can't read CSS custom properties, so these are baked into literal
-      // @media rules in buildTokenStyles (with '1024px'/'640px' fallbacks) rather
-      // than emitted as vars.
+      // @media rules in buildTokenStyles rather than emitted as vars. When unset,
+      // buildTokenStyles falls back to the defaults below (see DEFAULT_DESIGN_TOKENS).
       tabletBreakpoint?: string
       mobileBreakpoint?: string
     }
@@ -101,6 +101,23 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
     formFields: { typo: {}, labelTypo: {} },
     spacing: { blockPadding: '1.5rem', tabletBreakpoint: '1024px', mobileBreakpoint: '640px' },
   },
+}
+
+// Resolve the site's responsive breakpoints (Styles > Spacing & Breakpoints),
+// falling back to the single DEFAULT_DESIGN_TOKENS source when unset. The one
+// place breakpoint widths are derived - shared by buildTokenStyles (core Grid/
+// Split, nav, visibility utilities) and by modules that bake their own @media
+// rules (e.g. the shop grids), so nothing hardcodes a breakpoint literal.
+// Media queries can't read CSS custom properties, so the value has to be baked
+// into the rule at generation time; callers interpolate these strings directly.
+export function resolveBreakpoints(tokens: unknown): { tabletBp: string; mobileBp: string } {
+  const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
+  const sp = t.themeStyle?.spacing
+  const def = DEFAULT_DESIGN_TOKENS.themeStyle.spacing!
+  return {
+    tabletBp: sp?.tabletBreakpoint || def.tabletBreakpoint!,
+    mobileBp: sp?.mobileBreakpoint || def.mobileBreakpoint!,
+  }
 }
 
 export type ColourPreset = {
@@ -377,13 +394,11 @@ export function buildTokenStyles(tokens: unknown): string {
   // Default block gutter consumed by Puck blocks via var(--block-padding, 1.5rem).
   if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${ts.spacing.blockPadding};`)
 
-  // Responsive breakpoints for the Grid ("Columns") and Split blocks. Always
-  // resolved (fallback '1024px'/'640px') rather than gated behind an `if`, since
-  // media-query widths can't be expressed as a CSS var() fallback the way other
-  // token values are - the number has to be baked into the rule at generation
-  // time regardless of whether a site has ever saved a Styles page.
-  const tabletBp = ts?.spacing?.tabletBreakpoint || '1024px'
-  const mobileBp = ts?.spacing?.mobileBreakpoint || '640px'
+  // Responsive breakpoints for every core surface (Grid/Split, nav collapse,
+  // visibility utilities). Resolved from the site's Styles setting via the single
+  // resolveBreakpoints source, baked into literal @media rules below since media
+  // queries can't read CSS custom properties.
+  const { tabletBp, mobileBp } = resolveBreakpoints(t)
 
   const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
   const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}}`
@@ -479,6 +494,22 @@ export function buildTokenStyles(tokens: unknown): string {
   // grids and Split are already narrow enough to skip that middle step).
   scoped.push(`@media(max-width:${mobileBp}){.puck-grid,.puck-split{grid-template-columns:1fr !important;}}`)
   scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"],.puck-grid[data-cols="4"]{grid-template-columns:repeat(2,1fr) !important;}}`)
+
+  // Responsive visibility utilities. Emitted here (rather than a static rule in
+  // globals.css) so .hide-desktop/tablet/mobile honour the site's breakpoint
+  // setting. "Desktop" is >= tablet width; "mobile" is <= mobile width; "tablet"
+  // is the band between. The 1px boundary overlap is intentional and harmless -
+  // a given element carries only one of these classes.
+  scoped.push(`@media(min-width:${tabletBp}){.hide-desktop{display:none !important;}}`)
+  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.hide-tablet{display:none !important;}}`)
+  scoped.push(`@media(max-width:${mobileBp}){.hide-mobile{display:none !important;}}`)
+
+  // Site header nav collapse to a hamburger at the mobile breakpoint. The base
+  // .cactus-nav-menu/.cactus-nav-toggle display rules stay inline in
+  // MenuBlockClient (they carry no breakpoint); only this width-dependent rule
+  // lives here so it tracks the setting. The classes only exist when the header
+  // is in collapsing mode, so emitting this unconditionally is safe.
+  scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-menu{display:none !important;}.cactus-nav-toggle{display:flex !important;}}`)
 
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }

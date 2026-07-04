@@ -241,7 +241,9 @@ export default function MenuBlockClient({
   return (
     <>
       {showHamburger && (
-        <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}@media(max-width:640px){.cactus-nav-menu{display:none!important}.cactus-nav-toggle{display:flex!important}}`}</style>
+        // Base (non-breakpoint) display only. The mobile collapse @media rule is
+        // emitted by buildTokenStyles so it tracks the site's breakpoint setting.
+        <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`}</style>
       )}
 
       <ul
