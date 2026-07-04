@@ -319,7 +319,7 @@ export default function StylesPage() {
           ['buttons',    'Buttons'],
           ['images',     'Images'],
           ['formFields', 'Form Fields'],
-          ['spacing',    'Spacing'],
+          ['spacing',    'Spacing & Breakpoints'],
         ] as const).map(([id, label]) => ({ key: id, label, active: activeTab === id, onClick: () => setActiveTab(id) }))}
       />
 
@@ -549,12 +549,22 @@ export default function StylesPage() {
         )}
 
         {activeTab === 'spacing' && (
-          <Section title="Block spacing">
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>The default left/right gutter applied to content blocks on public pages, so they don&apos;t run to the screen edges. Individual blocks can override this from their &ldquo;Padding (left/right)&rdquo; setting.</p>
-            <div style={{ maxWidth: 260 }}>
-              <TextField label="Default block padding (left/right)" value={tokens.themeStyle.spacing?.blockPadding ?? ''} onChange={v => { setSpacing({ blockPadding: v || undefined }); setSaved(false) }} hint="e.g. 1.5rem" />
-            </div>
-          </Section>
+          <>
+            <Section title="Block spacing">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>The default left/right gutter applied to content blocks on public pages, so they don&apos;t run to the screen edges. Individual blocks can override this from their &ldquo;Padding (left/right)&rdquo; setting.</p>
+              <div style={{ maxWidth: 260 }}>
+                <TextField label="Default block padding (left/right)" value={tokens.themeStyle.spacing?.blockPadding ?? ''} onChange={v => { setSpacing({ blockPadding: v || undefined }); setSaved(false) }} hint="e.g. 1.5rem" />
+              </div>
+            </Section>
+
+            <Section title="Responsive breakpoints">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Screen widths where the Columns and Split blocks switch to fewer columns, so multi-column layouts stack instead of squeezing on smaller screens. Applies on public pages and in the Pages/Layouts editor preview.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: 420 }}>
+                <TextField label="Tablet breakpoint" value={tokens.themeStyle.spacing?.tabletBreakpoint ?? ''} onChange={v => { setSpacing({ tabletBreakpoint: v || undefined }); setSaved(false) }} hint="e.g. 1024px" />
+                <TextField label="Mobile breakpoint" value={tokens.themeStyle.spacing?.mobileBreakpoint ?? ''} onChange={v => { setSpacing({ mobileBreakpoint: v || undefined }); setSaved(false) }} hint="e.g. 640px" />
+              </div>
+            </Section>
+          </>
         )}
       </div>
     </div>

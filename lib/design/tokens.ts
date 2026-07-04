@@ -61,6 +61,12 @@ export type DesignTokens = {
       // Default left/right gutter applied to content blocks on public pages, so
       // they don't run to the screen edges. Emitted as --block-padding.
       blockPadding?: string
+      // Screen widths where Grid/Split blocks collapse to fewer columns. Media
+      // queries can't read CSS custom properties, so these are baked into literal
+      // @media rules in buildTokenStyles (with '1024px'/'640px' fallbacks) rather
+      // than emitted as vars.
+      tabletBreakpoint?: string
+      mobileBreakpoint?: string
     }
   }
 }
@@ -93,7 +99,7 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
     buttons: { typo: {}, hover: {} },
     images: {},
     formFields: { typo: {}, labelTypo: {} },
-    spacing: { blockPadding: '1.5rem' },
+    spacing: { blockPadding: '1.5rem', tabletBreakpoint: '1024px', mobileBreakpoint: '640px' },
   },
 }
 
@@ -371,6 +377,14 @@ export function buildTokenStyles(tokens: unknown): string {
   // Default block gutter consumed by Puck blocks via var(--block-padding, 1.5rem).
   if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${ts.spacing.blockPadding};`)
 
+  // Responsive breakpoints for the Grid ("Columns") and Split blocks. Always
+  // resolved (fallback '1024px'/'640px') rather than gated behind an `if`, since
+  // media-query widths can't be expressed as a CSS var() fallback the way other
+  // token values are - the number has to be baked into the rule at generation
+  // time regardless of whether a site has ever saved a Styles page.
+  const tabletBp = ts?.spacing?.tabletBreakpoint || '1024px'
+  const mobileBp = ts?.spacing?.mobileBreakpoint || '640px'
+
   const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
   const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}}`
   const mediaDark = `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}${darkPrimary}}}`
@@ -456,6 +470,15 @@ export function buildTokenStyles(tokens: unknown): string {
     if (fields.labelColour) labelProps.push(`color: ${fields.labelColour};`)
     if (labelProps.length) scoped.push(`main label{${labelProps.join('')}}`)
   }
+
+  // Grid ("Columns") and Split blocks render fixed CSS grid templates inline;
+  // these rules override them with !important below each breakpoint so they
+  // stack instead of squeezing columns down to nothing on narrow screens.
+  // Grid gets an extra step at the tablet breakpoint: 3/4-column layouts drop
+  // to 2 columns before fully stacking at the mobile breakpoint (2-column
+  // grids and Split are already narrow enough to skip that middle step).
+  scoped.push(`@media(max-width:${mobileBp}){.puck-grid,.puck-split{grid-template-columns:1fr !important;}}`)
+  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"],.puck-grid[data-cols="4"]{grid-template-columns:repeat(2,1fr) !important;}}`)
 
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }
