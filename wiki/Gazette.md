@@ -110,6 +110,10 @@ Two Gazette blocks are available anywhere in the ordinary Cactus page builder, u
 
 Any page that includes one of these blocks always shows the very latest posts on every visit, even if the page itself is normally cached - so a scheduled post appearing on time isn't held up by an old cached copy of your homepage.
 
+## Designing your post listing and post pages
+
+The look of your post listing pages (the main feed, tag pages, series pages, author pages, and monthly archives all share one design) and your individual post pages can be customised in **Appearance → Layouts**, under the **Gazette** tab (with **Category** and **Entry** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Gazette's own blocks (post list, author bio, table of contents, comments, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+
 ---
 
 **Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Shop](Shop) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

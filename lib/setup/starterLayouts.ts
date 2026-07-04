@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { moduleStarterLayouts } from '@/lib/setup/module-starter-layouts'
 
 const ENTIRE_SITE_CONDITIONS  = { include: [{ type: 'entire_site' }],   exclude: [] }
 const NOT_FOUND_CONDITIONS    = { include: [{ type: 'not_found' }],     exclude: [] }
@@ -485,5 +486,21 @@ export async function refreshStarterLayouts(db: typeof prisma) {
       create: { id: t.id, name: t.name, type: 'statusPage', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
       update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
     })
+  }
+
+  // Module-declared layout types (e.g. directoryCategory, gazetteEntry). Unlike
+  // header/footer/infoPage above, these always seed as draft with no display
+  // conditions: Directory/Gazette/Boards already have a fully-working hardcoded
+  // fallback page, so installing this feature must never silently change a
+  // live page's look without the site owner opting in.
+  for (const [layoutType, buildTemplates] of Object.entries(moduleStarterLayouts)) {
+    const templates = buildTemplates()
+    for (const t of templates as { id: string; name: string; description: string; data: any }[]) {
+      await db.layout.upsert({
+        where: { id: t.id },
+        create: { id: t.id, name: t.name, type: layoutType, description: t.description, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS, builderData: t.data },
+        update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
+      })
+    }
   }
 }

@@ -52,7 +52,24 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     component: z.string().min(1),
     rscComponent: z.string().optional(),
+    // Layout types (from this or another module's layoutTypes.types[].key) this
+    // block should also be offered on, in addition to the flat moduleComponents map.
+    layoutTypes: z.array(z.string()).optional(),
   })).optional(),
+  // Declares this module's own core-Layout types (e.g. a "Directory" group with
+  // "Category"/"Entry" sub-types), extending the built-in
+  // header/footer/infoPage/notFound/statusPage set with no core changes.
+  // Collected by scripts/generate-module-layout-types.mjs into
+  // lib/layout/module-layout-types.ts and lib/setup/module-starter-layouts.ts.
+  layoutTypes: z.object({
+    groupLabel: z.string().min(1),
+    types: z.array(z.object({
+      key: z.string().regex(/^[a-z][a-zA-Z0-9]*$/, 'layout type key must be camelCase'),
+      label: z.string().min(1),
+      starterImport: z.string().min(1).optional(),
+      starterExport: z.string().min(1).optional(),
+    })).min(1),
+  }).optional(),
   // Settings tabs this module contributes to the core admin's /config page.
   // Rendered generically, permission-filtered the same way as navEntries.
   settingsTabs: z.array(z.object({

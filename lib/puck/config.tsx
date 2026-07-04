@@ -25,7 +25,7 @@ import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
-import { moduleComponents, moduleRscComponents } from '@/lib/puck/module-components'
+import { moduleComponents, moduleRscComponents, moduleComponentsByLayoutType, moduleRscComponentsByLayoutType } from '@/lib/puck/module-components'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import {
@@ -1618,3 +1618,42 @@ export const headerPuckRscConfig = {
 
 export const fullPagePuckConfig = puckConfig
 export const fullPagePuckRscConfig = puckRscConfig
+
+// ---------------------------------------------------------------------------
+// Module layout Puck config — used for module-declared layout types (e.g.
+// directoryCategory, directoryEntry). Offers this layout type's own tagged
+// blocks plus the same shared content/layout/typography/actions/media
+// categories used by infoPage — deliberately excludes site/members categories,
+// which are chrome-only concerns not relevant to module content pages.
+// ---------------------------------------------------------------------------
+
+const MODULE_LAYOUT_CATEGORY_KEYS = ['layout', 'typography', 'actions', 'media', 'content'] as const
+
+function buildModuleLayoutConfig(layoutType: string, rsc: boolean) {
+  const modBlocks = (rsc ? moduleRscComponentsByLayoutType : moduleComponentsByLayoutType)[layoutType] ?? {}
+  const sharedCategories = Object.fromEntries(
+    MODULE_LAYOUT_CATEGORY_KEYS.map((k) => [k, puckConfig.categories[k]])
+  )
+  const sharedComponents = Object.fromEntries(
+    MODULE_LAYOUT_CATEGORY_KEYS.flatMap((k) => puckConfig.categories[k].components)
+      .map((name) => [name, (puckConfig.components as any)[name]])
+  )
+  return {
+    categories: {
+      blocks: { title: 'Blocks', components: Object.keys(modBlocks), defaultExpanded: true },
+      ...sharedCategories,
+    },
+    root: {
+      render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    },
+    components: { ...sharedComponents, ...modBlocks },
+  }
+}
+
+export function getModuleLayoutPuckConfig(layoutType: string) {
+  return buildModuleLayoutConfig(layoutType, false)
+}
+
+export function getModuleLayoutPuckRscConfig(layoutType: string) {
+  return buildModuleLayoutConfig(layoutType, true)
+}

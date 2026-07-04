@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
+import { moduleLayoutTypeGroups } from '@/lib/layout/module-layout-types'
 
 type LayoutTypeOption = {
   key: string
@@ -399,15 +400,23 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
   ],
 }
 
+type ModuleStarter = { key: string; name: string; description: string; builderData: object }
+
 export default function NewLayoutPage() {
   const router = useRouter()
   const adminPath = useAdminPath()
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | '1b' | 2>(1)
+  const [selectedModule, setSelectedModule] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState<string | null>(null)
   const [selectedStarter, setSelectedStarter] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [moduleStarters, setModuleStarters] = useState<ModuleStarter[]>([])
+  const [loadingStarters, setLoadingStarters] = useState(false)
+
+  const activeGroup = moduleLayoutTypeGroups.find(g => g.moduleName === selectedModule) ?? null
+  const isModuleType = !!activeGroup
 
   function handleTypeSelect(key: string) {
     setSelectedType(key)
@@ -415,10 +424,33 @@ export default function NewLayoutPage() {
     setStep(2)
   }
 
+  function handleModuleCardSelect(moduleName: string) {
+    setSelectedModule(moduleName)
+    setStep('1b')
+  }
+
+  function handleModuleSubTypeSelect(key: string) {
+    setSelectedType(key)
+    setSelectedStarter(null)
+    setLoadingStarters(true)
+    setModuleStarters([])
+    fetch(`/api/admin/layouts?type=${key}`)
+      .then(r => r.json())
+      .then(d => {
+        const starters = ((d.layouts ?? []) as Array<{ id: string; name: string; description: string | null; isStarter: boolean; builderData: object }>)
+          .filter(l => l.isStarter)
+          .map(l => ({ key: l.id, name: l.name, description: l.description ?? '', builderData: l.builderData }))
+        setModuleStarters(starters)
+        setLoadingStarters(false)
+      })
+      .catch(() => setLoadingStarters(false))
+    setStep(2)
+  }
+
   async function handleCreate() {
     if (!name.trim()) { setError('Please enter a name'); return }
     if (!selectedStarter) { setError('Please choose a starting structure'); return }
-    const starters = STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? []
+    const starters: ModuleStarter[] = isModuleType ? moduleStarters : (STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? [])
     const starter = starters.find(s => s.key === selectedStarter)
     if (!starter) return
     setCreating(true); setError('')
@@ -458,6 +490,23 @@ export default function NewLayoutPage() {
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{t.description}</div>
             </button>
           ))}
+          {moduleLayoutTypeGroups.map(g => (
+            <button
+              key={g.moduleName}
+              onClick={() => handleModuleCardSelect(g.moduleName)}
+              style={{
+                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'border-color var(--dur-base), box-shadow var(--dur-base)',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px var(--color-primary-ring, rgba(44,117,88,0.1))' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
+            >
+              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>▥</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{g.groupLabel}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Design {g.groupLabel.toLowerCase()} {g.types.map(t => t.label.toLowerCase()).join(' and ')} pages.</div>
+            </button>
+          ))}
         </div>
 
         <div style={{ marginTop: '1.5rem' }}>
@@ -467,24 +516,56 @@ export default function NewLayoutPage() {
     )
   }
 
+  if (step === '1b' && activeGroup) {
+    return (
+      <div style={{ maxWidth: 640 }}>
+        <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
+          ← Back to type selection
+        </button>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{activeGroup.groupLabel}</h1>
+        <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>Which kind of {activeGroup.groupLabel.toLowerCase()} page is this for?</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+          {activeGroup.types.map(t => (
+            <button
+              key={t.key}
+              onClick={() => handleModuleSubTypeSelect(t.key)}
+              style={{
+                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const typeOption = LAYOUT_TYPES.find(t => t.key === selectedType)
-  const starters = STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? []
+  const typeLabel = isModuleType ? (activeGroup?.types.find(t => t.key === selectedType)?.label ?? selectedType) : typeOption?.label
+  const starters: ModuleStarter[] = isModuleType ? moduleStarters : (STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? [])
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
-        ← Back to type selection
+      <button onClick={() => setStep(isModuleType ? '1b' : 1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
+        ← Back
       </button>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>New {typeOption?.label}</h1>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>New {typeLabel}</h1>
       <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>Give it a name and choose a starting structure.</p>
 
       <div className="field">
         <label>Layout name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${typeOption?.label ?? 'My Layout'}`} autoFocus />
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${typeLabel ?? 'My Layout'}`} autoFocus />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
         <label style={{ fontSize: '0.875rem', fontWeight: 500, display: 'block', marginBottom: '0.75rem' }}>Starting structure</label>
+        {isModuleType && loadingStarters && <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>Loading…</p>}
+        {isModuleType && !loadingStarters && starters.length === 0 && (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>No starting structures available for this type yet.</p>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           {starters.map(s => (
             <button key={s.key} onClick={() => setSelectedStarter(s.key)} style={{

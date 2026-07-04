@@ -54,6 +54,10 @@ If you've got listings sitting in a spreadsheet, **Import CSV** on the Entries p
 
 Visitors land on a front page showing your categories, a map of everything published, and a paginated "All listings" section with featured entries pinned to the top and a running count of how many there are. Each category has its own page with a breadcrumb back to the directory, a filterable map, an area filter, sorting (newest, alphabetical, or by route marker if any entry in that category has one set), a live search box, and a count of what's currently showing. An entry's own page shows a breadcrumb trail, its photos, write-up, a click-to-call phone number, and a **Get directions** link that opens the address in Google Maps - handy for anyone actually trying to get there.
 
+## Designing category and listing pages
+
+The look of a category page and a listing's own page can be customised in **Appearance → Layouts**, under the **Directory** tab (with **Category** and **Entry** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Directory's own blocks (listings grid with filters, map, contact card, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+
 ## Linking to Directory content from a menu
 
 When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Directory** to link directly to the Directory home page, a category, or a listing, instead of typing out the address by hand.

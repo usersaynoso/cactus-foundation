@@ -75,6 +75,8 @@ Layouts use exactly the same drag-and-drop editor as pages, with all the same bl
 | **404 page** | What visitors see when a page doesn't exist. |
 | **Status page** | What visitors see when your site is in coming-soon or maintenance mode. |
 
+Some modules add their own layout types too, shown as an extra tab alongside the built-in ones (with a second row of tabs underneath for that module's own sub-types). At the moment: **Directory** (Category, Entry), **Gazette** (Category, Entry), and **Boards** (Category, Entry) - so you can design the look of a directory category page, a blog article, or a forum thread the same way you design your header or footer. See each module's own wiki page for what a "category" or "entry" layout means for that module.
+
 ### Starter templates
 
 When you first set up Cactus, a library of ready-made starter templates is installed automatically. You can:
@@ -109,6 +111,8 @@ When multiple layouts match a page, the most specific one wins.
 ### Publishing layouts
 
 Like pages, layouts have a draft state and a published state. Changes stay in draft until you click **Publish**. The **Preview** button lets you see the layout before making it live.
+
+Module layout types (Directory/Gazette/Boards Category and Entry) come with a few starter templates, same as headers and footers - but none of them publish automatically. Those pages already have a perfectly good built-in look, so nothing changes until you pick a starter and hit Publish yourself.
 
 ---
 

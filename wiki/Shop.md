@@ -24,11 +24,11 @@ Core admins always have full run of Shop, permissions or no permissions.
 
 ## Setting up payments
 
-Shop supports four ways to take payment, each switched on independently from **Settings → Shop**:
+Shop supports four ways to take payment, each switched on independently from **Settings → Shop → Payments**:
 
-- **Card payments (Stripe)** - needs a Stripe account. Add your `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` and `STRIPE_WEBHOOK_SECRET` as environment variables (see [Configuration reference](Configuration-reference)). Until all three are set, Stripe won't be offered at checkout even if you've ticked it on.
-- **PayPal** - needs `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_WEBHOOK_ID`, plus `PAYPAL_MODE` (`sandbox` for testing, `live` once you're ready to take real payments). Same rule - missing keys mean it's silently hidden at checkout.
-- **Bank transfer** - no keys needed. Write your account details in **Settings → Shop** and orders sit as "awaiting confirmation" until you mark them paid by hand once the money lands.
+- **Card payments (Stripe)** - needs a Stripe account. Enter your publishable key, secret key and webhook signing secret right there on the Payments tab (full admins only - a Shop Manager without full admin access will be told to ask one). Saving triggers the usual "changes awaiting deployment" notice - redeploy your site for the new keys to take effect. Until all three are set, Stripe won't be offered at checkout even if you've ticked it on.
+- **PayPal** - same screen: Client ID, Client secret, Webhook ID, plus a Mode switch (sandbox for testing, live once you're ready to take real payments). Same rule - missing keys mean it's silently hidden at checkout.
+- **Bank transfer** - no keys needed. Write your account details on the same tab and orders sit as "awaiting confirmation" until you mark them paid by hand once the money lands.
 - **Cash** - for in-person or over-the-phone sales. Same manual confirmation as bank transfer.
 
 You can offer as many or as few of these as you like.
@@ -97,7 +97,16 @@ When a product is out of stock, visitors can leave their email address to be not
 
 ## Tax and shipping
 
-Set up tax classes (Standard, Reduced, Zero-rated, whatever your jurisdiction needs) and shipping zones by postcode from **Shop → Settings**. Each zone gets its own tax rate per tax class, and its own shipping rates - a flat fee, a rate that scales with weight, or free shipping above a threshold you choose. Tax is always worked out on the server at checkout, never left to the customer's browser.
+**Shop → Tax & shipping** is where both live, because they share the same building block: a **zone**.
+
+A zone is a group of postcodes that get the same treatment - "United Kingdom", say, or one zone per region if your tax or delivery costs vary within a country. You give a zone a name and a list of postcode prefixes (`SW` catches every London postcode starting SW; a US seller might use `9` to catch every California ZIP code starting with 9). A customer's postcode is matched against the longest prefix that fits, so they only ever land in one zone.
+
+For each zone you set:
+
+- **Tax rates** - a percentage per tax class (Standard, Reduced, Zero-rated, or whatever classes you've defined above the zone list). This is exactly what lets a shop with customers across several US states charge the right sales tax per state - just create one zone per state with its own rate, rather than a single fixed rate for the whole country.
+- **Shipping rates** - as many as you like per zone: a flat fee, a rate that scales with the order's weight (in bands you define), or free shipping above a threshold you choose. Each can have an estimated delivery time and be switched on or off without deleting it.
+
+Tax is always worked out on the server at checkout, never left to the customer's browser.
 
 ---
 
@@ -111,7 +120,7 @@ Anyone can look up an order's status without an account too, using their order n
 
 ## Settings
 
-**Settings → Shop** covers store identity (currency, order number format), tax mode, which payment methods are switched on and their instructions text, notification addresses for new-order and low-stock alerts, the shop's open/browse-only/closed status, and an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, and the shop's open/browse-only/closed status. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
 
 ---
 
