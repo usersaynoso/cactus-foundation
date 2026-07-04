@@ -1,6 +1,11 @@
 {
   "modules": [
     {
+      "name": "boards",
+      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
+      "version": "v0.1.4"
+    },
+    {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.25"
@@ -11,14 +16,9 @@
       "version": "v0.1.3"
     },
     {
-      "name": "boards",
-      "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.4"
-    },
-    {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.0"
+      "version": "v0.1.1"
     }
   ]
 }
