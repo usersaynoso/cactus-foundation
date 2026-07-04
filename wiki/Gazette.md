@@ -112,7 +112,7 @@ Any page that includes one of these blocks always shows the very latest posts on
 
 ## Designing your post listing and post pages
 
-The look of your post listing pages (the main feed, tag pages, series pages, author pages, and monthly archives all share one design) and your individual post pages can be customised in **Appearance → Layouts**, under the **Gazette** tab (with **Category** and **Entry** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Gazette's own blocks (post list, author bio, table of contents, comments, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+The look of your post listing pages (the main feed, tag pages, series pages, author pages, and monthly archives all share one design) and your individual post pages can be customised in **Appearance → Layouts**, under the **Gazette** tab (with **Listing** and **Post** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Gazette's own blocks (post list, author bio, table of contents, comments, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
 
 ---
 
