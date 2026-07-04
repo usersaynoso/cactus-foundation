@@ -136,6 +136,14 @@ To create or edit a menu:
 
 You can have multiple menus and use them in different places - for example, a main navigation in the header and a footer links menu in the footer.
 
+Each menu item can point at one of three things:
+
+- **A page** - one of your info pages.
+- **Module content** - if you have Boards, Gazette, or Directory installed, you can link straight to a board, sub-board, tag or category; a Gazette post, tag, series or author; or a Directory listing or category. Pick "Module content" when adding an item, choose the module and type, then search for the specific one you want.
+- **An external link** - any web address, with the option to open it in a new tab.
+
+If a module item's target is later unpublished or deleted, the admin list still shows it (so you can fix or remove it), but it's automatically left out of the menu on the live site.
+
 ---
 
 **Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)

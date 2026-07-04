@@ -54,6 +54,12 @@ Click **Copy preview link** in the Publish panel to get a private link to a draf
 
 Every writer gets an **author profile** (bio and photo) from **Gazette → Authors**, shown at the bottom of their posts. Writers can edit their own; Editors can edit anyone's.
 
+Every author also gets a page listing everything they've written, at `/gazette/author/username`.
+
+## Linking to Gazette content from a menu
+
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Gazette** to link directly to a post, tag, series or author, instead of typing out the address by hand.
+
 ---
 
 ## Comments

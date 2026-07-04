@@ -54,6 +54,10 @@ If you've got listings sitting in a spreadsheet, **Import CSV** on the Entries p
 
 Visitors land on a front page showing your categories, a map of everything published, and a paginated list with featured entries pinned to the top. Each category has its own page with a filterable map, an area filter, sorting (newest, alphabetical, or by route marker if any entry in that category has one set), and a live search box. An entry's own page shows its photos, write-up, contact details and a single-pin map.
 
+## Linking to Directory content from a menu
+
+When editing a menu (see [Appearance and design](Appearance-and-design)), choose **Module content** and then **Directory** to link directly to a category or a listing, instead of typing out the address by hand.
+
 ---
 
 ## Settings

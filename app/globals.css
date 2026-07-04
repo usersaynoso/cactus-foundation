@@ -1664,6 +1664,51 @@ tbody tr:hover {
   }
 }
 
+.directory-entry-grid-container {
+  container-type: inline-size;
+}
+
+.directory-entry-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "core"
+    "content"
+    "location"
+    "contact"
+    "media"
+    "tags";
+  gap: 1.5rem;
+}
+
+.de-core { grid-area: core; }
+.de-contact { grid-area: contact; }
+.de-tags { grid-area: tags; }
+.de-content { grid-area: content; }
+.de-location { grid-area: location; }
+.de-media { grid-area: media; }
+
+@container (min-width: 480px) {
+  .directory-entry-layout {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
+      "core location"
+      "content content"
+      "contact media"
+      "tags tags";
+  }
+}
+
+@container (min-width: 900px) {
+  .directory-entry-layout {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-areas:
+      "core contact tags"
+      "content content content"
+      "location location media";
+  }
+}
+
 /* ============================================================
    RICH TEXT (PUCK OUTPUT)
    ============================================================ */
