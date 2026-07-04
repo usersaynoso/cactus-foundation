@@ -136,8 +136,13 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   // Dashboard as plain links (no "Modules" heading) so they read as part of
   // the Dashboard section, not a separate collapsible bucket. Labelled module
   // groups (their own named section, e.g. "Gazette") render right after Content.
+  // A module whose navGroupLabel matches a core section name (e.g. "Content")
+  // merges straight into that section's own link list instead of getting its
+  // own header - lets a module add a single link alongside Pages/Menus/Media.
   const ungroupedModuleLinks = moduleNavGroups?.filter((group) => !group.label).flatMap((group) => group.links) ?? []
-  const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label) ?? []
+  const coreSectionLabels = new Set(NAV_SECTIONS.map((section) => section.label).filter((label): label is string => !!label))
+  const mergedIntoCoreSection = moduleNavGroups?.filter((group) => group.label && coreSectionLabels.has(group.label)) ?? []
+  const labelledModuleGroups = moduleNavGroups?.filter((group) => group.label && !coreSectionLabels.has(group.label)) ?? []
 
   function renderModuleGroup(group: ModuleNavGroup, key: string, fallbackIcon: keyof typeof NAV_ICONS = 'modules') {
     const groupLabel = group.label ?? 'Modules'
@@ -236,6 +241,30 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               </Link>
             )
           })}
+          {sectionOpen && mergedIntoCoreSection
+            .filter((group) => group.label === section.label)
+            .flatMap((group) => group.links)
+            .map((entry) => {
+              const href = `${base}${entry.path}`
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={isActive(href) ? 'active' : ''}
+                  title={collapsed ? entry.label : undefined}
+                  onClick={onNavClick}
+                >
+                  <span className="admin-nav-icon">
+                    {entry.icon?.trimStart().startsWith('<') ? (
+                      <svg {...ICON_PROPS} dangerouslySetInnerHTML={{ __html: entry.icon }} />
+                    ) : (
+                      NAV_ICONS.modules
+                    )}
+                  </span>
+                  {!collapsed && entry.label}
+                </Link>
+              )
+            })}
           {section.label === 'Content' &&
             labelledModuleGroups.map((group, groupIndex) => renderModuleGroup(group, group.label ?? `modules-${groupIndex}`))}
         </div>
