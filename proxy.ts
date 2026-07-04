@@ -38,11 +38,15 @@ function buildCsp(): string {
   ].filter(Boolean).join(' ')
   return [
     `default-src 'self'`,
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+    // https://js.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
     `font-src 'self' https://fonts.gstatic.com`,
-    `connect-src 'self'`,
+    // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
+    `connect-src 'self' https://api.stripe.com`,
+    // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
+    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `form-action 'self' https://github.com`,

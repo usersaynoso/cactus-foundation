@@ -65,6 +65,38 @@ export async function validateUpload(
   return { valid: true }
 }
 
+// PROTECTED - non-image upload support (Shop module digital files, Q5).
+// Additive only: existing validateUpload/uploadMedia/deleteMedia/downloadMedia
+// are untouched and remain image-only via ALLOWED_TYPES above. Callers that
+// need a non-image file (e.g. a digital product download) declare their own
+// mime/size policy and skip the sharp decode sniff entirely - there's no
+// universal "valid PDF/zip" check the way there is for image bytes, so this
+// trusts the declared content-type instead of a magic-byte fingerprint.
+export type NonImageUploadMode = {
+  allowedMimeTypes: string[]
+  maxSizeBytes: number
+}
+
+export async function validateNonImageUpload(
+  mimeType: string,
+  sizeBytes: number,
+  mode: NonImageUploadMode
+): Promise<UploadValidationError | { valid: true }> {
+  if (!mode.allowedMimeTypes.includes(mimeType)) {
+    return {
+      valid: false,
+      reason: `File type "${mimeType}" is not allowed for this upload.`,
+    }
+  }
+  if (sizeBytes > mode.maxSizeBytes) {
+    return {
+      valid: false,
+      reason: `File size ${(sizeBytes / 1024 / 1024).toFixed(1)} MB exceeds the ${(mode.maxSizeBytes / 1024 / 1024).toFixed(0)} MB limit.`,
+    }
+  }
+  return { valid: true }
+}
+
 function sanitizeFilename(name: string): string {
   return name
     .replace(/[^a-z0-9._-]/gi, '-')

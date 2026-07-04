@@ -1,0 +1,118 @@
+# Shop
+
+**Shop** turns your Cactus site into a fully working shop: products, a cart, checkout, orders, discounts, reviews and more - all from your own admin, no third-party shop platform needed.
+
+The shop lives at `/shop` on your site (`/shop/products/your-product` for a product, `/shop/categories/mugs` for a category, and so on).
+
+---
+
+## Who can do what
+
+Shop has seven permissions, set on your core roles from **Settings → Users → Roles**:
+
+- `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
+- `shop.manage` - full run of the shop: settings, email templates, storefront page layouts, tax and shipping setup. Overrides every other Shop permission below.
+- `shop.products` - create, edit and delete products, categories, tags and collections; moderate reviews; run CSV imports and exports.
+- `shop.orders` - view and manage orders and refunds.
+- `shop.customers` - view customer records.
+- `shop.discounts` - create and manage coupon codes and automatic discounts.
+- `shop.reports` - see tax and revenue reports.
+
+Core admins always have full run of Shop, permissions or no permissions.
+
+---
+
+## Setting up payments
+
+Shop supports four ways to take payment, each switched on independently from **Settings → Shop**:
+
+- **Card payments (Stripe)** - needs a Stripe account. Add your `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` and `STRIPE_WEBHOOK_SECRET` as environment variables (see [Configuration reference](Configuration-reference)). Until all three are set, Stripe won't be offered at checkout even if you've ticked it on.
+- **PayPal** - needs `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_WEBHOOK_ID`, plus `PAYPAL_MODE` (`sandbox` for testing, `live` once you're ready to take real payments). Same rule - missing keys mean it's silently hidden at checkout.
+- **Bank transfer** - no keys needed. Write your account details in **Settings → Shop** and orders sit as "awaiting confirmation" until you mark them paid by hand once the money lands.
+- **Cash** - for in-person or over-the-phone sales. Same manual confirmation as bank transfer.
+
+You can offer as many or as few of these as you like.
+
+---
+
+## Adding products
+
+From **Shop → Products → New product**, fill in a name and price to get started, then come back to fill in the rest:
+
+- **Type** - Physical, Digital, or Service.
+- **Pricing** - price, an optional "was" price to show a discount, and a cost price (for your own records, never shown to customers).
+- **Inventory** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder).
+- **Pre-order** - flag a product as a pre-order with an expected dispatch date and an optional note. Customers can buy it straight away; stock only comes off the shelf once you actually mark the order as shipped.
+- **Digital files** - for digital products, attach the file customers download after paying, with an optional download limit and expiry.
+- **Images** - add one or more, first one becomes the main photo.
+- **Categories, tags and collections** - organise your catalogue however suits.
+- **SEO** - a custom page title and description for search engines.
+
+**Save** as a draft to keep working on it privately, or set it **Active** to put it in front of customers straight away.
+
+---
+
+## Categories, tags and collections
+
+**Categories** are the usual hierarchical grouping (Mugs, under Kitchenware, under Homeware). **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+
+---
+
+## Orders
+
+**Shop → Orders** lists everything, with tabs for each status and a dedicated **Pre-orders** tab sorted by expected dispatch date. Open an order to see its items, refund individual items (not just the whole order), update its status (optionally emailing the customer automatically), add internal notes, and - for bank transfer or cash orders - confirm payment once it's actually landed.
+
+Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are a manual job outside Cactus, since there's no card or account to refund back to automatically.
+
+---
+
+## Discounts
+
+**Shop → Discounts** has two kinds:
+
+- **Coupon codes** - a code customers type in at checkout. Percentage off, a fixed amount off, or free shipping. Set a minimum order value, a total usage limit, and a per-customer limit if you like.
+- **Automatic discounts** - apply themselves with no code needed, whenever their conditions are met. Useful for a blanket "10% off everything this weekend" or a free-shipping threshold. When several could apply at once, priority decides which wins.
+
+---
+
+## Reviews
+
+Customers can leave a star rating and a written review on any product once they've bought it (or without buying it, if you'd rather not require that). Every review sits in a moderation queue at **Shop → Reviews** until you approve or reject it - nothing goes live unmoderated. Reviews from a genuine buyer show a "Verified purchase" badge automatically.
+
+---
+
+## Back-in-stock alerts
+
+When a product is out of stock, visitors can leave their email address to be notified the moment it's back. The moment you top the stock back up (or switch it to allow backorders), Cactus emails everyone waiting automatically - no extra step needed on your part.
+
+---
+
+## Bringing in a spreadsheet
+
+**Shop → Products → Import** takes a CSV file of your catalogue - name, price, stock, categories, tags, images and more. Existing products are matched and updated by their SKU; anything new comes in as a draft so you can check it over before making it live. Grab the **Import template** button first if you're not sure of the column layout. A running log of your last few imports sits on the same page, so you can see what came in and what (if anything) got skipped and why.
+
+**Export CSV** goes the other way - a full download of your current catalogue, handy for backups or bulk editing outside Cactus.
+
+---
+
+## Tax and shipping
+
+Set up tax classes (Standard, Reduced, Zero-rated, whatever your jurisdiction needs) and shipping zones by postcode from **Shop → Settings**. Each zone gets its own tax rate per tax class, and its own shipping rates - a flat fee, a rate that scales with weight, or free shipping above a threshold you choose. Tax is always worked out on the server at checkout, never left to the customer's browser.
+
+---
+
+## Customer accounts
+
+Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop** if you'd rather not).
+
+Anyone can look up an order's status without an account too, using their order number and the email address it was placed under.
+
+---
+
+## Settings
+
+**Settings → Shop** covers store identity (currency, order number format), tax mode, which payment methods are switched on and their instructions text, notification addresses for new-order and low-stock alerts, the shop's open/browse-only/closed status, and an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+
+---
+
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Shop](Shop) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)

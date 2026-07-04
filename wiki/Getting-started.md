@@ -66,6 +66,8 @@ cp .env.example .env.local
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile bot protection |
 | `SENTRY_DSN` | Error reporting |
 | `MEMBER_AREA_PATH` | Web address prefix for the member account area (see [Members](Members)). Defaults to `account`. Deploy-time only - changing it needs a redeploy. |
+| `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Shop module - card payments via Stripe (see [Shop](Shop)). All three must be set before Stripe appears as a payment option at checkout. |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE` | Shop module - PayPal payments. `PAYPAL_MODE` is `sandbox` or `live`. |
 
 ## Local development
 

@@ -43,7 +43,9 @@ export async function GET(request: NextRequest, { params }: Params) {
     })
   )
 
-  return NextResponse.json({ ...menu, items })
+  const config = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { mainMenuId: true } })
+
+  return NextResponse.json({ ...menu, items, isMainMenu: config?.mainMenuId === id })
 }
 
 const PatchBody = z.object({

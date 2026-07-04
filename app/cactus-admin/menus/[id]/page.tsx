@@ -25,12 +25,17 @@ type Menu = {
   id: string
   name: string
   items: MenuItemFull[]
+  isMainMenu: boolean
 }
 
 type PageResult = { id: string; title: string; slug: string; status: string }
 type EntityKind = { id: string; label: string }
 type ModuleEntityGroup = { moduleId: string; moduleLabel: string; kinds: EntityKind[] }
 type EntitySearchResult = { id: string; label: string; hint?: string }
+
+// Steps of the "Add item" lightbox: root (choose a source) -> a leaf picker.
+// module-kinds sits between picking a module and picking a specific entity kind of that module.
+type ModalStep = 'root' | 'page' | 'external' | 'module-kinds' | 'module-search' | null
 
 function effectiveLabel(item: MenuItemFull): string {
   if (item.type === 'PAGE') return item.label ?? item.page?.title ?? '(untitled)'
@@ -76,7 +81,7 @@ export default function MenuDetailPage() {
   const [saving, setSaving] = useState(false)
 
   // Add item modal state
-  const [addMode, setAddMode] = useState<'page' | 'external' | 'module' | null>(null)
+  const [modalStep, setModalStep] = useState<ModalStep>(null)
   const [addParentId, setAddParentId] = useState<string | null>(null)
   // Page picker
   const [pageSearch, setPageSearch] = useState('')
@@ -105,6 +110,18 @@ export default function MenuDetailPage() {
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // Per-row "more actions" kebab menu
+  const [openKebabId, setOpenKebabId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!openKebabId) return
+    function handleOutsideClick(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest(`[data-kebab-id="${openKebabId}"]`)) setOpenKebabId(null)
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [openKebabId])
+
   // Drag state
   const dragId = useRef<string | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
@@ -124,9 +141,64 @@ export default function MenuDetailPage() {
 
   useEffect(() => { load() }, [load])
 
+  function openAddModal(parentId: string | null = null) {
+    setAddParentId(parentId)
+    setModalStep('root')
+  }
+
+  function selectModule(moduleId: string) {
+    setSelectedModuleId(moduleId)
+    setModalStep('module-kinds')
+  }
+
+  function selectKind(kindId: string) {
+    setSelectedKind(kindId)
+    setEntitySearch('')
+    setModalStep('module-search')
+  }
+
+  function backToRoot() {
+    setSelectedModuleId('')
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+    setModalStep('root')
+  }
+
+  function backToKinds() {
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+    setModalStep('module-kinds')
+  }
+
+  function closeModal() {
+    setModalStep(null)
+    setAddParentId(null)
+    setPageSearch('')
+    setPageResults([])
+    setExtLabel('')
+    setExtUrl('')
+    setExtNewTab(false)
+    setAddError('')
+    setSelectedModuleId('')
+    setSelectedKind('')
+    setEntitySearch('')
+    setEntityResults([])
+  }
+
+  // Load the module list (and each module's entity kinds) once the root screen opens
+  useEffect(() => {
+    if (modalStep !== 'root') return
+    fetch('/api/admin/menus/module-entities')
+      .then((res) => res.json())
+      .then((d) => setModuleGroups(d.modules ?? []))
+      .catch(() => setModuleGroups([]))
+  }, [modalStep])
+
   // Page search for the page picker
   useEffect(() => {
-    if (addMode !== 'page') return
+    if (modalStep !== 'page') return
     setPageSearchLoading(true)
     const timeout = setTimeout(async () => {
       try {
@@ -147,7 +219,7 @@ export default function MenuDetailPage() {
       }
     }, 200)
     return () => clearTimeout(timeout)
-  }, [pageSearch, addMode, menu])
+  }, [pageSearch, modalStep, menu])
 
   async function addPageItem(page: PageResult) {
     setAddError('')
@@ -159,25 +231,16 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
     }
   }
 
-  // Load the module list (and each module's entity kinds) once when the module tab opens
-  useEffect(() => {
-    if (addMode !== 'module') return
-    fetch('/api/admin/menus/module-entities')
-      .then((res) => res.json())
-      .then((d) => setModuleGroups(d.modules ?? []))
-      .catch(() => setModuleGroups([]))
-  }, [addMode])
-
   // Search entities once a module + kind is chosen
   useEffect(() => {
-    if (addMode !== 'module' || !selectedModuleId || !selectedKind) { setEntityResults([]); return }
+    if (modalStep !== 'module-search' || !selectedModuleId || !selectedKind) { setEntityResults([]); return }
     setEntitySearchLoading(true)
     const timeout = setTimeout(async () => {
       try {
@@ -192,7 +255,7 @@ export default function MenuDetailPage() {
       }
     }, 200)
     return () => clearTimeout(timeout)
-  }, [addMode, selectedModuleId, selectedKind, entitySearch])
+  }, [modalStep, selectedModuleId, selectedKind, entitySearch])
 
   async function addModuleEntityItem(result: EntitySearchResult) {
     setAddError('')
@@ -210,7 +273,7 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
@@ -228,26 +291,11 @@ export default function MenuDetailPage() {
       })
       const d = await res.json()
       if (!res.ok) { setAddError(d.error ?? 'Failed to add item'); return }
-      closeAddModal()
+      closeModal()
       await load()
     } catch {
       setAddError('Failed to add item')
     }
-  }
-
-  function closeAddModal() {
-    setAddMode(null)
-    setAddParentId(null)
-    setPageSearch('')
-    setPageResults([])
-    setExtLabel('')
-    setExtUrl('')
-    setExtNewTab(false)
-    setAddError('')
-    setSelectedModuleId('')
-    setSelectedKind('')
-    setEntitySearch('')
-    setEntityResults([])
   }
 
   function startEdit(item: MenuItemFull) {
@@ -323,6 +371,37 @@ export default function MenuDetailPage() {
     await nestUnder(itemId, parent?.parentId ?? null)
   }
 
+  // Swap an item with its previous/next sibling (same parent) - keyboard- and
+  // click-friendly alternative to dragging for precise reordering.
+  async function moveWithinSiblings(itemId: string, direction: -1 | 1) {
+    if (!menu) return
+    const item = menu.items.find((i) => i.id === itemId)
+    if (!item) return
+    const siblings = menu.items.filter((i) => i.parentId === item.parentId).sort((a, b) => a.order - b.order)
+    const idx = siblings.findIndex((i) => i.id === itemId)
+    const target = siblings[idx + direction]
+    if (!target) return
+
+    setSaving(true)
+    try {
+      await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [
+            { id: item.id, parentId: item.parentId, order: target.order },
+            { id: target.id, parentId: target.parentId, order: item.order },
+          ],
+        }),
+      })
+      await load()
+    } catch {
+      setError('Failed to reorder items')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Drag-and-drop reorder
   async function handleDrop(targetId: string) {
     if (!menu || !dragId.current || dragId.current === targetId) {
@@ -368,6 +447,35 @@ export default function MenuDetailPage() {
   if (!menu) return <div className="alert alert-danger">{error || 'Menu not found'}</div>
 
   const topLevel = [...menu.items].filter((i) => !i.parentId).sort((a, b) => a.order - b.order)
+  const activeModuleGroup = moduleGroups.find((m) => m.moduleId === selectedModuleId) ?? null
+  const activeKind = activeModuleGroup?.kinds.find((k) => k.id === selectedKind) ?? null
+  const modalTitle =
+    modalStep === 'page' ? 'Link to a page'
+    : modalStep === 'external' ? 'External link'
+    : modalStep === 'module-kinds' ? (activeModuleGroup?.moduleLabel ?? 'Module content')
+    : modalStep === 'module-search' ? `${activeModuleGroup?.moduleLabel ?? 'Module content'} · ${activeKind?.label ?? ''}`
+    : addParentId ? 'Add child item' : 'Add menu item'
+
+  // A full-width selectable row used on the root and module-kinds screens of the add-item lightbox.
+  function OptionRow({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick: () => void }) {
+    return (
+      <button
+        onClick={onClick}
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem',
+          width: '100%', padding: '0.75rem 1rem',
+          border: '1px solid var(--color-border)', borderRadius: 'var(--radius)',
+          background: 'var(--color-surface)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.125rem' }}>
+          <span style={{ fontWeight: 500 }}>{title}</span>
+          {subtitle && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{subtitle}</span>}
+        </span>
+        <span style={{ color: 'var(--color-text-muted)' }} aria-hidden>›</span>
+      </button>
+    )
+  }
 
   function ItemRow({ item, depth = 0 }: { item: MenuItemFull; depth?: number }) {
     const children = menu!.items.filter((c) => c.parentId === item.id).sort((a, b) => a.order - b.order)
@@ -376,21 +484,33 @@ export default function MenuDetailPage() {
     const descendants = getDescendantIds(item.id, menu!.items)
     const potentialParents = menu!.items.filter((i) => i.id !== item.id && !descendants.has(i.id))
 
+    const siblings = menu!.items.filter((i) => i.parentId === item.parentId).sort((a, b) => a.order - b.order)
+    const siblingIdx = siblings.findIndex((i) => i.id === item.id)
+    const kebabOpen = openKebabId === item.id
+
     return (
       <>
         <tr
-          draggable
-          onDragStart={() => { dragId.current = item.id }}
           onDragOver={(e) => { e.preventDefault(); setDragOver(item.id) }}
           onDrop={() => handleDrop(item.id)}
-          onDragEnd={() => { setDragOver(null); dragId.current = null }}
           style={{
             background: dragOver === item.id ? 'var(--color-success-subtle)' : undefined,
-            cursor: 'grab',
             opacity: dragId.current === item.id ? 0.5 : 1,
           }}
         >
-          <td style={{ paddingLeft: `${depth * 2 + 0.75}rem` }}>
+          <td style={{ width: '1.5rem', padding: 0, textAlign: 'center' }}>
+            <span
+              draggable
+              onDragStart={() => { dragId.current = item.id }}
+              onDragEnd={() => { setDragOver(null); dragId.current = null }}
+              title="Drag to reorder"
+              aria-hidden
+              style={{ cursor: 'grab', color: 'var(--color-text-muted)', display: 'inline-block' }}
+            >
+              ⠿
+            </span>
+          </td>
+          <td style={{ paddingLeft: `${depth * 1.5 + 0.75}rem`, position: 'relative' }}>
             {isEditing ? (
               <div>
                 <input
@@ -422,7 +542,7 @@ export default function MenuDetailPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                {depth > 0 && <span style={{ color: 'var(--color-border-strong)', userSelect: 'none' }}>{'└'.padStart(depth, '·')}</span>}
+                {depth > 0 && <span aria-hidden style={{ color: 'var(--color-text-muted)', userSelect: 'none' }}>↳</span>}
                 <span style={{ fontWeight: 500 }}>{effectiveLabel(item)}</span>
                 {item.label && item.type === 'PAGE' && (
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>(label override)</span>
@@ -449,45 +569,28 @@ export default function MenuDetailPage() {
             </span>
           </td>
           <td>
-            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
               {!isEditing && !isDeleting && (
                 <>
-                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item)}>Edit</button>
                   <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setAddParentId(item.id)}
-                    title="Add child item"
-                    style={{ fontSize: '0.75rem' }}
+                    className="btn btn-ghost btn-sm"
+                    aria-label="Move up"
+                    title="Move up"
+                    disabled={siblingIdx <= 0}
+                    onClick={() => moveWithinSiblings(item.id, -1)}
                   >
-                    + Child
+                    ↑
                   </button>
-                  {depth > 0 && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => promoteItem(item.id)}
-                      title="Move up one level"
-                      style={{ fontSize: '0.75rem' }}
-                    >
-                      ↑ Promote
-                    </button>
-                  )}
-                  {potentialParents.length > 0 && (
-                    <select
-                      defaultValue=""
-                      onChange={(e) => { if (e.target.value) nestUnder(item.id, e.target.value) }}
-                      style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
-                      title="Nest under…"
-                    >
-                      <option value="" disabled>Nest under…</option>
-                      {potentialParents.map((p) => {
-                        const d = getItemDepth(p.id, menu!.items)
-                        const prefix = '  '.repeat(d)
-                        return (
-                          <option key={p.id} value={p.id}>{prefix}{effectiveLabel(p)}</option>
-                        )
-                      })}
-                    </select>
-                  )}
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    aria-label="Move down"
+                    title="Move down"
+                    disabled={siblingIdx === -1 || siblingIdx >= siblings.length - 1}
+                    onClick={() => moveWithinSiblings(item.id, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item)}>Edit</button>
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => setDeleteId(item.id)}
@@ -495,6 +598,63 @@ export default function MenuDetailPage() {
                   >
                     Delete
                   </button>
+                  <div data-kebab-id={item.id} style={{ position: 'relative' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      aria-label="More actions"
+                      aria-expanded={kebabOpen}
+                      onClick={() => setOpenKebabId(kebabOpen ? null : item.id)}
+                    >
+                      ⋯
+                    </button>
+                    {kebabOpen && (
+                      <div
+                        role="menu"
+                        style={{
+                          position: 'absolute', right: 0, top: '100%', marginTop: '0.25rem', zIndex: 20,
+                          width: 240, background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)',
+                          padding: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',
+                        }}
+                      >
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => { setOpenKebabId(null); openAddModal(item.id) }}
+                        >
+                          + Add child item
+                        </button>
+                        {depth > 0 && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ justifyContent: 'flex-start' }}
+                            onClick={() => { setOpenKebabId(null); promoteItem(item.id) }}
+                          >
+                            ↰ Promote one level
+                          </button>
+                        )}
+                        {potentialParents.length > 0 && (
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', padding: '0.25rem 0.5rem 0' }}>
+                            Nest under…
+                            <select
+                              defaultValue=""
+                              onChange={(e) => { if (e.target.value) { nestUnder(item.id, e.target.value); setOpenKebabId(null) } }}
+                              style={{ fontSize: 'var(--text-sm)', padding: 'var(--space-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
+                            >
+                              <option value="" disabled>Choose a parent…</option>
+                              {potentialParents.map((p) => {
+                                const d = getItemDepth(p.id, menu!.items)
+                                const prefix = '  '.repeat(d)
+                                return (
+                                  <option key={p.id} value={p.id}>{prefix}{effectiveLabel(p)}</option>
+                                )
+                              })}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
               {isDeleting && (
@@ -520,13 +680,14 @@ export default function MenuDetailPage() {
           <Link href={`/${adminPath}/menus`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginBottom: 'var(--space-1)' }}>
             ← All menus
           </Link>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>{menu.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>{menu.name}</h1>
+            {menu.isMainMenu && <span className="badge badge-success">Main menu</span>}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {saving && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>Saving…</span>}
-          <button className="btn btn-secondary" onClick={() => setAddMode('page')}>+ Page link</button>
-          <button className="btn btn-secondary" onClick={() => setAddMode('module')}>+ Module content</button>
-          <button className="btn btn-secondary" onClick={() => setAddMode('external')}>+ External link</button>
+          <button className="btn btn-primary" onClick={() => openAddModal(null)}>+ Add item</button>
         </div>
       </div>
 
@@ -537,22 +698,9 @@ export default function MenuDetailPage() {
         </div>
       )}
 
-      {/* Add parent context banner */}
-      {addParentId && !addMode && (
-        <div style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: '1rem', fontSize: 'var(--text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Adding a child item under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong></span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('page')}>+ Page link</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('module')}>+ Module content</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddMode('external')}>+ External link</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddParentId(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       {menu.items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
-          This menu has no items yet. Use the buttons above to add links.
+          This menu has no items yet. Use &quot;+ Add item&quot; above to add links.
         </div>
       )}
 
@@ -561,6 +709,7 @@ export default function MenuDetailPage() {
           <table>
             <thead>
               <tr>
+                <th></th>
                 <th>Label</th>
                 <th>Destination</th>
                 <th>Type</th>
@@ -577,40 +726,61 @@ export default function MenuDetailPage() {
       )}
 
       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-4)' }}>
-        Drag rows to reorder. Use &quot;+ Child&quot; to add nested items, &quot;↑ Promote&quot; to move an item up one level, or &quot;Nest under…&quot; to re-parent.
+        Drag <span aria-hidden>⠿</span> or use the arrows to reorder. Open <span aria-hidden>⋯</span> on an item for nesting options.
       </p>
 
-      {/* Add item modal */}
-      {(addMode === 'page' || addMode === 'external' || addMode === 'module') && (
+      {/* Add item lightbox */}
+      {modalStep !== null && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={(e) => e.target === e.currentTarget && closeAddModal()}
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
         >
           <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', width: '90vw', maxWidth: 560, padding: 'var(--space-6)', boxShadow: 'var(--shadow-xl)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.125rem' }}>
-                {addParentId ? 'Add child item' : 'Add menu item'}
-              </h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  className={addMode === 'page' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('page')}
-                >Link to page</button>
-                <button
-                  className={addMode === 'module' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('module')}
-                >Module content</button>
-                <button
-                  className={addMode === 'external' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  onClick={() => setAddMode('external')}
-                >External link</button>
-                <button type="button" aria-label="Close" onClick={closeAddModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {modalStep !== 'root' && (
+                  <button
+                    type="button"
+                    aria-label="Back"
+                    onClick={modalStep === 'module-search' ? backToKinds : backToRoot}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1, padding: 0 }}
+                  >
+                    ←
+                  </button>
+                )}
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.125rem' }}>{modalTitle}</h2>
+                  {addParentId && (
+                    <p style={{ margin: '0.125rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                      Adding under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong>
+                    </p>
+                  )}
+                </div>
               </div>
+              <button type="button" aria-label="Close" onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
             </div>
 
             {addError && <div className="alert alert-danger" style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>{addError}</div>}
 
-            {addMode === 'page' && (
+            {modalStep === 'root' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <OptionRow title="Page" subtitle="Link to one of your site's pages" onClick={() => setModalStep('page')} />
+                {moduleGroups.map((m) => (
+                  <OptionRow key={m.moduleId} title={m.moduleLabel} subtitle={`Link to ${m.moduleLabel} content`} onClick={() => selectModule(m.moduleId)} />
+                ))}
+                <OptionRow title="External link" subtitle="Link to any other web address" onClick={() => setModalStep('external')} />
+              </div>
+            )}
+
+            {modalStep === 'module-kinds' && activeModuleGroup && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {activeModuleGroup.kinds.map((k) => (
+                  <OptionRow key={k.id} title={k.label} onClick={() => selectKind(k.id)} />
+                ))}
+              </div>
+            )}
+
+            {modalStep === 'page' && (
               <>
                 <div className="field" style={{ marginBottom: '0.5rem' }}>
                   <input
@@ -646,69 +816,41 @@ export default function MenuDetailPage() {
               </>
             )}
 
-            {addMode === 'module' && (
+            {modalStep === 'module-search' && (
               <>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <select
-                    value={selectedModuleId}
-                    onChange={(e) => { setSelectedModuleId(e.target.value); setSelectedKind(''); setEntitySearch('') }}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Choose module…</option>
-                    {moduleGroups.map((m) => (
-                      <option key={m.moduleId} value={m.moduleId}>{m.moduleLabel}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedKind}
-                    onChange={(e) => { setSelectedKind(e.target.value); setEntitySearch('') }}
-                    disabled={!selectedModuleId}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Choose type…</option>
-                    {moduleGroups.find((m) => m.moduleId === selectedModuleId)?.kinds.map((k) => (
-                      <option key={k.id} value={k.id}>{k.label}</option>
-                    ))}
-                  </select>
+                <div className="field" style={{ marginBottom: '0.5rem' }}>
+                  <input
+                    value={entitySearch}
+                    onChange={(e) => setEntitySearch(e.target.value)}
+                    placeholder="Search…"
+                    autoFocus
+                  />
                 </div>
-
-                {selectedModuleId && selectedKind && (
-                  <>
-                    <div className="field" style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        value={entitySearch}
-                        onChange={(e) => setEntitySearch(e.target.value)}
-                        placeholder="Search…"
-                        autoFocus
-                      />
-                    </div>
-                    <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
-                      {entitySearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
-                      {!entitySearchLoading && entityResults.length === 0 && (
-                        <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>No matches</p>
-                      )}
-                      {entityResults.map((result) => (
-                        <button
-                          key={result.id}
-                          onClick={() => addModuleEntityItem(result)}
-                          style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            width: '100%', padding: '0.625rem 0.875rem',
-                            border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
-                            background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                          }}
-                        >
-                          <span style={{ fontWeight: 500 }}>{result.label}</span>
-                          {result.hint && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{result.hint}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)' }}>
+                  {entitySearchLoading && <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>Searching…</p>}
+                  {!entitySearchLoading && entityResults.length === 0 && (
+                    <p style={{ padding: '1rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>No matches</p>
+                  )}
+                  {entityResults.map((result) => (
+                    <button
+                      key={result.id}
+                      onClick={() => addModuleEntityItem(result)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        width: '100%', padding: '0.625rem 0.875rem',
+                        border: 'none', borderBottom: '1px solid var(--color-bg-subtle)',
+                        background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>{result.label}</span>
+                      {result.hint && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{result.hint}</span>}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
 
-            {addMode === 'external' && (
+            {modalStep === 'external' && (
               <>
                 <div className="field">
                   <label>Label</label>
