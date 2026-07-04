@@ -1871,9 +1871,9 @@ tbody tr:hover {
 /* ============================================================
    RESPONSIVE VISIBILITY
    ============================================================ */
-@media (min-width: 1024px)  { .hide-desktop { display: none !important; } }
-@media (max-width: 1023px) and (min-width: 641px) { .hide-tablet { display: none !important; } }
-@media (max-width: 640px)   { .hide-mobile  { display: none !important; } }
+/* .hide-desktop / .hide-tablet / .hide-mobile rules are emitted by
+   buildTokenStyles (lib/design/tokens.ts) so they honour the site's
+   Styles > Spacing & Breakpoints setting instead of hardcoded widths. */
 
 /* ============================================================
    REDUCED MOTION

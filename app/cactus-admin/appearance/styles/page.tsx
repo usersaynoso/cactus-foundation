@@ -143,7 +143,25 @@ export default function StylesPage() {
     fetch('/api/admin/appearance')
       .then(r => r.json())
       .then(d => {
-        if (d.designTokens?.version === 2) setTokens(d.designTokens as DesignTokens)
+        if (d.designTokens?.version === 2) {
+          const loaded = d.designTokens as DesignTokens
+          const dsp = DEFAULT_DESIGN_TOKENS.themeStyle.spacing!
+          // Rows saved before breakpoint/gutter fields existed lack those spacing
+          // keys, and this replaces the defaults wholesale - so backfill them from
+          // DEFAULT_DESIGN_TOKENS. Without this the fields render blank even though
+          // buildTokenStyles applies the same 1024px/640px fallbacks at runtime.
+          setTokens({
+            ...loaded,
+            themeStyle: {
+              ...loaded.themeStyle,
+              spacing: {
+                blockPadding: loaded.themeStyle.spacing?.blockPadding ?? dsp.blockPadding,
+                tabletBreakpoint: loaded.themeStyle.spacing?.tabletBreakpoint ?? dsp.tabletBreakpoint,
+                mobileBreakpoint: loaded.themeStyle.spacing?.mobileBreakpoint ?? dsp.mobileBreakpoint,
+              },
+            },
+          })
+        }
         setLoading(false)
       })
       .catch(() => { setError('Failed to load styles'); setLoading(false) })

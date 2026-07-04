@@ -43,9 +43,12 @@ Control the border radius and border style applied to images.
 
 Set the appearance of text inputs, labels, and other form elements - useful if you have a contact form or other forms on your site.
 
-### Spacing tab
+### Spacing & Breakpoints tab
 
-Set the default left and right padding applied to content blocks. This is the "breathing room" that stops text running right to the edges of the page.
+Two things live here:
+
+- **Default block padding** - the left and right "breathing room" that stops content running right to the edges of the page. Individual blocks can override it.
+- **Responsive breakpoints** - the screen widths where your layouts start reflowing so they stay readable on smaller screens. **Tablet** is where wider multi-column grids drop to two columns; **Mobile** is where everything stacks into a single column. These same two widths drive the rest of the site too: when the main menu folds into a hamburger, when any "hide on tablet/mobile" options take effect, and how the shop's product grids and the article contents sidebar reflow. Sensible defaults are filled in for you (1024px tablet, 640px mobile) - change them only if you want your site to switch layouts at different widths.
 
 ### Saving
 
