@@ -19,6 +19,11 @@
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
       "version": "v0.1.3"
+    },
+    {
+      "name": "shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/shop",
+      "version": "v0.1.0"
     }
   ]
 }
