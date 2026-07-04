@@ -25,6 +25,7 @@ type Menu = {
   id: string
   name: string
   items: MenuItemFull[]
+  isMainMenu: boolean
 }
 
 type PageResult = { id: string; title: string; slug: string; status: string }
@@ -108,6 +109,18 @@ export default function MenuDetailPage() {
 
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Per-row "more actions" kebab menu
+  const [openKebabId, setOpenKebabId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!openKebabId) return
+    function handleOutsideClick(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest(`[data-kebab-id="${openKebabId}"]`)) setOpenKebabId(null)
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [openKebabId])
 
   // Drag state
   const dragId = useRef<string | null>(null)
@@ -358,6 +371,37 @@ export default function MenuDetailPage() {
     await nestUnder(itemId, parent?.parentId ?? null)
   }
 
+  // Swap an item with its previous/next sibling (same parent) - keyboard- and
+  // click-friendly alternative to dragging for precise reordering.
+  async function moveWithinSiblings(itemId: string, direction: -1 | 1) {
+    if (!menu) return
+    const item = menu.items.find((i) => i.id === itemId)
+    if (!item) return
+    const siblings = menu.items.filter((i) => i.parentId === item.parentId).sort((a, b) => a.order - b.order)
+    const idx = siblings.findIndex((i) => i.id === itemId)
+    const target = siblings[idx + direction]
+    if (!target) return
+
+    setSaving(true)
+    try {
+      await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [
+            { id: item.id, parentId: item.parentId, order: target.order },
+            { id: target.id, parentId: target.parentId, order: item.order },
+          ],
+        }),
+      })
+      await load()
+    } catch {
+      setError('Failed to reorder items')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Drag-and-drop reorder
   async function handleDrop(targetId: string) {
     if (!menu || !dragId.current || dragId.current === targetId) {
@@ -440,21 +484,33 @@ export default function MenuDetailPage() {
     const descendants = getDescendantIds(item.id, menu!.items)
     const potentialParents = menu!.items.filter((i) => i.id !== item.id && !descendants.has(i.id))
 
+    const siblings = menu!.items.filter((i) => i.parentId === item.parentId).sort((a, b) => a.order - b.order)
+    const siblingIdx = siblings.findIndex((i) => i.id === item.id)
+    const kebabOpen = openKebabId === item.id
+
     return (
       <>
         <tr
-          draggable
-          onDragStart={() => { dragId.current = item.id }}
           onDragOver={(e) => { e.preventDefault(); setDragOver(item.id) }}
           onDrop={() => handleDrop(item.id)}
-          onDragEnd={() => { setDragOver(null); dragId.current = null }}
           style={{
             background: dragOver === item.id ? 'var(--color-success-subtle)' : undefined,
-            cursor: 'grab',
             opacity: dragId.current === item.id ? 0.5 : 1,
           }}
         >
-          <td style={{ paddingLeft: `${depth * 2 + 0.75}rem` }}>
+          <td style={{ width: '1.5rem', padding: 0, textAlign: 'center' }}>
+            <span
+              draggable
+              onDragStart={() => { dragId.current = item.id }}
+              onDragEnd={() => { setDragOver(null); dragId.current = null }}
+              title="Drag to reorder"
+              aria-hidden
+              style={{ cursor: 'grab', color: 'var(--color-text-muted)', display: 'inline-block' }}
+            >
+              ⠿
+            </span>
+          </td>
+          <td style={{ paddingLeft: `${depth * 1.5 + 0.75}rem`, position: 'relative' }}>
             {isEditing ? (
               <div>
                 <input
@@ -486,7 +542,7 @@ export default function MenuDetailPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                {depth > 0 && <span style={{ color: 'var(--color-border-strong)', userSelect: 'none' }}>{'└'.padStart(depth, '·')}</span>}
+                {depth > 0 && <span aria-hidden style={{ color: 'var(--color-text-muted)', userSelect: 'none' }}>↳</span>}
                 <span style={{ fontWeight: 500 }}>{effectiveLabel(item)}</span>
                 {item.label && item.type === 'PAGE' && (
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>(label override)</span>
@@ -513,45 +569,28 @@ export default function MenuDetailPage() {
             </span>
           </td>
           <td>
-            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', alignItems: 'center' }}>
               {!isEditing && !isDeleting && (
                 <>
-                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item)}>Edit</button>
                   <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setAddParentId(item.id)}
-                    title="Add child item"
-                    style={{ fontSize: '0.75rem' }}
+                    className="btn btn-ghost btn-sm"
+                    aria-label="Move up"
+                    title="Move up"
+                    disabled={siblingIdx <= 0}
+                    onClick={() => moveWithinSiblings(item.id, -1)}
                   >
-                    + Child
+                    ↑
                   </button>
-                  {depth > 0 && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => promoteItem(item.id)}
-                      title="Move up one level"
-                      style={{ fontSize: '0.75rem' }}
-                    >
-                      ↑ Promote
-                    </button>
-                  )}
-                  {potentialParents.length > 0 && (
-                    <select
-                      defaultValue=""
-                      onChange={(e) => { if (e.target.value) nestUnder(item.id, e.target.value) }}
-                      style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
-                      title="Nest under…"
-                    >
-                      <option value="" disabled>Nest under…</option>
-                      {potentialParents.map((p) => {
-                        const d = getItemDepth(p.id, menu!.items)
-                        const prefix = '  '.repeat(d)
-                        return (
-                          <option key={p.id} value={p.id}>{prefix}{effectiveLabel(p)}</option>
-                        )
-                      })}
-                    </select>
-                  )}
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    aria-label="Move down"
+                    title="Move down"
+                    disabled={siblingIdx === -1 || siblingIdx >= siblings.length - 1}
+                    onClick={() => moveWithinSiblings(item.id, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(item)}>Edit</button>
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => setDeleteId(item.id)}
@@ -559,6 +598,63 @@ export default function MenuDetailPage() {
                   >
                     Delete
                   </button>
+                  <div data-kebab-id={item.id} style={{ position: 'relative' }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      aria-label="More actions"
+                      aria-expanded={kebabOpen}
+                      onClick={() => setOpenKebabId(kebabOpen ? null : item.id)}
+                    >
+                      ⋯
+                    </button>
+                    {kebabOpen && (
+                      <div
+                        role="menu"
+                        style={{
+                          position: 'absolute', right: 0, top: '100%', marginTop: '0.25rem', zIndex: 20,
+                          width: 240, background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)',
+                          padding: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',
+                        }}
+                      >
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => { setOpenKebabId(null); openAddModal(item.id) }}
+                        >
+                          + Add child item
+                        </button>
+                        {depth > 0 && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ justifyContent: 'flex-start' }}
+                            onClick={() => { setOpenKebabId(null); promoteItem(item.id) }}
+                          >
+                            ↰ Promote one level
+                          </button>
+                        )}
+                        {potentialParents.length > 0 && (
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', padding: '0.25rem 0.5rem 0' }}>
+                            Nest under…
+                            <select
+                              defaultValue=""
+                              onChange={(e) => { if (e.target.value) { nestUnder(item.id, e.target.value); setOpenKebabId(null) } }}
+                              style={{ fontSize: 'var(--text-sm)', padding: 'var(--space-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
+                            >
+                              <option value="" disabled>Choose a parent…</option>
+                              {potentialParents.map((p) => {
+                                const d = getItemDepth(p.id, menu!.items)
+                                const prefix = '  '.repeat(d)
+                                return (
+                                  <option key={p.id} value={p.id}>{prefix}{effectiveLabel(p)}</option>
+                                )
+                              })}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
               {isDeleting && (
@@ -584,7 +680,10 @@ export default function MenuDetailPage() {
           <Link href={`/${adminPath}/menus`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginBottom: 'var(--space-1)' }}>
             ← All menus
           </Link>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>{menu.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>{menu.name}</h1>
+            {menu.isMainMenu && <span className="badge badge-success">Main menu</span>}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {saving && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', alignSelf: 'center' }}>Saving…</span>}
@@ -599,17 +698,6 @@ export default function MenuDetailPage() {
         </div>
       )}
 
-      {/* Add parent context banner */}
-      {addParentId && !modalStep && (
-        <div style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', marginBottom: '1rem', fontSize: 'var(--text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Adding a child item under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong></span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setModalStep('root')}>+ Add item</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setAddParentId(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       {menu.items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
           This menu has no items yet. Use &quot;+ Add item&quot; above to add links.
@@ -621,6 +709,7 @@ export default function MenuDetailPage() {
           <table>
             <thead>
               <tr>
+                <th></th>
                 <th>Label</th>
                 <th>Destination</th>
                 <th>Type</th>
@@ -637,7 +726,7 @@ export default function MenuDetailPage() {
       )}
 
       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-4)' }}>
-        Drag rows to reorder. Use &quot;+ Child&quot; to add nested items, &quot;↑ Promote&quot; to move an item up one level, or &quot;Nest under…&quot; to re-parent.
+        Drag <span aria-hidden>⠿</span> or use the arrows to reorder. Open <span aria-hidden>⋯</span> on an item for nesting options.
       </p>
 
       {/* Add item lightbox */}
@@ -659,7 +748,14 @@ export default function MenuDetailPage() {
                     ←
                   </button>
                 )}
-                <h2 style={{ margin: 0, fontSize: '1.125rem' }}>{modalTitle}</h2>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.125rem' }}>{modalTitle}</h2>
+                  {addParentId && (
+                    <p style={{ margin: '0.125rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                      Adding under <strong>{effectiveLabel(menu.items.find((i) => i.id === addParentId)!)}</strong>
+                    </p>
+                  )}
+                </div>
               </div>
               <button type="button" aria-label="Close" onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'var(--color-text-muted)', lineHeight: 1 }}>×</button>
             </div>
