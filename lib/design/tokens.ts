@@ -35,6 +35,11 @@ export type DesignTokens = {
   themeStyle: {
     background: { colour?: string }
     body: Typo & { colour?: string }
+    // Optional - added after initial launch, so older stored rows (and the
+    // fresh-install default before a Styles save) may not have these keys.
+    // Always read via `ts?.display`/`ts?.caption`, never assume presence.
+    display?: HeadingStyle
+    caption?: HeadingStyle
     links: { colour?: string; hoverColour?: string }
     headings: {
       h1: HeadingStyle; h2: HeadingStyle; h3: HeadingStyle
@@ -74,6 +79,8 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
   themeStyle: {
     background: {},
     body: { size: '1rem', lineHeight: '1.75' },
+    display: { size: '3rem' },
+    caption: { size: '0.75rem' },
     links: { colour: '#2c7558', hoverColour: '#22604a' },
     headings: {
       h1: { size: '2.5rem' },
@@ -325,6 +332,17 @@ export function buildTokenStyles(tokens: unknown): string {
     if (h.colour) vars.push(`--${tag}-color: ${h.colour};`)
   }
 
+  // Display (hero/largest heading, above h1) and Caption (small label/footnote
+  // text, usable anywhere - not just form-field labels) - both standalone,
+  // read by class rather than tag since neither has one native HTML element.
+  const display = ts?.display ?? {}
+  typoVars('display', display)
+  if (display.colour) vars.push(`--display-color: ${display.colour};`)
+
+  const caption = ts?.caption ?? {}
+  typoVars('caption', caption)
+  if (caption.colour) vars.push(`--caption-color: ${caption.colour};`)
+
   const btns = ts?.buttons
   if (btns?.typo)               typoVars('btn', btns.typo)
   if (btns?.textColour)         vars.push(`--btn-text-color: ${btns.textColour};`)
@@ -387,6 +405,14 @@ export function buildTokenStyles(tokens: unknown): string {
     if (h.colour) hProps.push(`color: ${h.colour};`)
     if (hProps.length) scoped.push(`main ${tag}{${hProps.join('')}}`)
   }
+
+  const displayProps = [...typoProps(display)]
+  if (display.colour) displayProps.push(`color: ${display.colour};`)
+  if (displayProps.length) scoped.push(`main .cactus-display{${displayProps.join('')}}`)
+
+  const captionProps = [...typoProps(caption)]
+  if (caption.colour) captionProps.push(`color: ${caption.colour};`)
+  if (captionProps.length) scoped.push(`main .cactus-caption{${captionProps.join('')}}`)
 
   if (ts?.links?.colour) scoped.push(`main a{color: ${ts.links.colour};}`)
   if (ts?.links?.hoverColour) scoped.push(`main a:hover{color: ${ts.links.hoverColour};}`)
@@ -460,6 +486,8 @@ export function buildFontHref(tokens: unknown): string | null {
       const h = ts.headings?.[tag]
       add(h?.family, h?.weight)
     }
+    add(ts.display?.family, ts.display?.weight)
+    add(ts.caption?.family, ts.caption?.weight)
     add(ts.buttons?.typo?.family, ts.buttons?.typo?.weight)
     add(ts.formFields?.typo?.family, ts.formFields?.typo?.weight)
     add(ts.formFields?.labelTypo?.family, ts.formFields?.labelTypo?.weight)

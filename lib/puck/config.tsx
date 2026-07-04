@@ -372,12 +372,17 @@ function ContentSlot(_props: any) {
 function Heading(props: any) {
   const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none' } = props
   const colors: Record<string, string> = { muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
-  const sizes: Record<string, string> = { h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
-  const weights: Record<string, number> = { h2: 800, h3: 700, h4: 700, h5: 600 }
-  const lvl = (level ?? 'h2') as 'h2' | 'h3' | 'h4' | 'h5'
+  const sizes: Record<string, string> = { display: '3rem', h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
+  const weights: Record<string, number> = { display: 800, h2: 800, h3: 700, h4: 700, h5: 600 }
+  const lvl = (level ?? 'h2') as 'display' | 'h2' | 'h3' | 'h4' | 'h5'
   // Reflect the Styles → Headings tokens per level, falling back to the built-in
   // presets when unset. An explicit muted/brand colour choice still wins; the
   // default "dark" defers to the heading colour token (then --color-fg).
+  // "Display" is the largest level (hero/campaign banners, above H1) - it has
+  // no native tag of its own, so it renders as an actual H1 (builder-format
+  // info pages don't auto-inject their own page-title H1) styled via the
+  // separate --display-* tokens (Styles → Headings → Display), read by class
+  // rather than tag since --${lvl}-* already resolves to --display-* here.
   const style: React.CSSProperties = {
     fontFamily: `var(--${lvl}-family)`,
     fontSize: `var(--${lvl}-size, ${sizes[lvl] ?? sizes.h2})`,
@@ -390,7 +395,8 @@ function Heading(props: any) {
     textAlign: align ?? 'left',
     margin: '0 0 1rem',
   }
-  const Tag = lvl
+  const Tag = lvl === 'display' ? 'h1' : lvl
+  const headingClassName = lvl === 'display' ? 'cactus-display' : undefined
   // Stagger-lines: each newline in `text` becomes its own clipped line that
   // rises into place, staggered by 120ms per line — a one-shot reveal on
   // mount, independent of the scroll-triggered AOS effect above.
@@ -403,7 +409,7 @@ function Heading(props: any) {
     : text
   return (
     <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      <Tag style={style}>
+      <Tag style={style} className={headingClassName}>
         {content}
       </Tag>
     </div>
@@ -454,6 +460,28 @@ function Quote(props: any) {
         {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {attribution}</footer>}
       </blockquote>
     </div>
+  )
+}
+
+function Caption(props: any) {
+  const { text, align, padding } = props
+  return (
+    <p
+      className="cactus-caption"
+      style={{
+        margin: 0, padding: getPadding(padding), textAlign: align ?? 'left',
+        fontFamily: 'var(--caption-family)',
+        fontWeight: 'var(--caption-weight, 500)' as React.CSSProperties['fontWeight'],
+        fontSize: 'var(--caption-size, 0.75rem)',
+        lineHeight: 'var(--caption-line-height, 1.4)',
+        letterSpacing: 'var(--caption-letter-spacing, normal)',
+        textTransform: 'var(--caption-transform, none)' as React.CSSProperties['textTransform'],
+        fontStyle: 'var(--caption-style, normal)',
+        color: 'var(--caption-color, var(--color-muted))',
+      }}
+    >
+      {text}
+    </p>
   )
 }
 
@@ -1053,7 +1081,7 @@ function SiteLogoRsc(props: any) {
 const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
-    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],          defaultExpanded: true },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
@@ -1157,7 +1185,7 @@ const puckConfig = {
       label: 'Heading',
       fields: {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
-        level: { type: 'select' as const, label: 'Level', options: [{ value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
+        level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
         padding: paddingField,
@@ -1184,6 +1212,16 @@ const puckConfig = {
       fields: { quote: { type: 'textarea' as const, label: 'Quote' }, attribution: { type: 'text' as const, label: 'Attribution' }, padding: paddingField, ...aosFields },
       defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'default', ...aosDefaults },
       render: Quote,
+    },
+    Caption: {
+      label: 'Caption',
+      fields: {
+        text: { type: 'text' as const, label: 'Text' },
+        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        padding: paddingField,
+      },
+      defaultProps: { text: 'Caption text', align: 'left' as const, padding: 'default' },
+      render: Caption,
     },
 
     // ── Actions ──────────────────────────────────────────────────────────────
@@ -1568,7 +1606,7 @@ export const footerPuckRscConfig = {
 export const layoutPuckConfig = {
   categories: {
     layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
-    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote'],                         defaultExpanded: false },
+    typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
@@ -1596,6 +1634,7 @@ export const layoutPuckConfig = {
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,
     Quote:        puckConfig.components.Quote,
+    Caption:      puckConfig.components.Caption,
     ButtonLink:   puckConfig.components.ButtonLink,
     CTABanner:    puckConfig.components.CTABanner,
     ImageBlock:   puckConfig.components.ImageBlock,
