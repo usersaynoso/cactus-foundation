@@ -57,6 +57,8 @@ When a newer version is available, an update notice appears next to the module.
 2. Cactus installs the new version and triggers a short rebuild.
 3. A progress screen keeps you updated.
 
+If two or more modules all have updates waiting, an **Update all** button appears above the installed list. Click it to install every pending update in one go - it's a single rebuild covering all of them, rather than one rebuild per module.
+
 ---
 
 ## Uninstalling a module

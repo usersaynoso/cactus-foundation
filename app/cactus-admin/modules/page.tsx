@@ -74,6 +74,7 @@ export default function ModulesPage() {
   const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
   const [uninstalling, setUninstalling] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
+  const [updatingAll, setUpdatingAll] = useState(false)
   const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
   const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
 
@@ -267,6 +268,41 @@ export default function ModulesPage() {
     }
   }
 
+  async function handleUpdateAll() {
+    setError('')
+    setNotice('')
+    setUpdatingAll(true)
+    try {
+      const res = await fetch('/api/admin/modules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-all' }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Update failed')
+      if (d.redeployTriggered) {
+        window.location.assign('/cactus-status/redeploying')
+        return
+      }
+      const failed: string[] = d.failed ?? []
+      if (d.updated > 0) {
+        setNotice(
+          `${d.updated} module${d.updated === 1 ? '' : 's'} updated${failed.length ? `, ${failed.length} failed` : ''}. Your changes are waiting to go live - review and redeploy from Notifications.`
+        )
+      } else if (failed.length > 0) {
+        setError(`Failed to update: ${failed.join(', ')}`)
+      } else {
+        setNotice('No updates available.')
+      }
+      await loadDirectory()
+      router.refresh()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setUpdatingAll(false)
+    }
+  }
+
   function openUninstallModal(entry: DirectoryEntry) {
     if (!entry.installedId) return
     setUninstallModal({ id: entry.installedId, name: formatModuleName(entry.repoName), hasTeardown: entry.hasTeardown ?? false })
@@ -303,6 +339,7 @@ export default function ModulesPage() {
 
   const installed = entries.filter((e) => e.installed)
   const available = entries.filter((e) => !e.installed)
+  const updatableCount = installed.filter((m) => m.status === 'update_available').length
 
   if (loading) return <p>Loading&hellip;</p>
 
@@ -331,7 +368,18 @@ export default function ModulesPage() {
 
       {/* Installed modules */}
       <section style={{ marginBottom: '2.5rem' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, marginBottom: '1rem' }}>Installed</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>Installed</h2>
+          {updatableCount > 0 && (
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={updatingAll}
+              onClick={handleUpdateAll}
+            >
+              {updatingAll ? 'Updating all…' : `Update all (${updatableCount})`}
+            </button>
+          )}
+        </div>
 
         {installed.length === 0 ? (
           <div className="alert alert-info">No modules installed yet.</div>
