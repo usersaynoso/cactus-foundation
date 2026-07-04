@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
@@ -40,6 +40,46 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   // Current editor data — kept in a ref so restore can read it without stale closure
   const currentDataRef = useRef<Data>(initialData)
+
+  // The admin shell only carries its own --color-primary family (buildAdminThemeStyles).
+  // Blocks read the site's actual design tokens (--btn-bg, --h2-family, --caption-*,
+  // --img-radius, etc.), so without this the canvas renders buttons/headings/images in
+  // the admin's own look rather than the site's — mirrors LayoutPuckEditor's injection.
+  useEffect(() => {
+    let mounted = true
+    let styleEl: HTMLStyleElement | null = null
+    let linkEl: HTMLLinkElement | null = null
+
+    fetch('/api/admin/appearance')
+      .then(r => r.json())
+      .then(async d => {
+        if (!mounted || !d.designTokens) return
+        const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
+        const css = buildTokenStyles(d.designTokens)
+        const href = buildFontHref(d.designTokens)
+        if (!mounted) return
+
+        styleEl = document.createElement('style')
+        styleEl.id = 'cactus-token-styles'
+        styleEl.textContent = css
+        document.head.appendChild(styleEl)
+
+        if (href && !document.getElementById('cactus-token-fonts')) {
+          linkEl = document.createElement('link')
+          linkEl.rel = 'stylesheet'
+          linkEl.href = href
+          linkEl.id = 'cactus-token-fonts'
+          document.head.appendChild(linkEl)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      mounted = false
+      styleEl?.remove()
+      linkEl?.remove()
+    }
+  }, [])
 
   // Version history panel state
   const [showHistory, setShowHistory] = useState(false)
@@ -122,6 +162,17 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         ...puckConfig.components.Card,
         fields: {
           ...puckConfig.components.Card.fields,
+          mediaUrl: {
+            type: 'custom' as const,
+            label: 'Image',
+            render: ImageUrlPickerField,
+          },
+        },
+      },
+      ImageChipPanel: {
+        ...puckConfig.components.ImageChipPanel,
+        fields: {
+          ...puckConfig.components.ImageChipPanel.fields,
           mediaUrl: {
             type: 'custom' as const,
             label: 'Image',

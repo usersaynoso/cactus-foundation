@@ -88,6 +88,15 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           },
         },
       } : {}),
+      ...(('ImageChipPanel' in (baseConfig.components ?? {})) ? {
+        ImageChipPanel: {
+          ...(baseConfig.components as any).ImageChipPanel,
+          fields: {
+            ...(baseConfig.components as any).ImageChipPanel?.fields,
+            mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
+          },
+        },
+      } : {}),
     },
   }), [baseConfig])
 

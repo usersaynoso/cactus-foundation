@@ -153,7 +153,7 @@ function GridBlock(props: any) {
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
   return (
-    <div style={{
+    <div className="puck-grid" data-cols={colCount} style={{
       display: 'grid',
       gridTemplateColumns: getGridTemplateColumns(columnSizes, colCount),
       gap: GAP_MAP[gap] ?? '1rem',
@@ -251,7 +251,7 @@ function SplitBlock(props: any) {
   const cols = gridCols[ratio] ?? '1fr 1fr'
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[align] ?? 'stretch', gap: gapValue, marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
+    <div className="puck-split" style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[align] ?? 'stretch', gap: gapValue, marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
       <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
       <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
     </div>
@@ -774,6 +774,31 @@ function Card(props: any) {
   )
 }
 
+function ImageChipPanel(props: any) {
+  const { mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none', borderColor = 'var(--color-border)', borderWidth = '1px', padding } = props
+  const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
+  const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
+  if (!mediaUrl) {
+    return <div style={{ marginBottom: '1.5rem', background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>No image selected</div>
+  }
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden', marginBottom: '1.5rem',
+      boxShadow: shadowMap[boxShadow] ?? 'none',
+      borderRadius: radiusMap[borderRadius] ?? '0',
+      border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
+      padding: getPadding(padding),
+    }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
+      <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 'auto', display: 'block' }} />
+      {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
+          drag-handle wrapper around array-field items, so each Chip's own position:absolute
+          resolves against this same box in both the editor canvas and the live render. */}
+      {chips.map((chip: any, i: number) => <Chip key={i} {...chip} />)}
+    </div>
+  )
+}
+
 function Callout(props: any) {
   const { type, title, body, padding } = props
   const themes: Record<string, { bg: string; border: string; icon: string; titleColor: string }> = {
@@ -1084,7 +1109,7 @@ const puckConfig = {
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
-    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
@@ -1292,6 +1317,38 @@ const puckConfig = {
       fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, padding: paddingField, ...aosFields },
       defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', padding: 'none', ...aosDefaults },
       render: Card,
+    },
+    ImageChipPanel: {
+      label: 'Image + Floating Chips',
+      fields: {
+        mediaUrl: { type: 'text' as const, label: 'Image URL' },
+        alt: { type: 'text' as const, label: 'Alt text' },
+        chips: {
+          type: 'array' as const, label: 'Chips',
+          getItemSummary: (item: { label?: string }) => item.label || 'Chip',
+          arrayFields: {
+            label: { type: 'text' as const, label: 'Label (bold line)' },
+            value: { type: 'text' as const, label: 'Value / detail text' },
+            position: { type: 'select' as const, label: 'Position', options: [{ value: 'top-left', label: 'Top left' }, { value: 'top-right', label: 'Top right' }, { value: 'bottom-left', label: 'Bottom left' }, { value: 'bottom-right', label: 'Bottom right' }, { value: 'bottom-center', label: 'Bottom centre' }] },
+            animationType: { type: 'select' as const, label: 'Reveal', options: [{ value: 'none', label: 'None' }, { value: 'fade-in', label: 'Fade in' }] },
+            animationDelay: { type: 'select' as const, label: 'Delay', options: [{ value: 'none', label: 'None' }, { value: '200ms', label: '200ms' }, { value: '400ms', label: '400ms' }, { value: '600ms', label: '600ms' }] },
+          },
+          defaultItemProps: { label: 'Label', value: 'Detail text', position: 'top-right', animationType: 'none', animationDelay: 'none' },
+        },
+        boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        borderStyle: { type: 'select' as const, label: 'Border', options: [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }] },
+        borderColor: { type: 'text' as const, label: 'Border colour' },
+        borderWidth: { type: 'select' as const, label: 'Border width', options: [{ value: '1px', label: '1px' }, { value: '2px', label: '2px' }, { value: '4px', label: '4px' }] },
+        borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
+        padding: paddingField,
+      },
+      defaultProps: {
+        mediaUrl: '', alt: '',
+        chips: [{ label: 'Label', value: 'Detail text', position: 'top-right' as const, animationType: 'none' as const, animationDelay: 'none' as const }],
+        boxShadow: 'md' as const, borderStyle: 'solid' as const, borderColor: 'var(--color-border)', borderWidth: '1px' as const, borderRadius: 'lg' as const,
+        padding: 'none',
+      },
+      render: ImageChipPanel,
     },
     Callout: {
       label: 'Callout',
@@ -1609,7 +1666,7 @@ export const layoutPuckConfig = {
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
-    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
+    content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
@@ -1643,6 +1700,7 @@ export const layoutPuckConfig = {
     Hero:         puckConfig.components.Hero,
     Eyebrow:      puckConfig.components.Eyebrow,
     Card:         puckConfig.components.Card,
+    ImageChipPanel: puckConfig.components.ImageChipPanel,
     Callout:      puckConfig.components.Callout,
     Badge:        puckConfig.components.Badge,
     Trustline:    puckConfig.components.Trustline,
