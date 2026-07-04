@@ -207,6 +207,8 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `MEMBER_AREA_PATH` | No | The web address prefix for the member account area (login, registration, profile). Defaults to `account`. Set at deploy time only - changing it requires a redeploy. Lowercase letters, numbers and hyphens; unusable values quietly fall back to the default. |
 | `CACTUS_CORE_REPO` | No | Override the upstream repository the Updates panel checks. Set this if you maintain a fork of Cactus Foundation. |
 | `CRON_SECRET` | No | Enables Vercel Cron jobs declared by installed modules (e.g. the Reply Catcher contact-form add-on). When set, Vercel automatically sends it as a bearer token on its own cron requests, and each module's cron route checks it before running. Not required unless an installed module ships a `cronJobs` entry. |
+| `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | No | Shop module - enables card payments via Stripe (see [Shop](Shop)). All three must be set before Stripe is offered at checkout, even if switched on in Settings → Shop. |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE` | No | Shop module - enables PayPal payments. `PAYPAL_MODE` is `sandbox` for testing or `live` for real payments. |
 
 ---
 
@@ -268,4 +270,4 @@ Customise the wording of every email members receive, with a merge-tag list and 
 
 ---
 
-**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
+**Wiki:** [Home](Home) · [Getting started](Getting-started) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Members](Members) · [Managing media](Managing-media) · [Modules](Modules) · [Shop](Shop) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference) · [Architecture overview](Architecture-overview) · [Authoring a module](Authoring-a-module) · [Self-hosting and operations](Self-hosting-and-operations)
