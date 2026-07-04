@@ -3,7 +3,7 @@
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.7"
+      "version": "v0.1.8"
     },
     {
       "name": "shop",
@@ -13,7 +13,7 @@
     {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     },
     {
       "name": "boards",
