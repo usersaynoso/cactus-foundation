@@ -13,7 +13,7 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.0"
+      "version": "v0.1.9"
     }
   ]
 }
