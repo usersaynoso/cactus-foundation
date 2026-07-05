@@ -189,7 +189,7 @@ function GroupBlock(props: any) {
 
 function SiteHeaderBlock(props: any) {
   const {
-    logoUrl, siteName, resolvedItems,
+    logoUrl, logoUrlDark, siteName, resolvedItems,
     bgColor = 'var(--color-bg)', bgMode = 'color', height = '64px',
     sticky = 'yes', borderBottom = 'show', borderColor = 'var(--color-border)',
     maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
@@ -221,7 +221,7 @@ function SiteHeaderBlock(props: any) {
         justifyContent: 'space-between',
         gap: '2rem',
       }}>
-        <SiteLogoRsc logoUrl={logoUrl} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
+        <SiteLogoRsc logoUrl={logoUrl} logoUrlDark={logoUrlDark} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
         {resolvedItems && (
           <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} />
         )}
@@ -1218,7 +1218,7 @@ function MembersProfileBlock() {
 // safe to live in the client-reachable base config (SiteHeaderBlock below
 // renders it directly, in both the editor and the real page).
 export function SiteLogoRsc(props: any) {
-  const { logoUrl, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  const { logoUrl, logoUrlDark, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
   const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-fg)', textDecoration: 'none' }
@@ -1226,7 +1226,11 @@ export function SiteLogoRsc(props: any) {
     return (
       <a href={homeUrl || '/'} style={style}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
+        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} style={{ height: logoHeight, width: 'auto' }} />
+        {logoUrlDark && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" style={{ height: logoHeight, width: 'auto' }} />
+        )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>
     )

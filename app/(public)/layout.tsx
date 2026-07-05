@@ -10,8 +10,10 @@ import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
-import type { Metadata } from 'next'
 
+// Favicon / app-icon metadata is resolved once at the root layout
+// (app/layout.tsx + app/manifest.ts) so it applies on every route, not just
+// here — see lib/config/branding.ts.
 async function getSiteConfig() {
   return prisma.siteConfig
     .findUnique({
@@ -20,7 +22,7 @@ async function getSiteConfig() {
         siteName: true,
         adminPath: true,
         logoMediaId: true,
-        faviconMediaId: true,
+        logoDarkMediaId: true,
         designTokens: true,
         consentBannerConfig: true,
         privacyPolicyPageId: true,
@@ -29,22 +31,15 @@ async function getSiteConfig() {
     .catch(() => null)
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const config = await getSiteConfig()
-  if (!config?.faviconMediaId) return {}
-  const favicon = await prisma.media
-    .findUnique({ where: { id: config.faviconMediaId }, select: { url: true } })
-    .catch(() => null)
-  if (!favicon?.url) return {}
-  return { icons: { icon: favicon.url } }
-}
-
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const config = await getSiteConfig()
 
-  const [logoMedia, privacyPage] = await Promise.all([
+  const [logoMedia, logoDarkMedia, privacyPage] = await Promise.all([
     config?.logoMediaId
       ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+      : Promise.resolve(null),
+    config?.logoDarkMediaId
+      ? prisma.media.findUnique({ where: { id: config.logoDarkMediaId }, select: { url: true } }).catch(() => null)
       : Promise.resolve(null),
     config?.privacyPolicyPageId
       ? prisma.infoPage.findUnique({ where: { id: config.privacyPolicyPageId }, select: { slug: true } }).catch(() => null)
@@ -57,6 +52,7 @@ export default async function PublicLayout({ children }: { children: React.React
   const ctx = {
     siteName: config?.siteName ?? '',
     logoUrl: logoMedia?.url ?? null,
+    logoDarkUrl: logoDarkMedia?.url ?? null,
     isLoggedIn,
     adminPath: config?.adminPath ?? '',
   }

@@ -12,12 +12,17 @@ export default async function NotFound() {
   if (layout?.builderData) {
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { siteName: true, adminPath: true, logoMediaId: true },
+      select: { siteName: true, adminPath: true, logoMediaId: true, logoDarkMediaId: true },
     }).catch(() => null)
-    const logoMedia = config?.logoMediaId
-      ? await prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
-      : null
-    const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
+    const [logoMedia, logoDarkMedia] = await Promise.all([
+      config?.logoMediaId
+        ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+        : null,
+      config?.logoDarkMediaId
+        ? prisma.media.findUnique({ where: { id: config.logoDarkMediaId }, select: { url: true } }).catch(() => null)
+        : null,
+    ])
+    const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, logoDarkUrl: logoDarkMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
     const resolved = await resolveTemplateData(layout.builderData, ctx).catch(() => layout.builderData as Data)
 
     return <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />

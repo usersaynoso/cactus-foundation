@@ -175,7 +175,26 @@ model SiteConfig {
   privacyPolicyPageId    String?
   termsPageId            String?
   logoMediaId            String?
+  // Optional dark-mode logo. Frontend swaps to this when the active theme is
+  // dark (data-theme="dark"); falls back to logoMediaId when unset.
+  logoDarkMediaId        String?
   faviconMediaId         String?
+  // Optional dark-mode favicon. Served via a prefers-color-scheme media query,
+  // so it follows the browser/OS dark setting (not the in-site theme toggle).
+  faviconDarkMediaId     String?
+  // Square source image the admin uploads on the Branding tab. The favicon,
+  // Apple touch icon and PWA icons below are auto-generated from it on upload,
+  // each still independently replaceable. Kept for reference / re-generation.
+  appIconMediaId         String?
+  appleTouchIconMediaId  String?
+  webManifest192MediaId  String?
+  webManifest512MediaId  String?
+  // Web-app manifest / installable-app identity. Fall back to siteName and
+  // white when unset (see lib/config/branding.ts).
+  appName                String?
+  appShortName           String?
+  themeColor             String?
+  backgroundColor        String?
   // Stale-row cleanup periods (days)
   sessionPurgeAfterDays  Int        @default(30)
   recoveryPurgeAfterDays Int        @default(7)
