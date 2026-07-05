@@ -1981,10 +1981,19 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
   )
 }
 
+// Module blocks that opted into the header via `layoutTypes: ["header"]` in their
+// manifest (e.g. the shop's cart-summary widget). Lets a module contribute chrome
+// blocks to the header editor without any module-specific code living in core —
+// same reserved-key mechanism getConfig already uses for 'header' as a layout type.
+const headerModuleBlocks = moduleComponentsByLayoutType['header'] ?? {}
+
 export const headerPuckConfig = {
   categories: {
     site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
     layout: { title: 'Structure', components: ['Grid', 'Group', 'Spacer'], defaultExpanded: true },
+    ...(Object.keys(headerModuleBlocks).length > 0
+      ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
+      : {}),
   },
   root: {
     fields: {
@@ -2008,6 +2017,7 @@ export const headerPuckConfig = {
     Grid:         puckConfig.components.Grid,
     Group:        puckConfig.components.Group,
     Spacer:       puckConfig.components.Spacer,
+    ...headerModuleBlocks,
   },
 }
 

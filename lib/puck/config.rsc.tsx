@@ -73,6 +73,9 @@ export const headerPuckRscConfig = {
     ...headerPuckConfig.components,
     SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
     MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
+    // RSC render halves for any module blocks that opted into the header
+    // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
+    ...(moduleRscComponentsByLayoutType['header'] ?? {}),
   },
 }
 
