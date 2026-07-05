@@ -50,6 +50,22 @@ Click **Upload**, select a file from your computer, and it will be stored with y
 
 ---
 
+## Your media library
+
+Everything you've uploaded lives in **Media**. Along the top you'll find three tabs so you can tell at a glance what's earning its keep and what's just taking up room:
+
+- **All** - every file you've uploaded.
+- **In Use** - files that are actually referenced somewhere: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
+- **Not In Use** - files nothing currently points to. A good place to look before a tidy-up.
+
+Each file also carries a small **In use** or **Unused** label, and every tab shows a count so you know how many are in each pile. The search box works within whichever tab you're on.
+
+**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when - and a **Delete** button, if you decide it's for the chop. Press Esc or click outside to close.
+
+A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
+
+---
+
 ## Using images in pages
 
 1. In the page editor, drag an **Image** block onto your page.
@@ -74,6 +90,8 @@ To move existing images to the new provider, click **Migrate now** on the Media 
 ## Deleting media
 
 Deleting an image via the admin removes it from your storage provider immediately. There is no recycle bin or undo. If you need a deleted image back, you'll need to re-upload it or restore from a backup.
+
+If the image is still in use somewhere - a page, a layout, your logo, and so on - Cactus won't let you delete it by accident, and tells you where it's being used. Swap it out or remove it there first, then delete.
 
 ---
 

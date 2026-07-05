@@ -2,14 +2,18 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { parsePaginationParams } from '@/lib/utils'
+import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
+import { TabStrip, type TabStripItem } from '@/components/admin/TabStrip'
 import Link from 'next/link'
 import MediaUpload from './MediaUpload'
-import MediaDelete from './MediaDelete'
+import MediaCard from './MediaCard'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Media — Admin' }
 
 type Props = { searchParams: Promise<Record<string, string>> }
+
+type MediaFilter = 'all' | 'in-use' | 'unused'
 
 export default async function MediaPage({ searchParams }: Props) {
   const user = await getSessionFromCookie()
@@ -23,12 +27,15 @@ export default async function MediaPage({ searchParams }: Props) {
   const { skip, perPage, page } = parsePaginationParams(params)
 
   const search = params.get('q') ?? ''
+  const rawFilter = params.get('filter')
+  const filter: MediaFilter = rawFilter === 'in-use' || rawFilter === 'unused' ? rawFilter : 'all'
   const where = search ? { OR: [{ key: { contains: search } }, { altText: { contains: search } }] } : {}
 
-  const [items, total] = await Promise.all([
+  // "In use" is computed, not a column, so we load every matching row, classify
+  // it against the usage index, then filter and paginate in memory.
+  const [allItems, usage] = await Promise.all([
     prisma.media.findMany({
       where,
-      skip, take: perPage,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, key: true, url: true, altText: true, mimeType: true,
@@ -36,10 +43,44 @@ export default async function MediaPage({ searchParams }: Props) {
         uploadedBy: { select: { username: true } },
       },
     }),
-    prisma.media.count({ where }),
+    loadMediaUsageIndex(),
   ])
 
-  const totalPages = Math.ceil(total / perPage)
+  const classified = allItems.map((item) => ({ ...item, inUse: isMediaInUse(item, usage) }))
+  const total = classified.length
+  const inUseCount = classified.filter((i) => i.inUse).length
+  const unusedCount = total - inUseCount
+
+  const filtered =
+    filter === 'in-use' ? classified.filter((i) => i.inUse)
+      : filter === 'unused' ? classified.filter((i) => !i.inUse)
+        : classified
+
+  const totalPages = Math.ceil(filtered.length / perPage)
+  const items = filtered.slice(skip, skip + perPage)
+
+  // Preserve the search term across tab switches; drop page (filtered counts differ).
+  const hrefFor = (f: MediaFilter) => {
+    const u = new URLSearchParams()
+    if (search) u.set('q', search)
+    if (f !== 'all') u.set('filter', f)
+    const qs = u.toString()
+    return qs ? `?${qs}` : '?'
+  }
+  const tabs: TabStripItem[] = [
+    { key: 'all', label: `All (${total})`, href: hrefFor('all'), active: filter === 'all' },
+    { key: 'in-use', label: `In Use (${inUseCount})`, href: hrefFor('in-use'), active: filter === 'in-use' },
+    { key: 'unused', label: `Not In Use (${unusedCount})`, href: hrefFor('unused'), active: filter === 'unused' },
+  ]
+
+  // Keep q and filter on pagination links.
+  const pageHref = (n: number) => {
+    const u = new URLSearchParams()
+    u.set('page', String(n))
+    if (search) u.set('q', search)
+    if (filter !== 'all') u.set('filter', filter)
+    return `?${u.toString()}`
+  }
 
   return (
     <div>
@@ -48,7 +89,10 @@ export default async function MediaPage({ searchParams }: Props) {
         {canUpload && <MediaUpload />}
       </div>
 
+      <TabStrip items={tabs} />
+
       <form style={{ marginBottom: '1.5rem' }}>
+        {filter !== 'all' && <input type="hidden" name="filter" value={filter} />}
         <input
           name="q"
           defaultValue={search}
@@ -60,39 +104,24 @@ export default async function MediaPage({ searchParams }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
         {items.length === 0 && (
           <div style={{ gridColumn: '1/-1', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3rem' }}>
-            No media files yet
+            {search ? 'No media matches your search'
+              : filter === 'in-use' ? 'No media is currently in use'
+                : filter === 'unused' ? 'Every media item is in use'
+                  : 'No media files yet'}
           </div>
         )}
         {items.map((item) => (
-          <div key={item.id} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)' }}>
-            <div style={{ height: 140, background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {item.mimeType.startsWith('image/') ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={item.url} alt={item.altText ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '2rem' }}>📄</span>
-              )}
-            </div>
-            <div style={{ padding: '0.625rem' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {item.key.split('/').pop()}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {(item.sizeBytes / 1024).toFixed(1)} KB
-              </div>
-              {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} />}
-            </div>
-          </div>
+          <MediaCard key={item.id} item={item} canDelete={canDelete} />
         ))}
       </div>
 
       {totalPages > 1 && (
         <div className="pagination">
-          {page > 1 && <Link href={`?page=${page - 1}${search ? `&q=${search}` : ''}`}>←</Link>}
+          {page > 1 && <Link href={pageHref(page - 1)}>←</Link>}
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <Link key={n} href={`?page=${n}${search ? `&q=${search}` : ''}`} className={n === page ? 'current' : ''}>{n}</Link>
+            <Link key={n} href={pageHref(n)} className={n === page ? 'current' : ''}>{n}</Link>
           ))}
-          {page < totalPages && <Link href={`?page=${page + 1}${search ? `&q=${search}` : ''}`}>→</Link>}
+          {page < totalPages && <Link href={pageHref(page + 1)}>→</Link>}
         </div>
       )}
     </div>
