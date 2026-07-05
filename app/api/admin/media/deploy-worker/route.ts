@@ -1,0 +1,155 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSessionFromCookie } from '@/lib/auth/session'
+import { isAdmin } from '@/lib/permissions/check'
+import { isLocalMode } from '@/lib/config/env'
+import { errorResponse } from '@/lib/utils'
+import type { MediaProviderType } from '@prisma/client'
+import {
+  PROVIDER_KIND,
+  WORKER_SECRET_KEYS,
+  CLOUDFLARE_WORKER_VAR,
+  CLOUDFLARE_CREDENTIAL_KEYS,
+} from '@/lib/media/providers'
+import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib/media/cloudflare-deploy'
+import { upsertVercelEnvVars } from '@/lib/vercel/env'
+import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
+
+// Account lookup + Worker upload + subdomain enable can chain several Cloudflare
+// calls; give it headroom.
+export const maxDuration = 60
+
+type Body = {
+  provider?: MediaProviderType
+  authMode?: 'token' | 'global'
+  apiToken?: string
+  globalKey?: string
+  email?: string
+  accountId?: string
+  // Freshly-typed provider secret values from the panel (key -> value). Used when
+  // the credentials have been entered but not yet saved + redeployed into
+  // process.env; the route falls back to process.env for already-live values.
+  secrets?: Record<string, string>
+}
+
+export async function POST(req: NextRequest) {
+  const user = await getSessionFromCookie()
+  if (!user) return errorResponse('Not authenticated', 401)
+  if (!isAdmin(user)) return errorResponse('Forbidden', 403)
+
+  if (isLocalMode()) {
+    return errorResponse(
+      'Automatic Worker deployment is unavailable in local-development mode. Deploy from your live site.',
+      503
+    )
+  }
+
+  const vercelToken = process.env.VERCEL_API_TOKEN
+  const projectId = process.env.VERCEL_PROJECT_ID
+  if (!vercelToken || !projectId) {
+    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  }
+
+  let body: Body
+  try {
+    body = (await req.json()) as Body
+  } catch {
+    return errorResponse('Invalid JSON', 400)
+  }
+
+  const provider = body.provider
+  if (!provider || !(provider in PROVIDER_KIND)) return errorResponse('Unknown media provider', 400)
+  if (PROVIDER_KIND[provider] !== 'PROXIED') {
+    return errorResponse(`${provider} is served directly and does not use a Cloudflare Worker.`, 400)
+  }
+
+  // Build the Cloudflare auth from whichever credential the admin supplied.
+  let auth: CloudflareAuth
+  if (body.authMode === 'global') {
+    const email = body.email?.trim()
+    const globalKey = body.globalKey?.trim()
+    if (!email || !globalKey) {
+      return errorResponse('Global API Key mode needs both the account email and the key.', 400)
+    }
+    auth = { kind: 'global', email, globalKey }
+  } else {
+    const apiToken = body.apiToken?.trim()
+    if (!apiToken) return errorResponse('An API token is required.', 400)
+    auth = { kind: 'token', apiToken }
+  }
+
+  // Assemble the Worker secrets: each provider credential + ALLOWED_ORIGIN.
+  // Prefer a freshly-typed value from the request, else the already-deployed
+  // process.env value.
+  const provided = body.secrets ?? {}
+  const secrets: WorkerSecret[] = []
+  const missing: string[] = []
+  for (const key of WORKER_SECRET_KEYS[provider]) {
+    const value = provided[key]?.trim() || process.env[key]
+    if (!value) {
+      missing.push(key)
+      continue
+    }
+    secrets.push({ name: key, text: value })
+  }
+
+  // ALLOWED_ORIGIN is the public site origin - never asked of the admin.
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+  if (siteUrl) {
+    let origin = siteUrl
+    try {
+      origin = new URL(siteUrl).origin
+    } catch {
+      // Fall back to the raw value if it isn't a parseable URL.
+    }
+    secrets.push({ name: 'ALLOWED_ORIGIN', text: origin })
+  } else {
+    missing.push('ALLOWED_ORIGIN (set SITE_URL)')
+  }
+
+  if (missing.length > 0) {
+    return errorResponse(
+      `Missing credential values for: ${missing.join(', ')}. Enter and save them above first.`,
+      400
+    )
+  }
+
+  let url: string
+  let accountId: string
+  try {
+    const result = await deployMediaWorker({ auth, accountId: body.accountId, secrets })
+    url = result.url
+    accountId = result.accountId
+  } catch (err: unknown) {
+    return errorResponse(err instanceof Error ? err.message : 'Worker deployment failed', 502)
+  }
+
+  // Persist the Worker URL (plain) plus the Cloudflare credentials (the two keys
+  // are sensitive per lib/vercel/env.ts) so a later provider switch can redeploy
+  // without re-entering anything.
+  const toWrite: Array<{ key: string; value: string }> = [
+    { key: CLOUDFLARE_WORKER_VAR.key, value: url },
+    { key: CLOUDFLARE_CREDENTIAL_KEYS.accountId, value: accountId },
+  ]
+  if (auth.kind === 'token') {
+    toWrite.push({ key: CLOUDFLARE_CREDENTIAL_KEYS.apiToken, value: auth.apiToken })
+  } else {
+    toWrite.push({ key: CLOUDFLARE_CREDENTIAL_KEYS.globalKey, value: auth.globalKey })
+    toWrite.push({ key: CLOUDFLARE_CREDENTIAL_KEYS.email, value: auth.email })
+  }
+
+  try {
+    await upsertVercelEnvVars(vercelToken, projectId, toWrite)
+    await recordDeploymentNeeded({ label: labelForEnvKeys(toWrite.map((v) => v.key)) })
+  } catch (err: unknown) {
+    // The Worker itself deployed fine; only saving the settings failed. Hand the
+    // URL back so the admin can paste it manually rather than lose the deploy.
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({
+      ok: true,
+      url,
+      warning: `Worker deployed, but saving your settings failed: ${message}. Paste this address into ${CLOUDFLARE_WORKER_VAR.key} yourself: ${url}`,
+    })
+  }
+
+  return NextResponse.json({ ok: true, url, deploymentNeeded: true })
+}

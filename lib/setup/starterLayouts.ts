@@ -119,7 +119,7 @@ const section = (id: string, overrides?: Record<string, unknown>) => ({
 
 const headerRoot = (overrides?: Record<string, unknown>) => ({
   props: {
-    bgMode: 'color', bgColor: '', height: '64px', sticky: 'yes',
+    bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes',
     borderBottom: 'show', borderColor: '', maxWidth: '1200px',
     ...overrides,
   },
@@ -196,7 +196,7 @@ const starterHeaderMinimalData = {
 }
 
 const starterHeaderTransparentData = {
-  root: headerRoot({ bgMode: 'transparent-scroll', borderBottom: 'hide' }),
+  root: headerRoot({ bgMode: 'transparent-scroll', bgColor: '', borderBottom: 'hide' }),
   content: [group('hr1', { gap: 'md', items: [logo('logo-1'), menu('menu-1')] })],
   zones: {},
 }

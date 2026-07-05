@@ -22,7 +22,15 @@ Go to **Settings → Media** and pick a provider from the dropdown. The options 
 
 Enter the credentials for your chosen provider and click **Save**. Cactus will trigger a short rebuild (usually under two minutes) to apply the new settings. A progress screen keeps you updated.
 
-> **Note:** Most providers (all except Cloudinary and ImageKit) deliver images via a Cloudflare Worker. Setting that up requires a Cloudflare account and a small technical step. See [Self-hosting and operations](Self-hosting-and-operations) for the exact commands, or ask whoever set up your Cactus install.
+Not sure where a particular value comes from? The credentials panel shows a **Where to find these** row with links straight to the right page in your provider's console - the bucket list, the key-generation screen, and so on. No hunting through their dashboard required.
+
+> **Note:** Most providers (all except Cloudinary and ImageKit) deliver images via a Cloudflare Worker - a tiny free program that resizes and serves your images. You don't have to build it by hand. The credentials panel has a **Set up the Worker automatically** box: paste one Cloudflare credential, click **Deploy Worker**, and Cactus creates and configures it for you. No terminal, no code.
+>
+> You'll need a (free) Cloudflare account and one of:
+> - an **API token** (recommended) - safer, because it's limited to managing Workers. There's a **Create a token** link that takes you straight to the right page; create a *Custom Token* with the two permissions it lists.
+> - your **Global API Key** - simpler to find but it has full access to your whole Cloudflare account, so the token is the safer choice. There's a **Find your Global API Key** link too.
+>
+> Prefer to do it by hand? The same box has a **Prefer to set it up yourself?** section with step-by-step dashboard instructions, and there's more technical detail in [Self-hosting and operations](Self-hosting-and-operations).
 
 ---
 

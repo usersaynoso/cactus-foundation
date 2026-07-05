@@ -5,7 +5,7 @@ import { getVercelEnvVarKeys, upsertVercelEnvVars, deleteVercelEnvVars } from '@
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { isLocalMode } from '@/lib/config/env'
 import { errorResponse } from '@/lib/utils'
-import { ALL_PROVIDERS, envKeysForProvider } from '@/lib/media/providers'
+import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS } from '@/lib/media/providers'
 import { prisma } from '@/lib/db/prisma'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
@@ -25,6 +25,8 @@ const ALLOWED_KEYS = new Set([
   'SMTP_PASS',
   // Media — all providers (derived from providers.ts so this stays in sync)
   ...ALL_PROVIDERS.flatMap(envKeysForProvider),
+  // Media — Cloudflare credentials for auto-deploying the media Worker
+  ...ALL_CLOUDFLARE_CREDENTIAL_KEYS,
   // Integrations
   'GITHUB_API_TOKEN',
   'ENCRYPTION_KEY',

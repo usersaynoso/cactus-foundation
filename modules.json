@@ -8,7 +8,7 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     },
     {
       "name": "gazette",
@@ -18,7 +18,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.11"
+      "version": "v0.1.16"
     },
     {
       "name": "contact-form",

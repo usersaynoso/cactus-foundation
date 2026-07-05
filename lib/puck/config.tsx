@@ -1939,13 +1939,22 @@ export const layoutPuckConfig = {
 // ---------------------------------------------------------------------------
 
 const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => {
+  // "Solid colour" must always paint a background: fall back to the site
+  // background token when no colour is picked, so the header can never render
+  // see-through by accident. 'transparent' and 'transparent-scroll' are meant to
+  // start see-through, so they keep their existing behaviour.
+  const background = bgMode === 'transparent'
+    ? 'transparent'
+    : bgMode === 'color'
+      ? (bgColor || 'var(--color-bg)')
+      : (bgColor || undefined)
   return (
     <header
       data-bg-mode={bgMode}
       style={{
         height: height === 'auto' ? undefined : height,
         minHeight: height === 'auto' ? 48 : undefined,
-        background: bgMode === 'transparent' ? 'transparent' : (bgColor || undefined),
+        background,
         borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}` : 'none',
         position: sticky === 'yes' ? 'sticky' : 'relative',
         top: sticky === 'yes' ? 0 : undefined,
