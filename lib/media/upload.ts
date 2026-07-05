@@ -105,6 +105,17 @@ function sanitizeFilename(name: string): string {
     .toLowerCase()
 }
 
+// The human-readable label appended to a generated key, e.g. "-logo". The real
+// extension is derived from the validated MIME type and appended separately, so
+// the original filename's extension is stripped first — keeping it produced a
+// double extension ("logo.png" -> "<id>-logo.png.png").
+function filenameLabel(originalFilename?: string): string {
+  if (!originalFilename) return ''
+  const base = originalFilename.replace(/\.[^./\\]+$/, '')
+  const safe = sanitizeFilename(base)
+  return safe ? `-${safe}` : ''
+}
+
 function workerUrl(): string {
   return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
 }
@@ -216,8 +227,7 @@ function isS3Provider(provider: MediaProviderType): boolean {
 // provider so the Worker can resolve which provider holds the key from the path.
 function buildKey(provider: MediaProviderType, mimeType: string, originalFilename?: string): string {
   const ext = mimeType.split('/')[1] ?? 'bin'
-  const suffix = originalFilename ? `-${sanitizeFilename(originalFilename)}` : ''
-  const id = `${nanoid()}${suffix}.${ext}`
+  const id = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
   if (provider === 'B2') return `media/${id}`
   return `media/${provider}/${id}`
 }
@@ -301,7 +311,7 @@ export async function uploadMedia(
     const { default: ImageKit, toFile } = await import('@imagekit/nodejs')
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
     const ext = mimeType.split('/')[1] ?? 'bin'
-    const fileName = `${nanoid()}${originalFilename ? `-${sanitizeFilename(originalFilename)}` : ''}.${ext}`
+    const fileName = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
     const result = await ik.files.upload({ file: uploadable, fileName })
     // Direct provider: store the fileId as key (needed for deletes), url is the CDN url.

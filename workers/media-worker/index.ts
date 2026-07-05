@@ -285,13 +285,19 @@ async function fetchS3Compatible(
     'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // SHA256 of empty body
   }
 
-  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
+  // SigV4 requires the canonical headers block and the SignedHeaders list to be
+  // sorted by lowercase header name, and the two must agree. Derive both from a
+  // single sorted list so they can never drift: an unsorted block signs a
+  // different string than the server rebuilds, which B2/S3 reject as
+  // SignatureDoesNotMatch — surfacing here as a 502 "Upstream error".
+  const sortedHeaders = Object.entries(headers).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  const signedHeaders = sortedHeaders.map(([k]) => k).join(';')
 
   const canonicalRequest = [
     'GET',
     url.pathname,
     url.search.slice(1),
-    Object.entries(headers).map(([k, v]) => `${k}:${v}`).join('\n') + '\n',
+    sortedHeaders.map(([k, v]) => `${k}:${v}`).join('\n') + '\n',
     signedHeaders,
     headers['x-amz-content-sha256'],
   ].join('\n')
