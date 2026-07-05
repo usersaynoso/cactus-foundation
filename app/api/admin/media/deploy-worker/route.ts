@@ -11,6 +11,7 @@ import {
   CLOUDFLARE_CREDENTIAL_KEYS,
 } from '@/lib/media/providers'
 import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib/media/cloudflare-deploy'
+import { rebaseProxiedMediaUrls } from '@/lib/media/upload'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
@@ -92,12 +93,16 @@ export async function POST(req: NextRequest) {
     secrets.push({ name: key, text: value })
   }
 
-  // ALLOWED_ORIGIN is the public site origin - never asked of the admin.
+  // ALLOWED_ORIGIN is the public site origin - never asked of the admin. The
+  // hostname is also used to find the Cloudflare zone to attach media.<domain> to.
   const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+  let siteHostname: string | undefined
   if (siteUrl) {
     let origin = siteUrl
     try {
-      origin = new URL(siteUrl).origin
+      const parsed = new URL(siteUrl)
+      origin = parsed.origin
+      siteHostname = parsed.hostname
     } catch {
       // Fall back to the raw value if it isn't a parseable URL.
     }
@@ -115,10 +120,14 @@ export async function POST(req: NextRequest) {
 
   let url: string
   let accountId: string
+  let customDomain: string | null = null
+  let note: string | undefined
   try {
-    const result = await deployMediaWorker({ auth, accountId: body.accountId, secrets })
+    const result = await deployMediaWorker({ auth, accountId: body.accountId, secrets, siteHostname })
     url = result.url
     accountId = result.accountId
+    customDomain = result.customDomain
+    note = result.note
   } catch (err: unknown) {
     return errorResponse(err instanceof Error ? err.message : 'Worker deployment failed', 502)
   }
@@ -151,5 +160,15 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ ok: true, url, deploymentNeeded: true })
+  // Move existing proxied images onto the newly-saved Worker base so the whole
+  // library uses one address, not just uploads made from now on. Non-fatal: the
+  // Worker and settings are already saved, so a hiccup here shouldn't fail the call.
+  let rebased: number | null = null
+  try {
+    rebased = await rebaseProxiedMediaUrls(url)
+  } catch {
+    rebased = null
+  }
+
+  return NextResponse.json({ ok: true, url, customDomain, note, rebased, deploymentNeeded: true })
 }
