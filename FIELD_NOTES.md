@@ -157,7 +157,7 @@ Account API (all require session):
 
 Admin API:
 
-- `GET/PATCH /api/admin/config` - `config.manage`. GET returns the full SiteConfig row. PATCH validates every field with zod; adminPath blocklist; consent-banner "necessary" category enforced, `categoriesVersion`/`copyVersion` auto-bumped on meaningful changes; Edge Config sync for adminPath/status; a mediaProvider change returns a per-provider Media breakdown.
+- `GET/PATCH /api/admin/config` - `config.manage`. GET returns the full SiteConfig row plus derived `logoUrl`/`faviconUrl` (media rows resolved from `logoMediaId`/`faviconMediaId` for the Branding tab preview). PATCH validates every field with zod (incl. `logoMediaId`/`faviconMediaId`, nullable); adminPath blocklist; consent-banner "necessary" category enforced, `categoriesVersion`/`copyVersion` auto-bumped on meaningful changes; Edge Config sync for adminPath/status; a mediaProvider change returns a per-provider Media breakdown.
 - `GET/PATCH /api/admin/appearance` - GET requires a valid session (public layout reads design tokens directly via Prisma, not this endpoint - only admin editors call it); PATCH requires `appearance.manage` and accepts only null or a `version: 2` token object.
 - `GET/POST/DELETE /api/admin/env` - protected-role only; `maxDuration 60`. GET: boolean set/unset per allowlisted key (Vercel API, or `process.env` read-only in local mode). POST: upserts allowlisted vars to Vercel env, records a deployment-needed notification. DELETE ("Reset Everything"): deletes every project env var, writes the `pendingRedeployId: 'pending'` sentinel, triggers a redeploy in `after()`.
 - `GET /api/admin/github-app` - `config.manage` OR `modules.manage`; ENCRYPTION_KEY presence/format, GitHub App connection + installation state, `hasPat`.
@@ -457,7 +457,7 @@ Pages and routes: listed in the Routes section above.
 Settings tabs (`/cactus-admin/config`):
 
 - General: siteName, tagline, description, homepageId, mainMenuId, timezone (9 options), dateFormat, timeFormat, adminPath, trustDeviceDays (1–365); core-updates panel (channel toggle, check, update-now with optional module bundling); Refresh Starter Templates; Danger zone (Reset Database soft/hard, Reset Everything for Vercel env vars).
-- Branding: placeholder note (logo/favicon require a media provider first).
+- Branding: site logo + favicon upload (`BrandingImageField` in `ConfigPageClient.tsx` - preview/replace/remove, posts to `/api/admin/media`, stores returned id on `config.logoMediaId`/`faviconMediaId`, persisted by the top "Save changes"). Gated on real media state (`config.mediaProvider` set AND `envKeysForProvider(provider).every(k => envStatus[k])`, mirroring the server upload gate); shows the "configure a media provider first" note only when that gate is false. Accepts JPEG/PNG/WebP/GIF (favicon SVG not supported - server `ALLOWED_TYPES`).
 - Email: emailFromName, emailFromAddress; Brevo/SMTP credential cards writing to Vercel env vars.
 - Media: provider select (grouped Proxied/Direct, saved immediately), per-provider env-var checklist + CLOUDFLARE_WORKER_URL for proxied, per-provider media breakdown, client-driven migration with progress/cancel/retry.
 - Site Status: status select (live/comingSoon/maintenance), hideFromCrawlers, link to statusPage layouts.

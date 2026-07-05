@@ -18,7 +18,18 @@ export async function GET() {
   const config = await prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
   if (!config) return errorResponse('Config not found', 404)
 
-  return NextResponse.json(config)
+  // Resolve preview URLs for the branding tab. The config row stores only the
+  // media ids; the URLs live on the referenced media rows.
+  const [logo, favicon] = await Promise.all([
+    config.logoMediaId
+      ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+      : null,
+    config.faviconMediaId
+      ? prisma.media.findUnique({ where: { id: config.faviconMediaId }, select: { url: true } }).catch(() => null)
+      : null,
+  ])
+
+  return NextResponse.json({ ...config, logoUrl: logo?.url ?? null, faviconUrl: favicon?.url ?? null })
 }
 
 const ConsentCategoryPatch = z.object({
@@ -118,6 +129,8 @@ const Patch = z.object({
     .enum(['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT'])
     .optional()
     .nullable(),
+  logoMediaId: z.string().optional().nullable(),
+  faviconMediaId: z.string().optional().nullable(),
   privacyPolicyPageId: z.string().optional().nullable(),
   termsPageId: z.string().optional().nullable(),
   sessionPurgeAfterDays: z.number().int().min(1).max(365).optional(),
