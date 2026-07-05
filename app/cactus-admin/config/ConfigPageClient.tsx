@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode, type CSSProperties } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
@@ -47,8 +47,20 @@ type SiteConfig = {
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
 
-const TABS = ['general', 'branding', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
+const TABS = ['general', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
+
+// Branding (logo/favicon/app icons + app identity) moved to the Styles page. These
+// SiteConfig keys - plus the GET's derived *Url preview fields - are owned there
+// now, so this page keeps them out of its config state and its Save payload, and
+// so never clobbers a branding edit made on the Styles page.
+const BRANDING_OWNED_KEYS = [
+  'logoMediaId', 'logoDarkMediaId', 'faviconMediaId', 'faviconDarkMediaId',
+  'appIconMediaId', 'appleTouchIconMediaId', 'webManifest192MediaId', 'webManifest512MediaId',
+  'appName', 'appShortName', 'themeColor', 'backgroundColor',
+  'logoUrl', 'logoDarkUrl', 'faviconUrl', 'faviconDarkUrl',
+  'appIconUrl', 'appleTouchUrl', 'icon192Url', 'icon512Url',
+] as const
 
 // Env var sections: each section has a label, description, and its managed keys.
 type EnvSection = {
@@ -488,161 +500,6 @@ function configFingerprint(c: Partial<SiteConfig>): string {
   return JSON.stringify(rest)
 }
 
-// A single logo/favicon slot on the Branding tab: preview, upload/replace, and
-// remove. Uploads go straight to the media library; the parent stores the
-// returned media id on the config and persists it with the top "Save changes".
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const kb = bytes / 1024
-  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
-
-function BrandingImageField({
-  label,
-  hint,
-  previewUrl,
-  square = false,
-  mediaId = null,
-  allowOptimise = false,
-  onUploaded,
-  onRemove,
-}: {
-  label: string
-  hint: string
-  previewUrl: string | null
-  square?: boolean
-  mediaId?: string | null
-  allowOptimise?: boolean
-  onUploaded: (media: { id: string; url: string }) => void
-  onRemove: () => void
-}) {
-  const [uploading, setUploading] = useState(false)
-  const [optimising, setOptimising] = useState(false)
-  const [optimiseNote, setOptimiseNote] = useState('')
-  const [error, setError] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  async function handleOptimise() {
-    if (!mediaId) return
-    setOptimising(true)
-    setError('')
-    setOptimiseNote('')
-    try {
-      const res = await fetch('/api/admin/media/optimise', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaId }),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
-      if (d.optimised) {
-        onUploaded({ id: d.id, url: d.url })
-        const saved = Math.round((1 - d.after / d.before) * 100)
-        setOptimiseNote(`Optimised: ${formatBytes(d.before)} → ${formatBytes(d.after)} (${saved}% smaller).`)
-      } else {
-        setOptimiseNote(`Already about as small as it gets (${formatBytes(d.before)}) - left as-is.`)
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Optimise failed')
-    } finally {
-      setOptimising(false)
-    }
-  }
-
-  async function handleFile(file: File | null) {
-    if (!file) return
-    setUploading(true)
-    setError('')
-    setOptimiseNote('')
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('altText', label)
-      const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Upload failed')
-      onUploaded({ id: d.id, url: d.url })
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
-      if (inputRef.current) inputRef.current.value = ''
-    }
-  }
-
-  return (
-    <div className="field" style={{ marginBottom: '1.5rem' }}>
-      <label style={{ display: 'block', marginBottom: '0.5rem' }}>{label}</label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- media URLs are user-supplied remote hosts, not statically optimisable
-          <img
-            src={previewUrl}
-            alt={`${label} preview`}
-            style={{
-              height: 64,
-              width: square ? 64 : 'auto',
-              maxWidth: 240,
-              objectFit: 'contain',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius)',
-              padding: '0.35rem',
-              background: 'var(--color-surface)',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              height: 64,
-              width: square ? 64 : 120,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px dashed var(--color-border)',
-              borderRadius: 'var(--radius)',
-              color: 'var(--color-text-muted)',
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            None
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            style={{ display: 'none' }}
-            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-          />
-          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={() => inputRef.current?.click()}>
-            {uploading ? 'Uploading…' : previewUrl ? 'Replace' : 'Upload'}
-          </button>
-          {allowOptimise && previewUrl && mediaId && (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={handleOptimise}>
-              {optimising ? 'Optimising…' : 'Optimise'}
-            </button>
-          )}
-          {previewUrl && (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={onRemove}>
-              Remove
-            </button>
-          )}
-        </div>
-      </div>
-      <span className="field-hint">{hint}</span>
-      {allowOptimise && (
-        <span className="field-hint" style={{ display: 'block' }}>
-          Resizes an oversized logo and compresses it with no loss of quality. Remember to press Save changes afterwards.
-        </span>
-      )}
-      {optimiseNote && <span style={{ color: 'var(--color-success)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{optimiseNote}</span>}
-      {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{error}</span>}
-    </div>
-  )
-}
-
 type ModuleTab = { id: string; label: string }
 type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
 
@@ -671,18 +528,6 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
     canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
   )
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
-  // Branding tab: preview URLs resolved from the stored logo/favicon media ids.
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null)
-  const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
-  const [faviconDarkPreview, setFaviconDarkPreview] = useState<string | null>(null)
-  const [appIconPreview, setAppIconPreview] = useState<string | null>(null)
-  const [appleTouchPreview, setAppleTouchPreview] = useState<string | null>(null)
-  const [icon192Preview, setIcon192Preview] = useState<string | null>(null)
-  const [icon512Preview, setIcon512Preview] = useState<string | null>(null)
-  const [generatingIcons, setGeneratingIcons] = useState(false)
-  const [iconGenNote, setIconGenNote] = useState('')
-  const [iconGenError, setIconGenError] = useState('')
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -914,19 +759,13 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       fetch('/api/admin/env').then((r) => r.json()),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
     ]).then(([cfg, pagesData, envData, menusData]) => {
-      // logoUrl/faviconUrl are derived preview fields, not columns — keep them
-      // out of the config state (and its dirty-fingerprint) and drive previews.
-      const { logoUrl, logoDarkUrl, faviconUrl, faviconDarkUrl, appIconUrl, appleTouchUrl, icon192Url, icon512Url, ...cfgRest } = cfg as Partial<SiteConfig> & { logoUrl?: string | null; logoDarkUrl?: string | null; faviconUrl?: string | null; faviconDarkUrl?: string | null; appIconUrl?: string | null; appleTouchUrl?: string | null; icon192Url?: string | null; icon512Url?: string | null }
+      // Branding (logo/favicon/app icons + app identity) and its derived preview
+      // URLs are edited on the Styles page now. Strip them from this page's config
+      // state so its Save never round-trips - and so never clobbers - them.
+      const cfgRest = { ...(cfg as Partial<SiteConfig>) }
+      for (const k of BRANDING_OWNED_KEYS) delete (cfgRest as Record<string, unknown>)[k]
       setConfig(cfgRest)
       savedFingerprint.current = configFingerprint(cfgRest)
-      setLogoPreview(logoUrl ?? null)
-      setLogoDarkPreview(logoDarkUrl ?? null)
-      setFaviconPreview(faviconUrl ?? null)
-      setFaviconDarkPreview(faviconDarkUrl ?? null)
-      setAppIconPreview(appIconUrl ?? null)
-      setAppleTouchPreview(appleTouchUrl ?? null)
-      setIcon192Preview(icon192Url ?? null)
-      setIcon512Preview(icon512Url ?? null)
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
@@ -967,42 +806,6 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       return false
     } finally {
       setSaving(false)
-    }
-  }
-
-  // App-icon source upload: store the source, then ask the server to generate
-  // the favicon / Apple touch / PWA icons from it and drop them into the config
-  // state (persisted by the top "Save changes", same as the Optimise button).
-  async function handleAppIconUploaded(m: { id: string; url: string }) {
-    setConfig((p) => ({ ...p, appIconMediaId: m.id }))
-    setAppIconPreview(m.url)
-    setGeneratingIcons(true)
-    setIconGenNote('')
-    setIconGenError('')
-    try {
-      const res = await fetch('/api/admin/branding/generate-icons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceMediaId: m.id }),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Icon generation failed')
-      setConfig((p) => ({
-        ...p,
-        faviconMediaId: d.favicon.id,
-        appleTouchIconMediaId: d.appleTouch.id,
-        webManifest192MediaId: d.icon192.id,
-        webManifest512MediaId: d.icon512.id,
-      }))
-      setFaviconPreview(d.favicon.url)
-      setAppleTouchPreview(d.appleTouch.url)
-      setIcon192Preview(d.icon192.url)
-      setIcon512Preview(d.icon512.url)
-      setIconGenNote('Generated the favicon, Apple touch icon and app icons from your image. Press Save changes to apply, or replace any individual one below.')
-    } catch (err: unknown) {
-      setIconGenError(err instanceof Error ? err.message : 'Icon generation failed')
-    } finally {
-      setGeneratingIcons(false)
     }
   }
 
@@ -1273,7 +1076,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   if (loading) return <p>Loading…</p>
 
   const tabLabels: Record<Tab, string> = {
-    general: 'General', branding: 'Branding',
+    general: 'General',
     email: 'Email', media: 'Media', status: 'Site Status', gdpr: 'GDPR & Legal', integrations: 'Integrations',
   }
 
@@ -2101,143 +1904,6 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                 {membersGdprExtensions}
               </>
             )}
-          </div>
-        )
-      })()}
-
-      {tab === 'branding' && (() => {
-        const provider = config.mediaProvider ?? null
-        // Mirror the server upload gate: a provider must be selected and every
-        // env var it needs present (proxied providers also need the Worker URL).
-        const mediaReady = !!provider && envKeysForProvider(provider).every((k) => envStatus[k])
-
-        if (!mediaReady) {
-          return (
-            <div className="alert alert-info">
-              Logo and favicon upload requires a media provider to be configured first. Choose one and add its credentials in the Media tab.
-            </div>
-          )
-        }
-
-        const brandingHeading: CSSProperties = { fontSize: 'var(--text-base)', fontWeight: 600, margin: '1.75rem 0 0.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)' }
-        const brandingSubNote: CSSProperties = { fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 1.25rem' }
-        const genNote: CSSProperties = { fontSize: 'var(--text-sm)', display: 'block', marginTop: '-0.75rem', marginBottom: '1.25rem' }
-        const swatch: CSSProperties = { width: 44, height: 38, padding: 2, flexShrink: 0, cursor: 'pointer' }
-
-        return (
-          <div>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
-              Set the logo, icons, and app identity for your site. These replace the default Cactus branding everywhere - browser tabs, bookmarks, and when someone adds your site to their phone. Press <strong>Save changes</strong> when you&apos;re done.
-            </p>
-
-            <h3 style={{ ...brandingHeading, paddingTop: 0, borderTop: 'none', marginTop: 0 }}>Logo</h3>
-            <p style={brandingSubNote}>Appears in your site header and on the coming-soon, maintenance, and not-found pages.</p>
-            <BrandingImageField
-              label="Site logo"
-              hint="JPEG, PNG, WebP, or GIF."
-              previewUrl={logoPreview}
-              mediaId={config.logoMediaId ?? null}
-              allowOptimise
-              onUploaded={(m) => { setConfig((p) => ({ ...p, logoMediaId: m.id })); setLogoPreview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, logoMediaId: null })); setLogoPreview(null) }}
-            />
-            <BrandingImageField
-              label="Site logo (dark mode)"
-              hint="Optional. Used automatically when a visitor views your site in dark mode. Leave empty to keep the standard logo everywhere. JPEG, PNG, WebP, or GIF."
-              previewUrl={logoDarkPreview}
-              mediaId={config.logoDarkMediaId ?? null}
-              allowOptimise
-              onUploaded={(m) => { setConfig((p) => ({ ...p, logoDarkMediaId: m.id })); setLogoDarkPreview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, logoDarkMediaId: null })); setLogoDarkPreview(null) }}
-            />
-
-            <h3 style={brandingHeading}>Favicon &amp; app icons</h3>
-            <p style={brandingSubNote}>Upload one square app icon and we&apos;ll create the whole set - browser favicon, Apple touch icon, and installable-app icons. Prefer to hand-pick any of them? Replace it below; your override sticks.</p>
-            <BrandingImageField
-              label="App icon (source)"
-              hint="One square image, at least 512×512. Everything below is generated from it. JPEG, PNG, WebP, or GIF."
-              previewUrl={appIconPreview}
-              mediaId={config.appIconMediaId ?? null}
-              square
-              onUploaded={handleAppIconUploaded}
-              onRemove={() => { setConfig((p) => ({ ...p, appIconMediaId: null })); setAppIconPreview(null); setIconGenNote(''); setIconGenError('') }}
-            />
-            {generatingIcons && <span style={{ ...genNote, color: 'var(--color-text-muted)' }}>Generating icons…</span>}
-            {!generatingIcons && iconGenNote && <span style={{ ...genNote, color: 'var(--color-success)' }}>{iconGenNote}</span>}
-            {!generatingIcons && iconGenError && <span style={{ ...genNote, color: 'var(--color-destructive)' }}>{iconGenError}</span>}
-            <BrandingImageField
-              label="Favicon"
-              hint="The small icon in browser tabs and bookmarks. Auto-filled from your app icon; replace for full control. A square image of at least 96×96 works best."
-              previewUrl={faviconPreview}
-              square
-              onUploaded={(m) => { setConfig((p) => ({ ...p, faviconMediaId: m.id })); setFaviconPreview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, faviconMediaId: null })); setFaviconPreview(null) }}
-            />
-            <BrandingImageField
-              label="Favicon (dark mode)"
-              hint="Optional. Shown when the visitor's browser is set to dark mode. Follows the browser setting rather than the toggle on your site. A square image of at least 96×96 works best."
-              previewUrl={faviconDarkPreview}
-              square
-              onUploaded={(m) => { setConfig((p) => ({ ...p, faviconDarkMediaId: m.id })); setFaviconDarkPreview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, faviconDarkMediaId: null })); setFaviconDarkPreview(null) }}
-            />
-            <BrandingImageField
-              label="Apple touch icon"
-              hint="Shown when someone adds your site to their home screen on iPhone or iPad. 180×180. Auto-filled from your app icon."
-              previewUrl={appleTouchPreview}
-              square
-              onUploaded={(m) => { setConfig((p) => ({ ...p, appleTouchIconMediaId: m.id })); setAppleTouchPreview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, appleTouchIconMediaId: null })); setAppleTouchPreview(null) }}
-            />
-            <BrandingImageField
-              label="App icon (192×192)"
-              hint="Used when your site is installed as an app on Android and desktop. Auto-filled from your app icon."
-              previewUrl={icon192Preview}
-              square
-              onUploaded={(m) => { setConfig((p) => ({ ...p, webManifest192MediaId: m.id })); setIcon192Preview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, webManifest192MediaId: null })); setIcon192Preview(null) }}
-            />
-            <BrandingImageField
-              label="App icon (512×512)"
-              hint="The large installable-app icon and splash image. Auto-filled from your app icon."
-              previewUrl={icon512Preview}
-              square
-              onUploaded={(m) => { setConfig((p) => ({ ...p, webManifest512MediaId: m.id })); setIcon512Preview(m.url) }}
-              onRemove={() => { setConfig((p) => ({ ...p, webManifest512MediaId: null })); setIcon512Preview(null) }}
-            />
-
-            <h3 style={brandingHeading}>App name &amp; colours</h3>
-            <p style={brandingSubNote}>Used when your site is installed as an app, and for the browser toolbar colour on phones.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-              <div className="field" style={{ margin: 0 }}>
-                <label>App name</label>
-                <input value={config.appName ?? ''} onChange={(e) => set('appName', e.target.value)} placeholder={config.siteName ?? 'Your site name'} />
-                <span className="field-hint">The full name shown when the site is installed. Defaults to your site name.</span>
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label>Short name</label>
-                <input value={config.appShortName ?? ''} onChange={(e) => set('appShortName', e.target.value)} placeholder={config.siteName ?? 'Short name'} />
-                <span className="field-hint">Shown under the app icon on a phone home screen. Keep it short.</span>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-              <div className="field" style={{ margin: 0 }}>
-                <label>Theme colour</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(config.themeColor ?? '') ? config.themeColor as string : '#ffffff'} onChange={(e) => set('themeColor', e.target.value)} style={swatch} aria-label="Theme colour" />
-                  <input value={config.themeColor ?? ''} onChange={(e) => set('themeColor', e.target.value)} placeholder="#ffffff" />
-                </div>
-                <span className="field-hint">Colours the browser toolbar on mobile and the installed app.</span>
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label>Background colour</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(config.backgroundColor ?? '') ? config.backgroundColor as string : '#ffffff'} onChange={(e) => set('backgroundColor', e.target.value)} style={swatch} aria-label="Background colour" />
-                  <input value={config.backgroundColor ?? ''} onChange={(e) => set('backgroundColor', e.target.value)} placeholder="#ffffff" />
-                </div>
-                <span className="field-hint">Shown while the installed app is loading.</span>
-              </div>
-            </div>
           </div>
         )
       })()}
