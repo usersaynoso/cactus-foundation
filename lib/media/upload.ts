@@ -109,6 +109,18 @@ function workerUrl(): string {
   return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
 }
 
+// User-supplied S3-compatible endpoints (B2, MinIO) are routinely pasted the way
+// the provider's console shows them - without a scheme, e.g.
+// "s3.eu-central-003.backblazeb2.com". The AWS SDK runs new URL() on the endpoint
+// internally and throws "Invalid URL" for a scheme-less value, which fails every
+// upload before it leaves the box. Prepend https:// when no scheme is present; an
+// explicit http:// is preserved so a self-hosted MinIO over plain HTTP still works.
+function normalizeS3Endpoint(endpoint: string | undefined): string | undefined {
+  const trimmed = endpoint?.trim().replace(/\/+$/, '')
+  if (!trimmed) return undefined
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 // ---------------------------------------------------------------------------
 // S3-compatible client construction (B2, R2, S3, Spaces, Wasabi, MinIO)
 // ---------------------------------------------------------------------------
@@ -120,7 +132,7 @@ function getS3Config(provider: MediaProviderType): S3Config {
     case 'B2':
       return {
         client: new S3Client({
-          endpoint: process.env.B2_ENDPOINT,
+          endpoint: normalizeS3Endpoint(process.env.B2_ENDPOINT),
           region: 'auto',
           credentials: {
             accessKeyId: process.env.B2_APPLICATION_KEY_ID ?? '',
@@ -179,7 +191,7 @@ function getS3Config(provider: MediaProviderType): S3Config {
     case 'MINIO':
       return {
         client: new S3Client({
-          endpoint: process.env.MINIO_ENDPOINT,
+          endpoint: normalizeS3Endpoint(process.env.MINIO_ENDPOINT),
           region: 'us-east-1',
           forcePathStyle: true,
           credentials: {

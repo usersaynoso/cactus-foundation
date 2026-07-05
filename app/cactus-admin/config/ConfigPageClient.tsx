@@ -489,11 +489,20 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 // A single logo/favicon slot on the Branding tab: preview, upload/replace, and
 // remove. Uploads go straight to the media library; the parent stores the
 // returned media id on the config and persists it with the top "Save changes".
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const kb = bytes / 1024
+  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
+}
+
 function BrandingImageField({
   label,
   hint,
   previewUrl,
   square = false,
+  mediaId = null,
+  allowOptimise = false,
   onUploaded,
   onRemove,
 }: {
@@ -501,17 +510,49 @@ function BrandingImageField({
   hint: string
   previewUrl: string | null
   square?: boolean
+  mediaId?: string | null
+  allowOptimise?: boolean
   onUploaded: (media: { id: string; url: string }) => void
   onRemove: () => void
 }) {
   const [uploading, setUploading] = useState(false)
+  const [optimising, setOptimising] = useState(false)
+  const [optimiseNote, setOptimiseNote] = useState('')
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleOptimise() {
+    if (!mediaId) return
+    setOptimising(true)
+    setError('')
+    setOptimiseNote('')
+    try {
+      const res = await fetch('/api/admin/media/optimise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediaId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
+      if (d.optimised) {
+        onUploaded({ id: d.id, url: d.url })
+        const saved = Math.round((1 - d.after / d.before) * 100)
+        setOptimiseNote(`Optimised: ${formatBytes(d.before)} → ${formatBytes(d.after)} (${saved}% smaller).`)
+      } else {
+        setOptimiseNote(`Already about as small as it gets (${formatBytes(d.before)}) - left as-is.`)
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Optimise failed')
+    } finally {
+      setOptimising(false)
+    }
+  }
 
   async function handleFile(file: File | null) {
     if (!file) return
     setUploading(true)
     setError('')
+    setOptimiseNote('')
     try {
       const fd = new FormData()
       fd.append('file', file)
@@ -573,17 +614,28 @@ function BrandingImageField({
             style={{ display: 'none' }}
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
-          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={() => inputRef.current?.click()}>
             {uploading ? 'Uploading…' : previewUrl ? 'Replace' : 'Upload'}
           </button>
+          {allowOptimise && previewUrl && mediaId && (
+            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={handleOptimise}>
+              {optimising ? 'Optimising…' : 'Optimise'}
+            </button>
+          )}
           {previewUrl && (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={onRemove}>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={onRemove}>
               Remove
             </button>
           )}
         </div>
       </div>
       <span className="field-hint">{hint}</span>
+      {allowOptimise && (
+        <span className="field-hint" style={{ display: 'block' }}>
+          Resizes an oversized logo and compresses it with no loss of quality. Remember to press Save changes afterwards.
+        </span>
+      )}
+      {optimiseNote && <span style={{ color: 'var(--color-success)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{optimiseNote}</span>}
       {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{error}</span>}
     </div>
   )
@@ -2013,6 +2065,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
               label="Site logo"
               hint="Shown in your site header and on the coming-soon, maintenance, and not-found pages. JPEG, PNG, WebP, or GIF."
               previewUrl={logoPreview}
+              mediaId={config.logoMediaId ?? null}
+              allowOptimise
               onUploaded={(m) => { setConfig((p) => ({ ...p, logoMediaId: m.id })); setLogoPreview(m.url) }}
               onRemove={() => { setConfig((p) => ({ ...p, logoMediaId: null })); setLogoPreview(null) }}
             />
