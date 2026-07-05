@@ -12,7 +12,7 @@ Find these settings under **Appearance** in the admin sidebar.
 
 ### Colour presets
 
-The fastest way to change your site's look is a **colour preset**. At the top of the Colours tab you'll find ten ready-made colour schemes. Clicking one updates your site's primary colour, link colour, and hover colour instantly.
+The fastest way to change your site's look is a **colour preset**. At the top of the Colours tab you'll find ten ready-made colour schemes. Clicking one updates your site's primary colour, link colour, and hover colour instantly - in both light and dark mode, since each preset comes with a matching dark-mode set built in.
 
 You can customise further after applying a preset, or ignore presets entirely and define your own colours from scratch.
 
