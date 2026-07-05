@@ -12,7 +12,7 @@ Find these settings under **Appearance** in the admin sidebar.
 
 ### Colour presets
 
-The fastest way to change your site's look is a **colour preset**. At the top of the Colours tab you'll find ten ready-made colour schemes. Clicking one updates your site's primary colour, link colour, and hover colour instantly.
+The fastest way to change your site's look is a **colour preset**. At the top of the Colours tab you'll find ten ready-made colour schemes. Clicking one updates your site's primary colour, link colour, and hover colour instantly - in both light and dark mode, since each preset comes with a matching dark-mode set built in.
 
 You can customise further after applying a preset, or ignore presets entirely and define your own colours from scratch.
 
@@ -21,6 +21,8 @@ You can customise further after applying a preset, or ignore presets entirely an
 - **Global colours** - define up to 12 named colours, each with a light-mode and dark-mode variant. Once defined, these colours are available as swatches everywhere else in the Styles editor, keeping your palette consistent.
 - **Page background** - the background colour for all public pages.
 - **Links** - the colour of hyperlinks and what they change to when hovered.
+
+Every colour box on this page - and on the Headings, Buttons, Images, and Form fields tabs - also has an optional **Dark mode override** tucked just beneath it. Set one to make that colour look different when a visitor is in dark mode; leave it empty and dark mode simply reuses your light colour. See [Light and dark mode](#light-and-dark-mode) below.
 
 ### Fonts and typography tab
 
@@ -58,7 +60,7 @@ Click **Save** to apply your changes. The public site updates immediately. If yo
 
 Cactus supports light mode, dark mode, and auto (which follows the visitor's device setting). The toggle at the bottom of the admin sidebar lets you switch between them. Visitors get the same toggle on the public site.
 
-Your global colours each have a separate light and dark variant, so you can define exactly how your site looks in both modes.
+Your global colours each have a separate light and dark variant. On top of that, **every other colour setting in the Styles editor has an optional dark-mode override** - the page background, links, body and heading colours, buttons and their hover state, image borders, and form fields. Each override sits just beneath its normal (light) colour, labelled "Dark mode override (optional)". Set one to change how that colour looks in dark mode; leave it empty and dark mode quietly reuses the light colour. So you can define exactly how your site looks in both modes, right down to the last detail.
 
 ---
 
@@ -121,10 +123,31 @@ Module layout types come with a few starter templates each, same as headers and 
 
 ## Branding
 
-**Settings → Branding** is where you upload your logo and favicon.
+**Settings → Branding** is where you set your logo, icons, and app identity. These replace the default Cactus branding everywhere - public pages, the admin area, the status and error pages, browser tabs, bookmarks, and the icon people see when they add your site to their phone.
 
 - Your **logo** appears wherever you've placed a **Site logo** block in the header or footer.
 - Your **favicon** appears in the browser tab.
+
+### App icon and favicons
+
+Rather than making you prepare a pile of differently-sized image files, you upload **one square app icon** (at least 512×512) and Cactus generates the whole set for you: the browser favicon, the Apple touch icon (for "add to home screen" on iPhone and iPad), and the installable-app icons (192 and 512).
+
+Every generated icon is then shown in its own box, so if you'd rather hand-pick a particular one - say a simpler design for the tiny favicon - just upload a replacement into that box. Your override sticks; re-uploading the source app icon regenerates the others but leaves the ones you set by hand.
+
+If you don't set an app icon at all, the standard **Favicon** box still works on its own, exactly as before.
+
+### App name and colours
+
+- **App name** and **Short name** are used when someone installs your site as an app. The short name is the label under the icon on a phone home screen. Both fall back to your site name if left blank.
+- **Theme colour** tints the browser toolbar on mobile and the installed app.
+- **Background colour** is shown briefly while the installed app is loading.
+
+### Dark-mode logo and favicon
+
+You can also upload a **dark-mode logo** and a **dark-mode favicon**. Both are optional - leave them empty and your standard logo and favicon are used everywhere.
+
+- The **dark-mode logo** is shown automatically whenever a visitor is viewing your site in dark mode, whether they chose it with the toggle or their device is set that way. Handy if your normal logo is dark ink that would vanish against a dark background.
+- The **dark-mode favicon** follows the visitor's browser or device setting rather than the toggle on your site, because browsers decide favicons for themselves. It swaps in when their system is set to dark mode.
 
 Uploading a logo or favicon requires a media storage provider to be set up. See [Managing media](Managing-media) for how to set that up.
 

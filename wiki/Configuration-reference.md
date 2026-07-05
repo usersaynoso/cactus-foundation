@@ -57,7 +57,14 @@ At the bottom of the General tab is a **Reset Everything** button. Confirming wi
 
 ## Branding tab
 
-Upload a logo and favicon. Requires a media provider to be configured in the Media tab. Until set, generic Cactus placeholders are used.
+Set the site's logo, icons, and app identity. Requires a media provider to be configured in the Media tab. Until set, the Cactus defaults are used, and these replace them across the whole site - public pages, admin, status and error pages, browser tabs, and installed-app icons.
+
+- **Logo** (plus an optional dark-mode version), shown in the header and on system pages.
+- **App icon** - upload one square image (512×512+) and the favicon, Apple touch icon, and installable-app icons (192/512) are generated from it. Each generated icon can be replaced individually; a manual override is kept when you re-generate.
+- **Favicon** (plus an optional dark-mode version). The dark favicon follows the visitor's browser/device colour scheme, since browsers control favicons themselves.
+- **App name**, **Short name**, **Theme colour**, and **Background colour** for the installable web-app manifest (name and short name fall back to your site name).
+
+The dark-mode logo is swapped in automatically when a visitor views your site in dark mode. All dark-mode and app-icon fields are optional.
 
 See [Managing media](Managing-media) for how to set up a media provider.
 

@@ -121,7 +121,9 @@ export default function StylesPage() {
       p.primary.light === primaryColour.light &&
       p.primary.dark === primaryColour.dark &&
       p.linkColour === (tokens.themeStyle.links.colour ?? '') &&
-      p.linkHoverColour === (tokens.themeStyle.links.hoverColour ?? '')
+      p.linkHoverColour === (tokens.themeStyle.links.hoverColour ?? '') &&
+      p.linkColourDark === (tokens.themeStyle.links.colourDark ?? '') &&
+      p.linkHoverColourDark === (tokens.themeStyle.links.hoverColourDark ?? '')
     ) ?? null
   }, [tokens])
 
@@ -213,7 +215,7 @@ export default function StylesPage() {
         },
         themeStyle: {
           ...t.themeStyle,
-          links: { ...t.themeStyle.links, colour: preset.linkColour, hoverColour: preset.linkHoverColour },
+          links: { ...t.themeStyle.links, colour: preset.linkColour, hoverColour: preset.linkHoverColour, colourDark: preset.linkColourDark, hoverColourDark: preset.linkHoverColourDark },
         },
       }
     })
@@ -427,13 +429,13 @@ export default function StylesPage() {
             </Section>
 
             <Section title="Page background">
-              <ColourInput label="Background colour" value={tokens.themeStyle.background.colour} onChange={v => { setBackground({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.background.colour} onChange={v => { setBackground({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.background.colourDark} onDarkChange={v => { setBackground({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
 
             <Section title="Links">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <ColourInput label="Link colour" value={tokens.themeStyle.links.colour} onChange={v => { setLinks({ colour: v || undefined }); setSaved(false) }} colours={colours} />
-                <ColourInput label="Hover colour" value={tokens.themeStyle.links.hoverColour} onChange={v => { setLinks({ hoverColour: v || undefined }); setSaved(false) }} colours={colours} />
+                <ColourInput label="Link colour" value={tokens.themeStyle.links.colour} onChange={v => { setLinks({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.links.colourDark} onDarkChange={v => { setLinks({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
+                <ColourInput label="Hover colour" value={tokens.themeStyle.links.hoverColour} onChange={v => { setLinks({ hoverColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.links.hoverColourDark} onDarkChange={v => { setLinks({ hoverColourDark: v || undefined }); setSaved(false) }} colours={colours} />
               </div>
             </Section>
           </>
@@ -475,13 +477,13 @@ export default function StylesPage() {
 
             <Section title="Body text">
               <TypoGroup value={tokens.themeStyle.body} onChange={patch => { setBody(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-              <ColourInput label="Text colour" value={tokens.themeStyle.body.colour} onChange={v => { setBody({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Text colour" value={tokens.themeStyle.body.colour} onChange={v => { setBody({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.body.colourDark} onDarkChange={v => { setBody({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
 
             <Section title="Caption / small text">
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Small text for labels, badges, and footnotes. Available anywhere via the Caption block, not just form-field labels.</p>
               <TypoGroup value={tokens.themeStyle.caption ?? {}} onChange={patch => { setCaption(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-              <ColourInput label="Text colour" value={tokens.themeStyle.caption?.colour} onChange={v => { setCaption({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Text colour" value={tokens.themeStyle.caption?.colour} onChange={v => { setCaption({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.caption?.colourDark} onDarkChange={v => { setCaption({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
           </>
         )}
@@ -491,7 +493,7 @@ export default function StylesPage() {
             <Section title="Display (hero heading, largest - above H1)">
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>For homepage heroes and campaign banners. Set a Heading block&apos;s level to &ldquo;Display&rdquo; in Puck to use it.</p>
               <TypoGroup value={tokens.themeStyle.display ?? {}} onChange={patch => { setDisplay(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-              <ColourInput label="Colour" value={tokens.themeStyle.display?.colour} onChange={v => { setDisplay({ colour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Colour" value={tokens.themeStyle.display?.colour} onChange={v => { setDisplay({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.display?.colourDark} onDarkChange={v => { setDisplay({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </Section>
 
             <Section title="Headings">
@@ -507,7 +509,7 @@ export default function StylesPage() {
                   {openHeadings.has(tag) && (
                     <div style={{ padding: '0.875rem' }}>
                       <TypoGroup value={tokens.themeStyle.headings[tag]} onChange={patch => { setHeading(tag, patch as Record<string, unknown>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-                      <ColourInput label="Colour" value={tokens.themeStyle.headings[tag].colour} onChange={v => { setHeading(tag, { colour: v || undefined }); setSaved(false) }} colours={colours} />
+                      <ColourInput label="Colour" value={tokens.themeStyle.headings[tag].colour} onChange={v => { setHeading(tag, { colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.headings[tag].colourDark} onDarkChange={v => { setHeading(tag, { colourDark: v || undefined }); setSaved(false) }} colours={colours} />
                     </div>
                   )}
                 </div>
@@ -522,9 +524,9 @@ export default function StylesPage() {
             <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Default button appearance for public pages. Individual Puck blocks may override these.</p>
             <TypoGroup value={tokens.themeStyle.buttons.typo} onChange={patch => { setButtonTypo(patch); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
-              <ColourInput label="Text colour" value={tokens.themeStyle.buttons.textColour} onChange={v => { setButtons({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <ColourInput label="Background colour" value={tokens.themeStyle.buttons.bgColour} onChange={v => { setButtons({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <ColourInput label="Border colour" value={tokens.themeStyle.buttons.borderColour} onChange={v => { setButtons({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Text colour" value={tokens.themeStyle.buttons.textColour} onChange={v => { setButtons({ textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.textColourDark} onDarkChange={v => { setButtons({ textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.buttons.bgColour} onChange={v => { setButtons({ bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.bgColourDark} onDarkChange={v => { setButtons({ bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.buttons.borderColour} onChange={v => { setButtons({ borderColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.borderColourDark} onDarkChange={v => { setButtons({ borderColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '0.75rem' }}>
               <TextField label="Border width" value={tokens.themeStyle.buttons.borderWidth ?? ''} onChange={v => { setButtons({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
@@ -533,8 +535,8 @@ export default function StylesPage() {
             </div>
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Hover state</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.hover.textColour} onChange={v => { setButtonHover({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.hover.textColour} onChange={v => { setButtonHover({ textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.hover.textColourDark} onDarkChange={v => { setButtonHover({ textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.hover.bgColourDark} onDarkChange={v => { setButtonHover({ bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </div>
           </Section>
         )}
@@ -544,7 +546,7 @@ export default function StylesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
               <TextField label="Border radius" value={tokens.themeStyle.images.borderRadius ?? ''} onChange={v => { setImages({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 8px" />
               <TextField label="Border width" value={tokens.themeStyle.images.borderWidth ?? ''} onChange={v => { setImages({ borderWidth: v || undefined }); setSaved(false) }} hint="e.g. 1px" />
-              <ColourInput label="Border colour" value={tokens.themeStyle.images.borderColour} onChange={v => { setImages({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.images.borderColour} onChange={v => { setImages({ borderColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.images.borderColourDark} onDarkChange={v => { setImages({ borderColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </div>
           </Section>
         )}
@@ -554,13 +556,13 @@ export default function StylesPage() {
             <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Styles applied to inputs, textareas, and selects on public pages.</p>
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--color-fg)' }}>Label typography</p>
             <TypoGroup value={tokens.themeStyle.formFields.labelTypo} onChange={patch => { setLabelTypo(patch); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-            <ColourInput label="Label colour" value={tokens.themeStyle.formFields.labelColour} onChange={v => { setFormFields({ labelColour: v || undefined }); setSaved(false) }} colours={colours} />
+            <ColourInput label="Label colour" value={tokens.themeStyle.formFields.labelColour} onChange={v => { setFormFields({ labelColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.formFields.labelColourDark} onDarkChange={v => { setFormFields({ labelColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Field typography</p>
             <TypoGroup value={tokens.themeStyle.formFields.typo} onChange={patch => { setFieldTypo(patch); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
-              <ColourInput label="Text colour" value={tokens.themeStyle.formFields.textColour} onChange={v => { setFormFields({ textColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <ColourInput label="Background colour" value={tokens.themeStyle.formFields.bgColour} onChange={v => { setFormFields({ bgColour: v || undefined }); setSaved(false) }} colours={colours} />
-              <ColourInput label="Border colour" value={tokens.themeStyle.formFields.borderColour} onChange={v => { setFormFields({ borderColour: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Text colour" value={tokens.themeStyle.formFields.textColour} onChange={v => { setFormFields({ textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.formFields.textColourDark} onDarkChange={v => { setFormFields({ textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.formFields.bgColour} onChange={v => { setFormFields({ bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.formFields.bgColourDark} onDarkChange={v => { setFormFields({ bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.formFields.borderColour} onChange={v => { setFormFields({ borderColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.formFields.borderColourDark} onDarkChange={v => { setFormFields({ borderColourDark: v || undefined }); setSaved(false) }} colours={colours} />
               <TextField label="Border radius" value={tokens.themeStyle.formFields.borderRadius ?? ''} onChange={v => { setFormFields({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 4px" />
             </div>
           </Section>
@@ -627,25 +629,47 @@ function SelectField({ label, value, onChange, options }: { label: string; value
   )
 }
 
-function ColourInput({ label, value, onChange, colours }: { label: string; value?: string; onChange: (v: string) => void; colours: GlobalColour[] }) {
+function ColourInput({ label, value, onChange, dark, onDarkChange, colours }: { label: string; value?: string; onChange: (v: string) => void; dark?: string; onDarkChange?: (v: string) => void; colours: GlobalColour[] }) {
   return (
     <div className="field">
       <label>{label}</label>
+      <ColourPickerRow value={value} onChange={onChange} colours={colours} mode="light" placeholder="#000000 or leave empty to inherit" />
+      {onDarkChange && (
+        <div style={{ marginTop: '0.5rem', paddingLeft: '0.625rem', borderLeft: '2px solid var(--color-border)' }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--color-muted)', display: 'block', marginBottom: '0.375rem' }}>Dark mode override (optional)</label>
+          <ColourPickerRow value={dark} onChange={onDarkChange} colours={colours} mode="dark" placeholder="Leave empty to reuse the light colour" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// One swatch-row + hex-input pair, shared by the light value and the dark
+// override. In "dark" mode the palette swatches offer each global colour's dark
+// variant, so picking from the palette matches what shows on the dark frontend.
+function ColourPickerRow({ value, onChange, colours, mode, placeholder }: { value?: string; onChange: (v: string) => void; colours: GlobalColour[]; mode: 'light' | 'dark'; placeholder: string }) {
+  const swatchOf = (c: GlobalColour) => (mode === 'dark' ? (c.dark || c.light) : c.light)
+  return (
+    <>
       <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.375rem', alignItems: 'center' }}>
-        {colours.map(c => (
-          <button key={c.id} type="button" title={c.name}
-            onClick={() => onChange(value === c.light ? '' : c.light)}
-            style={{ width: 24, height: 24, borderRadius: 4, background: c.light, border: value === c.light ? '2px solid var(--color-text)' : '1px solid var(--color-border)', cursor: 'pointer', padding: 0, outline: value === c.light ? '2px solid var(--color-success)' : 'none', outlineOffset: 1, flexShrink: 0 }}
-          />
-        ))}
+        <input type="color" value={(value ?? '').startsWith('#') ? value : '#ffffff'} onChange={e => onChange(e.target.value)} style={{ width: 28, height: 28, padding: 2, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} title="Pick a colour" />
+        {colours.map(c => {
+          const sw = swatchOf(c)
+          return (
+            <button key={c.id} type="button" title={c.name}
+              onClick={() => onChange(value === sw ? '' : sw)}
+              style={{ width: 24, height: 24, borderRadius: 4, background: sw, border: value === sw ? '2px solid var(--color-text)' : '1px solid var(--color-border)', cursor: 'pointer', padding: 0, outline: value === sw ? '2px solid var(--color-success)' : 'none', outlineOffset: 1, flexShrink: 0 }}
+            />
+          )
+        })}
         {value && (
           <button type="button" onClick={() => onChange('')}
             style={{ width: 24, height: 24, borderRadius: 4, background: 'none', border: '1px solid var(--color-border)', cursor: 'pointer', padding: 0, fontSize: '0.625rem', color: 'var(--color-muted)', lineHeight: 1 }}
             title="Clear">✕</button>
         )}
       </div>
-      <input type="text" value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder="#000000 or leave empty to inherit" />
-    </div>
+      <input type="text" value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+    </>
   )
 }
 

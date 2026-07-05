@@ -24,7 +24,10 @@ export type GlobalFont = {
   decoration?: string
 }
 
-type HeadingStyle = Typo & { colour?: string }
+// Every colour has an optional `*Dark` sibling: the dark-mode override. When
+// unset, dark mode inherits the light value (buildTokenStyles only redefines the
+// CSS var in the dark blocks when an override exists), so old rows stay valid.
+type HeadingStyle = Typo & { colour?: string; colourDark?: string }
 
 export type DesignTokens = {
   version: 2
@@ -33,14 +36,14 @@ export type DesignTokens = {
     fonts: GlobalFont[]
   }
   themeStyle: {
-    background: { colour?: string }
-    body: Typo & { colour?: string }
+    background: { colour?: string; colourDark?: string }
+    body: Typo & { colour?: string; colourDark?: string }
     // Optional - added after initial launch, so older stored rows (and the
     // fresh-install default before a Styles save) may not have these keys.
     // Always read via `ts?.display`/`ts?.caption`, never assume presence.
     display?: HeadingStyle
     caption?: HeadingStyle
-    links: { colour?: string; hoverColour?: string }
+    links: { colour?: string; hoverColour?: string; colourDark?: string; hoverColourDark?: string }
     headings: {
       h1: HeadingStyle; h2: HeadingStyle; h3: HeadingStyle
       h4: HeadingStyle; h5: HeadingStyle; h6: HeadingStyle
@@ -48,14 +51,16 @@ export type DesignTokens = {
     buttons: {
       typo: Typo
       textColour?: string; bgColour?: string; borderColour?: string
+      textColourDark?: string; bgColourDark?: string; borderColourDark?: string
       borderWidth?: string; borderRadius?: string; padding?: string
-      hover: { textColour?: string; bgColour?: string }
+      hover: { textColour?: string; bgColour?: string; textColourDark?: string; bgColourDark?: string }
     }
-    images: { borderRadius?: string; borderColour?: string; borderWidth?: string }
+    images: { borderRadius?: string; borderColour?: string; borderColourDark?: string; borderWidth?: string }
     formFields: {
       typo: Typo
       textColour?: string; bgColour?: string; borderColour?: string; borderRadius?: string
-      labelTypo: Typo; labelColour?: string
+      textColourDark?: string; bgColourDark?: string; borderColourDark?: string
+      labelTypo: Typo; labelColour?: string; labelColourDark?: string
     }
     spacing?: {
       // Default left/right gutter applied to content blocks on public pages, so
@@ -126,6 +131,12 @@ export type ColourPreset = {
   primary: { light: string; dark: string }
   linkColour: string
   linkHoverColour: string
+  // Dark-mode link colours. Applying a preset seeds links.colourDark /
+  // hoverColourDark too, so the scheme looks right in dark mode without the
+  // owner hand-picking overrides. Brighter than the light pair to read on a
+  // dark background (link ≈ primary.dark, hover a touch lighter again).
+  linkColourDark: string
+  linkHoverColourDark: string
 }
 
 export const COLOUR_PRESETS: ColourPreset[] = [
@@ -135,6 +146,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#2c7558', dark: '#459578' },
     linkColour: '#2c7558',
     linkHoverColour: '#22604a',
+    linkColourDark: '#459578',
+    linkHoverColourDark: '#67a890',
   },
   {
     id: 'bloom',
@@ -142,6 +155,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#db2777', dark: '#f472b6' },
     linkColour: '#db2777',
     linkHoverColour: '#be185d',
+    linkColourDark: '#f472b6',
+    linkHoverColourDark: '#f68bc3',
   },
   {
     id: 'desert',
@@ -149,6 +164,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#c2410c', dark: '#fb923c' },
     linkColour: '#c2410c',
     linkHoverColour: '#9a3412',
+    linkColourDark: '#fb923c',
+    linkHoverColourDark: '#fca65f',
   },
   {
     id: 'dusk',
@@ -156,6 +173,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#4f46e5', dark: '#818cf8' },
     linkColour: '#4f46e5',
     linkHoverColour: '#4338ca',
+    linkColourDark: '#818cf8',
+    linkHoverColourDark: '#98a1f9',
   },
   {
     id: 'spine',
@@ -163,6 +182,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#0d9488', dark: '#2dd4bf' },
     linkColour: '#0d9488',
     linkHoverColour: '#0f766e',
+    linkColourDark: '#2dd4bf',
+    linkHoverColourDark: '#53dccb',
   },
   {
     id: 'mirage',
@@ -170,6 +191,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#7c3aed', dark: '#a78bfa' },
     linkColour: '#7c3aed',
     linkHoverColour: '#6d28d9',
+    linkColourDark: '#a78bfa',
+    linkHoverColourDark: '#b7a0fb',
   },
   {
     id: 'ember',
@@ -177,6 +200,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#dc2626', dark: '#f87171' },
     linkColour: '#dc2626',
     linkHoverColour: '#b91c1c',
+    linkColourDark: '#f87171',
+    linkHoverColourDark: '#f98b8b',
   },
   {
     id: 'mesa',
@@ -184,6 +209,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#d97706', dark: '#fbbf24' },
     linkColour: '#d97706',
     linkHoverColour: '#b45309',
+    linkColourDark: '#fbbf24',
+    linkHoverColourDark: '#fccb4b',
   },
   {
     id: 'monsoon',
@@ -191,6 +218,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#0284c7', dark: '#38bdf8' },
     linkColour: '#0284c7',
     linkHoverColour: '#0369a1',
+    linkColourDark: '#38bdf8',
+    linkHoverColourDark: '#5cc9f9',
   },
   {
     id: 'sagebrush',
@@ -198,6 +227,8 @@ export const COLOUR_PRESETS: ColourPreset[] = [
     primary: { light: '#4d7c0f', dark: '#84cc16' },
     linkColour: '#4d7c0f',
     linkHoverColour: '#3f6212',
+    linkColourDark: '#84cc16',
+    linkHoverColourDark: '#9ad540',
   },
 ]
 
@@ -315,6 +346,16 @@ export function buildTokenStyles(tokens: unknown): string {
   const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
 
   const vars: string[] = []
+  // Dark-mode overrides. Each colour is emitted as a CSS var in the light `:root`
+  // block (via colourVar below) and the scoped `main …` rules reference that var,
+  // so redefining the var in the dark blocks is all it takes to flip a colour for
+  // dark mode. An override is only pushed here when the admin actually set one;
+  // otherwise the var keeps its light value and dark mode inherits it unchanged.
+  const darkVars: string[] = []
+  function colourVar(name: string, light?: string, dark?: string) {
+    if (light) vars.push(`${name}: ${light};`)
+    if (dark) darkVars.push(`${name}: ${dark};`)
+  }
 
   // The "primary" global font (or the first defined font) is the site default
   // typeface. Body text uses its own family when set, otherwise falls back to
@@ -331,9 +372,10 @@ export function buildTokenStyles(tokens: unknown): string {
     // and native form controls (which don't inherit font-family) use the site font.
     vars.push(`--font-sans: ${bodyFamily};`)
   }
-  if (ts?.links?.colour) vars.push(`--color-link: ${ts.links.colour};`)
-  if (ts?.links?.hoverColour) vars.push(`--color-link-hover: ${ts.links.hoverColour};`)
-  if (ts?.background?.colour) vars.push(`--color-page-bg: ${ts.background.colour};`)
+  colourVar('--color-link', ts?.links?.colour, ts?.links?.colourDark)
+  colourVar('--color-link-hover', ts?.links?.hoverColour, ts?.links?.hoverColourDark)
+  colourVar('--color-page-bg', ts?.background?.colour, ts?.background?.colourDark)
+  colourVar('--body-color', body.colour, body.colourDark)
 
   // Emit a Typo as CSS variables under a prefix, so components that render with
   // inline styles (Puck blocks) can read them with `var(--prefix-x, fallback)`
@@ -352,7 +394,7 @@ export function buildTokenStyles(tokens: unknown): string {
   for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
     const h = ts?.headings?.[tag] ?? {}
     typoVars(tag, h)
-    if (h.colour) vars.push(`--${tag}-color: ${h.colour};`)
+    colourVar(`--${tag}-color`, h.colour, h.colourDark)
   }
 
   // Display (hero/largest heading, above h1) and Caption (small label/footnote
@@ -360,36 +402,36 @@ export function buildTokenStyles(tokens: unknown): string {
   // read by class rather than tag since neither has one native HTML element.
   const display = ts?.display ?? {}
   typoVars('display', display)
-  if (display.colour) vars.push(`--display-color: ${display.colour};`)
+  colourVar('--display-color', display.colour, display.colourDark)
 
   const caption = ts?.caption ?? {}
   typoVars('caption', caption)
-  if (caption.colour) vars.push(`--caption-color: ${caption.colour};`)
+  colourVar('--caption-color', caption.colour, caption.colourDark)
 
   const btns = ts?.buttons
   if (btns?.typo)               typoVars('btn', btns.typo)
-  if (btns?.textColour)         vars.push(`--btn-text-color: ${btns.textColour};`)
-  if (btns?.bgColour)           vars.push(`--btn-bg: ${btns.bgColour};`)
-  if (btns?.borderColour)       vars.push(`--btn-border: ${btns.borderColour};`)
+  colourVar('--btn-text-color', btns?.textColour, btns?.textColourDark)
+  colourVar('--btn-bg', btns?.bgColour, btns?.bgColourDark)
+  colourVar('--btn-border', btns?.borderColour, btns?.borderColourDark)
   if (btns?.borderWidth)        vars.push(`--btn-border-width: ${btns.borderWidth};`)
   if (btns?.borderRadius)       vars.push(`--btn-radius: ${btns.borderRadius};`)
   if (btns?.padding)            vars.push(`--btn-padding: ${btns.padding};`)
-  if (btns?.hover?.textColour)  vars.push(`--btn-hover-text: ${btns.hover.textColour};`)
-  if (btns?.hover?.bgColour)    vars.push(`--btn-hover-bg: ${btns.hover.bgColour};`)
+  colourVar('--btn-hover-text', btns?.hover?.textColour, btns?.hover?.textColourDark)
+  colourVar('--btn-hover-bg', btns?.hover?.bgColour, btns?.hover?.bgColourDark)
 
   const imgs = ts?.images
   if (imgs?.borderRadius) vars.push(`--img-radius: ${imgs.borderRadius};`)
-  if (imgs?.borderColour) vars.push(`--img-border-color: ${imgs.borderColour};`)
+  colourVar('--img-border-color', imgs?.borderColour, imgs?.borderColourDark)
   if (imgs?.borderWidth)  vars.push(`--img-border-width: ${imgs.borderWidth};`)
 
   const fields = ts?.formFields
   if (fields?.typo)         typoVars('field', fields.typo)
-  if (fields?.textColour)   vars.push(`--field-text: ${fields.textColour};`)
-  if (fields?.bgColour)     vars.push(`--field-bg: ${fields.bgColour};`)
-  if (fields?.borderColour) vars.push(`--field-border: ${fields.borderColour};`)
+  colourVar('--field-text', fields?.textColour, fields?.textColourDark)
+  colourVar('--field-bg', fields?.bgColour, fields?.bgColourDark)
+  colourVar('--field-border', fields?.borderColour, fields?.borderColourDark)
   if (fields?.borderRadius) vars.push(`--field-radius: ${fields.borderRadius};`)
   if (fields?.labelTypo)    typoVars('field-label', fields.labelTypo)
-  if (fields?.labelColour)  vars.push(`--field-label-color: ${fields.labelColour};`)
+  colourVar('--field-label-color', fields?.labelColour, fields?.labelColourDark)
 
   // Default block gutter consumed by Puck blocks via var(--block-padding, 1.5rem).
   if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${ts.spacing.blockPadding};`)
@@ -400,9 +442,10 @@ export function buildTokenStyles(tokens: unknown): string {
   // queries can't read CSS custom properties.
   const { tabletBp, mobileBp } = resolveBreakpoints(t)
 
+  const darkOverrides = darkVars.length ? ' ' + darkVars.join(' ') : ''
   const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
-  const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}}`
-  const mediaDark = `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}${darkPrimary}}}`
+  const darkBlock = `[data-theme="dark"]{${darkColours}${darkPrimary}${darkOverrides}}`
+  const mediaDark = `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkColours}${darkPrimary}${darkOverrides}}}`
 
   const scoped: string[] = []
 
@@ -424,33 +467,36 @@ export function buildTokenStyles(tokens: unknown): string {
   // plain `main p` selector and would otherwise ignore the chosen body font.
   // typoProps only emits font-family when body.family is set; fall back to the
   // primary global font so an empty body-family box still uses the site font.
+  // Colour props below reference the CSS vars emitted above (not the raw value),
+  // so a dark-mode override redefined in the dark blocks flows through here. The
+  // `if (…colour)` guards stay, so a var is only referenced when it was emitted.
   const bodyProps = [...typoProps({ ...body, family: bodyFamily, weight: bodyWeight })]
-  if (body.colour) bodyProps.push(`color: ${body.colour};`)
+  if (body.colour) bodyProps.push(`color: var(--body-color);`)
   if (bodyProps.length) scoped.push(`main{${bodyProps.join('')}}`)
 
   for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
     const h = (ts?.headings?.[tag] ?? {}) as HeadingStyle
     const hProps = [...typoProps(h)]
-    if (h.colour) hProps.push(`color: ${h.colour};`)
+    if (h.colour) hProps.push(`color: var(--${tag}-color);`)
     if (hProps.length) scoped.push(`main ${tag}{${hProps.join('')}}`)
   }
 
   const displayProps = [...typoProps(display)]
-  if (display.colour) displayProps.push(`color: ${display.colour};`)
+  if (display.colour) displayProps.push(`color: var(--display-color);`)
   if (displayProps.length) scoped.push(`main .cactus-display{${displayProps.join('')}}`)
 
   const captionProps = [...typoProps(caption)]
-  if (caption.colour) captionProps.push(`color: ${caption.colour};`)
+  if (caption.colour) captionProps.push(`color: var(--caption-color);`)
   if (captionProps.length) scoped.push(`main .cactus-caption{${captionProps.join('')}}`)
 
-  if (ts?.links?.colour) scoped.push(`main a{color: ${ts.links.colour};}`)
-  if (ts?.links?.hoverColour) scoped.push(`main a:hover{color: ${ts.links.hoverColour};}`)
+  if (ts?.links?.colour) scoped.push(`main a{color: var(--color-link);}`)
+  if (ts?.links?.hoverColour) scoped.push(`main a:hover{color: var(--color-link-hover);}`)
 
   if (btns) {
     const btnProps: string[] = [...typoProps(btns.typo ?? {})]
-    if (btns.textColour)   btnProps.push(`color: ${btns.textColour};`)
-    if (btns.bgColour)     btnProps.push(`background: ${btns.bgColour};`)
-    if (btns.borderColour) btnProps.push(`border-color: ${btns.borderColour};`)
+    if (btns.textColour)   btnProps.push(`color: var(--btn-text-color);`)
+    if (btns.bgColour)     btnProps.push(`background: var(--btn-bg);`)
+    if (btns.borderColour) btnProps.push(`border-color: var(--btn-border);`)
     if (btns.borderWidth)  btnProps.push(`border-width: ${btns.borderWidth};`)
     if (btns.borderRadius) btnProps.push(`border-radius: ${btns.borderRadius};`)
     if (btns.padding)      btnProps.push(`padding: ${btns.padding};`)
@@ -460,29 +506,29 @@ export function buildTokenStyles(tokens: unknown): string {
     // is styled inline (Puck renders inline), so !important is needed for the
     // hover rule to win over the inline background/colour.
     const hoverProps: string[] = []
-    if (btns.hover?.textColour) hoverProps.push(`color: ${btns.hover.textColour} !important;`)
-    if (btns.hover?.bgColour)   hoverProps.push(`background: ${btns.hover.bgColour} !important;`)
+    if (btns.hover?.textColour) hoverProps.push(`color: var(--btn-hover-text) !important;`)
+    if (btns.hover?.bgColour)   hoverProps.push(`background: var(--btn-hover-bg) !important;`)
     if (hoverProps.length) scoped.push(`main button:hover,main .cactus-btn:hover{${hoverProps.join('')}}`)
   }
 
   if (imgs) {
     const imgProps: string[] = []
     if (imgs.borderRadius) imgProps.push(`border-radius: ${imgs.borderRadius};`)
-    if (imgs.borderColour) imgProps.push(`border-color: ${imgs.borderColour}; border-style: solid;`)
+    if (imgs.borderColour) imgProps.push(`border-color: var(--img-border-color); border-style: solid;`)
     if (imgs.borderWidth)  imgProps.push(`border-width: ${imgs.borderWidth};`)
     if (imgProps.length) scoped.push(`main img{${imgProps.join('')}}`)
   }
 
   if (fields) {
     const fieldProps: string[] = [...typoProps(fields.typo ?? {})]
-    if (fields.textColour)   fieldProps.push(`color: ${fields.textColour};`)
-    if (fields.bgColour)     fieldProps.push(`background: ${fields.bgColour};`)
-    if (fields.borderColour) fieldProps.push(`border-color: ${fields.borderColour};`)
+    if (fields.textColour)   fieldProps.push(`color: var(--field-text);`)
+    if (fields.bgColour)     fieldProps.push(`background: var(--field-bg);`)
+    if (fields.borderColour) fieldProps.push(`border-color: var(--field-border);`)
     if (fields.borderRadius) fieldProps.push(`border-radius: ${fields.borderRadius};`)
     if (fieldProps.length) scoped.push(`main input,main textarea,main select{${fieldProps.join('')}}`)
 
     const labelProps: string[] = [...typoProps(fields.labelTypo ?? {})]
-    if (fields.labelColour) labelProps.push(`color: ${fields.labelColour};`)
+    if (fields.labelColour) labelProps.push(`color: var(--field-label-color);`)
     if (labelProps.length) scoped.push(`main label{${labelProps.join('')}}`)
   }
 
