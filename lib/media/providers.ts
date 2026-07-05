@@ -168,10 +168,14 @@ export const CLOUDFLARE_DASH_URL = 'https://dash.cloudflare.com/?to=/:account/wo
 export const CLOUDFLARE_API_TOKENS_URL = 'https://dash.cloudflare.com/profile/api-tokens'
 
 // The permissions a scoped token needs to deploy the media Worker. Shown in the
-// UI so the admin ticks the right boxes when creating a Custom Token.
+// UI so the admin ticks the right boxes when creating a Custom Token. Zone · Read
+// lets Cactus find the zone that owns your site domain and serve media from a
+// tidy media.<your-domain> address instead of the raw workers.dev one; without
+// it the deploy still works and falls back to the workers.dev URL.
 export const CLOUDFLARE_TOKEN_PERMISSIONS = [
   'Account · Workers Scripts · Edit',
   'Account · Account Settings · Read',
+  'Zone · Zone · Read',
 ]
 
 // Vercel env var keys that hold the Cloudflare credentials used to auto-deploy

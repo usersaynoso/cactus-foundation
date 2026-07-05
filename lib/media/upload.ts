@@ -1,9 +1,9 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
-import type { Media, MediaProviderType } from '@prisma/client'
+import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { isProxied } from '@/lib/media/providers'
+import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -118,6 +118,26 @@ function filenameLabel(originalFilename?: string): string {
 
 function workerUrl(): string {
   return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
+}
+
+// Rewrite every proxied provider's stored Media.url so it sits under `base` (the
+// active Worker origin), rebuilt from the immutable storage key. Direct providers
+// (Cloudinary, ImageKit) serve from their own CDN and keep their url untouched.
+// Called after a Worker deploy so existing images move onto the new address (e.g.
+// media.<your-domain>) alongside new uploads, instead of only future uploads
+// picking it up. Idempotent - the guard skips rows already on `base`. Returns the
+// number of rows changed.
+export async function rebaseProxiedMediaUrls(base: string): Promise<number> {
+  const origin = base.replace(/\/$/, '')
+  if (!origin) return 0
+  const proxied = ALL_PROVIDERS.filter(isProxied)
+  if (proxied.length === 0) return 0
+  return prisma.$executeRaw`
+    UPDATE "Media"
+    SET "url" = ${origin} || '/' || "key"
+    WHERE "provider"::text IN (${Prisma.join(proxied)})
+      AND "url" <> ${origin} || '/' || "key"
+  `
 }
 
 // User-supplied S3-compatible endpoints (B2, MinIO) are routinely pasted the way

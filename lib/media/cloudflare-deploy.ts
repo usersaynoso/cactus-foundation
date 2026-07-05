@@ -133,14 +133,122 @@ export async function enableWorkerUrl(
   return `https://${WORKER_SCRIPT_NAME}.${subdomain}.workers.dev`
 }
 
-// Full deploy: resolve account, upload with secrets, enable the URL.
+// Attach `media.<zone>` to the Worker as a Custom Domain so images load from a
+// tidy address on the site owner's own domain instead of the raw workers.dev
+// URL. Cloudflare provisions the DNS record and TLS certificate automatically.
+//
+// Best-effort: returns { url: null, reason } when no zone in the account owns the
+// site's domain, or Cloudflare rejects the attach (e.g. a conflicting DNS record
+// already exists on the media subdomain). The caller then keeps the workers.dev
+// URL and surfaces the reason, so a missing Zone·Read permission or an unmanaged
+// domain degrades gracefully rather than failing the whole deploy.
+export async function attachMediaCustomDomain(
+  auth: CloudflareAuth,
+  accountId: string,
+  siteHostname: string
+): Promise<{ url: string; reason?: undefined } | { url: null; reason: string }> {
+  const host = siteHostname.trim().toLowerCase().replace(/\.$/, '')
+  // Only real, delegated domains can carry a Custom Domain. Skip localhost, bare
+  // hostnames and the throwaway platform hosts that will never be a CF zone.
+  if (!host || !host.includes('.') || host.endsWith('.vercel.app') || host.endsWith('.workers.dev')) {
+    return { url: null, reason: `${host || 'your site URL'} isn't a custom domain, so media stays on the workers.dev address` }
+  }
+
+  // Find the zone that owns the site domain. The media subdomain must live inside
+  // one of the account's zones; pick the longest suffix match (the apex).
+  const zonesRes = await fetch(`${CF_API}/zones?per_page=50`, {
+    headers: authHeaders(auth),
+    signal: AbortSignal.timeout(15_000),
+  })
+  const zonesBody = (await zonesRes.json()) as CfResponse<Array<{ id: string; name: string }>>
+  if (!zonesRes.ok || !zonesBody.success) {
+    return { url: null, reason: `couldn't read your Cloudflare domains (add the Zone·Read permission to the token): ${zonesBody.errors?.map((e) => e.message).join('; ') || `HTTP ${zonesRes.status}`}` }
+  }
+
+  const zone = (zonesBody.result ?? [])
+    .filter((z) => {
+      const name = z.name.toLowerCase()
+      return host === name || host.endsWith(`.${name}`)
+    })
+    .sort((a, b) => b.name.length - a.name.length)[0]
+  if (!zone) {
+    return { url: null, reason: `no domain in this Cloudflare account matches ${host}, so media stays on the workers.dev address` }
+  }
+
+  const hostname = `media.${zone.name.toLowerCase()}`
+  const attachRes = await fetch(
+    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/domains`,
+    {
+      method: 'PUT',
+      headers: { ...authHeaders(auth), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        environment: 'production',
+        hostname,
+        service: WORKER_SCRIPT_NAME,
+        zone_id: zone.id,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    }
+  )
+  const attachBody = (await attachRes.json()) as CfResponse<{ hostname: string }>
+  if (!attachRes.ok || !attachBody.success) {
+    const detail =
+      attachBody.errors?.map((e) => `${e.code} ${e.message}`).join('; ') || `HTTP ${attachRes.status}`
+    return { url: null, reason: `Cloudflare wouldn't attach ${hostname}: ${detail}` }
+  }
+
+  return { url: `https://${hostname}` }
+}
+
+function isWorkersDevUrl(url: string): boolean {
+  try {
+    return /\.workers\.dev$/i.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
+// Full deploy: resolve account, upload with secrets, enable the workers.dev URL,
+// then try to attach a media.<your-domain> Custom Domain. The returned `url` is
+// the best public base to serve media from: the Custom Domain when it attached,
+// otherwise the workers.dev URL. `note` explains any fallback for the admin.
 export async function deployMediaWorker(params: {
   auth: CloudflareAuth
   accountId?: string
   secrets: WorkerSecret[]
-}): Promise<{ url: string; accountId: string }> {
+  siteHostname?: string
+}): Promise<{
+  url: string
+  workersDevUrl: string
+  accountId: string
+  customDomain: string | null
+  note?: string
+}> {
   const accountId = await resolveAccountId(params.auth, params.accountId)
   await uploadWorker(params.auth, accountId, params.secrets)
-  const url = await enableWorkerUrl(params.auth, accountId)
-  return { url, accountId }
+  const workersDevUrl = await enableWorkerUrl(params.auth, accountId)
+
+  let customDomain: string | null = null
+  let note: string | undefined
+  if (params.siteHostname) {
+    const attached = await attachMediaCustomDomain(params.auth, accountId, params.siteHostname)
+    if (attached.url) {
+      customDomain = attached.url
+    } else {
+      note = attached.reason
+      // Don't regress a custom domain attached on an earlier deploy if this attach
+      // hit a transient error: keep serving from the existing media.<domain> rather
+      // than dropping the whole library back to the workers.dev URL.
+      const existing = process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/$/, '')
+      if (existing && !isWorkersDevUrl(existing)) customDomain = existing
+    }
+  }
+
+  return {
+    url: customDomain ?? workersDevUrl,
+    workersDevUrl,
+    accountId,
+    customDomain,
+    note,
+  }
 }

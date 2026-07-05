@@ -49,7 +49,7 @@ cp .env.example .env.local
 |----------|-------|
 | `NEON_API_KEY` | Automatic database provisioning during setup. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | Email (password login, verification, recovery). Alternative: `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` |
-| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | Media serving via Cloudflare Worker (required for all proxied providers) |
+| `CLOUDFLARE_WORKER_URL` | Media serving via Cloudflare Worker (required for all proxied providers; set automatically by the admin Deploy media Worker flow). `CLOUDFLARE_WORKER_HOSTNAME` is optional - derived from the URL when unset. |
 | **Backblaze B2** - `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | Media uploads to B2 |
 | **Cloudflare R2** - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Media uploads to R2 |
 | **AWS S3** - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | Media uploads to S3 |

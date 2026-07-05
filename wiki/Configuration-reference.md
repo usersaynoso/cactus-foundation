@@ -187,7 +187,8 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |
-| `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_HOSTNAME` | No | Your Cloudflare Worker's URL. Required for all proxied media providers (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase). |
+| `CLOUDFLARE_WORKER_URL` | No | Your Cloudflare Worker's URL - the base every proxied media provider (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase) serves images from. Set automatically by the admin **Deploy media Worker** flow: a `https://media.<your-domain>` Custom Domain when Cactus could attach one, otherwise the `https://<name>.<subdomain>.workers.dev` URL. |
+| `CLOUDFLARE_WORKER_HOSTNAME` | No | The Worker's bare hostname, used in the image security policy (CSP) and image host allowlist. Optional: when unset it is derived automatically from `CLOUDFLARE_WORKER_URL`, so you normally never set this by hand. |
 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 credentials. |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 credentials. |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 credentials. |

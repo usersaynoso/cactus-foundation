@@ -846,7 +846,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
         body: JSON.stringify(payload),
       })
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; url?: string; warning?: string; error?: string }
+        | { ok?: boolean; url?: string; customDomain?: string | null; note?: string; rebased?: number | null; warning?: string; error?: string }
         | null
       if (!res.ok || !data?.ok) {
         setCfResult({ ok: false, message: data?.error ?? 'Worker deployment failed.' })
@@ -858,13 +858,23 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       setCfToken('')
       setCfGlobalKey('')
       setCfEmail('')
-      setCfResult({
-        ok: true,
-        url: data.url,
-        message:
-          data.warning ??
-          `Worker deployed at ${data.url ?? 'your Cloudflare account'}. Redeploy your site (Status tab) to start serving media through it.`,
-      })
+      // Prefer a tidy media.<your-domain> address when Cactus managed to attach
+      // it; otherwise report the workers.dev URL and why the pretty one was skipped.
+      let message: string
+      if (data.warning) {
+        message = data.warning
+      } else if (data.customDomain) {
+        let host = data.customDomain
+        try { host = new URL(data.customDomain).host } catch { /* show the raw value */ }
+        message = `Worker deployed and your images will load from ${host}. Redeploy your site (Status tab) to switch over - the secure certificate can take a minute to go live.`
+      } else {
+        message = `Worker deployed at ${data.url ?? 'your Cloudflare account'}. Redeploy your site (Status tab) to start serving media through it.`
+        if (data.note) message += ` A media address on your own domain wasn't set up: ${data.note}.`
+      }
+      if (data.rebased && data.rebased > 0) {
+        message += ` ${data.rebased} existing image${data.rebased === 1 ? '' : 's'} moved across to the new address.`
+      }
+      setCfResult({ ok: true, url: data.customDomain ?? data.url, message })
     } catch {
       setCfResult({ ok: false, message: 'Could not reach the server. Please try again.' })
     } finally {
