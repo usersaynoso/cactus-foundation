@@ -180,8 +180,10 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // GitHub's Git Data API sometimes hasn't finished replicating blobs created
 // moments earlier, which surfaces as GitRPC::BadObjectState on the following
-// createTree call. Retrying after a short delay resolves it.
-async function retryOnBadObjectState<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+// createTree call. Text files now go in via inline `content` (no separate blob to
+// replicate), so this only guards the residual binary-blob path - but binaries can
+// still lag, so keep a generous backoff (1+2+4+8+16 = 31s over 6 tries).
+async function retryOnBadObjectState<T>(fn: () => Promise<T>, attempts = 6): Promise<T> {
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn()
@@ -253,12 +255,20 @@ export async function syncCoreFromUpstream(
   const fromTree = await getUpstreamTree(fromTag)
   const toTree = await getUpstreamTree(toTag)
 
-  // Build tree entries, skipping modules/ and .gitmodules
+  // Build tree entries, skipping modules/ and .gitmodules. Text files are inlined
+  // via the tree's `content` field so GitHub creates their blobs atomically as part
+  // of the single createTree write. This sidesteps the createBlob -> createTree
+  // replication race that surfaced as GitRPC::BadObjectState: a blob created moments
+  // earlier is not always visible to the immediately following createTree, and the
+  // whole tree is atomic, so one lagging blob out of a large delta fails everything.
+  // Only genuinely binary files (which can't be inlined as UTF-8) still go through
+  // createBlob, shrinking the race window to the rare image/font in a delta.
   type TreeEntry = {
     path: string
     mode: '100644' | '100755'
     type: 'blob'
-    sha: string | null
+    sha?: string | null
+    content?: string
   }
 
   const treeEntries: TreeEntry[] = []
@@ -269,19 +279,25 @@ export async function syncCoreFromUpstream(
     const fromEntry = fromTree.get(path)
     if (fromEntry && fromEntry.sha === toEntry.sha) continue // unchanged
 
-    // Fetch content from upstream at toTag and create blob in admin repo
-    const { data: content } = await octokit.rest.repos.getContent({
-      owner: upOwner, repo: upRepo, path, ref: toTag,
+    // Read the file's bytes from upstream by blob sha. getBlob (unlike getContent)
+    // has no 1 MB ceiling, so large changed files are no longer silently dropped.
+    const { data: upstreamBlob } = await octokit.rest.git.getBlob({
+      owner: upOwner, repo: upRepo, file_sha: toEntry.sha,
     })
-    if (!('content' in content) || !content.content) continue
+    const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
 
-    const { data: blob } = await octokit.rest.git.createBlob({
-      owner: adminOwner, repo: adminRepo,
-      content: content.content.replace(/\n/g, ''),
-      encoding: 'base64',
-    })
-
-    treeEntries.push({ path, mode: toEntry.mode, type: 'blob', sha: blob.sha })
+    // A null byte means binary: inline `content` is UTF-8 only and would corrupt it,
+    // so create a real blob and reference it by sha (covered by the retry below).
+    if (bytes.includes(0)) {
+      const { data: blob } = await octokit.rest.git.createBlob({
+        owner: adminOwner, repo: adminRepo,
+        content: bytes.toString('base64'),
+        encoding: 'base64',
+      })
+      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', sha: blob.sha })
+    } else {
+      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', content: bytes.toString('utf8') })
+    }
   }
 
   for (const path of fromTree.keys()) {
@@ -290,25 +306,23 @@ export async function syncCoreFromUpstream(
   }
 
   if (modulesJson) {
+    // JSON is text, so inline it too - no separate blob, no race.
     const jsonContent = JSON.stringify({ modules: modulesJson }, null, 2) + '\n'
-    const { data: blob } = await octokit.rest.git.createBlob({
-      owner: adminOwner, repo: adminRepo,
-      content: Buffer.from(jsonContent).toString('base64'),
-      encoding: 'base64',
-    })
-    treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', sha: blob.sha })
+    treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
   }
 
   if (treeEntries.length === 0) {
     throw new Error('No core files changed between these versions')
   }
 
-  // Count only adds/modifies/renames (not deletes) for the user-facing count
-  const fileCount = treeEntries.filter((e) => e.sha !== null).length
+  // Count adds/modifies (inlined text carries `content`; binary carries a real `sha`)
+  // for the user-facing count. Deletions carry sha === null and are excluded.
+  const fileCount = treeEntries.filter((e) => e.content !== undefined || typeof e.sha === 'string').length
 
-  // Newly created blobs can lag GitHub's storage replication by a second or two,
-  // which makes an immediate createTree fail with GitRPC::BadObjectState even
-  // though the blobs are valid. Retry with backoff before giving up.
+  // Any binary blobs created just above can lag GitHub's storage replication by a
+  // second or two, which makes an immediate createTree fail with GitRPC::BadObjectState
+  // even though the blobs are valid. Retry with backoff before giving up. (Text files
+  // are inlined into the tree, so they don't hit this at all.)
   const newTree = await retryOnBadObjectState(() =>
     octokit.rest.git.createTree({
       owner: adminOwner, repo: adminRepo,
