@@ -116,10 +116,15 @@ export async function POST(req: NextRequest) {
     return errorResponse('vars must be an array', 400)
   }
 
-  // Filter: only allowed keys with non-empty values.
-  const toWrite = body.vars.filter(
-    ({ key, value }) => ALLOWED_KEYS.has(key) && typeof value === 'string' && value.trim() !== ''
-  )
+  // Filter to allowed, non-empty keys and store each value trimmed. Credentials
+  // pasted from a provider console often carry a trailing space or newline, which
+  // S3 request signing later rejects ("Malformed Access Key Id"). None of the
+  // managed keys (tokens, hosts, ports, names, URLs, DSNs) legitimately carry
+  // surrounding whitespace, so trimming on write is always safe - and never trust
+  // the client to have done it.
+  const toWrite = body.vars
+    .filter(({ key, value }) => ALLOWED_KEYS.has(key) && typeof value === 'string' && value.trim() !== '')
+    .map(({ key, value }) => ({ key, value: value.trim() }))
 
   if (toWrite.length === 0) {
     return NextResponse.json({ ok: true, written: 0 })

@@ -158,6 +158,17 @@ function normalizeS3Endpoint(endpoint: string | undefined): string | undefined {
 
 type S3Config = { client: S3Client; bucket: string }
 
+// Read an S3 credential from the environment, stripping surrounding whitespace.
+// Keys, secrets and bucket names pasted from a provider console routinely arrive
+// with a trailing space or newline; S3 request signing then rejects the tainted
+// value ("Malformed Access Key Id" for the key id, "SignatureDoesNotMatch" for
+// the secret). Trimming at the point of use also heals a value that was already
+// stored with a stray space, without the admin having to spot and re-enter it.
+// (Endpoints go through normalizeS3Endpoint, which trims separately.)
+function s3Env(key: string): string {
+  return (process.env[key] ?? '').trim()
+}
+
 function getS3Config(provider: MediaProviderType): S3Config {
   switch (provider) {
     case 'B2':
@@ -166,58 +177,58 @@ function getS3Config(provider: MediaProviderType): S3Config {
           endpoint: normalizeS3Endpoint(process.env.B2_ENDPOINT),
           region: 'auto',
           credentials: {
-            accessKeyId: process.env.B2_APPLICATION_KEY_ID ?? '',
-            secretAccessKey: process.env.B2_APPLICATION_KEY ?? '',
+            accessKeyId: s3Env('B2_APPLICATION_KEY_ID'),
+            secretAccessKey: s3Env('B2_APPLICATION_KEY'),
           },
         }),
-        bucket: process.env.B2_BUCKET_NAME ?? '',
+        bucket: s3Env('B2_BUCKET_NAME'),
       }
     case 'R2':
       return {
         client: new S3Client({
-          endpoint: `https://${process.env.R2_ACCOUNT_ID ?? ''}.r2.cloudflarestorage.com`,
+          endpoint: `https://${s3Env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
           region: 'auto',
           credentials: {
-            accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
-            secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+            accessKeyId: s3Env('R2_ACCESS_KEY_ID'),
+            secretAccessKey: s3Env('R2_SECRET_ACCESS_KEY'),
           },
         }),
-        bucket: process.env.R2_BUCKET_NAME ?? '',
+        bucket: s3Env('R2_BUCKET_NAME'),
       }
     case 'S3':
       return {
         client: new S3Client({
-          region: process.env.S3_REGION ?? 'us-east-1',
+          region: s3Env('S3_REGION') || 'us-east-1',
           credentials: {
-            accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
-            secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+            accessKeyId: s3Env('S3_ACCESS_KEY_ID'),
+            secretAccessKey: s3Env('S3_SECRET_ACCESS_KEY'),
           },
         }),
-        bucket: process.env.S3_BUCKET_NAME ?? '',
+        bucket: s3Env('S3_BUCKET_NAME'),
       }
     case 'SPACES':
       return {
         client: new S3Client({
-          endpoint: `https://${process.env.SPACES_REGION ?? ''}.digitaloceanspaces.com`,
-          region: process.env.SPACES_REGION ?? 'us-east-1',
+          endpoint: `https://${s3Env('SPACES_REGION')}.digitaloceanspaces.com`,
+          region: s3Env('SPACES_REGION') || 'us-east-1',
           credentials: {
-            accessKeyId: process.env.SPACES_ACCESS_KEY_ID ?? '',
-            secretAccessKey: process.env.SPACES_SECRET_ACCESS_KEY ?? '',
+            accessKeyId: s3Env('SPACES_ACCESS_KEY_ID'),
+            secretAccessKey: s3Env('SPACES_SECRET_ACCESS_KEY'),
           },
         }),
-        bucket: process.env.SPACES_BUCKET_NAME ?? '',
+        bucket: s3Env('SPACES_BUCKET_NAME'),
       }
     case 'WASABI':
       return {
         client: new S3Client({
-          endpoint: `https://s3.${process.env.WASABI_REGION ?? 'us-east-1'}.wasabisys.com`,
-          region: process.env.WASABI_REGION ?? 'us-east-1',
+          endpoint: `https://s3.${s3Env('WASABI_REGION') || 'us-east-1'}.wasabisys.com`,
+          region: s3Env('WASABI_REGION') || 'us-east-1',
           credentials: {
-            accessKeyId: process.env.WASABI_ACCESS_KEY_ID ?? '',
-            secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY ?? '',
+            accessKeyId: s3Env('WASABI_ACCESS_KEY_ID'),
+            secretAccessKey: s3Env('WASABI_SECRET_ACCESS_KEY'),
           },
         }),
-        bucket: process.env.WASABI_BUCKET_NAME ?? '',
+        bucket: s3Env('WASABI_BUCKET_NAME'),
       }
     case 'MINIO':
       return {
@@ -226,11 +237,11 @@ function getS3Config(provider: MediaProviderType): S3Config {
           region: 'us-east-1',
           forcePathStyle: true,
           credentials: {
-            accessKeyId: process.env.MINIO_ACCESS_KEY_ID ?? '',
-            secretAccessKey: process.env.MINIO_SECRET_ACCESS_KEY ?? '',
+            accessKeyId: s3Env('MINIO_ACCESS_KEY_ID'),
+            secretAccessKey: s3Env('MINIO_SECRET_ACCESS_KEY'),
           },
         }),
-        bucket: process.env.MINIO_BUCKET_NAME ?? '',
+        bucket: s3Env('MINIO_BUCKET_NAME'),
       }
     default:
       throw new Error(`Provider ${provider} is not S3-compatible`)

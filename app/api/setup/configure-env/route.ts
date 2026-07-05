@@ -71,9 +71,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'vars must be an array' }, { status: 400 })
   }
 
-  const toWrite = body.vars.filter(
-    ({ key, value }) => ALLOWED_KEYS.has(key) && typeof value === 'string' && value.trim() !== ''
-  )
+  // Trim each stored value: credentials pasted from a provider console often
+  // carry a trailing space or newline, which S3 request signing later rejects
+  // ("Malformed Access Key Id"). None of these keys legitimately carry
+  // surrounding whitespace, so trimming on write is always safe.
+  const toWrite = body.vars
+    .filter(({ key, value }) => ALLOWED_KEYS.has(key) && typeof value === 'string' && value.trim() !== '')
+    .map(({ key, value }) => ({ key, value: value.trim() }))
 
   if (toWrite.length === 0) {
     return NextResponse.json({ ok: true, written: 0 })
