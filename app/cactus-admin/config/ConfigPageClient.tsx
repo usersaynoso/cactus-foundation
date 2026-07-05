@@ -34,6 +34,7 @@ type SiteConfig = {
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null;
+  logoMediaId: string | null; faviconMediaId: string | null;
   privacyPolicyPageId: string; termsPageId: string;
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
@@ -485,6 +486,109 @@ function configFingerprint(c: Partial<SiteConfig>): string {
   return JSON.stringify(rest)
 }
 
+// A single logo/favicon slot on the Branding tab: preview, upload/replace, and
+// remove. Uploads go straight to the media library; the parent stores the
+// returned media id on the config and persists it with the top "Save changes".
+function BrandingImageField({
+  label,
+  hint,
+  previewUrl,
+  square = false,
+  onUploaded,
+  onRemove,
+}: {
+  label: string
+  hint: string
+  previewUrl: string | null
+  square?: boolean
+  onUploaded: (media: { id: string; url: string }) => void
+  onRemove: () => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(file: File | null) {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('altText', label)
+      const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Upload failed')
+      onUploaded({ id: d.id, url: d.url })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div className="field" style={{ marginBottom: '1.5rem' }}>
+      <label style={{ display: 'block', marginBottom: '0.5rem' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        {previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- media URLs are user-supplied remote hosts, not statically optimisable
+          <img
+            src={previewUrl}
+            alt={`${label} preview`}
+            style={{
+              height: 64,
+              width: square ? 64 : 'auto',
+              maxWidth: 240,
+              objectFit: 'contain',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius)',
+              padding: '0.35rem',
+              background: 'var(--color-surface)',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              height: 64,
+              width: square ? 64 : 120,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px dashed var(--color-border)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--color-text-muted)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            None
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          />
+          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+            {uploading ? 'Uploading…' : previewUrl ? 'Replace' : 'Upload'}
+          </button>
+          {previewUrl && (
+            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={onRemove}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+      <span className="field-hint">{hint}</span>
+      {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{error}</span>}
+    </div>
+  )
+}
+
 type ModuleTab = { id: string; label: string }
 type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
 
@@ -513,6 +617,9 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
     canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
   )
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
+  // Branding tab: preview URLs resolved from the stored logo/favicon media ids.
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -734,8 +841,13 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       fetch('/api/admin/env').then((r) => r.json()),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
     ]).then(([cfg, pagesData, envData, menusData]) => {
-      setConfig(cfg)
-      savedFingerprint.current = configFingerprint(cfg)
+      // logoUrl/faviconUrl are derived preview fields, not columns — keep them
+      // out of the config state (and its dirty-fingerprint) and drive previews.
+      const { logoUrl, faviconUrl, ...cfgRest } = cfg as Partial<SiteConfig> & { logoUrl?: string | null; faviconUrl?: string | null }
+      setConfig(cfgRest)
+      savedFingerprint.current = configFingerprint(cfgRest)
+      setLogoPreview(logoUrl ?? null)
+      setFaviconPreview(faviconUrl ?? null)
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
@@ -1878,11 +1990,43 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
         )
       })()}
 
-      {tab === 'branding' && (
-        <div className="alert alert-info">
-          Logo and favicon upload requires a media provider to be configured first. Choose one and add its credentials in the Media tab.
-        </div>
-      )}
+      {tab === 'branding' && (() => {
+        const provider = config.mediaProvider ?? null
+        // Mirror the server upload gate: a provider must be selected and every
+        // env var it needs present (proxied providers also need the Worker URL).
+        const mediaReady = !!provider && envKeysForProvider(provider).every((k) => envStatus[k])
+
+        if (!mediaReady) {
+          return (
+            <div className="alert alert-info">
+              Logo and favicon upload requires a media provider to be configured first. Choose one and add its credentials in the Media tab.
+            </div>
+          )
+        }
+
+        return (
+          <div>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+              Upload the logo and favicon for your site. The logo appears in your header and on system pages; the favicon is the small icon in the browser tab. Press <strong>Save changes</strong> when you&apos;re done.
+            </p>
+            <BrandingImageField
+              label="Site logo"
+              hint="Shown in your site header and on the coming-soon, maintenance, and not-found pages. JPEG, PNG, WebP, or GIF."
+              previewUrl={logoPreview}
+              onUploaded={(m) => { setConfig((p) => ({ ...p, logoMediaId: m.id })); setLogoPreview(m.url) }}
+              onRemove={() => { setConfig((p) => ({ ...p, logoMediaId: null })); setLogoPreview(null) }}
+            />
+            <BrandingImageField
+              label="Favicon"
+              hint="The small icon shown in browser tabs and bookmarks. A square image of at least 96×96 works best. JPEG, PNG, WebP, or GIF."
+              previewUrl={faviconPreview}
+              square
+              onUploaded={(m) => { setConfig((p) => ({ ...p, faviconMediaId: m.id })); setFaviconPreview(m.url) }}
+              onRemove={() => { setConfig((p) => ({ ...p, faviconMediaId: null })); setFaviconPreview(null) }}
+            />
+          </div>
+        )
+      })()}
 
       {tab === 'media' && (() => {
         const selected = config.mediaProvider ?? null
