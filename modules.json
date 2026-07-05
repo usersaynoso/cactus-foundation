@@ -1,6 +1,11 @@
 {
   "modules": [
     {
+      "name": "shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/shop",
+      "version": "v0.1.17"
+    },
+    {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
       "version": "v0.1.9"
@@ -14,11 +19,6 @@
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
       "version": "v0.1.9"
-    },
-    {
-      "name": "shop",
-      "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.16"
     },
     {
       "name": "contact-form",

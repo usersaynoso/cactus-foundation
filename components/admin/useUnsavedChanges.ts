@@ -11,15 +11,25 @@ import { useEffect, useRef, useState } from 'react'
  * and back to `false` once saved. When an in-app link is clicked with unsaved
  * changes, navigation is intercepted and `pendingHref` is set - render
  * {@link UnsavedChangesModal} with it to prompt the user.
+ *
+ * Pass `extraIsDirty` when a second, independently-tracked form on the same page
+ * can also be dirty (e.g. the Branding tab on the Styles page, which saves to its
+ * own endpoint): the guard fires when either `dirtyRef` or `extraIsDirty()` is set.
  */
-export function useUnsavedChanges() {
+export function useUnsavedChanges(extraIsDirty?: () => boolean) {
   const dirtyRef = useRef(false)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
+  // Keep the latest predicate in a ref so the once-bound listeners always read
+  // the current value without re-registering. Written in an effect, not during
+  // render, so a ref is never mutated mid-render.
+  const extraIsDirtyRef = useRef(extraIsDirty)
+  useEffect(() => { extraIsDirtyRef.current = extraIsDirty })
 
   // Warn on hard navigation (reload, tab close, browser back to a non-app page)
   useEffect(() => {
+    const isDirty = () => dirtyRef.current || (extraIsDirtyRef.current?.() ?? false)
     const handler = (e: BeforeUnloadEvent) => {
-      if (!dirtyRef.current) return
+      if (!isDirty()) return
       e.preventDefault()
       e.returnValue = ''
     }
@@ -29,8 +39,9 @@ export function useUnsavedChanges() {
 
   // Intercept in-app link navigation while there are unsaved changes
   useEffect(() => {
+    const isDirty = () => dirtyRef.current || (extraIsDirtyRef.current?.() ?? false)
     const handler = (e: MouseEvent) => {
-      if (!dirtyRef.current || e.defaultPrevented) return
+      if (!isDirty() || e.defaultPrevented) return
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
       const anchor = (e.target as HTMLElement).closest('a')
       if (!anchor) return

@@ -7,6 +7,7 @@ import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { BrandingTab, useBrandingState } from './BrandingTab'
 import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
 
 const MAX_FONT_SEARCH_RESULTS = 50
@@ -102,13 +103,17 @@ const TEXT_DECORATION_OPTIONS = [
 export default function StylesPage() {
   const router = useRouter()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
-  const [activeTab, setActiveTab] = useState<'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields' | 'spacing'>('colours')
+  const [activeTab, setActiveTab] = useState<'branding' | 'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields' | 'spacing'>('branding')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [openHeadings, setOpenHeadings] = useState<Set<string>>(new Set(['h1']))
-  const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
+  // Branding lives on its own endpoint (config.manage) with its own Save button,
+  // but shares the page's unsaved-changes guard so navigating away with unsaved
+  // branding edits still prompts.
+  const branding = useBrandingState()
+  const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges(() => branding.dirty)
   const presetsScrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -194,10 +199,12 @@ export default function StylesPage() {
 
   const saveAndLeave = useCallback(async () => {
     const href = pendingHref
-    const ok = await handleSave()
-    if (ok && href) { setPendingHref(null); router.push(href) }
+    // One leave-prompt covers both forms; save whichever is dirty.
+    const tokensOk = dirtyRef.current ? await handleSave() : true
+    const brandingOk = branding.dirty ? await branding.save() : true
+    if (tokensOk && brandingOk && href) { setPendingHref(null); router.push(href) }
     else setPendingHref(null) // save failed - stay put so the error toast is visible
-  }, [pendingHref, handleSave, router, setPendingHref])
+  }, [pendingHref, handleSave, branding, router, setPendingHref, dirtyRef])
 
   const handleApplyPreset = useCallback((preset: ColourPreset) => {
     if (dirtyRef.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved colour changes will be replaced.`)) return
@@ -311,14 +318,20 @@ export default function StylesPage() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Styles</h1>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Styles'}
-        </button>
+        {activeTab === 'branding' ? (
+          <button className="btn btn-primary" onClick={() => { void branding.save() }} disabled={branding.saving}>
+            {branding.saving ? 'Saving…' : branding.saved ? '✓ Saved' : 'Save branding'}
+          </button>
+        ) : (
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Styles'}
+          </button>
+        )}
       </div>
 
-      {error && (
+      {(activeTab === 'branding' ? branding.error : error) && (
         <div className="alert alert-danger" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 60, maxWidth: 360, margin: 0, boxShadow: 'var(--shadow-elevated)' }}>
-          {error}
+          {activeTab === 'branding' ? branding.error : error}
         </div>
       )}
 
@@ -333,6 +346,7 @@ export default function StylesPage() {
 
       <TabStrip
         items={([
+          ['branding',   'Branding'],
           ['colours',    'Colours'],
           ['typography', 'Fonts & Typography'],
           ['headings',   'Headings'],
@@ -344,6 +358,8 @@ export default function StylesPage() {
       />
 
       <div style={{ padding: '2rem' }}>
+
+        {activeTab === 'branding' && <BrandingTab b={branding} />}
 
         {activeTab === 'colours' && (
           <>

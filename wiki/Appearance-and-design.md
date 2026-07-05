@@ -8,7 +8,11 @@ Find these settings under **Appearance** in the admin sidebar.
 
 ## Styles
 
-**Appearance → Styles** is where you set your site's global visual style. It's split into tabs, each covering a different area of design.
+**Appearance → Styles** is where you set your site's global visual style. It's split into tabs, each covering a different area of design. The **first tab, Branding**, holds your logo and app identity (covered under [Branding](#branding) below); the rest cover colour, type, buttons, images, forms, and spacing.
+
+### Branding tab
+
+The first tab holds your **logo, icons, and app identity**. It sits at the front because branding is part of how your site looks; the design-token tabs that follow cover the rest. Branding has its own **Save branding** button, separate from the **Save Styles** button the other tabs share. See the [Branding](#branding) section below for the full detail.
 
 ### Colour presets
 
@@ -123,7 +127,7 @@ Module layout types come with a few starter templates each, same as headers and 
 
 ## Branding
 
-**Settings → Branding** is where you set your logo, icons, and app identity. These replace the default Cactus branding everywhere - public pages, the admin area, the status and error pages, browser tabs, bookmarks, and the icon people see when they add your site to their phone.
+**Appearance → Styles → Branding** (the first tab) is where you set your logo, icons, and app identity. These replace the default Cactus branding everywhere - public pages, the admin area, the status and error pages, browser tabs, bookmarks, and the icon people see when they add your site to their phone.
 
 - Your **logo** appears wherever you've placed a **Site logo** block in the header or footer.
 - Your **favicon** appears in the browser tab.

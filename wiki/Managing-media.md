@@ -42,7 +42,7 @@ Once a provider is connected, an **Upload** button appears in:
 
 - The **Image** block settings in the page editor
 - The **Site logo** settings in the page editor
-- **Settings → Branding** (for your logo and favicon)
+- **Appearance → Styles → Branding** (for your logo and favicon)
 
 Click **Upload**, select a file from your computer, and it will be stored with your chosen provider and added to your media library.
 
