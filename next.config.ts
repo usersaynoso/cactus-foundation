@@ -1,6 +1,22 @@
 import type { NextConfig } from 'next'
 import pkg from './package.json'
 
+// Prefer an explicit CLOUDFLARE_WORKER_HOSTNAME, else derive it from
+// CLOUDFLARE_WORKER_URL — the admin auto-deploy sets the URL but not the bare
+// hostname. Mirrors workerImageHost() in proxy.ts (kept in sync by hand; a
+// config file can't cleanly share a runtime helper).
+function workerImageHost(): string | undefined {
+  const explicit = process.env.CLOUDFLARE_WORKER_HOSTNAME?.trim()
+  if (explicit) return explicit
+  const url = process.env.CLOUDFLARE_WORKER_URL?.trim()
+  if (!url) return undefined
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname
+  } catch {
+    return undefined
+  }
+}
+
 const config: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
@@ -12,7 +28,7 @@ const config: NextConfig = {
         // Cloudflare Worker URL for proxied object-storage providers
         // Set CLOUDFLARE_WORKER_HOSTNAME in environment variables
         protocol: 'https',
-        hostname: process.env.CLOUDFLARE_WORKER_HOSTNAME ?? 'placeholder.workers.dev',
+        hostname: workerImageHost() ?? 'placeholder.workers.dev',
       },
       // Direct providers serve straight from their own CDN domains.
       { protocol: 'https', hostname: 'res.cloudinary.com' },

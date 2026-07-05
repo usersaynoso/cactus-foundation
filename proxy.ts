@@ -26,10 +26,29 @@ import { validateMemberSession } from '@/lib/members/session-core'
 import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 
+// The media Worker's hostname for the img-src allowlist. Prefer an explicit
+// CLOUDFLARE_WORKER_HOSTNAME, but fall back to the hostname of
+// CLOUDFLARE_WORKER_URL: the auto-deploy flow (admin > Media) sets the URL but
+// not the bare hostname, and without this the CSP silently omits the Worker, so
+// every Worker-served image is blocked from rendering inline. A top-level tab
+// bypasses img-src, which is why such an image "works" opened directly but not
+// when embedded in a page.
+function workerImageHost(): string {
+  const explicit = process.env.CLOUDFLARE_WORKER_HOSTNAME?.trim()
+  if (explicit) return explicit
+  const url = process.env.CLOUDFLARE_WORKER_URL?.trim()
+  if (!url) return ''
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname
+  } catch {
+    return ''
+  }
+}
+
 // CSP allows inline styles/scripts because Next.js server components inject them.
-// External image origins are added when CLOUDFLARE_WORKER_HOSTNAME is set.
+// External image origins are added when the media Worker host is known.
 function buildCsp(): string {
-  const workerHost = process.env.CLOUDFLARE_WORKER_HOSTNAME
+  const workerHost = workerImageHost()
   const imgSrc = [
     "'self'", 'data:', 'blob:',
     // Style guide demo images
