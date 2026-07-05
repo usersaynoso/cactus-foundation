@@ -10,6 +10,7 @@ Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up
 
 - Enable Point-in-Time Recovery (PITR) - both providers offer it on paid plans. PITR lets you restore to any second in the past within your retention window, which is far more useful than a daily snapshot when debugging a bad migration.
 - For self-hosted Postgres: use `pg_dump` scheduled via cron, ship the dump to an off-server location (another cloud storage bucket), and test restores occasionally.
+- **Manual one-off backup**: admin > Settings > General has a "Download Backup" button that generates a full SQL dump (schema + data) on demand and downloads it straight to the browser. No object storage provider needed - it's independent of whatever media provider (B2 or otherwise) you have configured, or none at all. Good for a quick copy before a risky change; PITR/cron `pg_dump` is still the right answer for ongoing, unattended backups.
 
 **Media backups:**
 

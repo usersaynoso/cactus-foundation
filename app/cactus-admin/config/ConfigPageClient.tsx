@@ -535,6 +535,10 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [templatesRefreshed, setTemplatesRefreshed] = useState(false)
   const [templatesRefreshError, setTemplatesRefreshError] = useState('')
 
+  // Database backup state
+  const [downloadingBackup, setDownloadingBackup] = useState(false)
+  const [backupError, setBackupError] = useState('')
+
   // Reset Everything state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -803,6 +807,35 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       setTemplatesRefreshError(e instanceof Error ? e.message : 'Refresh failed')
     } finally {
       setRefreshingTemplates(false)
+    }
+  }
+
+  async function handleDownloadBackup() {
+    setDownloadingBackup(true)
+    setBackupError('')
+    try {
+      const res = await fetch('/api/admin/backup/database')
+      if (!res.ok) {
+        const d = (await res.json().catch(() => null)) as { error?: string } | null
+        throw new Error(d?.error ?? 'Backup failed')
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const filenameMatch = disposition.match(/filename="([^"]+)"/)
+      const filename = filenameMatch?.[1] ?? `cactus-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.sql`
+      const url = URL.createObjectURL(blob)
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch (err: unknown) {
+      setBackupError(err instanceof Error ? err.message : 'Backup failed')
+    } finally {
+      setDownloadingBackup(false)
     }
   }
 
@@ -1281,6 +1314,24 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
               onClick={handleRefreshTemplates}
             >
               {refreshingTemplates ? 'Updating…' : 'Refresh Starter Templates'}
+            </button>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Backup</h2>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+              Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.
+            </p>
+            {backupError && (
+              <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{backupError}</div>
+            )}
+            <button
+              className="btn btn-primary"
+              disabled={downloadingBackup}
+              onClick={handleDownloadBackup}
+            >
+              {downloadingBackup ? 'Preparing backup…' : 'Download Backup'}
             </button>
           </div>
 

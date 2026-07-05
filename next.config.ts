@@ -39,6 +39,12 @@ const config: NextConfig = {
   experimental: {
     // typedRoutes: true, // enable once stable in Next.js 16
   },
+  // The database backup route reads this file at runtime via fs, not a static
+  // import - the file tracer can't see it otherwise, so it'd be missing from
+  // the deployed function bundle on Vercel despite working fine in dev.
+  outputFileTracingIncludes: {
+    'app/api/admin/backup/database/route.ts': ['./prisma/migrations/**'],
+  },
   // Security headers are applied in proxy.ts
 }
 
