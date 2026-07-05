@@ -251,6 +251,17 @@ async function fetchFromProvider(
 // AWS SigV4 for S3-compatible endpoints
 // ---------------------------------------------------------------------------
 
+// Provider endpoints (B2, MinIO) arrive straight from the operator's stored
+// secret and may lack a scheme, e.g. "s3.eu-central-003.backblazeb2.com". The
+// new URL() below would throw "Invalid URL" on such a value, turning every media
+// request into a 502. Prepend https:// when no scheme is present; an explicit
+// http:// is preserved for self-hosted MinIO over plain HTTP.
+function normalizeEndpoint(endpoint: string): string {
+  const trimmed = endpoint.trim().replace(/\/+$/, '')
+  if (!trimmed) return trimmed
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 async function fetchS3Compatible(
   endpoint: string,
   bucket: string,
@@ -260,7 +271,7 @@ async function fetchS3Compatible(
   region: string,
   cfOptions: RequestInit['cf'],
 ): Promise<Response> {
-  const base = endpoint.replace(/\/$/, '')
+  const base = normalizeEndpoint(endpoint)
   const objectUrl = `${base}/${bucket}/${key}`
   const url = new URL(objectUrl)
 
