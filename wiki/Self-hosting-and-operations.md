@@ -18,9 +18,18 @@ Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up
 - For other providers, use the provider's own snapshot or replication feature, or ship periodic exports to a secondary bucket.
 - If you delete a media file via the admin, it's deleted from the provider immediately. There's no soft-delete or trash. Your bucket backup is the recovery path.
 
-## Cloudflare Worker secrets
+## Cloudflare Worker deployment
 
-The Cloudflare Worker that serves proxied media reads credentials from **Worker secrets**, not from Vercel environment variables. You must configure these manually whenever you add or change a proxied provider.
+There are two ways to stand up the media Worker.
+
+**Automatic (recommended for non-technical operators).** The admin **Settings → Media** panel has a **Set up the Worker automatically** box. The admin supplies a Cloudflare credential and Cactus deploys the Worker via the Cloudflare API - uploading the script, setting the provider secrets, and enabling the `*.workers.dev` URL - then writes that URL into `CLOUDFLARE_WORKER_URL` for them. No terminal required.
+
+- Credential: either a scoped **API token** (recommended) with `Account · Workers Scripts · Edit` + `Account · Account Settings · Read`, or the legacy **Global API Key** + account email. Both are obtained at <https://dash.cloudflare.com/profile/api-tokens>.
+- The credential is stored back as Vercel env vars for future re-deploys: `CLOUDFLARE_API_TOKEN` **or** `CLOUDFLARE_GLOBAL_API_KEY` + `CLOUDFLARE_EMAIL` (the two keys are stored *sensitive*), plus `CLOUDFLARE_ACCOUNT_ID`.
+- The account must have a `workers.dev` subdomain claimed once (Cloudflare dashboard → Workers & Pages). If it doesn't, the deploy returns a clear error asking you to set one.
+- Worker script name: `cactus-media-worker`. Re-running the deploy overwrites it in place.
+
+**Manual (wrangler).** The Cloudflare Worker reads credentials from **Worker secrets**, not from Vercel environment variables. Configure these manually whenever you add or change a proxied provider.
 
 ```bash
 # Set secrets for the providers you use (run from the workers/media-worker/ directory):

@@ -15,7 +15,12 @@ import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
   PROVIDER_ENV_VARS,
+  PROVIDER_SETUP_LINKS,
   CLOUDFLARE_WORKER_VAR,
+  CLOUDFLARE_DASH_URL,
+  CLOUDFLARE_API_TOKENS_URL,
+  CLOUDFLARE_TOKEN_PERMISSIONS,
+  WORKER_SECRET_KEYS,
   ALL_PROVIDERS,
   envKeysForProvider,
 } from '@/lib/media/providers'
@@ -646,6 +651,67 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [migrationRunning, setMigrationRunning] = useState(false)
   const [pendingProvider, setPendingProvider] = useState<MediaProviderType | null>(null)
   const [mediaBusy, setMediaBusy] = useState(false)
+
+  // Cloudflare Worker auto-deploy state
+  const [cfAuthMode, setCfAuthMode] = useState<'token' | 'global'>('token')
+  const [cfToken, setCfToken] = useState('')
+  const [cfGlobalKey, setCfGlobalKey] = useState('')
+  const [cfEmail, setCfEmail] = useState('')
+  const [cfAccountId, setCfAccountId] = useState('')
+  const [cfDeploying, setCfDeploying] = useState(false)
+  const [cfResult, setCfResult] = useState<{ ok: boolean; url?: string; message: string } | null>(null)
+
+  const handleDeployWorker = useCallback(async (provider: MediaProviderType) => {
+    setCfDeploying(true)
+    setCfResult(null)
+    try {
+      // Send any freshly-typed provider values so the deploy works before the
+      // credentials have been saved + redeployed into the server environment.
+      const secrets: Record<string, string> = {}
+      for (const k of WORKER_SECRET_KEYS[provider]) {
+        const v = envFields[k]
+        if (v && v.trim()) secrets[k] = v.trim()
+      }
+      const payload = {
+        provider,
+        authMode: cfAuthMode,
+        apiToken: cfAuthMode === 'token' ? cfToken.trim() : undefined,
+        globalKey: cfAuthMode === 'global' ? cfGlobalKey.trim() : undefined,
+        email: cfAuthMode === 'global' ? cfEmail.trim() : undefined,
+        accountId: cfAccountId.trim() || undefined,
+        secrets,
+      }
+      const res = await fetch('/api/admin/media/deploy-worker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; url?: string; warning?: string; error?: string }
+        | null
+      if (!res.ok || !data?.ok) {
+        setCfResult({ ok: false, message: data?.error ?? 'Worker deployment failed.' })
+        return
+      }
+      // Success: the Worker URL is now saved server-side, so reflect it as set.
+      setEnvStatus((s) => ({ ...s, [CLOUDFLARE_WORKER_VAR.key]: true }))
+      // Drop the pasted credentials from component memory now they're stored.
+      setCfToken('')
+      setCfGlobalKey('')
+      setCfEmail('')
+      setCfResult({
+        ok: true,
+        url: data.url,
+        message:
+          data.warning ??
+          `Worker deployed at ${data.url ?? 'your Cloudflare account'}. Redeploy your site (Status tab) to start serving media through it.`,
+      })
+    } catch {
+      setCfResult({ ok: false, message: 'Could not reach the server. Please try again.' })
+    } finally {
+      setCfDeploying(false)
+    }
+  }, [cfAuthMode, cfToken, cfGlobalKey, cfEmail, cfAccountId, envFields])
 
   const loadMediaState = useCallback(async () => {
     const [bd, ms] = await Promise.all([
@@ -1893,6 +1959,17 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                   </div>
                   <StatusBadge set={envKeysForProvider(selected).every((k) => envStatus[k])} />
                 </div>
+                {PROVIDER_SETUP_LINKS[selected].length > 0 && (
+                  <div className="alert alert-info" style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+                    <strong>Where to find these:</strong>{' '}
+                    {PROVIDER_SETUP_LINKS[selected].map((l, i) => (
+                      <span key={l.url}>
+                        {i > 0 && <span style={{ opacity: 0.5 }}> · </span>}
+                        <a href={l.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>{l.label} ↗</a>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {localMode && (
                   <div className="alert alert-info" style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
                     Managed via <code>.env.local</code> in local-development mode. Edit the file and restart the dev server to change these.
@@ -1934,10 +2011,105 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                       />
                       <span className="field-hint">{CLOUDFLARE_WORKER_VAR.hint}</span>
                     </div>
-                    <div className="alert alert-info" style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-                      Also configure these same values as secrets on your Cloudflare Worker — see the{' '}
-                      <a href="https://github.com/your-org/cactus/wiki/Self-hosting-and-operations" target="_blank" rel="noreferrer">self-hosting docs</a>.
-                    </div>
+                    <div style={{ border: '1px solid var(--color-primary-border)', borderRadius: 'var(--radius)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--color-primary-subtle)' }}>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically</h4>
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
+                          Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine.
+                        </p>
+                        {localMode ? (
+                          <div className="alert alert-info" style={{ fontSize: '0.8125rem', margin: 0 }}>
+                            Automatic deployment runs on your live site, not in local development (credentials are written to your Vercel project). Deploy from your deployed admin and the credential fields appear here.
+                          </div>
+                        ) : (
+                        <>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.6rem', fontSize: '0.8125rem', flexWrap: 'wrap' }}>
+                          <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', cursor: 'pointer' }}>
+                            <input type="radio" name="cf-auth-mode" checked={cfAuthMode === 'token'} onChange={() => setCfAuthMode('token')} />
+                            API token <span style={{ color: 'var(--color-text-muted)' }}>(recommended)</span>
+                          </label>
+                          <label style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', cursor: 'pointer' }}>
+                            <input type="radio" name="cf-auth-mode" checked={cfAuthMode === 'global'} onChange={() => setCfAuthMode('global')} />
+                            Global API Key
+                          </label>
+                        </div>
+                        {cfAuthMode === 'token' ? (
+                          <div className="field">
+                            <label style={{ fontSize: '0.8125rem' }}>Cloudflare API token</label>
+                            <input type="password" autoComplete="off" value={cfToken} onChange={(e) => setCfToken(e.target.value)} placeholder="Paste your API token" style={{ fontSize: '0.875rem' }} />
+                            <span className="field-hint">
+                              <a href={CLOUDFLARE_API_TOKENS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Create a token ↗</a>
+                              {' '}- click <strong>Create Custom Token</strong> and grant: {CLOUDFLARE_TOKEN_PERMISSIONS.join('; ')}.
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="field">
+                              <label style={{ fontSize: '0.8125rem' }}>Cloudflare account email</label>
+                              <input type="email" autoComplete="off" value={cfEmail} onChange={(e) => setCfEmail(e.target.value)} placeholder="you@example.com" style={{ fontSize: '0.875rem' }} />
+                            </div>
+                            <div className="field">
+                              <label style={{ fontSize: '0.8125rem' }}>Global API Key</label>
+                              <input type="password" autoComplete="off" value={cfGlobalKey} onChange={(e) => setCfGlobalKey(e.target.value)} placeholder="Paste your Global API Key" style={{ fontSize: '0.875rem' }} />
+                              <span className="field-hint">
+                                <a href={CLOUDFLARE_API_TOKENS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Find your Global API Key ↗</a>
+                                {' '}- same page, under <strong>API Keys</strong>. It has full account access, so a scoped token is safer.
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <div className="field">
+                          <label style={{ fontSize: '0.8125rem' }}>Account ID <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span></label>
+                          <input type="text" autoComplete="off" value={cfAccountId} onChange={(e) => setCfAccountId(e.target.value)} placeholder="Auto-detected - only needed if you have several Cloudflare accounts" style={{ fontSize: '0.875rem' }} />
+                        </div>
+                        {cfResult && (
+                          <div className={cfResult.ok ? 'alert alert-success' : 'alert alert-danger'} style={{ fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>
+                            {cfResult.message}
+                          </div>
+                        )}
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: '0.875rem', marginTop: '0.6rem' }}
+                          disabled={cfDeploying || (cfAuthMode === 'token' ? !cfToken.trim() : !(cfEmail.trim() && cfGlobalKey.trim()))}
+                          onClick={() => handleDeployWorker(selected)}
+                        >
+                          {cfDeploying ? 'Deploying…' : 'Deploy Worker'}
+                        </button>
+                        </>
+                        )}
+                      </div>
+                    <details style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+                      <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+                        Prefer to set it up yourself?
+                      </summary>
+                      <div style={{ marginTop: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                        <p style={{ margin: '0 0 0.5rem' }}>
+                          Your images are served through a small helper (a &ldquo;Worker&rdquo;) that runs free on Cloudflare.
+                          You set it up once, entirely on Cloudflare&apos;s website - there&apos;s nothing to install on your computer.
+                        </p>
+                        <ol style={{ margin: '0 0 0.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <li>
+                            Sign in to the{' '}
+                            <a href={CLOUDFLARE_DASH_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Cloudflare dashboard ↗</a>
+                            {' '}(the free plan is fine - create an account if you haven&apos;t got one).
+                          </li>
+                          <li>In the left-hand menu open <strong>Workers &amp; Pages</strong>, click <strong>Create</strong>, then <strong>Create Worker</strong>.</li>
+                          <li>Give it a name (for example <code>cactus-media</code>) and click <strong>Deploy</strong>. Cloudflare gives it a web address ending in <code>.workers.dev</code>.</li>
+                          <li>Click <strong>Edit code</strong>, replace the sample with the Cactus media-worker code (in your site&apos;s <code>workers/media-worker</code> folder), then click <strong>Deploy</strong> again. Not comfortable with this step? It&apos;s a one-off - ask whoever set up your site to do it.</li>
+                          <li>
+                            Open the worker&apos;s <strong>Settings</strong>, then <strong>Variables and Secrets</strong>, and add each of the following, pasting the same value you entered above. Tick <strong>Encrypt</strong> for anything that&apos;s a key, token or password:
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', margin: '0.4rem 0 0' }}>
+                              {[...WORKER_SECRET_KEYS[selected], 'ALLOWED_ORIGIN'].map((k) => (
+                                <code key={k} style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem', fontSize: '0.75rem' }}>{k}</code>
+                              ))}
+                            </div>
+                            <span style={{ display: 'block', marginTop: '0.35rem' }}>
+                              <code>ALLOWED_ORIGIN</code> is simply your website address (for example <code>https://example.com</code>).
+                            </span>
+                          </li>
+                          <li>Copy the worker&apos;s web address (the <code>.workers.dev</code> one) and paste it into <code>{CLOUDFLARE_WORKER_VAR.key}</code> above.</li>
+                        </ol>
+                      </div>
+                    </details>
                   </>
                 )}
                 {!localMode && (

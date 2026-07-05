@@ -114,6 +114,97 @@ export const CLOUDFLARE_WORKER_VAR: ProviderEnvVar = {
   hint: 'Shared URL for your Cloudflare Worker — all proxied providers use the same Worker.',
 }
 
+export type SetupLink = { label: string; url: string }
+
+// Deep links into each provider's own console, so a site owner can jump straight
+// to the page where they create keys or find bucket details. These are generic,
+// account-agnostic URLs; the Cloudflare ones use the `?to=/:account/…` form so
+// they resolve to whichever account the user is signed in to.
+export const PROVIDER_SETUP_LINKS: Record<MediaProviderType, SetupLink[]> = {
+  B2: [
+    { label: 'View buckets (name + endpoint)', url: 'https://secure.backblaze.com/b2_buckets.htm' },
+    { label: 'Create application keys', url: 'https://secure.backblaze.com/app_keys.htm' },
+  ],
+  R2: [
+    { label: 'R2 buckets + account ID', url: 'https://dash.cloudflare.com/?to=/:account/r2/overview' },
+    { label: 'Create R2 API tokens', url: 'https://dash.cloudflare.com/?to=/:account/r2/api-tokens' },
+  ],
+  S3: [
+    { label: 'View S3 buckets', url: 'https://s3.console.aws.amazon.com/s3/buckets' },
+    { label: 'Create access keys (IAM)', url: 'https://console.aws.amazon.com/iam/home#/security_credentials' },
+  ],
+  SPACES: [
+    { label: 'View Spaces buckets', url: 'https://cloud.digitalocean.com/spaces' },
+    { label: 'Create Spaces keys', url: 'https://cloud.digitalocean.com/account/api/spaces' },
+  ],
+  WASABI: [
+    { label: 'View buckets', url: 'https://console.wasabisys.com/#/buckets' },
+    { label: 'Create access keys', url: 'https://console.wasabisys.com/#/access_keys' },
+  ],
+  MINIO: [
+    { label: 'MinIO Console documentation', url: 'https://min.io/docs/minio/linux/index.html' },
+  ],
+  VERCEL_BLOB: [
+    { label: 'Blob stores + tokens', url: 'https://vercel.com/dashboard/stores' },
+  ],
+  SUPABASE_STORAGE: [
+    { label: 'Storage buckets', url: 'https://supabase.com/dashboard/project/_/storage/buckets' },
+    { label: 'Project API keys', url: 'https://supabase.com/dashboard/project/_/settings/api' },
+  ],
+  CLOUDINARY: [
+    { label: 'API keys + cloud name', url: 'https://console.cloudinary.com/settings/api-keys' },
+  ],
+  IMAGEKIT: [
+    { label: 'Developer API keys', url: 'https://imagekit.io/dashboard/developer/api-keys' },
+    { label: 'URL endpoints', url: 'https://imagekit.io/dashboard/url-endpoints' },
+  ],
+}
+
+// The Cloudflare Workers & Pages dashboard, account-agnostic.
+export const CLOUDFLARE_DASH_URL = 'https://dash.cloudflare.com/?to=/:account/workers-and-pages'
+
+// Where the admin creates a scoped API token or reads their Global API Key -
+// both live on the same Cloudflare profile page.
+export const CLOUDFLARE_API_TOKENS_URL = 'https://dash.cloudflare.com/profile/api-tokens'
+
+// The permissions a scoped token needs to deploy the media Worker. Shown in the
+// UI so the admin ticks the right boxes when creating a Custom Token.
+export const CLOUDFLARE_TOKEN_PERMISSIONS = [
+  'Account · Workers Scripts · Edit',
+  'Account · Account Settings · Read',
+]
+
+// Vercel env var keys that hold the Cloudflare credentials used to auto-deploy
+// the Worker. The two secrets are stored sensitive (see lib/vercel/env.ts); the
+// email and account id are plain.
+export const CLOUDFLARE_CREDENTIAL_KEYS = {
+  apiToken: 'CLOUDFLARE_API_TOKEN',
+  globalKey: 'CLOUDFLARE_GLOBAL_API_KEY',
+  email: 'CLOUDFLARE_EMAIL',
+  accountId: 'CLOUDFLARE_ACCOUNT_ID',
+} as const
+
+export const ALL_CLOUDFLARE_CREDENTIAL_KEYS: string[] = Object.values(CLOUDFLARE_CREDENTIAL_KEYS)
+
+// Secret names the media Worker itself needs, per proxied provider. These mirror
+// the `wrangler secret put` commands in the Self-hosting wiki page and are NOT
+// always identical to the Vercel env vars above: Vercel Blob, for instance, gives
+// the Worker a base URL rather than only the read/write token. DIRECT providers
+// (Cloudinary, ImageKit) never touch the Worker, so their lists are empty.
+// ALLOWED_ORIGIN is required by every proxied provider and is added at render time.
+export const WORKER_SECRET_KEYS: Record<MediaProviderType, string[]> = {
+  B2: ['B2_APPLICATION_KEY_ID', 'B2_APPLICATION_KEY', 'B2_BUCKET_NAME', 'B2_ENDPOINT'],
+  R2: ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'],
+  S3: ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_BUCKET_NAME', 'S3_REGION'],
+  SPACES: ['SPACES_ACCESS_KEY_ID', 'SPACES_SECRET_ACCESS_KEY', 'SPACES_BUCKET_NAME', 'SPACES_REGION'],
+  WASABI: ['WASABI_ACCESS_KEY_ID', 'WASABI_SECRET_ACCESS_KEY', 'WASABI_BUCKET_NAME', 'WASABI_REGION'],
+  MINIO: ['MINIO_ENDPOINT', 'MINIO_ACCESS_KEY_ID', 'MINIO_SECRET_ACCESS_KEY', 'MINIO_BUCKET_NAME'],
+  VERCEL_BLOB: ['BLOB_BASE_URL', 'BLOB_READ_WRITE_TOKEN'],
+  SUPABASE_STORAGE: ['SUPABASE_STORAGE_PROJECT_URL', 'SUPABASE_STORAGE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET_NAME'],
+  CLOUDINARY: [],
+  IMAGEKIT: [],
+}
+
 export const ALL_PROVIDERS = Object.keys(PROVIDER_KIND) as MediaProviderType[]
 
 export function isProxied(provider: MediaProviderType): boolean {

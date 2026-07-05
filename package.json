@@ -1,11 +1,11 @@
 {
   "name": "cactus",
-  "version": "0.5.234",
+  "version": "0.5.235",
   "private": true,
   "scripts": {
-    "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && node scripts/generate-module-layout-types.mjs && next dev --webpack",
+    "dev": "node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && node scripts/generate-module-layout-types.mjs && node scripts/generate-media-worker.mjs && next dev --webpack",
     "dev:warm": "bash scripts/dev-warm.sh",
-    "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && node scripts/generate-module-layout-types.mjs && next build",
+    "build": "node scripts/checkout-modules.mjs && prisma generate && node scripts/build-migrate.mjs && node scripts/sync-module-manifests.mjs && node scripts/generate-module-router.mjs && node scripts/generate-module-puck.mjs && node scripts/generate-module-cron.mjs && node scripts/generate-module-settings-tabs.mjs && node scripts/generate-module-extension-points.mjs && node scripts/generate-module-layout-types.mjs && node scripts/generate-media-worker.mjs && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

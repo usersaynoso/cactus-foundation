@@ -32,6 +32,8 @@ const SENSITIVE_KEYS = new Set([
   'EDGE_CONFIG',
   'VERCEL_WEBHOOK_SECRET',
   'TURNSTILE_SECRET_KEY',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_GLOBAL_API_KEY',
 ])
 
 function envType(key: string): VercelEnvType {
