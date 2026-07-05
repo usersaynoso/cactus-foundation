@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 type Props = {
   logoUrl?: string | null
+  logoUrlDark?: string | null
   siteName?: string
   logoHeight?: number
   showTextWithLogo?: string | boolean
@@ -14,6 +15,7 @@ type Props = {
 
 export default function SiteLogoClient({
   logoUrl,
+  logoUrlDark,
   siteName,
   logoHeight = 40,
   showTextWithLogo = 'false',
@@ -47,7 +49,11 @@ export default function SiteLogoClient({
     return (
       <a href={href} style={style} {...events}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} style={{ height: logoHeight, width: 'auto' }} />
+        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} style={{ height: logoHeight, width: 'auto' }} />
+        {logoUrlDark && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" style={{ height: logoHeight, width: 'auto' }} />
+        )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>
     )

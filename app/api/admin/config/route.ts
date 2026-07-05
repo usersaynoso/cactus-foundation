@@ -20,16 +20,31 @@ export async function GET() {
 
   // Resolve preview URLs for the branding tab. The config row stores only the
   // media ids; the URLs live on the referenced media rows.
-  const [logo, favicon] = await Promise.all([
-    config.logoMediaId
-      ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
-      : null,
-    config.faviconMediaId
-      ? prisma.media.findUnique({ where: { id: config.faviconMediaId }, select: { url: true } }).catch(() => null)
-      : null,
+  const lookup = (id: string | null) =>
+    id ? prisma.media.findUnique({ where: { id }, select: { url: true } }).catch(() => null) : Promise.resolve(null)
+
+  const [logo, logoDark, favicon, faviconDark, appIcon, appleTouch, icon192, icon512] = await Promise.all([
+    lookup(config.logoMediaId),
+    lookup(config.logoDarkMediaId),
+    lookup(config.faviconMediaId),
+    lookup(config.faviconDarkMediaId),
+    lookup(config.appIconMediaId),
+    lookup(config.appleTouchIconMediaId),
+    lookup(config.webManifest192MediaId),
+    lookup(config.webManifest512MediaId),
   ])
 
-  return NextResponse.json({ ...config, logoUrl: logo?.url ?? null, faviconUrl: favicon?.url ?? null })
+  return NextResponse.json({
+    ...config,
+    logoUrl: logo?.url ?? null,
+    logoDarkUrl: logoDark?.url ?? null,
+    faviconUrl: favicon?.url ?? null,
+    faviconDarkUrl: faviconDark?.url ?? null,
+    appIconUrl: appIcon?.url ?? null,
+    appleTouchUrl: appleTouch?.url ?? null,
+    icon192Url: icon192?.url ?? null,
+    icon512Url: icon512?.url ?? null,
+  })
 }
 
 const ConsentCategoryPatch = z.object({
@@ -130,7 +145,17 @@ const Patch = z.object({
     .optional()
     .nullable(),
   logoMediaId: z.string().optional().nullable(),
+  logoDarkMediaId: z.string().optional().nullable(),
   faviconMediaId: z.string().optional().nullable(),
+  faviconDarkMediaId: z.string().optional().nullable(),
+  appIconMediaId: z.string().optional().nullable(),
+  appleTouchIconMediaId: z.string().optional().nullable(),
+  webManifest192MediaId: z.string().optional().nullable(),
+  webManifest512MediaId: z.string().optional().nullable(),
+  appName: z.string().max(100).optional().nullable(),
+  appShortName: z.string().max(60).optional().nullable(),
+  themeColor: z.string().max(30).optional().nullable(),
+  backgroundColor: z.string().max(30).optional().nullable(),
   privacyPolicyPageId: z.string().optional().nullable(),
   termsPageId: z.string().optional().nullable(),
   sessionPurgeAfterDays: z.number().int().min(1).max(365).optional(),

@@ -278,6 +278,23 @@
   --puck-color-interactive-subtle:        #1a271c;
 }
 
+/* ============================================================
+   DARK-MODE LOGO SWAP
+   Both the light and dark logo <img>s are rendered server-side;
+   the active theme is set on <html> before paint, so CSS alone
+   shows the matching one with no flicker. The prefers-color-scheme
+   block mirrors the token fallback below for the no-JS case, so a
+   dark-OS visitor gets the dark logo and dark tokens together.
+   ============================================================ */
+img[data-logo-variant="dark"] { display: none; }
+[data-theme="dark"] img[data-logo-variant="light"] { display: none; }
+[data-theme="dark"] img[data-logo-variant="dark"] { display: inline-block; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img[data-logo-variant="light"] { display: none; }
+  :root:not([data-theme="light"]) img[data-logo-variant="dark"] { display: inline-block; }
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;

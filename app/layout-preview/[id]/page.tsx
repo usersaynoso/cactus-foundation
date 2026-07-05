@@ -58,14 +58,20 @@ export default async function LayoutPreviewPage({ params }: Props) {
 
   const siteConfig = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { siteName: true, adminPath: true, logoMediaId: true, designTokens: true },
+    select: { siteName: true, adminPath: true, logoMediaId: true, logoDarkMediaId: true, designTokens: true },
   })
-  const logoMedia = siteConfig?.logoMediaId
-    ? await prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
-    : null
+  const [logoMedia, logoDarkMedia] = await Promise.all([
+    siteConfig?.logoMediaId
+      ? prisma.media.findUnique({ where: { id: siteConfig.logoMediaId }, select: { url: true } }).catch(() => null)
+      : null,
+    siteConfig?.logoDarkMediaId
+      ? prisma.media.findUnique({ where: { id: siteConfig.logoDarkMediaId }, select: { url: true } }).catch(() => null)
+      : null,
+  ])
   const ctx = {
     siteName: siteConfig?.siteName ?? '',
     logoUrl: logoMedia?.url ?? null,
+    logoDarkUrl: logoDarkMedia?.url ?? null,
     isLoggedIn: false,
     adminPath: siteConfig?.adminPath ?? '',
   }

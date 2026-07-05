@@ -79,7 +79,13 @@ export async function POST(req: NextRequest) {
       privacyPolicyPageId: null,
       termsPageId: null,
       logoMediaId: null,
+      logoDarkMediaId: null,
       faviconMediaId: null,
+      faviconDarkMediaId: null,
+      appIconMediaId: null,
+      appleTouchIconMediaId: null,
+      webManifest192MediaId: null,
+      webManifest512MediaId: null,
     },
   })
 

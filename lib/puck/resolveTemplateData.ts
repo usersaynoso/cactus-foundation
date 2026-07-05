@@ -4,6 +4,7 @@ import { resolveMenu, resolveMainMenu } from '@/lib/menu/resolve'
 type Context = {
   siteName: string
   logoUrl: string | null
+  logoDarkUrl: string | null
   isLoggedIn: boolean
   adminPath: string
 }
@@ -21,6 +22,7 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
 
   if (block.type === 'SiteLogo') {
     block.props.logoUrl = ctx.logoUrl
+    block.props.logoUrlDark = ctx.logoDarkUrl
     block.props.siteName = ctx.siteName
   }
 
@@ -36,6 +38,7 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
 
   if (block.type === 'SiteHeader') {
     block.props.logoUrl = ctx.logoUrl
+    block.props.logoUrlDark = ctx.logoDarkUrl
     block.props.siteName = ctx.siteName
     try {
       block.props.resolvedItems = await resolveMainMenu()

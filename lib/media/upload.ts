@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
+import { loadMediaUsageIndex } from '@/lib/media/references'
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -512,15 +513,41 @@ export async function saveMediaRecord(data: {
   })
 }
 
+// Human-readable list of everywhere a media item is referenced. Empty means the
+// item is safe to delete. Kept in step with lib/media/references.ts so the delete
+// warning and the media library's In Use / Not In Use tabs agree.
 export async function getMediaReferences(mediaId: string): Promise<string[]> {
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { logoMediaId: true, faviconMediaId: true },
+  const media = await prisma.media.findUnique({
+    where: { id: mediaId },
+    select: { id: true, key: true, url: true },
   })
+  if (!media) return []
+
+  const [config, ogPages, avatars, exports] = await Promise.all([
+    prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { logoMediaId: true, logoDarkMediaId: true, faviconMediaId: true, faviconDarkMediaId: true },
+    }),
+    prisma.infoPage.count({ where: { ogImageId: mediaId } }),
+    prisma.member.count({ where: { avatarMediaId: mediaId } }),
+    prisma.memberDataExportRequest.count({ where: { mediaId } }),
+  ])
+
   const refs: string[] = []
-  if (config?.logoMediaId === mediaId) refs.push('site logo')
-  if (config?.faviconMediaId === mediaId) refs.push('site favicon')
-  const infoPages = await prisma.infoPage.count({ where: { ogImageId: mediaId } })
-  if (infoPages > 0) refs.push(`${infoPages} info page${infoPages > 1 ? 's' : ''}`)
+  if (config?.logoMediaId === mediaId || config?.logoDarkMediaId === mediaId) refs.push('site logo')
+  if (config?.faviconMediaId === mediaId || config?.faviconDarkMediaId === mediaId) refs.push('site favicon')
+  if (ogPages > 0) refs.push(`${ogPages} page social image${ogPages > 1 ? 's' : ''}`)
+  if (avatars > 0) refs.push(`${avatars} member avatar${avatars > 1 ? 's' : ''}`)
+  if (exports > 0) refs.push('a data export')
+
+  // Media embedded inside Puck page/layout content is stored by url/key/id, not
+  // by a foreign key, so scan the builder JSON for any occurrence.
+  const { haystack } = await loadMediaUsageIndex()
+  const inContent =
+    (media.url && haystack.includes(media.url.toLowerCase())) ||
+    (media.key && haystack.includes(media.key.toLowerCase())) ||
+    haystack.includes(media.id.toLowerCase())
+  if (inContent) refs.push('page or layout content')
+
   return refs
 }
