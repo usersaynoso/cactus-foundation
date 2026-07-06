@@ -557,16 +557,16 @@ export function buildTokenStyles(tokens: unknown): string {
   scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.hide-tablet{display:none !important;}}`)
   scoped.push(`@media(max-width:${mobileBp}){.hide-mobile{display:none !important;}}`)
 
-  // Site header nav collapse to a hamburger at the mobile and/or tablet
-  // breakpoint, per the menu's own "Mobile behaviour" / "Tablet behaviour"
-  // settings. The base .cactus-nav-menu/.cactus-nav-toggle display rules stay
-  // inline in MenuBlockClient (they carry no breakpoint); only these
-  // width-dependent rules live here so they track the settings. The
-  // cactus-nav-collapse-mobile/-tablet modifier classes only exist on
-  // instances opted into collapsing at that tier, so emitting these
+  // Menu nav collapse to a hamburger per-breakpoint, per the menu block's
+  // "Nav behaviour" setting. The base .cactus-nav-menu/.cactus-nav-toggle
+  // display rules stay inline in MenuBlockClient (they carry no breakpoint);
+  // only these width-dependent rules live here so they track the settings.
+  // The cactus-nav-collapse-mobile/-tablet/-desktop modifier classes only
+  // exist on instances opted into collapsing at that tier, so emitting these
   // unconditionally is safe.
   scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-menu.cactus-nav-collapse-mobile{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-mobile{display:flex !important;}}`)
   scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-tablet{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-tablet{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-desktop{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-desktop{display:flex !important;}}`)
 
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }

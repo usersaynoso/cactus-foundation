@@ -28,6 +28,7 @@ import { BorderField } from '@/lib/puck/BorderField'
 import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
+import { VisibilityField } from '@/lib/puck/VisibilityField'
 import { normalizeResponsiveValue, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
@@ -134,12 +135,13 @@ const aosDefaults = { animationType: 'none', animationDuration: 'normal', animat
 // hand-added per block, so all ~40+ block types (including module-contributed
 // ones) get it uniformly. Reuses the .hide-mobile/-tablet/-desktop utility
 // classes already emitted by buildTokenStyles (lib/design/tokens.ts).
-const RESPONSIVE_FIELDS = {
-  hideDesktop: { type: 'select' as const, label: 'Hide on desktop', options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }] },
-  hideTablet:  { type: 'select' as const, label: 'Hide on tablet',  options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }] },
-  hideMobile:  { type: 'select' as const, label: 'Hide on mobile',  options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }] },
+// Single combined field (VisibilityField) replaces the old three separate
+// "Hide on desktop / tablet / mobile: Yes/No" dropdowns with one row of
+// Desktop/Tablet/Mobile icon toggles.
+const VISIBILITY_FIELDS = {
+  visibility: { type: 'custom' as const, label: 'Visibility', render: VisibilityField },
 }
-const RESPONSIVE_DEFAULTS = { hideDesktop: 'false', hideTablet: 'false', hideMobile: 'false' }
+const VISIBILITY_DEFAULTS = { visibility: { desktop: 'false', tablet: 'false', mobile: 'false' } }
 
 // `display:contents` keeps the wrapper out of layout entirely when nothing is
 // hidden (so flex/grid parents see the block's own markup as before), while
@@ -151,11 +153,12 @@ const RESPONSIVE_DEFAULTS = { hideDesktop: 'false', hideTablet: 'false', hideMob
 // settings the editor exposes, instead of silently ignoring them.
 export function wrapResponsiveRender(render: (props: any) => React.ReactNode) {
   return function ResponsiveVisibility(props: any) {
-    const { hideDesktop, hideTablet, hideMobile, ...rest } = props
+    const { visibility, ...rest } = props
+    const v = normalizeResponsiveValue<string>(visibility)
     const classes = [
-      hideDesktop === 'true' && 'hide-desktop',
-      hideTablet === 'true' && 'hide-tablet',
-      hideMobile === 'true' && 'hide-mobile',
+      v.desktop === 'true' && 'hide-desktop',
+      v.tablet === 'true' && 'hide-tablet',
+      v.mobile === 'true' && 'hide-mobile',
     ].filter(Boolean).join(' ')
     const content = render(rest)
     if (!classes) return content
@@ -166,8 +169,8 @@ export function wrapResponsiveRender(render: (props: any) => React.ReactNode) {
 function withResponsiveVisibility(def: any): any {
   return {
     ...def,
-    fields: { ...def.fields, ...RESPONSIVE_FIELDS },
-    defaultProps: { ...RESPONSIVE_DEFAULTS, ...def.defaultProps },
+    fields: { ...VISIBILITY_FIELDS, ...def.fields },
+    defaultProps: { ...VISIBILITY_DEFAULTS, ...def.defaultProps },
     render: wrapResponsiveRender(def.render),
   }
 }
@@ -1220,7 +1223,14 @@ function MenuBlock(props: any) {
       </nav>
     )
   }
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showMobileToggle={props.showMobileToggle} showTabletToggle={props.showTabletToggle} />
+  // Cascading fallback (tablet inherits desktop, mobile inherits tablet) matches the
+  // "Same as desktop"/"Same as tablet" placeholder text ResponsiveSelectField shows
+  // for an unset breakpoint - and GridBlock's identical pick() for column widths.
+  const nav = normalizeResponsiveValue<string>(props.navToggle)
+  const showDesktopToggle = nav.desktop ?? 'show'
+  const showTabletToggle = nav.tablet ?? showDesktopToggle
+  const showMobileToggle = nav.mobile ?? showTabletToggle
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} />
 }
 
 function LoginButton(props: any) {
@@ -1825,10 +1835,9 @@ export const puckConfig = {
         textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
         itemColor: { type: 'text' as const, label: 'Link colour' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
-        showMobileToggle: { type: 'select' as const, label: 'Mobile behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
-        showTabletToggle: { type: 'select' as const, label: 'Tablet behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
+        navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', showMobileToggle: 'collapse', showTabletToggle: 'collapse' },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' } },
       render: MenuBlock,
     },
     LoginButton: {

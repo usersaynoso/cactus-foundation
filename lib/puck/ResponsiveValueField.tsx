@@ -8,7 +8,7 @@ import { normalizeResponsiveValue, type Device, type ResponsiveValue } from '@/l
 // the canvas (lucide-react, vendored inside @puckeditor/core rather than a
 // direct dependency here) - drawn inline so the two switchers read as one
 // visual language without adding an icon library dependency.
-function MonitorIcon() {
+export function MonitorIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="20" height="14" x="2" y="3" rx="2" />
@@ -17,7 +17,7 @@ function MonitorIcon() {
     </svg>
   )
 }
-function TabletIcon() {
+export function TabletIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="16" height="20" x="4" y="2" rx="2" />
@@ -25,7 +25,7 @@ function TabletIcon() {
     </svg>
   )
 }
-function SmartphoneIcon() {
+export function SmartphoneIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="14" height="20" x="5" y="2" rx="2" />

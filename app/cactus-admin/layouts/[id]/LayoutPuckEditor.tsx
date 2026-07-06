@@ -6,7 +6,7 @@ import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
-import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig } from '@/lib/puck/config'
+import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
@@ -16,6 +16,7 @@ import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 
 type Props = {
@@ -25,6 +26,10 @@ type Props = {
   isPublishing: boolean
   layoutType?: string
   backHref: string
+  layoutId: string
+  onDeleteClick: () => void
+  deleting: boolean
+  canDelete: boolean
   conditionsPanel?: React.ReactNode
   settingsTab?: React.ReactNode
   historyTab?: React.ReactNode
@@ -43,7 +48,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, conditionsPanel, settingsTab, historyTab }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, layoutId, onDeleteClick, deleting, canDelete, conditionsPanel, settingsTab, historyTab }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
   const canvasWrapRef = useRef<HTMLDivElement>(null)
@@ -102,16 +107,26 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     }
   }, [])
 
-  const baseConfig = getConfig(layoutType)
+  // getConfig() allocates a brand-new config object on every call for module-contributed
+  // layout types (getModuleLayoutPuckConfig doesn't cache), so without this useMemo the
+  // components list handed to Puck's left sidebar got a new object identity on every
+  // render - Puck reinitialises that panel each time, which reads as constant flashing.
+  const baseConfig = useMemo(() => getConfig(layoutType), [layoutType])
   // Header/footer configs define real root-level fields (background, height, etc.) that
   // must stay visible with nothing selected. Every other config here leaves root.fields
   // undefined, so Puck falls back to a redundant default Title field — hide that case only.
   const puckOverrides = useMemo(
     () => ({
       header: createBackLinkOverride(backHref, 'Back to Layouts'),
+      headerActions: createHeaderActionsOverride({
+        previewHref: `/layout-preview/${layoutId}`,
+        onDeleteClick,
+        deleting,
+        canDelete,
+      }),
       ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
     }),
-    [baseConfig, backHref],
+    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete],
   )
 
   const editorConfig = useMemo(() => ({
@@ -141,7 +156,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
       ...(('SiteLogo' in (baseConfig.components ?? {})) ? {
         SiteLogo: {
           ...(baseConfig.components as any).SiteLogo,
-          render: (props: any) => <SiteLogoEditorPreview {...props} />,
+          render: wrapResponsiveRender((props: any) => <SiteLogoEditorPreview {...props} />),
         },
       } : {}),
       ...(('MenuBlock' in (baseConfig.components ?? {})) ? {
@@ -151,20 +166,19 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
             ...(baseConfig.components as any).MenuBlock?.fields,
             menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
           },
-          render: (props: any) => (
+          render: wrapResponsiveRender((props: any) => (
             <MenuBlockEditorPreview
               menuId={props.menuId ?? ''}
               orientation={props.orientation ?? 'horizontal'}
               spacing={props.spacing ?? 'normal'}
               showDropdowns={props.showDropdowns ?? 'hover'}
-              showMobileToggle={props.showMobileToggle ?? 'collapse'}
-              showTabletToggle={props.showTabletToggle ?? 'collapse'}
+              navToggle={props.navToggle}
               itemFontSize={props.itemFontSize}
               itemFontWeight={props.itemFontWeight}
               textTransform={props.textTransform}
               itemColor={props.itemColor}
             />
-          ),
+          )),
         },
       } : {}),
     },

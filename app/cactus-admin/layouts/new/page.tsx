@@ -38,7 +38,7 @@ const logoBlock = (id: string, overrides: Record<string, unknown> = {}) => ({
 })
 const menuBlock = (id: string, overrides: Record<string, unknown> = {}) => ({
   type: 'MenuBlock',
-  props: { id, menuId: '', menuName: '', orientation: 'horizontal', spacing: 'normal', itemFontSize: 'medium', itemFontWeight: 'medium', textTransform: 'none', itemColor: '', showDropdowns: 'hover', showMobileToggle: 'collapse', showTabletToggle: 'collapse', ...overrides },
+  props: { id, menuId: '', menuName: '', orientation: 'horizontal', spacing: 'normal', itemFontSize: 'medium', itemFontWeight: 'medium', textTransform: 'none', itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, ...overrides },
 })
 const loginBlock = (id: string) => ({ type: 'LoginButton', props: { id, loginLabel: 'Sign in', registerLabel: 'Register' } })
 const toggleBlock = (id: string) => ({ type: 'ThemeToggle', props: { id } })
@@ -216,7 +216,7 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
           col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
           col1: [logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
           col2: [
-            menuBlock('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', showMobileToggle: 'show', showTabletToggle: 'show' }),
+            menuBlock('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'show', mobile: 'show' } }),
             { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
           ],
         } }],
@@ -239,7 +239,7 @@ const STARTERS_BY_TYPE: Record<string, Starter[]> = {
           ],
           col2: [
             { type: 'Heading', props: { id: 'footer-nav-heading', text: 'Quick Links', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-            menuBlock('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', showMobileToggle: 'show' }),
+            menuBlock('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'show' } }),
           ],
           col3: [
             { type: 'Heading', props: { id: 'footer-social-heading', text: 'Follow Us', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },

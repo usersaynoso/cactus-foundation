@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 
 type Props = {
-  layoutId: string
   name: string
   description: string | null
   priority: number
@@ -13,9 +12,6 @@ type Props = {
   saving: boolean
   saved: boolean
   error: string
-  canDelete: boolean
-  onDeleteClick: () => void
-  deleting: boolean
 }
 
 const inputStyle: React.CSSProperties = {
@@ -29,7 +25,7 @@ const labelStyle: React.CSSProperties = {
 
 const SETTINGS_DEBOUNCE_MS = 800
 
-export default function LayoutSettingsTab({ layoutId, name, description, priority, status, onSave, onStatusChange, saving, saved, error, canDelete, onDeleteClick, deleting }: Props) {
+export default function LayoutSettingsTab({ name, description, priority, status, onSave, onStatusChange, saving, saved, error }: Props) {
   const [local, setLocal] = useState({ name, description: description ?? '', priority })
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const skipNextRef = useRef(true)
@@ -97,27 +93,6 @@ export default function LayoutSettingsTab({ layoutId, name, description, priorit
         <p style={{ fontSize: '0.75rem', margin: 0, color: error ? 'var(--color-destructive)' : saving ? 'var(--color-text-muted)' : 'var(--color-success)' }}>
           {error || (saving ? 'Saving…' : 'Saved ✓')}
         </p>
-      )}
-
-      <a
-        href={`/layout-preview/${layoutId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn btn-secondary"
-        style={{ width: '100%', fontSize: '0.8125rem', textAlign: 'center', textDecoration: 'none' }}
-      >
-        Preview
-      </a>
-
-      {canDelete && (
-        <button
-          className="btn btn-danger"
-          style={{ width: '100%', fontSize: '0.8125rem' }}
-          disabled={deleting}
-          onClick={onDeleteClick}
-        >
-          Delete layout
-        </button>
       )}
     </div>
   )
