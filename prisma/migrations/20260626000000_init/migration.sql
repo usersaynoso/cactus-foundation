@@ -166,6 +166,17 @@ CREATE TABLE "SiteConfig" (
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "UserColourPreset" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "tokens" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "UserColourPreset_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "UserColourPreset_name_key" ON "UserColourPreset"("name");
+
 -- ---------------------------------------------------------------------------
 -- Info Pages
 -- ---------------------------------------------------------------------------

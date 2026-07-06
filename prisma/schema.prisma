@@ -225,6 +225,18 @@ enum SiteStatus {
   maintenance
 }
 
+// User-created colour presets for Styles > Colours. Shown in the preset bar
+// before the hardcoded COLOUR_PRESETS defaults (lib/design/tokens.ts), which
+// have no DB row and can't be overwritten/deleted through this model.
+model UserColourPreset {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  // { primary: {light, dark}, linkColour, linkHoverColour, linkColourDark, linkHoverColourDark }
+  tokens    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Info Pages
 // ---------------------------------------------------------------------------
