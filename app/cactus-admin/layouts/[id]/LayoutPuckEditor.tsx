@@ -8,6 +8,9 @@ import '@puckeditor/core/no-external.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig } from '@/lib/puck/config'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
+import { MenuSelectField } from '@/lib/puck/MenuSelectField'
+import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
+import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 
 type Props = {
   initialData: Data
@@ -97,6 +100,34 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           },
         },
       } : {}),
+      ...(('SiteLogo' in (baseConfig.components ?? {})) ? {
+        SiteLogo: {
+          ...(baseConfig.components as any).SiteLogo,
+          render: (props: any) => <SiteLogoEditorPreview {...props} />,
+        },
+      } : {}),
+      ...(('MenuBlock' in (baseConfig.components ?? {})) ? {
+        MenuBlock: {
+          ...(baseConfig.components as any).MenuBlock,
+          fields: {
+            ...(baseConfig.components as any).MenuBlock?.fields,
+            menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
+          },
+          render: (props: any) => (
+            <MenuBlockEditorPreview
+              menuId={props.menuId ?? ''}
+              orientation={props.orientation ?? 'horizontal'}
+              spacing={props.spacing ?? 'normal'}
+              showDropdowns={props.showDropdowns ?? 'hover'}
+              showMobileToggle={props.showMobileToggle ?? 'collapse'}
+              itemFontSize={props.itemFontSize}
+              itemFontWeight={props.itemFontWeight}
+              textTransform={props.textTransform}
+              itemColor={props.itemColor}
+            />
+          ),
+        },
+      } : {}),
     },
   }), [baseConfig])
 
@@ -115,15 +146,10 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         onChange={handleChange}
         onPublish={() => onPublish(latestDataRef.current)}
         overrides={{
-          actionBar: ({ children }) => (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              {children}
-            </div>
-          ),
-          fields: ({ children }) => (
+          fields: ({ children, itemSelector }) => (
             <>
               {children}
-              {conditionsPanel}
+              {!itemSelector && conditionsPanel}
             </>
           ),
         }}

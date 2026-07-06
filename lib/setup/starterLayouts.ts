@@ -97,7 +97,7 @@ const hero = (id: string, overrides?: Record<string, unknown>) => ({
   props: {
     id, heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '',
     cta2Label: '', cta2Href: '', cta2Variant: 'outline',
-    bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0,
+    bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0,
     layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none',
     animationType: 'none', animationDuration: 'normal', animationDelay: 'none',
     ...overrides,
@@ -107,7 +107,7 @@ const hero = (id: string, overrides?: Record<string, unknown>) => ({
 const section = (id: string, overrides?: Record<string, unknown>) => ({
   type: 'Section',
   props: {
-    id, bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover',
+    id, bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover',
     overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard',
     textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none',
     borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px',
@@ -119,15 +119,15 @@ const section = (id: string, overrides?: Record<string, unknown>) => ({
 
 const headerRoot = (overrides?: Record<string, unknown>) => ({
   props: {
-    bgMode: 'color', bgColor: 'var(--color-bg)', height: '64px', sticky: 'yes',
-    borderBottom: 'show', borderColor: '', maxWidth: '1200px',
+    bg: { mode: 'color', color: 'var(--color-bg)' }, height: '64px', sticky: 'yes',
+    border: { show: 'show', color: '' }, maxWidth: '1200px',
     ...overrides,
   },
 })
 
 const footerRoot = (overrides?: Record<string, unknown>) => ({
   props: {
-    bgColor: '', paddingY: 'md', borderTop: 'show', borderColor: '', maxWidth: '1200px',
+    bgColor: '', paddingY: 'md', border: { show: 'show', color: '' }, maxWidth: '1200px',
     ...overrides,
   },
 })
@@ -165,7 +165,7 @@ const starterHeaderLogoCentreData = {
 }
 
 const starterHeaderFullWidthData = {
-  root: headerRoot({ maxWidth: '1400px', borderBottom: 'hide' }),
+  root: headerRoot({ maxWidth: '1400px', border: { show: 'hide', color: '' } }),
   content: [group('hr1', { gap: 'md', items: [logo('logo-1'), menu('menu-1')] })],
   zones: {},
 }
@@ -190,13 +190,13 @@ const starterHeaderTallData = {
 }
 
 const starterHeaderMinimalData = {
-  root: headerRoot({ borderBottom: 'hide' }),
+  root: headerRoot({ border: { show: 'hide', color: '' } }),
   content: [group('hr1', { justify: 'center', gap: 'md', items: [logo('logo-1')] })],
   zones: {},
 }
 
 const starterHeaderTransparentData = {
-  root: headerRoot({ bgMode: 'transparent-scroll', bgColor: '', borderBottom: 'hide' }),
+  root: headerRoot({ bg: { mode: 'transparent-scroll', color: '' }, border: { show: 'hide', color: '' } }),
   content: [group('hr1', { gap: 'md', items: [logo('logo-1'), menu('menu-1')] })],
   zones: {},
 }
@@ -279,7 +279,7 @@ const starterFullWidthData = {
 
 const starterBoxedData = {
   content: [section('section-1', {
-    paddingY: 'md', maxWidth: 'standard', bgType: 'none',
+    paddingY: 'md', maxWidth: 'standard', bg: { mode: 'none', color: '' },
     content: [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }],
   })],
   root: { props: {} },
@@ -317,7 +317,7 @@ const starter404HeroData = {
       subheading: 'Sorry, the page you were looking for does not exist.',
       ctaLabel: 'Go Home',
       ctaHref: '/',
-      bgType: 'gradient',
+      bg: { mode: 'gradient', color: '' },
       textScheme: 'dark',
       minHeight: 'full',
     }),
@@ -349,7 +349,7 @@ const starter404BrandedData = {
       cta2Label: 'Contact Us',
       cta2Href: '/contact',
       cta2Variant: 'outline',
-      bgType: 'gradient',
+      bg: { mode: 'gradient', color: '' },
       textScheme: 'dark',
       minHeight: 'half',
     }),
@@ -367,7 +367,7 @@ const starterStatusComingSoonData = {
     hero('hero-1', {
       heading: 'Coming Soon',
       subheading: "We're working on something exciting. Check back shortly.",
-      bgType: 'gradient',
+      bg: { mode: 'gradient', color: '' },
       textScheme: 'dark',
       minHeight: 'full',
     }),

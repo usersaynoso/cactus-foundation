@@ -9,6 +9,7 @@ import { OgImagePickerField, ImageUrlPickerField } from '@/lib/puck/MediaPickerF
 import { MenuCheckboxField } from '@/lib/puck/MenuCheckboxField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
+import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 
 type Props = {
   pageId: string
@@ -179,6 +180,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             render: ImageUrlPickerField,
           },
         },
+      },
+      SiteLogo: {
+        ...puckConfig.components.SiteLogo,
+        render: (props: any) => <SiteLogoEditorPreview {...props} />,
       },
       MenuBlock: {
         ...puckConfig.components.MenuBlock,

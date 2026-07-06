@@ -147,7 +147,7 @@ export const stylesInfoPageData = {
       type: 'Section',
       props: {
         id: 'style-guide-section',
-        bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover',
+        bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover',
         overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard',
         textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none',
         borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px',

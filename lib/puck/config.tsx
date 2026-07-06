@@ -24,6 +24,8 @@ import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
+import { BorderField } from '@/lib/puck/BorderField'
+import { SectionBgColorField, HeroBgColorField, HeaderBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
@@ -129,7 +131,13 @@ const aosDefaults = { animationType: 'none', animationDuration: 'normal', animat
 // Layout blocks
 // ---------------------------------------------------------------------------
 
-function getGridTemplateColumns(columnSizes: string | undefined, colCount: number): string {
+// A custom width wins over the columnSizes preset for its own column; columns
+// left blank fall back to `1fr` so a single custom width doesn't collapse its
+// neighbours to zero width.
+function getGridTemplateColumns(columnSizes: string | undefined, colCount: number, colWidths?: Array<string | undefined>): string {
+  if (colWidths?.slice(0, colCount).some(w => w && w.trim())) {
+    return colWidths.slice(0, colCount).map(w => (w && w.trim()) || '1fr').join(' ')
+  }
   if (colCount === 2) {
     const m: Record<string, string> = {
       'auto-fill': 'auto 1fr', 'fill-auto': '1fr auto',
@@ -141,15 +149,16 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, spaceBelow } = props
+  const { columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
+  const colWidths = [col1Width, col2Width, col3Width, col4Width]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
   return (
     <div className="puck-grid" data-cols={colCount} style={{
       display: 'grid',
-      gridTemplateColumns: getGridTemplateColumns(columnSizes, colCount),
+      gridTemplateColumns: getGridTemplateColumns(columnSizes, colCount, colWidths),
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
       marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
@@ -157,9 +166,16 @@ function GridBlock(props: any) {
     }}>
       {slots.map((slot, i) => {
         const jc = colAligns[i] && justifyMap[colAligns[i]]
+        const content = typeof slot === 'function' ? slot() : null
         return (
           <div key={i} style={{ minWidth: 0, ...(jc ? { display: 'flex', justifyContent: jc } : {}) }}>
-            {typeof slot === 'function' ? slot() : null}
+            {/* Puck's own editor-canvas wrapper around a slot's dropped block
+                stretches to fill this column (unlike the RSC/live render, which
+                renders the block's own markup directly). Without this inner
+                width:fit-content wrapper, that stretched wrapper leaves nothing
+                for `justifyContent` to centre/end against, so a centred or
+                right-aligned column looked left-aligned only in the editor. */}
+            {jc ? <div style={{ width: 'fit-content', maxWidth: '100%' }}>{content}</div> : content}
           </div>
         )
       })}
@@ -190,12 +206,14 @@ function GroupBlock(props: any) {
 function SiteHeaderBlock(props: any) {
   const {
     logoUrl, logoUrlDark, siteName, resolvedItems,
-    bgColor = 'var(--color-bg)', bgMode = 'color', height = '64px',
-    sticky = 'yes', borderBottom = 'show', borderColor = 'var(--color-border)',
+    bg = { mode: 'color', color: 'var(--color-bg)' }, height = '64px',
+    sticky = 'yes', border = { show: 'show', color: 'var(--color-border)' },
     maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
     logoHomeUrl = '/', itemFontSize = 'medium', itemFontWeight = 'medium',
     itemColor = '', showMobileToggle = 'collapse',
   } = props
+  const bgMode = bg.mode ?? 'color'
+  const bgColor = bg.color || 'var(--color-bg)'
   const showText = showTextWithLogo === 'true' || showTextWithLogo === true
   return (
     <header
@@ -204,7 +222,7 @@ function SiteHeaderBlock(props: any) {
         height: height === 'auto' ? undefined : height,
         minHeight: height === 'auto' ? 48 : undefined,
         background: bgMode === 'transparent' ? 'transparent' : bgColor,
-        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor}` : 'none',
+        borderBottom: border?.show === 'show' ? `1px solid ${border?.color || 'var(--color-border)'}` : 'none',
         position: sticky === 'yes' ? 'sticky' : 'relative',
         top: sticky === 'yes' ? 0 : undefined,
         zIndex: sticky === 'yes' ? 100 : undefined,
@@ -276,7 +294,7 @@ function Divider(props: any) {
 
 function SectionBlock(props: any) {
   const {
-    content, bgType = 'none', bgColor = '', bgImage = '', bgSize = 'cover',
+    content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
     paddingY = 'lg', maxWidth = 'standard', textColor = '',
     sticky = 'off', stickyOffset = '0px',
@@ -290,6 +308,8 @@ function SectionBlock(props: any) {
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
 
+  const bgType = bg.mode ?? 'none'
+  const bgColor = bg.color ?? ''
   const bgStyle: React.CSSProperties = {}
   if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
   if (bgType === 'gradient' && bgColor) bgStyle.background = bgColor
@@ -643,11 +663,13 @@ function Embed(props: any) {
 function Hero(props: any) {
   const {
     heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
-    bgType = 'gradient', bgColor = '', bgImage = '', overlayColor = '', overlayOpacity = 0,
+    bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
   } = props
 
+  const bgType = bg.mode ?? 'gradient'
+  const bgColor = bg.color ?? ''
   const bgStyle: React.CSSProperties = {}
   if (bgType === 'gradient') bgStyle.background = bgColor || 'linear-gradient(135deg, var(--color-primary-subtle, #f0fdf4) 0%, var(--color-primary-subtle, #dcfce7) 100%)'
   else if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
@@ -1271,8 +1293,7 @@ export const puckConfig = {
       label: 'Section',
       fields: {
         content: { type: 'slot' as const },
-        bgType: { type: 'select' as const, label: 'Background type', options: [{ value: 'none', label: 'None' }, { value: 'color', label: 'Colour' }, { value: 'gradient', label: 'Gradient (CSS)' }, { value: 'image', label: 'Image URL' }, { value: 'grid-scan', label: 'Grid + scan beam (decorative)' }] },
-        bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        bg: { type: 'custom' as const, label: 'Background type', render: SectionBgColorField },
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
@@ -1290,7 +1311,7 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bgType: 'none', bgColor: '', bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
       render: SectionBlock,
     },
     Grid: {
@@ -1306,9 +1327,13 @@ export const puckConfig = {
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        col1Width: { type: 'text' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr - overrides preset)' },
+        col2Width: { type: 'text' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr - overrides preset)' },
+        col3Width: { type: 'text' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr - overrides preset)' },
+        col4Width: { type: 'text' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr - overrides preset)' },
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start' },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '' },
       render: GridBlock,
     },
     Group: {
@@ -1490,8 +1515,7 @@ export const puckConfig = {
         ctaLabel: { type: 'text' as const, label: 'Primary CTA label' }, ctaHref: { type: 'text' as const, label: 'Primary CTA URL' },
         cta2Label: { type: 'text' as const, label: 'Second CTA label' }, cta2Href: { type: 'text' as const, label: 'Second CTA URL' },
         cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
-        bgType: { type: 'select' as const, label: 'Background', options: [{ value: 'gradient', label: 'Gradient' }, { value: 'color', label: 'Colour' }, { value: 'image', label: 'Image' }, { value: 'none', label: 'None' }] },
-        bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> }, bgImage: { type: 'text' as const, label: 'Background image URL' },
+        bg: { type: 'custom' as const, label: 'Background', render: HeroBgColorField }, bgImage: { type: 'text' as const, label: 'Background image URL' },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
         layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }] },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
@@ -1499,7 +1523,7 @@ export const puckConfig = {
         minHeight: { type: 'select' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }] },
         padding: paddingField, ...aosFields,
       },
-      defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bgType: 'gradient', bgColor: '', bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
+      defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
       render: Hero,
     },
     Card: {
@@ -1785,12 +1809,10 @@ export const puckConfig = {
     SiteHeader: {
       label: 'Site Header',
       fields: {
-        bgMode:           { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
-        bgColor:          { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        bg:               { type: 'custom' as const, label: 'Background', render: HeaderBgColorField },
         height:           { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
         sticky:           { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
-        borderBottom:     { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-        borderColor:      { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        border:           { type: 'custom' as const, label: 'Border bottom', render: BorderField },
         maxWidth:         { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
         logoHeight:       { type: 'number' as const, label: 'Logo height (px)' },
         showTextWithLogo: { type: 'select' as const, label: 'Show site name', options: [{ value: 'false', label: 'Logo only' }, { value: 'true', label: 'Logo + name' }] },
@@ -1801,8 +1823,8 @@ export const puckConfig = {
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
       },
       defaultProps: {
-        bgMode: 'color', bgColor: '', height: '64px', sticky: 'yes',
-        borderBottom: 'show', borderColor: '', maxWidth: '1200px',
+        bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes',
+        border: { show: 'show', color: '' }, maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
         itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse',
       },
@@ -1829,15 +1851,14 @@ export const footerPuckConfig = {
     fields: {
       bgColor:    { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
       paddingY:   { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
-      borderTop:  { type: 'select' as const, label: 'Border top', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-      borderColor:{ type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+      border:     { type: 'custom' as const, label: 'Border top', render: BorderField },
       maxWidth:   { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }] },
     },
-    defaultProps: { bgColor: '', paddingY: 'md', borderTop: 'show', borderColor: '', maxWidth: '1200px' },
-    render: ({ children, bgColor, paddingY, borderTop, borderColor, maxWidth }: any) => {
+    defaultProps: { bgColor: '', paddingY: 'md', border: { show: 'show', color: '' }, maxWidth: '1200px' },
+    render: ({ children, bgColor, paddingY, border, maxWidth }: any) => {
       const pyMap: Record<string, string> = { none: '0', sm: '2rem', md: '3rem', lg: '5rem' }
       return (
-        <footer style={{ background: bgColor || undefined, borderTop: borderTop === 'show' ? `1px solid ${borderColor || 'var(--admin-border, #e5e7eb)'}` : 'none' }}>
+        <footer style={{ background: bgColor || undefined, borderTop: border?.show === 'show' ? `1px solid ${border?.color || 'var(--admin-border, #e5e7eb)'}` : 'none' }}>
           <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: `${pyMap[paddingY] ?? '3rem'} 1.5rem` }}>
             {children}
           </div>
@@ -1942,7 +1963,9 @@ export const layoutPuckConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
-const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '64px', sticky = 'yes', borderBottom = 'show', borderColor = '', maxWidth = '1200px' }: any) => {
+const headerRootRender = ({ children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes', border = { show: 'show', color: '' }, maxWidth = '1200px' }: any) => {
+  const bgMode = bg.mode ?? 'color'
+  const bgColor = bg.color ?? ''
   // "Solid colour" must always paint a background: fall back to the site
   // background token when no colour is picked, so the header can never render
   // see-through by accident. 'transparent' and 'transparent-scroll' are meant to
@@ -1959,7 +1982,7 @@ const headerRootRender = ({ children, bgMode = 'color', bgColor = '', height = '
         height: height === 'auto' ? undefined : height,
         minHeight: height === 'auto' ? 48 : undefined,
         background,
-        borderBottom: borderBottom === 'show' ? `1px solid ${borderColor || 'var(--color-border, #e5e7eb)'}` : 'none',
+        borderBottom: border?.show === 'show' ? `1px solid ${border?.color || 'var(--color-border, #e5e7eb)'}` : 'none',
         position: sticky === 'yes' ? 'sticky' : 'relative',
         top: sticky === 'yes' ? 0 : undefined,
         zIndex: sticky === 'yes' ? 100 : undefined,
@@ -1997,15 +2020,13 @@ export const headerPuckConfig = {
   },
   root: {
     fields: {
-      bgMode:       { type: 'select' as const, label: 'Background', options: [{ value: 'color', label: 'Solid colour' }, { value: 'transparent', label: 'Always transparent' }, { value: 'transparent-scroll', label: 'Transparent → solid on scroll' }] },
-      bgColor:      { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+      bg:           { type: 'custom' as const, label: 'Background', render: HeaderBgColorField },
       height:       { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
       sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
-      borderBottom: { type: 'select' as const, label: 'Border bottom', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
-      borderColor:  { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+      border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
     },
-    defaultProps: { bgMode: 'color', bgColor: '', height: '64px', sticky: 'yes', borderBottom: 'show', borderColor: '', maxWidth: '1200px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' },
     render: headerRootRender,
   },
   components: {
