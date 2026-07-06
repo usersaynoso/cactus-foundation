@@ -7,6 +7,7 @@ import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
 import { BrandingTab, useBrandingState } from './BrandingTab'
 import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
 
@@ -398,7 +399,7 @@ export default function StylesPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Styles</h1>
+        <h1 className="page-title">Appearance</h1>
         {activeTab === 'branding' ? (
           <button className="btn btn-primary" onClick={() => { void branding.save() }} disabled={branding.saving}>
             {branding.saving ? 'Saving…' : branding.saved ? '✓ Saved' : 'Save branding'}
@@ -463,7 +464,7 @@ export default function StylesPage() {
 
       <div style={{ padding: '2rem' }}>
 
-        {activeTab === 'branding' && <BrandingTab b={branding} />}
+        {activeTab === 'branding' && <BrandingTab b={branding} colours={colours} />}
 
         {activeTab === 'colours' && (
           <>
@@ -797,35 +798,6 @@ function ColourInput({ label, value, onChange, dark, onDarkChange, colours }: { 
         </div>
       )}
     </div>
-  )
-}
-
-// One swatch-row + hex-input pair, shared by the light value and the dark
-// override. In "dark" mode the palette swatches offer each global colour's dark
-// variant, so picking from the palette matches what shows on the dark frontend.
-function ColourPickerRow({ value, onChange, colours, mode, placeholder }: { value?: string; onChange: (v: string) => void; colours: GlobalColour[]; mode: 'light' | 'dark'; placeholder: string }) {
-  const swatchOf = (c: GlobalColour) => (mode === 'dark' ? (c.dark || c.light) : c.light)
-  return (
-    <>
-      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.375rem', alignItems: 'center' }}>
-        <input type="color" value={(value ?? '').startsWith('#') ? value : '#ffffff'} onChange={e => onChange(e.target.value)} style={{ width: 28, height: 28, padding: 2, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', flexShrink: 0 }} title="Pick a colour" />
-        {colours.map(c => {
-          const sw = swatchOf(c)
-          return (
-            <button key={c.id} type="button" title={c.name}
-              onClick={() => onChange(value === sw ? '' : sw)}
-              style={{ width: 24, height: 24, borderRadius: 4, background: sw, border: value === sw ? '2px solid var(--color-text)' : '1px solid var(--color-border)', cursor: 'pointer', padding: 0, outline: value === sw ? '2px solid var(--color-success)' : 'none', outlineOffset: 1, flexShrink: 0 }}
-            />
-          )
-        })}
-        {value && (
-          <button type="button" onClick={() => onChange('')}
-            style={{ width: 24, height: 24, borderRadius: 4, background: 'none', border: '1px solid var(--color-border)', cursor: 'pointer', padding: 0, fontSize: '0.625rem', color: 'var(--color-muted)', lineHeight: 1 }}
-            title="Clear">✕</button>
-        )}
-      </div>
-      <input type="text" value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
-    </>
   )
 }
 

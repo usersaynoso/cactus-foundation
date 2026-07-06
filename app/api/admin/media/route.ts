@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   const isDecorative = formData.get('isDecorative') === 'true'
 
   try {
-    const result = await uploadMedia(buffer, file.type, provider, file.name)
+    const result = await uploadMedia(validation.buffer, file.type, provider, file.name)
     const record = await saveMediaRecord({
       key: result.key,
       url: result.url,

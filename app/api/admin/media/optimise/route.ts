@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
 
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) return errorResponse('Media item not found', 404)
-  if (!media.mimeType.startsWith('image/')) {
-    return errorResponse('Only images can be optimised.')
+  if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
+    return errorResponse('Only raster images can be optimised.')
   }
 
   try {

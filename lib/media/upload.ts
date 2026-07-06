@@ -5,9 +5,10 @@ import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
+import { sanitizeSvg } from '@/lib/sanitize'
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 
 // Maps each allowed client-supplied MIME type to the image format sharp
 // reports after decoding the actual bytes — used to catch a mismatched
@@ -36,11 +37,11 @@ export async function validateUpload(
   mimeType: string,
   sizeBytes: number,
   buffer: Buffer
-): Promise<UploadValidationError | { valid: true }> {
+): Promise<UploadValidationError | { valid: true; buffer: Buffer }> {
   if (!ALLOWED_TYPES.includes(mimeType)) {
     return {
       valid: false,
-      reason: `File type "${mimeType}" is not allowed. Accepted: JPEG, PNG, WebP, GIF.`,
+      reason: `File type "${mimeType}" is not allowed. Accepted: JPEG, PNG, WebP, GIF, SVG.`,
     }
   }
   if (sizeBytes > MAX_SIZE_BYTES) {
@@ -48,6 +49,18 @@ export async function validateUpload(
       valid: false,
       reason: `File size ${(sizeBytes / 1024 / 1024).toFixed(1)} MB exceeds the 10 MB limit.`,
     }
+  }
+
+  // SVG is text, not a raster sharp can decode - validate as XML and strip any
+  // executable content (script tags, event handlers, external refs) instead of
+  // the magic-byte sniff below, then hand back the sanitised bytes so the
+  // caller stores those rather than the original upload.
+  if (mimeType === 'image/svg+xml') {
+    const text = buffer.toString('utf-8')
+    if (!/^\s*(<\?xml[^>]*>\s*)?(<!--.*?-->\s*)*(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/is.test(text)) {
+      return { valid: false, reason: 'File could not be read as a valid SVG.' }
+    }
+    return { valid: true, buffer: Buffer.from(sanitizeSvg(text), 'utf-8') }
   }
 
   let actualFormat: string | undefined
@@ -63,7 +76,7 @@ export async function validateUpload(
     }
   }
 
-  return { valid: true }
+  return { valid: true, buffer }
 }
 
 // PROTECTED - non-image upload support (Shop module digital files, Q5).

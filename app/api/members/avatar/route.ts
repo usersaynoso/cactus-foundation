@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (!validation.valid) return NextResponse.json({ error: validation.reason }, { status: 400 })
 
   try {
-    const result = await uploadMedia(buffer, file.type, provider, file.name)
+    const result = await uploadMedia(validation.buffer, file.type, provider, file.name)
     const record = await saveMediaRecord({
       key: result.key,
       url: result.url,

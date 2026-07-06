@@ -49,3 +49,15 @@ export function markdownToPlainText(markdown: string, opts?: { breaks?: boolean 
   const html = markdownToHtml(markdown, opts)
   return html.replace(/<[^>]+>/g, '').trim()
 }
+
+// Strips <script>, event handlers, and other executable content from an
+// uploaded SVG before it's stored - an unsanitised SVG served back with an
+// image/svg+xml content type can run script when opened directly (as opposed
+// to <img>, where the browser won't execute it), so this closes that off
+// regardless of how the file ends up being viewed.
+export function sanitizeSvg(svg: string): string {
+  return getPurifier().sanitize(svg, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ['use'],
+  })
+}

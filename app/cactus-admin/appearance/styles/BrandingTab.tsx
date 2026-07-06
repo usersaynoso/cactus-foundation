@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react'
 import type { MediaProviderType } from '@prisma/client'
 import { envKeysForProvider } from '@/lib/media/providers'
+import type { GlobalColour } from '@/lib/design/tokens'
+import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
 
 // The branding fields the "Save branding" button persists. A subset of
 // SiteConfig, saved to /api/admin/config (config.manage) - the same endpoint and
@@ -216,23 +218,17 @@ export function useBrandingState(): BrandingState {
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const kb = bytes / 1024
-  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
-
-// A single logo/favicon slot: preview, upload/replace, optimise, and remove.
-// Uploads go straight to the media library; the parent stores the returned media
-// id and persists it with "Save branding".
+// A single logo/favicon slot: preview, upload/replace, and remove. Uploads go
+// straight to the media library; the parent stores the returned media id and
+// persists it with "Save branding". Any non-SVG upload is silently optimised
+// (resized, recompressed) server-side straight after upload - SVG is stored
+// as-is since it isn't a raster sharp can shrink.
 function BrandingImageField({
   label,
   hint,
   previewUrl,
   square = false,
-  mediaId = null,
-  allowOptimise = false,
+  previewBackground,
   onUploaded,
   onRemove,
 }: {
@@ -240,49 +236,19 @@ function BrandingImageField({
   hint: string
   previewUrl: string | null
   square?: boolean
-  mediaId?: string | null
-  allowOptimise?: boolean
+  /** Fixed preview backdrop (e.g. white behind a light logo) so it stays visible regardless of admin theme. */
+  previewBackground?: string
   onUploaded: (media: { id: string; url: string }) => void
   onRemove: () => void
 }) {
   const [uploading, setUploading] = useState(false)
-  const [optimising, setOptimising] = useState(false)
-  const [optimiseNote, setOptimiseNote] = useState('')
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-
-  async function handleOptimise() {
-    if (!mediaId) return
-    setOptimising(true)
-    setError('')
-    setOptimiseNote('')
-    try {
-      const res = await fetch('/api/admin/media/optimise', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaId }),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
-      if (d.optimised) {
-        onUploaded({ id: d.id, url: d.url })
-        const saved = Math.round((1 - d.after / d.before) * 100)
-        setOptimiseNote(`Optimised: ${formatBytes(d.before)} → ${formatBytes(d.after)} (${saved}% smaller).`)
-      } else {
-        setOptimiseNote(`Already about as small as it gets (${formatBytes(d.before)}) - left as-is.`)
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Optimise failed')
-    } finally {
-      setOptimising(false)
-    }
-  }
 
   async function handleFile(file: File | null) {
     if (!file) return
     setUploading(true)
     setError('')
-    setOptimiseNote('')
     try {
       const fd = new FormData()
       fd.append('file', file)
@@ -290,7 +256,22 @@ function BrandingImageField({
       const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Upload failed')
-      onUploaded({ id: d.id, url: d.url })
+
+      let media = { id: d.id as string, url: d.url as string }
+      if (d.mimeType !== 'image/svg+xml') {
+        try {
+          const optRes = await fetch('/api/admin/media/optimise', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mediaId: d.id }),
+          })
+          const optD = await optRes.json()
+          if (optRes.ok && optD.optimised) media = { id: optD.id, url: optD.url }
+        } catch {
+          // Best-effort - fall back to the un-optimised upload rather than fail the whole action.
+        }
+      }
+      onUploaded(media)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -316,7 +297,7 @@ function BrandingImageField({
               border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius)',
               padding: '0.35rem',
-              background: 'var(--color-surface)',
+              background: previewBackground ?? 'var(--color-surface)',
             }}
           />
         ) : (
@@ -340,32 +321,21 @@ function BrandingImageField({
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
             style={{ display: 'none' }}
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
-          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={() => inputRef.current?.click()}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
             {uploading ? 'Uploading…' : previewUrl ? 'Replace' : 'Upload'}
           </button>
-          {allowOptimise && previewUrl && mediaId && (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={handleOptimise}>
-              {optimising ? 'Optimising…' : 'Optimise'}
-            </button>
-          )}
           {previewUrl && (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading || optimising} onClick={onRemove}>
+            <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={onRemove}>
               Remove
             </button>
           )}
         </div>
       </div>
       <span className="field-hint">{hint}</span>
-      {allowOptimise && (
-        <span className="field-hint" style={{ display: 'block' }}>
-          Resizes an oversized logo and compresses it with no loss of quality. Remember to press Save branding afterwards.
-        </span>
-      )}
-      {optimiseNote && <span style={{ color: 'var(--color-success)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{optimiseNote}</span>}
       {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{error}</span>}
     </div>
   )
@@ -373,7 +343,7 @@ function BrandingImageField({
 
 // The Branding tab body. All state lives in the useBrandingState hook (held at
 // page level) so edits survive tab switches; this component is purely the form.
-export function BrandingTab({ b }: { b: BrandingState }) {
+export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalColour[] }) {
   const { config, previews } = b
 
   if (b.loading) {
@@ -391,7 +361,6 @@ export function BrandingTab({ b }: { b: BrandingState }) {
   const heading: CSSProperties = { fontSize: 'var(--text-base)', fontWeight: 600, margin: '1.75rem 0 0.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)' }
   const subNote: CSSProperties = { fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 1.25rem' }
   const genNote: CSSProperties = { fontSize: 'var(--text-sm)', display: 'block', marginTop: '-0.75rem', marginBottom: '1.25rem' }
-  const swatch: CSSProperties = { width: 44, height: 38, padding: 2, flexShrink: 0, cursor: 'pointer' }
 
   return (
     <div>
@@ -403,19 +372,17 @@ export function BrandingTab({ b }: { b: BrandingState }) {
       <p style={subNote}>Appears in your site header and on the coming-soon, maintenance, and not-found pages.</p>
       <BrandingImageField
         label="Site logo"
-        hint="JPEG, PNG, WebP, or GIF."
+        hint="JPEG, PNG, WebP, GIF, or SVG. Uploads are automatically resized and compressed (SVGs are kept as-is). Preview sits on a fixed white backdrop so it stays visible while you're in dark mode."
         previewUrl={previews.logo}
-        mediaId={config.logoMediaId}
-        allowOptimise
+        previewBackground="#ffffff"
         onUploaded={(m) => b.applyMedia('logoMediaId', 'logo', m)}
         onRemove={() => b.clearMedia('logoMediaId', 'logo')}
       />
       <BrandingImageField
         label="Site logo (dark mode)"
-        hint="Optional. Used automatically when a visitor views your site in dark mode. Leave empty to keep the standard logo everywhere. JPEG, PNG, WebP, or GIF."
+        hint="Optional. Used automatically when a visitor views your site in dark mode. Leave empty to keep the standard logo everywhere. JPEG, PNG, WebP, GIF, or SVG. Preview sits on a fixed black backdrop so it stays visible while you're in light mode."
         previewUrl={previews.logoDark}
-        mediaId={config.logoDarkMediaId}
-        allowOptimise
+        previewBackground="#000000"
         onUploaded={(m) => b.applyMedia('logoDarkMediaId', 'logoDark', m)}
         onRemove={() => b.clearMedia('logoDarkMediaId', 'logoDark')}
       />
@@ -424,9 +391,8 @@ export function BrandingTab({ b }: { b: BrandingState }) {
       <p style={subNote}>Upload one square app icon and we&apos;ll create the whole set - browser favicon, Apple touch icon, and installable-app icons. Prefer to hand-pick any of them? Replace it below; your override sticks.</p>
       <BrandingImageField
         label="App icon (source)"
-        hint="One square image, at least 512×512. Everything below is generated from it. JPEG, PNG, WebP, or GIF."
+        hint="One square image, at least 512×512. Everything below is generated from it. JPEG, PNG, WebP, GIF, or SVG."
         previewUrl={previews.appIcon}
-        mediaId={config.appIconMediaId}
         square
         onUploaded={b.handleAppIconUploaded}
         onRemove={() => { b.clearMedia('appIconMediaId', 'appIcon') }}
@@ -492,18 +458,12 @@ export function BrandingTab({ b }: { b: BrandingState }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Theme colour</label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(config.themeColor ?? '') ? config.themeColor as string : '#ffffff'} onChange={(e) => b.set('themeColor', e.target.value)} style={swatch} aria-label="Theme colour" />
-            <input value={config.themeColor ?? ''} onChange={(e) => b.set('themeColor', e.target.value)} placeholder="#ffffff" />
-          </div>
+          <ColourPickerRow value={config.themeColor ?? ''} onChange={(v) => b.set('themeColor', v)} colours={colours} mode="light" placeholder="#ffffff" />
           <span className="field-hint">Colours the browser toolbar on mobile and the installed app.</span>
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Background colour</label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(config.backgroundColor ?? '') ? config.backgroundColor as string : '#ffffff'} onChange={(e) => b.set('backgroundColor', e.target.value)} style={swatch} aria-label="Background colour" />
-            <input value={config.backgroundColor ?? ''} onChange={(e) => b.set('backgroundColor', e.target.value)} placeholder="#ffffff" />
-          </div>
+          <ColourPickerRow value={config.backgroundColor ?? ''} onChange={(v) => b.set('backgroundColor', v)} colours={colours} mode="light" placeholder="#ffffff" />
           <span className="field-hint">Shown while the installed app is loading.</span>
         </div>
       </div>
