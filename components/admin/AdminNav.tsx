@@ -92,7 +92,7 @@ const NAV_SECTIONS: { label: string | null; links: { path: string; label: string
     label: 'System',
     links: [
       { path: '/config',     label: 'System',   icon: 'config' },
-      { path: '/appearance', label: 'Styles',   icon: 'appearance' },
+      { path: '/appearance', label: 'Appearance',   icon: 'appearance' },
       { path: '/layouts',    label: 'Layouts',  icon: 'layouts' },
       { path: '/modules',    label: 'Modules',  icon: 'modules' },
       { path: '/users',      label: 'Users',    icon: 'users' },
