@@ -3,6 +3,15 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 
+const HISTORY_CAP = 10
+
+type HistoryEntry = {
+  data: unknown
+  title: string
+  at: string
+  byId: string | null
+}
+
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: Request, { params }: Ctx) {
@@ -60,6 +69,32 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if ('type' in body) data.type = body.type
     if ('displayConditions' in body) data.displayConditions = body.displayConditions
     if ('priority' in body) data.priority = body.priority
+
+    // On each publish: archive the previous live version into history (capped),
+    // then set publishedData to the new content — mirrors InfoPage's publish route.
+    if (body.status === 'published') {
+      const existing = await prisma.layout.findUnique({
+        where: { id },
+        select: { name: true, publishedData: true, publishedAt: true, publishedById: true, history: true, updatedAt: true, builderData: true },
+      })
+      const existingHistory = Array.isArray(existing?.history) ? (existing.history as HistoryEntry[]) : []
+      let newHistory = existingHistory
+
+      if (existing?.publishedData !== null && existing?.publishedData !== undefined) {
+        const archivedEntry: HistoryEntry = {
+          data: existing.publishedData,
+          title: existing.name,
+          at: (existing.publishedAt ?? existing.updatedAt).toISOString(),
+          byId: existing.publishedById ?? null,
+        }
+        newHistory = [archivedEntry, ...existingHistory].slice(0, HISTORY_CAP)
+      }
+
+      data.publishedData = 'builderData' in body ? body.builderData : existing?.builderData
+      data.publishedAt = new Date()
+      data.publishedById = user.id
+      data.history = newHistory
+    }
 
     const layout = await prisma.layout.update({ where: { id }, data })
     return NextResponse.json(layout)

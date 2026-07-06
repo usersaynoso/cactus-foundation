@@ -243,6 +243,10 @@ CREATE TABLE "Layout" (
     "type" TEXT NOT NULL DEFAULT 'infoPage',
     "description" TEXT,
     "builderData" JSONB,
+    "publishedData" JSONB,
+    "publishedAt" TIMESTAMP(3),
+    "publishedById" TEXT,
+    "history" JSONB,
     "displayConditions" JSONB,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "isStarter" BOOLEAN NOT NULL DEFAULT false,
@@ -250,6 +254,15 @@ CREATE TABLE "Layout" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Layout_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "SavedBlock" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "componentType" TEXT NOT NULL,
+    "data" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SavedBlock_pkey" PRIMARY KEY ("id")
 );
 
 -- ---------------------------------------------------------------------------

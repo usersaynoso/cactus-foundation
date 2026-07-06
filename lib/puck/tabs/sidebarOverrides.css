@@ -1,0 +1,25 @@
+/*
+ * Puck's built-in pluginbar (Blocks/Outline tab strip) only ever had two tabs, so it never
+ * needed to scroll. With more tabs added, the desktop column layout clips overflowing tabs
+ * silently instead of scrolling — the clipping ancestor (`._PuckLayout-nav`) sets
+ * `overflow: hidden` and a grid-determined height, but nothing further down declares its own
+ * height + `overflow-y: auto` to turn that into a scroll region.
+ *
+ * Puck doesn't expose a stable class name for this (CSS Modules hash), so we match on the
+ * human-readable class-name prefix (`getClassNameFactory`'s rootClass) rather than the full
+ * hashed class, which only breaks on a `@puckeditor/core` upgrade that renames these root
+ * classes — not on every rebuild.
+ */
+@media (min-width: 638px) {
+  [class*="_PuckLayout-nav_"] > [class*="_Nav_"] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  [class*="_Nav-list_"] {
+    height: 100%;
+    overflow-y: auto;
+  }
+}

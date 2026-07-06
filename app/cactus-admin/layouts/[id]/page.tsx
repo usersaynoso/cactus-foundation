@@ -7,6 +7,16 @@ import type { Data } from '@puckeditor/core'
 import Link from 'next/link'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import DisplayConditionsPanel from './DisplayConditionsPanel'
+import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
+import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
+
+type HistoryVersion = {
+  index: 'live' | number
+  at: string | null
+  title: string
+  byName: string | null
+  isLive: boolean
+}
 
 const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
   ssr: false,
@@ -20,6 +30,8 @@ type Layout = {
   name: string
   type: string
   status: string
+  description: string | null
+  priority: number
   builderData: Data | null
   displayConditions: unknown
 }
@@ -35,11 +47,69 @@ export default function LayoutEditorPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestDataRef = useRef<Data | null>(null)
 
+  const [historyVersions, setHistoryVersions] = useState<HistoryVersion[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [restoringIndex, setRestoringIndex] = useState<'live' | number | null>(null)
+
   useEffect(() => {
     fetch(`/api/admin/layouts/${id}`)
       .then((r) => r.json())
       .then((d) => { setLayout(d); setLoading(false) })
       .catch(() => { setError('Failed to load layout'); setLoading(false) })
+  }, [id])
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    setHistoryError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}/history`)
+      const d = await res.json()
+      if (!res.ok) setHistoryError(d.error ?? 'Failed to load history')
+      else setHistoryVersions(d.versions ?? [])
+    } catch {
+      setHistoryError('Failed to load history')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async history load on mount; setLoading(false) only fires after awaits
+    loadHistory()
+  }, [loadHistory])
+
+  const handleRestore = useCallback(async (index: 'live' | number) => {
+    setRestoringIndex(index)
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}/history?index=${index}`)
+      const d = await res.json()
+      if (!res.ok || !d.data) {
+        setHistoryError(d.error ?? 'Failed to load version')
+        setRestoringIndex(null)
+        return
+      }
+      if (!confirm('Load this version into the editor? Your current unsaved changes will be replaced.')) {
+        setRestoringIndex(null)
+        return
+      }
+      if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+      const patchRes = await fetch(`/api/admin/layouts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ builderData: d.data }),
+      })
+      if (!patchRes.ok) {
+        const pd = await patchRes.json()
+        setHistoryError(pd.error ?? 'Failed to restore version')
+        setRestoringIndex(null)
+        return
+      }
+      window.location.reload()
+    } catch {
+      setHistoryError('Failed to restore version')
+    } finally {
+      setRestoringIndex(null)
+    }
   }, [id])
 
   const handleChange = useCallback((data: Data) => {
@@ -73,10 +143,10 @@ export default function LayoutEditorPage() {
         body: JSON.stringify({ builderData: data, status: 'published' }),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Publish failed') }
-      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true) }
+      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true); loadHistory() }
     } catch { setError('Publish failed') }
     finally { setSaving(false) }
-  }, [id, layout?.displayConditions])
+  }, [id, layout?.displayConditions, loadHistory])
 
   const handleConditionsSave = useCallback(async (conditions: DisplayConditions) => {
     setSaving(true); setSaved(false); setError('')
@@ -91,6 +161,19 @@ export default function LayoutEditorPage() {
     finally { setSaving(false) }
   }, [id])
 
+  const handleSettingsSave = useCallback(async (patch: { name: string; description: string | null; priority: number }) => {
+    setSaving(true); setSaved(false); setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to save settings') }
+      else { setLayout((l) => l ? { ...l, ...patch } : l); setSaved(true) }
+    } catch { setError('Failed to save settings') }
+    finally { setSaving(false) }
+  }, [id])
+
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>
   if (!layout) return <div style={{ padding: '2rem', color: 'var(--color-destructive)' }}>{error || 'Layout not found'}</div>
 
@@ -102,6 +185,26 @@ export default function LayoutEditorPage() {
       layoutType={layout.type}
       existing={layout.displayConditions}
       onSave={handleConditionsSave}
+    />
+  )
+
+  const settingsTab = (
+    <LayoutSettingsTab
+      key={`${layout.name}-${layout.description}-${layout.priority}`}
+      name={layout.name}
+      description={layout.description}
+      priority={layout.priority}
+      onSave={handleSettingsSave}
+    />
+  )
+
+  const historyTab = (
+    <PageHistoryTab
+      versions={historyVersions}
+      loading={historyLoading}
+      error={historyError}
+      restoringIndex={restoringIndex}
+      onRestore={handleRestore}
     />
   )
 
@@ -127,6 +230,8 @@ export default function LayoutEditorPage() {
         isPublishing={saving}
         layoutType={layout.type}
         conditionsPanel={conditionsPanel}
+        settingsTab={settingsTab}
+        historyTab={historyTab}
       />
     </div>
   )

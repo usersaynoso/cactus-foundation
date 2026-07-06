@@ -5,12 +5,15 @@ import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
+import '@/lib/puck/tabs/sidebarOverrides.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig } from '@/lib/puck/config'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
+import { createPanelPlugin, tabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 
 type Props = {
   initialData: Data
@@ -19,6 +22,8 @@ type Props = {
   isPublishing: boolean
   layoutType?: string
   conditionsPanel?: React.ReactNode
+  settingsTab?: React.ReactNode
+  historyTab?: React.ReactNode
 }
 
 function getConfig(type: string | undefined) {
@@ -34,7 +39,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, conditionsPanel }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, conditionsPanel, settingsTab, historyTab }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
 
@@ -137,22 +142,21 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     onChange(data)
   }, [onChange])
 
+  const plugins = useMemo(() => [
+    ...(settingsTab ? [createPanelPlugin({ name: 'settings', label: 'Settings', icon: tabIcon('⚙'), content: settingsTab })] : []),
+    ...(conditionsPanel ? [createPanelPlugin({ name: 'conditions', label: 'Conditions', icon: tabIcon('◎'), content: conditionsPanel })] : []),
+    ...(historyTab ? [createPanelPlugin({ name: 'history', label: 'History', icon: tabIcon('↺'), content: historyTab })] : []),
+    createPanelPlugin({ name: 'saved-blocks', label: 'Saved Blocks', icon: tabIcon('▤'), content: <SavedBlocksTab /> }),
+  ], [settingsTab, conditionsPanel, historyTab])
+
   return (
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <Puck
-
         config={editorConfig as any}
         data={initialData}
         onChange={handleChange}
         onPublish={() => onPublish(latestDataRef.current)}
-        overrides={{
-          fields: ({ children, itemSelector }) => (
-            <>
-              {children}
-              {!itemSelector && conditionsPanel}
-            </>
-          ),
-        }}
+        plugins={plugins}
       />
     </div>
   )
