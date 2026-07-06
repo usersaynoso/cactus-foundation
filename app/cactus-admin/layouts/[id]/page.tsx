@@ -5,9 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
-import DisplayConditionsPanel from './DisplayConditionsPanel'
-import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
-import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
 
 type HistoryVersion = {
   index: 'live' | number
@@ -226,40 +223,6 @@ export default function LayoutEditorPage() {
 
   const initialData: Data = (layout.builderData as Data | null) ?? { content: [], root: { props: {} }, zones: {} }
 
-  const conditionsPanel = (
-    <DisplayConditionsPanel
-      key={JSON.stringify(layout.displayConditions)}
-      layoutType={layout.type}
-      existing={layout.displayConditions}
-      onSave={handleConditionsSave}
-    />
-  )
-
-  const settingsTab = (
-    <LayoutSettingsTab
-      key={`${layout.name}-${layout.description}-${layout.priority}`}
-      name={layout.name}
-      description={layout.description}
-      priority={layout.priority}
-      status={layout.status}
-      onSave={handleSettingsSave}
-      onStatusChange={handleStatusChange}
-      saving={saving}
-      saved={saved}
-      error={error}
-    />
-  )
-
-  const historyTab = (
-    <PageHistoryTab
-      versions={historyVersions}
-      loading={historyLoading}
-      error={historyError}
-      restoringIndex={restoringIndex}
-      onRestore={handleRestore}
-    />
-  )
-
   return (
     <>
       {deleteConfirm && (
@@ -290,9 +253,22 @@ export default function LayoutEditorPage() {
         onDeleteClick={() => setDeleteConfirm(true)}
         deleting={deleting}
         canDelete={!layout.isStarter}
-        conditionsPanel={conditionsPanel}
-        settingsTab={settingsTab}
-        historyTab={historyTab}
+        name={layout.name}
+        description={layout.description}
+        priority={layout.priority}
+        status={layout.status}
+        onSettingsSave={handleSettingsSave}
+        onStatusChange={handleStatusChange}
+        saving={saving}
+        saved={saved}
+        error={error}
+        displayConditions={layout.displayConditions}
+        onConditionsSave={handleConditionsSave}
+        historyVersions={historyVersions}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        restoringIndex={restoringIndex}
+        onRestore={handleRestore}
       />
     </>
   )
