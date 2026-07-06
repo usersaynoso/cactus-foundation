@@ -76,3 +76,86 @@
     background: var(--puck-color-interactive-neutral-hover);
   }
 }
+
+/*
+ * Puck's viewports prop only renders a flat row of one button per size (see
+ * buildPuckViewports, viewportSizes.tsx) - replaced here with a single dropdown
+ * (ViewportDropdownOverride.tsx) so 8 sizes don't clip when both sidebars are open.
+ * Hides the native per-size buttons by their `title` attribute (comes straight from the
+ * `label` we pass into `viewports`, not a version-hashed class) and leaves the zoom
+ * controls and divider that follow them untouched.
+ */
+[class*="_ViewportControls-actionsInner_"] button[title^="Switch to"] {
+  display: none;
+}
+
+/* Mount point created via document.createElement (ViewportDropdownOverride.tsx) - a bare,
+   unstyled div, so as a flex item of `_ViewportControls-actionsInner_` it stretches to that
+   row's full height (flex's default `align-items: stretch`) but has no alignment behaviour
+   of its own, so its content (a plain block child) sits pinned to the top of that stretched
+   box rather than centred like the row's other controls. */
+.cactus-viewport-dropdown-mount {
+  display: flex;
+  align-items: center;
+}
+
+.cactus-viewport-dropdown {
+  position: relative;
+  display: flex;
+}
+.cactus-viewport-dropdown-trigger {
+  display: flex;
+  /* Badge is now a single line (glyph beside width, see sizeBadge in viewportSizes.tsx),
+     so centre against it to sit level with the row's zoom controls. */
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--puck-color-text);
+  padding: 0 var(--puck-space-1, 4px);
+}
+.cactus-viewport-dropdown-panel {
+  /* Portaled to document.body (ViewportDropdownOverride.tsx) and positioned inline via
+     `top`/`left` from the trigger's live rect, because the track it used to sit inside
+     (`_ViewportControls-actionsInner_`) has `overflow: hidden` in Puck's own CSS and clips
+     any absolutely-positioned child regardless of z-index. Puck's own overlays (drag ghosts,
+     portals) go up to z-index 9999 - this has to sit above all of them. */
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  background: var(--puck-color-white);
+  border: var(--puck-border-width-regular) solid var(--puck-color-border);
+  border-radius: var(--puck-border-radius-medium, 6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: var(--puck-space-1, 4px) 0;
+}
+.cactus-viewport-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: var(--puck-space-4, 16px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: var(--puck-space-2, 8px) var(--puck-space-3, 12px);
+  color: var(--puck-color-text);
+  text-align: left;
+  white-space: nowrap;
+}
+.cactus-viewport-dropdown-option:hover {
+  background: var(--puck-color-interactive-neutral-hover);
+}
+.cactus-viewport-dropdown-option[data-active] {
+  color: var(--puck-color-interactive);
+  font-weight: 600;
+}
+.cactus-viewport-dropdown-option-icon {
+  display: flex;
+  align-items: center;
+  /* Holds glyph + pixel width side by side (sizeBadge, viewportSizes.tsx) - needs room for
+     4-digit widths so the number doesn't collide with the text label beside it. */
+  justify-content: flex-start;
+  width: 64px;
+  flex-shrink: 0;
+}

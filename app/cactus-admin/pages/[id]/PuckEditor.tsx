@@ -6,12 +6,14 @@ import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import puckConfig, { wrapResponsiveRender } from '@/lib/puck/config'
+import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
 import SeoTab from '@/lib/puck/tabs/SeoTab'
@@ -75,6 +77,8 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   // Blocks read the site's actual design tokens (--btn-bg, --h2-family, --caption-*,
   // --img-radius, etc.), so without this the canvas renders buttons/headings/images in
   // the admin's own look rather than the site's — mirrors LayoutPuckEditor's injection.
+  const [designTokens, setDesignTokens] = useState<unknown>(null)
+
   useEffect(() => {
     let mounted = true
     let styleEl: HTMLStyleElement | null = null
@@ -84,6 +88,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       .then(r => r.json())
       .then(async d => {
         if (!mounted || !d.designTokens) return
+        setDesignTokens(d.designTokens)
         const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
         const css = buildTokenStyles(d.designTokens)
         const href = buildFontHref(d.designTokens)
@@ -327,6 +332,8 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [pageId, doAutosave])
 
+  const puckViewports = useMemo(() => buildPuckViewports(designTokens), [designTokens])
+
   const puckOverrides = useMemo(() => ({
     header: createBackLinkOverride(backHref, 'Back to Pages'),
     headerActions: createHeaderActionsOverride({
@@ -334,7 +341,8 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       onDeleteClick,
       deleting,
     }),
-  }), [backHref, pageId, onDeleteClick, deleting])
+    puck: createViewportDropdownOverride(puckViewports),
+  }), [backHref, pageId, onDeleteClick, deleting, puckViewports])
 
   const plugins = useMemo(() => [
     createPanelPlugin({
@@ -393,6 +401,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             onPublish={canPublish ? handlePublish : undefined}
             plugins={plugins}
             overrides={puckOverrides}
+            viewports={puckViewports}
           />
         )}
       </div>

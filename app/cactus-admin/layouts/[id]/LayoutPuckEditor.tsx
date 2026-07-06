@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
+import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
@@ -16,8 +16,22 @@ import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
+import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
+import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
+import DisplayConditionsPanel from './DisplayConditionsPanel'
+
+type HistoryVersion = {
+  index: 'live' | number
+  at: string | null
+  title: string
+  byName: string | null
+  isLive: boolean
+}
+
+type DisplayConditions = { include: unknown[]; exclude: unknown[] }
 
 type Props = {
   initialData: Data
@@ -30,9 +44,25 @@ type Props = {
   onDeleteClick: () => void
   deleting: boolean
   canDelete: boolean
-  conditionsPanel?: React.ReactNode
-  settingsTab?: React.ReactNode
-  historyTab?: React.ReactNode
+  // Settings tab
+  name: string
+  description: string | null
+  priority: number
+  status: string
+  onSettingsSave: (patch: { name: string; description: string | null; priority: number }) => void
+  onStatusChange: (status: string) => void
+  saving: boolean
+  saved: boolean
+  error: string
+  // Conditions tab
+  displayConditions: unknown
+  onConditionsSave: (conditions: DisplayConditions) => void
+  // History tab
+  historyVersions: HistoryVersion[]
+  historyLoading: boolean
+  historyError: string
+  restoringIndex: 'live' | number | null
+  onRestore: (index: 'live' | number) => void
 }
 
 function getConfig(type: string | undefined) {
@@ -48,7 +78,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, layoutId, onDeleteClick, deleting, canDelete, conditionsPanel, settingsTab, historyTab }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, layoutId, onDeleteClick, deleting, canDelete, name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
   const canvasWrapRef = useRef<HTMLDivElement>(null)
@@ -71,6 +101,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     return () => observer.disconnect()
   }, [])
 
+  const [designTokens, setDesignTokens] = useState<unknown>(null)
+
   useEffect(() => {
     let mounted = true
     let styleEl: HTMLStyleElement | null = null
@@ -80,6 +112,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
       .then(r => r.json())
       .then(async d => {
         if (!mounted || !d.designTokens) return
+        setDesignTokens(d.designTokens)
         const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
         const css = buildTokenStyles(d.designTokens)
         const href = buildFontHref(d.designTokens)
@@ -115,6 +148,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   // Header/footer configs define real root-level fields (background, height, etc.) that
   // must stay visible with nothing selected. Every other config here leaves root.fields
   // undefined, so Puck falls back to a redundant default Title field — hide that case only.
+  const puckViewports = useMemo(() => buildPuckViewports(designTokens), [designTokens])
+
   const puckOverrides = useMemo(
     () => ({
       header: createBackLinkOverride(backHref, 'Back to Layouts'),
@@ -125,8 +160,9 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         canDelete,
       }),
       ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
+      puck: createViewportDropdownOverride(puckViewports),
     }),
-    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete],
+    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports],
   )
 
   const editorConfig = useMemo(() => ({
@@ -191,11 +227,47 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   }, [onChange])
 
   const plugins = useMemo(() => [
-    ...(settingsTab ? [createPanelPlugin({ name: 'settings', label: 'Settings', icon: settingsTabIcon, content: settingsTab })] : []),
-    ...(conditionsPanel ? [createPanelPlugin({ name: 'conditions', label: 'Conditions', icon: conditionsTabIcon, content: conditionsPanel })] : []),
-    ...(historyTab ? [createPanelPlugin({ name: 'history', label: 'History', icon: historyTabIcon, content: historyTab })] : []),
+    createPanelPlugin({
+      name: 'settings', label: 'Settings', icon: settingsTabIcon,
+      content: (
+        <LayoutSettingsTab
+          name={name}
+          description={description}
+          priority={priority}
+          status={status}
+          onSave={onSettingsSave}
+          onStatusChange={onStatusChange}
+          saving={saving}
+          saved={saved}
+          error={error}
+        />
+      ),
+    }),
+    createPanelPlugin({
+      name: 'conditions', label: 'Conditions', icon: conditionsTabIcon,
+      content: (
+        <DisplayConditionsPanel
+          key={JSON.stringify(displayConditions)}
+          layoutType={layoutType ?? ''}
+          existing={displayConditions}
+          onSave={onConditionsSave}
+        />
+      ),
+    }),
+    createPanelPlugin({
+      name: 'history', label: 'History', icon: historyTabIcon,
+      content: (
+        <PageHistoryTab
+          versions={historyVersions}
+          loading={historyLoading}
+          error={historyError}
+          restoringIndex={restoringIndex}
+          onRestore={onRestore}
+        />
+      ),
+    }),
     createPanelPlugin({ name: 'saved-blocks', label: 'Saved Blocks', icon: savedBlocksTabIcon, content: <SavedBlocksTab /> }),
-  ], [settingsTab, conditionsPanel, historyTab])
+  ], [name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, layoutType, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore])
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -208,6 +280,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
             overrides={puckOverrides}
             onPublish={() => onPublish(latestDataRef.current)}
             plugins={plugins}
+            viewports={puckViewports}
             headerTitle={getLayoutTypeLabel(layoutType)}
           />
         )}
