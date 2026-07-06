@@ -20,6 +20,8 @@ The fastest way to change your site's look is a **colour preset**. At the top of
 
 You can customise further after applying a preset, or ignore presets entirely and define your own colours from scratch.
 
+Once you've settled on a combination you like, you can save it as your own preset - click **Save as preset**, give it a name, and it'll appear on the preset bar ahead of the ten built-in ones, ready to reuse any time. If you tweak the colours further and want to update that saved preset rather than making a new one, the button changes to **Update preset** whenever your current colours exactly match one you've saved. Presets you've created can be deleted with the small ✕ on their card; the ten built-in presets can't be changed or removed.
+
 ### Colours tab
 
 - **Global colours** - define up to 12 named colours, each with a light-mode and dark-mode variant. Once defined, these colours are available as swatches everywhere else in the Styles editor, keeping your palette consistent.

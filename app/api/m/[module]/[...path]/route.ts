@@ -16,6 +16,10 @@ export async function POST(req: Request, ctx: Ctx) {
   return dispatchModuleApi('POST', req, ctx)
 }
 
+export async function PUT(req: Request, ctx: Ctx) {
+  return dispatchModuleApi('PUT', req, ctx)
+}
+
 export async function PATCH(req: Request, ctx: Ctx) {
   return dispatchModuleApi('PATCH', req, ctx)
 }

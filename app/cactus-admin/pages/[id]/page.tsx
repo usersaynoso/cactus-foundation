@@ -108,31 +108,6 @@ export default function EditPagePage() {
 
   return (
     <>
-      {/* Slim back + delete bar above the full-screen Puck editor */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.75rem',
-        padding: '0.5rem 1rem',
-        borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-surface)',
-        zIndex: 100,
-        position: 'relative',
-      }}>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => router.push(`/${adminPath}/pages`)}
-        >
-          ← Pages
-        </button>
-        <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', flex: 1 }}>{page.title}</strong>
-        <button
-          className="btn btn-danger btn-sm"
-          disabled={loading}
-          onClick={() => setDeleteConfirm(true)}
-        >
-          Delete
-        </button>
-      </div>
-
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 10001,
@@ -155,6 +130,9 @@ export default function EditPagePage() {
         initialData={initialData}
         canPublish={canPublish}
         canManageMenus={canManageMenus}
+        backHref={`/${adminPath}/pages`}
+        onDeleteClick={() => setDeleteConfirm(true)}
+        deleting={loading}
       />
     </>
   )

@@ -1,0 +1,78 @@
+/*
+ * Puck's built-in pluginbar (Blocks/Outline tab strip) only ever had two tabs, so it never
+ * needed to scroll. With more tabs added, the desktop column layout clips overflowing tabs
+ * silently instead of scrolling — the clipping ancestor (`._PuckLayout-nav`) sets
+ * `overflow: hidden` and a grid-determined height, but nothing further down declares its own
+ * height + `overflow-y: auto` to turn that into a scroll region.
+ *
+ * Puck doesn't expose a stable class name for this (CSS Modules hash), so we match on the
+ * human-readable class-name prefix (`getClassNameFactory`'s rootClass) rather than the full
+ * hashed class, which only breaks on a `@puckeditor/core` upgrade that renames these root
+ * classes — not on every rebuild.
+ */
+@media (min-width: 638px) {
+  [class*="_PuckLayout-nav_"] > [class*="_Nav_"] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  [class*="_Nav-list_"] {
+    height: 100%;
+    overflow-y: auto;
+  }
+}
+
+/*
+ * Puck's root layout element hardcodes `height: 100dvh`, assuming it always fills the whole
+ * device viewport. Our editors nest it below our own topbar (breadcrumb, publish button, etc),
+ * so the real box Puck sits in is shorter than 100dvh. Puck still renders itself at full
+ * viewport height regardless, and our wrapper's `overflow: hidden` clips the excess off the
+ * bottom - taking the tail end of the right sidebar's field list with it. Fill the actual
+ * parent box instead so nothing renders past what's visible.
+ */
+[class*="_PuckLayout_"] {
+  height: 100% !important;
+}
+
+/*
+ * The rule above only pins PuckLayout's height to *its own parent's* height — Puck's root
+ * wrapper (`.Puck` / `_Puck_...`), which is a plain block div with no height of its own, so
+ * it just grows to fit its tallest child (usually the right-hand field sidebar). "100%"
+ * then resolves against that unbounded, content-sized box and constrains nothing. Pin the
+ * root too so the whole chain is finally bounded by our own admin chrome, letting Puck's
+ * built-in `overflow-y: auto` panes (e.g. the right sidebar) scroll instead of the tail end
+ * getting silently clipped by our wrapper's `overflow: hidden`.
+ */
+[class*="_Puck_"] {
+  height: 100%;
+}
+
+/*
+ * Back link injected via createBackLinkOverride (see headerBackLinkOverride.tsx), sitting
+ * in the blank gutter Puck's own header reserves to the left of its title. That gutter only
+ * exists at Puck's own desktop breakpoint (`_PuckHeader` padding-left starts at 638px), so
+ * this stays hidden below it rather than overlapping the mobile header's own content.
+ */
+.cactus-puck-back-link {
+  display: none;
+}
+@media (min-width: 638px) {
+  .cactus-puck-back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 67px;
+    height: 100%;
+    color: var(--puck-color-text-muted);
+    text-decoration: none;
+  }
+  .cactus-puck-back-link:hover {
+    color: var(--puck-color-text);
+    background: var(--puck-color-interactive-neutral-hover);
+  }
+}

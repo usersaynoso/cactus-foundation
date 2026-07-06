@@ -4,17 +4,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
+import '@/lib/puck/tabs/sidebarOverrides.css'
 import puckConfig from '@/lib/puck/config'
-import { OgImagePickerField, ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
-import { MenuCheckboxField } from '@/lib/puck/MenuCheckboxField'
+import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
+import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
+import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
+import SeoTab from '@/lib/puck/tabs/SeoTab'
+import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
+import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 
 type Props = {
   pageId: string
   initialData: Data
   canPublish: boolean
   canManageMenus: boolean
+  backHref: string
+  onDeleteClick: () => void
+  deleting: boolean
 }
 
 type HistoryVersion = {
@@ -27,7 +37,7 @@ type HistoryVersion = {
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
-export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus }: Props) {
+export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, backHref, onDeleteClick, deleting }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -40,6 +50,25 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   // Current editor data — kept in a ref so restore can read it without stale closure
   const currentDataRef = useRef<Data>(initialData)
+  const canvasWrapRef = useRef<HTMLDivElement>(null)
+  const [canvasReady, setCanvasReady] = useState(false)
+
+  // Puck measures this wrapper on mount to size its zoomed canvas. If it mounts while
+  // the wrapper is still 0x0 (flex layout not yet settled), Puck's height/width === 0
+  // divide-by-zero produces a transient `NaN` height console error. Wait for a real
+  // measured size before mounting <Puck> so its first measurement is already correct.
+  useEffect(() => {
+    const el = canvasWrapRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) { setCanvasReady(true); observer.disconnect() }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // The admin shell only carries its own --color-primary family (buildAdminThemeStyles).
   // Blocks read the site's actual design tokens (--btn-bg, --h2-family, --caption-*,
@@ -81,8 +110,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [])
 
-  // Version history panel state
-  const [showHistory, setShowHistory] = useState(false)
+  // Version history tab state
   const [historyVersions, setHistoryVersions] = useState<HistoryVersion[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
@@ -106,45 +134,14 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [pageId])
 
-  // Toggle the history panel, loading versions when it opens. Fetching here (in the
-  // event handler) rather than in an effect avoids a synchronous setState-in-effect.
-  const toggleHistory = useCallback(() => {
-    const next = !showHistory
-    setShowHistory(next)
-    if (next) loadHistory()
-  }, [showHistory, loadHistory])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async history load on mount; setLoading(false) only fires after awaits
+    loadHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount, loadHistory is stable for a given pageId
+  }, [])
 
-  // Build editor config inside the component so canManageMenus can gate menuIds field
   const editorConfig = useMemo(() => ({
     ...puckConfig,
-    root: {
-      ...puckConfig.root,
-      fields: {
-        title:           { type: 'text' as const,     label: 'Title' },
-        slug:            { type: 'text' as const,     label: 'Slug' },
-        status:          {
-          type: 'select' as const,
-          label: 'Status',
-          options: [
-            { value: 'draft',     label: 'Draft' },
-            { value: 'published', label: 'Published (use Publish button)' },
-          ],
-        },
-        metaDescription: { type: 'textarea' as const, label: 'Meta description' },
-        ogImageId: {
-          type: 'custom' as const,
-          label: 'OG image',
-          render: OgImagePickerField,
-        },
-        ...(canManageMenus ? {
-          menuIds: {
-            type: 'custom' as const,
-            label: 'Show in menus',
-            render: MenuCheckboxField,
-          },
-        } : {}),
-      },
-    },
     components: {
       ...puckConfig.components,
       ImageBlock: {
@@ -180,6 +177,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           },
         },
       },
+      SiteLogo: {
+        ...puckConfig.components.SiteLogo,
+        render: (props: any) => <SiteLogoEditorPreview {...props} />,
+      },
       MenuBlock: {
         ...puckConfig.components.MenuBlock,
         fields: {
@@ -198,7 +199,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         ),
       },
     },
-  }), [canManageMenus])
+  }), [])
 
   const doAutosave = useCallback(async (data: Data) => {
     setSaveError('')
@@ -235,35 +236,57 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   }, [pageId])
 
   const handlePublish = useCallback(async (data: Data) => {
-    // Cancel any pending autosave so it cannot race with the publish
+    // Cancel any pending autosave so it cannot race with this action
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
     }
+    const rootProps = (data.root?.props ?? {}) as Record<string, unknown>
+    const wantsDraft = rootProps.status === 'draft'
+
     setPublishError('')
     setPublishing(true)
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data }),
-      })
-      const d = await res.json()
-      if (!res.ok) {
-        setPublishError(d.error ?? 'Publish failed')
+      if (wantsDraft) {
+        // Settings tab has this set to Draft — honour it: unpublish (if currently live)
+        // and just save the content, never call the publish endpoint.
+        if (isPublished) {
+          const patchRes = await fetch(`/api/admin/pages/${pageId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'draft' }),
+          })
+          if (!patchRes.ok) {
+            const d = await patchRes.json()
+            setPublishError(d.error ?? 'Failed to unpublish')
+            return
+          }
+          setIsPublished(false)
+          setPublishedSlug(null)
+        }
+        await doAutosave(data)
       } else {
-        setIsPublished(true)
-        setLastSaved(new Date())
-        if (d.slug) setPublishedSlug(d.slug)
-        // Refresh history list if panel is open
-        if (showHistory) loadHistory()
+        const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data }),
+        })
+        const d = await res.json()
+        if (!res.ok) {
+          setPublishError(d.error ?? 'Publish failed')
+        } else {
+          setIsPublished(true)
+          setLastSaved(new Date())
+          if (d.slug) setPublishedSlug(d.slug)
+          loadHistory()
+        }
       }
     } catch {
-      setPublishError('Publish failed — check your connection')
+      setPublishError('Update failed — check your connection')
     } finally {
       setPublishing(false)
     }
-  }, [pageId, showHistory, loadHistory])
+  }, [pageId, loadHistory, isPublished, doAutosave])
 
   const handleRestore = useCallback(async (index: 'live' | number) => {
     setRestoringIndex(index)
@@ -303,168 +326,72 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [pageId, doAutosave])
 
-  function formatAt(at: string | null): string {
-    if (!at) return 'Unknown date'
-    try {
-      return new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-    } catch {
-      return at
-    }
-  }
+  const puckOverrides = useMemo(() => ({
+    header: createBackLinkOverride(backHref, 'Back to Pages'),
+  }), [backHref])
+
+  const plugins = useMemo(() => [
+    createPanelPlugin({
+      name: 'settings',
+      label: 'Settings',
+      icon: settingsTabIcon,
+      content: (
+        <PageSettingsTab
+          canManageMenus={canManageMenus}
+          pageId={pageId}
+          onDeleteClick={onDeleteClick}
+          deleting={deleting}
+          saving={saving}
+          lastSaved={lastSaved}
+          saveError={saveError}
+          publishError={publishError}
+          isPublished={isPublished}
+          publishedSlug={publishedSlug}
+        />
+      ),
+    }),
+    createPanelPlugin({
+      name: 'seo',
+      label: 'SEO',
+      icon: conditionsTabIcon,
+      content: <SeoTab />,
+    }),
+    createPanelPlugin({
+      name: 'history',
+      label: 'History',
+      icon: historyTabIcon,
+      content: (
+        <PageHistoryTab
+          versions={historyVersions}
+          loading={historyLoading}
+          error={historyError}
+          restoringIndex={restoringIndex}
+          onRestore={handleRestore}
+        />
+      ),
+    }),
+    createPanelPlugin({
+      name: 'saved-blocks',
+      label: 'Saved Blocks',
+      icon: savedBlocksTabIcon,
+      content: <SavedBlocksTab />,
+    }),
+  ], [canManageMenus, pageId, onDeleteClick, deleting, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      {/* Status bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '1rem',
-        padding: '0.5rem 1rem',
-        background: 'var(--color-bg-subtle)',
-        borderBottom: '1px solid var(--color-border)',
-        fontSize: '0.8125rem',
-        color: 'var(--color-text-muted)',
-        flexShrink: 0,
-      }}>
-        <span>
-          {saving ? 'Saving draft…'
-            : lastSaved ? `Draft saved ${lastSaved.toLocaleTimeString()}`
-            : 'Unsaved'}
-        </span>
-        {saveError && <span style={{ color: 'var(--color-destructive)' }}>{saveError}</span>}
-        {publishError && <span style={{ color: 'var(--color-destructive)' }}>{publishError}</span>}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {isPublished && (
-            <span className="badge badge-success" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>
-              Published
-            </span>
-          )}
-          {publishedSlug && (
-            <a
-              href={`/${publishedSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '0.25rem 0.75rem',
-                borderRadius: 4,
-                background: 'var(--color-success-bg)',
-                border: '1px solid var(--color-success)',
-                color: 'var(--color-success)',
-                textDecoration: 'none',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-              }}
-            >
-              View live page →
-            </a>
-          )}
-          <a
-            href={`/page-preview/${pageId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              padding: '0.25rem 0.75rem',
-              borderRadius: 4,
-              background: 'var(--color-bg)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text)',
-              textDecoration: 'none',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Preview
-          </a>
-          <button
-            onClick={toggleHistory}
-            style={{
-              padding: '0.25rem 0.75rem',
-              borderRadius: 4,
-              background: showHistory ? 'var(--color-bg-inverted)' : 'var(--color-bg)',
-              border: '1px solid var(--color-border)',
-              color: showHistory ? 'var(--color-bg)' : 'var(--color-text)',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Version history
-          </button>
-        </span>
-      </div>
-
-      {/* Version history panel */}
-      {showHistory && (
-        <div style={{
-          borderBottom: '1px solid var(--color-border)',
-          background: 'var(--color-bg)',
-          maxHeight: '280px',
-          overflowY: 'auto',
-          flexShrink: 0,
-        }}>
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '0.8125rem' }}>
-            Version history
-          </div>
-          {historyLoading && (
-            <div style={{ padding: '1rem', color: 'var(--color-muted)', fontSize: '0.8125rem' }}>Loading…</div>
-          )}
-          {historyError && (
-            <div style={{ padding: '1rem', color: 'var(--color-destructive)', fontSize: '0.8125rem' }}>{historyError}</div>
-          )}
-          {!historyLoading && !historyError && historyVersions.length === 0 && (
-            <div style={{ padding: '1rem', color: 'var(--color-muted)', fontSize: '0.8125rem' }}>No published versions yet.</div>
-          )}
-          {historyVersions.map((v) => (
-            <div
-              key={String(v.index)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.6rem 1rem',
-                borderBottom: '1px solid var(--color-border)',
-                fontSize: '0.8125rem',
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: v.isLive ? 600 : 400 }}>{v.title}</span>
-                {v.isLive && (
-                  <span style={{ marginLeft: '0.4rem', padding: '0.1rem 0.4rem', borderRadius: 3, background: 'var(--color-success-bg)', color: 'var(--color-success)', fontSize: '0.75rem', fontWeight: 600 }}>
-                    Live
-                  </span>
-                )}
-                <div style={{ color: 'var(--color-muted)', marginTop: '0.15rem', fontSize: '0.75rem' }}>
-                  {formatAt(v.at)}{v.byName ? ` · ${v.byName}` : ''}
-                </div>
-              </div>
-              <button
-                onClick={() => handleRestore(v.index)}
-                disabled={restoringIndex !== null}
-                style={{
-                  padding: '0.2rem 0.65rem',
-                  borderRadius: 4,
-                  background: 'var(--color-bg-subtle)',
-                  border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                  fontSize: '0.75rem',
-                  cursor: restoringIndex !== null ? 'not-allowed' : 'pointer',
-                  opacity: restoringIndex === v.index ? 0.6 : 1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {restoringIndex === v.index ? 'Loading…' : 'Load into editor'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Puck editor — takes remaining height */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Puck
-
-          config={editorConfig as any}
-          data={initialData}
-          onChange={handleChange}
-          onPublish={canPublish ? handlePublish : undefined}
-        />
+      <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
+        {canvasReady && (
+          <Puck
+            config={editorConfig as any}
+            data={initialData}
+            onChange={handleChange}
+            onPublish={canPublish ? handlePublish : undefined}
+            plugins={plugins}
+            overrides={puckOverrides}
+          />
+        )}
       </div>
 
       {publishing && (

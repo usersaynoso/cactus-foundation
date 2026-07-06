@@ -400,6 +400,14 @@ a:hover {
   min-height: 100vh;
 }
 
+/* Puck editor routes must never grow past the viewport - Puck's own panels handle
+   internal scrolling. min-height alone lets the shell grow with content (status bar
+   etc.) and pushes the whole page into document scroll, so cap it hard here instead. */
+.admin-shell:has(.admin-content--puck) {
+  height: 100vh;
+  overflow: hidden;
+}
+
 .admin-sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -1053,6 +1061,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .admin-topbar {
@@ -1075,6 +1084,7 @@ a:hover {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* ============================================================

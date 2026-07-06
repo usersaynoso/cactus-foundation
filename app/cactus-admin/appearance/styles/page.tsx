@@ -100,6 +100,15 @@ const TEXT_DECORATION_OPTIONS = [
   { value: 'line-through', label: 'Line-through' },
 ]
 
+function matchesColourSnapshot(
+  p: Omit<ColourPreset, 'id' | 'name'>,
+  snap: { primary: { light: string; dark: string }; linkColour: string; linkHoverColour: string; linkColourDark: string; linkHoverColourDark: string }
+): boolean {
+  return p.primary.light === snap.primary.light && p.primary.dark === snap.primary.dark &&
+    p.linkColour === snap.linkColour && p.linkHoverColour === snap.linkHoverColour &&
+    p.linkColourDark === snap.linkColourDark && p.linkHoverColourDark === snap.linkHoverColourDark
+}
+
 export default function StylesPage() {
   const router = useRouter()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
@@ -118,19 +127,44 @@ export default function StylesPage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
-  const activePreset = useMemo(() => {
+  type UserPreset = { id: string; name: string; tokens: Omit<ColourPreset, 'id' | 'name'> }
+  const [userPresets, setUserPresets] = useState<UserPreset[]>([])
+  const [presetModalOpen, setPresetModalOpen] = useState(false)
+  const [presetNameInput, setPresetNameInput] = useState('')
+  const [presetSaving, setPresetSaving] = useState(false)
+  const [presetError, setPresetError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/appearance/presets')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setUserPresets(d) })
+      .catch(() => {})
+  }, [])
+
+  const currentColourSnapshot = useMemo(() => {
     const primaryColour = tokens.designSystem.colours.find(c => c.id === 'primary')
       ?? tokens.designSystem.colours[0]
     if (!primaryColour) return null
-    return COLOUR_PRESETS.find(p =>
-      p.primary.light === primaryColour.light &&
-      p.primary.dark === primaryColour.dark &&
-      p.linkColour === (tokens.themeStyle.links.colour ?? '') &&
-      p.linkHoverColour === (tokens.themeStyle.links.hoverColour ?? '') &&
-      p.linkColourDark === (tokens.themeStyle.links.colourDark ?? '') &&
-      p.linkHoverColourDark === (tokens.themeStyle.links.hoverColourDark ?? '')
-    ) ?? null
+    return {
+      primary: { light: primaryColour.light, dark: primaryColour.dark },
+      linkColour: tokens.themeStyle.links.colour ?? '',
+      linkHoverColour: tokens.themeStyle.links.hoverColour ?? '',
+      linkColourDark: tokens.themeStyle.links.colourDark ?? '',
+      linkHoverColourDark: tokens.themeStyle.links.hoverColourDark ?? '',
+    }
   }, [tokens])
+
+  // A user preset match wins over a default preset match with identical values,
+  // since only one card should show as active at a time.
+  const activeUserPreset = useMemo(() => {
+    if (!currentColourSnapshot) return null
+    return userPresets.find(p => matchesColourSnapshot(p.tokens, currentColourSnapshot)) ?? null
+  }, [userPresets, currentColourSnapshot])
+
+  const activePreset = useMemo(() => {
+    if (activeUserPreset || !currentColourSnapshot) return null
+    return COLOUR_PRESETS.find(p => matchesColourSnapshot(p, currentColourSnapshot)) ?? null
+  }, [activeUserPreset, currentColourSnapshot])
 
   useEffect(() => {
     if (loading || activeTab !== 'colours') return
@@ -206,7 +240,7 @@ export default function StylesPage() {
     else setPendingHref(null) // save failed - stay put so the error toast is visible
   }, [pendingHref, handleSave, branding, router, setPendingHref, dirtyRef])
 
-  const handleApplyPreset = useCallback((preset: ColourPreset) => {
+  const handleApplyPreset = useCallback((preset: Omit<ColourPreset, 'id'> & { name: string }) => {
     if (dirtyRef.current && !confirm(`Apply the "${preset.name}" preset? Your unsaved colour changes will be replaced.`)) return
     setTokens(t => {
       const hasPrimary = t.designSystem.colours.some(c => c.id === 'primary')
@@ -229,6 +263,53 @@ export default function StylesPage() {
     dirtyRef.current = false
     setSaved(false)
   }, [dirtyRef])
+
+  const openSavePresetModal = useCallback(() => {
+    setPresetNameInput('')
+    setPresetError('')
+    setPresetModalOpen(true)
+  }, [])
+
+  const submitSavePreset = useCallback(async () => {
+    const trimmed = presetNameInput.trim()
+    if (!trimmed) { setPresetError('Name required'); return }
+    if (!currentColourSnapshot) { setPresetError('No colours to save'); return }
+    setPresetSaving(true); setPresetError('')
+    try {
+      const res = await fetch('/api/admin/appearance/presets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed, tokens: currentColourSnapshot }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setPresetError(d.error ?? 'Failed to save preset'); return }
+      setUserPresets(ps => [...ps, d])
+      setPresetModalOpen(false)
+    } catch { setPresetError('Failed to save preset') }
+    finally { setPresetSaving(false) }
+  }, [presetNameInput, currentColourSnapshot])
+
+  const handleUpdatePreset = useCallback(async (preset: { id: string; name: string }) => {
+    if (!currentColourSnapshot) return
+    if (!confirm(`Update "${preset.name}" with your current colours?`)) return
+    try {
+      const res = await fetch(`/api/admin/appearance/presets/${preset.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokens: currentColourSnapshot }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setError(d.error ?? 'Failed to update preset'); return }
+      setUserPresets(ps => ps.map(p => p.id === preset.id ? d : p))
+    } catch { setError('Failed to update preset') }
+  }, [currentColourSnapshot])
+
+  const handleDeletePreset = useCallback(async (preset: { id: string; name: string }) => {
+    if (!confirm(`Delete the "${preset.name}" preset? This can't be undone.`)) return
+    try {
+      const res = await fetch(`/api/admin/appearance/presets/${preset.id}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to delete preset'); return }
+      setUserPresets(ps => ps.filter(p => p.id !== preset.id))
+    } catch { setError('Failed to delete preset') }
+  }, [])
 
   const setDsColours = (colours: GlobalColour[]) => {
     dirtyRef.current = true
@@ -344,6 +425,29 @@ export default function StylesPage() {
         onSave={saveAndLeave}
       />
 
+      {presetModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 8, boxShadow: 'var(--shadow-elevated)', maxWidth: 380, width: '100%', padding: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 0.75rem', color: 'var(--color-fg)' }}>Save as preset</h2>
+            <div className="field" style={{ margin: '0 0 0.75rem' }}>
+              <label style={{ fontSize: '0.75rem' }}>Preset name</label>
+              <input
+                type="text"
+                value={presetNameInput}
+                onChange={e => setPresetNameInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submitSavePreset() }}
+                autoFocus
+              />
+            </div>
+            {presetError && <p style={{ fontSize: '0.8125rem', color: 'var(--color-danger)', margin: '0 0 0.75rem' }}>{presetError}</p>}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setPresetModalOpen(false)} disabled={presetSaving}>Cancel</button>
+              <button className="btn btn-primary" onClick={submitSavePreset} disabled={presetSaving}>{presetSaving ? 'Saving…' : 'Save preset'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <TabStrip
         items={([
           ['branding',   'Branding'],
@@ -365,13 +469,49 @@ export default function StylesPage() {
           <>
             <Section
               title="Colour Presets"
-              aside={!activePreset ? <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontStyle: 'italic' }}>Customised</span> : undefined}
+              aside={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {!activePreset && !activeUserPreset && <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontStyle: 'italic' }}>Customised</span>}
+                  {activeUserPreset ? (
+                    <button type="button" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }} onClick={() => handleUpdatePreset(activeUserPreset)}>Update preset</button>
+                  ) : (
+                    <button type="button" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }} onClick={openSavePresetModal}>Save as preset</button>
+                  )}
+                </div>
+              }
             >
               <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Quick-start colour schemes. Applying a preset updates your colour palette and link colours - everything else stays as you left it.</p>
               <div style={{ position: 'relative' }}>
                 <div ref={presetsScrollRef} className="no-scrollbar" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                  {userPresets.map(preset => {
+                    const isActive = activeUserPreset?.id === preset.id
+                    return (
+                      <div key={preset.id} style={{ position: 'relative', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPreset({ name: preset.name, ...preset.tokens })}
+                          style={{ border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 8, padding: '0.625rem 0.875rem', background: isActive ? 'var(--color-success-bg)' : 'var(--color-bg)', cursor: 'pointer', textAlign: 'left', minWidth: 110, fontFamily: 'inherit' }}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: 'var(--color-fg)', display: 'flex', alignItems: 'center', gap: '0.375rem', paddingRight: '0.75rem' }}>
+                            {preset.name}
+                            {isActive && <span style={{ fontSize: '0.6875rem', color: 'var(--color-success)' }}>✓</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3125rem' }}>
+                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.tokens.primary.light, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Light mode" />
+                            <div style={{ width: 18, height: 18, borderRadius: 3, background: preset.tokens.primary.dark, border: '1px solid var(--color-border)', flexShrink: 0 }} title="Dark mode" />
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePreset(preset)}
+                          title="Delete preset"
+                          style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', lineHeight: 1 }}
+                        >✕</button>
+                      </div>
+                    )
+                  })}
                   {COLOUR_PRESETS.map(preset => {
-                    const isActive = activePreset?.id === preset.id
+                    const isActive = !activeUserPreset && activePreset?.id === preset.id
                     return (
                       <button
                         key={preset.id}

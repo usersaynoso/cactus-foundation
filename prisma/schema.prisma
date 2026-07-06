@@ -225,6 +225,18 @@ enum SiteStatus {
   maintenance
 }
 
+// User-created colour presets for Styles > Colours. Shown in the preset bar
+// before the hardcoded COLOUR_PRESETS defaults (lib/design/tokens.ts), which
+// have no DB row and can't be overwritten/deleted through this model.
+model UserColourPreset {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  // { primary: {light, dark}, linkColour, linkHoverColour, linkColourDark, linkHoverColourDark }
+  tokens    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Info Pages
 // ---------------------------------------------------------------------------
@@ -347,6 +359,15 @@ model Layout {
   description       String?
   // Puck builder data for the body structure
   builderData       Json?
+  // Live content — only a publish (status -> published) writes this.
+  publishedData     Json?
+  // When the current live version was published.
+  publishedAt       DateTime?
+  // Who published the current live version (no Prisma relation, mirrors InfoPage style).
+  publishedById     String?
+  // Capped array of past published versions, newest first, max 10.
+  // Entry shape: { data, name, at, byId }
+  history           Json?
   // { include: ConditionRule[], exclude: ConditionRule[] }
   displayConditions Json?
   // Manual tiebreaker when two layouts have the same specificity score
@@ -356,6 +377,18 @@ model Layout {
   status            PageStatus @default(draft)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+}
+
+// A reusable Puck block snapshot, saved from any page or layout editor and
+// insertable back into any other. Single-tenant, no folders/categories.
+model SavedBlock {
+  id            String   @id @default(cuid())
+  name          String
+  // The Puck component type this snapshot was taken from (e.g. "Hero", "Card")
+  componentType String
+  // Full ComponentData blob (type + props), reinserted verbatim on use
+  data          Json
+  createdAt     DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------
