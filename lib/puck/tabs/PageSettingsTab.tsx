@@ -12,7 +12,20 @@ const labelStyle: React.CSSProperties = {
   display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem',
 }
 
-export default function PageSettingsTab({ canManageMenus }: { canManageMenus: boolean }) {
+type Props = {
+  canManageMenus: boolean
+  pageId: string
+  onDeleteClick: () => void
+  deleting: boolean
+  saving: boolean
+  lastSaved: Date | null
+  saveError: string
+  publishError: string
+  isPublished: boolean
+  publishedSlug: string | null
+}
+
+export default function PageSettingsTab({ canManageMenus, pageId, onDeleteClick, deleting, saving, lastSaved, saveError, publishError, isPublished, publishedSlug }: Props) {
   const { appState, dispatch } = usePuck()
   const props = (appState.data.root?.props ?? {}) as Record<string, unknown>
 
@@ -28,6 +41,29 @@ export default function PageSettingsTab({ canManageMenus }: { canManageMenus: bo
       <div style={{ fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem' }}>
         Page settings
       </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+          {saving ? 'Saving draft…' : lastSaved ? `Draft saved ${lastSaved.toLocaleTimeString()}` : 'Unsaved'}
+        </span>
+        {isPublished && (
+          <span className="badge badge-success" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>
+            Published
+          </span>
+        )}
+        {publishedSlug && (
+          <a
+            href={`/${publishedSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.75rem', color: 'var(--color-success)' }}
+          >
+            View live page →
+          </a>
+        )}
+      </div>
+      {saveError && <p style={{ fontSize: '0.75rem', margin: 0, color: 'var(--color-destructive)' }}>{saveError}</p>}
+      {publishError && <p style={{ fontSize: '0.75rem', margin: 0, color: 'var(--color-destructive)' }}>{publishError}</p>}
 
       <div>
         <label style={labelStyle}>Title</label>
@@ -69,6 +105,25 @@ export default function PageSettingsTab({ canManageMenus }: { canManageMenus: bo
           readOnly={false}
         />
       )}
+
+      <a
+        href={`/page-preview/${pageId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-secondary"
+        style={{ width: '100%', fontSize: '0.8125rem', textAlign: 'center', textDecoration: 'none' }}
+      >
+        Preview
+      </a>
+
+      <button
+        className="btn btn-danger"
+        style={{ width: '100%', fontSize: '0.8125rem' }}
+        disabled={deleting}
+        onClick={onDeleteClick}
+      >
+        Delete page
+      </button>
     </div>
   )
 }

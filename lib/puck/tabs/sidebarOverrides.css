@@ -23,3 +23,43 @@
     overflow-y: auto;
   }
 }
+
+/*
+ * Puck's root layout element hardcodes `height: 100dvh`, assuming it always fills the whole
+ * device viewport. Our editors nest it below our own topbar (breadcrumb, publish button, etc),
+ * so the real box Puck sits in is shorter than 100dvh. Puck still renders itself at full
+ * viewport height regardless, and our wrapper's `overflow: hidden` clips the excess off the
+ * bottom - taking the tail end of the right sidebar's field list with it. Fill the actual
+ * parent box instead so nothing renders past what's visible.
+ */
+[class*="_PuckLayout_"] {
+  height: 100% !important;
+}
+
+/*
+ * Back link injected via createBackLinkOverride (see headerBackLinkOverride.tsx), sitting
+ * in the blank gutter Puck's own header reserves to the left of its title. That gutter only
+ * exists at Puck's own desktop breakpoint (`_PuckHeader` padding-left starts at 638px), so
+ * this stays hidden below it rather than overlapping the mobile header's own content.
+ */
+.cactus-puck-back-link {
+  display: none;
+}
+@media (min-width: 638px) {
+  .cactus-puck-back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 67px;
+    height: 100%;
+    color: var(--puck-color-text-muted);
+    text-decoration: none;
+  }
+  .cactus-puck-back-link:hover {
+    color: var(--puck-color-text);
+    background: var(--puck-color-interactive-neutral-hover);
+  }
+}

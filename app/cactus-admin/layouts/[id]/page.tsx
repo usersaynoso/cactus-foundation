@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
-import Link from 'next/link'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import DisplayConditionsPanel from './DisplayConditionsPanel'
 import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
@@ -174,6 +173,19 @@ export default function LayoutEditorPage() {
     finally { setSaving(false) }
   }, [id])
 
+  const handleStatusChange = useCallback(async (status: string) => {
+    setSaving(true); setSaved(false); setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to update status') }
+      else { setLayout((l) => l ? { ...l, status } : l); setSaved(true); if (status === 'published') loadHistory() }
+    } catch { setError('Failed to update status') }
+    finally { setSaving(false) }
+  }, [id, loadHistory])
+
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>
   if (!layout) return <div style={{ padding: '2rem', color: 'var(--color-destructive)' }}>{error || 'Layout not found'}</div>
 
@@ -194,7 +206,12 @@ export default function LayoutEditorPage() {
       name={layout.name}
       description={layout.description}
       priority={layout.priority}
+      status={layout.status}
       onSave={handleSettingsSave}
+      onStatusChange={handleStatusChange}
+      saving={saving}
+      saved={saved}
+      error={error}
     />
   )
 
@@ -209,42 +226,16 @@ export default function LayoutEditorPage() {
   )
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem', color: 'var(--color-muted)', flexShrink: 0 }}>
-        <Link href={`/${adminPath}/layouts`} style={{ color: 'var(--color-muted)', textDecoration: 'none' }}>← Layouts</Link>
-        <span style={{ color: 'var(--color-border)' }}>|</span>
-        <span style={{ fontWeight: 500, color: 'var(--color-fg)' }}>{layout.name}</span>
-        <TypeBadge type={layout.type} />
-        {layout.status === 'published' && <span className="badge badge-green" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Published</span>}
-        {layout.status === 'draft' && <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>Draft</span>}
-        <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {saving && <span>Saving…</span>}
-          {!saving && saved && <span style={{ color: 'var(--color-success)' }}>Saved ✓</span>}
-          {error && <span style={{ color: 'var(--color-destructive)' }}>{error}</span>}
-        </span>
-      </div>
-      <LayoutPuckEditor
-        initialData={initialData}
-        onChange={handleChange}
-        onPublish={handlePublish}
-        isPublishing={saving}
-        layoutType={layout.type}
-        conditionsPanel={conditionsPanel}
-        settingsTab={settingsTab}
-        historyTab={historyTab}
-      />
-    </>
-  )
-}
-
-function TypeBadge({ type }: { type: string }) {
-  const labels: Record<string, string> = {
-    header: 'Header', footer: 'Footer', infoPage: 'Page Layout',
-    notFound: '404', statusPage: 'Status Page',
-  }
-  return (
-    <span className="badge badge-default" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: 'var(--text-xs)' }}>
-      {labels[type] ?? type}
-    </span>
+    <LayoutPuckEditor
+      initialData={initialData}
+      onChange={handleChange}
+      onPublish={handlePublish}
+      isPublishing={saving}
+      layoutType={layout.type}
+      backHref={`/${adminPath}/layouts`}
+      conditionsPanel={conditionsPanel}
+      settingsTab={settingsTab}
+      historyTab={historyTab}
+    />
   )
 }

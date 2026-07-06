@@ -8,12 +8,14 @@ import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig } from '@/lib/puck/config'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
+import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 
 type Props = {
@@ -22,6 +24,7 @@ type Props = {
   onPublish: (data: Data) => void
   isPublishing: boolean
   layoutType?: string
+  backHref: string
   conditionsPanel?: React.ReactNode
   settingsTab?: React.ReactNode
   historyTab?: React.ReactNode
@@ -40,7 +43,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, conditionsPanel, settingsTab, historyTab }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, conditionsPanel, settingsTab, historyTab }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
 
@@ -85,8 +88,11 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   // must stay visible with nothing selected. Every other config here leaves root.fields
   // undefined, so Puck falls back to a redundant default Title field — hide that case only.
   const puckOverrides = useMemo(
-    () => ((baseConfig as { root?: { fields?: unknown } }).root?.fields ? undefined : { fields: hideRootFieldsOverride }),
-    [baseConfig],
+    () => ({
+      header: createBackLinkOverride(backHref, 'Back to Layouts'),
+      ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
+    }),
+    [baseConfig, backHref],
   )
 
   const editorConfig = useMemo(() => ({
@@ -167,6 +173,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           overrides={puckOverrides}
           onPublish={() => onPublish(latestDataRef.current)}
           plugins={plugins}
+          headerTitle={getLayoutTypeLabel(layoutType)}
         />
       </div>
     </div>

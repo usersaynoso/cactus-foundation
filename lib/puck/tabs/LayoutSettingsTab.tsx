@@ -6,7 +6,12 @@ type Props = {
   name: string
   description: string | null
   priority: number
+  status: string
   onSave: (patch: { name: string; description: string | null; priority: number }) => void
+  onStatusChange: (status: string) => void
+  saving: boolean
+  saved: boolean
+  error: string
 }
 
 const inputStyle: React.CSSProperties = {
@@ -18,13 +23,25 @@ const labelStyle: React.CSSProperties = {
   display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem',
 }
 
-export default function LayoutSettingsTab({ name, description, priority, onSave }: Props) {
+export default function LayoutSettingsTab({ name, description, priority, status, onSave, onStatusChange, saving, saved, error }: Props) {
   const [local, setLocal] = useState({ name, description: description ?? '', priority })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       <div style={{ fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.6875rem' }}>
         Layout settings
+      </div>
+
+      <div>
+        <label style={labelStyle}>Status</label>
+        <select
+          style={inputStyle}
+          value={status}
+          onChange={(e) => onStatusChange(e.target.value)}
+        >
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
       </div>
 
       <div>
@@ -65,6 +82,12 @@ export default function LayoutSettingsTab({ name, description, priority, onSave 
       >
         Save Settings
       </button>
+
+      {(saving || saved || error) && (
+        <p style={{ fontSize: '0.75rem', margin: 0, color: error ? 'var(--color-destructive)' : saving ? 'var(--color-text-muted)' : 'var(--color-success)' }}>
+          {error || (saving ? 'Saving…' : 'Saved ✓')}
+        </p>
+      )}
     </div>
   )
 }

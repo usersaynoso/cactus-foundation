@@ -11,6 +11,7 @@ import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
 import SeoTab from '@/lib/puck/tabs/SeoTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
@@ -21,6 +22,9 @@ type Props = {
   initialData: Data
   canPublish: boolean
   canManageMenus: boolean
+  backHref: string
+  onDeleteClick: () => void
+  deleting: boolean
 }
 
 type HistoryVersion = {
@@ -33,7 +37,7 @@ type HistoryVersion = {
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
-export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus }: Props) {
+export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, backHref, onDeleteClick, deleting }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -280,12 +284,29 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [pageId, doAutosave])
 
+  const puckOverrides = useMemo(() => ({
+    header: createBackLinkOverride(backHref, 'Back to Pages'),
+  }), [backHref])
+
   const plugins = useMemo(() => [
     createPanelPlugin({
       name: 'settings',
       label: 'Settings',
       icon: settingsTabIcon,
-      content: <PageSettingsTab canManageMenus={canManageMenus} />,
+      content: (
+        <PageSettingsTab
+          canManageMenus={canManageMenus}
+          pageId={pageId}
+          onDeleteClick={onDeleteClick}
+          deleting={deleting}
+          saving={saving}
+          lastSaved={lastSaved}
+          saveError={saveError}
+          publishError={publishError}
+          isPublished={isPublished}
+          publishedSlug={publishedSlug}
+        />
+      ),
     }),
     createPanelPlugin({
       name: 'seo',
@@ -313,73 +334,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       icon: savedBlocksTabIcon,
       content: <SavedBlocksTab />,
     }),
-  ], [canManageMenus, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
+  ], [canManageMenus, pageId, onDeleteClick, deleting, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      {/* Status bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '1rem',
-        padding: '0.5rem 1rem',
-        background: 'var(--color-bg-subtle)',
-        borderBottom: '1px solid var(--color-border)',
-        fontSize: '0.8125rem',
-        color: 'var(--color-text-muted)',
-        flexShrink: 0,
-      }}>
-        <span>
-          {saving ? 'Saving draft…'
-            : lastSaved ? `Draft saved ${lastSaved.toLocaleTimeString()}`
-            : 'Unsaved'}
-        </span>
-        {saveError && <span style={{ color: 'var(--color-destructive)' }}>{saveError}</span>}
-        {publishError && <span style={{ color: 'var(--color-destructive)' }}>{publishError}</span>}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {isPublished && (
-            <span className="badge badge-success" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontWeight: 500 }}>
-              Published
-            </span>
-          )}
-          {publishedSlug && (
-            <a
-              href={`/${publishedSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '0.25rem 0.75rem',
-                borderRadius: 4,
-                background: 'var(--color-success-bg)',
-                border: '1px solid var(--color-success)',
-                color: 'var(--color-success)',
-                textDecoration: 'none',
-                fontSize: '0.8125rem',
-                fontWeight: 500,
-              }}
-            >
-              View live page →
-            </a>
-          )}
-          <a
-            href={`/page-preview/${pageId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              padding: '0.25rem 0.75rem',
-              borderRadius: 4,
-              background: 'var(--color-bg)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text)',
-              textDecoration: 'none',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Preview
-          </a>
-        </span>
-      </div>
-
       {/* Puck editor — takes remaining height */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <Puck
@@ -388,6 +346,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           onChange={handleChange}
           onPublish={canPublish ? handlePublish : undefined}
           plugins={plugins}
+          overrides={puckOverrides}
         />
       </div>
 
