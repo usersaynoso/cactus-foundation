@@ -158,6 +158,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
               spacing={props.spacing ?? 'normal'}
               showDropdowns={props.showDropdowns ?? 'hover'}
               showMobileToggle={props.showMobileToggle ?? 'collapse'}
+              showTabletToggle={props.showTabletToggle ?? 'collapse'}
               itemFontSize={props.itemFontSize}
               itemFontWeight={props.itemFontWeight}
               textTransform={props.textTransform}

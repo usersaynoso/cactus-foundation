@@ -195,6 +195,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             spacing={props.spacing ?? 'normal'}
             showDropdowns={props.showDropdowns ?? 'hover'}
             showMobileToggle={props.showMobileToggle ?? 'collapse'}
+            showTabletToggle={props.showTabletToggle ?? 'collapse'}
           />
         ),
       },

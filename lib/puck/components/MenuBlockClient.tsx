@@ -205,6 +205,7 @@ type Props = {
   textTransform?: string
   itemColor?: string
   showMobileToggle?: string
+  showTabletToggle?: string
   [key: string]: unknown
 }
 
@@ -216,6 +217,7 @@ export default function MenuBlockClient({
   textTransform = 'none',
   itemColor,
   showMobileToggle = 'collapse',
+  showTabletToggle = 'collapse',
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -236,20 +238,26 @@ export default function MenuBlockClient({
   if (textTransform !== 'none') overrides.textTransform = textTransform as React.CSSProperties['textTransform']
 
   const hasOverrides = Object.keys(overrides).length > 0
-  const showHamburger = showMobileToggle !== 'show' && resolvedItems.length > 0
+  const collapseMobile = showMobileToggle !== 'show'
+  const collapseTablet = showTabletToggle !== 'show'
+  const showHamburger = (collapseMobile || collapseTablet) && resolvedItems.length > 0
+  const collapseModifiers = [collapseMobile && 'cactus-nav-collapse-mobile', collapseTablet && 'cactus-nav-collapse-tablet'].filter(Boolean)
+  const menuClasses = ['cactus-nav-menu', ...collapseModifiers].join(' ')
+  const toggleBtnClasses = ['cactus-nav-toggle', ...collapseModifiers].join(' ')
 
   return (
     <>
       {showHamburger && (
-        // Base (non-breakpoint) display only. The mobile collapse @media rule is
-        // emitted by buildTokenStyles so it tracks the site's breakpoint setting.
+        // Base (non-breakpoint) display only. The breakpoint @media rules are
+        // emitted by buildTokenStyles so they track the site's breakpoint settings.
         <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`}</style>
       )}
 
       <ul
-        className={showHamburger ? 'cactus-nav-menu' : undefined}
+        className={showHamburger ? menuClasses : undefined}
         style={{
           display: showHamburger ? undefined : 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           listStyle: 'none',
           margin: 0,
@@ -264,7 +272,7 @@ export default function MenuBlockClient({
 
       {showHamburger && (
         <button
-          className="cactus-nav-toggle"
+          className={toggleBtnClasses}
           aria-label="Toggle menu"
           aria-expanded={mobileOpen}
           onClick={() => setMobileOpen((o) => !o)}

@@ -9,6 +9,7 @@ type Props = {
   spacing: 'tight' | 'normal' | 'wide'
   showDropdowns: string
   showMobileToggle: string
+  showTabletToggle: string
   itemFontSize?: 'small' | 'medium' | 'large'
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
@@ -20,7 +21,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ menuId, orientation, spacing, showMobileToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor }: Props) {
+export default function MenuBlockEditorPreview({ menuId, orientation, spacing, showMobileToggle, showTabletToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -86,6 +87,7 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, s
       textTransform={textTransform}
       itemColor={itemColor}
       showMobileToggle={showMobileToggle}
+      showTabletToggle={showTabletToggle}
     />
   )
 }
