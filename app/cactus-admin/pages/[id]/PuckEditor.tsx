@@ -50,6 +50,25 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   // Current editor data — kept in a ref so restore can read it without stale closure
   const currentDataRef = useRef<Data>(initialData)
+  const canvasWrapRef = useRef<HTMLDivElement>(null)
+  const [canvasReady, setCanvasReady] = useState(false)
+
+  // Puck measures this wrapper on mount to size its zoomed canvas. If it mounts while
+  // the wrapper is still 0x0 (flex layout not yet settled), Puck's height/width === 0
+  // divide-by-zero produces a transient `NaN` height console error. Wait for a real
+  // measured size before mounting <Puck> so its first measurement is already correct.
+  useEffect(() => {
+    const el = canvasWrapRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) { setCanvasReady(true); observer.disconnect() }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // The admin shell only carries its own --color-primary family (buildAdminThemeStyles).
   // Blocks read the site's actual design tokens (--btn-bg, --h2-family, --caption-*,
@@ -362,15 +381,17 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {/* Puck editor — takes remaining height */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Puck
-          config={editorConfig as any}
-          data={initialData}
-          onChange={handleChange}
-          onPublish={canPublish ? handlePublish : undefined}
-          plugins={plugins}
-          overrides={puckOverrides}
-        />
+      <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
+        {canvasReady && (
+          <Puck
+            config={editorConfig as any}
+            data={initialData}
+            onChange={handleChange}
+            onPublish={canPublish ? handlePublish : undefined}
+            plugins={plugins}
+            overrides={puckOverrides}
+          />
+        )}
       </div>
 
       {publishing && (

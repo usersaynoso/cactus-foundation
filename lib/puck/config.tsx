@@ -2017,10 +2017,13 @@ const headerRootRender = ({ children, bg = { mode: 'color', color: '' }, height 
         padding: '0 1.5rem',
         height: '100%',
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
       }}>
-        {children}
+        {/* Row's cross-axis (alignItems above) centres this vertically; without an
+            explicit width the content zone shrinks to its own content on the main
+            axis instead of spanning the header, so it must be forced full-width here. */}
+        <div style={{ width: '100%' }}>{children}</div>
       </div>
     </header>
   )

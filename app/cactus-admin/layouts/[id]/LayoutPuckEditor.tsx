@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
@@ -46,6 +46,25 @@ function getConfig(type: string | undefined) {
 export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, conditionsPanel, settingsTab, historyTab }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
+  const canvasWrapRef = useRef<HTMLDivElement>(null)
+  const [canvasReady, setCanvasReady] = useState(false)
+
+  // Puck measures this wrapper on mount to size its zoomed canvas. If it mounts while
+  // the wrapper is still 0x0 (flex layout not yet settled), Puck's height/width === 0
+  // divide-by-zero produces a transient `NaN` height console error. Wait for a real
+  // measured size before mounting <Puck> so its first measurement is already correct.
+  useEffect(() => {
+    const el = canvasWrapRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) { setCanvasReady(true); observer.disconnect() }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -165,16 +184,18 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Puck
-          config={editorConfig as any}
-          data={initialData}
-          onChange={handleChange}
-          overrides={puckOverrides}
-          onPublish={() => onPublish(latestDataRef.current)}
-          plugins={plugins}
-          headerTitle={getLayoutTypeLabel(layoutType)}
-        />
+      <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
+        {canvasReady && (
+          <Puck
+            config={editorConfig as any}
+            data={initialData}
+            onChange={handleChange}
+            overrides={puckOverrides}
+            onPublish={() => onPublish(latestDataRef.current)}
+            plugins={plugins}
+            headerTitle={getLayoutTypeLabel(layoutType)}
+          />
+        )}
       </div>
     </div>
   )

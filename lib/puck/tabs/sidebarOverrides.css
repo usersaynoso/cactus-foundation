@@ -37,6 +37,19 @@
 }
 
 /*
+ * The rule above only pins PuckLayout's height to *its own parent's* height — Puck's root
+ * wrapper (`.Puck` / `_Puck_...`), which is a plain block div with no height of its own, so
+ * it just grows to fit its tallest child (usually the right-hand field sidebar). "100%"
+ * then resolves against that unbounded, content-sized box and constrains nothing. Pin the
+ * root too so the whole chain is finally bounded by our own admin chrome, letting Puck's
+ * built-in `overflow-y: auto` panes (e.g. the right sidebar) scroll instead of the tail end
+ * getting silently clipped by our wrapper's `overflow: hidden`.
+ */
+[class*="_Puck_"] {
+  height: 100%;
+}
+
+/*
  * Back link injected via createBackLinkOverride (see headerBackLinkOverride.tsx), sitting
  * in the blank gutter Puck's own header reserves to the left of its title. That gutter only
  * exists at Puck's own desktop breakpoint (`_PuckHeader` padding-left starts at 638px), so
