@@ -25,7 +25,7 @@ import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { BorderField } from '@/lib/puck/BorderField'
-import { SectionBgColorField, HeroBgColorField, HeaderBgColorField } from '@/lib/puck/BgColorField'
+import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
@@ -1272,6 +1272,23 @@ export function SiteLogoRsc(props: any) {
 // Main puckConfig
 // ---------------------------------------------------------------------------
 
+// Page-wide chrome: background colour behind/between Sections, plus optional
+// breathing room above the first Section and below the last. Deliberately no
+// max-width field here — every Section already carries its own maxWidth and
+// manages its own full-bleed background, so a root-level max-width would clip
+// straight through any Section set to "Full bleed".
+const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem' }
+
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none' }: any) => {
+  const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
+  const padding = pagePaddingYMap[paddingY] ?? '0'
+  return (
+    <div style={{ background, paddingTop: padding, paddingBottom: padding }}>
+      {children}
+    </div>
+  )
+}
+
 export const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
@@ -1285,7 +1302,12 @@ export const puckConfig = {
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
-    render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    fields: {
+      bg:       { type: 'custom' as const, label: 'Page background', render: PageBgColorField },
+      paddingY: { type: 'select' as const, label: 'Padding above/below content', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+    },
+    defaultProps: { bg: { mode: 'none', color: '' }, paddingY: 'none' },
+    render: pageRootRender,
   },
   components: {
     // ── Layout ──────────────────────────────────────────────────────────────

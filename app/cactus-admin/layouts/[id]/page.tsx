@@ -209,7 +209,7 @@ export default function LayoutEditorPage() {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem 1rem', background: 'var(--admin-bg-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: '0.8125rem', color: 'var(--color-muted)', flexShrink: 0 }}>
         <Link href={`/${adminPath}/layouts`} style={{ color: 'var(--color-muted)', textDecoration: 'none' }}>← Layouts</Link>
         <span style={{ color: 'var(--color-border)' }}>|</span>
@@ -233,7 +233,7 @@ export default function LayoutEditorPage() {
         settingsTab={settingsTab}
         historyTab={historyTab}
       />
-    </div>
+    </>
   )
 }
 

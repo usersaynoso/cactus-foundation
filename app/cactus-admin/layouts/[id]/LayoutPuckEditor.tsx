@@ -12,7 +12,8 @@ import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
-import { createPanelPlugin, tabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 
 type Props = {
@@ -80,6 +81,13 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   }, [])
 
   const baseConfig = getConfig(layoutType)
+  // Header/footer configs define real root-level fields (background, height, etc.) that
+  // must stay visible with nothing selected. Every other config here leaves root.fields
+  // undefined, so Puck falls back to a redundant default Title field — hide that case only.
+  const puckOverrides = useMemo(
+    () => ((baseConfig as { root?: { fields?: unknown } }).root?.fields ? undefined : { fields: hideRootFieldsOverride }),
+    [baseConfig],
+  )
 
   const editorConfig = useMemo(() => ({
     ...baseConfig,
@@ -143,21 +151,24 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   }, [onChange])
 
   const plugins = useMemo(() => [
-    ...(settingsTab ? [createPanelPlugin({ name: 'settings', label: 'Settings', icon: tabIcon('⚙'), content: settingsTab })] : []),
-    ...(conditionsPanel ? [createPanelPlugin({ name: 'conditions', label: 'Conditions', icon: tabIcon('◎'), content: conditionsPanel })] : []),
-    ...(historyTab ? [createPanelPlugin({ name: 'history', label: 'History', icon: tabIcon('↺'), content: historyTab })] : []),
-    createPanelPlugin({ name: 'saved-blocks', label: 'Saved Blocks', icon: tabIcon('▤'), content: <SavedBlocksTab /> }),
+    ...(settingsTab ? [createPanelPlugin({ name: 'settings', label: 'Settings', icon: settingsTabIcon, content: settingsTab })] : []),
+    ...(conditionsPanel ? [createPanelPlugin({ name: 'conditions', label: 'Conditions', icon: conditionsTabIcon, content: conditionsPanel })] : []),
+    ...(historyTab ? [createPanelPlugin({ name: 'history', label: 'History', icon: historyTabIcon, content: historyTab })] : []),
+    createPanelPlugin({ name: 'saved-blocks', label: 'Saved Blocks', icon: savedBlocksTabIcon, content: <SavedBlocksTab /> }),
   ], [settingsTab, conditionsPanel, historyTab])
 
   return (
-    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <Puck
-        config={editorConfig as any}
-        data={initialData}
-        onChange={handleChange}
-        onPublish={() => onPublish(latestDataRef.current)}
-        plugins={plugins}
-      />
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <Puck
+          config={editorConfig as any}
+          data={initialData}
+          onChange={handleChange}
+          overrides={puckOverrides}
+          onPublish={() => onPublish(latestDataRef.current)}
+          plugins={plugins}
+        />
+      </div>
     </div>
   )
 }

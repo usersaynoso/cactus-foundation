@@ -72,3 +72,8 @@ export const HeaderBgColorField: CustomFieldRender<BgColorValue> = (props) => us
   { value: 'transparent', label: 'Always transparent' },
   { value: 'transparent-scroll', label: 'Transparent → solid on scroll' },
 ], props)
+
+export const PageBgColorField: CustomFieldRender<BgColorValue> = (props) => useBgColorFieldBody([
+  { value: 'none', label: 'None (site background)' },
+  { value: 'color', label: 'Colour' },
+], props)

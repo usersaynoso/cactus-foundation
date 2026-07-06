@@ -10,7 +10,7 @@ import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
-import { createPanelPlugin, tabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
 import SeoTab from '@/lib/puck/tabs/SeoTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
@@ -284,19 +284,19 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     createPanelPlugin({
       name: 'settings',
       label: 'Settings',
-      icon: tabIcon('⚙'),
+      icon: settingsTabIcon,
       content: <PageSettingsTab canManageMenus={canManageMenus} />,
     }),
     createPanelPlugin({
       name: 'seo',
       label: 'SEO',
-      icon: tabIcon('◈'),
+      icon: conditionsTabIcon,
       content: <SeoTab />,
     }),
     createPanelPlugin({
       name: 'history',
       label: 'History',
-      icon: tabIcon('↺'),
+      icon: historyTabIcon,
       content: (
         <PageHistoryTab
           versions={historyVersions}
@@ -310,7 +310,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     createPanelPlugin({
       name: 'saved-blocks',
       label: 'Saved Blocks',
-      icon: tabIcon('▤'),
+      icon: savedBlocksTabIcon,
       content: <SavedBlocksTab />,
     }),
   ], [canManageMenus, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
