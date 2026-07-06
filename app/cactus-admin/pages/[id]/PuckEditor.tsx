@@ -217,34 +217,57 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   }, [pageId])
 
   const handlePublish = useCallback(async (data: Data) => {
-    // Cancel any pending autosave so it cannot race with the publish
+    // Cancel any pending autosave so it cannot race with this action
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
     }
+    const rootProps = (data.root?.props ?? {}) as Record<string, unknown>
+    const wantsDraft = rootProps.status === 'draft'
+
     setPublishError('')
     setPublishing(true)
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data }),
-      })
-      const d = await res.json()
-      if (!res.ok) {
-        setPublishError(d.error ?? 'Publish failed')
+      if (wantsDraft) {
+        // Settings tab has this set to Draft — honour it: unpublish (if currently live)
+        // and just save the content, never call the publish endpoint.
+        if (isPublished) {
+          const patchRes = await fetch(`/api/admin/pages/${pageId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'draft' }),
+          })
+          if (!patchRes.ok) {
+            const d = await patchRes.json()
+            setPublishError(d.error ?? 'Failed to unpublish')
+            return
+          }
+          setIsPublished(false)
+          setPublishedSlug(null)
+        }
+        await doAutosave(data)
       } else {
-        setIsPublished(true)
-        setLastSaved(new Date())
-        if (d.slug) setPublishedSlug(d.slug)
-        loadHistory()
+        const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data }),
+        })
+        const d = await res.json()
+        if (!res.ok) {
+          setPublishError(d.error ?? 'Publish failed')
+        } else {
+          setIsPublished(true)
+          setLastSaved(new Date())
+          if (d.slug) setPublishedSlug(d.slug)
+          loadHistory()
+        }
       }
     } catch {
-      setPublishError('Publish failed — check your connection')
+      setPublishError('Update failed — check your connection')
     } finally {
       setPublishing(false)
     }
-  }, [pageId, loadHistory])
+  }, [pageId, loadHistory, isPublished, doAutosave])
 
   const handleRestore = useCallback(async (index: 'live' | number) => {
     setRestoringIndex(index)

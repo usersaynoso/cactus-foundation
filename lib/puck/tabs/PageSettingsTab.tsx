@@ -91,7 +91,7 @@ export default function PageSettingsTab({ canManageMenus, pageId, onDeleteClick,
           onChange={(e) => set('status', e.target.value)}
         >
           <option value="draft">Draft</option>
-          <option value="published">Published (use Publish button)</option>
+          <option value="published">Published</option>
         </select>
       </div>
 
