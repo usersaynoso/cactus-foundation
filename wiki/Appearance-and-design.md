@@ -74,7 +74,7 @@ Your global colours each have a separate light and dark variant. On top of that,
 
 **Appearance → Layouts** is where you build the structural templates for your site - the header, footer, page wrapper, and special pages like 404 errors.
 
-Layouts use exactly the same drag-and-drop editor as pages, with all the same blocks available.
+Layouts use exactly the same drag-and-drop editor as pages, with all the same blocks available. The left panel has the same **Blocks** and **Outline** tabs as the page editor, plus **Settings** (name, description, and a manual priority tiebreaker), **Conditions** (see Display conditions below), **History** (past published versions, with restore), and **Saved Blocks** (reuse a block saved from any page or layout).
 
 ### Layout types
 
@@ -109,7 +109,7 @@ The **Site logo**, **Menu**, **Login button**, **Copyright**, and **Cookie setti
 
 ### Display conditions
 
-Each layout can be set to apply to specific contexts - so you can have a different header on your homepage, a simplified layout for a particular section, or a unique 404 page. Set this with the **Display conditions** controls on the layout editor.
+Each layout can be set to apply to specific contexts - so you can have a different header on your homepage, a simplified layout for a particular section, or a unique 404 page. Set this on the **Conditions** tab in the layout editor.
 
 Options include:
 - Entire site

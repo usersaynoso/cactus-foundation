@@ -17,7 +17,13 @@ Pages in Cactus are built using a drag-and-drop visual editor. There's no coding
 
 The editor has three areas:
 
-- **Left panel** - browse and drag blocks onto your page. Blocks are organised into categories.
+- **Left panel** - a row of tabs down the side:
+  - **Blocks** - browse and drag blocks onto your page, organised into categories.
+  - **Outline** - a tree view of every block on the page, handy for jumping to something buried deep in the layout.
+  - **Settings** - the page's title, URL slug, status, and which menus it appears in.
+  - **SEO** - the page's meta description and social-share (OG) image.
+  - **History** - past published versions, with a one-click restore.
+  - **Saved Blocks** - save any block as a reusable snippet, then drop it into any other page or layout.
 - **Canvas** (centre) - a live preview of your page. Click any block to select it.
 - **Right panel** - settings for the selected block. Change text, images, colours, and more here.
 
@@ -131,7 +137,7 @@ Every time you publish, Cactus saves a copy of the previous live version. Up to 
 
 To restore an older version:
 
-1. In the editor, look for the **History** panel (usually in the left panel or toolbar).
+1. In the editor, open the **History** tab in the left panel.
 2. Click a past version to see what it looked like.
 3. Click **Load into editor** to make it your current draft.
 4. Click **Publish** to make it live again.

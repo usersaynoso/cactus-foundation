@@ -6,6 +6,7 @@ import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
+import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
@@ -15,6 +16,7 @@ import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
@@ -99,6 +101,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     return () => observer.disconnect()
   }, [])
 
+  const [designTokens, setDesignTokens] = useState<unknown>(null)
+
   useEffect(() => {
     let mounted = true
     let styleEl: HTMLStyleElement | null = null
@@ -108,6 +112,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
       .then(r => r.json())
       .then(async d => {
         if (!mounted || !d.designTokens) return
+        setDesignTokens(d.designTokens)
         const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
         const css = buildTokenStyles(d.designTokens)
         const href = buildFontHref(d.designTokens)
@@ -143,6 +148,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   // Header/footer configs define real root-level fields (background, height, etc.) that
   // must stay visible with nothing selected. Every other config here leaves root.fields
   // undefined, so Puck falls back to a redundant default Title field — hide that case only.
+  const puckViewports = useMemo(() => buildPuckViewports(designTokens), [designTokens])
+
   const puckOverrides = useMemo(
     () => ({
       header: createBackLinkOverride(backHref, 'Back to Layouts'),
@@ -153,8 +160,9 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         canDelete,
       }),
       ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
+      puck: createViewportDropdownOverride(puckViewports),
     }),
-    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete],
+    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports],
   )
 
   const editorConfig = useMemo(() => ({
@@ -272,6 +280,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
             overrides={puckOverrides}
             onPublish={() => onPublish(latestDataRef.current)}
             plugins={plugins}
+            viewports={puckViewports}
             headerTitle={getLayoutTypeLabel(layoutType)}
           />
         )}
