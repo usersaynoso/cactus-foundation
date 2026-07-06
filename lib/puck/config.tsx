@@ -27,6 +27,9 @@ import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { BorderField } from '@/lib/puck/BorderField'
 import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
+import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
+import { VisibilityField } from '@/lib/puck/VisibilityField'
+import { normalizeResponsiveValue, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -127,6 +130,51 @@ const aosFields = {
 }
 const aosDefaults = { animationType: 'none', animationDuration: 'normal', animationDelay: 'none' }
 
+// Responsive visibility — injected into every component below (see the
+// `withResponsiveVisibility` map at the bottom of `components:`) rather than
+// hand-added per block, so all ~40+ block types (including module-contributed
+// ones) get it uniformly. Reuses the .hide-mobile/-tablet/-desktop utility
+// classes already emitted by buildTokenStyles (lib/design/tokens.ts).
+// Single combined field (VisibilityField) replaces the old three separate
+// "Hide on desktop / tablet / mobile: Yes/No" dropdowns with one row of
+// Desktop/Tablet/Mobile icon toggles.
+const VISIBILITY_FIELDS = {
+  visibility: { type: 'custom' as const, label: 'Visibility', render: VisibilityField },
+}
+const VISIBILITY_DEFAULTS = { visibility: { desktop: 'false', tablet: 'false', mobile: 'false' } }
+
+// `display:contents` keeps the wrapper out of layout entirely when nothing is
+// hidden (so flex/grid parents see the block's own markup as before), while
+// still giving the responsive @media rules an element to hide when it is.
+// Exported separately from `withResponsiveVisibility` because config.rsc.tsx
+// swaps in RSC-only render functions for a handful of components (SiteLogo,
+// Members*, LayoutEmbed) without re-declaring their fields — reusing this
+// wrapper there keeps those live-site renders honouring the same hide
+// settings the editor exposes, instead of silently ignoring them.
+export function wrapResponsiveRender(render: (props: any) => React.ReactNode) {
+  return function ResponsiveVisibility(props: any) {
+    const { visibility, ...rest } = props
+    const v = normalizeResponsiveValue<string>(visibility)
+    const classes = [
+      v.desktop === 'true' && 'hide-desktop',
+      v.tablet === 'true' && 'hide-tablet',
+      v.mobile === 'true' && 'hide-mobile',
+    ].filter(Boolean).join(' ')
+    const content = render(rest)
+    if (!classes) return content
+    return <div className={classes} style={{ display: 'contents' }}>{content}</div>
+  }
+}
+
+function withResponsiveVisibility(def: any): any {
+  return {
+    ...def,
+    fields: { ...VISIBILITY_FIELDS, ...def.fields },
+    defaultProps: { ...VISIBILITY_DEFAULTS, ...def.defaultProps },
+    render: wrapResponsiveRender(def.render),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Layout blocks
 // ---------------------------------------------------------------------------
@@ -149,16 +197,45 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, spaceBelow } = props
+  const { id, columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
-  const colWidths = [col1Width, col2Width, col3Width, col4Width]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
+
+  // columnSizes/col*Width are ResponsiveValue<string> objects ({desktop,
+  // tablet, mobile}), but pre-existing data (and any default) stores them as
+  // a plain string - normalise before reading a breakpoint out of them.
+  const sizes = normalizeResponsiveValue<string>(columnSizes)
+  const widths = [col1Width, col2Width, col3Width, col4Width].map((w) => normalizeResponsiveValue<string>(w))
+  const pick = (rv: ResponsiveValue<string>, device: 'desktop' | 'tablet' | 'mobile'): string | undefined =>
+    device === 'desktop' ? rv.desktop : device === 'tablet' ? (rv.tablet ?? rv.desktop) : (rv.mobile ?? rv.tablet ?? rv.desktop)
+  const effectiveAt = (device: 'desktop' | 'tablet' | 'mobile') =>
+    getGridTemplateColumns(pick(sizes, device), colCount, widths.map((w) => pick(w, device)))
+  const desktopCols = effectiveAt('desktop')
+  const tabletCols = effectiveAt('tablet')
+  const mobileCols = effectiveAt('mobile')
+  const hasResponsiveOverride = tabletCols !== desktopCols || mobileCols !== desktopCols
+  // data-responsive-set opts this instance out of the generic tablet/mobile
+  // collapse rules in buildTokenStyles (lib/design/tokens.ts), which only
+  // exist as a sane default for grids that haven't set their own breakpoint
+  // columns here.
   return (
-    <div className="puck-grid" data-cols={colCount} style={{
+    <>
+      {hasResponsiveOverride && (
+        <style>{[
+          tabletCols !== desktopCols && `@media(min-width:640px) and (max-width:1024px){[data-grid-id="${id}"]{grid-template-columns:${tabletCols} !important;}}`,
+          mobileCols !== desktopCols && `@media(max-width:640px){[data-grid-id="${id}"]{grid-template-columns:${mobileCols} !important;}}`,
+        ].filter(Boolean).join('\n')}</style>
+      )}
+      <div
+        className="puck-grid"
+        data-cols={colCount}
+        data-grid-id={id}
+        {...(hasResponsiveOverride ? { 'data-responsive-set': '' } : {})}
+        style={{
       display: 'grid',
-      gridTemplateColumns: getGridTemplateColumns(columnSizes, colCount, colWidths),
+      gridTemplateColumns: desktopCols,
       gap: GAP_MAP[gap] ?? '1rem',
       padding: getPadding(padding),
       marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
@@ -179,7 +256,8 @@ function GridBlock(props: any) {
           </div>
         )
       })}
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -210,7 +288,7 @@ function SiteHeaderBlock(props: any) {
     sticky = 'yes', border = { show: 'show', color: 'var(--color-border)' },
     maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
     logoHomeUrl = '/', itemFontSize = 'medium', itemFontWeight = 'medium',
-    itemColor = '', showMobileToggle = 'collapse',
+    itemColor = '', showMobileToggle = 'collapse', showTabletToggle = 'collapse',
   } = props
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color || 'var(--color-bg)'
@@ -241,7 +319,7 @@ function SiteHeaderBlock(props: any) {
       }}>
         <SiteLogoRsc logoUrl={logoUrl} logoUrlDark={logoUrlDark} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
         {resolvedItems && (
-          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} />
+          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
         )}
       </div>
     </header>
@@ -1145,7 +1223,14 @@ function MenuBlock(props: any) {
       </nav>
     )
   }
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showMobileToggle={props.showMobileToggle} />
+  // Cascading fallback (tablet inherits desktop, mobile inherits tablet) matches the
+  // "Same as desktop"/"Same as tablet" placeholder text ResponsiveSelectField shows
+  // for an unset breakpoint - and GridBlock's identical pick() for column widths.
+  const nav = normalizeResponsiveValue<string>(props.navToggle)
+  const showDesktopToggle = nav.desktop ?? 'show'
+  const showTabletToggle = nav.tablet ?? showDesktopToggle
+  const showMobileToggle = nav.mobile ?? showTabletToggle
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} />
 }
 
 function LoginButton(props: any) {
@@ -1309,7 +1394,8 @@ export const puckConfig = {
     defaultProps: { bg: { mode: 'none', color: '' }, paddingY: 'none' },
     render: pageRootRender,
   },
-  components: {
+  components: (() => {
+    const raw: Record<string, any> = {
     // ── Layout ──────────────────────────────────────────────────────────────
     Section: {
       label: 'Section',
@@ -1340,7 +1426,7 @@ export const puckConfig = {
       label: 'Grid',
       fields: {
         columns: { type: 'select' as const, label: 'Columns', options: [{ value: '2', label: '2 columns' }, { value: '3', label: '3 columns' }, { value: '4', label: '4 columns' }] },
-        columnSizes: { type: 'select' as const, label: 'Column widths (2-col)', options: [{ value: 'equal', label: 'Equal' }, { value: 'auto-fill', label: 'Auto + fill' }, { value: 'fill-auto', label: 'Fill + auto' }, { value: '30-70', label: '30 / 70' }, { value: '40-60', label: '40 / 60' }, { value: '60-40', label: '60 / 40' }, { value: '70-30', label: '70 / 30' }] },
+        columnSizes: { type: 'custom' as const, label: 'Column widths (2-col)', options: [{ value: 'equal', label: 'Equal' }, { value: 'auto-fill', label: 'Auto + fill' }, { value: 'fill-auto', label: 'Fill + auto' }, { value: '30-70', label: '30 / 70' }, { value: '40-60', label: '40 / 60' }, { value: '60-40', label: '60 / 40' }, { value: '70-30', label: '70 / 30' }], render: ResponsiveSelectField },
         verticalAlign: { type: 'select' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }] },
         gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         padding: paddingField,
@@ -1349,10 +1435,10 @@ export const puckConfig = {
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
-        col1Width: { type: 'text' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr - overrides preset)' },
-        col2Width: { type: 'text' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr - overrides preset)' },
-        col3Width: { type: 'text' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr - overrides preset)' },
-        col4Width: { type: 'text' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr - overrides preset)' },
+        col1Width: { type: 'custom' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
+        col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
+        col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
+        col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
       defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '' },
@@ -1749,9 +1835,9 @@ export const puckConfig = {
         textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
         itemColor: { type: 'text' as const, label: 'Link colour' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
-        showMobileToggle: { type: 'select' as const, label: 'Mobile behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
+        navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', showMobileToggle: 'collapse' },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' } },
       render: MenuBlock,
     },
     LoginButton: {
@@ -1843,17 +1929,20 @@ export const puckConfig = {
         itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         itemColor:        { type: 'custom' as const, label: 'Nav link colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
+        showTabletToggle: { type: 'select' as const, label: 'Tablet nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
       },
       defaultProps: {
         bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes',
         border: { show: 'show', color: '' }, maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
-        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse',
+        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse', showTabletToggle: 'collapse',
       },
       render: SiteHeaderBlock,
     },
     ...moduleComponents,
-  },
+    }
+    return Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, withResponsiveVisibility(value)]))
+  })(),
 } satisfies Config
 
 export default puckConfig

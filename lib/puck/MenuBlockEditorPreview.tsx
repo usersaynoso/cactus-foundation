@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react'
 import type { PublicMenuItem } from '@/lib/menu/resolve'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
+import { normalizeResponsiveValue, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 
 type Props = {
   menuId: string
   orientation: 'horizontal' | 'vertical'
   spacing: 'tight' | 'normal' | 'wide'
   showDropdowns: string
-  showMobileToggle: string
+  navToggle: ResponsiveValue<string> | string | undefined
   itemFontSize?: 'small' | 'medium' | 'large'
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
@@ -20,7 +21,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ menuId, orientation, spacing, showMobileToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor }: Props) {
+export default function MenuBlockEditorPreview({ menuId, orientation, spacing, navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -77,6 +78,14 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, s
     )
   }
 
+  // Cascading fallback (tablet inherits desktop, mobile inherits tablet) matches the
+  // "Same as desktop"/"Same as tablet" placeholder text ResponsiveSelectField shows
+  // for an unset breakpoint - and MenuBlock's identical resolution in config.tsx.
+  const nav = normalizeResponsiveValue<string>(navToggle)
+  const showDesktopToggle = nav.desktop ?? 'show'
+  const showTabletToggle = nav.tablet ?? showDesktopToggle
+  const showMobileToggle = nav.mobile ?? showTabletToggle
+
   return (
     <MenuBlockClient
       resolvedItems={items}
@@ -85,6 +94,8 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, s
       itemFontWeight={itemFontWeight}
       textTransform={textTransform}
       itemColor={itemColor}
+      showDesktopToggle={showDesktopToggle}
+      showTabletToggle={showTabletToggle}
       showMobileToggle={showMobileToggle}
     />
   )

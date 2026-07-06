@@ -21,7 +21,7 @@ const menu = (id: string, overrides?: Record<string, unknown>) => ({
   props: {
     id, menuId: '', menuName: '', orientation: 'horizontal', spacing: 'normal',
     itemFontSize: 'medium', itemFontWeight: 'medium', textTransform: 'none',
-    itemColor: '', showDropdowns: 'hover', showMobileToggle: 'collapse',
+    itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' },
     ...overrides,
   },
 })
@@ -224,7 +224,7 @@ const starterFooterLogoLinksData = {
     verticalAlign: 'start', spaceBelow: 'none', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
     col1: [logo('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
     col2: [
-      menu('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', showMobileToggle: 'show' }),
+      menu('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'show', mobile: 'show' } }),
       copyright('footer-copy', 'left'),
     ],
   } }],
@@ -242,7 +242,7 @@ const starterFooterThreeColData = {
     ],
     col2: [
       heading('footer-nav-heading', 'Quick Links', { level: 'h4' }),
-      menu('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', showMobileToggle: 'show' }),
+      menu('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'show' } }),
     ],
     col3: [
       heading('footer-social-heading', 'Follow Us', { level: 'h4' }),

@@ -5,13 +5,14 @@ import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
-import puckConfig from '@/lib/puck/config'
+import puckConfig, { wrapResponsiveRender } from '@/lib/puck/config'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
 import SeoTab from '@/lib/puck/tabs/SeoTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
@@ -179,7 +180,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       },
       SiteLogo: {
         ...puckConfig.components.SiteLogo,
-        render: (props: any) => <SiteLogoEditorPreview {...props} />,
+        render: wrapResponsiveRender((props: any) => <SiteLogoEditorPreview {...props} />),
       },
       MenuBlock: {
         ...puckConfig.components.MenuBlock,
@@ -188,15 +189,15 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           menuId: { type: 'custom' as const, label: 'Menu', render: MenuSelectField },
         },
 
-        render: (props: any) => (
+        render: wrapResponsiveRender((props: any) => (
           <MenuBlockEditorPreview
             menuId={props.menuId ?? ''}
             orientation={props.orientation ?? 'horizontal'}
             spacing={props.spacing ?? 'normal'}
             showDropdowns={props.showDropdowns ?? 'hover'}
-            showMobileToggle={props.showMobileToggle ?? 'collapse'}
+            navToggle={props.navToggle}
           />
-        ),
+        )),
       },
     },
   }), [])
@@ -328,7 +329,12 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   const puckOverrides = useMemo(() => ({
     header: createBackLinkOverride(backHref, 'Back to Pages'),
-  }), [backHref])
+    headerActions: createHeaderActionsOverride({
+      previewHref: `/page-preview/${pageId}`,
+      onDeleteClick,
+      deleting,
+    }),
+  }), [backHref, pageId, onDeleteClick, deleting])
 
   const plugins = useMemo(() => [
     createPanelPlugin({
@@ -338,9 +344,6 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       content: (
         <PageSettingsTab
           canManageMenus={canManageMenus}
-          pageId={pageId}
-          onDeleteClick={onDeleteClick}
-          deleting={deleting}
           saving={saving}
           lastSaved={lastSaved}
           saveError={saveError}
@@ -376,7 +379,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       icon: savedBlocksTabIcon,
       content: <SavedBlocksTab />,
     }),
-  ], [canManageMenus, pageId, onDeleteClick, deleting, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
+  ], [canManageMenus, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

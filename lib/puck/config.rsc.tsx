@@ -13,6 +13,7 @@ import {
   layoutPuckConfig,
   headerPuckConfig,
   getModuleLayoutSharedParts,
+  wrapResponsiveRender,
   SiteLogoRsc,
 } from '@/lib/puck/config'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
@@ -29,14 +30,14 @@ import {
 const rscComponents = {
   ...puckConfig.components,
   RichTextBlock: { ...puckConfig.components.RichTextBlock, fields: { ...puckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
-  SiteLogo: { ...puckConfig.components.SiteLogo, render: SiteLogoRsc },
-  MembersLogin: { ...puckConfig.components.MembersLogin, render: MembersLoginRsc },
-  MembersRegister: { ...puckConfig.components.MembersRegister, render: MembersRegisterRsc },
-  MembersAccountLink: { ...puckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
-  MemberGate: { ...puckConfig.components.MemberGate, render: MemberGateRsc },
-  TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
-  MembersProfile: { ...puckConfig.components.MembersProfile, render: MembersProfileRsc },
-  LayoutEmbed: { ...puckConfig.components.LayoutEmbed, render: LayoutEmbedRsc },
+  SiteLogo: { ...puckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
+  MembersLogin: { ...puckConfig.components.MembersLogin, render: wrapResponsiveRender(MembersLoginRsc) },
+  MembersRegister: { ...puckConfig.components.MembersRegister, render: wrapResponsiveRender(MembersRegisterRsc) },
+  MembersAccountLink: { ...puckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
+  MemberGate: { ...puckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
+  TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
+  MembersProfile: { ...puckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
+  LayoutEmbed: { ...puckConfig.components.LayoutEmbed, render: wrapResponsiveRender(LayoutEmbedRsc) },
   ...moduleRscComponents,
 }
 
@@ -46,7 +47,7 @@ export const footerPuckRscConfig = {
   ...footerPuckConfig,
   components: {
     ...footerPuckConfig.components,
-    SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
+    SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
     RichTextBlock: { ...footerPuckConfig.components.RichTextBlock, fields: { ...footerPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
   },
 }
@@ -56,13 +57,13 @@ export const layoutPuckRscConfig = {
   components: {
     ...layoutPuckConfig.components,
     RichTextBlock: { ...layoutPuckConfig.components.RichTextBlock, fields: { ...layoutPuckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
-    SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-    MembersLogin: { ...layoutPuckConfig.components.MembersLogin, render: MembersLoginRsc },
-    MembersRegister: { ...layoutPuckConfig.components.MembersRegister, render: MembersRegisterRsc },
-    MembersAccountLink: { ...layoutPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
-    MemberGate: { ...layoutPuckConfig.components.MemberGate, render: MemberGateRsc },
-    TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: TrustedMemberGateRsc },
-    MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: MembersProfileRsc },
+    SiteLogo: { ...layoutPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
+    MembersLogin: { ...layoutPuckConfig.components.MembersLogin, render: wrapResponsiveRender(MembersLoginRsc) },
+    MembersRegister: { ...layoutPuckConfig.components.MembersRegister, render: wrapResponsiveRender(MembersRegisterRsc) },
+    MembersAccountLink: { ...layoutPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
+    MemberGate: { ...layoutPuckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
+    TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
+    MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
     ...moduleRscComponents,
   },
 }
@@ -71,8 +72,8 @@ export const headerPuckRscConfig = {
   ...headerPuckConfig,
   components: {
     ...headerPuckConfig.components,
-    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: SiteLogoRsc },
-    MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: MembersAccountLinkRsc },
+    SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
+    MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
     ...(moduleRscComponentsByLayoutType['header'] ?? {}),

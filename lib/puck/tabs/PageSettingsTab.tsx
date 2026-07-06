@@ -14,9 +14,6 @@ const labelStyle: React.CSSProperties = {
 
 type Props = {
   canManageMenus: boolean
-  pageId: string
-  onDeleteClick: () => void
-  deleting: boolean
   saving: boolean
   lastSaved: Date | null
   saveError: string
@@ -25,7 +22,7 @@ type Props = {
   publishedSlug: string | null
 }
 
-export default function PageSettingsTab({ canManageMenus, pageId, onDeleteClick, deleting, saving, lastSaved, saveError, publishError, isPublished, publishedSlug }: Props) {
+export default function PageSettingsTab({ canManageMenus, saving, lastSaved, saveError, publishError, isPublished, publishedSlug }: Props) {
   const { appState, dispatch } = usePuck()
   const props = (appState.data.root?.props ?? {}) as Record<string, unknown>
 
@@ -105,25 +102,6 @@ export default function PageSettingsTab({ canManageMenus, pageId, onDeleteClick,
           readOnly={false}
         />
       )}
-
-      <a
-        href={`/page-preview/${pageId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn btn-secondary"
-        style={{ width: '100%', fontSize: '0.8125rem', textAlign: 'center', textDecoration: 'none' }}
-      >
-        Preview
-      </a>
-
-      <button
-        className="btn btn-danger"
-        style={{ width: '100%', fontSize: '0.8125rem' }}
-        disabled={deleting}
-        onClick={onDeleteClick}
-      >
-        Delete page
-      </button>
     </div>
   )
 }

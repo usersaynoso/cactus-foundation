@@ -238,7 +238,6 @@ export default function LayoutEditorPage() {
   const settingsTab = (
     <LayoutSettingsTab
       key={`${layout.name}-${layout.description}-${layout.priority}`}
-      layoutId={layout.id}
       name={layout.name}
       description={layout.description}
       priority={layout.priority}
@@ -248,9 +247,6 @@ export default function LayoutEditorPage() {
       saving={saving}
       saved={saved}
       error={error}
-      canDelete={!layout.isStarter}
-      onDeleteClick={() => setDeleteConfirm(true)}
-      deleting={deleting}
     />
   )
 
@@ -290,6 +286,10 @@ export default function LayoutEditorPage() {
         isPublishing={saving}
         layoutType={layout.type}
         backHref={`/${adminPath}/layouts`}
+        layoutId={layout.id}
+        onDeleteClick={() => setDeleteConfirm(true)}
+        deleting={deleting}
+        canDelete={!layout.isStarter}
         conditionsPanel={conditionsPanel}
         settingsTab={settingsTab}
         historyTab={historyTab}

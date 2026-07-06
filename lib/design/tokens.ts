@@ -538,8 +538,15 @@ export function buildTokenStyles(tokens: unknown): string {
   // Grid gets an extra step at the tablet breakpoint: 3/4-column layouts drop
   // to 2 columns before fully stacking at the mobile breakpoint (2-column
   // grids and Split are already narrow enough to skip that middle step).
-  scoped.push(`@media(max-width:${mobileBp}){.puck-grid,.puck-split{grid-template-columns:1fr !important;}}`)
-  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"],.puck-grid[data-cols="4"]{grid-template-columns:repeat(2,1fr) !important;}}`)
+  // Header grids (logo/nav/actions) are excluded from the generic drop:
+  // shunting the actions column onto its own row breaks the header. Instead
+  // the outer (logo/actions) columns shrink to content and the nav column
+  // takes the remaining space, so nothing overflows into a neighbour.
+  // Any grid with its own per-breakpoint column widths set (data-responsive-set,
+  // from the Grid block's tablet/mobile column overrides) opts out of all of
+  // this entirely - its own scoped <style> tag takes over instead.
+  scoped.push(`@media(max-width:${mobileBp}){.puck-grid:not([data-responsive-set]),.puck-split{grid-template-columns:1fr !important;}}`)
+  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
 
   // Responsive visibility utilities. Emitted here (rather than a static rule in
   // globals.css) so .hide-desktop/tablet/mobile honour the site's breakpoint
@@ -550,12 +557,16 @@ export function buildTokenStyles(tokens: unknown): string {
   scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.hide-tablet{display:none !important;}}`)
   scoped.push(`@media(max-width:${mobileBp}){.hide-mobile{display:none !important;}}`)
 
-  // Site header nav collapse to a hamburger at the mobile breakpoint. The base
-  // .cactus-nav-menu/.cactus-nav-toggle display rules stay inline in
-  // MenuBlockClient (they carry no breakpoint); only this width-dependent rule
-  // lives here so it tracks the setting. The classes only exist when the header
-  // is in collapsing mode, so emitting this unconditionally is safe.
-  scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-menu{display:none !important;}.cactus-nav-toggle{display:flex !important;}}`)
+  // Menu nav collapse to a hamburger per-breakpoint, per the menu block's
+  // "Nav behaviour" setting. The base .cactus-nav-menu/.cactus-nav-toggle
+  // display rules stay inline in MenuBlockClient (they carry no breakpoint);
+  // only these width-dependent rules live here so they track the settings.
+  // The cactus-nav-collapse-mobile/-tablet/-desktop modifier classes only
+  // exist on instances opted into collapsing at that tier, so emitting these
+  // unconditionally is safe.
+  scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-menu.cactus-nav-collapse-mobile{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-mobile{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-tablet{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-tablet{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-desktop{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-desktop{display:flex !important;}}`)
 
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }
