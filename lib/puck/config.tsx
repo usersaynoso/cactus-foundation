@@ -36,6 +36,7 @@ import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/modul
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
+import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
 
  
@@ -202,14 +203,19 @@ const GRID_COLUMN_SIZE_OPTIONS = [
 // neighbours to zero width.
 function getGridTemplateColumns(columnSizes: string | undefined, colCount: number, colWidths?: Array<string | undefined>): string {
   if (colWidths?.slice(0, colCount).some(w => w && w.trim())) {
-    // A bare length/percentage track (unlike `1fr`, which the grid spec treats
-    // as `minmax(auto, 1fr)`) has no automatic minimum, so content that can't
-    // shrink that far overflows into neighbouring columns instead of holding
-    // a floor - wrap it in minmax(min-content, ...) to give it the same
-    // overflow protection a default column already gets for free.
+    // minmax(0, W) - a 0 minimum so the track actually honours the width the
+    // user set instead of being propped open by its content. A bare `1fr` (and
+    // a bare `2fr`, which the grid spec treats as `minmax(auto, 2fr)`) carries
+    // an automatic min-content floor, so without the explicit 0 min a column
+    // won't shrink below its widest child - e.g. a width:100% image keeps the
+    // column at its natural size and ignores a smaller requested width. Content
+    // shrinks with the track (images are width:100%) and long text wraps inside
+    // it via the overflow-wrap:break-word set on each column wrapper below, so
+    // nothing spills into a neighbouring column. Columns left blank fall back to
+    // `1fr` so a single custom width doesn't collapse its neighbours to zero.
     return colWidths.slice(0, colCount).map(w => {
       const v = w && w.trim()
-      return v ? `minmax(min-content, ${v})` : '1fr'
+      return v ? `minmax(0, ${v})` : '1fr'
     }).join(' ')
   }
   if (colCount === 2) {
@@ -223,10 +229,11 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, col1Scale, col2Scale, col3Scale, col4Scale, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
+  const colScales = [col1Scale, col2Scale, col3Scale, col4Scale]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
 
   // Header-only true-centering. A column set to "Centre" is pulled onto the
@@ -251,6 +258,16 @@ function GridBlock(props: any) {
   const tabletCols = effectiveAt('tablet')
   const mobileCols = effectiveAt('mobile')
   const hasResponsiveOverride = tabletCols !== desktopCols || mobileCols !== desktopCols
+  // Explicit per-column widths (any breakpoint) mean the user has taken manual
+  // control of this grid's columns. Mark it as self-managed so the generic
+  // tablet/mobile collapse defaults in buildTokenStyles (tokens.ts) - which
+  // otherwise force header 3-col grids to `auto 1fr auto` in the 640-1024 band
+  // and everything to `1fr` on mobile - leave those widths alone. Without this
+  // a header with desktop-only manual widths silently loses them at tablet
+  // width (incl. the narrower Puck editor canvas). A grid wanting to stack on
+  // small screens can still set per-breakpoint widths (which also marks it).
+  const hasManualColumns = widths.slice(0, colCount).some((w) => !!(w.desktop?.trim() || w.tablet?.trim() || w.mobile?.trim()))
+  const selfManagedColumns = hasResponsiveOverride || hasManualColumns
 
   // Shrunk-state overrides (header "shrink on scroll" only) - fall back to the
   // normal width/gap per column (at the same breakpoint) when no shrunk value
@@ -306,7 +323,7 @@ function GridBlock(props: any) {
         className="puck-grid"
         data-cols={colCount}
         data-grid-id={id}
-        {...(hasResponsiveOverride ? { 'data-responsive-set': '' } : {})}
+        {...(selfManagedColumns ? { 'data-responsive-set': '' } : {})}
         style={{
       display: 'grid',
       gridTemplateColumns: desktopCols,
@@ -317,9 +334,12 @@ function GridBlock(props: any) {
     }}>
       {slots.map((slot, i) => {
         const jc = colAligns[i] && justifyMap[colAligns[i]]
+        const scaled = colScales[i] === 'on'
         const content = typeof slot === 'function' ? slot() : null
+        // A scaled column manages its own flex/alignment inside ScaleToFit, so
+        // the track div stays a plain block (no flex/fit-content wrapper).
         return (
-          <div key={i} style={{ minWidth: 0, gridColumn: i + 1, ...(jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+          <div key={i} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: i + 1, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
             {/* Explicit gridColumn matters once any column is centred: an
                 absolutely-positioned grid item is skipped by CSS Grid's
                 auto-placement, so without an explicit track, later columns
@@ -331,7 +351,9 @@ function GridBlock(props: any) {
                 width:fit-content wrapper, that stretched wrapper leaves nothing
                 for `justifyContent` to centre/end against, so a centred or
                 right-aligned column looked left-aligned only in the editor. */}
-            {jc ? <div style={{ width: 'fit-content', maxWidth: '100%' }}>{content}</div> : content}
+            {scaled
+              ? <ScaleToFit align={(colAligns[i] as 'start' | 'center' | 'end') ?? 'start'}>{content}</ScaleToFit>
+              : jc ? <div style={{ width: 'fit-content', maxWidth: '100%' }}>{content}</div> : content}
           </div>
         )
       })}
@@ -374,6 +396,10 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
+  // Opt-in: shrink this column's contents to fit its width (any content -
+  // fixed-size icons, widgets, images - via a transform scale). Off by default
+  // so text/normal columns are untouched.
+  for (const n of cols) fields[`col${n}Scale`] = { type: 'radio' as const, label: `Col ${n} scale to width`, options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] }
   // Shrunk-state fields - only shown when this Grid sits in a header with
   // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
   // shrink that column/gap.
@@ -382,7 +408,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
   const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', gapShrunk: '' }
-  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = '' }
+  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Scale`] = 'off' }
 
   return {
     label: `Grid (${colCount} columns)`,
