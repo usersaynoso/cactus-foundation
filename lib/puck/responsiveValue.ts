@@ -23,14 +23,36 @@ export function pickResponsive<T>(rv: ResponsiveValue<T>, device: Device): T | u
   return rv.mobile ?? rv.tablet ?? rv.desktop
 }
 
-// Fixed breakpoints, matching GridBlock's existing inline media queries and the
-// token defaults (Appearance → Spacing: 1024px tablet, 640px mobile). Block
-// renders emit their responsive overrides at these widths; a site that
-// customises its breakpoints won't see these move - exactly the same limitation
-// GridBlock's own column overrides already have. Kept here so every responsive
-// block stays consistent with that one precedent.
-const MOBILE_BP = 640
-const TABLET_BP = 1024
+// Breakpoints default to the token defaults (Appearance → Spacing: 1024px
+// tablet, 640px mobile) and are overridden at render time via
+// setResponsiveBreakpoints from wherever the site's design tokens are resolved
+// (the public layout on the live site, the two Puck editors after their
+// appearance fetch). Module-level mutable state is safe here: this is a
+// single-site platform, so every request/render shares one set of breakpoints.
+let MOBILE_BP = 640
+let TABLET_BP = 1024
+
+export function setResponsiveBreakpoints(mobilePx: number, tabletPx: number): void {
+  if (Number.isFinite(mobilePx) && mobilePx > 0) MOBILE_BP = mobilePx
+  if (Number.isFinite(tabletPx) && tabletPx > MOBILE_BP) TABLET_BP = tabletPx
+}
+
+export function getResponsiveBreakpoints(): { mobile: number; tablet: number } {
+  return { mobile: MOBILE_BP, tablet: TABLET_BP }
+}
+
+// Shared media-query prefixes so every hand-rolled rule (GridBlock's column
+// overrides, module grids) uses byte-identical ranges. Mobile owns widths up
+// to and including the mobile breakpoint; tablet starts 0.02px above it (the
+// CSSWG-recommended offset for non-overlapping ranges), so a canvas or window
+// sitting exactly on the breakpoint resolves to ONE device everywhere instead
+// of matching both rules at once.
+export function mobileMediaQuery(): string {
+  return `@media(max-width:${MOBILE_BP}px)`
+}
+export function tabletMediaQuery(): string {
+  return `@media(min-width:${MOBILE_BP + 0.02}px) and (max-width:${TABLET_BP}px)`
+}
 
 // Builds the media-query CSS that makes a block's tablet/mobile breakpoints
 // override its desktop base. `declFor(device)` returns the full CSS declaration
@@ -57,7 +79,7 @@ export function responsiveMediaCssFor(
   const mobile = declFor('mobile')
   const important = (decls: string) => decls.split(';').map((d) => d.trim()).filter(Boolean).map((d) => `${d} !important`).join(';')
   const rules: string[] = []
-  if (tablet !== desktop) rules.push(`@media(min-width:${MOBILE_BP}px) and (max-width:${TABLET_BP}px){${selector}{${important(tablet)}}}`)
-  if (mobile !== desktop) rules.push(`@media(max-width:${MOBILE_BP}px){${selector}{${important(mobile)}}}`)
+  if (tablet !== desktop) rules.push(`${tabletMediaQuery()}{${selector}{${important(tablet)}}}`)
+  if (mobile !== desktop) rules.push(`${mobileMediaQuery()}{${selector}{${important(mobile)}}}`)
   return rules.join('\n')
 }

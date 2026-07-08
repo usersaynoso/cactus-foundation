@@ -27,6 +27,22 @@ import {
   MembersProfileRsc,
 } from '@/lib/puck/components/MembersBlocksRsc'
 
+// Module RSC components arrive as raw {render} defs from the generated
+// module-rsc-components.ts, replacing the editor defs that config.tsx already
+// wrapped with the responsive-visibility handling. Re-wrap them here the same
+// way the explicit SiteLogo/Members*/LayoutEmbed overrides below are wrapped,
+// otherwise a module block's "hide on mobile/tablet/desktop" setting works in
+// the editor but is silently ignored on the published site.
+function wrapModuleRsc(components: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(components).map(([name, def]) => [name, { ...def, render: wrapResponsiveRender(def.render) }]),
+  )
+}
+const moduleRscComponentsWrapped = wrapModuleRsc(moduleRscComponents)
+const moduleRscByLayoutTypeWrapped = Object.fromEntries(
+  Object.entries(moduleRscComponentsByLayoutType).map(([type, comps]) => [type, wrapModuleRsc(comps as Record<string, any>)]),
+) as Record<string, Record<string, any>>
+
 const rscComponents = {
   ...puckConfig.components,
   RichTextBlock: { ...puckConfig.components.RichTextBlock, fields: { ...puckConfig.components.RichTextBlock.fields, content: { type: 'textarea' as const, label: 'Content (HTML)' } } },
@@ -38,7 +54,7 @@ const rscComponents = {
   TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
   MembersProfile: { ...puckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
   LayoutEmbed: { ...puckConfig.components.LayoutEmbed, render: wrapResponsiveRender(LayoutEmbedRsc) },
-  ...moduleRscComponents,
+  ...moduleRscComponentsWrapped,
 }
 
 export const puckRscConfig = { ...puckConfig, components: rscComponents }
@@ -64,7 +80,7 @@ export const layoutPuckRscConfig = {
     MemberGate: { ...layoutPuckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
     TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
     MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
-    ...moduleRscComponents,
+    ...moduleRscComponentsWrapped,
   },
 }
 
@@ -76,14 +92,14 @@ export const headerPuckRscConfig = {
     MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
-    ...(moduleRscComponentsByLayoutType['header'] ?? {}),
+    ...(moduleRscByLayoutTypeWrapped['header'] ?? {}),
   },
 }
 
 export const fullPagePuckRscConfig = puckRscConfig
 
 export function getModuleLayoutPuckRscConfig(layoutType: string) {
-  const modBlocks = moduleRscComponentsByLayoutType[layoutType] ?? {}
+  const modBlocks = moduleRscByLayoutTypeWrapped[layoutType] ?? {}
   const { sharedCategories, sharedComponents } = getModuleLayoutSharedParts()
   return {
     categories: {

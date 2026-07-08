@@ -1,3 +1,5 @@
+import { setResponsiveBreakpoints } from '@/lib/puck/responsiveValue'
+
 export type Typo = {
   family?: string
   weight?: string
@@ -441,6 +443,24 @@ export function buildTokenStyles(tokens: unknown): string {
   // resolveBreakpoints source, baked into literal @media rules below since media
   // queries can't read CSS custom properties.
   const { tabletBp, mobileBp } = resolveBreakpoints(t)
+  // Non-overlapping breakpoint ranges, shared semantics with lib/puck/
+  // responsiveValue.ts: mobile owns widths up to AND INCLUDING the mobile
+  // breakpoint, tablet runs from 0.02px above it (CSSWG-recommended offset)
+  // up to and including the tablet breakpoint, desktop is everything above.
+  // Without the offset a canvas/window sitting exactly on a breakpoint
+  // matched two ranges at once (e.g. both .hide-mobile and .hide-tablet fired
+  // at exactly the mobile width, and grids resolved a different device than
+  // block-level responsive overrides did).
+  const aboveMobileBp = `${(parseInt(mobileBp, 10) || 640) + 0.02}px`
+  const aboveTabletBp = `${(parseInt(tabletBp, 10) || 1024) + 0.02}px`
+
+  // Keep the per-block responsive system (lib/puck/responsiveValue.ts, used by
+  // every block's own tablet/mobile media overrides) on the same breakpoints
+  // as the rules below. Every surface that renders blocks - the public layout,
+  // the preview routes, both Puck editors - calls buildTokenStyles with the
+  // site's tokens before/as the blocks render, so this is the one chokepoint
+  // where custom breakpoints reach the block-level media queries too.
+  setResponsiveBreakpoints(parseInt(mobileBp, 10) || 640, parseInt(tabletBp, 10) || 1024)
 
   const darkOverrides = darkVars.length ? ' ' + darkVars.join(' ') : ''
   const rootBlock = `:root,[data-theme="light"]{${lightColours}${fixed}${lightPrimary} ${vars.join(' ')}}`
@@ -546,15 +566,31 @@ export function buildTokenStyles(tokens: unknown): string {
   // from the Grid block's tablet/mobile column overrides) opts out of all of
   // this entirely - its own scoped <style> tag takes over instead.
   scoped.push(`@media(max-width:${mobileBp}){.puck-grid:not([data-responsive-set]),.puck-split{grid-template-columns:1fr !important;}}`)
-  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
+  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
+
+  // Per-device horizontal padding utilities for the Puck blocks' shared
+  // "Padding (left/right)" field (config.tsx getPaddingClasses). Three class
+  // families - cactus-pad-d-* (base, all widths), cactus-pad-t-* (tablet band)
+  // and cactus-pad-m-* (mobile) - with the tablet/mobile rules emitted after
+  // the base ones so they win inside their media range at equal specificity.
+  // The desktop→tablet→mobile inheritance cascade is resolved in JS when the
+  // classes are assigned, so every element carries all three classes.
+  const padSizes: Record<string, string> = {
+    default: 'var(--block-padding, 1.5rem)', none: '0',
+    sm: '0.5rem', md: '1rem', lg: '2rem', xl: '4rem',
+  }
+  for (const [k, v] of Object.entries(padSizes)) scoped.push(`.cactus-pad-d-${k}{padding-left:${v};padding-right:${v};}`)
+  for (const [k, v] of Object.entries(padSizes)) scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.cactus-pad-t-${k}{padding-left:${v};padding-right:${v};}}`)
+  for (const [k, v] of Object.entries(padSizes)) scoped.push(`@media(max-width:${mobileBp}){.cactus-pad-m-${k}{padding-left:${v};padding-right:${v};}}`)
 
   // Responsive visibility utilities. Emitted here (rather than a static rule in
   // globals.css) so .hide-desktop/tablet/mobile honour the site's breakpoint
-  // setting. "Desktop" is >= tablet width; "mobile" is <= mobile width; "tablet"
-  // is the band between. The 1px boundary overlap is intentional and harmless -
-  // a given element carries only one of these classes.
-  scoped.push(`@media(min-width:${tabletBp}){.hide-desktop{display:none !important;}}`)
-  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.hide-tablet{display:none !important;}}`)
+  // setting. "Desktop" is anything above the tablet width; "mobile" is <= the
+  // mobile width; "tablet" is the band between - ranges don't overlap (see
+  // aboveMobileBp/aboveTabletBp above), so an element hidden on tablet can't
+  // also vanish at exactly the mobile width.
+  scoped.push(`@media(min-width:${aboveTabletBp}){.hide-desktop{display:none !important;}}`)
+  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.hide-tablet{display:none !important;}}`)
   scoped.push(`@media(max-width:${mobileBp}){.hide-mobile{display:none !important;}}`)
 
   // Menu nav collapse to a hamburger per-breakpoint, per the menu block's
@@ -565,8 +601,8 @@ export function buildTokenStyles(tokens: unknown): string {
   // exist on instances opted into collapsing at that tier, so emitting these
   // unconditionally is safe.
   scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-menu.cactus-nav-collapse-mobile{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-mobile{display:flex !important;}}`)
-  scoped.push(`@media(min-width:${mobileBp}) and (max-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-tablet{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-tablet{display:flex !important;}}`)
-  scoped.push(`@media(min-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-desktop{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-desktop{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-tablet{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-tablet{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${aboveTabletBp}){.cactus-nav-menu.cactus-nav-collapse-desktop{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-desktop{display:flex !important;}}`)
 
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }

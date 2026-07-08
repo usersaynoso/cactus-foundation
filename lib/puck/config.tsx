@@ -29,7 +29,7 @@ import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorF
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
 import { VisibilityField } from '@/lib/puck/VisibilityField'
-import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -54,22 +54,33 @@ const richtextExtensions = [
 // Shared utilities
 // ---------------------------------------------------------------------------
 
-const PADDING_MAP: Record<string, string> = {
-  none: '0', sm: '0.5rem', md: '1rem', lg: '2rem', xl: '4rem',
-}
+// Padding size keys shared with the cactus-pad-* utility classes emitted by
+// buildTokenStyles (lib/design/tokens.ts) - the values live there.
+const PAD_KEYS = new Set(['default', 'none', 'sm', 'md', 'lg', 'xl'])
 // Block padding is horizontal-only: it acts as a left/right gutter so content
 // doesn't run to the page edges, without stacking vertical gaps on top of each
 // block's own margins. 'default' (and unset) pulls the site-wide gutter set in
 // Styles → Spacing, falling back to 1.5rem to match the Section/footer gutters.
-function getPadding(p?: string): string {
-  if (!p || p === 'default') return '0 var(--block-padding, 1.5rem)'
-  const v = PADDING_MAP[p]
-  return v && v !== '0' ? `0 ${v}` : '0'
+// Resolves the (possibly per-device) padding value to the cactus-pad-*
+// utility classes emitted by buildTokenStyles. The desktop→tablet→mobile
+// inheritance cascade is resolved here in JS - every element carries all
+// three classes - so the stylesheet only needs one flat rule per size per
+// breakpoint and tablet/mobile always inherit from the next-wider device.
+// 'default' (and unset) pulls the site-wide gutter set in Styles → Spacing
+// via var(--block-padding, 1.5rem), same as the old inline getPadding did.
+function getPaddingClasses(padding?: ResponsiveValue<string> | string): string {
+  const rv = normalizeResponsiveValue<string>(padding as ResponsiveValue<string> | string | undefined)
+  const norm = (v: string | undefined, fallback: string) => (v && PAD_KEYS.has(v) ? v : fallback)
+  const d = norm(rv.desktop, 'default')
+  const t = norm(rv.tablet, d)
+  const m = norm(rv.mobile, t)
+  return `cactus-pad-d-${d} cactus-pad-t-${t} cactus-pad-m-${m}`
 }
 
 const paddingField = {
-  type: 'select' as const,
+  type: 'custom' as const,
   label: 'Padding (left/right)',
+  render: ResponsiveSelectField,
   options: [
     { value: 'default', label: 'Default (site spacing)' },
     { value: 'none', label: 'None' },
@@ -302,15 +313,15 @@ function GridBlock(props: any) {
     <>
       {hasResponsiveOverride && (
         <style>{[
-          tabletCols !== desktopCols && `@media(min-width:640px) and (max-width:1024px){[data-grid-id="${id}"]{grid-template-columns:${tabletCols} !important;}}`,
-          mobileCols !== desktopCols && `@media(max-width:640px){[data-grid-id="${id}"]{grid-template-columns:${mobileCols} !important;}}`,
+          tabletCols !== desktopCols && `${tabletMediaQuery()}{[data-grid-id="${id}"]{grid-template-columns:${tabletCols} !important;}}`,
+          mobileCols !== desktopCols && `${mobileMediaQuery()}{[data-grid-id="${id}"]{grid-template-columns:${mobileCols} !important;}}`,
         ].filter(Boolean).join('\n')}</style>
       )}
       {hasShrunkOverride && (
         <style>{[
           `${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkDesktopCols} !important;${gapShrunk ? `gap:${GAP_MAP[gapShrunk] ?? '1rem'} !important;` : ''}}`,
-          shrunkTabletCols !== shrunkDesktopCols && `@media(min-width:640px) and (max-width:1024px){${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkTabletCols} !important;}}`,
-          shrunkMobileCols !== shrunkDesktopCols && `@media(max-width:640px){${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkMobileCols} !important;}}`,
+          shrunkTabletCols !== shrunkDesktopCols && `${tabletMediaQuery()}{${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkTabletCols} !important;}}`,
+          shrunkMobileCols !== shrunkDesktopCols && `${mobileMediaQuery()}{${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkMobileCols} !important;}}`,
         ].filter(Boolean).join('\n')}</style>
       )}
       {centerColIndexes.length > 0 && (
@@ -320,7 +331,7 @@ function GridBlock(props: any) {
       )}
       {gapVAlignCss && <style>{gapVAlignCss}</style>}
       <div
-        className="puck-grid"
+        className={`puck-grid ${getPaddingClasses(padding)}`}
         data-cols={colCount}
         data-grid-id={id}
         {...(selfManagedColumns ? { 'data-responsive-set': '' } : {})}
@@ -328,7 +339,6 @@ function GridBlock(props: any) {
       display: 'grid',
       gridTemplateColumns: desktopCols,
       gap: GAP_MAP[pickResponsive(gapRv, 'desktop') ?? 'md'] ?? '1rem',
-      padding: getPadding(padding),
       marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
       alignItems: (vAlignMap as any)[pickResponsive(vAlignRv, 'desktop') ?? 'stretch'] ?? 'stretch',
     }}>
@@ -480,7 +490,7 @@ function GroupBlock(props: any) {
   const alignBase = pickResponsive(alignRv, 'desktop')
   const gapBase = pickResponsive(gapRv, 'desktop')
   const rspCss = responsiveMediaCssFor(`.${rspClass}`, (d) => `flex-direction:${pickResponsive(dirRv, d) === 'column' ? 'column' : 'row'};align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
-  const slotClassName = [gapShrunk ? shrinkClass : '', wantsCenter ? centerClass : '', rspClass].filter(Boolean).join(' ') || undefined
+  const slotClassName = [gapShrunk ? shrinkClass : '', wantsCenter ? centerClass : '', rspClass, getPaddingClasses(padding)].filter(Boolean).join(' ')
   // Pass flex styles directly to the SlotRender wrapper so its children are
   // proper flex items rather than sitting inside an unstyled block container.
   return (
@@ -497,7 +507,6 @@ function GroupBlock(props: any) {
           alignItems: alignMap[alignBase ?? 'stretch'] ?? 'stretch',
           flexWrap: wrap === 'nowrap' ? 'nowrap' : 'wrap',
           gap: GAP_MAP[gapBase ?? 'md'] ?? '1rem',
-          padding: getPadding(padding),
         }
       })}
     </>
@@ -570,12 +579,13 @@ function SplitBlock(props: any) {
   const gapRv = normalizeResponsiveValue<string>(gap)
   const alignBase = pickResponsive(alignRv, 'desktop') ?? 'stretch'
   const gapBase = pickResponsive(gapRv, 'desktop') ?? 'md'
+  const padBase = pickResponsive(normalizeResponsiveValue<string>(padding), 'desktop') ?? 'default'
   const css = responsiveMediaCssFor(`[data-split-id="${id}"]`, (d) => `align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
 
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-split-id={id} className="puck-split" style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
+      <div data-split-id={id} className={`puck-split ${getPaddingClasses(padding)}`} style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padBase === 'none' ? 0 : '1.5rem' }}>
         <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
         <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
       </div>
@@ -793,7 +803,7 @@ function Heading(props: any) {
     : renderHighlight(text, highlightText, highlightMark, 'h')
   const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
   return (
-    <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {alignCss && <style>{alignCss}</style>}
       <Tag data-heading-id={id} style={style} className={headingClassName}>
         {content}
@@ -833,7 +843,7 @@ function TextBlock(props: any) {
   return (
     <>
       {mediaCss && <style>{mediaCss}</style>}
-      <div data-text-id={id} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
+      <div data-text-id={id} className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
         {content}
       </div>
     </>
@@ -843,14 +853,14 @@ function TextBlock(props: any) {
 function RichTextBlock(props: any) {
   const { content, padding } = props
   if (!content) {
-    return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>Rich text — edit in the panel</div>
+    return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
   if (typeof content !== 'string') {
     // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
     // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
     // Render it directly rather than passing to dangerouslySetInnerHTML.
     if (React.isValidElement(content)) {
-      return <div className="puck-richtext" style={{ padding: getPadding(padding) }}>{content}</div>
+      return <div className={`puck-richtext ${getPaddingClasses(padding)}`}>{content}</div>
     }
     // In the RSC render path, publishedData may contain TipTap JSON if the user edited
     // in the builder (Puck stores richtext content as TipTap JSON internally).
@@ -861,15 +871,15 @@ function RichTextBlock(props: any) {
     } catch {
       html = ''
     }
-    return <div className="puck-richtext" style={{ padding: getPadding(padding) }} dangerouslySetInnerHTML={{ __html: html }} />
+    return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: html }} />
   }
-  return <div className="puck-richtext" style={{ padding: getPadding(padding) }} dangerouslySetInnerHTML={{ __html: content }} />
+  return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: content }} />
 }
 
 function Quote(props: any) {
   const { quote, attribution, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   return (
-    <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
       <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
         <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{quote}</p>
         {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {attribution}</footer>}
@@ -888,9 +898,9 @@ function Caption(props: any) {
       {alignCss && <style>{alignCss}</style>}
       <p
         data-caption-id={id}
-        className="cactus-caption"
+        className={`cactus-caption ${getPaddingClasses(padding)}`}
         style={{
-          margin: 0, padding: getPadding(padding), textAlign: alignBase as React.CSSProperties['textAlign'],
+          margin: 0, textAlign: alignBase as React.CSSProperties['textAlign'],
         fontFamily: 'var(--caption-family)',
         fontWeight: 'var(--caption-weight, 500)' as React.CSSProperties['fontWeight'],
         fontSize: 'var(--caption-size, 0.75rem)',
@@ -940,7 +950,7 @@ function ButtonLink(props: any) {
     outline:   { background: 'transparent', color: 'var(--color-primary)', border: 'var(--btn-border-width, 2px) solid var(--btn-border, var(--color-primary))' },
   }
   return (
-    <div style={{ marginBottom: '1rem', padding: getPadding(padding) }}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
       <a href={href} className="cactus-btn" style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
         {label}
       </a>
@@ -957,7 +967,7 @@ function CTABanner(props: any) {
   }
   const t = bgs[background] ?? bgs.light!
   return (
-    <section style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, padding: getPadding(padding) || '2.5rem 2rem', textAlign: 'center', marginBottom: '2rem' }}
+    <section className={getPaddingClasses(padding)} style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem' }}
       {...getAosProps(animationType, animationDuration, animationDelay)}>
       {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
       {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
@@ -975,12 +985,32 @@ function CTABanner(props: any) {
 // ---------------------------------------------------------------------------
 
 function ImageBlock(props: any) {
-  const { mediaUrl, alt, caption, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!mediaUrl) {
     return <div style={{ marginBottom: '1.5rem', background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>No image selected</div>
   }
+  // maxWidth caps the figure; auto side-margins anchor a capped image to the
+  // chosen alignment (a full-width image has nothing to align). Both are
+  // per-device: desktop is the inline base, tablet/mobile ride the media rules.
+  const mwRv = normalizeResponsiveValue<string>(maxWidth)
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const sideAt = (d: 'desktop' | 'tablet' | 'mobile') => {
+    const mw = (pickResponsive(mwRv, d) ?? '').trim()
+    const a = pickResponsive(alignRv, d) ?? 'left'
+    return {
+      mw,
+      ml: mw && (a === 'center' || a === 'right') ? 'auto' : '0',
+      mr: mw && a === 'center' ? 'auto' : '0',
+    }
+  }
+  const { mw: baseMw, ml: baseMl, mr: baseMr } = sideAt('desktop')
+  const sizeCss = responsiveMediaCssFor(`[data-image-id="${id}"]`, (d) => {
+    const { mw, ml, mr } = sideAt(d)
+    return `max-width:${mw || 'none'};margin-left:${ml};margin-right:${mr};`
+  })
   return (
-    <figure style={{ margin: '0 0 1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {sizeCss && <style>{sizeCss}</style>}
       {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
@@ -1000,14 +1030,19 @@ function toEmbedUrl(url: string): string | null {
 }
 
 function VideoEmbed(props: any) {
-  const { url, aspectRatio, title, padding } = props
+  const { id, url, aspectRatio, title, padding } = props
   if (!url) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No video URL entered</div>
   const embedUrl = toEmbedUrl(url)
   if (!embedUrl) return <div style={{ background: '#fef2f2', borderRadius: 6, padding: '1rem', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
   const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
+  // Aspect ratio is per-device (padding-bottom drives the box height): a wide
+  // 16:9 embed on desktop can be a square on mobile, say.
+  const arRv = normalizeResponsiveValue<string>(aspectRatio)
+  const arCss = responsiveMediaCssFor(`[data-video-id="${id}"]`, (d) => `padding-bottom:${paddings[pickResponsive(arRv, d) ?? '16:9'] ?? '56.25%'};`)
   return (
-    <div style={{ padding: getPadding(padding), marginBottom: '1.5rem' }}>
-      <div style={{ position: 'relative', paddingBottom: paddings[aspectRatio] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+      {arCss && <style>{arCss}</style>}
+      <div data-video-id={id} style={{ position: 'relative', paddingBottom: paddings[pickResponsive(arRv, 'desktop') ?? '16:9'] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
         <iframe src={embedUrl} title={title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
       </div>
     </div>
@@ -1015,11 +1050,17 @@ function VideoEmbed(props: any) {
 }
 
 function Embed(props: any) {
-  const { src, height, title, padding } = props
+  const { id, src, height, title, padding } = props
   if (!src) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No embed URL entered</div>
+  // Height is per-device: embedded widgets frequently need a taller (or
+  // shorter) box once the viewport narrows.
+  const hRv = normalizeResponsiveValue<string>(height)
+  const hAt = (d: 'desktop' | 'tablet' | 'mobile') => (pickResponsive(hRv, d) ?? '').trim() || '400px'
+  const hCss = responsiveMediaCssFor(`[data-embed-id="${id}"]`, (d) => `height:${hAt(d)};`)
   return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
-      <iframe src={src} title={title || 'Embedded content'} style={{ width: '100%', height: height || '400px', border: 'none', borderRadius: 6, display: 'block' }} allowFullScreen />
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+      {hCss && <style>{hCss}</style>}
+      <iframe data-embed-id={id} src={src} title={title || 'Embedded content'} style={{ width: '100%', height: hAt('desktop'), border: 'none', borderRadius: 6, display: 'block' }} allowFullScreen />
     </div>
   )
 }
@@ -1047,18 +1088,35 @@ function Hero(props: any) {
   const subColor = textScheme === 'light' ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)'
   const minH: Record<string, string> = { auto: 'auto', half: '50vh', full: '100vh' }
   const minHeightRv = normalizeResponsiveValue<string>(minHeight)
-  const minHeightCss = responsiveMediaCssFor(`[data-hero-id="${id}"]`, (d) => `min-height:${minH[pickResponsive(minHeightRv, d) ?? 'auto'] ?? 'auto'};`)
+  // Layout is per-device too: everything it drives (text alignment/width,
+  // CTA row justification, side-image visibility, section justify/gap) is
+  // expressible in CSS, so tablet/mobile overrides ride media rules on stable
+  // data-hero-* hooks while desktop stays the inline base. The side image is
+  // rendered whenever ANY breakpoint wants it and toggled via display.
+  const layoutRv = normalizeResponsiveValue<string>(layout)
+  const layoutAt = (d: 'desktop' | 'tablet' | 'mobile') => pickResponsive(layoutRv, d) ?? 'centered'
+  const layoutBase = layoutAt('desktop')
+  const hasSideImage = !!imageUrl && (['desktop', 'tablet', 'mobile'] as const).some((d) => layoutAt(d) === 'right-image')
+  const minHeightCss = responsiveMediaCssFor(`[data-hero-id="${id}"]`, (d) => `min-height:${minH[pickResponsive(minHeightRv, d) ?? 'auto'] ?? 'auto'};justify-content:${layoutAt(d) === 'right-image' ? 'space-between' : 'normal'};gap:${layoutAt(d) === 'right-image' ? '3rem' : 'normal'};`)
+  const layoutCss = [
+    responsiveMediaCssFor(`[data-hero-id="${id}"] [data-hero-text]`, (d) => {
+      const l = layoutAt(d)
+      return `text-align:${l === 'centered' ? 'center' : 'left'};max-width:${l === 'centered' ? '700px' : 'none'};margin-left:${l === 'centered' ? 'auto' : '0'};margin-right:${l === 'centered' ? 'auto' : '0'};`
+    }),
+    responsiveMediaCssFor(`[data-hero-id="${id}"] [data-hero-ctas]`, (d) => `justify-content:${layoutAt(d) === 'centered' ? 'center' : 'flex-start'};`),
+    hasSideImage ? responsiveMediaCssFor(`[data-hero-id="${id}"] [data-hero-img]`, (d) => `display:${layoutAt(d) === 'right-image' ? 'block' : 'none'};`) : '',
+  ].filter(Boolean).join('\n')
 
   const inner = (
     <>
       {overlayColor && overlayOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
       )}
-      <div style={{ position: 'relative', zIndex: 1, textAlign: layout === 'centered' ? 'center' : 'left', maxWidth: layout === 'centered' ? 700 : undefined, margin: layout === 'centered' ? '0 auto' : undefined }}>
+      <div data-hero-text style={{ position: 'relative', zIndex: 1, textAlign: layoutBase === 'centered' ? 'center' : 'left', maxWidth: layoutBase === 'centered' ? 700 : undefined, margin: layoutBase === 'centered' ? '0 auto' : undefined }}>
         <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, margin: '0 0 1rem', lineHeight: 1.15, color: textColor }}>{heading}</h1>
         {subheading && <p style={{ fontSize: '1.125rem', color: subColor, margin: '0 0 2rem', lineHeight: 1.65 }}>{subheading}</p>}
         {(ctaLabel || cta2Label) && (
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: layout === 'centered' ? 'center' : 'flex-start' }}>
+          <div data-hero-ctas style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: layoutBase === 'centered' ? 'center' : 'flex-start' }}>
             {ctaLabel && ctaHref && (
               <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{ctaLabel}</a>
             )}
@@ -1068,9 +1126,9 @@ function Hero(props: any) {
           </div>
         )}
       </div>
-      {layout === 'right-image' && imageUrl && (
+      {hasSideImage && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+        <img data-hero-img src={imageUrl} alt="" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0, display: layoutBase === 'right-image' ? 'block' : 'none' }} />
       )}
     </>
   )
@@ -1078,7 +1136,8 @@ function Hero(props: any) {
   return (
     <>
       {minHeightCss && <style>{minHeightCss}</style>}
-      <section data-hero-id={id} style={{ position: 'relative', ...bgStyle, padding: getPadding(padding) || '5rem 1.5rem', borderRadius: 8, marginBottom: '2rem', minHeight: minH[pickResponsive(minHeightRv, 'desktop') ?? 'auto'] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layout === 'right-image' ? 'space-between' : undefined, gap: layout === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
+      {layoutCss && <style>{layoutCss}</style>}
+      <section data-hero-id={id} className={getPaddingClasses(padding)} style={{ position: 'relative', ...bgStyle, borderRadius: 8, marginBottom: '2rem', minHeight: minH[pickResponsive(minHeightRv, 'desktop') ?? 'auto'] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layoutBase === 'right-image' ? 'space-between' : undefined, gap: layoutBase === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
         {...getAosProps(animationType, animationDuration, animationDelay)}>
         {inner}
       </section>
@@ -1118,13 +1177,12 @@ function SocialLinks(props: any) {
     flexWrap: 'wrap',
     alignItems: 'center',
     marginBottom: '1rem',
-    padding: getPadding(padding),
     '--social-icon': `${szBase}px`,
   } as React.CSSProperties
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-social-id={id} style={containerStyle}>
+      <div data-social-id={id} className={getPaddingClasses(padding)} style={containerStyle}>
         {items.map((item: any, i: number) => (
           <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
             style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: 'var(--social-icon)', height: 'var(--social-icon)', flexShrink: 0 }}
@@ -1144,7 +1202,7 @@ function Eyebrow(props: any) {
   const { text, showPulse = 'false', padding } = props
   const pulse = showPulse === 'true' || showPulse === true
   return (
-    <div style={{ padding: getPadding(padding), marginBottom: '1rem' }}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 9999, padding: '7px 16px' }}>
         {pulse && <span className="cactus-eyebrow-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} aria-hidden="true" />}
         {text}
@@ -1179,13 +1237,13 @@ const GLYPH_ICONS: Record<string, string> = {
 function Trustline(props: any) {
   const { id, items = [], gap = 'normal', padding } = props
   const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
-  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>No trust items yet — add some in the panel.</div>
+  if (!items?.length) return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>No trust items yet — add some in the panel.</div>
   const gapRv = normalizeResponsiveValue<string>(gap)
   const css = responsiveMediaCssFor(`[data-trustline-id="${id}"]`, (d) => `gap:${gapMap[pickResponsive(gapRv, d) ?? 'normal'] ?? '1.625rem'};`)
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-trustline-id={id} style={{ display: 'flex', gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)', padding: getPadding(padding) }}>
+      <div data-trustline-id={id} className={getPaddingClasses(padding)} style={{ display: 'flex', gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)' }}>
         {items.map((item: any, i: number) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
@@ -1228,7 +1286,7 @@ function Chip(props: any) {
 function Card(props: any) {
   const { mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-bg)', padding: getPadding(padding) }}
+    <div className={getPaddingClasses(padding)} style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-bg)' }}
       {...getAosProps(animationType, animationDuration, animationDelay)}>
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
       {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
@@ -1266,14 +1324,14 @@ function ImageChipPanel(props: any) {
   }
   return (
     <div
-      className={gridPattern !== 'none' ? 'cactus-section-grid-scan' : undefined}
+      className={[gridPattern !== 'none' ? 'cactus-section-grid-scan' : '', hasFrame ? '' : getPaddingClasses(padding)].filter(Boolean).join(' ') || undefined}
       style={{
         position: 'relative', overflow: 'hidden', marginBottom: '1.5rem',
         boxShadow: shadowMap[boxShadow] ?? 'none',
         borderRadius: panelRadius,
         border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
         background: bgMap[frameBg],
-        padding: hasFrame ? innerPad : getPadding(padding),
+        padding: hasFrame ? innerPad : undefined,
       }}
     >
       {scanEffect === 'on' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
@@ -1300,7 +1358,7 @@ function Callout(props: any) {
   }
   const t = (themes[type] ?? themes.info)!
   return (
-    <div style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', padding: getPadding(padding) || '1rem 1.25rem', marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', marginBottom: '1.5rem' }}>
       {title && <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>{t.icon} {title}</p>}
       <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>
     </div>
@@ -1318,7 +1376,7 @@ function Badge(props: any) {
   }
   const t = (colors[color] ?? colors.gray)!
   return (
-    <div style={{ padding: getPadding(padding) }}>
+    <div className={getPaddingClasses(padding)}>
       <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{label}</span>
     </div>
   )
@@ -1328,7 +1386,7 @@ function Accordion(props: any) {
   const { items, padding } = props
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No accordion items yet — add some in the panel.</div>
   return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
       {items.map((item: any, i: number) => (
         <details key={i} style={{ borderBottom: '1px solid var(--color-border)', padding: 0 }}>
           <summary style={{ padding: '0.875rem 0', fontWeight: 600, color: 'var(--color-fg)', cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
@@ -1346,7 +1404,7 @@ function Stats(props: any) {
   const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No stats yet — add some in the panel.</div>
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <div className={getPaddingClasses(padding)} style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {items.map((item: any, i: number) => (
         <div key={i} style={{ flex: '1 1 120px', textAlign: 'center', padding: '1.25rem', background: 'var(--color-bg-subtle)', borderRadius: 8 }}>
           <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{item.value}</div>
@@ -1366,7 +1424,7 @@ function FeatureList(props: any) {
   // existing FeatureList blocks render unchanged.
   const glyph = iconStyle === 'glyph'
   return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {items.map((item: any, i: number) => (
         <div
           key={i}
@@ -1398,7 +1456,7 @@ function SpecPanel(props: any) {
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.10)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
   return (
-    <div style={{ marginBottom: '1.5rem', padding: getPadding(padding) }}>
+    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
       <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: radiusMap[borderRadius] ?? '16px', boxShadow: shadowMap[boxShadow] ?? shadowMap.md, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--color-border)', background: 'linear-gradient(90deg, var(--color-primary-subtle, rgba(0,0,0,0.03)), transparent)' }}>
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-primary)', flexShrink: 0 }} />
@@ -1448,18 +1506,18 @@ function Logos(props: any) {
   const { id, items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 }
   const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
-  if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding), marginBottom: '1.5rem' }}>No logos added yet — add some in the panel.</div>
+  if (!items?.length) return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No logos added yet — add some in the panel.</div>
   // justify drives the container; logo height drives every logo through a shared
   // --logo-h custom property, so one media rule resizes them all together.
   const justifyRv = normalizeResponsiveValue<string>(justify)
   const heightRv = normalizeResponsiveValue<string>(logoHeight)
   const heightPx = heights[pickResponsive(heightRv, 'desktop') ?? 'md'] ?? 48
   const css = responsiveMediaCssFor(`[data-logos-id="${id}"]`, (d) => `justify-content:${justifyMap[pickResponsive(justifyRv, d) ?? 'center'] ?? 'center'};--logo-h:${heights[pickResponsive(heightRv, d) ?? 'md'] ?? 48}px;`)
-  const containerStyle = { display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: justifyMap[pickResponsive(justifyRv, 'desktop') ?? 'center'] ?? 'center', alignItems: 'center', padding: getPadding(padding), marginBottom: '1.5rem', '--logo-h': `${heightPx}px` } as React.CSSProperties
+  const containerStyle = { display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: justifyMap[pickResponsive(justifyRv, 'desktop') ?? 'center'] ?? 'center', alignItems: 'center', marginBottom: '1.5rem', '--logo-h': `${heightPx}px` } as React.CSSProperties
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-logos-id={id} style={containerStyle}
+      <div data-logos-id={id} className={getPaddingClasses(padding)} style={containerStyle}
         {...getAosProps(animationType, animationDuration, animationDelay)}>
         {items.map((item: any, i: number) => {
           const inner = item.logoUrl
@@ -1686,7 +1744,7 @@ export function SiteLogoRsc(props: any) {
   const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
-  const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-fg)', textDecoration: 'none' }
+  const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-text)', textDecoration: 'none' }
   if (logoUrl) {
     // Shared --header-cell-height custom property drives the logo image height;
     // the shrink override just swaps the variable. Mirrors SiteLogoClient (the
@@ -1717,7 +1775,7 @@ export function SiteLogoRsc(props: any) {
   return (
     <a href={homeUrl || '/'} style={style}>
       {/* eslint-disable-next-line @next/next/no-img-element -- SVG logo asset with known static path; no CDN optimisation needed */}
-      {showIconBool && <img src="/cactus.svg" alt="Cactus" style={{ height: 28, width: 28, flexShrink: 0 }} />}
+      {showIconBool && <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />}
       {siteName ?? 'Site Name'}
     </a>
   )
@@ -2039,19 +2097,24 @@ export const puckConfig = {
     // ── Media ────────────────────────────────────────────────────────────────
     ImageBlock: {
       label: 'Image',
-      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, caption: { type: 'text' as const, label: 'Caption' }, padding: paddingField, ...aosFields },
-      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', padding: 'default', ...aosDefaults },
+      fields: {
+        mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, caption: { type: 'text' as const, label: 'Caption' },
+        maxWidth: { type: 'custom' as const, label: 'Max width (e.g. 400px or 60%)', render: ResponsiveTextField },
+        align: { type: 'custom' as const, label: 'Alignment (needs a max width)', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        padding: paddingField, ...aosFields,
+      },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', maxWidth: '', align: 'left', padding: 'default', ...aosDefaults },
       render: ImageBlock,
     },
     VideoEmbed: {
       label: 'Video',
-      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'select' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }] }, padding: paddingField },
+      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField },
       defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'default' },
       render: VideoEmbed,
     },
     Embed: {
       label: 'Embed',
-      fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'text' as const, label: 'Height (e.g. 400px)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField },
+      fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'custom' as const, label: 'Height (e.g. 400px)', render: ResponsiveTextField }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField },
       defaultProps: { src: '', height: '400px', title: '', padding: 'default' },
       render: Embed,
     },
@@ -2066,7 +2129,7 @@ export const puckConfig = {
         cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
         bg: { type: 'custom' as const, label: 'Background', render: HeroBgColorField }, bgImage: { type: 'text' as const, label: 'Background image URL' },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
-        layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }] },
+        layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }], render: ResponsiveSelectField },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
         textScheme: { type: 'select' as const, label: 'Text colour', options: [{ value: 'dark', label: 'Dark (for light backgrounds)' }, { value: 'light', label: 'Light (for dark backgrounds)' }] },
         minHeight: { type: 'custom' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }], render: ResponsiveSelectField },

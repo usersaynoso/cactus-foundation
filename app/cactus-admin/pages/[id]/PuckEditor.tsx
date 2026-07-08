@@ -80,6 +80,14 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   // --img-radius, etc.), so without this the canvas renders buttons/headings/images in
   // the admin's own look rather than the site's — mirrors LayoutPuckEditor's injection.
   const [designTokens, setDesignTokens] = useState<unknown>(null)
+  // Don't mount <Puck> until the appearance fetch has settled either way:
+  // the viewport preset widths derive from the site's breakpoint tokens, and
+  // mounting with the defaults then swapping the `viewports` prop mid-session
+  // shifted the preset widths under the editor (and left the viewport
+  // dropdown's active-width lookup pointing at nothing). buildTokenStyles also
+  // sets the block-level responsive breakpoints as a side effect, so gating on
+  // it keeps the canvas blocks and the preset widths on the same numbers.
+  const [tokensReady, setTokensReady] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -110,6 +118,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         }
       })
       .catch(() => {})
+      .finally(() => { if (mounted) setTokensReady(true) })
 
     return () => {
       mounted = false
@@ -215,6 +224,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             spacing={props.spacing ?? 'normal'}
             showDropdowns={props.showDropdowns ?? 'hover'}
             navToggle={props.navToggle}
+            itemFontSize={props.itemFontSize}
+            itemFontWeight={props.itemFontWeight}
+            textTransform={props.textTransform}
+            itemColor={props.itemColor}
           />
         )),
       },
@@ -398,7 +411,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Puck editor — takes remaining height */}
         <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
-          {canvasReady && (
+          {canvasReady && tokensReady && (
             <Puck
               config={editorConfig as any}
               data={initialData}
@@ -414,7 +427,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         {publishing && (
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(255,255,255,0.7)',
+            background: 'color-mix(in srgb, var(--color-bg) 70%, transparent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)',
           }}>

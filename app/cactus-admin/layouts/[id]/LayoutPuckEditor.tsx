@@ -104,6 +104,11 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   }, [])
 
   const [designTokens, setDesignTokens] = useState<unknown>(null)
+  // Mirrors PuckEditor: don't mount <Puck> until the appearance fetch settles,
+  // so the viewport preset widths (derived from the breakpoint tokens) and the
+  // block-level responsive breakpoints (set by buildTokenStyles) are final
+  // before the first render instead of changing under the editor.
+  const [tokensReady, setTokensReady] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -134,6 +139,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         }
       })
       .catch(() => {})
+      .finally(() => { if (mounted) setTokensReady(true) })
 
     return () => {
       mounted = false
@@ -275,7 +281,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     <UnsavedChangesProvider value={hasUnsavedChanges}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
-          {canvasReady && (
+          {canvasReady && tokensReady && (
             <Puck
               config={editorConfig as any}
               data={initialData}
@@ -288,6 +294,17 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
             />
           )}
         </div>
+
+        {isPublishing && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'color-mix(in srgb, var(--color-bg) 70%, transparent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)',
+          }}>
+            Publishing…
+          </div>
+        )}
       </div>
     </UnsavedChangesProvider>
   )

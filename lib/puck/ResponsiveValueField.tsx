@@ -1,8 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { createUsePuck } from '@puckeditor/core'
 import type { CustomFieldRender } from '@puckeditor/core'
-import { normalizeResponsiveValue, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { getResponsiveBreakpoints, normalizeResponsiveValue, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+
+const usePuck = createUsePuck()
+
+// The active device is DERIVED from the canvas viewport width (same ranges as
+// the media queries: mobile <= mobile bp < tablet <= tablet bp < desktop), and
+// picking a device switches the canvas viewport to match. One source of truth,
+// so every responsive field in the sidebar shows the same device, the canvas
+// always previews the breakpoint being edited, and Puck's own viewport
+// switcher moves the fields' toggles too. (Non-numeric widths - the "100%"
+// full-width preset - count as desktop.)
+function widthToDevice(width: unknown): Device {
+  const { mobile, tablet } = getResponsiveBreakpoints()
+  const w = typeof width === 'number' ? width : NaN
+  if (Number.isFinite(w)) {
+    if (w <= mobile) return 'mobile'
+    if (w <= tablet) return 'tablet'
+  }
+  return 'desktop'
+}
 
 // Same Monitor/Tablet/Smartphone glyphs as Puck's own viewport switcher above
 // the canvas (lucide-react, vendored inside @puckeditor/core rather than a
@@ -68,10 +87,26 @@ export function ResponsiveFieldShell<T>({
   // reset), not only overwrite it.
   renderInput: (opts: { value: T | undefined; placeholder: string; setValue: (v: T | undefined) => void }) => React.ReactNode
 }) {
-  const [device, setDevice] = useState<Device>('desktop')
+  const viewports = usePuck((s) => s.appState.ui.viewports)
+  const dispatch = usePuck((s) => s.dispatch)
+  const device = widthToDevice(viewports.current.width)
+  const setDevice = (d: Device) => {
+    const { mobile, tablet } = getResponsiveBreakpoints()
+    // Representative canvas width per device: the widest width of each band
+    // (matching the "Large Mobile"/"Large Tablet" presets), and the 1280
+    // "Large Desktop" preset for desktop.
+    const width = d === 'mobile' ? mobile : d === 'tablet' ? tablet : Math.max(1280, tablet + 1)
+    dispatch({
+      type: 'setUi',
+      ui: { viewports: { ...viewports, current: { width, height: 'auto' } } },
+      recordHistory: false,
+    })
+  }
   const hasOverride = (d: Device) => value?.[d] !== undefined && value?.[d] !== ''
 
-  const placeholder = device === 'desktop' ? '' : `Same as ${device === 'tablet' ? 'desktop' : 'tablet'}`
+  // Honest inheritance label: mobile only inherits from tablet when tablet
+  // actually has a value of its own, otherwise both fall back to desktop.
+  const placeholder = device === 'desktop' ? '' : device === 'tablet' || !hasOverride('tablet') ? 'Same as desktop' : 'Same as tablet'
   const current = value?.[device]
   const effective = current !== undefined && current !== '' ? current : inherited(value, device)
 
