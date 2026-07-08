@@ -5,6 +5,7 @@ import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
+import '@/lib/puck/tabs/gridColumnOutline.css'
 import puckConfig, { wrapResponsiveRender } from '@/lib/puck/config'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
@@ -12,7 +13,7 @@ import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
-import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createBackLinkOverride, UnsavedChangesProvider } from '@/lib/puck/tabs/headerBackLinkOverride'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
@@ -38,8 +39,6 @@ type HistoryVersion = {
   isLive: boolean
 }
 
-const AUTOSAVE_DEBOUNCE_MS = 1500
-
 export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, backHref, onDeleteClick, deleting }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -47,12 +46,15 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   const [publishError, setPublishError] = useState('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const rootProps = initialData.root?.props as Record<string, unknown> | undefined
   const [isPublished, setIsPublished] = useState(rootProps?.status === 'published')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Current editor data — kept in a ref so restore can read it without stale closure
   const currentDataRef = useRef<Data>(initialData)
+  // Puck fires onChange once on mount with the unmodified initial data - ignore that
+  // first call so the unsaved-changes warning doesn't fire before any real edit.
+  const hasChangedRef = useRef(false)
   const canvasWrapRef = useRef<HTMLDivElement>(null)
   const [canvasReady, setCanvasReady] = useState(false)
 
@@ -146,6 +148,18 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount, loadHistory is stable for a given pageId
   }, [])
 
+  // Content only saves to the DB on an explicit Update click - warn on a real
+  // browser navigation/reload/close so in-progress edits aren't silently lost
+  // (the in-app "Back to Pages" link is a client-side nav, which this can't
+  // catch - see its own confirm() in headerBackLinkOverride.tsx).
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedChanges])
+
   const editorConfig = useMemo(() => ({
     ...puckConfig,
     components: {
@@ -236,17 +250,11 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   const handleChange = useCallback((data: Data) => {
     currentDataRef.current = data
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => doAutosave(data), AUTOSAVE_DEBOUNCE_MS)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- doAutosave is stable; adding it would reset the timer unnecessarily
-  }, [pageId])
+    if (!hasChangedRef.current) { hasChangedRef.current = true; return }
+    setHasUnsavedChanges(true)
+  }, [])
 
   const handlePublish = useCallback(async (data: Data) => {
-    // Cancel any pending autosave so it cannot race with this action
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-      debounceRef.current = null
-    }
     const rootProps = (data.root?.props ?? {}) as Record<string, unknown>
     const wantsDraft = rootProps.status === 'draft'
 
@@ -271,6 +279,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           setPublishedSlug(null)
         }
         await doAutosave(data)
+        setHasUnsavedChanges(false)
       } else {
         const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
           method: 'POST',
@@ -283,6 +292,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         } else {
           setIsPublished(true)
           setLastSaved(new Date())
+          setHasUnsavedChanges(false)
           if (d.slug) setPublishedSlug(d.slug)
           loadHistory()
         }
@@ -312,14 +322,8 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         return
       }
 
-      // Cancel any pending debounced autosave
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-        debounceRef.current = null
-      }
-
-      // Update the ref and trigger an immediate autosave so the restored content
-      // is persisted even if the user navigates away before the debounce fires.
+      // Update the ref and persist the restored content immediately, since the
+      // page reload right below would otherwise discard it unsaved.
       currentDataRef.current = restoredData
       await doAutosave(restoredData)
 
@@ -390,32 +394,34 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   ], [canManageMenus, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      {/* Puck editor — takes remaining height */}
-      <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
-        {canvasReady && (
-          <Puck
-            config={editorConfig as any}
-            data={initialData}
-            onChange={handleChange}
-            onPublish={canPublish ? handlePublish : undefined}
-            plugins={plugins}
-            overrides={puckOverrides}
-            viewports={puckViewports}
-          />
+    <UnsavedChangesProvider value={hasUnsavedChanges}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* Puck editor — takes remaining height */}
+        <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
+          {canvasReady && (
+            <Puck
+              config={editorConfig as any}
+              data={initialData}
+              onChange={handleChange}
+              onPublish={canPublish ? handlePublish : undefined}
+              plugins={plugins}
+              overrides={puckOverrides}
+              viewports={puckViewports}
+            />
+          )}
+        </div>
+
+        {publishing && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(255,255,255,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)',
+          }}>
+            Publishing…
+          </div>
         )}
       </div>
-
-      {publishing && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(255,255,255,0.7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)',
-        }}>
-          Publishing…
-        </div>
-      )}
-    </div>
+    </UnsavedChangesProvider>
   )
 }

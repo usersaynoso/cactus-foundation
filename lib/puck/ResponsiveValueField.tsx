@@ -54,7 +54,7 @@ function inherited<T>(value: ResponsiveValue<T> | undefined, device: Device): T 
 // that swap which breakpoint's value the input reads/writes. Reused for both
 // text and select inputs via the `renderInput` render-prop, so every
 // responsive field in the sidebar looks and behaves the same way.
-function ResponsiveFieldShell<T>({
+export function ResponsiveFieldShell<T>({
   label,
   value,
   onChange,
@@ -63,7 +63,10 @@ function ResponsiveFieldShell<T>({
   label?: string
   value: ResponsiveValue<T> | undefined
   onChange: (next: ResponsiveValue<T>) => void
-  renderInput: (opts: { value: T | undefined; placeholder: string; setValue: (v: T) => void }) => React.ReactNode
+  // setValue accepts undefined so a field can clear a breakpoint back to
+  // "inherit from the wider one" (a number input going empty, a custom picker
+  // reset), not only overwrite it.
+  renderInput: (opts: { value: T | undefined; placeholder: string; setValue: (v: T | undefined) => void }) => React.ReactNode
 }) {
   const [device, setDevice] = useState<Device>('desktop')
   const hasOverride = (d: Device) => value?.[d] !== undefined && value?.[d] !== ''
@@ -162,3 +165,23 @@ export const ResponsiveSelectField: CustomFieldRender<ResponsiveValue<string>> =
     />
   )
 }
+
+// Numeric sibling of ResponsiveTextField. Stores ResponsiveValue<number>; an
+// empty input clears that breakpoint (setValue(undefined)) so it inherits the
+// wider one, rather than being pinned to 0.
+export const ResponsiveNumberField: CustomFieldRender<ResponsiveValue<number>> = ({ value, onChange, field }) => (
+  <ResponsiveFieldShell<number>
+    label={(field as FieldWithOptions).label}
+    value={normalizeResponsiveValue(value)}
+    onChange={onChange}
+    renderInput={({ value: v, placeholder, setValue }) => (
+      <input
+        type="number"
+        value={v ?? ''}
+        placeholder={placeholder}
+        onChange={(e) => setValue(e.target.value === '' ? undefined : Number(e.target.value))}
+        style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit' }}
+      />
+    )}
+  />
+)

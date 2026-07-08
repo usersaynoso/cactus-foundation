@@ -1,7 +1,9 @@
 'use client'
 
-import { usePuck } from '@puckeditor/core'
+import { createUsePuck } from '@puckeditor/core'
 import { MenuCheckboxField } from '@/lib/puck/MenuCheckboxField'
+
+const usePuck = createUsePuck()
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)',
@@ -23,7 +25,8 @@ type Props = {
 }
 
 export default function PageSettingsTab({ canManageMenus, saving, lastSaved, saveError, publishError, isPublished, publishedSlug }: Props) {
-  const { appState, dispatch } = usePuck()
+  const appState = usePuck(s => s.appState)
+  const dispatch = usePuck(s => s.dispatch)
   const props = (appState.data.root?.props ?? {}) as Record<string, unknown>
 
   function set(key: string, value: unknown) {

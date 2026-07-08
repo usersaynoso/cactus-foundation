@@ -43,6 +43,16 @@ To remove a block, select it and click the delete icon.
 
 ---
 
+## Setting things differently per screen size
+
+Lots of block settings - alignment, spacing, sizes, gaps, widths and the like - can be set separately for desktop, tablet, and mobile. Look for the little row of screen icons (a monitor, a tablet, a phone) beside a setting: click one to choose which screen size you're setting, then pick the value.
+
+You only set the ones you want to change. Leave tablet or mobile blank and they simply follow the size above - mobile falls back to tablet, tablet falls back to desktop - so you can nudge the odd setting on smaller screens without redoing the lot. A small dot on a screen icon shows where you've set something specific.
+
+This is a different thing from hiding a block on certain screens (the show/hide-per-device toggle), which carries on working exactly as before.
+
+---
+
 ## Available blocks
 
 ### Layout

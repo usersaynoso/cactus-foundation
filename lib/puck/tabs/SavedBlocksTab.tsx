@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { usePuck } from '@puckeditor/core'
+import { createUsePuck } from '@puckeditor/core'
+
+const usePuck = createUsePuck()
 
 type SavedBlock = {
   id: string
@@ -13,7 +15,9 @@ type SavedBlock = {
 const ROOT_ZONE = 'default-zone'
 
 export default function SavedBlocksTab() {
-  const { appState, dispatch, selectedItem } = usePuck()
+  const appState = usePuck(s => s.appState)
+  const dispatch = usePuck(s => s.dispatch)
+  const selectedItem = usePuck(s => s.selectedItem)
   const [blocks, setBlocks] = useState<SavedBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

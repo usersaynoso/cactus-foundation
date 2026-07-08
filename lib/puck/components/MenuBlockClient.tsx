@@ -80,6 +80,7 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
           href={item.href}
           target={item.openInNewTab ? '_blank' : undefined}
           rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+          className="cactus-nav-link"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -207,6 +208,9 @@ type Props = {
   showDesktopToggle?: string
   showMobileToggle?: string
   showTabletToggle?: string
+  spacingShrunk?: '' | 'tight' | 'normal' | 'wide'
+  itemFontSizeShrunk?: '' | 'small' | 'medium' | 'large'
+  itemFontWeightShrunk?: '' | 'normal' | 'medium' | 'semibold' | 'bold'
   [key: string]: unknown
 }
 
@@ -220,6 +224,9 @@ export default function MenuBlockClient({
   showDesktopToggle = 'show',
   showMobileToggle = 'collapse',
   showTabletToggle = 'collapse',
+  spacingShrunk,
+  itemFontSizeShrunk,
+  itemFontWeightShrunk,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -248,6 +255,12 @@ export default function MenuBlockClient({
   const menuClasses = ['cactus-nav-menu', ...collapseModifiers].join(' ')
   const toggleBtnClasses = ['cactus-nav-toggle', ...collapseModifiers].join(' ')
 
+  // Header "shrink on scroll" support - only emitted when at least one shrunk
+  // value is set. Scoped under the header's own data-shrunk toggle (see
+  // headerRootRender/HeaderShrinkScroll), so it's a no-op anywhere else this
+  // menu is used (footer, other layouts).
+  const hasShrink = !!(spacingShrunk || itemFontSizeShrunk || itemFontWeightShrunk)
+
   return (
     <>
       {showHamburger && (
@@ -255,9 +268,16 @@ export default function MenuBlockClient({
         // emitted by buildTokenStyles so they track the site's breakpoint settings.
         <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`}</style>
       )}
+      {hasShrink && (
+        <style>{[
+          spacingShrunk ? `header[data-shrink-root][data-shrunk] .cactus-nav-list{gap:${hGapMap[spacingShrunk] ?? '0'} !important;}` : '',
+          itemFontSizeShrunk ? `header[data-shrink-root][data-shrunk] .cactus-nav-link{font-size:${fontSizeMap[itemFontSizeShrunk]} !important;}` : '',
+          itemFontWeightShrunk ? `header[data-shrink-root][data-shrunk] .cactus-nav-link{font-weight:${fontWeightMap[itemFontWeightShrunk]} !important;}` : '',
+        ].filter(Boolean).join('\n')}</style>
+      )}
 
       <ul
-        className={showHamburger ? menuClasses : undefined}
+        className={['cactus-nav-list', showHamburger ? menuClasses : ''].filter(Boolean).join(' ')}
         style={{
           display: showHamburger ? undefined : 'flex',
           flexWrap: 'wrap',

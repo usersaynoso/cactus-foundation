@@ -5,7 +5,14 @@ type Props = {
   logoUrl?: string | null
   logoUrlDark?: string | null
   siteName?: string
+  // cellHeight/cellHeightShrunk are the current field keys ("Element height" /
+  // "Element height when shrunk"). logoHeight/logoHeightShrunk are accepted as a
+  // fallback so pre-rename saved data (and SiteHeaderBlock, which still passes
+  // logoHeight) keeps rendering without a data migration.
+  cellHeight?: number
+  cellHeightShrunk?: number
   logoHeight?: number
+  logoHeightShrunk?: number
   showTextWithLogo?: string | boolean
   showIcon?: string | boolean
   textColor?: string
@@ -17,7 +24,10 @@ export default function SiteLogoClient({
   logoUrl,
   logoUrlDark,
   siteName,
-  logoHeight = 40,
+  cellHeight,
+  cellHeightShrunk,
+  logoHeight,
+  logoHeightShrunk,
   showTextWithLogo = 'false',
   showIcon = 'true',
   textColor,
@@ -25,6 +35,8 @@ export default function SiteLogoClient({
 }: Props) {
   const [hovered, setHovered] = useState(false)
 
+  const cellH = cellHeight ?? logoHeight ?? 40
+  const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const href = homeUrl || '/'
   const showTextBool = showTextWithLogo === true || (showTextWithLogo as string) === 'true'
   const showIconBool = showIcon !== false && (showIcon as string) !== 'false'
@@ -46,13 +58,30 @@ export default function SiteLogoClient({
   }
 
   if (logoUrl) {
+    // The logo image is sized by a shared --header-cell-height custom property
+    // rather than a hard-coded height, so on shrink the override below just
+    // swaps the variable. transition:height animates the resolved height change
+    // (no @property needed - height is animatable regardless of the value
+    // arriving via a variable). object-fit:contain + width:auto preserve the
+    // logo's aspect ratio as the height changes.
+    const logoImgStyle = {
+      '--header-cell-height': `${cellH}px`,
+      height: 'var(--header-cell-height)',
+      width: 'auto',
+      maxWidth: '100%',
+      objectFit: 'contain',
+      transition: 'height 0.25s ease',
+    } as React.CSSProperties
     return (
       <a href={href} style={style} {...events}>
+        {cellHShrunk && (
+          <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} style={{ height: logoHeight, width: 'auto' }} />
+        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} data-site-logo style={logoImgStyle} />
         {logoUrlDark && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" style={{ height: logoHeight, width: 'auto' }} />
+          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>

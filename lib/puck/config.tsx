@@ -29,12 +29,14 @@ import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorF
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
 import { VisibilityField } from '@/lib/puck/VisibilityField'
-import { normalizeResponsiveValue, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
+import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
+import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
 
  
 
@@ -179,12 +181,36 @@ function withResponsiveVisibility(def: any): any {
 // Layout blocks
 // ---------------------------------------------------------------------------
 
+// The 2-track presets (auto-fill, 30-70, etc) only mean anything when
+// getGridTemplateColumns has exactly 2 columns to divide - grid's own field
+// options are trimmed to hide them for 3/4-column grids (see Grid's
+// resolveFields below).
+const TWO_COL_ONLY_SIZE_VALUES = new Set(['auto-fill', 'fill-auto', '30-70', '40-60', '60-40', '70-30'])
+const GRID_COLUMN_SIZE_OPTIONS = [
+  { value: 'equal', label: 'Equal' },
+  { value: 'auto-fill', label: 'Auto + fill' },
+  { value: 'fill-auto', label: 'Fill + auto' },
+  { value: '30-70', label: '30 / 70' },
+  { value: '40-60', label: '40 / 60' },
+  { value: '60-40', label: '60 / 40' },
+  { value: '70-30', label: '70 / 30' },
+  { value: 'manual', label: 'Manual (set each column below)' },
+]
+
 // A custom width wins over the columnSizes preset for its own column; columns
 // left blank fall back to `1fr` so a single custom width doesn't collapse its
 // neighbours to zero width.
 function getGridTemplateColumns(columnSizes: string | undefined, colCount: number, colWidths?: Array<string | undefined>): string {
   if (colWidths?.slice(0, colCount).some(w => w && w.trim())) {
-    return colWidths.slice(0, colCount).map(w => (w && w.trim()) || '1fr').join(' ')
+    // A bare length/percentage track (unlike `1fr`, which the grid spec treats
+    // as `minmax(auto, 1fr)`) has no automatic minimum, so content that can't
+    // shrink that far overflows into neighbouring columns instead of holding
+    // a floor - wrap it in minmax(min-content, ...) to give it the same
+    // overflow protection a default column already gets for free.
+    return colWidths.slice(0, colCount).map(w => {
+      const v = w && w.trim()
+      return v ? `minmax(min-content, ${v})` : '1fr'
+    }).join(' ')
   }
   if (colCount === 2) {
     const m: Record<string, string> = {
@@ -197,11 +223,20 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, spaceBelow } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
+
+  // Header-only true-centering. A column set to "Centre" is pulled onto the
+  // header's own centre line (absolute, left:50%) instead of being centred
+  // within its own grid track, so it stays put when a flanking element's
+  // rendered width changes (e.g. the logo shrinking on scroll). Scoped to
+  // header[data-header-root]: inert for the same Grid dropped into page content
+  // or the footer, and breakpoint-agnostic (anchored to the header box, not a
+  // track width) so it needs no tablet/mobile media variants.
+  const centerColIndexes = colAligns.slice(0, colCount).map((a, i) => (a === 'center' ? i : -1)).filter((i) => i >= 0)
 
   // columnSizes/col*Width are ResponsiveValue<string> objects ({desktop,
   // tablet, mobile}), but pre-existing data (and any default) stores them as
@@ -216,6 +251,32 @@ function GridBlock(props: any) {
   const tabletCols = effectiveAt('tablet')
   const mobileCols = effectiveAt('mobile')
   const hasResponsiveOverride = tabletCols !== desktopCols || mobileCols !== desktopCols
+
+  // Shrunk-state overrides (header "shrink on scroll" only) - fall back to the
+  // normal width/gap per column (at the same breakpoint) when no shrunk value
+  // is set, so leaving a column's shrunk width blank just means "don't shrink
+  // this one". Responsive like col*Width itself, so e.g. a column can shrink
+  // to a smaller width on scroll only once the layout has reached tablet.
+  const shrunkWidths = [col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk].map((w) => normalizeResponsiveValue<string>(w))
+  const hasShrunkOverride = !!gapShrunk || shrunkWidths.some((w) => !!(w.desktop?.trim() || w.tablet?.trim() || w.mobile?.trim()))
+  const shrunkColsAt = (device: 'desktop' | 'tablet' | 'mobile') =>
+    getGridTemplateColumns(pick(sizes, device), colCount, shrunkWidths.map((w, i) => {
+      const v = pick(w, device)
+      return v && v.trim() ? v : pick(widths[i]!, device)
+    }))
+  const shrunkDesktopCols = hasShrunkOverride ? shrunkColsAt('desktop') : desktopCols
+  const shrunkTabletCols = hasShrunkOverride ? shrunkColsAt('tablet') : tabletCols
+  const shrunkMobileCols = hasShrunkOverride ? shrunkColsAt('mobile') : mobileCols
+
+  // gap and vertical alignment vary per breakpoint too (columns already do,
+  // above). col*Align is deliberately NOT responsive: the header true-centering
+  // fix reads it in JS (centerColIndexes) to decide which columns to absolutely
+  // centre, so a per-breakpoint object there would break that gate.
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const vAlignRv = normalizeResponsiveValue<string>(verticalAlign)
+  const vAlignMap: Record<string, string> = { stretch: 'stretch', start: 'start', center: 'center', end: 'end' }
+  const gapVAlignCss = responsiveMediaCssFor(`[data-grid-id="${id}"]`, (d) => `gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};align-items:${vAlignMap[pickResponsive(vAlignRv, d) ?? 'stretch'] ?? 'stretch'};`)
+
   // data-responsive-set opts this instance out of the generic tablet/mobile
   // collapse rules in buildTokenStyles (lib/design/tokens.ts), which only
   // exist as a sane default for grids that haven't set their own breakpoint
@@ -228,6 +289,19 @@ function GridBlock(props: any) {
           mobileCols !== desktopCols && `@media(max-width:640px){[data-grid-id="${id}"]{grid-template-columns:${mobileCols} !important;}}`,
         ].filter(Boolean).join('\n')}</style>
       )}
+      {hasShrunkOverride && (
+        <style>{[
+          `${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkDesktopCols} !important;${gapShrunk ? `gap:${GAP_MAP[gapShrunk] ?? '1rem'} !important;` : ''}}`,
+          shrunkTabletCols !== shrunkDesktopCols && `@media(min-width:640px) and (max-width:1024px){${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkTabletCols} !important;}}`,
+          shrunkMobileCols !== shrunkDesktopCols && `@media(max-width:640px){${HEADER_SHRUNK_SELECTOR} [data-grid-id="${id}"]{grid-template-columns:${shrunkMobileCols} !important;}}`,
+        ].filter(Boolean).join('\n')}</style>
+      )}
+      {centerColIndexes.length > 0 && (
+        <style>{centerColIndexes.map((i) =>
+          `header[data-header-root] [data-grid-id="${id}"] > div:nth-child(${i + 1}){position:absolute;left:50%;transform:translateX(-50%);}`
+        ).join('\n')}</style>
+      )}
+      {gapVAlignCss && <style>{gapVAlignCss}</style>}
       <div
         className="puck-grid"
         data-cols={colCount}
@@ -236,16 +310,21 @@ function GridBlock(props: any) {
         style={{
       display: 'grid',
       gridTemplateColumns: desktopCols,
-      gap: GAP_MAP[gap] ?? '1rem',
+      gap: GAP_MAP[pickResponsive(gapRv, 'desktop') ?? 'md'] ?? '1rem',
       padding: getPadding(padding),
       marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
-      alignItems: ({ stretch: 'stretch', start: 'start', center: 'center', end: 'end' } as any)[verticalAlign] ?? 'stretch',
+      alignItems: (vAlignMap as any)[pickResponsive(vAlignRv, 'desktop') ?? 'stretch'] ?? 'stretch',
     }}>
       {slots.map((slot, i) => {
         const jc = colAligns[i] && justifyMap[colAligns[i]]
         const content = typeof slot === 'function' ? slot() : null
         return (
-          <div key={i} style={{ minWidth: 0, ...(jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+          <div key={i} style={{ minWidth: 0, gridColumn: i + 1, ...(jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+            {/* Explicit gridColumn matters once any column is centred: an
+                absolutely-positioned grid item is skipped by CSS Grid's
+                auto-placement, so without an explicit track, later columns
+                collapse into the vacated slot instead of holding their
+                position (e.g. a "right" column landing under a centred nav). */}
             {/* Puck's own editor-canvas wrapper around a slot's dropped block
                 stretches to fill this column (unlike the RSC/live render, which
                 renders the block's own markup directly). Without this inner
@@ -261,24 +340,142 @@ function GridBlock(props: any) {
   )
 }
 
+// Grid2/Grid3/Grid4 - separate Puck component types, one per fixed column
+// count, sharing GridBlock's render. Puck's Outline panel derives its zone
+// list by walking each component TYPE's own static `fields` declaration
+// (mapFields/walkTree in @puckeditor/core), completely bypassing resolveFields
+// - so a single dynamic "Grid" with a Columns select field can never make
+// Outline hide an unused col4 zone, no matter how resolveFields trims the
+// sidebar form. Fixing that requires each column count to be its own
+// component type, declaring only the slots it actually has.
+// The original dynamic `Grid` (below) stays registered - unchanged, still
+// fully renderable/editable - purely so existing data (saved-block library
+// entries or Layout/InfoPage history snapshots) that a migration missed keeps
+// working; it's just no longer listed in any category's `components` picker.
+function readColumnSizesMode(columnSizes: unknown): string | undefined {
+  return typeof columnSizes === 'string' ? columnSizes : (columnSizes as any)?.desktop
+}
+
+function makeGridColumnComponent(colCount: 2 | 3 | 4) {
+  const cols = Array.from({ length: colCount }, (_, i) => i + 1)
+  const alignOptions = [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }]
+
+  const fields: Record<string, unknown> = {
+    columnSizes: {
+      type: 'custom' as const,
+      label: 'Column widths',
+      options: colCount === 2 ? GRID_COLUMN_SIZE_OPTIONS : GRID_COLUMN_SIZE_OPTIONS.filter((o) => !TWO_COL_ONLY_SIZE_VALUES.has(o.value)),
+      render: ResponsiveSelectField,
+    },
+    verticalAlign: { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
+    gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
+    padding: paddingField,
+    spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+  }
+  for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
+  for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
+  // Shrunk-state fields - only shown when this Grid sits in a header with
+  // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
+  // shrink that column/gap.
+  fields.gapShrunk = { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] }
+  for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, render: ResponsiveTextField }
+  for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
+
+  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', gapShrunk: '' }
+  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = '' }
+
+  return {
+    label: `Grid (${colCount} columns)`,
+    fields,
+    defaultProps,
+    resolveFields: (data: any, { fields: f, appState }: any) => {
+      let result = f
+      if (!isHeaderShrinkEnabled(appState)) {
+        const rest = { ...result }
+        delete rest.gapShrunk
+        for (const n of cols) delete rest[`col${n}WidthShrunk`]
+        result = rest
+      }
+      const isManual = readColumnSizesMode(data.props?.columnSizes) === 'manual'
+      if (isManual) return result
+      const trimmed = { ...result }
+      for (const n of cols) delete trimmed[`col${n}Width`]
+      return trimmed
+    },
+    // Leaving Manual mode hides col*Width but getGridTemplateColumns still lets
+    // a non-blank width win over the preset regardless of columnSizes - without
+    // this, switching back to "Equal" would silently keep rendering the old
+    // manual widths while the field claiming "Equal" is out of view.
+    resolveData: (data: any, { changed }: any) => {
+      if (!changed.columnSizes) return data
+      if (readColumnSizesMode(data.props?.columnSizes) === 'manual') return data
+      const patch: Record<string, string> = {}
+      for (const n of cols) {
+        const w = data.props?.[`col${n}Width`]
+        const v = typeof w === 'string' ? w : (w?.desktop ?? w?.tablet ?? w?.mobile)
+        if (v && v.trim()) patch[`col${n}Width`] = ''
+      }
+      if (!Object.keys(patch).length) return data
+      return { ...data, props: { ...data.props, ...patch } }
+    },
+    render: GridBlock,
+  }
+}
+
+const grid2Component = makeGridColumnComponent(2)
+const grid3Component = makeGridColumnComponent(3)
+const grid4Component = makeGridColumnComponent(4)
+
 function GroupBlock(props: any) {
-  const { direction, justify, align, wrap, gap, padding, items } = props
+  const { id, direction, justify, align, wrap, gap, gapShrunk, padding, items } = props
   const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
   const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
   if (typeof items !== 'function') return null
+  const shrinkClass = `group-shrink-${id}`
+  const rspClass = `group-rsp-${id}`
+  // Header-only true-centering for a 3-item group whose items are space-
+  // distributed (between/around/evenly): the middle item is pulled onto the
+  // header's own centre line (absolute, left:50%) so it stays put when a
+  // flanking item's rendered width changes. The "exactly 3 items" gate lives in
+  // pure CSS - :nth-child(2):nth-last-child(2) matches the 2nd child only when
+  // it is also 2nd-from-last, i.e. only when there are exactly 3 - because the
+  // item count isn't available in render (items is the slot render function,
+  // not the array). Scoped to header[data-header-root]: inert outside a header.
+  const wantsCenter = justify === 'between' || justify === 'around' || justify === 'evenly'
+  const centerClass = `group-center-${id}`
+  // direction, align and gap vary per breakpoint. justify stays flat on purpose:
+  // the centering gate above reads it. The media override targets the flex
+  // container's own class and carries !important (via responsiveMediaCssFor) to
+  // beat the inline base style below.
+  const dirRv = normalizeResponsiveValue<string>(direction)
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const dirBase = pickResponsive(dirRv, 'desktop')
+  const alignBase = pickResponsive(alignRv, 'desktop')
+  const gapBase = pickResponsive(gapRv, 'desktop')
+  const rspCss = responsiveMediaCssFor(`.${rspClass}`, (d) => `flex-direction:${pickResponsive(dirRv, d) === 'column' ? 'column' : 'row'};align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
+  const slotClassName = [gapShrunk ? shrinkClass : '', wantsCenter ? centerClass : '', rspClass].filter(Boolean).join(' ') || undefined
   // Pass flex styles directly to the SlotRender wrapper so its children are
   // proper flex items rather than sitting inside an unstyled block container.
-  return items({
-    style: {
-      display: 'flex',
-      flexDirection: direction === 'column' ? 'column' : 'row',
-      justifyContent: justifyMap[justify] ?? 'flex-start',
-      alignItems: alignMap[align] ?? 'stretch',
-      flexWrap: wrap === 'nowrap' ? 'nowrap' : 'wrap',
-      gap: GAP_MAP[gap] ?? '1rem',
-      padding: getPadding(padding),
-    }
-  })
+  return (
+    <>
+      {gapShrunk && <style>{`${HEADER_SHRUNK_SELECTOR} .${shrinkClass}{gap:${GAP_MAP[gapShrunk] ?? '1rem'} !important;}`}</style>}
+      {wantsCenter && <style>{`header[data-header-root] .${centerClass} > *:nth-child(2):nth-last-child(2){position:absolute;left:50%;transform:translateX(-50%);}`}</style>}
+      {rspCss && <style>{rspCss}</style>}
+      {items({
+        className: slotClassName,
+        style: {
+          display: 'flex',
+          flexDirection: dirBase === 'column' ? 'column' : 'row',
+          justifyContent: justifyMap[justify] ?? 'flex-start',
+          alignItems: alignMap[alignBase ?? 'stretch'] ?? 'stretch',
+          flexWrap: wrap === 'nowrap' ? 'nowrap' : 'wrap',
+          gap: GAP_MAP[gapBase ?? 'md'] ?? '1rem',
+          padding: getPadding(padding),
+        }
+      })}
+    </>
+  )
 }
 
 function SiteHeaderBlock(props: any) {
@@ -327,9 +524,8 @@ function SiteHeaderBlock(props: any) {
 }
 
 function SplitBlock(props: any) {
-  const { puck, ratio, align = 'stretch', gap = 'md', padding } = props
+  const { puck, id, ratio, align = 'stretch', gap = 'md', padding } = props
   const alignMap: Record<string, string> = { stretch: 'stretch', start: 'flex-start', center: 'center', end: 'flex-end' }
-  const gapValue = GAP_MAP[gap] ?? '1rem'
 
   const gridCols: Record<string, string> = {
     '50/50': '1fr 1fr',
@@ -340,29 +536,54 @@ function SplitBlock(props: any) {
   }
   const cols = gridCols[ratio] ?? '1fr 1fr'
 
+  // Vertical align and gap vary per breakpoint. Ratio (grid-template-columns) is
+  // deliberately left flat: splits are force-collapsed to a single column below
+  // the mobile breakpoint by a global !important rule in tokens.ts, so a
+  // per-breakpoint ratio couldn't take effect at mobile anyway.
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const alignBase = pickResponsive(alignRv, 'desktop') ?? 'stretch'
+  const gapBase = pickResponsive(gapRv, 'desktop') ?? 'md'
+  const css = responsiveMediaCssFor(`[data-split-id="${id}"]`, (d) => `align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
+
   return (
-    <div className="puck-split" style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[align] ?? 'stretch', gap: gapValue, marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
-      <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
-      <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
-    </div>
+    <>
+      {css && <style>{css}</style>}
+      <div data-split-id={id} className="puck-split" style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padding === 'none' ? 0 : '1.5rem', padding: getPadding(padding) }}>
+        <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
+        <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
+      </div>
+    </>
   )
 }
 
 function Spacer(props: any) {
+  const { id } = props
   const heights: Record<string, number> = { xs: 8, sm: 16, md: 32, lg: 64, xl: 96 }
-  return <div style={{ height: heights[props.height] ?? 32 }} />
+  const rv = normalizeResponsiveValue<string>(props.height)
+  const base = pickResponsive(rv, 'desktop') ?? 'md'
+  const css = responsiveMediaCssFor(`[data-spacer-id="${id}"]`, (d) => `height:${heights[pickResponsive(rv, d) ?? 'md'] ?? 32}px;`)
+  return <>{css && <style>{css}</style>}<div data-spacer-id={id} style={{ height: heights[base] ?? 32 }} /></>
 }
 
 function Divider(props: any) {
-  const { style, color, thickness } = props
+  const { id, style, color, thickness } = props
   const colors: Record<string, string> = { gray: 'var(--color-border)', dark: 'var(--color-fg)', brand: 'var(--color-primary)' }
   const heights: Record<string, string> = { thin: '1px', medium: '2px', thick: '4px' }
+  const rv = normalizeResponsiveValue<string>(thickness)
+  const base = pickResponsive(rv, 'desktop') ?? 'thin'
+  // Only the line thickness varies per breakpoint; style/colour stay from the
+  // base rule, so the media override touches just border-top-width.
+  const css = responsiveMediaCssFor(`[data-divider-id="${id}"]`, (d) => `border-top-width:${heights[pickResponsive(rv, d) ?? 'thin'] ?? '1px'};`)
   return (
-    <hr style={{
-      border: 'none',
-      borderTop: `${heights[thickness] ?? '1px'} ${style ?? 'solid'} ${colors[color] ?? colors.gray}`,
-      margin: '1.5rem 0',
-    }} />
+    <>
+      {css && <style>{css}</style>}
+      <hr data-divider-id={id} style={{
+        border: 'none',
+        borderTop: `${heights[base] ?? '1px'} ${style ?? 'solid'} ${colors[color] ?? colors.gray}`,
+        margin: '1.5rem 0',
+      }} />
+    </>
   )
 }
 
@@ -372,7 +593,7 @@ function Divider(props: any) {
 
 function SectionBlock(props: any) {
   const {
-    content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
+    id, content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
     paddingY = 'lg', maxWidth = 'standard', textColor = '',
     sticky = 'off', stickyOffset = '0px',
@@ -413,16 +634,24 @@ function SectionBlock(props: any) {
 
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
 
+  // paddingY (vertical padding) and maxWidth both vary per breakpoint; fold them
+  // into one media override on the inner content wrapper. Desktop is the base
+  // inline style, so plain legacy string data renders unchanged.
+  const pyRv = normalizeResponsiveValue<string>(paddingY)
+  const mwRv = normalizeResponsiveValue<string>(maxWidth)
+  const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${paddingYMap[pickResponsive(pyRv, d) ?? 'lg'] ?? '6rem'} 1.5rem;`)
+
   return (
     <div style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
       {bgType === 'grid-scan' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
       {overlayColor && overlayOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
       )}
-      <div style={{
-        maxWidth: maxWidthMap[maxWidth] ?? '960px',
+      {innerCss && <style>{innerCss}</style>}
+      <div data-section-id={id} style={{
+        maxWidth: maxWidthMap[pickResponsive(mwRv, 'desktop') ?? 'standard'] ?? '960px',
         margin: '0 auto',
-        padding: `${paddingYMap[paddingY] ?? '6rem'} 1.5rem`,
+        padding: `${paddingYMap[pickResponsive(pyRv, 'desktop') ?? 'lg'] ?? '6rem'} 1.5rem`,
         position: 'relative',
         zIndex: 1,
       }}>
@@ -494,7 +723,12 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
 }
 
 function Heading(props: any) {
-  const { text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline' } = props
+  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline' } = props
+  // `align` is a ResponsiveValue<string> ({desktop,tablet,mobile}); desktop is
+  // the base text-align, tablet/mobile emitted as media overrides below. Plain
+  // legacy string data normalises to {desktop: value}, so it renders unchanged.
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const alignBase = pickResponsive(alignRv, 'desktop') ?? 'left'
   const colors: Record<string, string> = { muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
   const sizes: Record<string, string> = { display: '3rem', h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
   const weights: Record<string, number> = { display: 800, h2: 800, h3: 700, h4: 700, h5: 600 }
@@ -516,7 +750,7 @@ function Heading(props: any) {
     textTransform: `var(--${lvl}-transform, none)` as React.CSSProperties['textTransform'],
     fontStyle: `var(--${lvl}-style, normal)`,
     color: colors[color] ?? `var(--${lvl}-color, var(--color-fg))`,
-    textAlign: align ?? 'left',
+    textAlign: alignBase as React.CSSProperties['textAlign'],
     margin: '0 0 1rem',
   }
   const Tag = lvl === 'display' ? 'h1' : lvl
@@ -531,9 +765,11 @@ function Heading(props: any) {
         </span>
       ))
     : renderHighlight(text, highlightText, highlightMark, 'h')
+  const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
   return (
     <div style={{ padding: getPadding(padding) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      <Tag style={style} className={headingClassName}>
+      {alignCss && <style>{alignCss}</style>}
+      <Tag data-heading-id={id} style={style} className={headingClassName}>
         {content}
       </Tag>
     </div>
@@ -541,19 +777,40 @@ function Heading(props: any) {
 }
 
 function TextBlock(props: any) {
-  const { content, align, padding, size = 'base', maxWidth = 'none', color = 'default' } = props
+  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default' } = props
   const sizeMap: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
   const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
   const colorMap: Record<string, string> = { default: 'var(--color-fg-secondary)', muted: 'var(--color-muted)', dark: 'var(--color-fg)' }
-  const mw = maxWidthMap[maxWidth]
-  // When width is capped, anchor the block to its text alignment (centre/right)
-  // via auto side margins rather than letting it always sit flush-left.
-  const marginLeft = mw && (align === 'center' || align === 'right') ? 'auto' : undefined
-  const marginRight = mw && align === 'center' ? 'auto' : undefined
+  // align/size/maxWidth are each ResponsiveValue<string>, and they interact - a
+  // capped width anchors the block to its text alignment via auto side margins -
+  // so all three fold into a single per-breakpoint declaration set rather than
+  // three independent rules. Desktop is the base inline style; tablet/mobile are
+  // emitted as media overrides. Plain legacy string data renders unchanged.
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const sizeRv = normalizeResponsiveValue<string>(size)
+  const mwRv = normalizeResponsiveValue<string>(maxWidth)
+  const at = (d: 'desktop' | 'tablet' | 'mobile') => ({
+    a: pickResponsive(alignRv, d) ?? 'left',
+    s: pickResponsive(sizeRv, d) ?? 'base',
+    m: pickResponsive(mwRv, d) ?? 'none',
+  })
+  const decls = (d: 'desktop' | 'tablet' | 'mobile') => {
+    const { a, s, m } = at(d)
+    const mw = maxWidthMap[m]
+    const ml = mw && (a === 'center' || a === 'right') ? 'auto' : '0'
+    const mr = mw && a === 'center' ? 'auto' : '0'
+    return `text-align:${a};font-size:${sizeMap[s] ?? '1rem'};max-width:${mw ?? 'none'};margin-left:${ml};margin-right:${mr};`
+  }
+  const base = at('desktop')
+  const baseMw = maxWidthMap[base.m]
+  const mediaCss = responsiveMediaCssFor(`[data-text-id="${id}"]`, decls)
   return (
-    <div style={{ marginBottom: '1.5rem', marginLeft, marginRight, fontSize: sizeMap[size] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: align ?? 'left', maxWidth: mw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
-      {content}
-    </div>
+    <>
+      {mediaCss && <style>{mediaCss}</style>}
+      <div data-text-id={id} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: getPadding(padding) }}>
+        {content}
+      </div>
+    </>
   )
 }
 
@@ -596,12 +853,18 @@ function Quote(props: any) {
 }
 
 function Caption(props: any) {
-  const { text, align, padding } = props
+  const { id, text, align, padding } = props
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const alignBase = pickResponsive(alignRv, 'desktop') ?? 'left'
+  const alignCss = responsiveMediaCssFor(`[data-caption-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
   return (
-    <p
-      className="cactus-caption"
-      style={{
-        margin: 0, padding: getPadding(padding), textAlign: align ?? 'left',
+    <>
+      {alignCss && <style>{alignCss}</style>}
+      <p
+        data-caption-id={id}
+        className="cactus-caption"
+        style={{
+          margin: 0, padding: getPadding(padding), textAlign: alignBase as React.CSSProperties['textAlign'],
         fontFamily: 'var(--caption-family)',
         fontWeight: 'var(--caption-weight, 500)' as React.CSSProperties['fontWeight'],
         fontSize: 'var(--caption-size, 0.75rem)',
@@ -611,9 +874,10 @@ function Caption(props: any) {
         fontStyle: 'var(--caption-style, normal)',
         color: 'var(--caption-color, var(--color-muted))',
       }}
-    >
-      {text}
-    </p>
+      >
+        {text}
+      </p>
+    </>
   )
 }
 
@@ -740,7 +1004,7 @@ function Embed(props: any) {
 
 function Hero(props: any) {
   const {
-    heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
+    id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
@@ -756,6 +1020,8 @@ function Hero(props: any) {
   const textColor = textScheme === 'light' ? 'var(--color-bg)' : 'var(--color-fg)'
   const subColor = textScheme === 'light' ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)'
   const minH: Record<string, string> = { auto: 'auto', half: '50vh', full: '100vh' }
+  const minHeightRv = normalizeResponsiveValue<string>(minHeight)
+  const minHeightCss = responsiveMediaCssFor(`[data-hero-id="${id}"]`, (d) => `min-height:${minH[pickResponsive(minHeightRv, d) ?? 'auto'] ?? 'auto'};`)
 
   const inner = (
     <>
@@ -784,10 +1050,13 @@ function Hero(props: any) {
   )
 
   return (
-    <section style={{ position: 'relative', ...bgStyle, padding: getPadding(padding) || '5rem 1.5rem', borderRadius: 8, marginBottom: '2rem', minHeight: minH[minHeight] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layout === 'right-image' ? 'space-between' : undefined, gap: layout === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
-      {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {inner}
-    </section>
+    <>
+      {minHeightCss && <style>{minHeightCss}</style>}
+      <section data-hero-id={id} style={{ position: 'relative', ...bgStyle, padding: getPadding(padding) || '5rem 1.5rem', borderRadius: 8, marginBottom: '2rem', minHeight: minH[pickResponsive(minHeightRv, 'desktop') ?? 'auto'] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layout === 'right-image' ? 'space-between' : undefined, gap: layout === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
+        {...getAosProps(animationType, animationDuration, animationDelay)}>
+        {inner}
+      </section>
+    </>
   )
 }
 
@@ -806,19 +1075,38 @@ const SOCIAL_ICONS: Record<string, string> = {
 }
 
 function SocialLinks(props: any) {
-  const { items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding } = props
+  const { id, items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding } = props
   const sizes: Record<string, number> = { sm: 20, md: 28, lg: 40 }
   const gapMap: Record<string, string> = { tight: '0.5rem', normal: '1rem', wide: '1.75rem' }
-  const sz = sizes[iconSize] ?? 28
+  // layout/gap drive the container; icon size drives each link through a shared
+  // --social-icon custom property, so one media rule resizes every link at once.
+  const layoutRv = normalizeResponsiveValue<string>(layout)
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const iconRv = normalizeResponsiveValue<string>(iconSize)
+  const szBase = sizes[pickResponsive(iconRv, 'desktop') ?? 'md'] ?? 28
+  const css = responsiveMediaCssFor(`[data-social-id="${id}"]`, (d) => `flex-direction:${pickResponsive(layoutRv, d) === 'column' ? 'column' : 'row'};gap:${gapMap[pickResponsive(gapRv, d) ?? 'normal'] ?? '1rem'};--social-icon:${sizes[pickResponsive(iconRv, d) ?? 'md'] ?? 28}px;`)
+  const containerStyle = {
+    display: 'flex',
+    flexDirection: pickResponsive(layoutRv, 'desktop') === 'column' ? 'column' : 'row',
+    gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1rem',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: '1rem',
+    padding: getPadding(padding),
+    '--social-icon': `${szBase}px`,
+  } as React.CSSProperties
   return (
-    <div style={{ display: 'flex', flexDirection: layout === 'column' ? 'column' : 'row', gap: gapMap[gap] ?? '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem', padding: getPadding(padding) }}>
-      {items.map((item: any, i: number) => (
-        <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
-          style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: sz, height: sz, flexShrink: 0 }}
-          dangerouslySetInnerHTML={{ __html: (SOCIAL_ICONS[item.platform] ?? SOCIAL_ICONS['twitter-x']) as string }}
-        />
-      ))}
-    </div>
+    <>
+      {css && <style>{css}</style>}
+      <div data-social-id={id} style={containerStyle}>
+        {items.map((item: any, i: number) => (
+          <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
+            style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: 'var(--social-icon)', height: 'var(--social-icon)', flexShrink: 0 }}
+            dangerouslySetInnerHTML={{ __html: (SOCIAL_ICONS[item.platform] ?? SOCIAL_ICONS['twitter-x']) as string }}
+          />
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -863,19 +1151,24 @@ const GLYPH_ICONS: Record<string, string> = {
 }
 
 function Trustline(props: any) {
-  const { items = [], gap = 'normal', padding } = props
+  const { id, items = [], gap = 'normal', padding } = props
   const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding) }}>No trust items yet — add some in the panel.</div>
+  const gapRv = normalizeResponsiveValue<string>(gap)
+  const css = responsiveMediaCssFor(`[data-trustline-id="${id}"]`, (d) => `gap:${gapMap[pickResponsive(gapRv, d) ?? 'normal'] ?? '1.625rem'};`)
   return (
-    <div style={{ display: 'flex', gap: gapMap[gap] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)', padding: getPadding(padding) }}>
-      {items.map((item: any, i: number) => (
-        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
-            dangerouslySetInnerHTML={{ __html: (TRUST_ICONS[item.icon] ?? TRUST_ICONS.check) as string }} />
-          {item.text}
-        </span>
-      ))}
-    </div>
+    <>
+      {css && <style>{css}</style>}
+      <div data-trustline-id={id} style={{ display: 'flex', gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)', padding: getPadding(padding) }}>
+        {items.map((item: any, i: number) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: (TRUST_ICONS[item.icon] ?? TRUST_ICONS.check) as string }} />
+            {item.text}
+          </span>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -1126,24 +1419,33 @@ function Ticker(props: any) {
 }
 
 function Logos(props: any) {
-  const { items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 }
-  const heightPx = heights[logoHeight] ?? 48
   const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', padding: getPadding(padding), marginBottom: '1.5rem' }}>No logos added yet — add some in the panel.</div>
+  // justify drives the container; logo height drives every logo through a shared
+  // --logo-h custom property, so one media rule resizes them all together.
+  const justifyRv = normalizeResponsiveValue<string>(justify)
+  const heightRv = normalizeResponsiveValue<string>(logoHeight)
+  const heightPx = heights[pickResponsive(heightRv, 'desktop') ?? 'md'] ?? 48
+  const css = responsiveMediaCssFor(`[data-logos-id="${id}"]`, (d) => `justify-content:${justifyMap[pickResponsive(justifyRv, d) ?? 'center'] ?? 'center'};--logo-h:${heights[pickResponsive(heightRv, d) ?? 'md'] ?? 48}px;`)
+  const containerStyle = { display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: justifyMap[pickResponsive(justifyRv, 'desktop') ?? 'center'] ?? 'center', alignItems: 'center', padding: getPadding(padding), marginBottom: '1.5rem', '--logo-h': `${heightPx}px` } as React.CSSProperties
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', justifyContent: justifyMap[justify] ?? 'center', alignItems: 'center', padding: getPadding(padding), marginBottom: '1.5rem' }}
-      {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {items.map((item: any, i: number) => {
-        const inner = item.logoUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={item.logoUrl} alt={item.alt ?? ''} style={{ height: heightPx, width: 'auto', objectFit: 'contain' }} />
-          : <div style={{ height: heightPx, width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
-        return item.href
-          ? <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
-          : <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</span>
-      })}
-    </div>
+    <>
+      {css && <style>{css}</style>}
+      <div data-logos-id={id} style={containerStyle}
+        {...getAosProps(animationType, animationDuration, animationDelay)}>
+        {items.map((item: any, i: number) => {
+          const inner = item.logoUrl
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={item.logoUrl} alt={item.alt ?? ''} style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
+            : <div style={{ height: 'var(--logo-h)', width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
+          return item.href
+            ? <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
+            : <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</span>
+        })}
+      </div>
+    </>
   )
 }
 
@@ -1153,7 +1455,7 @@ function Logos(props: any) {
 
 function Copyright(props: any) {
   const {
-    siteName, prefix = '©', customPrefix = '', yearFormat = 'current', startYear,
+    id, siteName, prefix = '©', customPrefix = '', yearFormat = 'current', startYear,
     showSiteName = true, suffix = '', alignment = 'left', fontSize = 'small',
     textColor = 'var(--color-muted)',
     privacyPolicyUrl = '', privacyPolicyLabel = 'Privacy Policy',
@@ -1174,40 +1476,65 @@ function Copyright(props: any) {
     customLink1Url ? { url: customLink1Url, label: customLink1Label || customLink1Url } : null,
     customLink2Url ? { url: customLink2Url, label: customLink2Label || customLink2Url } : null,
   ].filter(Boolean) as Array<{ url: string; label: string }>
-  const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'space-between'
+  // alignment drives the row's justify-content; font size drives the text and
+  // links through a shared --copy-fs custom property. One media rule per
+  // breakpoint carries both.
+  const jc = (a: string) => (a === 'center' ? 'center' : a === 'right' ? 'flex-end' : 'space-between')
+  const alignRv = normalizeResponsiveValue<string>(alignment)
+  const fsRv = normalizeResponsiveValue<string>(fontSize)
+  const fsBase = fontSizes[pickResponsive(fsRv, 'desktop') ?? 'small'] ?? '0.875rem'
+  const css = responsiveMediaCssFor(`[data-copyright-id="${id}"]`, (d) => `justify-content:${jc(pickResponsive(alignRv, d) ?? 'left')};--copy-fs:${fontSizes[pickResponsive(fsRv, d) ?? 'small'] ?? '0.875rem'};`)
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent, gap: '1.5rem', width: '100%' }}>
-      <span style={{ color: textColor, fontSize: fontSizes[fontSize] ?? '0.875rem' }}>{parts.join(' ')}</span>
-      {links.length > 0 && (
-        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          {links.map((link) => <a key={link.url} href={link.url} style={{ color: textColor, fontSize: fontSizes[fontSize] ?? '0.875rem', textDecoration: 'none' }}>{link.label}</a>)}
-        </div>
-      )}
-    </div>
+    <>
+      {css && <style>{css}</style>}
+      <div data-copyright-id={id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: jc(pickResponsive(alignRv, 'desktop') ?? 'left'), gap: '1.5rem', width: '100%', '--copy-fs': fsBase } as React.CSSProperties}>
+        <span style={{ color: textColor, fontSize: 'var(--copy-fs)' }}>{parts.join(' ')}</span>
+        {links.length > 0 && (
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            {links.map((link) => <a key={link.url} href={link.url} style={{ color: textColor, fontSize: 'var(--copy-fs)', textDecoration: 'none' }}>{link.label}</a>)}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
+const menuFontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
+const menuFontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
+const menuVerticalGapMap: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
+
 function MenuBlock(props: any) {
-  const { resolvedItems, orientation, spacing, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground } = props
+  const {
+    id, resolvedItems, orientation, spacing, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground,
+    spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
+  } = props
   if (!resolvedItems) {
     return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
   }
-  const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
-  const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
-  const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
   const linkStyleOverride: React.CSSProperties = {}
   if (itemColor) linkStyleOverride.color = itemColor
-  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = fontSizeMap[itemFontSize]
-  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = fontWeightMap[itemFontWeight]
+  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = menuFontSizeMap[itemFontSize]
+  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = menuFontWeightMap[itemFontWeight]
   if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
+  const shrinkListClass = `menu-vlist-shrink-${id}`
+  const shrinkLinkClass = `menu-vlink-shrink-${id}`
+  const hasVerticalShrink = spacingShrunk || itemFontSizeShrunk || itemFontWeightShrunk
   if (orientation === 'vertical') {
     return (
       <nav>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: verticalGaps[spacing] ?? '0.5rem' }}>
+        {hasVerticalShrink && (
+          <style>{[
+            spacingShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkListClass}{gap:${menuVerticalGapMap[spacingShrunk] ?? '0.5rem'} !important;}` : '',
+            itemFontSizeShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkLinkClass}{font-size:${menuFontSizeMap[itemFontSizeShrunk]} !important;}` : '',
+            itemFontWeightShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkLinkClass}{font-weight:${menuFontWeightMap[itemFontWeightShrunk]} !important;}` : '',
+          ].filter(Boolean).join('\n')}</style>
+        )}
+        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: menuVerticalGapMap[spacing] ?? '0.5rem' }}>
           {resolvedItems.map((item: any) => (
             <li key={item.id}>
               <a href={item.href} target={item.openInNewTab ? '_blank' : undefined} rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                style={{ display: 'block', padding: '0.25rem 0', fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: fontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }}>
+                className={shrinkLinkClass}
+                style={{ display: 'block', padding: '0.25rem 0', fontSize: menuFontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: menuFontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }}>
                 {item.label}
               </a>
               {item.children?.length > 0 && (
@@ -1230,7 +1557,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} />
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} />
 }
 
 function LoginButton(props: any) {
@@ -1325,18 +1652,37 @@ function MembersProfileBlock() {
 // safe to live in the client-reachable base config (SiteHeaderBlock below
 // renders it directly, in both the editor and the real page).
 export function SiteLogoRsc(props: any) {
-  const { logoUrl, logoUrlDark, siteName, logoHeight = 40, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  const { logoUrl, logoUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  // cellHeight/cellHeightShrunk are the current field keys; logoHeight/
+  // logoHeightShrunk are accepted as a fallback for pre-rename saved data and
+  // for SiteHeaderBlock, which still passes logoHeight.
+  const cellH = cellHeight ?? logoHeight ?? 40
+  const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
   const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-fg)', textDecoration: 'none' }
   if (logoUrl) {
+    // Shared --header-cell-height custom property drives the logo image height;
+    // the shrink override just swaps the variable. Mirrors SiteLogoClient (the
+    // editor render) exactly so editor and live markup stay identical.
+    const logoImgStyle = {
+      '--header-cell-height': `${cellH}px`,
+      height: 'var(--header-cell-height)',
+      width: 'auto',
+      maxWidth: '100%',
+      objectFit: 'contain',
+      transition: 'height 0.25s ease',
+    } as React.CSSProperties
     return (
       <a href={homeUrl || '/'} style={style}>
+        {cellHShrunk && (
+          <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} style={{ height: logoHeight, width: 'auto' }} />
+        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} data-site-logo style={logoImgStyle} />
         {logoUrlDark && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" style={{ height: logoHeight, width: 'auto' }} />
+          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>
@@ -1376,7 +1722,7 @@ const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY =
 
 export const puckConfig = {
   categories: {
-    layout:     { title: 'Layout',     components: ['Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
@@ -1406,8 +1752,8 @@ export const puckConfig = {
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
-        paddingY: { type: 'select' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }] },
-        maxWidth: { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }] },
+        paddingY: { type: 'custom' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }], render: ResponsiveSelectField },
+        maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
         stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
@@ -1426,44 +1772,113 @@ export const puckConfig = {
       label: 'Grid',
       fields: {
         columns: { type: 'select' as const, label: 'Columns', options: [{ value: '2', label: '2 columns' }, { value: '3', label: '3 columns' }, { value: '4', label: '4 columns' }] },
-        columnSizes: { type: 'custom' as const, label: 'Column widths (2-col)', options: [{ value: 'equal', label: 'Equal' }, { value: 'auto-fill', label: 'Auto + fill' }, { value: 'fill-auto', label: 'Fill + auto' }, { value: '30-70', label: '30 / 70' }, { value: '40-60', label: '40 / 60' }, { value: '60-40', label: '60 / 40' }, { value: '70-30', label: '70 / 30' }], render: ResponsiveSelectField },
-        verticalAlign: { type: 'select' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }] },
-        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        columnSizes: { type: 'custom' as const, label: 'Column widths', options: GRID_COLUMN_SIZE_OPTIONS, render: ResponsiveSelectField },
+        verticalAlign: { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
+        gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
         spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         col1Align: { type: 'select' as const, label: 'Col 1 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
-        col1Width: { type: 'custom' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
-        col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
-        col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
-        col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr - overrides preset)', render: ResponsiveTextField },
+        col1Width: { type: 'custom' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        // Shrunk-state fields - only shown when this Grid sits in a header with
+        // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
+        // shrink that column/gap.
+        gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        col1WidthShrunk: { type: 'custom' as const, label: 'Col 1 shrunk width', render: ResponsiveTextField },
+        col2WidthShrunk: { type: 'custom' as const, label: 'Col 2 shrunk width', render: ResponsiveTextField },
+        col3WidthShrunk: { type: 'custom' as const, label: 'Col 3 shrunk width', render: ResponsiveTextField },
+        col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', render: ResponsiveTextField },
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '' },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
+      resolveFields: (data: any, { fields, appState }: any) => {
+        let result = fields
+        if (!isHeaderShrinkEnabled(appState)) {
+          const { gapShrunk: _g, col1WidthShrunk: _1, col2WidthShrunk: _2, col3WidthShrunk: _3, col4WidthShrunk: _4, ...rest } = result
+          result = rest
+        }
+
+        const colCount = parseInt(data.props?.columns ?? '2', 10)
+        const sizesProp = data.props?.columnSizes
+        const sizesVal = typeof sizesProp === 'string' ? sizesProp : sizesProp?.desktop
+        const isManual = sizesVal === 'manual'
+
+        const trimmed: Record<string, unknown> = {}
+        for (const [key, field] of Object.entries(result)) {
+          // Group 2 absent = the bare col{n} slot field itself (not just Align/
+          // Width/WidthShrunk) - without trimming those too, Puck's Outline panel
+          // keeps listing a 4th column drop-zone even once columns is set to 3.
+          const m = /^col([1-4])(Align|Width|WidthShrunk)?$/.exec(key)
+          if (m) {
+            if (parseInt(m[1] ?? '0', 10) > colCount) continue // no such column at this count
+            // Base width only means anything in Manual mode. Shrunk width is its
+            // own independent override (a column can shrink-on-scroll with a
+            // preset/equal base width) so it isn't gated by isManual.
+            if (m[2] === 'Width' && !isManual) continue
+          }
+          trimmed[key] = field
+        }
+        if (trimmed.columnSizes) {
+          trimmed.columnSizes = {
+            ...(trimmed.columnSizes as object),
+            options: colCount === 2 ? GRID_COLUMN_SIZE_OPTIONS : GRID_COLUMN_SIZE_OPTIONS.filter((o) => !TWO_COL_ONLY_SIZE_VALUES.has(o.value)),
+          }
+        }
+        return trimmed
+      },
+      // Leaving Manual mode hides col*Width but getGridTemplateColumns still lets
+      // a non-blank width win over the preset regardless of columnSizes - without
+      // this, switching back to "Equal" would silently keep rendering the old
+      // manual widths while the field claiming "Equal" is out of view.
+      resolveData: (data: any, { changed }: any) => {
+        if (!changed.columnSizes) return data
+        const sizesProp = data.props?.columnSizes
+        const sizesVal = typeof sizesProp === 'string' ? sizesProp : sizesProp?.desktop
+        if (sizesVal === 'manual') return data
+        const hasWidth = [1, 2, 3, 4].some((n) => {
+          const w = data.props?.[`col${n}Width`]
+          const v = typeof w === 'string' ? w : (w?.desktop ?? w?.tablet ?? w?.mobile)
+          return !!(v && v.trim())
+        })
+        if (!hasWidth) return data
+        return { ...data, props: { ...data.props, col1Width: '', col2Width: '', col3Width: '', col4Width: '' } }
+      },
       render: GridBlock,
     },
+    Grid2: grid2Component,
+    Grid3: grid3Component,
+    Grid4: grid4Component,
     Group: {
       label: 'Group',
       fields: {
-        direction: { type: 'select' as const, label: 'Direction', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }] },
+        direction: { type: 'custom' as const, label: 'Direction', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }], render: ResponsiveSelectField },
         justify: { type: 'select' as const, label: 'Justify content', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'End' }, { value: 'between', label: 'Space between' }, { value: 'around', label: 'Space around' }, { value: 'evenly', label: 'Space evenly' }] },
-        align: { type: 'select' as const, label: 'Align items', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'End' }, { value: 'stretch', label: 'Stretch' }] },
+        align: { type: 'custom' as const, label: 'Align items', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'End' }, { value: 'stretch', label: 'Stretch' }], render: ResponsiveSelectField },
         wrap: { type: 'select' as const, label: 'Wrap', options: [{ value: 'wrap', label: 'Wrap' }, { value: 'nowrap', label: 'No wrap' }] },
-        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
+        gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         items: { type: 'slot' as const },
       },
-      defaultProps: { direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none' },
+      defaultProps: { direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none', gapShrunk: '' },
+      resolveFields: (_data: any, { fields, appState }: any) => {
+        if (isHeaderShrinkEnabled(appState)) return fields
+        const { gapShrunk: _g, ...rest } = fields
+        return rest
+      },
       render: GroupBlock,
     },
     Split: {
       label: 'Split',
       fields: {
         ratio:   { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }] },
-        align:   { type: 'select' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }] },
-        gap:     { type: 'select' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        align:   { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
+        gap:     { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
       },
       defaultProps: { ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none' },
@@ -1471,7 +1886,7 @@ export const puckConfig = {
     },
     Spacer: {
       label: 'Space',
-      fields: { height: { type: 'select' as const, label: 'Height', options: [{ value: 'xs', label: 'XS (8px)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (32px)' }, { value: 'lg', label: 'Large (64px)' }, { value: 'xl', label: 'XL (96px)' }] } },
+      fields: { height: { type: 'custom' as const, label: 'Height', options: [{ value: 'xs', label: 'XS (8px)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (32px)' }, { value: 'lg', label: 'Large (64px)' }, { value: 'xl', label: 'XL (96px)' }], render: ResponsiveSelectField } },
       defaultProps: { height: 'md' as const },
       render: Spacer,
     },
@@ -1480,7 +1895,7 @@ export const puckConfig = {
       fields: {
         style: { type: 'select' as const, label: 'Line style', options: [{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }] },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'gray', label: 'Gray' }, { value: 'dark', label: 'Dark' }, { value: 'brand', label: 'Brand' }] },
-        thickness: { type: 'select' as const, label: 'Thickness', options: [{ value: 'thin', label: 'Thin' }, { value: 'medium', label: 'Medium' }, { value: 'thick', label: 'Thick' }] },
+        thickness: { type: 'custom' as const, label: 'Thickness', options: [{ value: 'thin', label: 'Thin' }, { value: 'medium', label: 'Medium' }, { value: 'thick', label: 'Thick' }], render: ResponsiveSelectField },
       },
       defaultProps: { style: 'solid' as const, color: 'gray' as const, thickness: 'thin' as const },
       render: Divider,
@@ -1525,7 +1940,7 @@ export const puckConfig = {
       fields: {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
-        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
         highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
         highlightMark: { type: 'select' as const, label: 'Emphasis mark', options: [{ value: 'underline', label: 'Highlighter underline' }, { value: 'none', label: 'Colour only' }] },
@@ -1540,9 +1955,9 @@ export const puckConfig = {
       label: 'Text',
       fields: {
         content: { type: 'textarea' as const, label: 'Content' },
-        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
-        size: { type: 'select' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }] },
-        maxWidth: { type: 'select' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }] },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        size: { type: 'custom' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }], render: ResponsiveSelectField },
+        maxWidth: { type: 'custom' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }], render: ResponsiveSelectField },
         color: { type: 'select' as const, label: 'Colour', options: [{ value: 'default', label: 'Secondary' }, { value: 'muted', label: 'Muted' }, { value: 'dark', label: 'Dark' }] },
         padding: paddingField,
       },
@@ -1565,7 +1980,7 @@ export const puckConfig = {
       label: 'Caption',
       fields: {
         text: { type: 'text' as const, label: 'Text' },
-        align: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         padding: paddingField,
       },
       defaultProps: { text: 'Caption text', align: 'left' as const, padding: 'default' },
@@ -1628,7 +2043,7 @@ export const puckConfig = {
         layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }] },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
         textScheme: { type: 'select' as const, label: 'Text colour', options: [{ value: 'dark', label: 'Dark (for light backgrounds)' }, { value: 'light', label: 'Light (for dark backgrounds)' }] },
-        minHeight: { type: 'select' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }] },
+        minHeight: { type: 'custom' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }], render: ResponsiveSelectField },
         padding: paddingField, ...aosFields,
       },
       defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
@@ -1703,7 +2118,7 @@ export const puckConfig = {
       label: 'Trust Row',
       fields: {
         items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { text?: string }) => item.text || 'Item', arrayFields: { icon: { type: 'select' as const, label: 'Icon', options: [{ value: 'check', label: 'Checkmark' }, { value: 'truck', label: 'Delivery' }, { value: 'shield', label: 'Shield' }, { value: 'clock', label: 'Clock' }, { value: 'star', label: 'Star' }, { value: 'tag', label: 'Price tag' }] }, text: { type: 'text' as const, label: 'Text' } }, defaultItemProps: { icon: 'check', text: 'Reassurance point' } },
-        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         padding: paddingField,
       },
       defaultProps: { items: [{ icon: 'check', text: 'Reassurance point' }], gap: 'normal' as const, padding: 'default' },
@@ -1782,7 +2197,7 @@ export const puckConfig = {
     },
     Logos: {
       label: 'Logos',
-      fields: { items: { type: 'array' as const, label: 'Logos', getItemSummary: (item: { alt?: string }) => item.alt || 'Logo', arrayFields: { logoUrl: { type: 'text' as const, label: 'Logo URL' }, alt: { type: 'text' as const, label: 'Alt text' }, href: { type: 'text' as const, label: 'Link URL' } }, defaultItemProps: { logoUrl: '', alt: 'Company name', href: '' } }, logoHeight: { type: 'select' as const, label: 'Logo height', options: [{ value: 'sm', label: 'Small (32px)' }, { value: 'md', label: 'Medium (48px)' }, { value: 'lg', label: 'Large (64px)' }] }, justify: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] }, padding: paddingField, ...aosFields },
+      fields: { items: { type: 'array' as const, label: 'Logos', getItemSummary: (item: { alt?: string }) => item.alt || 'Logo', arrayFields: { logoUrl: { type: 'text' as const, label: 'Logo URL' }, alt: { type: 'text' as const, label: 'Alt text' }, href: { type: 'text' as const, label: 'Link URL' } }, defaultItemProps: { logoUrl: '', alt: 'Company name', href: '' } }, logoHeight: { type: 'custom' as const, label: 'Logo height', options: [{ value: 'sm', label: 'Small (32px)' }, { value: 'md', label: 'Medium (48px)' }, { value: 'lg', label: 'Large (64px)' }], render: ResponsiveSelectField }, justify: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField }, padding: paddingField, ...aosFields },
       defaultProps: { items: [{ logoUrl: '', alt: 'Partner logo', href: '' }], logoHeight: 'md' as const, justify: 'center' as const, padding: 'default', ...aosDefaults },
       render: Logos,
     },
@@ -1790,10 +2205,10 @@ export const puckConfig = {
       label: 'Social Links',
       fields: {
         items: { type: 'array' as const, label: 'Links', getItemSummary: (item: { platform?: string }) => item.platform || 'Link', arrayFields: { platform: { type: 'select' as const, label: 'Platform', options: [{ value: 'twitter-x', label: 'Twitter / X' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'youtube', label: 'YouTube' }, { value: 'github', label: 'GitHub' }, { value: 'tiktok', label: 'TikTok' }] }, url: { type: 'text' as const, label: 'URL' } }, defaultItemProps: { platform: 'twitter-x', url: '' } },
-        iconSize: { type: 'select' as const, label: 'Icon size', options: [{ value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        iconSize: { type: 'custom' as const, label: 'Icon size', options: [{ value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         iconColor: { type: 'text' as const, label: 'Icon colour (hex/CSS)' },
-        layout: { type: 'select' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }] },
-        gap: { type: 'select' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }], render: ResponsiveSelectField },
+        gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         padding: paddingField,
       },
       defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal', padding: 'default' },
@@ -1803,8 +2218,18 @@ export const puckConfig = {
     // ── Site ─────────────────────────────────────────────────────────────────
     SiteLogo: {
       label: 'Site Logo',
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, logoHeight: { type: 'number' as const, label: 'Logo height (px)' }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
-      defaultProps: { homeUrl: '/', logoHeight: 40, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      // "Element height" / "Element height when shrunk" (keys cellHeight/
+      // cellHeightShrunk) are deliberately worded apart from the header root's
+      // own "Height" / "Shrunk height" so the two never read as duplicate
+      // labels in the same sidebar. The render still falls back to the old
+      // logoHeight/logoHeightShrunk keys for pre-rename saved data.
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'number' as const, label: 'Element height' }, cellHeightShrunk: { type: 'number' as const, label: 'Element height when shrunk' }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
+      defaultProps: { homeUrl: '/', cellHeight: 40, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      resolveFields: (_data: any, { fields, appState }: any) => {
+        if (isHeaderShrinkEnabled(appState)) return fields
+        const { cellHeightShrunk: _s, ...rest } = fields
+        return rest
+      },
       render: SiteLogoClient,
     },
     Copyright: {
@@ -1813,8 +2238,8 @@ export const puckConfig = {
         prefix: { type: 'select' as const, label: 'Copyright symbol', options: [{ value: '©', label: '©' }, { value: 'Copyright', label: 'Copyright (word)' }, { value: 'none', label: 'None' }, { value: 'custom', label: 'Custom…' }] },
         customPrefix: { type: 'text' as const, label: 'Custom prefix' }, yearFormat: { type: 'select' as const, label: 'Year', options: [{ value: 'current', label: 'Current year' }, { value: 'range', label: 'Year range' }, { value: 'none', label: 'No year' }] },
         startYear: { type: 'number' as const, label: 'Range start year' }, showSiteName: { type: 'select' as const, label: 'Show site name', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] },
-        suffix: { type: 'text' as const, label: 'Suffix text' }, alignment: { type: 'select' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
-        fontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+        suffix: { type: 'text' as const, label: 'Suffix text' }, alignment: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        fontSize: { type: 'custom' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], render: ResponsiveSelectField },
         textColor: { type: 'text' as const, label: 'Text colour' },
         privacyPolicyUrl: { type: 'text' as const, label: 'Privacy Policy URL' }, privacyPolicyLabel: { type: 'text' as const, label: 'Privacy Policy label' },
         termsUrl: { type: 'text' as const, label: 'Terms URL' }, termsLabel: { type: 'text' as const, label: 'Terms label' },
@@ -1836,8 +2261,16 @@ export const puckConfig = {
         itemColor: { type: 'text' as const, label: 'Link colour' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
+        spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+        itemFontWeightShrunk: { type: 'select' as const, label: 'Shrunk font weight', options: [{ value: '', label: 'Same as font weight' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' } },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '' },
+      resolveFields: (_data: any, { fields, appState }: any) => {
+        if (isHeaderShrinkEnabled(appState)) return fields
+        const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = fields
+        return rest
+      },
       render: MenuBlock,
     },
     LoginButton: {
@@ -1955,7 +2388,7 @@ export type PuckConfig = typeof puckConfig
 export const footerPuckConfig = {
   categories: {
     site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'CookieSettingsLink'], defaultExpanded: true },
-    layout:     { title: 'Layout',     components: ['Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
+    layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
   },
   root: {
@@ -1986,7 +2419,13 @@ export const footerPuckConfig = {
     SocialLinks:         noGutterDefault(puckConfig.components.SocialLinks),
     ButtonLink:          noGutterDefault(puckConfig.components.ButtonLink),
     CookieSettingsLink:  puckConfig.components.CookieSettingsLink,
+    // Grid stays mapped (but unlisted in any category above) purely so
+    // pre-split data - saved-block entries or history snapshots a migration
+    // missed - still renders/edits; new blocks come from Grid2/3/4.
     Grid:                puckConfig.components.Grid,
+    Grid2:               puckConfig.components.Grid2,
+    Grid3:               puckConfig.components.Grid3,
+    Grid4:               puckConfig.components.Grid4,
     Group:               puckConfig.components.Group,
     Split:               puckConfig.components.Split,
     Spacer:              puckConfig.components.Spacer,
@@ -2003,7 +2442,7 @@ export const footerPuckConfig = {
 
 export const layoutPuckConfig = {
   categories: {
-    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
@@ -2024,6 +2463,9 @@ export const layoutPuckConfig = {
     },
     Section:      puckConfig.components.Section,
     Grid:         puckConfig.components.Grid,
+    Grid2:        puckConfig.components.Grid2,
+    Grid3:        puckConfig.components.Grid3,
+    Grid4:        puckConfig.components.Grid4,
     Group:        puckConfig.components.Group,
     Split:        puckConfig.components.Split,
     Spacer:       puckConfig.components.Spacer,
@@ -2074,7 +2516,11 @@ export const layoutPuckConfig = {
 // Header Puck config — site + structural blocks only, no content blocks
 // ---------------------------------------------------------------------------
 
-const headerRootRender = ({ children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes', border = { show: 'show', color: '' }, maxWidth = '1200px' }: any) => {
+const headerRootRender = ({
+  children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes',
+  border = { show: 'show', color: '' }, maxWidth = '1200px',
+  shrinkOnScroll = 'no', shrinkHeight = '48px',
+}: any) => {
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color ?? ''
   // "Solid colour" must always paint a background: fall back to the site
@@ -2086,9 +2532,16 @@ const headerRootRender = ({ children, bg = { mode: 'color', color: '' }, height 
     : bgMode === 'color'
       ? (bgColor || 'var(--color-bg)')
       : (bgColor || undefined)
-  return (
+  const shrinking = shrinkOnScroll === 'yes'
+  // data-header-root is unconditional (unlike data-shrink-root, which only
+  // appears when shrink-on-scroll is on): it scopes the header-only true-
+  // centering CSS that GridBlock/GroupBlock emit, so those rules are inert
+  // anywhere outside a header.
+  const headerEl = (
     <header
       data-bg-mode={bgMode}
+      data-header-root=""
+      data-shrink-root={shrinking ? '' : undefined}
       style={{
         height: height === 'auto' ? undefined : height,
         minHeight: height === 'auto' ? 48 : undefined,
@@ -2111,10 +2564,22 @@ const headerRootRender = ({ children, bg = { mode: 'color', color: '' }, height 
       }}>
         {/* Row's cross-axis (alignItems above) centres this vertically; without an
             explicit width the content zone shrinks to its own content on the main
-            axis instead of spanning the header, so it must be forced full-width here. */}
-        <div style={{ width: '100%' }}>{children}</div>
+            axis instead of spanning the header, so it must be forced full-width here.
+            position:relative makes this the containing block for the header-only
+            true-centering rules GridBlock/GroupBlock emit (absolute, left:50%). */}
+        <div style={{ width: '100%', position: 'relative' }}>{children}</div>
       </div>
     </header>
+  )
+  if (!shrinking) return headerEl
+  return (
+    <>
+      <style>{[
+        `header[data-shrink-root]{transition:height 0.25s ease;}`,
+        `header[data-shrink-root][data-shrunk]{height:${shrinkHeight} !important;}`,
+      ].join('\n')}</style>
+      <HeaderShrinkScroll>{headerEl}</HeaderShrinkScroll>
+    </>
   )
 }
 
@@ -2127,7 +2592,7 @@ const headerModuleBlocks = moduleComponentsByLayoutType['header'] ?? {}
 export const headerPuckConfig = {
   categories: {
     site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
-    layout: { title: 'Structure', components: ['Grid', 'Group', 'Spacer'], defaultExpanded: true },
+    layout: { title: 'Structure', components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer'], defaultExpanded: true },
     ...(Object.keys(headerModuleBlocks).length > 0
       ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
       : {}),
@@ -2139,8 +2604,15 @@ export const headerPuckConfig = {
       sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
       border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
+      shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
+      shrinkHeight: { type: 'select' as const, label: 'Shrunk height', options: [{ value: '40px', label: '40px' }, { value: '48px', label: '48px' }, { value: '56px', label: '56px' }] },
     },
-    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', shrinkOnScroll: 'no', shrinkHeight: '48px' },
+    resolveFields: (data: any, { fields }: any) => {
+      if (data.props?.shrinkOnScroll === 'yes') return fields
+      const { shrinkHeight: _h, ...rest } = fields
+      return rest
+    },
     render: headerRootRender,
   },
   components: {
@@ -2150,6 +2622,9 @@ export const headerPuckConfig = {
     ThemeToggle:  puckConfig.components.ThemeToggle,
     MembersAccountLink: puckConfig.components.MembersAccountLink,
     Grid:         puckConfig.components.Grid,
+    Grid2:        puckConfig.components.Grid2,
+    Grid3:        puckConfig.components.Grid3,
+    Grid4:        puckConfig.components.Grid4,
     Group:        puckConfig.components.Group,
     Spacer:       puckConfig.components.Spacer,
     ...headerModuleBlocks,
@@ -2198,4 +2673,8 @@ export function getModuleLayoutPuckConfig(layoutType: string) {
     },
     components: { ...sharedComponents, ...modBlocks },
   }
+}
+
+export function getModuleLayoutPuckRscConfig(layoutType: string) {
+  return getModuleLayoutPuckConfig(layoutType)
 }

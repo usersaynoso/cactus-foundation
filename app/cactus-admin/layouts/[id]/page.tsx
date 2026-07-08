@@ -44,7 +44,7 @@ export default function LayoutEditorPage() {
   const [error, setError] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const latestDataRef = useRef<Data | null>(null)
 
   const [historyVersions, setHistoryVersions] = useState<HistoryVersion[]>([])
@@ -79,6 +79,18 @@ export default function LayoutEditorPage() {
     loadHistory()
   }, [loadHistory])
 
+  // Content only saves to the DB on an explicit Update click - warn on a real
+  // browser navigation/reload/close so in-progress edits aren't silently lost
+  // (the in-app "Back to Layouts" link is a client-side nav, which this can't
+  // catch - see its own confirm() in headerBackLinkOverride.tsx).
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedChanges])
+
   const handleRestore = useCallback(async (index: 'live' | number) => {
     setRestoringIndex(index)
     try {
@@ -93,7 +105,6 @@ export default function LayoutEditorPage() {
         setRestoringIndex(null)
         return
       }
-      if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
       const patchRes = await fetch(`/api/admin/layouts/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ builderData: d.data }),
@@ -114,25 +125,12 @@ export default function LayoutEditorPage() {
 
   const handleChange = useCallback((data: Data) => {
     latestDataRef.current = data
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      setSaving(true); setSaved(false)
-      try {
-        const res = await fetch(`/api/admin/layouts/${id}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ builderData: data }),
-        })
-        if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed') }
-        else setSaved(true)
-      } catch { setError('Autosave failed') }
-      finally { setSaving(false) }
-    }, 1200)
-  }, [id])
+    setHasUnsavedChanges(true)
+  }, [])
 
   const handlePublish = useCallback(async (data: Data) => {
     // Settings tab status is set to Draft — honour it: save content only, don't force live.
     if (layout?.status === 'draft') {
-      if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
       setSaving(true); setSaved(false); setError('')
       try {
         const res = await fetch(`/api/admin/layouts/${id}`, {
@@ -140,7 +138,7 @@ export default function LayoutEditorPage() {
           body: JSON.stringify({ builderData: data }),
         })
         if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed') }
-        else setSaved(true)
+        else { setSaved(true); setHasUnsavedChanges(false) }
       } catch { setError('Save failed') }
       finally { setSaving(false) }
       return
@@ -151,7 +149,6 @@ export default function LayoutEditorPage() {
       setError('Set at least one include rule in Display Conditions before publishing.')
       return
     }
-    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
     setSaving(true); setSaved(false); setError('')
     try {
       const res = await fetch(`/api/admin/layouts/${id}`, {
@@ -159,7 +156,7 @@ export default function LayoutEditorPage() {
         body: JSON.stringify({ builderData: data, status: 'published' }),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Publish failed') }
-      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true); loadHistory() }
+      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true); setHasUnsavedChanges(false); loadHistory() }
     } catch { setError('Publish failed') }
     finally { setSaving(false) }
   }, [id, layout?.status, layout?.displayConditions, loadHistory])
@@ -247,6 +244,7 @@ export default function LayoutEditorPage() {
         onChange={handleChange}
         onPublish={handlePublish}
         isPublishing={saving}
+        hasUnsavedChanges={hasUnsavedChanges}
         layoutType={layout.type}
         backHref={`/${adminPath}/layouts`}
         layoutId={layout.id}

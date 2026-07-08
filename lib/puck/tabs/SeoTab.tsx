@@ -1,7 +1,9 @@
 'use client'
 
-import { usePuck } from '@puckeditor/core'
+import { createUsePuck } from '@puckeditor/core'
 import { OgImagePickerField } from '@/lib/puck/MediaPickerField'
+
+const usePuck = createUsePuck()
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)',
@@ -14,7 +16,8 @@ const labelStyle: React.CSSProperties = {
 }
 
 export default function SeoTab() {
-  const { appState, dispatch } = usePuck()
+  const appState = usePuck(s => s.appState)
+  const dispatch = usePuck(s => s.dispatch)
   const props = (appState.data.root?.props ?? {}) as Record<string, unknown>
 
   function set(key: string, value: unknown) {

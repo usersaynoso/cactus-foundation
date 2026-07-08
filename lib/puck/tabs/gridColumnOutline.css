@@ -1,0 +1,44 @@
+/* Editor-only visual aid: outlines each Grid column's true track and labels
+   it with its column number. Without this, a centre/end-aligned or lightly-
+   filled column leaves no visible boundary when adjusting its width field -
+   the content box shrinks to fit its own contents, not the actual track (see
+   FIELD_NOTES.md - Grid `min-content` overflow fix), so there's nothing to
+   see the resize against.
+
+   Puck's canvas renders in an iframe but automatically mirrors <style>/<link>
+   elements from the host document into it (AutoFrame in @puckeditor/core),
+   so importing this .css file here reaches the canvas without any change to
+   GridBlock's render output - the live/public site never loads this file, so
+   it has zero effect there despite the shared render function. */
+
+[data-grid-id] {
+  counter-reset: cactus-grid-col;
+}
+
+[data-grid-id] > div {
+  counter-increment: cactus-grid-col;
+  /* Fixed colour, not a site design token on purpose: this outline has to stay
+     visible against whatever arbitrary background the site owner has chosen
+     (light, dark, pale, saturated) - `--color-border` turned out to be a
+     near-invisible pale beige on at least one real site's theme. */
+  outline: 1px dashed #6366f1;
+  outline-offset: -1px;
+}
+
+[data-grid-id] > div::before {
+  content: 'Col ' counter(cactus-grid-col);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 1;
+  padding: 1px 5px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-family: system-ui, sans-serif;
+  /* Same reasoning as the outline colour - a solid, fixed, opaque badge reads
+     correctly regardless of what's behind it. */
+  color: #fff;
+  background: #4338ca;
+  border-radius: 3px;
+  pointer-events: none;
+}

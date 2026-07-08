@@ -5,6 +5,7 @@ import { Puck } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
+import '@/lib/puck/tabs/gridColumnOutline.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
@@ -15,7 +16,7 @@ import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
-import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createBackLinkOverride, UnsavedChangesProvider } from '@/lib/puck/tabs/headerBackLinkOverride'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
@@ -38,6 +39,7 @@ type Props = {
   onChange: (data: Data) => void
   onPublish: (data: Data) => void
   isPublishing: boolean
+  hasUnsavedChanges: boolean
   layoutType?: string
   backHref: string
   layoutId: string
@@ -78,7 +80,7 @@ function getConfig(type: string | undefined) {
   }
 }
 
-export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, layoutType, backHref, layoutId, onDeleteClick, deleting, canDelete, name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore }: Props) {
+export default function LayoutPuckEditor({ initialData, onChange, onPublish, isPublishing, hasUnsavedChanges, layoutType, backHref, layoutId, onDeleteClick, deleting, canDelete, name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore }: Props) {
   const hasChangedRef = useRef(false)
   const latestDataRef = useRef<Data>(initialData)
   const canvasWrapRef = useRef<HTMLDivElement>(null)
@@ -160,9 +162,9 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         canDelete,
       }),
       ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
-      puck: createViewportDropdownOverride(puckViewports),
+      puck: createViewportDropdownOverride(puckViewports, { shrinkPreview: layoutType === 'header' }),
     }),
-    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports],
+    [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports, layoutType],
   )
 
   const editorConfig = useMemo(() => ({
@@ -270,21 +272,23 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   ], [name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, layoutType, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore])
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
-        {canvasReady && (
-          <Puck
-            config={editorConfig as any}
-            data={initialData}
-            onChange={handleChange}
-            overrides={puckOverrides}
-            onPublish={() => onPublish(latestDataRef.current)}
-            plugins={plugins}
-            viewports={puckViewports}
-            headerTitle={getLayoutTypeLabel(layoutType)}
-          />
-        )}
+    <UnsavedChangesProvider value={hasUnsavedChanges}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
+          {canvasReady && (
+            <Puck
+              config={editorConfig as any}
+              data={initialData}
+              onChange={handleChange}
+              overrides={puckOverrides}
+              onPublish={() => onPublish(latestDataRef.current)}
+              plugins={plugins}
+              viewports={puckViewports}
+              headerTitle={getLayoutTypeLabel(layoutType)}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </UnsavedChangesProvider>
   )
 }
