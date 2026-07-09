@@ -1329,6 +1329,7 @@ function VercelConfigPanel({
   const [showAddDomain, setShowAddDomain] = useState(false)
   const [newDomain, setNewDomain] = useState('')
   const [addingDomain, setAddingDomain] = useState(false)
+  const [attachingDomain, setAttachingDomain] = useState<string | null>(null)
   const [domainAddError, setDomainAddError] = useState('')
   const [dnsInstructions, setDnsInstructions] = useState<{
     domain: string
@@ -1340,6 +1341,7 @@ function VercelConfigPanel({
   const [accountDomains, setAccountDomains] = useState<VercelDomain[]>([])
   const [loadingAccountDomains, setLoadingAccountDomains] = useState(false)
   const [accountDomainsError, setAccountDomainsError] = useState('')
+  const [domainVerified, setDomainVerified] = useState(true)
 
   // Default to a non-vercel.app domain if one exists, otherwise the vercel.app alias.
   // Also eagerly loads the account's full domain list so any domain already bought
@@ -1352,7 +1354,9 @@ function VercelConfigPanel({
     }
     const custom = selectedProject.domains.find((d) => !d.name.endsWith('.vercel.app'))
     const fallback = selectedProject.domains.find((d) => d.name.endsWith('.vercel.app'))
-    setSelectedDomain(custom?.name ?? fallback?.name ?? '')
+    const initial = custom ?? fallback
+    setSelectedDomain(initial?.name ?? '')
+    setDomainVerified(initial?.verified ?? true)
     setShowAddDomain(false)
     setNewDomain('')
     setDomainAddError('')
@@ -1371,22 +1375,51 @@ function VercelConfigPanel({
     })
   }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canConfigure = hasProjects && !!selectedProjectId && !!selectedDomain
+  const canConfigure = hasProjects && !!selectedProjectId && !!selectedDomain && domainVerified
   const attachedNames = new Set(selectedProject?.domains.map((d) => d.name) ?? [])
   const unattachedAccountDomains = accountDomains.filter((d) => !attachedNames.has(d.name))
 
+  // Auto-checks DNS every 10s while a domain is misconfigured, so the user isn't forced
+  // to keep clicking "Check now" - the Configure button unlocks itself once it resolves.
+  useEffect(() => {
+    if (!dnsInstructions) return
+    const domain = dnsInstructions.domain
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+
+    async function poll() {
+      if (cancelled) return
+      const result = await onDomainStatusCheck(domain)
+      if (cancelled) return
+      if (result.ok && !result.misconfigured) {
+        setDomainVerified(true)
+        setDnsInstructions(null)
+        setStatusMessage('Domain is configured correctly.')
+        return
+      }
+      timer = setTimeout(poll, 10_000)
+    }
+
+    timer = setTimeout(poll, 10_000)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [dnsInstructions?.domain]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleAttachClick(domainName: string) {
     if (!selectedProjectId) return
-    setAddingDomain(true)
+    setAttachingDomain(domainName)
     setDomainAddError('')
     const result = await onAddDomain(selectedProjectId, domainName)
-    setAddingDomain(false)
+    setAttachingDomain(null)
     if (!result.ok) {
       setDomainAddError(result.error)
       return
     }
     setAccountDomains((prev) => prev.filter((d) => d.name !== domainName))
     setSelectedDomain(result.name)
+    setDomainVerified(!result.misconfigured)
     setStatusMessage('')
     if (result.misconfigured) {
       setDnsInstructions({ domain: result.name, recommended: result.recommended, verification: result.verification })
@@ -1407,6 +1440,7 @@ function VercelConfigPanel({
       return
     }
     setSelectedDomain(result.name)
+    setDomainVerified(!result.misconfigured)
     setShowAddDomain(false)
     setNewDomain('')
     setStatusMessage('')
@@ -1430,6 +1464,7 @@ function VercelConfigPanel({
     if (result.misconfigured) {
       setStatusMessage('Still not detecting the DNS change - it can take a while to propagate. Try again shortly.')
     } else {
+      setDomainVerified(true)
       setStatusMessage('Domain is configured correctly.')
       setDnsInstructions(null)
     }
@@ -1536,7 +1571,12 @@ function VercelConfigPanel({
                     type="radio"
                     name="domainChoice"
                     checked={selectedDomain === d.name}
-                    onChange={() => setSelectedDomain(d.name)}
+                    onChange={() => {
+                      setSelectedDomain(d.name)
+                      setDomainVerified(d.verified)
+                      setDnsInstructions(null)
+                      setStatusMessage('')
+                    }}
                   />
                   {d.name}
                   {!d.verified && (
@@ -1564,10 +1604,10 @@ function VercelConfigPanel({
                       <button
                         type="button"
                         className="btn btn-secondary"
-                        disabled={addingDomain}
+                        disabled={attachingDomain !== null}
                         onClick={() => handleAttachClick(d.name)}
                       >
-                        {addingDomain ? 'Attaching…' : 'Attach'}
+                        {attachingDomain === d.name ? 'Attaching…' : 'Attach'}
                       </button>
                     </div>
                   ))}
@@ -1658,6 +1698,12 @@ function VercelConfigPanel({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {selectedDomain && !domainVerified && (
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+              Waiting for the DNS change on <strong>{selectedDomain}</strong> to be confirmed before you can continue - this checks automatically every few seconds.
             </div>
           )}
 
