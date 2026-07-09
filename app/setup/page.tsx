@@ -31,6 +31,7 @@ type EnvCheckData = {
   neonAvailable: boolean
   vercelConfigured: boolean
   localMode: boolean
+  siteUrl: string | null
 }
 
 type ExistingDbState = {
@@ -676,16 +677,24 @@ export default function SetupPage() {
   // Redirect to SITE_URL before passkey registration if the current origin doesn't
   // match. WebAuthn rpId is derived from SITE_URL; a per-deployment Vercel URL
   // (cactus-n6r9b3c3c.vercel.app) is a different origin from the stable alias
-  // (cactus.vercel.app) and Safari throws "The string did not match the expected
-  // pattern." when they differ.
+  // (cactus.vercel.app) - or from a custom domain just attached in this same
+  // session - and Safari throws "The string did not match the expected pattern."
+  // when they differ. Reads siteUrl fresh from the server rather than
+  // process.env.NEXT_PUBLIC_SITE_URL: that's baked into the JS bundle at build
+  // time, so an already-open wizard tab keeps the value from before the
+  // mid-session redeploy that just set the custom domain and never redirects.
   useEffect(() => {
     if (step !== 'configure') return
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-    if (!siteUrl) return
-    const expectedOrigin = siteUrl.replace(/\/$/, '')
-    if (typeof window !== 'undefined' && window.location.origin !== expectedOrigin) {
-      window.location.replace(`${expectedOrigin}/setup`)
-    }
+    fetch('/api/setup/env-check')
+      .then((r) => r.json())
+      .then((d: EnvCheckData) => {
+        if (!d.siteUrl) return
+        const expectedOrigin = d.siteUrl.replace(/\/$/, '')
+        if (typeof window !== 'undefined' && window.location.origin !== expectedOrigin) {
+          window.location.replace(`${expectedOrigin}/setup`)
+        }
+      })
+      .catch(() => {})
   }, [step])
 
   // ── Step 3: Set passkey, save config, complete ────────────────────────────

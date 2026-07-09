@@ -69,5 +69,9 @@ export async function GET() {
     neonAvailable: !!process.env.NEON_API_KEY,
     vercelConfigured,
     localMode,
+    // Read fresh from the running server on every request, unlike the client's
+    // NEXT_PUBLIC_SITE_URL, which is baked into the JS bundle at build time and
+    // stays stale in an already-open wizard tab until the page is reloaded.
+    siteUrl: process.env.SITE_URL ?? null,
   })
 }
