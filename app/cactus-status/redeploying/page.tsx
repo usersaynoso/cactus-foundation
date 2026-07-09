@@ -10,13 +10,11 @@ export default function RedeployingPage() {
   const [deployDone, setDeployDone] = useState(false)
   const [deployLogs, setDeployLogs] = useState<string[]>([])
   const [failed, setFailed] = useState(false)
-  const [showEscape, setShowEscape] = useState(false)
   const cancelPollRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     let mounted = true
     let autoExitTimer: ReturnType<typeof setTimeout> | undefined
-    const escapeTimer = setTimeout(() => { if (mounted) setShowEscape(true) }, 165_000)
 
     async function init() {
       try {
@@ -52,7 +50,6 @@ export default function RedeployingPage() {
     init()
     return () => {
       mounted = false
-      clearTimeout(escapeTimer)
       clearTimeout(autoExitTimer)
       cancelPollRef.current?.()
     }
@@ -249,16 +246,6 @@ export default function RedeployingPage() {
             </div>
             {deployLogs.length > 0 && (
               <DeployLogViewer rawLines={deployLogs} />
-            )}
-            {showEscape && (
-              <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--color-border)' }}>
-                <p style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                  Taking longer than expected? You can dismiss this and carry on - your changes may not have taken effect yet.
-                </p>
-                <button className="btn btn-secondary" onClick={handleDismiss}>
-                  Dismiss and continue
-                </button>
-              </div>
             )}
           </>
         )}
