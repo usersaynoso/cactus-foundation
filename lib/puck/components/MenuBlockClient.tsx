@@ -201,6 +201,7 @@ const hGapMap: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem
 type Props = {
   resolvedItems?: MenuItem[]
   spacing?: 'tight' | 'normal' | 'wide'
+  alignment?: 'flex-start' | 'center' | 'space-between' | 'space-around'
   itemFontSize?: 'small' | 'medium' | 'large'
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: string
@@ -217,6 +218,7 @@ type Props = {
 export default function MenuBlockClient({
   resolvedItems,
   spacing = 'normal',
+  alignment = 'flex-start',
   itemFontSize = 'medium',
   itemFontWeight = 'medium',
   textTransform = 'none',
@@ -282,6 +284,7 @@ export default function MenuBlockClient({
           display: showHamburger ? undefined : 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
+          justifyContent: alignment,
           listStyle: 'none',
           margin: 0,
           padding: 0,

@@ -240,11 +240,10 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, col1Scale, col2Scale, col3Scale, col4Scale, spaceBelow } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
-  const colScales = [col1Scale, col2Scale, col3Scale, col4Scale]
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
 
   // Header-only true-centering. A column set to "Centre" is pulled onto the
@@ -287,6 +286,10 @@ function GridBlock(props: any) {
   // to a smaller width on scroll only once the layout has reached tablet.
   const shrunkWidths = [col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk].map((w) => normalizeResponsiveValue<string>(w))
   const hasShrunkOverride = !!gapShrunk || shrunkWidths.some((w) => !!(w.desktop?.trim() || w.tablet?.trim() || w.mobile?.trim()))
+  // "Scale to width" is no longer a separate toggle - a column scales (via
+  // ScaleToFit) whenever it has a shrunk width set, since that's the only
+  // case a column's rendered width changes at runtime (shrink-on-scroll).
+  const colScaled = shrunkWidths.map((w) => !!(w.desktop?.trim() || w.tablet?.trim() || w.mobile?.trim()))
   const shrunkColsAt = (device: 'desktop' | 'tablet' | 'mobile') =>
     getGridTemplateColumns(pick(sizes, device), colCount, shrunkWidths.map((w, i) => {
       const v = pick(w, device)
@@ -344,7 +347,7 @@ function GridBlock(props: any) {
     }}>
       {slots.map((slot, i) => {
         const jc = colAligns[i] && justifyMap[colAligns[i]]
-        const scaled = colScales[i] === 'on'
+        const scaled = colScaled[i]
         const content = typeof slot === 'function' ? slot() : null
         // A scaled column manages its own flex/alignment inside ScaleToFit, so
         // the track div stays a plain block (no flex/fit-content wrapper).
@@ -406,19 +409,18 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
-  // Opt-in: shrink this column's contents to fit its width (any content -
-  // fixed-size icons, widgets, images - via a transform scale). Off by default
-  // so text/normal columns are untouched.
-  for (const n of cols) fields[`col${n}Scale`] = { type: 'radio' as const, label: `Col ${n} scale to width`, options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] }
   // Shrunk-state fields - only shown when this Grid sits in a header with
   // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
-  // shrink that column/gap.
+  // shrink that column/gap. Setting a shrunk width also opts the column into
+  // "scale to width" (any content - fixed-size icons, widgets, images - via a
+  // transform scale) automatically, since that's the only case a column's
+  // rendered width actually changes at runtime.
   fields.gapShrunk = { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] }
   for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, render: ResponsiveTextField }
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
   const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', gapShrunk: '' }
-  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Scale`] = 'off' }
+  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = '' }
 
   return {
     label: `Grid (${colCount} columns)`,
@@ -520,7 +522,7 @@ function SiteHeaderBlock(props: any) {
     sticky = 'yes', border = { show: 'show', color: 'var(--color-border)' },
     maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
     logoHomeUrl = '/', itemFontSize = 'medium', itemFontWeight = 'medium',
-    itemColor = '', showMobileToggle = 'collapse', showTabletToggle = 'collapse',
+    itemColor = '', alignment = 'flex-start', showMobileToggle = 'collapse', showTabletToggle = 'collapse',
   } = props
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color || 'var(--color-bg)'
@@ -551,7 +553,7 @@ function SiteHeaderBlock(props: any) {
       }}>
         <SiteLogoRsc logoUrl={logoUrl} logoUrlDark={logoUrlDark} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
         {resolvedItems && (
-          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
+          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
         )}
       </div>
     </header>
@@ -1589,7 +1591,7 @@ const menuVerticalGapMap: Record<string, string> = { tight: '0.25rem', normal: '
 
 function MenuBlock(props: any) {
   const {
-    id, resolvedItems, orientation, spacing, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground,
+    id, resolvedItems, orientation, spacing, alignment, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground,
     spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
   } = props
   if (!resolvedItems) {
@@ -1641,7 +1643,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} />
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} />
 }
 
 function LoginButton(props: any) {
@@ -1869,19 +1871,10 @@ export const puckConfig = {
         col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
         col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
         col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
-        // Opt-in: shrink this column's contents to fit its width (any content -
-        // fixed-size icons, widgets, images - via a transform scale). Off by
-        // default so text/normal columns are untouched. Mirrors
-        // makeGridColumnComponent's col*Scale (Grid2/3/4) - without this, a
-        // legacy Grid column's fixed-size content (e.g. buttons) never shrinks
-        // even once its track width does.
-        col1Scale: { type: 'radio' as const, label: 'Col 1 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
-        col2Scale: { type: 'radio' as const, label: 'Col 2 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
-        col3Scale: { type: 'radio' as const, label: 'Col 3 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
-        col4Scale: { type: 'radio' as const, label: 'Col 4 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
         // Shrunk-state fields - only shown when this Grid sits in a header with
         // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
-        // shrink that column/gap.
+        // shrink that column/gap. Setting a shrunk width also opts the column
+        // into "scale to width" automatically (see GridBlock's colScaled).
         gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         col1WidthShrunk: { type: 'custom' as const, label: 'Col 1 shrunk width', render: ResponsiveTextField },
         col2WidthShrunk: { type: 'custom' as const, label: 'Col 2 shrunk width', render: ResponsiveTextField },
@@ -1889,7 +1882,7 @@ export const puckConfig = {
         col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', render: ResponsiveTextField },
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', col1Scale: 'off', col2Scale: 'off', col3Scale: 'off', col4Scale: 'off', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
       resolveFields: (data: any, { fields, appState }: any) => {
         let result = fields
         if (!isHeaderShrinkEnabled(appState)) {
@@ -1905,16 +1898,15 @@ export const puckConfig = {
         const trimmed: Record<string, unknown> = {}
         for (const [key, field] of Object.entries(result)) {
           // Group 2 absent = the bare col{n} slot field itself (not just Align/
-          // Width/WidthShrunk/Scale) - without trimming those too, Puck's
-          // Outline panel keeps listing a 4th column drop-zone even once columns
-          // is set to 3.
-          const m = /^col([1-4])(Align|Width|WidthShrunk|Scale)?$/.exec(key)
+          // Width/WidthShrunk) - without trimming those too, Puck's Outline
+          // panel keeps listing a 4th column drop-zone even once columns is
+          // set to 3.
+          const m = /^col([1-4])(Align|Width|WidthShrunk)?$/.exec(key)
           if (m) {
             if (parseInt(m[1] ?? '0', 10) > colCount) continue // no such column at this count
-            // Base width only means anything in Manual mode. Shrunk width and
-            // scale-to-width are their own independent overrides (a column can
-            // shrink-on-scroll or scale-to-fit with a preset/equal base width)
-            // so neither is gated by isManual.
+            // Base width only means anything in Manual mode. Shrunk width is
+            // its own independent override (a column can shrink-on-scroll with
+            // a preset/equal base width) so it isn't gated by isManual.
             if (m[2] === 'Width' && !isManual) continue
           }
           trimmed[key] = field
@@ -2363,6 +2355,7 @@ export const puckConfig = {
         menuId: { type: 'text' as const, label: 'Menu ID' }, menuName: { type: 'text' as const, label: 'Menu name (display)' },
         orientation: { type: 'select' as const, label: 'Orientation', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }] },
         spacing: { type: 'select' as const, label: 'Item spacing', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
+        alignment: { type: 'select' as const, label: 'Horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }] },
         itemFontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeight: { type: 'select' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
@@ -2373,7 +2366,7 @@ export const puckConfig = {
         itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeightShrunk: { type: 'select' as const, label: 'Shrunk font weight', options: [{ value: '', label: 'Same as font weight' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '' },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '' },
       resolveFields: (_data: any, { fields, appState }: any) => {
         if (isHeaderShrinkEnabled(appState)) return fields
         const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = fields
@@ -2469,6 +2462,7 @@ export const puckConfig = {
         itemFontSize:     { type: 'select' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         itemColor:        { type: 'custom' as const, label: 'Nav link colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        alignment:        { type: 'select' as const, label: 'Nav horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }] },
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
         showTabletToggle: { type: 'select' as const, label: 'Tablet nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
       },
@@ -2476,7 +2470,7 @@ export const puckConfig = {
         bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes',
         border: { show: 'show', color: '' }, maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
-        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', showMobileToggle: 'collapse', showTabletToggle: 'collapse',
+        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', alignment: 'flex-start' as const, showMobileToggle: 'collapse', showTabletToggle: 'collapse',
       },
       render: SiteHeaderBlock,
     },
