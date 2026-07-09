@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isLocalMode } from '@/lib/config/env'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
-import { triggerVercelRedeploy, ensureVercelRedeploy, type RedeployResult } from '@/lib/vercel/deploy'
+import { triggerVercelRedeploy, ensureVercelRedeploy, getVercelProjectName, type RedeployResult } from '@/lib/vercel/deploy'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
 import { Client } from 'pg'
 
@@ -440,8 +440,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Derive a stable, identifiable name for the Neon project so we can detect
-  // duplicate attempts via the name-search endpoint (idempotency).
-  const neonProjectName = `cactus-${vercelProjectId}`
+  // duplicate attempts via the name-search endpoint (idempotency). Leads with
+  // the Vercel project's own name so it's recognisable in the Neon dashboard;
+  // the id suffix guarantees uniqueness even if that name isn't available.
+  const vercelProjectName = await getVercelProjectName(vercelToken, vercelProjectId)
+  const neonProjectName = `${vercelProjectName ?? 'cactus'}-${vercelProjectId}`
 
   try {
     const orgId = await getNeonOrgId(neonApiKey)

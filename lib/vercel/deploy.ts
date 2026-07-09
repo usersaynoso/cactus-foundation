@@ -24,6 +24,22 @@ export async function resolveVercelTeamId(token: string, projectId: string): Pro
   }
 }
 
+// Fetches a project's human-readable name, for building an identifiable Neon
+// project name during DB provisioning. Falls back to null on any failure.
+export async function getVercelProjectName(token: string, projectId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${VERCEL_API}/v9/projects/${encodeURIComponent(projectId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { name?: string }
+    return data.name ?? null
+  } catch {
+    return null
+  }
+}
+
 function teamParam(teamId: string | null): string {
   return teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
 }

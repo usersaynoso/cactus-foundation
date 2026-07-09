@@ -55,18 +55,26 @@ proxy.ts  (Node.js runtime - NOT Edge)
 
 The admin path is a secret URL prefix chosen during setup. It's stored in `SiteConfig.adminPath` and mirrored to **Vercel Edge Config** whenever it changes (via the Vercel REST API). `proxy.ts` reads it from Edge Config first (fast, no database round-trip), falling back to a Prisma read cached briefly in memory if the Edge Config write credentials are absent. Same pattern for site status.
 
+## Vercel project and domain connection (setup wizard)
+
+Before database provisioning, the wizard connects to Vercel and attaches a domain to the project:
+
+- **Add/attach domain** - `POST /v10/projects/{projectId}/domains` adds a new domain, or an already-owned account domain can be attached directly. Either way the response is followed by `GET /v6/domains/{domain}/config` to read Vercel's `misconfigured` flag and the recommended DNS record.
+- **DNS confirmation gate** - if the domain comes back `misconfigured`, the wizard shows the required DNS record and disables "Configure project →" until it resolves. It re-checks automatically every 10 seconds (plus a manual "Check now" button) and unlocks the button the moment Vercel reports the domain as configured. This stops the user being carried forward to a custom domain that doesn't resolve yet.
+- Domains already attached to the project use their `verified` flag from the initial project listing to decide whether the gate applies.
+
 ## Automatic database provisioning (setup wizard)
 
 When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, the setup wizard can provision a Postgres database automatically:
 
 1. **Neon API call** - `POST https://console.neon.tech/api/v2/projects` creates a new Neon project. The response includes both a direct and a **pooled** connection string. Cactus uses the pooled one (`connection_parameters.pooler_host`) to satisfy the pooling requirement.
 2. **Vercel API write** - `POST https://api.vercel.com/v10/projects/{projectId}/env` writes `DATABASE_URL` (pooled) and `NEON_PROJECT_ID` (for idempotency) as project environment variables.
-3. **Triggered redeploy** - writing new env vars to a Vercel project causes Vercel to queue a new deployment. During that build, the existing `build` script (`prisma migrate deploy && node scripts/run-module-migrations.mjs && next build`) applies the full schema.
-4. **Readiness poll** - the wizard polls `/api/health` every 5 seconds. Once the database is reachable (redeploy complete, schema applied), the wizard advances to the next step.
+3. **Triggered redeploy** - the wizard explicitly triggers a new production deployment via the Vercel API (a redeploy of the latest production deployment, passing `teamId` when the project is team-owned). During that build, the existing `build` script (`prisma migrate deploy && node scripts/run-module-migrations.mjs && next build`) applies the full schema. If the trigger fails, the failure is surfaced in the wizard with a "Retry redeploy" button and a pointer to the Vercel dashboard - it is never silently swallowed.
+4. **Readiness poll** - the wizard polls `/api/health` every 5 seconds. Once the database is reachable (redeploy complete, schema applied), the wizard advances to the next step. It also streams the deployment's state and build log while waiting; a deployment that ends in ERROR or CANCELED is shown as failed with its log and a retry, not left spinning.
 
 **Migrations are never triggered from the wizard.** Provisioning only creates the Neon project and writes the env var. The schema reaches the database exactly as it always does: via the `build` script, run by Vercel during the triggered deployment. The wizard cannot continue in the same page load; the redeploy is the mechanism, not a side-effect.
 
-**Idempotency** - the provisioning action checks for an existing Neon project named `cactus-{VERCEL_PROJECT_ID}` before creating a new one. It also checks the Vercel project's env vars for an existing `DATABASE_URL` to detect a prior successful provision that is still awaiting a redeploy. Double-clicks and page refreshes are safe.
+**Idempotency and self-healing** - the provisioning action checks for an existing Neon project named `{VERCEL_PROJECT_NAME}-{VERCEL_PROJECT_ID}` (falling back to `cactus-{VERCEL_PROJECT_ID}` if the Vercel project name can't be looked up) before creating a new one, and env-var writes are upserts, so a stale `DATABASE_URL` from an earlier attempt is overwritten rather than turning the request into a no-op. When the wizard loads and finds `DATABASE_URL` already written to the Vercel project but not yet in the runtime (the "provisioned, awaiting redeploy" state), it calls the `ensure-redeploy` action: if a production deployment is already in flight it attaches to that one, otherwise it triggers a fresh redeploy - so a reload after a failed or errored deploy recovers on its own instead of waiting forever. Double-clicks and page refreshes are safe.
 
 ## Authentication and sessions
 
