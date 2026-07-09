@@ -238,7 +238,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
               // Confirm against the DB before trapping the admin on the redeploying page.
               pendingRedeployId = await getPendingRedeployIdUncached()
             }
-            if (pendingRedeployId) {
+            // The admin can minimize the redeploying screen into a top bar (see
+            // DeployStatusBar) — that sets this cookie so the trap below is skipped
+            // and normal admin pages render underneath the bar instead. It expires on
+            // its own shortly after any deploy would plausibly finish, so a stray
+            // cookie never permanently disables the trap for a later redeploy.
+            const minimized = request.cookies.get('cactus-redeploy-minimized')?.value === '1'
+            if (pendingRedeployId && !minimized) {
               const redeployingUrl = new URL('/cactus-status/redeploying', request.url)
               const res = NextResponse.rewrite(redeployingUrl)
               res.headers.set('x-cactus-admin-path', adminPath)

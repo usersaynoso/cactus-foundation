@@ -157,11 +157,28 @@ export default function RedeployingPage() {
     } catch {
       // best-effort
     }
+    // Drop the config page's sessionStorage update-check cache so it re-fetches
+    // fresh status instead of showing the pre-deploy "update available" state
+    // it cached before this redeploy landed.
+    try {
+      sessionStorage.removeItem('cactus-core-update-check')
+    } catch {
+      // ignore (e.g. storage disabled)
+    }
     window.location.href = `/${path}/`
   }
 
   async function handleDismiss() {
     await clearAndRedirect(adminPath)
+  }
+
+  // Lets the admin keep working elsewhere while the deploy finishes: sets the
+  // cookie proxy.ts checks to skip its full-page trap, then hands off to
+  // DeployStatusBar (mounted in the admin shell) to keep polling and reload
+  // the page once the deploy lands.
+  function handleMinimize() {
+    document.cookie = 'cactus-redeploy-minimized=1; path=/; max-age=300'
+    window.location.href = `/${adminPath}/`
   }
 
   const stateLabel =
@@ -182,20 +199,31 @@ export default function RedeployingPage() {
 
   return (
     <div className="setup-shell">
-      <div className="setup-card" style={{ maxWidth: 560 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.75rem' }}>
+      <div className="setup-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cactus.svg" alt="Cactus Foundation" style={{ width: 36, height: 36, background: 'var(--color-primary-subtle)', borderRadius: 8, padding: 3, flexShrink: 0 }} />
+          <img src="/cactus.svg" alt="Cactus Foundation" style={{ width: 'var(--space-8)', height: 'var(--space-8)', background: 'var(--color-primary-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-0-5)', flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+            <div style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-lg)' }}>
               {failed ? 'Redeploy failed' : 'Redeploying your site'}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
               {failed ? 'Something went wrong along the way.' : 'Sit tight - this usually takes a minute or two.'}
             </div>
           </div>
           <span className={`badge ${badgeClass}`}>{stateLabel}</span>
         </div>
+
+        {!failed && !deployDone && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleMinimize}
+            style={{ marginBottom: 'var(--space-6)' }}
+          >
+            Minimize
+          </button>
+        )}
 
         {failed ? (
           <>
@@ -203,7 +231,7 @@ export default function RedeployingPage() {
               Your changes may not have taken effect. You can dismiss this and carry on - or try again from the admin.
             </div>
             {deployLogs.length > 0 && (
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: 'var(--space-6)' }}>
                 <DeployLogViewer rawLines={deployLogs} />
               </div>
             )}
@@ -213,9 +241,9 @@ export default function RedeployingPage() {
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <span className="setup-spinner" style={{ width: 20, height: 20, color: 'var(--color-primary)' }} />
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
+              <span className="setup-spinner" style={{ width: 'var(--space-5)', height: 'var(--space-5)', color: 'var(--color-primary)' }} />
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
                 Applying your changes and bringing the site back up.
               </div>
             </div>
@@ -223,8 +251,8 @@ export default function RedeployingPage() {
               <DeployLogViewer rawLines={deployLogs} />
             )}
             {showEscape && (
-              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
-                <p style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+              <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--color-border)' }}>
+                <p style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
                   Taking longer than expected? You can dismiss this and carry on - your changes may not have taken effect yet.
                 </p>
                 <button className="btn btn-secondary" onClick={handleDismiss}>

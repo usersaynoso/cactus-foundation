@@ -1541,6 +1541,43 @@ tbody tr:hover {
 .setup-step.active { background: var(--color-primary); opacity: 0.5; }
 
 /* ============================================================
+   ADMIN DEPLOY STATUS BAR
+   ============================================================ */
+.admin-deploy-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.admin-deploy-bar-spinner {
+  width: var(--space-4);
+  height: var(--space-4);
+  flex-shrink: 0;
+}
+.admin-deploy-bar-message {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  .admin-deploy-bar {
+    flex-wrap: wrap;
+  }
+  .admin-deploy-bar-message {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+/* ============================================================
    MOBILE ADMIN BURGER MENU
    ============================================================ */
 .admin-mobile-topbar {
