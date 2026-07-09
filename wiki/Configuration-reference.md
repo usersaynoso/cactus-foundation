@@ -76,6 +76,8 @@ If the rebuild takes longer than expected, a **Dismiss and continue** button app
 
 A **Send a test email** button sends a one-off email using the current From name/address and provider credentials, to a chosen address (or your own admin address if left blank). Use it to confirm outgoing mail actually reaches an inbox - a saved config with no errors doesn't guarantee your provider accepts the From address; some providers reject unverified sender addresses at send time.
 
+When you type new credentials into the Brevo or SMTP card, a second **Send a test email** button appears next to **Save credentials**. It tests the values you've just typed (before saving, so no redeploy) by sending a test email to your own admin address. Any field you leave blank falls back to the value already saved in your environment, so you can test a changed password against an unchanged host. If the test fails, the provider's error appears in the card.
+
 ---
 
 ## Media tab

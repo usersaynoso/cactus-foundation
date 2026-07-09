@@ -21,12 +21,12 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   }
 }
 
-async function sendViaBrevo(payload: EmailPayload): Promise<void> {
+async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<void> {
   const config = await getEmailConfig()
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'api-key': process.env.BREVO_API_KEY!,
+      'api-key': apiKey ?? process.env.BREVO_API_KEY!,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -45,15 +45,17 @@ async function sendViaBrevo(payload: EmailPayload): Promise<void> {
   }
 }
 
-async function sendViaSmtp(payload: EmailPayload): Promise<void> {
+type SmtpOverrides = { host?: string; port?: string; user?: string; pass?: string }
+
+async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Promise<void> {
   const { createTransport } = await import('nodemailer')
   const config = await getEmailConfig()
   const transporter = createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    host: overrides?.host ?? process.env.SMTP_HOST,
+    port: parseInt(overrides?.port ?? process.env.SMTP_PORT ?? '587', 10),
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: overrides?.user ?? process.env.SMTP_USER,
+      pass: overrides?.pass ?? process.env.SMTP_PASS,
     },
   })
   await transporter.sendMail({
@@ -150,13 +152,52 @@ export async function sendPasswordChangedNotification(
   })
 }
 
-export async function sendTestEmail(to: string, siteName: string) {
-  await sendEmail({
+function testEmailPayload(to: string, siteName: string): EmailPayload {
+  return {
     to,
     subject: `${siteName} test email`,
     html: `<p>This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.</p>`,
     text: `This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.`,
-  })
+  }
+}
+
+export async function sendTestEmail(to: string, siteName: string) {
+  await sendEmail(testEmailPayload(to, siteName))
+}
+
+export type TestEmailCredentials = {
+  provider: 'brevo' | 'smtp'
+  brevoApiKey?: string
+  smtpHost?: string
+  smtpPort?: string
+  smtpUser?: string
+  smtpPass?: string
+}
+
+// Sends a test email using credentials supplied by the caller (typed into the
+// admin settings form but not yet saved/redeployed). Any field left blank
+// falls back to the value in the current server environment, so a partial
+// update (e.g. new password, same host) still tests the combined result.
+export async function sendTestEmailWithCredentials(
+  to: string,
+  siteName: string,
+  creds: TestEmailCredentials
+) {
+  const payload = testEmailPayload(to, siteName)
+  if (creds.provider === 'brevo') {
+    const apiKey = creds.brevoApiKey || process.env.BREVO_API_KEY
+    if (!apiKey) throw new Error('Enter a Brevo API key first.')
+    await sendViaBrevo(payload, apiKey)
+  } else {
+    const host = creds.smtpHost || process.env.SMTP_HOST
+    if (!host) throw new Error('Enter an SMTP host first.')
+    await sendViaSmtp(payload, {
+      host,
+      port: creds.smtpPort || undefined,
+      user: creds.smtpUser || undefined,
+      pass: creds.smtpPass || undefined,
+    })
+  }
 }
 
 export async function sendRecoveryRequestNotification(

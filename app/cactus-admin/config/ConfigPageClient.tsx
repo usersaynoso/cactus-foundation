@@ -551,6 +551,10 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [testEmailSending, setTestEmailSending] = useState(false)
   const [testEmailSent, setTestEmailSent] = useState('')
   const [testEmailError, setTestEmailError] = useState('')
+  // Per-card test of credentials typed into the form but not yet saved
+  const [testingEnvId, setTestingEnvId] = useState<string | null>(null)
+  const [testedEnvId, setTestedEnvId] = useState<string | null>(null)
+  const [testEnvError, setTestEnvError] = useState('')
 
   // Refresh templates state
   const [refreshingTemplates, setRefreshingTemplates] = useState(false)
@@ -878,6 +882,36 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       setEnvError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSavingEnvId(null)
+    }
+  }
+
+  async function handleTestEnvCredentials(sectionId: string) {
+    setTestingEnvId(sectionId)
+    setTestedEnvId(null)
+    setTestEnvError('')
+    try {
+      const credentials = sectionId === 'email-brevo'
+        ? { provider: 'brevo', brevoApiKey: envFields['BREVO_API_KEY']?.trim() || undefined }
+        : {
+            provider: 'smtp',
+            smtpHost: envFields['SMTP_HOST']?.trim() || undefined,
+            smtpPort: envFields['SMTP_PORT']?.trim() || undefined,
+            smtpUser: envFields['SMTP_USER']?.trim() || undefined,
+            smtpPass: envFields['SMTP_PASS']?.trim() || undefined,
+          }
+      const res = await fetch('/api/admin/config/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentials }),
+      })
+      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      setTestedEnvId(sectionId)
+      setTimeout(() => setTestedEnvId(null), 5000)
+    } catch (err: unknown) {
+      setTestEnvError(err instanceof Error ? err.message : 'Failed to send test email')
+    } finally {
+      setTestingEnvId(null)
     }
   }
 
@@ -1232,6 +1266,9 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
     const hasEntries = allKeys.some((k) => envFields[k]?.trim())
     const isSaving = savingEnvId === section.id
     const isSaved = savedEnvId === section.id
+    const isEmailSection = section.id === 'email-brevo' || section.id === 'email-smtp'
+    const isTesting = testingEnvId === section.id
+    const isTested = testedEnvId === section.id
 
     const fieldRows = section.keys.map((f) => (
       <div className="field" key={f.key} style={section.columns ? { margin: 0 } : undefined}>
@@ -1279,7 +1316,10 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {envError && savingEnvId === null && savedEnvId === null && (
               <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{envError}</div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 'auto' }}>
+            {isEmailSection && testEnvError && testingEnvId === null && (
+              <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{testEnvError}</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 'auto', flexWrap: 'wrap' }}>
               <button
                 className="btn btn-primary"
                 style={{ fontSize: '0.875rem' }}
@@ -1288,7 +1328,19 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
               >
                 {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : 'Save credentials'}
               </button>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{isSaved ? 'Redeploying…' : 'Takes effect on next deployment'}</span>
+              {isEmailSection && hasEntries && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.875rem' }}
+                  disabled={isTesting || isSaving}
+                  onClick={() => handleTestEnvCredentials(section.id)}
+                >
+                  {isTesting ? 'Sending…' : isTested ? '✓ Test sent' : 'Send test email'}
+                </button>
+              )}
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                {isSaved ? 'Redeploying…' : isTested ? 'Test email sent to your admin address' : 'Takes effect on next deployment'}
+              </span>
             </div>
           </>
         )}
