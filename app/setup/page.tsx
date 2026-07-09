@@ -125,10 +125,12 @@ export default function SetupPage() {
   // Database provisioning
   const [neonRegion, setNeonRegion] = useState('aws-us-east-2')
   const [provisionError, setProvisionError] = useState('')
+  const [redeployError, setRedeployError] = useState('')
   const [dbReady, setDbReady] = useState(false)
   const [usingExistingData, setUsingExistingData] = useState(false)
   const [adminAlreadyExists, setAdminAlreadyExists] = useState(false)
   const [finalisingDeploy, setFinalisingDeploy] = useState<string | null>(null)
+  const [finalisingWarning, setFinalisingWarning] = useState('')
   const cancelPollingRef = useRef<(() => void) | null>(null)
   const cancelDeployLogPollRef = useRef<(() => void) | null>(null)
   // Counter to force re-run the env-check useEffect even when step is already 'env'
@@ -233,8 +235,11 @@ export default function SetupPage() {
           // in .env.local. Show plain instructions rather than the Neon/Vercel panels.
           setDbSubStep('db-local')
         } else if (d.databaseState === 'provisioned-redeploying') {
+          // DATABASE_URL is written to Vercel but not in the runtime yet. Don't
+          // just sit on a spinner — make sure a redeploy is actually in flight
+          // (an earlier trigger may have failed, or the deploy may have errored).
           setDbSubStep('db-redeploying')
-          startRedeployPolling()
+          handleEnsureRedeploy(d)
         } else if (d.neonAvailable || !!vercelNeonKey) {
           setDbSubStep('db-choice')
         } else {
@@ -254,6 +259,59 @@ export default function SetupPage() {
     })
   }
 
+  // Makes sure a redeploy is genuinely running when the wizard lands in the
+  // "provisioned, waiting for redeploy" state, and wires up log polling for it.
+  // Reuses an in-flight deployment or triggers a fresh one; surfaces failures
+  // instead of showing a redeploy that never started.
+  async function handleEnsureRedeploy(data?: EnvCheckData) {
+    setRedeployError('')
+    try {
+      const res = await fetch('/api/setup/provision-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ensure-redeploy',
+          vercelToken: vercelToken || undefined,
+          vercelProjectId: selectedProjectId || undefined,
+        }),
+      })
+      const result = (await res.json()) as {
+        status?: string
+        error?: string
+        deploymentId?: string
+        redeployError?: string
+      }
+      if (result.status === 'already_set') {
+        setDbSubStep('ready')
+        return
+      }
+      if (result.status === 'missing') {
+        // Nothing provisioned after all — back to the database options.
+        const d = data ?? envData
+        setDbSubStep(d?.neonAvailable || !!vercelNeonKey ? 'db-choice' : 'db-manual')
+        return
+      }
+      if (!res.ok || result.status === 'error') {
+        setProvisionError(result.error ?? 'Failed to check the redeploy status')
+        setDbSubStep('db-error')
+        return
+      }
+      if (result.redeployError) {
+        setRedeployError(result.redeployError)
+      } else if (result.deploymentId) {
+        setDeployState('')
+        setDeployLogs([])
+        setDeploymentId(result.deploymentId)
+        cancelDeployLogPollRef.current?.()
+        cancelDeployLogPollRef.current = startDeployLogPolling(result.deploymentId, vercelToken)
+      }
+      startRedeployPolling()
+    } catch (err: unknown) {
+      setRedeployError(err instanceof Error ? err.message : 'Network error')
+      startRedeployPolling()
+    }
+  }
+
   function startDeployLogPolling(id: string, token: string): () => void {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
@@ -263,9 +321,10 @@ export default function SetupPage() {
       if (cancelled) return
       try {
         const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ''
+        const projectParam = selectedProjectId ? `&projectId=${encodeURIComponent(selectedProjectId)}` : ''
         const url = lastSeen
-          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${tokenParam}`
-          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${tokenParam}`
+          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${tokenParam}${projectParam}`
+          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${tokenParam}${projectParam}`
         const res = await fetch(url)
         if (res.ok) {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
@@ -274,6 +333,12 @@ export default function SetupPage() {
             const lines = data.logLines
             if (lines && lines.length > 0) setDeployLogs(prev => [...prev, ...lines])
             if (data.latestTimestamp) lastSeen = data.latestTimestamp
+            // Terminal state: the log stream is finished. Health polling (separate)
+            // handles the READY → database-reachable transition.
+            if (data.state === 'READY' || data.state === 'ERROR' || data.state === 'CANCELED') {
+              cancelled = true
+              return
+            }
           }
         }
       } catch {
@@ -455,6 +520,25 @@ export default function SetupPage() {
     }
   }
 
+  // Shared tail for the provisioning handlers: reads the redeploy outcome off a
+  // successful provision-db response and moves the wizard to the redeploying
+  // panel — or surfaces a trigger failure so the user isn't shown a redeploy
+  // that never started.
+  function handleProvisionedResponse(data: { deploymentId?: string; redeployError?: string }) {
+    setRedeployError('')
+    setDbSubStep('db-redeploying')
+    if (data.redeployError) {
+      setRedeployError(data.redeployError)
+    } else if (data.deploymentId) {
+      setDeployState('')
+      setDeployLogs([])
+      setDeploymentId(data.deploymentId)
+      cancelDeployLogPollRef.current?.()
+      cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
+    }
+    startRedeployPolling()
+  }
+
   async function handleUseExistingNeon(projectId: string, preserveData = false, destroyFirst = false) {
     setUsingExistingData(preserveData)
     setProvisionError('')
@@ -472,7 +556,7 @@ export default function SetupPage() {
           vercelProjectId: selectedProjectId || undefined,
         }),
       })
-      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string }
+      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string; redeployError?: string }
       if (!res.ok || data.status === 'error') {
         setProvisionError(data.error ?? 'Failed to configure database')
         setDbSubStep('db-error')
@@ -482,13 +566,7 @@ export default function SetupPage() {
         setDbSubStep('ready')
         return
       }
-      setDbSubStep('db-redeploying')
-      if (data.deploymentId) {
-        setDeploymentId(data.deploymentId)
-        cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
-      }
-      startRedeployPolling()
+      handleProvisionedResponse(data)
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('db-error')
@@ -509,19 +587,13 @@ export default function SetupPage() {
           vercelProjectId: selectedProjectId || undefined,
         }),
       })
-      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string }
+      const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string; redeployError?: string }
       if (!res.ok || data.status === 'error') {
         setProvisionError(data.error ?? 'Failed to save database URL')
         setDbSubStep('db-error')
         return
       }
-      setDbSubStep('db-redeploying')
-      if (data.deploymentId) {
-        setDeploymentId(data.deploymentId)
-        cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
-      }
-      startRedeployPolling()
+      handleProvisionedResponse(data)
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('db-error')
@@ -546,6 +618,7 @@ export default function SetupPage() {
         status?: string
         error?: string
         deploymentId?: string
+        redeployError?: string
       }
 
       if (!res.ok || data.status === 'error') {
@@ -559,13 +632,7 @@ export default function SetupPage() {
         return
       }
 
-      setDbSubStep('db-redeploying')
-      if (data.deploymentId) {
-        setDeploymentId(data.deploymentId)
-        cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
-      }
-      startRedeployPolling()
+      handleProvisionedResponse(data)
     } catch (err: unknown) {
       setProvisionError(err instanceof Error ? err.message : 'Network error')
       setDbSubStep('db-error')
@@ -779,11 +846,12 @@ export default function SetupPage() {
     try {
       const res = await fetch('/api/setup/complete', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to complete setup')
-      const data = (await res.json()) as { adminPath: string; needsRedeploy?: boolean }
+      const data = (await res.json()) as { adminPath: string; needsRedeploy?: boolean; redeployError?: string }
       if (data.needsRedeploy) {
         // SESSION_SECRET was just written to Vercel — wait for the redeploy that
         // picks it up, then send the user to the login page.
         setFinalisingDeploy(data.adminPath)
+        if (data.redeployError) setFinalisingWarning(data.redeployError)
         setLoading(false)
         cancelPollingRef.current = startHealthPolling(() => {
           window.location.href = `/${data.adminPath}/login`
@@ -862,6 +930,16 @@ export default function SetupPage() {
             Vercel is applying the final configuration. You&apos;ll be redirected to
             your login page automatically once the deployment is ready.
           </p>
+          {finalisingWarning && (
+            <div className="alert alert-warning" style={{ marginTop: '1rem', textAlign: 'left', fontSize: '0.875rem' }}>
+              <strong>The automatic redeploy could not be started.</strong>
+              <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{finalisingWarning}</div>
+              <div style={{ marginTop: '0.5rem' }}>
+                Trigger a redeploy from the Vercel dashboard (Deployments → ⋯ → Redeploy) — this page
+                will continue automatically once it finishes.
+              </div>
+            </div>
+          )}
         </div>
       ) : (
       <>
@@ -1038,6 +1116,8 @@ npm run dev`}
               deployState={deployState}
               deployLogs={deployLogs}
               deploymentId={deploymentId}
+              redeployError={redeployError}
+              onRetryRedeploy={() => handleEnsureRedeploy()}
             />
           )}
 
@@ -1936,16 +2016,22 @@ function DbRedeployingPanel({
   deployState,
   deployLogs,
   deploymentId,
+  redeployError,
+  onRetryRedeploy,
 }: {
   deployState: string
   deployLogs: string[]
   deploymentId: string | null
+  redeployError: string
+  onRetryRedeploy: () => void
 }) {
   const stateLabel =
     deployState === 'BUILDING' ? 'Building…' :
     deployState === 'READY' ? 'Done' :
     deployState === 'ERROR' ? 'Failed' :
+    deployState === 'CANCELED' ? 'Cancelled' :
     deployState || ''
+  const deployFailed = deployState === 'ERROR' || deployState === 'CANCELED'
 
   return (
     <div>
@@ -1953,38 +2039,82 @@ function DbRedeployingPanel({
         <span style={{ color: 'var(--color-success)', fontWeight: 700, flexShrink: 0 }}>✓</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database created and connection string written</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database connection string written to Vercel</div>
         </div>
       </div>
 
-      <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {deploymentId ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: deployLogs.length > 0 ? '0.5rem' : 0 }}>
-                <strong>Redeploying…</strong>
-                {stateLabel && (
-                  <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: 99, background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                    {stateLabel}
-                  </span>
-                )}
-              </div>
-              {deployLogs.length > 0 && (
-                <DeployLogViewer rawLines={deployLogs} />
-              )}
-            </>
-          ) : (
-            <span>
-              <strong>Database created.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
-              During the redeploy, the database schema migrations run automatically via the build script.
-              <br /><br />
-              This page will continue automatically once the database is reachable.{' '}
-              <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
-            </span>
-          )}
+      {redeployError ? (
+        <div className="alert alert-warning">
+          <strong>The connection string is saved, but the redeploy could not be started.</strong>
+          <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+            {redeployError}
+          </div>
+          <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+            You can retry below, or trigger a redeploy from the Vercel dashboard
+            (Deployments → ⋯ → Redeploy). Setup continues automatically once the
+            new deployment is up.
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: '0.625rem' }}
+            onClick={onRetryRedeploy}
+          >
+            Retry redeploy
+          </button>
         </div>
-      </div>
+      ) : deployFailed ? (
+        <div className="alert alert-danger">
+          <strong>The redeploy failed.</strong>
+          <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+            The deployment ended in a {deployState === 'CANCELED' ? 'cancelled' : 'failed'} state,
+            so the new database connection isn&apos;t live yet. Check the log below for the cause,
+            then retry.
+          </div>
+          {deployLogs.length > 0 && (
+            <div style={{ marginTop: '0.625rem' }}>
+              <DeployLogViewer rawLines={deployLogs} />
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: '0.625rem' }}
+            onClick={onRetryRedeploy}
+          >
+            Retry redeploy
+          </button>
+        </div>
+      ) : (
+        <div className="alert alert-info" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <span className="setup-spinner" style={{ marginTop: 2, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {deploymentId ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: deployLogs.length > 0 ? '0.5rem' : 0 }}>
+                  <strong>Redeploying…</strong>
+                  {stateLabel && (
+                    <span style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: 99, background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                      {stateLabel}
+                    </span>
+                  )}
+                </div>
+                {deployLogs.length > 0 && (
+                  <DeployLogViewer rawLines={deployLogs} />
+                )}
+              </>
+            ) : (
+              <span>
+                <strong>Database connected.</strong> Your app is redeploying to pick up the new connection — this takes a minute or two.
+                During the redeploy, the database schema migrations run automatically via the build script.
+                <br /><br />
+                This page will continue automatically once the database is reachable.{' '}
+                <span style={{ color: 'var(--color-muted)' }}>(Checking every 5 seconds…)</span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

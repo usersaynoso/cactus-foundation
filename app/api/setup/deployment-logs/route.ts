@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
+import { resolveVercelTeamId } from '@/lib/vercel/deploy'
 
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -11,11 +12,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'deploymentId is required' }, { status: 400 })
   }
 
-  const [cfg, userCount] = await Promise.all([
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { setupCompleted: true } }),
-    prisma.user.count(),
-  ])
-  const setupComplete = (cfg?.setupCompleted ?? false) && userCount > 0
+  // During the setup wizard the database may not exist yet — a failed query
+  // means setup cannot be complete, not that the request should 500.
+  let setupComplete = false
+  try {
+    const [cfg, userCount] = await Promise.all([
+      prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { setupCompleted: true } }),
+      prisma.user.count(),
+    ])
+    setupComplete = (cfg?.setupCompleted ?? false) && userCount > 0
+  } catch {
+    setupComplete = false
+  }
 
   let token: string
   if (setupComplete) {
@@ -38,14 +46,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'VERCEL_API_TOKEN not configured' }, { status: 500 })
   }
 
+  // Team-owned deployments need an explicit teamId on the API calls. In the
+  // pre-setup wizard flow VERCEL_PROJECT_ID isn't in the runtime env yet, so
+  // the client passes the selected project ID alongside its token.
+  const vercelProjectId =
+    process.env.VERCEL_PROJECT_ID ?? req.nextUrl.searchParams.get('projectId') ?? undefined
+  const teamId = vercelProjectId ? await resolveVercelTeamId(token, vercelProjectId) : null
+  const teamParam = teamId ? `teamId=${encodeURIComponent(teamId)}` : ''
+
   const since = req.nextUrl.searchParams.get('since')
-  const eventsUrl = since
-    ? `${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events?since=${encodeURIComponent(since)}`
-    : `${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events`
+  const eventsQuery = [since ? `since=${encodeURIComponent(since)}` : '', teamParam]
+    .filter(Boolean)
+    .join('&')
+  const eventsUrl = `${VERCEL_API}/v2/deployments/${encodeURIComponent(deploymentId)}/events${eventsQuery ? `?${eventsQuery}` : ''}`
 
   try {
     const [stateRes, eventsRes] = await Promise.all([
-      fetch(`${VERCEL_API}/v13/deployments/${encodeURIComponent(deploymentId)}`, {
+      fetch(`${VERCEL_API}/v13/deployments/${encodeURIComponent(deploymentId)}${teamParam ? `?${teamParam}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
       }),

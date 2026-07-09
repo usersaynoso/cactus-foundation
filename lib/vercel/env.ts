@@ -44,6 +44,26 @@ function envTargets(type: VercelEnvType): VercelEnvTarget[] {
   return type === 'sensitive' ? SENSITIVE_TARGETS : DEFAULT_TARGETS
 }
 
+// Vercel's batch env-create endpoint can return 2xx with per-item failures in a
+// `failed` array — a plain res.ok check silently drops those vars. Throws if any
+// item in the response failed.
+async function assertNoFailedItems(res: Response, key: string): Promise<void> {
+  try {
+    const data = (await res.clone().json()) as {
+      failed?: Array<{ error?: { key?: string; message?: string } }>
+    }
+    if (data.failed && data.failed.length > 0) {
+      const details = data.failed
+        .map((f) => `${f.error?.key ?? key}: ${f.error?.message ?? 'unknown error'}`)
+        .join('; ')
+      throw new Error(`Vercel rejected env var(s): ${details}`)
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('Vercel rejected')) throw err
+    // Non-JSON or unexpected body — treat as success (res.ok already checked).
+  }
+}
+
 // Fetches all env var entries for the project (returns id + key, never value).
 async function listVercelEnvVars(token: string, projectId: string): Promise<VercelEnvVar[]> {
   const res = await fetch(
@@ -114,6 +134,7 @@ export async function upsertVercelEnvVar(
       const body = await res.text()
       throw new Error(`Vercel POST env var "${key}" failed (${res.status}): ${body}`)
     }
+    await assertNoFailedItems(res, key)
   }
 }
 
@@ -208,6 +229,7 @@ export async function upsertVercelEnvVars(
           const body = await res.text()
           throw new Error(`Vercel POST env var "${key}" failed (${res.status}): ${body}`)
         }
+        await assertNoFailedItems(res, key)
       }
     })
   )

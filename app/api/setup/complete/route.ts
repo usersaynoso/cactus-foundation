@@ -94,7 +94,19 @@ export async function POST() {
         const key = randomBytes(32).toString('hex')
         await upsertVercelEnvVar(vercelToken, projectId, 'ENCRYPTION_KEY', key).catch(() => {})
       }
-      await triggerVercelRedeploy(vercelToken, projectId).catch(() => {})
+      const redeploy = await triggerVercelRedeploy(vercelToken, projectId).catch(
+        (err: unknown) => ({ triggered: false as const, error: err instanceof Error ? err.message : 'Unknown error' })
+      )
+      if (!redeploy.triggered) {
+        // The secrets are written; only the automatic redeploy failed. Tell the
+        // client so it can point the user at a manual redeploy instead of
+        // waiting forever on one that never started.
+        return NextResponse.json({
+          adminPath: cfg.adminPath,
+          needsRedeploy: true,
+          redeployError: redeploy.error ?? 'Failed to start the redeploy',
+        })
+      }
     }
     return NextResponse.json({ adminPath: cfg.adminPath, needsRedeploy: true })
   }

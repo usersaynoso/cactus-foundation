@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isLocalMode } from '@/lib/config/env'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
-import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { triggerVercelRedeploy, ensureVercelRedeploy, type RedeployResult } from '@/lib/vercel/deploy'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
 import { Client } from 'pg'
 
@@ -65,7 +65,7 @@ async function findExistingNeonProject(
   orgId: string | null
 ): Promise<string | null> {
   const url = new URL(`${NEON_API}/projects`)
-  url.searchParams.set('search', encodeURIComponent(projectName))
+  url.searchParams.set('search', projectName)
   url.searchParams.set('limit', '10')
   if (orgId) url.searchParams.set('org_id', orgId)
   const res = await fetch(url.toString(), {
@@ -160,46 +160,34 @@ async function vercelDbUrlExists(token: string, projectId: string): Promise<bool
   return data.envs?.some((e) => e.key === 'DATABASE_URL') ?? false
 }
 
-// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the Vercel project env vars.
+// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the Vercel project env
+// vars via the shared upsert helper: overwrites stale values from prior attempts
+// and skips the "development" target on sensitive vars, which Vercel rejects.
 async function writeVercelEnvVars(
   token: string,
   projectId: string,
   databaseUrl: string,
   neonProjectId?: string
 ): Promise<void> {
-  const vars: Array<{ key: string; value: string; type: string; target: string[] }> = [
-    {
-      key: 'DATABASE_URL',
-      value: databaseUrl,
-      type: 'sensitive',
-      target: ['production', 'preview', 'development'],
-    },
+  const vars: Array<{ key: string; value: string; type?: 'plain' | 'sensitive' }> = [
+    { key: 'DATABASE_URL', value: databaseUrl, type: 'sensitive' },
   ]
   if (neonProjectId) {
-    vars.push({
-      key: 'NEON_PROJECT_ID',
-      value: neonProjectId,
-      type: 'plain',
-      target: ['production', 'preview', 'development'],
-    })
+    vars.push({ key: 'NEON_PROJECT_ID', value: neonProjectId, type: 'plain' })
   }
+  await upsertVercelEnvVars(token, projectId, vars)
+}
 
-  const res = await fetch(
-    `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(vars),
-      signal: AbortSignal.timeout(15_000),
-    }
-  )
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Vercel API error writing env vars (${res.status}): ${body}`)
-  }
+// Shapes the redeploy portion of a provisioning response: the connection string
+// is written either way, but a failed trigger must reach the UI instead of being
+// silently reported as "redeploying".
+function redeployFields(result: RedeployResult): {
+  deploymentId?: string
+  redeployError?: string
+} {
+  return result.triggered
+    ? { deploymentId: result.deploymentId }
+    : { redeployError: result.error ?? 'Failed to start the redeploy' }
 }
 
 // Drops all user-created objects by resetting the public schema.
@@ -385,7 +373,7 @@ export async function POST(req: NextRequest) {
         { key: 'DATABASE_URL', value: databaseUrl, type: 'sensitive' },
       ])
       const deployResult0 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
-      return NextResponse.json({ status: 'provisioned', deploymentId: deployResult0.deploymentId })
+      return NextResponse.json({ status: 'provisioned', ...redeployFields(deployResult0) })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ status: 'error', error: message }, { status: 500 })
@@ -397,11 +385,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'already_set' })
   }
 
-  // Idempotency check: if DATABASE_URL is already in Vercel project env vars,
-  // a prior provisioning succeeded and we're waiting for the redeploy.
-  if (await vercelDbUrlExists(vercelToken, vercelProjectId)) {
-    return NextResponse.json({ status: 'provisioned-redeploying' })
+  // ── Action: ensure-redeploy ───────────────────────────────────────────────
+  // Called when the wizard finds DATABASE_URL already written to Vercel but not
+  // yet in the runtime env. Guarantees a redeploy is actually in flight: reuses
+  // a running deployment if there is one, otherwise triggers a fresh one. This
+  // self-heals the stuck state where an earlier trigger failed (or the deploy
+  // errored) and the UI would otherwise wait forever on a redeploy that never runs.
+  if (action === 'ensure-redeploy') {
+    if (!(await vercelDbUrlExists(vercelToken, vercelProjectId))) {
+      // Nothing provisioned after all — send the wizard back to the choice panel.
+      return NextResponse.json({ status: 'missing' })
+    }
+    const ensureResult = await ensureVercelRedeploy(vercelToken, vercelProjectId)
+    return NextResponse.json({ status: 'provisioned', ...redeployFields(ensureResult) })
   }
+
+  // Note: no short-circuit on DATABASE_URL already existing in the Vercel project
+  // env vars. A stale value from a prior attempt must not turn an explicit
+  // provisioning request into a silent no-op — the upsert overwrites it and a
+  // fresh redeploy picks it up.
 
   // For Neon actions we need the API key.
   if (!neonApiKey) {
@@ -421,7 +423,7 @@ export async function POST(req: NextRequest) {
       }
       await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
       const deployResult1 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
-      return NextResponse.json({ status: 'provisioned', neonProjectId: project.id, deploymentId: deployResult1.deploymentId })
+      return NextResponse.json({ status: 'provisioned', neonProjectId: project.id, ...redeployFields(deployResult1) })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ status: 'error', error: message }, { status: 500 })
@@ -454,7 +456,7 @@ export async function POST(req: NextRequest) {
         status: 'provisioned',
         neonProjectId: project.id,
         region: project.region_id,
-        deploymentId: deployResult2.deploymentId,
+        ...redeployFields(deployResult2),
       })
     }
 
@@ -467,7 +469,7 @@ export async function POST(req: NextRequest) {
       status: 'provisioned',
       neonProjectId: neonData.project.id,
       region: neonData.project.region_id,
-      deploymentId: deployResult3.deploymentId,
+      ...redeployFields(deployResult3),
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
