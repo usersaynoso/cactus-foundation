@@ -481,6 +481,7 @@ a:hover {
   font-weight: var(--font-semibold);
   color: var(--color-text);
   letter-spacing: -0.01em;
+  line-height: 12px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
