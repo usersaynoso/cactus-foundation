@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import MediaCard, { type MediaCardItem } from './MediaCard'
+import MediaLightbox from './MediaLightbox'
 
 type MediaGridProps = {
   items: MediaCardItem[]
@@ -30,6 +31,7 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
+  const [openId, setOpenId] = useState<string | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Reset everything whenever the initial item list itself changes (search,
@@ -48,8 +50,8 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
     setLastToggledIndex(null)
   }
 
-  async function loadMore() {
-    if (loadingMore || !hasMoreState) return
+  async function loadMore(): Promise<MediaCardItem[]> {
+    if (loadingMore || !hasMoreState) return []
     setLoadingMore(true)
     try {
       const nextPage = page + 1
@@ -62,11 +64,34 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
       setLoadedItems((prev) => [...prev, ...d.items])
       setPage(nextPage)
       setHasMoreState(d.items.length === perPage)
+      return d.items
     } catch {
       // Leave hasMoreState as-is so the sentinel simply retries on next scroll.
+      return []
     } finally {
       setLoadingMore(false)
     }
+  }
+
+  const openIndex = openId ? loadedItems.findIndex((i) => i.id === openId) : -1
+  const openItem = openIndex >= 0 ? loadedItems[openIndex] : null
+  const hasPrev = openIndex > 0
+  const hasNext = openIndex >= 0 && (openIndex < loadedItems.length - 1 || hasMoreState)
+
+  function openPrev() {
+    const prev = openIndex > 0 ? loadedItems[openIndex - 1] : undefined
+    if (prev) setOpenId(prev.id)
+  }
+
+  async function openNext() {
+    if (openIndex < 0) return
+    const next = openIndex < loadedItems.length - 1 ? loadedItems[openIndex + 1] : undefined
+    if (next) {
+      setOpenId(next.id)
+      return
+    }
+    const newItems = await loadMore()
+    if (newItems[0]) setOpenId(newItems[0].id)
   }
 
   useEffect(() => {
@@ -183,9 +208,23 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
             selectable={canDelete}
             selected={selected.has(item.id)}
             onToggleSelect={toggleSelect}
+            onOpen={setOpenId}
           />
         ))}
       </div>
+
+      {openItem && (
+        <MediaLightbox
+          item={openItem}
+          canDelete={canDelete}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
+          loadingNext={loadingMore}
+          onClose={() => setOpenId(null)}
+          onPrev={openPrev}
+          onNext={openNext}
+        />
+      )}
 
       {hasMoreState && (
         <div ref={sentinelRef} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
