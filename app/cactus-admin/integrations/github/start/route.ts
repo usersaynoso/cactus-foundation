@@ -37,8 +37,14 @@ export async function GET() {
   const { adminPath, siteName } = config
   const state = randomBytes(32).toString('hex')
 
+  const GITHUB_APP_NAME_MAX = 34
+  const prefix = 'Cactus Foundation - '
+  const maxSiteNameLength = GITHUB_APP_NAME_MAX - prefix.length
+  const trimmedSiteName =
+    siteName.length > maxSiteNameLength ? siteName.slice(0, maxSiteNameLength) : siteName
+
   const manifest = {
-    name: `Cactus Foundation - ${siteName}`,
+    name: `${prefix}${trimmedSiteName}`,
     url: siteUrl,
     redirect_url: `${siteUrl}/${adminPath}/integrations/github/callback`,
     setup_url: `${siteUrl}/${adminPath}/integrations/github/installed`,
