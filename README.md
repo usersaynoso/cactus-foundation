@@ -10,7 +10,10 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/usersaynoso/cactus-foundation)
+[![Deploy latest release](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/usersaynoso/cactus-foundation/tree/v0.5.208)
+[![Deploy latest pre-release (beta)](https://img.shields.io/badge/Deploy-latest%20beta-black?logo=vercel)](https://vercel.com/new/clone?repository-url=https://github.com/usersaynoso/cactus-foundation)
+
+The first button deploys the latest stable release. The second deploys straight off `main`, which is usually a day or two ahead but hasn't had a stable tag cut yet - expect the odd rough edge.
 
 ---
 
