@@ -221,6 +221,9 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
               itemFontWeight={props.itemFontWeight}
               textTransform={props.textTransform}
               itemColor={props.itemColor}
+              itemSpacingFluid={props.itemSpacingFluid}
+              letterSpacingFluid={props.letterSpacingFluid}
+              itemFontSizeFluid={props.itemFontSizeFluid}
             />
           )),
         },

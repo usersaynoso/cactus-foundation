@@ -29,7 +29,8 @@ import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorF
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
 import { VisibilityField } from '@/lib/puck/VisibilityField'
-import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { MinMaxPairField, type MinMaxPair } from '@/lib/puck/MinMaxPairField'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -1593,15 +1594,21 @@ function MenuBlock(props: any) {
   const {
     id, resolvedItems, orientation, spacing, alignment, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground,
     spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
+    itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid,
   } = props
   if (!resolvedItems) {
     return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
   }
+  const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
+  const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
+  const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
   const linkStyleOverride: React.CSSProperties = {}
   if (itemColor) linkStyleOverride.color = itemColor
   if (itemFontSize !== 'medium') linkStyleOverride.fontSize = menuFontSizeMap[itemFontSize]
   if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = menuFontWeightMap[itemFontWeight]
   if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
+  if (fluidFontSize) linkStyleOverride.fontSize = fluidFontSize
+  if (fluidLetterSpacing) linkStyleOverride.letterSpacing = fluidLetterSpacing
   const shrinkListClass = `menu-vlist-shrink-${id}`
   const shrinkLinkClass = `menu-vlink-shrink-${id}`
   const hasVerticalShrink = spacingShrunk || itemFontSizeShrunk || itemFontWeightShrunk
@@ -1615,7 +1622,7 @@ function MenuBlock(props: any) {
             itemFontWeightShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkLinkClass}{font-weight:${menuFontWeightMap[itemFontWeightShrunk]} !important;}` : '',
           ].filter(Boolean).join('\n')}</style>
         )}
-        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: menuVerticalGapMap[spacing] ?? '0.5rem' }}>
+        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacing] ?? '0.5rem' }}>
           {resolvedItems.map((item: any) => (
             <li key={item.id}>
               <a href={item.href} target={item.openInNewTab ? '_blank' : undefined} rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
@@ -1643,7 +1650,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} />
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {
@@ -2365,8 +2372,11 @@ export const puckConfig = {
         spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
         itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeightShrunk: { type: 'select' as const, label: 'Shrunk font weight', options: [{ value: '', label: 'Same as font weight' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        itemSpacingFluid: { type: 'custom' as const, label: 'Responsive item spacing (rem)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
+        letterSpacingFluid: { type: 'custom' as const, label: 'Responsive character spacing (em)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
+        itemFontSizeFluid: { type: 'custom' as const, label: 'Responsive font size (rem)', minLabel: 'Min size', maxLabel: 'Max size', render: MinMaxPairField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '' },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
       resolveFields: (_data: any, { fields, appState }: any) => {
         if (isHeaderShrinkEnabled(appState)) return fields
         const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = fields

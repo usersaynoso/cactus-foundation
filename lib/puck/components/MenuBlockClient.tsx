@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { fluidClamp } from '@/lib/puck/responsiveValue'
 
 type MenuItem = {
   id: string
@@ -89,6 +90,7 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
             fontSize: overrides?.fontSize ?? '0.9375rem',
             fontWeight: overrides?.fontWeight ?? 500,
             textTransform: overrides?.textTransform,
+            letterSpacing: overrides?.letterSpacing,
             color: hovered ? 'var(--color-primary)' : (overrides?.color ?? 'var(--color-text)'),
             background: hovered ? 'var(--color-primary-subtle)' : 'transparent',
             textDecoration: 'none',
@@ -198,6 +200,8 @@ const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.937
 const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
 const hGapMap: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem' }
 
+type MinMaxPair = { min?: string; max?: string }
+
 type Props = {
   resolvedItems?: MenuItem[]
   spacing?: 'tight' | 'normal' | 'wide'
@@ -212,6 +216,9 @@ type Props = {
   spacingShrunk?: '' | 'tight' | 'normal' | 'wide'
   itemFontSizeShrunk?: '' | 'small' | 'medium' | 'large'
   itemFontWeightShrunk?: '' | 'normal' | 'medium' | 'semibold' | 'bold'
+  itemSpacingFluid?: MinMaxPair
+  letterSpacingFluid?: MinMaxPair
+  itemFontSizeFluid?: MinMaxPair
   [key: string]: unknown
 }
 
@@ -229,6 +236,9 @@ export default function MenuBlockClient({
   spacingShrunk,
   itemFontSizeShrunk,
   itemFontWeightShrunk,
+  itemSpacingFluid,
+  letterSpacingFluid,
+  itemFontSizeFluid,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -240,13 +250,18 @@ export default function MenuBlockClient({
     )
   }
 
-  const hGap = hGapMap[spacing] ?? '0'
+  const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
+  const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
+  const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
+  const hGap = fluidGap ?? hGapMap[spacing] ?? '0'
 
   const overrides: React.CSSProperties = {}
   if (itemColor) overrides.color = itemColor
   if (itemFontSize !== 'medium') overrides.fontSize = fontSizeMap[itemFontSize]
   if (itemFontWeight !== 'medium') overrides.fontWeight = fontWeightMap[itemFontWeight]
   if (textTransform !== 'none') overrides.textTransform = textTransform as React.CSSProperties['textTransform']
+  if (fluidFontSize) overrides.fontSize = fluidFontSize
+  if (fluidLetterSpacing) overrides.letterSpacing = fluidLetterSpacing
 
   const hasOverrides = Object.keys(overrides).length > 0
   const collapseDesktop = showDesktopToggle !== 'show'

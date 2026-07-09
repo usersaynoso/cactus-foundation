@@ -41,6 +41,27 @@ export function getResponsiveBreakpoints(): { mobile: number; tablet: number } {
   return { mobile: MOBILE_BP, tablet: TABLET_BP }
 }
 
+// Builds a fluid `clamp(min, preferred, max)` that hits `min` at the site's
+// mobile breakpoint and `max` at its tablet breakpoint, interpolating by
+// viewport width in between - lets a block shed spacing/font-size/
+// letter-spacing continuously as the screen narrows instead of jumping
+// between fixed presets. Returns null when either side of the pair is
+// blank/unparseable, so leaving both empty falls back to the caller's
+// existing fixed value untouched.
+export function fluidClamp(min: string | undefined, max: string | undefined, unit: string): string | null {
+  const lo = parseFloat(min ?? '')
+  const hi = parseFloat(max ?? '')
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null
+  const { mobile, tablet } = getResponsiveBreakpoints()
+  const minV = Math.min(lo, hi)
+  const maxV = Math.max(lo, hi)
+  if (tablet <= mobile || lo === hi) return `${hi}${unit}`
+  const slope = (hi - lo) / (tablet - mobile)
+  const intercept = lo - slope * mobile
+  const preferred = `calc(${intercept.toFixed(4)}${unit} + ${(slope * 100).toFixed(4)}vw)`
+  return `clamp(${minV}${unit}, ${preferred}, ${maxV}${unit})`
+}
+
 // Shared media-query prefixes so every hand-rolled rule (GridBlock's column
 // overrides, module grids) uses byte-identical ranges. Mobile owns widths up
 // to and including the mobile breakpoint; tablet starts 0.02px above it (the

@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react'
 import type { PublicMenuItem } from '@/lib/menu/resolve'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
-import { normalizeResponsiveValue, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+
+type MinMaxPair = { min?: string; max?: string }
 
 type Props = {
   menuId: string
@@ -14,6 +16,9 @@ type Props = {
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
   itemColor?: string
+  itemSpacingFluid?: MinMaxPair
+  letterSpacingFluid?: MinMaxPair
+  itemFontSizeFluid?: MinMaxPair
 }
 
 // Renders through MenuBlockClient - the exact component the live site uses -
@@ -21,7 +26,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ menuId, orientation, spacing, navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor }: Props) {
+export default function MenuBlockEditorPreview({ menuId, orientation, spacing, navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -52,15 +57,19 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, n
     const verticalGaps: Record<string, string> = { tight: '0.25rem', normal: '0.5rem', wide: '1rem' }
     const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
     const fontWeightMap: Record<string, number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
+    const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
+    const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
+    const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
     const linkStyle: React.CSSProperties = {
       color: itemColor || 'var(--color-text)',
       fontWeight: fontWeightMap[itemFontWeight] ?? 500,
-      fontSize: fontSizeMap[itemFontSize] ?? '0.9375rem',
+      fontSize: fluidFontSize ?? fontSizeMap[itemFontSize] ?? '0.9375rem',
+      letterSpacing: fluidLetterSpacing ?? undefined,
       textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
     }
     return (
       <nav>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: verticalGaps[spacing] ?? '0.5rem' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacing] ?? '0.5rem' }}>
           {items.map((item) => (
             <li key={item.id}>
               <span style={linkStyle}>{item.label}</span>
@@ -94,6 +103,9 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, n
       itemFontWeight={itemFontWeight}
       textTransform={textTransform}
       itemColor={itemColor}
+      itemSpacingFluid={itemSpacingFluid}
+      letterSpacingFluid={letterSpacingFluid}
+      itemFontSizeFluid={itemFontSizeFluid}
       showDesktopToggle={showDesktopToggle}
       showTabletToggle={showTabletToggle}
       showMobileToggle={showMobileToggle}
