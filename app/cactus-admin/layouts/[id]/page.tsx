@@ -200,6 +200,8 @@ export default function LayoutEditorPage() {
     finally { setSaving(false) }
   }, [id, loadHistory])
 
+  const handleDeleteClick = useCallback(() => setDeleteConfirm(true), [])
+
   const handleDelete = useCallback(async () => {
     setDeleting(true)
     try {
@@ -248,7 +250,7 @@ export default function LayoutEditorPage() {
         layoutType={layout.type}
         backHref={`/${adminPath}/layouts`}
         layoutId={layout.id}
-        onDeleteClick={() => setDeleteConfirm(true)}
+        onDeleteClick={handleDeleteClick}
         deleting={deleting}
         canDelete={!layout.isStarter}
         name={layout.name}
