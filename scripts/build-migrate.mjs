@@ -14,10 +14,18 @@
  *   2. Set PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 so Prisma skips the advisory
  *      lock entirely — safe here because Vercel runs only one build at a time.
  *   3. Retry up to 3 times with a 15 s back-off for any remaining transient
- *      connectivity issues.
+ *      connectivity issues. A cold-start disconnect mid-apply leaves the
+ *      migration marked "failed" in _prisma_migrations, which blocks every
+ *      later attempt with P3009 until it's resolved — so resolve runs between
+ *      retries too, not just once up front.
  */
 
 import { spawnSync } from 'child_process'
+import { readdirSync } from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 if (!process.env.DATABASE_URL) {
   console.log(
@@ -49,6 +57,34 @@ function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
+// Migration folder names, read from disk rather than hardcoded — this repo
+// keeps exactly one migration (edited in place, per project policy), but
+// reading the directory means this never goes stale again if that changes.
+function migrationNames() {
+  const migrationsDir = path.join(__dirname, '..', 'prisma', 'migrations')
+  try {
+    return readdirSync(migrationsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+  } catch {
+    return []
+  }
+}
+
+// Clears a failed-migration record left by an interrupted prior attempt
+// (e.g. a Neon cold-start disconnect mid-apply). No-op on a migration that
+// never had a failed record — `prisma migrate resolve` only errors when
+// there's nothing to resolve, and that error is discarded here.
+function resolveFailedMigrations() {
+  for (const name of migrationNames()) {
+    spawnSync('npx', ['prisma', 'migrate', 'resolve', '--rolled-back', name], {
+      stdio: 'pipe',
+      env,
+      shell: false,
+    })
+  }
+}
+
 function runWithRetry(label, cmd, args, retries = 3, backoffMs = 10_000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     console.log(`[build-migrate] ${label} (attempt ${attempt}/${retries})…`)
@@ -64,14 +100,23 @@ function runWithRetry(label, cmd, args, retries = 3, backoffMs = 10_000) {
   }
 }
 
-// Silently resolve any failed migration left in _prisma_migrations.
-// No-op (exit code ignored) on databases that never had the failed record.
-spawnSync(
-  'npx',
-  ['prisma', 'migrate', 'resolve', '--rolled-back',
-   '20260627000000_add_layout_type_and_conditions'],
-  { stdio: 'pipe', env, shell: false }
-)
+function runMigrateDeployWithRetry(retries = 3, backoffMs = 10_000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    // Clear any failed record before every attempt, not just the first — an
+    // interrupted apply on THIS attempt must not permanently block the next one.
+    resolveFailedMigrations()
+    console.log(`[build-migrate] Prisma migrations (attempt ${attempt}/${retries})…`)
+    const result = spawnSync('npx', ['prisma', 'migrate', 'deploy'], { stdio: 'inherit', env, shell: false })
+    if (result.status === 0) return
+    if (attempt < retries) {
+      console.log(`[build-migrate] Prisma migrations failed — retrying in ${backoffMs / 1000}s`)
+      sleep(backoffMs)
+    } else {
+      console.error(`[build-migrate] Prisma migrations failed after ${retries} attempts`)
+      process.exit(result.status ?? 1)
+    }
+  }
+}
 
-runWithRetry('Prisma migrations', 'npx', ['prisma', 'migrate', 'deploy'])
+runMigrateDeployWithRetry()
 runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
