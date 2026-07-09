@@ -45,7 +45,7 @@ export default function MediaCard({
   /** Show the bulk-select checkbox overlay (only meaningful alongside a delete permission). */
   selectable?: boolean
   selected?: boolean
-  onToggleSelect?: (id: string) => void
+  onToggleSelect?: (id: string, shiftKey: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
   const isImage = item.mimeType.startsWith('image/')
@@ -97,15 +97,15 @@ export default function MediaCard({
                 justifyContent: 'center',
                 borderRadius: 'var(--radius-sm)',
                 background: selected ? 'var(--color-primary)' : 'rgba(0, 0, 0, 0.45)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
                 cursor: 'pointer',
               }}
             >
               <input
                 type="checkbox"
                 checked={selected}
-                onChange={() => onToggleSelect?.(item.id)}
-                style={{ width: '1rem', height: '1rem', margin: 0, cursor: 'pointer' }}
+                onClick={(e) => onToggleSelect?.(item.id, e.shiftKey)}
+                onChange={() => {}}
+                style={{ width: '1rem', height: '1rem', margin: 0, cursor: 'pointer', border: 'none', outline: 'none', appearance: 'auto' }}
               />
             </label>
           )}

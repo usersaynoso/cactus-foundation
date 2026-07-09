@@ -4,7 +4,6 @@ import { hasPermission } from '@/lib/permissions/check'
 import { parsePaginationParams } from '@/lib/utils'
 import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
 import { TabStrip, type TabStripItem } from '@/components/admin/TabStrip'
-import Link from 'next/link'
 import MediaUpload from './MediaUpload'
 import MediaGrid from './MediaGrid'
 import type { Metadata } from 'next'
@@ -24,7 +23,7 @@ export default async function MediaPage({ searchParams }: Props) {
 
   const sp = await searchParams
   const params = new URLSearchParams(sp)
-  const { skip, perPage, page } = parsePaginationParams(params)
+  const { perPage } = parsePaginationParams(params)
 
   const search = params.get('q') ?? ''
   const rawFilter = params.get('filter')
@@ -56,8 +55,8 @@ export default async function MediaPage({ searchParams }: Props) {
       : filter === 'unused' ? classified.filter((i) => !i.inUse)
         : classified
 
-  const totalPages = Math.ceil(filtered.length / perPage)
-  const items = filtered.slice(skip, skip + perPage)
+  const items = filtered.slice(0, perPage)
+  const hasMore = filtered.length > items.length
 
   // Preserve the search term across tab switches; drop page (filtered counts differ).
   const hrefFor = (f: MediaFilter) => {
@@ -72,15 +71,6 @@ export default async function MediaPage({ searchParams }: Props) {
     { key: 'in-use', label: `In Use (${inUseCount})`, href: hrefFor('in-use'), active: filter === 'in-use' },
     { key: 'unused', label: `Not In Use (${unusedCount})`, href: hrefFor('unused'), active: filter === 'unused' },
   ]
-
-  // Keep q and filter on pagination links.
-  const pageHref = (n: number) => {
-    const u = new URLSearchParams()
-    u.set('page', String(n))
-    if (search) u.set('q', search)
-    if (filter !== 'all') u.set('filter', filter)
-    return `?${u.toString()}`
-  }
 
   return (
     <div>
@@ -109,17 +99,7 @@ export default async function MediaPage({ searchParams }: Props) {
                 : 'No media files yet'}
         </div>
       ) : (
-        <MediaGrid items={items} canDelete={canDelete} />
-      )}
-
-      {totalPages > 1 && (
-        <div className="pagination">
-          {page > 1 && <Link href={pageHref(page - 1)}>←</Link>}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <Link key={n} href={pageHref(n)} className={n === page ? 'current' : ''}>{n}</Link>
-          ))}
-          {page < totalPages && <Link href={pageHref(page + 1)}>→</Link>}
-        </div>
+        <MediaGrid items={items} canDelete={canDelete} hasMore={hasMore} search={search} filter={filter} perPage={perPage} />
       )}
     </div>
   )

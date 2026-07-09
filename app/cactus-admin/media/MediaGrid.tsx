@@ -1,21 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import MediaCard, { type MediaCardItem } from './MediaCard'
 
+type MediaGridProps = {
+  items: MediaCardItem[]
+  canDelete: boolean
+  /** Whether the server has more matching items beyond this first batch. */
+  hasMore: boolean
+  search: string
+  filter: string
+  perPage: number
+}
+
 // Owns bulk-selection state across the grid (a single MediaCard can't know
-// about its siblings) and the confirm-and-delete flow. Selection resets
-// whenever the underlying item list changes (pagination, search, filter).
-export default function MediaGrid({ items, canDelete }: { items: MediaCardItem[]; canDelete: boolean }) {
+// about its siblings), incremental loading of further pages as the user
+// scrolls, and the confirm-and-delete flow. Both reset whenever the initial
+// item list changes (search, filter).
+export default function MediaGrid({ items, canDelete, hasMore, search, filter, perPage }: MediaGridProps) {
   const router = useRouter()
+  const [loadedItems, setLoadedItems] = useState<MediaCardItem[]>(items)
+  const [page, setPage] = useState(1)
+  const [hasMoreState, setHasMoreState] = useState(hasMore)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [lastToggledIndex, setLastToggledIndex] = useState<number | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // Reset selection whenever the item list itself changes (pagination, search,
+  // Reset everything whenever the initial item list itself changes (search,
   // filter) — adjusted during render (React's documented pattern), not in an
   // effect, since a fresh `items` array arrives as a new prop reference on
   // every navigation rather than mutating the same one.
@@ -23,9 +40,46 @@ export default function MediaGrid({ items, canDelete }: { items: MediaCardItem[]
   const [lastItemsKey, setLastItemsKey] = useState(itemsKey)
   if (itemsKey !== lastItemsKey) {
     setLastItemsKey(itemsKey)
+    setLoadedItems(items)
+    setPage(1)
+    setHasMoreState(hasMore)
     setSelected(new Set())
     setSkippedInUse([])
+    setLastToggledIndex(null)
   }
+
+  async function loadMore() {
+    if (loadingMore || !hasMoreState) return
+    setLoadingMore(true)
+    try {
+      const nextPage = page + 1
+      const qs = new URLSearchParams({ page: String(nextPage), perPage: String(perPage) })
+      if (search) qs.set('q', search)
+      if (filter !== 'all') qs.set('filter', filter)
+      const res = await fetch(`/api/admin/media?${qs.toString()}`)
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Failed to load more media')
+      setLoadedItems((prev) => [...prev, ...d.items])
+      setPage(nextPage)
+      setHasMoreState(d.items.length === perPage)
+    } catch {
+      // Leave hasMoreState as-is so the sentinel simply retries on next scroll.
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasMoreState) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) loadMore()
+    }, { rootMargin: '400px' })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMore closes over page/loadingMore, re-created each render; observer only needs re-attaching when hasMoreState changes
+  }, [hasMoreState, page, loadingMore])
 
   useEffect(() => {
     if (!confirming) return
@@ -39,17 +93,31 @@ export default function MediaGrid({ items, canDelete }: { items: MediaCardItem[]
     }
   }, [confirming])
 
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  function toggleSelect(id: string, shiftKey: boolean) {
+    const index = loadedItems.findIndex((i) => i.id === id)
+
+    if (shiftKey && lastToggledIndex !== null) {
+      const [start, end] = index < lastToggledIndex ? [index, lastToggledIndex] : [lastToggledIndex, index]
+      const rangeIds = loadedItems.slice(start, end + 1).map((i) => i.id)
+      setSelected((prev) => {
+        const next = new Set(prev)
+        rangeIds.forEach((rangeId) => next.add(rangeId))
+        return next
+      })
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+    }
+
+    setLastToggledIndex(index)
   }
 
   function itemLabel(id: string): string {
-    const item = items.find((i) => i.id === id)
+    const item = loadedItems.find((i) => i.id === id)
     return item ? (item.key.split('/').pop() ?? item.key) : id
   }
 
@@ -107,7 +175,7 @@ export default function MediaGrid({ items, canDelete }: { items: MediaCardItem[]
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-        {items.map((item) => (
+        {loadedItems.map((item) => (
           <MediaCard
             key={item.id}
             item={item}
@@ -118,6 +186,12 @@ export default function MediaGrid({ items, canDelete }: { items: MediaCardItem[]
           />
         ))}
       </div>
+
+      {hasMoreState && (
+        <div ref={sentinelRef} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+          {loadingMore ? 'Loading more…' : ''}
+        </div>
+      )}
 
       {confirming && (
         <div
