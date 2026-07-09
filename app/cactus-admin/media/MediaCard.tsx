@@ -33,7 +33,20 @@ const badgeStyle = (inUse: boolean): CSSProperties => ({
   border: `1px solid ${inUse ? 'var(--color-success-border)' : 'var(--color-border)'}`,
 })
 
-export default function MediaCard({ item, canDelete }: { item: MediaCardItem; canDelete: boolean }) {
+export default function MediaCard({
+  item,
+  canDelete,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+}: {
+  item: MediaCardItem
+  canDelete: boolean
+  /** Show the bulk-select checkbox overlay (only meaningful alongside a delete permission). */
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const isImage = item.mimeType.startsWith('image/')
   const filename = item.key.split('/').pop()
@@ -54,20 +67,49 @@ export default function MediaCard({ item, canDelete }: { item: MediaCardItem; ca
 
   return (
     <>
-      <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)' }}>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`Open ${filename ?? 'media item'}`}
-          style={{ display: 'block', width: '100%', height: 140, padding: 0, border: 'none', background: 'var(--color-bg-subtle)', cursor: 'zoom-in', overflow: 'hidden' }}
-        >
-          {isImage ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={item.url} alt={item.altText ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          ) : (
-            <span style={{ fontSize: '2rem' }}>📄</span>
+      <div style={{ border: `1px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)' }}>
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`Open ${filename ?? 'media item'}`}
+            style={{ display: 'block', width: '100%', height: 140, padding: 0, border: 'none', background: 'var(--color-bg-subtle)', cursor: 'zoom-in', overflow: 'hidden' }}
+          >
+            {isImage ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={item.url} alt={item.altText ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <span style={{ fontSize: '2rem' }}>📄</span>
+            )}
+          </button>
+          {selectable && (
+            <label
+              onClick={(e) => e.stopPropagation()}
+              aria-label={selected ? `Deselect ${filename ?? 'media item'}` : `Select ${filename ?? 'media item'}`}
+              style={{
+                position: 'absolute',
+                top: '0.4rem',
+                right: '0.4rem',
+                width: '1.35rem',
+                height: '1.35rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-sm)',
+                background: selected ? 'var(--color-primary)' : 'rgba(0, 0, 0, 0.45)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect?.(item.id)}
+                style={{ width: '1rem', height: '1rem', margin: 0, cursor: 'pointer' }}
+              />
+            </label>
           )}
-        </button>
+        </div>
         <div style={{ padding: '0.625rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden' }}>
             <div style={{ fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

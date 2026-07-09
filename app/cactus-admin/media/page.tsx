@@ -6,7 +6,7 @@ import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
 import { TabStrip, type TabStripItem } from '@/components/admin/TabStrip'
 import Link from 'next/link'
 import MediaUpload from './MediaUpload'
-import MediaCard from './MediaCard'
+import MediaGrid from './MediaGrid'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Media — Admin' }
@@ -101,19 +101,16 @@ export default async function MediaPage({ searchParams }: Props) {
         />
       </form>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-        {items.length === 0 && (
-          <div style={{ gridColumn: '1/-1', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3rem' }}>
-            {search ? 'No media matches your search'
-              : filter === 'in-use' ? 'No media is currently in use'
-                : filter === 'unused' ? 'Every media item is in use'
-                  : 'No media files yet'}
-          </div>
-        )}
-        {items.map((item) => (
-          <MediaCard key={item.id} item={item} canDelete={canDelete} />
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <div style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '3rem' }}>
+          {search ? 'No media matches your search'
+            : filter === 'in-use' ? 'No media is currently in use'
+              : filter === 'unused' ? 'Every media item is in use'
+                : 'No media files yet'}
+        </div>
+      ) : (
+        <MediaGrid items={items} canDelete={canDelete} />
+      )}
 
       {totalPages > 1 && (
         <div className="pagination">
