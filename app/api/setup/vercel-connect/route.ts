@@ -21,6 +21,7 @@ async function isSetupComplete(): Promise<boolean> {
 // POST /api/setup/vercel-connect
 //
 // action: 'list-projects'  — validates the token and returns accessible projects
+// action: 'add-domain'     — adds a custom domain to the selected project
 // action: 'configure'      — writes bootstrap env vars to the selected project
 //                            and triggers a redeploy
 export async function POST(req: NextRequest) {
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
     token?: string
     projectId?: string
     neonApiKey?: string
+    domain?: string
   }
   try {
     body = (await req.json()) as typeof body
@@ -75,12 +77,12 @@ export async function POST(req: NextRequest) {
             }
           )
           const domainsData = (await domainsRes.json()) as {
-            domains?: Array<{ name: string }>
+            domains?: Array<{ name: string; verified?: boolean }>
           }
           return {
             id: p.id,
             name: p.name,
-            domains: (domainsData.domains ?? []).map((d) => d.name),
+            domains: (domainsData.domains ?? []).map((d) => ({ name: d.name, verified: d.verified ?? true })),
           }
         } catch {
           return { id: p.id, name: p.name, domains: [] }
@@ -91,9 +93,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ projects })
   }
 
+  // ── Add a custom domain to a project ────────────────────────────────────────
+  if (action === 'add-domain') {
+    const { projectId, domain } = body
+    if (!projectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
+    if (!domain) {
+      return NextResponse.json({ error: 'domain is required' }, { status: 400 })
+    }
+
+    const res = await fetch(`${VERCEL_API}/v10/projects/${projectId}/domains`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: domain }),
+      signal: AbortSignal.timeout(10_000),
+    })
+
+    const data = (await res.json()) as {
+      name?: string
+      verified?: boolean
+      verification?: Array<{ type: string; domain: string; value: string; reason: string }>
+      error?: { message?: string }
+    }
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: data.error?.message ?? `Failed to add domain (${res.status})` },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json({
+      name: data.name ?? domain,
+      verified: data.verified ?? false,
+      verification: data.verification ?? [],
+    })
+  }
+
   // ── Configure project ─────────────────────────────────────────────────────
   if (action === 'configure') {
-    const { projectId, neonApiKey } = body
+    const { projectId, neonApiKey, domain } = body
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
     }
@@ -128,10 +171,23 @@ export async function POST(req: NextRequest) {
         })
       : null
 
-    // Prefer a custom (non-vercel.app) domain; fall back to the vercel.app alias
-    const customDomain = domains.find((d) => !d.name.endsWith('.vercel.app'))
-    const vercelDomain = domains.find((d) => d.name.endsWith('.vercel.app'))
-    const primaryDomain = customDomain?.name ?? vercelDomain?.name
+    // If the caller picked a specific domain (existing or freshly added), use it
+    // as long as it's actually attached to the project. Otherwise fall back to
+    // auto-picking: prefer a custom (non-vercel.app) domain, else the vercel.app alias.
+    let primaryDomain: string | undefined
+    if (domain) {
+      if (!domains.some((d) => d.name === domain)) {
+        return NextResponse.json(
+          { error: `Domain "${domain}" is not attached to this project.` },
+          { status: 400 }
+        )
+      }
+      primaryDomain = domain
+    } else {
+      const customDomain = domains.find((d) => !d.name.endsWith('.vercel.app'))
+      const vercelDomain = domains.find((d) => d.name.endsWith('.vercel.app'))
+      primaryDomain = customDomain?.name ?? vercelDomain?.name
+    }
 
     if (!primaryDomain) {
       return NextResponse.json(

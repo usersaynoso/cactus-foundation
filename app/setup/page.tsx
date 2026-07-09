@@ -41,7 +41,11 @@ type ExistingDbState = {
   admin: { username: string; email: string } | null
 }
 
-type VercelProject = { id: string; name: string; domains: string[] }
+type VercelDomain = { name: string; verified: boolean }
+type VercelProject = { id: string; name: string; domains: VercelDomain[] }
+type AddDomainResult =
+  | { ok: true; name: string; verified: boolean; verification: Array<{ type: string; domain: string; value: string; reason: string }> }
+  | { ok: false; error: string }
 
 // Polls /api/health until the database is reachable, then calls onReady.
 // Returns a cancel function.
@@ -312,7 +316,7 @@ export default function SetupPage() {
       // otherwise fall back to selecting the only project if there's just one.
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const domainMatch = hostname
-        ? projects.find((p) => p.domains.some((d) => d === hostname || d.endsWith('.' + hostname) || hostname.endsWith('.' + d)))
+        ? projects.find((p) => p.domains.some((d) => d.name === hostname || d.name.endsWith('.' + hostname) || hostname.endsWith('.' + d.name)))
         : undefined
       if (domainMatch) {
         setSelectedProjectId(domainMatch.id)
@@ -325,7 +329,7 @@ export default function SetupPage() {
     }
   }
 
-  async function handleVercelConfigure() {
+  async function handleVercelConfigure(domain?: string) {
     if (!selectedProjectId) return
     setVercelError('')
     setVercelConfiguring(true)
@@ -339,6 +343,7 @@ export default function SetupPage() {
           token: vercelToken,
           projectId: selectedProjectId,
           neonApiKey: vercelNeonKey || undefined,
+          domain: domain || undefined,
         }),
       })
       const data = (await res.json()) as {
@@ -359,6 +364,37 @@ export default function SetupPage() {
       setDbSubStep('vercel-config')
     } finally {
       setVercelConfiguring(false)
+    }
+  }
+
+  async function handleAddDomain(projectId: string, domain: string): Promise<AddDomainResult> {
+    try {
+      const res = await fetch('/api/setup/vercel-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add-domain',
+          token: vercelToken,
+          projectId,
+          domain,
+        }),
+      })
+      const data = (await res.json()) as {
+        name?: string
+        verified?: boolean
+        verification?: Array<{ type: string; domain: string; value: string; reason: string }>
+        error?: string
+      }
+      if (!res.ok || data.error) {
+        return { ok: false, error: data.error ?? 'Failed to add domain' }
+      }
+      const added: VercelDomain = { name: data.name ?? domain, verified: data.verified ?? false }
+      setVercelProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, domains: [...p.domains, added] } : p))
+      )
+      return { ok: true, name: added.name, verified: added.verified, verification: data.verification ?? [] }
+    } catch (err: unknown) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
     }
   }
 
@@ -802,6 +838,7 @@ export default function SetupPage() {
               error={vercelError}
               onConnect={handleVercelListProjects}
               onConfigure={handleVercelConfigure}
+              onAddDomain={handleAddDomain}
             />
           )}
 
@@ -1127,6 +1164,7 @@ function VercelConfigPanel({
   error,
   onConnect,
   onConfigure,
+  onAddDomain,
 }: {
   token: string
   setToken: (v: string) => void
@@ -1138,10 +1176,56 @@ function VercelConfigPanel({
   listing: boolean
   error: string
   onConnect: () => void
-  onConfigure: () => void
+  onConfigure: (domain?: string) => void
+  onAddDomain: (projectId: string, domain: string) => Promise<AddDomainResult>
 }) {
   const hasProjects = projects.length > 0
-  const canConfigure = hasProjects && !!selectedProjectId
+  const selectedProject = projects.find((p) => p.id === selectedProjectId)
+
+  const [selectedDomain, setSelectedDomain] = useState('')
+  const [showAddDomain, setShowAddDomain] = useState(false)
+  const [newDomain, setNewDomain] = useState('')
+  const [addingDomain, setAddingDomain] = useState(false)
+  const [domainAddError, setDomainAddError] = useState('')
+  const [pendingVerification, setPendingVerification] = useState<Array<{ type: string; domain: string; value: string }>>([])
+
+  // Default to a non-vercel.app domain if one exists, otherwise the vercel.app alias.
+  useEffect(() => {
+    if (!selectedProject) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- derives default domain choice from newly selected project; no cascading risk
+      setSelectedDomain('')
+      return
+    }
+    const custom = selectedProject.domains.find((d) => !d.name.endsWith('.vercel.app'))
+    const fallback = selectedProject.domains.find((d) => d.name.endsWith('.vercel.app'))
+    setSelectedDomain(custom?.name ?? fallback?.name ?? '')
+    setShowAddDomain(false)
+    setNewDomain('')
+    setDomainAddError('')
+    setPendingVerification([])
+  }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canConfigure = hasProjects && !!selectedProjectId && !!selectedDomain
+
+  async function handleAddDomainClick() {
+    if (!newDomain.trim() || !selectedProjectId) return
+    setAddingDomain(true)
+    setDomainAddError('')
+    const result = await onAddDomain(selectedProjectId, newDomain.trim())
+    setAddingDomain(false)
+    if (!result.ok) {
+      setDomainAddError(result.error)
+      return
+    }
+    setSelectedDomain(result.name)
+    setShowAddDomain(false)
+    setNewDomain('')
+    if (!result.verified) {
+      setPendingVerification(result.verification)
+    } else {
+      setPendingVerification([])
+    }
+  }
 
   return (
     <div>
@@ -1224,11 +1308,83 @@ function VercelConfigPanel({
               <option value="">— choose a project —</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}{p.domains.length > 0 ? ` (${p.domains[0]})` : ''}
+                  {p.name}{p.domains.length > 0 ? ` (${p.domains[0]?.name})` : ''}
                 </option>
               ))}
             </select>
           </div>
+
+          {selectedProject && (
+            <div className="field">
+              <label>Domain</label>
+              {selectedProject.domains.length === 0 && !showAddDomain && (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+                  No domain is assigned to this project yet.
+                </div>
+              )}
+              {selectedProject.domains.map((d) => (
+                <label key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 400, fontSize: '0.9375rem', marginBottom: '0.375rem' }}>
+                  <input
+                    type="radio"
+                    name="domainChoice"
+                    checked={selectedDomain === d.name}
+                    onChange={() => setSelectedDomain(d.name)}
+                  />
+                  {d.name}
+                  {!d.verified && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}>(unverified)</span>
+                  )}
+                </label>
+              ))}
+
+              {!showAddDomain && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ marginTop: '0.375rem' }}
+                  onClick={() => setShowAddDomain(true)}
+                >
+                  + Add a custom domain
+                </button>
+              )}
+
+              {showAddDomain && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      value={newDomain}
+                      onChange={(e) => setNewDomain(e.target.value.trim())}
+                      placeholder="yourdomain.com"
+                      disabled={addingDomain}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={!newDomain || addingDomain}
+                      onClick={handleAddDomainClick}
+                    >
+                      {addingDomain ? 'Adding…' : 'Add'}
+                    </button>
+                  </div>
+                  {domainAddError && (
+                    <div className="alert alert-danger" style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>{domainAddError}</div>
+                  )}
+                </div>
+              )}
+
+              {pendingVerification.length > 0 && (
+                <div className="alert alert-info" style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>
+                  <strong>Domain added but not verified yet.</strong> Add these DNS records at your registrar, then continue - it may take a while to propagate:
+                  {pendingVerification.map((v, i) => (
+                    <div key={i} style={{ fontFamily: 'monospace', marginTop: '0.375rem', wordBreak: 'break-all' }}>
+                      {v.type} {v.domain} → {v.value}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
@@ -1243,7 +1399,7 @@ function VercelConfigPanel({
               className="btn btn-primary"
               style={{ flex: 2 }}
               disabled={!canConfigure}
-              onClick={onConfigure}
+              onClick={() => onConfigure(selectedDomain)}
             >
               Configure project →
             </button>
