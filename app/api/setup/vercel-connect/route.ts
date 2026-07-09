@@ -155,7 +155,6 @@ export async function POST(req: NextRequest) {
     const data = (await res.json()) as {
       name?: string
       apexName?: string
-      verified?: boolean
       verification?: Array<{ type: string; domain: string; value: string; reason: string }>
       error?: { message?: string }
     }
@@ -170,14 +169,42 @@ export async function POST(req: NextRequest) {
     const name = data.name ?? domain
     const isApex = name === (data.apexName ?? name)
 
+    // The add-domain response's `verified` flag only means "no ownership conflict" —
+    // it's true for almost every freshly added domain, even ones whose DNS isn't
+    // pointed at Vercel yet. Whether DNS is actually configured comes from the
+    // domain config endpoint's `misconfigured` flag, which also gives Vercel's own
+    // recommended A/CNAME target rather than a hardcoded guess.
+    let misconfigured = true
+    let recommended = isApex
+      ? { type: 'A', host: '@', value: '76.76.21.21' }
+      : { type: 'CNAME', host: name.split('.')[0], value: 'cname.vercel-dns.com' }
+    try {
+      const configRes = await fetch(`${VERCEL_API}/v6/domains/${name}/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (configRes.ok) {
+        const configData = (await configRes.json()) as {
+          misconfigured?: boolean
+          recommendedIPv4?: Array<{ value: string[] }>
+          recommendedCNAME?: Array<{ value: string }>
+        }
+        misconfigured = configData.misconfigured ?? true
+        if (isApex && configData.recommendedIPv4?.[0]?.value?.[0]) {
+          recommended = { type: 'A', host: '@', value: configData.recommendedIPv4[0].value[0] }
+        } else if (!isApex && configData.recommendedCNAME?.[0]?.value) {
+          recommended = { type: 'CNAME', host: name.split('.')[0], value: configData.recommendedCNAME[0].value.replace(/\.$/, '') }
+        }
+      }
+    } catch {
+      // Config check is best-effort — fall back to the hardcoded recommendation above.
+    }
+
     return NextResponse.json({
       name,
-      verified: data.verified ?? false,
+      misconfigured,
       verification: data.verification ?? [],
-      isApex,
-      recommended: isApex
-        ? { type: 'A', host: '@', value: '76.76.21.21' }
-        : { type: 'CNAME', host: name.split('.')[0], value: 'cname.vercel-dns.com' },
+      recommended,
     })
   }
 
