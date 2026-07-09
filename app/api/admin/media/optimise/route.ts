@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { downloadMedia, uploadMedia, saveMediaRecord } from '@/lib/media/upload'
+import { downloadMedia, uploadMedia, saveMediaRecord, deleteMedia, getMediaReferences } from '@/lib/media/upload'
 
 // Largest dimension (px) an optimised logo is scaled down to. Generous enough to
 // stay crisp on high-density displays while cutting oversized source art down to
@@ -12,9 +12,10 @@ import { downloadMedia, uploadMedia, saveMediaRecord } from '@/lib/media/upload'
 const MAX_DIMENSION = 1024
 
 // Produces a resized, WebP-compressed copy of an existing media item and stores
-// it as a new media row. Used by the Branding tab's "Optimise" button. Leaves the
-// original untouched (it may still be referenced elsewhere); the caller decides
-// whether to point the logo at the new, lighter version.
+// it as a new media row. Used by the Branding tab's "Optimise" button. Once the
+// optimised copy is saved, the pre-optimise original is deleted (unless something
+// else already references it) so the upload doesn't leave an orphaned duplicate
+// behind in the media library.
 export async function POST(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
@@ -62,6 +63,19 @@ export async function POST(request: NextRequest) {
       uploadedById: user.id,
       altText: media.altText ?? undefined,
     })
+
+    // Best-effort cleanup: only delete the original if nothing (config, a page,
+    // an avatar, an export, or page content) already references it. Failure here
+    // shouldn't turn a successful optimise into an error response.
+    try {
+      const refs = await getMediaReferences(media.id)
+      if (refs.length === 0) {
+        await deleteMedia(media.provider, media.key)
+        await prisma.media.delete({ where: { id: media.id } })
+      }
+    } catch {
+      // Orphaned original left behind; still deletable later from the media library.
+    }
 
     return NextResponse.json({ optimised: true, id: record.id, url: record.url, before, after })
   } catch (err: unknown) {
