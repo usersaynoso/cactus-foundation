@@ -47,7 +47,7 @@ type SiteConfig = {
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
 
-const TABS = ['general', 'email', 'media', 'status', 'gdpr', 'integrations'] as const
+const TABS = ['general', 'email', 'media', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
 
 // Branding (logo/favicon/app icons + app identity) moved to the Styles page. These
@@ -520,6 +520,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
   // Baseline for unsaved-change detection: set on load and after each save.
   const savedFingerprint = useRef<string | null>(null)
+  // Baseline admin path to detect a change on save, so we can follow the admin to the new URL.
+  const savedAdminPath = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
   const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
   const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') ? (tabParam as string) : 'general'
@@ -766,6 +768,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       for (const k of BRANDING_OWNED_KEYS) delete (cfgRest as Record<string, unknown>)[k]
       setConfig(cfgRest)
       savedFingerprint.current = configFingerprint(cfgRest)
+      savedAdminPath.current = cfgRest.adminPath ?? ''
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
@@ -800,6 +803,14 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       dirtyRef.current = false
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      const newAdminPath = config.adminPath ?? ''
+      if (newAdminPath && newAdminPath !== savedAdminPath.current) {
+        // Full reload, not router.push - the admin shell/layout resolve adminPath
+        // server-side, so a client-side nav would still point at the old prefix.
+        window.location.href = `/${newAdminPath}/config${window.location.search}`
+        return true
+      }
+      savedAdminPath.current = newAdminPath
       return true
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed')
@@ -1077,7 +1088,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
 
   const tabLabels: Record<Tab, string> = {
     general: 'General',
-    email: 'Email', media: 'Media', status: 'Site Status', gdpr: 'GDPR & Legal', integrations: 'Integrations',
+    email: 'Email', media: 'Media', gdpr: 'GDPR & Legal', integrations: 'Integrations',
   }
 
   const isEnvSectionSet = (keys: string[]) => keys.some((k) => envStatus[k])
@@ -1365,6 +1376,21 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           <div className="field">
             <span className="field-hint">Header and footer are designed in <strong>Appearance</strong>. Layouts are managed under <strong>Layouts</strong>.</span>
           </div>
+          <div className="field">
+            <label>Site status</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <select style={{ flex: 1 }} value={config.status ?? 'comingSoon'} onChange={(e) => set('status', e.target.value)}>
+                <option value="live">Live</option>
+                <option value="comingSoon">Coming soon</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+              <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>Manage status page layouts →</a>
+            </div>
+          </div>
+          <label style={{ display: 'flex', gap: '0.5rem', marginBottom: 'var(--form-gap)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
+            Hide from search engines (noindex)
+          </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>
@@ -1381,7 +1407,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             <div className="field" style={{ margin: 0 }}>
               <label>Admin path</label>
               <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
-              <span className="field-hint">Changing this takes effect on next deploy (Edge Config update triggered automatically).</span>
+              <span className="field-hint">Saving will take you to the admin at its new address.</span>
             </div>
             <div className="field" style={{ margin: 0 }}>
               <label>Trust this browser (days)</label>
@@ -1435,6 +1461,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           <div>
             <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--color-destructive)' }}>Danger zone</h2>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div>
             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Database</h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all data from the database — every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
@@ -1487,10 +1515,11 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                   : 'All content cleared. Your admin account and site settings have been kept.'}
               </div>
             )}
+            </div>
 
             {/* Reset Everything deletes Vercel env vars - irrelevant in local mode. */}
             {!localMode && (
-            <>
+            <div>
             <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Everything</h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
@@ -1562,8 +1591,9 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                 )}
               </div>
             )}
-            </>
+            </div>
             )}
+            </div>
           </div>
         </div>
       )}
@@ -1652,28 +1682,6 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {testEmailSent && <div className="alert alert-success" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>Sent to {testEmailSent}.</div>}
             {testEmailError && <div className="alert alert-danger" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{testEmailError}</div>}
           </div>
-        </div>
-      )}
-
-      {tab === 'status' && (
-        <div>
-          <div className="field">
-            <label>Site status</label>
-            <select value={config.status ?? 'comingSoon'} onChange={(e) => set('status', e.target.value)}>
-              <option value="live">Live</option>
-              <option value="comingSoon">Coming soon</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
-          <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '1rem', marginBottom: '1.25rem' }}>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: 'var(--color-fg)', fontWeight: 500 }}>Status page layouts</p>
-            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Customise the coming soon and maintenance screens in Layouts.</p>
-            <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)' }}>Manage status page layouts →</a>
-          </div>
-          <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
-            Hide from search engines (noindex)
-          </label>
         </div>
       )}
 

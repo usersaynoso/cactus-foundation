@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
@@ -53,7 +54,10 @@ function conditionSummary(layout: Layout): string {
 
 export default function LayoutBuilderPage() {
   const adminPath = useAdminPath()
-  const [activeTop, setActiveTop] = useState<string>('all')
+  const searchParams = useSearchParams()
+  const typeParam = searchParams.get('type')
+  const initialTop = [...BUILTIN_TABS, ...MODULE_GROUP_TABS].some((t) => t.key === typeParam) ? typeParam! : 'all'
+  const [activeTop, setActiveTop] = useState<string>(initialTop)
   const [activeModuleSub, setActiveModuleSub] = useState<string | null>(null)
   const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)

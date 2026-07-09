@@ -133,7 +133,7 @@ const Patch = z.object({
   locale: z.string().optional(),
   dateFormat: z.string().optional(),
   timeFormat: z.string().optional(),
-  adminPath: z.string().min(3).max(64).regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/).optional(),
+  adminPath: z.string().min(1).max(64).regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/).optional(),
   status: z.enum(['live', 'comingSoon', 'maintenance']).optional(),
   hideFromCrawlers: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),

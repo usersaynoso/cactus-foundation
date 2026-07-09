@@ -136,7 +136,7 @@ export default async function AdminDashboard() {
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <a
-          href={`/${adminPath}/config?tab=status`}
+          href={`/${adminPath}/config?tab=general`}
           className={`badge badge-${config?.status === 'live' ? 'green' : config?.status === 'comingSoon' ? 'yellow' : 'red'}`}
           style={{ textDecoration: 'none' }}
         >

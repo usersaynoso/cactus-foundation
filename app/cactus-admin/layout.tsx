@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
+import { resolveBranding } from '@/lib/config/branding'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -34,10 +35,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect(`/${adminPath}/login`)
   }
 
-  const [config, activeModules, unreadCount] = await Promise.all([
+  const [config, activeModules, unreadCount, branding] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true } }),
     prisma.module.findMany({ where: { status: { in: ['active', 'update_available'] } }, select: { manifest: true } }),
     getUnreadCount(),
+    resolveBranding(),
   ])
 
   // Most modules share one flat "Modules" bucket in the sidebar; a module can opt
@@ -89,6 +91,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         version={pkg.version}
         moduleNavGroups={moduleNavGroups}
         unreadCount={unreadCount}
+        faviconUrl={branding.faviconUrl}
+        faviconDarkUrl={branding.faviconDarkUrl}
       >
         {children}
       </AdminShell>

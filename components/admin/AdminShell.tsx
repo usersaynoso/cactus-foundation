@@ -22,12 +22,14 @@ type Props = {
   children: React.ReactNode
   moduleNavGroups?: ModuleNavGroup[]
   unreadCount?: number
+  faviconUrl?: string | null
+  faviconDarkUrl?: string | null
 }
 
 // Auto-collapse when a puck editor page is open to maximise canvas space
 const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount }: Props) {
+export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -126,12 +128,33 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
               className="admin-sidebar-logo-link"
               title={`Open ${siteName} in a new tab`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/cactus.svg"
-                alt="Cactus Foundation"
-                className="admin-sidebar-logo-img"
-              />
+              {faviconUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={faviconUrl}
+                    alt={siteName}
+                    className="admin-sidebar-logo-img"
+                    data-logo-variant={faviconDarkUrl ? 'light' : undefined}
+                  />
+                  {faviconDarkUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={faviconDarkUrl}
+                      alt={siteName}
+                      className="admin-sidebar-logo-img"
+                      data-logo-variant="dark"
+                    />
+                  )}
+                </>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/cactus.svg"
+                  alt="Cactus Foundation"
+                  className="admin-sidebar-logo-img"
+                />
+              )}
               {!effectiveCollapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
             </a>
             <button
