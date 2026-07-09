@@ -340,7 +340,7 @@ export default function SetupPage() {
       const res = await fetch('/api/setup/vercel-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list-account-domains', token: vercelToken }),
+        body: JSON.stringify({ action: 'list-account-domains', token: vercelToken, projectId: selectedProjectId }),
       })
       const data = (await res.json()) as { domains?: VercelDomain[]; error?: string }
       if (!res.ok || data.error) {

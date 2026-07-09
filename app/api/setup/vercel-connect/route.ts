@@ -97,7 +97,25 @@ export async function POST(req: NextRequest) {
 
   // ── List all domains in the account/team ────────────────────────────────────
   if (action === 'list-account-domains') {
-    const res = await fetch(`${VERCEL_API}/v5/domains?limit=100`, {
+    const { projectId } = body
+    if (!projectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
+
+    // /v5/domains defaults to the personal-account scope. If the project lives under
+    // a team, domains bought/added under that team are invisible unless teamId is
+    // passed explicitly — so resolve the project's owning account first.
+    const projectRes = await fetch(`${VERCEL_API}/v9/projects/${projectId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    const projectData = projectRes.ok
+      ? ((await projectRes.json()) as { accountId?: string })
+      : null
+    const teamId = projectData?.accountId?.startsWith('team_') ? projectData.accountId : undefined
+    const teamParam = teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
+
+    const res = await fetch(`${VERCEL_API}/v5/domains?limit=100${teamParam}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10_000),
     })
