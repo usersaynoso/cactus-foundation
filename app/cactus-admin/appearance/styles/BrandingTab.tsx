@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react'
 import type { MediaProviderType } from '@prisma/client'
 import { envKeysForProvider } from '@/lib/media/providers'
 import type { GlobalColour } from '@/lib/design/tokens'
@@ -243,7 +243,18 @@ function BrandingImageField({
 }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [previewBroken, setPreviewBroken] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Reset the broken-image flag whenever the URL itself changes (new upload,
+  // removal, or a fresh load from the server) so a stale error doesn't stick.
+  // Adjusted during render (React's documented pattern for this), not in an
+  // effect, so the reset lands before the browser paints the old error state.
+  const [lastPreviewUrl, setLastPreviewUrl] = useState(previewUrl)
+  if (previewUrl !== lastPreviewUrl) {
+    setLastPreviewUrl(previewUrl)
+    setPreviewBroken(false)
+  }
 
   async function handleFile(file: File | null) {
     if (!file) return
@@ -284,11 +295,31 @@ function BrandingImageField({
     <div className="field" style={{ marginBottom: '1.5rem' }}>
       <label style={{ display: 'block', marginBottom: '0.5rem' }}>{label}</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        {previewUrl ? (
+        {previewUrl && previewBroken ? (
+          <div
+            style={{
+              height: 64,
+              width: square ? 64 : 120,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '0.25rem',
+              border: '1px solid var(--color-destructive)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--color-destructive)',
+              fontSize: 'var(--text-xs, 0.7rem)',
+            }}
+            title="The stored file could not be loaded - it may have been moved or deleted at the storage provider. Try replacing it."
+          >
+            Image not found
+          </div>
+        ) : previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- media URLs are user-supplied remote hosts, not statically optimisable
           <img
             src={previewUrl}
             alt={`${label} preview`}
+            onError={() => setPreviewBroken(true)}
             style={{
               height: 64,
               width: square ? 64 : 'auto',
@@ -336,7 +367,87 @@ function BrandingImageField({
         </div>
       </div>
       <span className="field-hint">{hint}</span>
+      {previewBroken && (
+        <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>
+          The stored file couldn&apos;t be loaded from your media provider. Replace it above.
+        </span>
+      )}
       {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', display: 'block', marginTop: '0.35rem' }}>{error}</span>}
+    </div>
+  )
+}
+
+// Small labelled frame used by IconPreviewGallery below.
+function PreviewFrame({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+// Mock-ups of where each generated icon actually shows up, so "Apple touch
+// icon" or "web manifest 192" mean something to a non-technical site owner.
+// Purely illustrative - not pixel-accurate to any real OS chrome.
+function IconPreviewGallery({ previews, config, siteName }: { previews: Record<PreviewKey, string | null>; config: BrandingConfig; siteName: string }) {
+  const favicon = previews.favicon ?? previews.appIcon
+  const appleIcon = previews.appleTouch ?? previews.appIcon
+  const androidIcon = previews.icon192 ?? previews.icon512 ?? previews.appIcon
+  const splashIcon = previews.icon512 ?? previews.appIcon
+  const label = config.appShortName || config.appName || siteName || 'Your site'
+  const themeColor = config.themeColor || '#4b5563'
+  const bgColor = config.backgroundColor || '#ffffff'
+
+  if (!favicon && !appleIcon && !androidIcon) return null
+
+  const cardIcon = (src: string | null, radius: string): ReactNode =>
+    src ? (
+      // eslint-disable-next-line @next/next/no-img-element -- illustrative mock-up thumbnail, not a real page image
+      <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: radius, display: 'block' }} />
+    ) : (
+      <div style={{ width: '100%', height: '100%', borderRadius: radius, background: 'rgba(255,255,255,0.25)' }} />
+    )
+
+  return (
+    <div style={{ margin: '0 0 1.75rem' }}>
+      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>Preview - how these actually appear:</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
+        <PreviewFrame title="Browser tab">
+          <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: '#dee1e6' }}>
+            <div style={{ padding: '0.4rem 0.4rem 0' }}>
+              <div style={{ background: '#fff', borderRadius: '6px 6px 0 0', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.65rem', fontSize: '0.7rem', color: '#3c4043', maxWidth: '100%' }}>
+                <span style={{ width: 14, height: 14, flexShrink: 0 }}>{cardIcon(favicon, '2px')}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              </div>
+            </div>
+            <div style={{ background: '#fff', padding: '0.5rem 0.6rem' }}>
+              <div style={{ background: '#f1f3f4', borderRadius: 10, fontSize: '0.65rem', color: '#5f6368', padding: '0.3rem 0.6rem' }}>yoursite.com</div>
+            </div>
+          </div>
+        </PreviewFrame>
+
+        <PreviewFrame title="iPhone home screen">
+          <div style={{ borderRadius: 'var(--radius)', padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', background: 'linear-gradient(160deg, #52606d, #1f2933)' }}>
+            <div style={{ width: 48, height: 48, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{cardIcon(appleIcon, '22%')}</div>
+            <span style={{ fontSize: '0.65rem', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{label}</span>
+          </div>
+        </PreviewFrame>
+
+        <PreviewFrame title="Android home screen">
+          <div style={{ borderRadius: 'var(--radius)', padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', background: 'linear-gradient(160deg, #3e4c59, #1f2933)' }}>
+            <div style={{ width: 48, height: 48, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{cardIcon(androidIcon, '50%')}</div>
+            <span style={{ fontSize: '0.65rem', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{label}</span>
+          </div>
+        </PreviewFrame>
+
+        <PreviewFrame title="Installed app splash">
+          <div style={{ borderRadius: 'var(--radius)', padding: '1.1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', background: bgColor, border: '1px solid var(--color-border)', minHeight: 88 }}>
+            <div style={{ width: 44, height: 44 }}>{cardIcon(splashIcon, '20%')}</div>
+            <div style={{ height: 4, width: 36, borderRadius: 2, background: themeColor }} />
+          </div>
+        </PreviewFrame>
+      </div>
     </div>
   )
 }
@@ -440,6 +551,8 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
         onUploaded={(m) => b.applyMedia('webManifest512MediaId', 'icon512', m)}
         onRemove={() => b.clearMedia('webManifest512MediaId', 'icon512')}
       />
+
+      <IconPreviewGallery previews={previews} config={config} siteName={b.siteName} />
 
       <h3 style={heading}>App name &amp; colours</h3>
       <p style={subNote}>Used when your site is installed as an app, and for the browser toolbar colour on phones. These are separate from the site colour palette on the Colours tab.</p>

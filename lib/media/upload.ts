@@ -111,6 +111,15 @@ export async function validateNonImageUpload(
   return { valid: true }
 }
 
+// Structured MIME subtypes carry a "+xml"/"+json" etc. suffix (RFC 6839) that
+// is not a valid object-key extension — a raw split produced keys like
+// "…-favicon.svg+xml", and the literal "+" broke the Worker's B2 signing/fetch
+// (confirmed 502 in production while plain-extension icons served fine).
+function extensionForMimeType(mimeType: string): string {
+  const subtype = mimeType.split('/')[1] ?? 'bin'
+  return subtype.split('+')[0] || 'bin'
+}
+
 function sanitizeFilename(name: string): string {
   return name
     .replace(/[^a-z0-9._-]/gi, '-')
@@ -271,7 +280,7 @@ function isS3Provider(provider: MediaProviderType): boolean {
 // backward compatibility; every other proxied provider is namespaced with its
 // provider so the Worker can resolve which provider holds the key from the path.
 function buildKey(provider: MediaProviderType, mimeType: string, originalFilename?: string): string {
-  const ext = mimeType.split('/')[1] ?? 'bin'
+  const ext = extensionForMimeType(mimeType)
   const id = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
   if (provider === 'B2') return `media/${id}`
   return `media/${provider}/${id}`
@@ -355,7 +364,7 @@ export async function uploadMedia(
   if (provider === 'IMAGEKIT') {
     const { default: ImageKit, toFile } = await import('@imagekit/nodejs')
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
-    const ext = mimeType.split('/')[1] ?? 'bin'
+    const ext = extensionForMimeType(mimeType)
     const fileName = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
     const result = await ik.files.upload({ file: uploadable, fileName })

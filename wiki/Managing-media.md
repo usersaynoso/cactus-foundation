@@ -97,12 +97,14 @@ If the image is still in use somewhere - a page, a layout, your logo, and so on 
 
 ## Branding (logo and favicon)
 
-Your site logo and favicon are uploaded in **Settings → Branding**.
+Your site logo and favicon are uploaded in **Appearance → Styles → Branding**.
 
 - The **logo** appears wherever you've placed a **Site logo** block in the header, footer, or a page.
 - The **favicon** appears in the browser tab.
 
 Both require a media provider to be configured first.
+
+Upload one square **App icon** and Cactus generates the whole set for you - browser favicon, Apple touch icon, and the icons used when someone installs your site as an app. Underneath, a small preview shows exactly where each one turns up: a browser tab, an iPhone home screen, an Android home screen, and the installed app's loading screen - so you can see what you're getting before you save.
 
 ### Optimising your logo
 
