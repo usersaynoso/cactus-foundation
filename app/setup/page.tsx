@@ -174,6 +174,25 @@ export default function SetupPage() {
     }
   }, [])
 
+  // Set (before any other effect runs, via source order) when the wizard was just
+  // redirected here from the pre-redeploy origin after a site-url mismatch - see
+  // checkSiteUrlAndRedirectIfNeeded. Consumed once by the Step 2 effect below to
+  // skip straight past the "Database connected" click-through to Step 3, since
+  // the whole point of that redirect was to land the user on Step 3 immediately.
+  const autoContinueRef = useRef(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('autocontinue') !== '1') return
+    autoContinueRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore of pre-redirect intent from the URL on mount; no cascading risk
+    if (params.get('existingData') === '1') setUsingExistingData(true)
+    params.delete('autocontinue')
+    params.delete('existingData')
+    const query = params.toString()
+    window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''))
+  }, [])
+
   // ── Step 1: Vercel connection check ───────────────────────────────────────
 
   useEffect(() => {
@@ -230,7 +249,12 @@ export default function SetupPage() {
       .then((d: EnvCheckData) => {
         setEnvData(d)
         if (d.databaseState === 'set') {
-          setDbSubStep('ready')
+          if (autoContinueRef.current) {
+            autoContinueRef.current = false
+            handleSmartContinue()
+          } else {
+            setDbSubStep('ready')
+          }
         } else if (d.localMode) {
           // Local mode never writes DATABASE_URL or redeploys - the user sets it
           // in .env.local. Show plain instructions rather than the Neon/Vercel panels.
@@ -640,7 +664,33 @@ export default function SetupPage() {
     }
   }
 
+  // Reads SITE_URL fresh from the server (never process.env.NEXT_PUBLIC_SITE_URL,
+  // which is baked into the JS bundle at build time and would still hold the
+  // pre-redeploy value in an already-open wizard tab) and, if it doesn't match
+  // the current origin, navigates there before Step 3 ever renders on the wrong
+  // domain. Passes autocontinue=1 (and existingData=1, if set) so the wizard
+  // lands straight on Step 3 instead of Step 2's "Database connected" click-through.
+  // Returns true if it navigated away - callers must stop immediately.
+  async function checkSiteUrlAndRedirectIfNeeded(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/setup/env-check')
+      const d = (await res.json()) as EnvCheckData
+      if (!d.siteUrl) return false
+      const expectedOrigin = d.siteUrl.replace(/\/$/, '')
+      if (typeof window !== 'undefined' && window.location.origin !== expectedOrigin) {
+        const params = new URLSearchParams({ autocontinue: '1' })
+        if (usingExistingData) params.set('existingData', '1')
+        window.location.replace(`${expectedOrigin}/setup?${params.toString()}`)
+        return true
+      }
+    } catch {
+      // Network error — fall through and let the wizard continue on this origin.
+    }
+    return false
+  }
+
   async function handleSmartContinue() {
+    if (await checkSiteUrlAndRedirectIfNeeded()) return
     if (!usingExistingData) {
       setStep('configure')
       return
@@ -673,29 +723,6 @@ export default function SetupPage() {
       setLoading(false)
     }
   }
-
-  // Redirect to SITE_URL before passkey registration if the current origin doesn't
-  // match. WebAuthn rpId is derived from SITE_URL; a per-deployment Vercel URL
-  // (cactus-n6r9b3c3c.vercel.app) is a different origin from the stable alias
-  // (cactus.vercel.app) - or from a custom domain just attached in this same
-  // session - and Safari throws "The string did not match the expected pattern."
-  // when they differ. Reads siteUrl fresh from the server rather than
-  // process.env.NEXT_PUBLIC_SITE_URL: that's baked into the JS bundle at build
-  // time, so an already-open wizard tab keeps the value from before the
-  // mid-session redeploy that just set the custom domain and never redirects.
-  useEffect(() => {
-    if (step !== 'configure') return
-    fetch('/api/setup/env-check')
-      .then((r) => r.json())
-      .then((d: EnvCheckData) => {
-        if (!d.siteUrl) return
-        const expectedOrigin = d.siteUrl.replace(/\/$/, '')
-        if (typeof window !== 'undefined' && window.location.origin !== expectedOrigin) {
-          window.location.replace(`${expectedOrigin}/setup`)
-        }
-      })
-      .catch(() => {})
-  }, [step])
 
   // ── Step 3: Set passkey, save config, complete ────────────────────────────
   useEffect(() => {
