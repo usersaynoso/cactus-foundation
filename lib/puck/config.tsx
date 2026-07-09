@@ -1869,6 +1869,16 @@ export const puckConfig = {
         col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
         col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
         col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        // Opt-in: shrink this column's contents to fit its width (any content -
+        // fixed-size icons, widgets, images - via a transform scale). Off by
+        // default so text/normal columns are untouched. Mirrors
+        // makeGridColumnComponent's col*Scale (Grid2/3/4) - without this, a
+        // legacy Grid column's fixed-size content (e.g. buttons) never shrinks
+        // even once its track width does.
+        col1Scale: { type: 'radio' as const, label: 'Col 1 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
+        col2Scale: { type: 'radio' as const, label: 'Col 2 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
+        col3Scale: { type: 'radio' as const, label: 'Col 3 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
+        col4Scale: { type: 'radio' as const, label: 'Col 4 scale to width', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
         // Shrunk-state fields - only shown when this Grid sits in a header with
         // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
         // shrink that column/gap.
@@ -1879,7 +1889,7 @@ export const puckConfig = {
         col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', render: ResponsiveTextField },
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', col1Scale: 'off', col2Scale: 'off', col3Scale: 'off', col4Scale: 'off', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
       resolveFields: (data: any, { fields, appState }: any) => {
         let result = fields
         if (!isHeaderShrinkEnabled(appState)) {
@@ -1895,14 +1905,16 @@ export const puckConfig = {
         const trimmed: Record<string, unknown> = {}
         for (const [key, field] of Object.entries(result)) {
           // Group 2 absent = the bare col{n} slot field itself (not just Align/
-          // Width/WidthShrunk) - without trimming those too, Puck's Outline panel
-          // keeps listing a 4th column drop-zone even once columns is set to 3.
-          const m = /^col([1-4])(Align|Width|WidthShrunk)?$/.exec(key)
+          // Width/WidthShrunk/Scale) - without trimming those too, Puck's
+          // Outline panel keeps listing a 4th column drop-zone even once columns
+          // is set to 3.
+          const m = /^col([1-4])(Align|Width|WidthShrunk|Scale)?$/.exec(key)
           if (m) {
             if (parseInt(m[1] ?? '0', 10) > colCount) continue // no such column at this count
-            // Base width only means anything in Manual mode. Shrunk width is its
-            // own independent override (a column can shrink-on-scroll with a
-            // preset/equal base width) so it isn't gated by isManual.
+            // Base width only means anything in Manual mode. Shrunk width and
+            // scale-to-width are their own independent overrides (a column can
+            // shrink-on-scroll or scale-to-fit with a preset/equal base width)
+            // so neither is gated by isManual.
             if (m[2] === 'Width' && !isManual) continue
           }
           trimmed[key] = field
@@ -2313,7 +2325,14 @@ export const puckConfig = {
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
       fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'number' as const, label: 'Element height' }, cellHeightShrunk: { type: 'number' as const, label: 'Element height when shrunk' }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
-      defaultProps: { homeUrl: '/', cellHeight: 40, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
+      // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
+      // truth for the default. Puck backfills any missing prop from
+      // defaultProps at render time - if this declared cellHeight:40, that
+      // backfilled 40 would win over a pre-rename block's logoHeight (e.g.
+      // the starter header presets, which only ever set logoHeight) since 40
+      // isn't nullish, silently shadowing the value the block actually has.
+      defaultProps: { homeUrl: '/', showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
       resolveFields: (_data: any, { fields, appState }: any) => {
         if (isHeaderShrinkEnabled(appState)) return fields
         const { cellHeightShrunk: _s, ...rest } = fields
@@ -2694,7 +2713,7 @@ export const headerPuckConfig = {
       border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
-      shrinkHeight: { type: 'select' as const, label: 'Shrunk height', options: [{ value: '40px', label: '40px' }, { value: '48px', label: '48px' }, { value: '56px', label: '56px' }] },
+      shrinkHeight: { type: 'text' as const, label: 'Shrunk height (e.g. 40px, 3rem)' },
     },
     defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {
