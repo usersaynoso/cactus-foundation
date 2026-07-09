@@ -44,7 +44,13 @@ type ExistingDbState = {
 type VercelDomain = { name: string; verified: boolean }
 type VercelProject = { id: string; name: string; domains: VercelDomain[] }
 type AddDomainResult =
-  | { ok: true; name: string; verified: boolean; verification: Array<{ type: string; domain: string; value: string; reason: string }> }
+  | {
+      ok: true
+      name: string
+      verified: boolean
+      verification: Array<{ type: string; domain: string; value: string; reason: string }>
+      recommended: { type: string; host: string; value: string }
+    }
   | { ok: false; error: string }
 
 // Polls /api/health until the database is reachable, then calls onReady.
@@ -383,6 +389,7 @@ export default function SetupPage() {
         name?: string
         verified?: boolean
         verification?: Array<{ type: string; domain: string; value: string; reason: string }>
+        recommended?: { type: string; host: string; value: string }
         error?: string
       }
       if (!res.ok || data.error) {
@@ -392,7 +399,38 @@ export default function SetupPage() {
       setVercelProjects((prev) =>
         prev.map((p) => (p.id === projectId ? { ...p, domains: [...p.domains, added] } : p))
       )
-      return { ok: true, name: added.name, verified: added.verified, verification: data.verification ?? [] }
+      return {
+        ok: true,
+        name: added.name,
+        verified: added.verified,
+        verification: data.verification ?? [],
+        recommended: data.recommended ?? { type: 'A', host: '@', value: '76.76.21.21' },
+      }
+    } catch (err: unknown) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
+    }
+  }
+
+  async function handleDomainStatusCheck(domain: string): Promise<{ ok: boolean; misconfigured?: boolean; error?: string }> {
+    try {
+      const res = await fetch('/api/setup/vercel-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'domain-status', token: vercelToken, domain }),
+      })
+      const data = (await res.json()) as { misconfigured?: boolean; error?: string }
+      if (!res.ok || data.error) {
+        return { ok: false, error: data.error ?? 'Failed to check domain status' }
+      }
+      if (!data.misconfigured) {
+        setVercelProjects((prev) =>
+          prev.map((p) => ({
+            ...p,
+            domains: p.domains.map((d) => (d.name === domain ? { ...d, verified: true } : d)),
+          }))
+        )
+      }
+      return { ok: true, misconfigured: data.misconfigured }
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
     }
@@ -839,6 +877,7 @@ export default function SetupPage() {
               onConnect={handleVercelListProjects}
               onConfigure={handleVercelConfigure}
               onAddDomain={handleAddDomain}
+              onDomainStatusCheck={handleDomainStatusCheck}
             />
           )}
 
@@ -1165,6 +1204,7 @@ function VercelConfigPanel({
   onConnect,
   onConfigure,
   onAddDomain,
+  onDomainStatusCheck,
 }: {
   token: string
   setToken: (v: string) => void
@@ -1178,6 +1218,7 @@ function VercelConfigPanel({
   onConnect: () => void
   onConfigure: (domain?: string) => void
   onAddDomain: (projectId: string, domain: string) => Promise<AddDomainResult>
+  onDomainStatusCheck: (domain: string) => Promise<{ ok: boolean; misconfigured?: boolean; error?: string }>
 }) {
   const hasProjects = projects.length > 0
   const selectedProject = projects.find((p) => p.id === selectedProjectId)
@@ -1187,7 +1228,13 @@ function VercelConfigPanel({
   const [newDomain, setNewDomain] = useState('')
   const [addingDomain, setAddingDomain] = useState(false)
   const [domainAddError, setDomainAddError] = useState('')
-  const [pendingVerification, setPendingVerification] = useState<Array<{ type: string; domain: string; value: string }>>([])
+  const [dnsInstructions, setDnsInstructions] = useState<{
+    domain: string
+    recommended: { type: string; host: string; value: string }
+    verification: Array<{ type: string; domain: string; value: string; reason: string }>
+  } | null>(null)
+  const [checkingStatus, setCheckingStatus] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
 
   // Default to a non-vercel.app domain if one exists, otherwise the vercel.app alias.
   useEffect(() => {
@@ -1202,7 +1249,8 @@ function VercelConfigPanel({
     setShowAddDomain(false)
     setNewDomain('')
     setDomainAddError('')
-    setPendingVerification([])
+    setDnsInstructions(null)
+    setStatusMessage('')
   }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canConfigure = hasProjects && !!selectedProjectId && !!selectedDomain
@@ -1220,10 +1268,29 @@ function VercelConfigPanel({
     setSelectedDomain(result.name)
     setShowAddDomain(false)
     setNewDomain('')
+    setStatusMessage('')
     if (!result.verified) {
-      setPendingVerification(result.verification)
+      setDnsInstructions({ domain: result.name, recommended: result.recommended, verification: result.verification })
     } else {
-      setPendingVerification([])
+      setDnsInstructions(null)
+    }
+  }
+
+  async function handleCheckStatus() {
+    if (!dnsInstructions) return
+    setCheckingStatus(true)
+    setStatusMessage('')
+    const result = await onDomainStatusCheck(dnsInstructions.domain)
+    setCheckingStatus(false)
+    if (!result.ok) {
+      setStatusMessage(result.error ?? 'Failed to check status')
+      return
+    }
+    if (result.misconfigured) {
+      setStatusMessage('Still not detecting the DNS change - it can take a while to propagate. Try again shortly.')
+    } else {
+      setStatusMessage('Domain is configured correctly.')
+      setDnsInstructions(null)
     }
   }
 
@@ -1373,14 +1440,52 @@ function VercelConfigPanel({
                 </div>
               )}
 
-              {pendingVerification.length > 0 && (
+              {dnsInstructions && (
                 <div className="alert alert-info" style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>
-                  <strong>Domain added but not verified yet.</strong> Add these DNS records at your registrar, then continue - it may take a while to propagate:
-                  {pendingVerification.map((v, i) => (
-                    <div key={i} style={{ fontFamily: 'monospace', marginTop: '0.375rem', wordBreak: 'break-all' }}>
-                      {v.type} {v.domain} → {v.value}
+                  <strong>Domain added but not configured yet.</strong> At your DNS provider, add:
+                  <table style={{ width: '100%', marginTop: '0.5rem', fontFamily: 'monospace', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', color: 'var(--color-muted)' }}>
+                        <th style={{ paddingRight: '0.75rem' }}>Type</th>
+                        <th style={{ paddingRight: '0.75rem' }}>Name</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ paddingRight: '0.75rem' }}>{dnsInstructions.recommended.type}</td>
+                        <td style={{ paddingRight: '0.75rem' }}>{dnsInstructions.recommended.host}</td>
+                        <td style={{ wordBreak: 'break-all' }}>{dnsInstructions.recommended.value}</td>
+                      </tr>
+                      {dnsInstructions.verification.map((v, i) => (
+                        <tr key={i}>
+                          <td style={{ paddingRight: '0.75rem' }}>{v.type}</td>
+                          <td style={{ paddingRight: '0.75rem' }}>{v.domain}</td>
+                          <td style={{ wordBreak: 'break-all' }}>{v.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {dnsInstructions.verification.length > 0 && (
+                    <div style={{ marginTop: '0.5rem', color: 'var(--color-muted)' }}>
+                      The TXT record proves you own this domain — Vercel also saw it registered elsewhere. Both records are needed.
                     </div>
-                  ))}
+                  )}
+                  <div style={{ marginTop: '0.5rem' }}>
+                    Alternative: point the domain&apos;s nameservers at Vercel instead (<code>ns1.vercel-dns.com</code>, <code>ns2.vercel-dns.com</code>) and skip the records above.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ marginTop: '0.625rem' }}
+                    onClick={handleCheckStatus}
+                    disabled={checkingStatus}
+                  >
+                    {checkingStatus ? 'Checking…' : 'Check now'}
+                  </button>
+                  {statusMessage && (
+                    <div style={{ marginTop: '0.375rem' }}>{statusMessage}</div>
+                  )}
                 </div>
               )}
             </div>

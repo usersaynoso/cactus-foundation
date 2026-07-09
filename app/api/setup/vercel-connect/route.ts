@@ -22,6 +22,7 @@ async function isSetupComplete(): Promise<boolean> {
 //
 // action: 'list-projects'  — validates the token and returns accessible projects
 // action: 'add-domain'     — adds a custom domain to the selected project
+// action: 'domain-status'  — checks whether a domain's DNS is configured correctly
 // action: 'configure'      — writes bootstrap env vars to the selected project
 //                            and triggers a redeploy
 export async function POST(req: NextRequest) {
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
 
     const data = (await res.json()) as {
       name?: string
+      apexName?: string
       verified?: boolean
       verification?: Array<{ type: string; domain: string; value: string; reason: string }>
       error?: { message?: string }
@@ -127,11 +129,38 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const name = data.name ?? domain
+    const isApex = name === (data.apexName ?? name)
+
     return NextResponse.json({
-      name: data.name ?? domain,
+      name,
       verified: data.verified ?? false,
       verification: data.verification ?? [],
+      isApex,
+      recommended: isApex
+        ? { type: 'A', host: '@', value: '76.76.21.21' }
+        : { type: 'CNAME', host: name.split('.')[0], value: 'cname.vercel-dns.com' },
     })
+  }
+
+  // ── Check DNS configuration status for a domain ─────────────────────────────
+  if (action === 'domain-status') {
+    const { domain } = body
+    if (!domain) {
+      return NextResponse.json({ error: 'domain is required' }, { status: 400 })
+    }
+
+    const res = await fetch(`${VERCEL_API}/v6/domains/${domain}/config`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+
+    if (!res.ok) {
+      return NextResponse.json({ error: `Failed to check domain status (${res.status})` }, { status: 400 })
+    }
+
+    const data = (await res.json()) as { misconfigured?: boolean }
+    return NextResponse.json({ misconfigured: data.misconfigured ?? true })
   }
 
   // ── Configure project ─────────────────────────────────────────────────────
