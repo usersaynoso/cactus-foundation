@@ -548,7 +548,16 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
   const [config, ogPages, avatars, exports] = await Promise.all([
     prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { logoMediaId: true, logoDarkMediaId: true, faviconMediaId: true, faviconDarkMediaId: true },
+      select: {
+        logoMediaId: true,
+        logoDarkMediaId: true,
+        faviconMediaId: true,
+        faviconDarkMediaId: true,
+        appIconMediaId: true,
+        appleTouchIconMediaId: true,
+        webManifest192MediaId: true,
+        webManifest512MediaId: true,
+      },
     }),
     prisma.infoPage.count({ where: { ogImageId: mediaId } }),
     prisma.member.count({ where: { avatarMediaId: mediaId } }),
@@ -558,6 +567,10 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
   const refs: string[] = []
   if (config?.logoMediaId === mediaId || config?.logoDarkMediaId === mediaId) refs.push('site logo')
   if (config?.faviconMediaId === mediaId || config?.faviconDarkMediaId === mediaId) refs.push('site favicon')
+  if (config?.appIconMediaId === mediaId) refs.push('app icon')
+  if (config?.appleTouchIconMediaId === mediaId) refs.push('apple touch icon')
+  if (config?.webManifest192MediaId === mediaId) refs.push('web manifest icon (192px)')
+  if (config?.webManifest512MediaId === mediaId) refs.push('web manifest icon (512px)')
   if (ogPages > 0) refs.push(`${ogPages} page social image${ogPages > 1 ? 's' : ''}`)
   if (avatars > 0) refs.push(`${avatars} member avatar${avatars > 1 ? 's' : ''}`)
   if (exports > 0) refs.push('a data export')

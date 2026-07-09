@@ -26,7 +26,16 @@ export async function loadMediaUsageIndex(): Promise<MediaUsageIndex> {
   const [config, ogPages, avatars, exports, pages, layouts] = await Promise.all([
     prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { logoMediaId: true, logoDarkMediaId: true, faviconMediaId: true, faviconDarkMediaId: true },
+      select: {
+        logoMediaId: true,
+        logoDarkMediaId: true,
+        faviconMediaId: true,
+        faviconDarkMediaId: true,
+        appIconMediaId: true,
+        appleTouchIconMediaId: true,
+        webManifest192MediaId: true,
+        webManifest512MediaId: true,
+      },
     }),
     prisma.infoPage.findMany({ where: { ogImageId: { not: null } }, select: { ogImageId: true } }),
     prisma.member.findMany({ where: { avatarMediaId: { not: null } }, select: { avatarMediaId: true } }),
@@ -36,7 +45,16 @@ export async function loadMediaUsageIndex(): Promise<MediaUsageIndex> {
   ])
 
   const referencedIds = new Set<string>()
-  for (const id of [config?.logoMediaId, config?.logoDarkMediaId, config?.faviconMediaId, config?.faviconDarkMediaId]) {
+  for (const id of [
+    config?.logoMediaId,
+    config?.logoDarkMediaId,
+    config?.faviconMediaId,
+    config?.faviconDarkMediaId,
+    config?.appIconMediaId,
+    config?.appleTouchIconMediaId,
+    config?.webManifest192MediaId,
+    config?.webManifest512MediaId,
+  ]) {
     if (id) referencedIds.add(id)
   }
   for (const p of ogPages) if (p.ogImageId) referencedIds.add(p.ogImageId)
