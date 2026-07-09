@@ -20,11 +20,12 @@ async function isSetupComplete(): Promise<boolean> {
 
 // POST /api/setup/vercel-connect
 //
-// action: 'list-projects'  — validates the token and returns accessible projects
-// action: 'add-domain'     — adds a custom domain to the selected project
-// action: 'domain-status'  — checks whether a domain's DNS is configured correctly
-// action: 'configure'      — writes bootstrap env vars to the selected project
-//                            and triggers a redeploy
+// action: 'list-projects'        — validates the token and returns accessible projects
+// action: 'list-account-domains' — returns all domains in the account/team, not just this project
+// action: 'add-domain'           — adds a custom domain to the selected project
+// action: 'domain-status'        — checks whether a domain's DNS is configured correctly
+// action: 'configure'            — writes bootstrap env vars to the selected project
+//                                   and triggers a redeploy
 export async function POST(req: NextRequest) {
   if (await isSetupComplete()) {
     return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
@@ -92,6 +93,25 @@ export async function POST(req: NextRequest) {
     )
 
     return NextResponse.json({ projects })
+  }
+
+  // ── List all domains in the account/team ────────────────────────────────────
+  if (action === 'list-account-domains') {
+    const res = await fetch(`${VERCEL_API}/v5/domains?limit=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      return NextResponse.json(
+        { error: `Vercel API error (${res.status}): ${text.slice(0, 200)}` },
+        { status: 400 }
+      )
+    }
+    const data = (await res.json()) as { domains?: Array<{ name: string; verified?: boolean }> }
+    return NextResponse.json({
+      domains: (data.domains ?? []).map((d) => ({ name: d.name, verified: d.verified ?? true })),
+    })
   }
 
   // ── Add a custom domain to a project ────────────────────────────────────────

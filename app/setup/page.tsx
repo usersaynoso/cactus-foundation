@@ -335,6 +335,23 @@ export default function SetupPage() {
     }
   }
 
+  async function handleListAccountDomains(): Promise<{ ok: boolean; domains?: VercelDomain[]; error?: string }> {
+    try {
+      const res = await fetch('/api/setup/vercel-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list-account-domains', token: vercelToken }),
+      })
+      const data = (await res.json()) as { domains?: VercelDomain[]; error?: string }
+      if (!res.ok || data.error) {
+        return { ok: false, error: data.error ?? 'Failed to list domains' }
+      }
+      return { ok: true, domains: data.domains ?? [] }
+    } catch (err: unknown) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
+    }
+  }
+
   async function handleVercelConfigure(domain?: string) {
     if (!selectedProjectId) return
     setVercelError('')
@@ -878,6 +895,7 @@ export default function SetupPage() {
               onConfigure={handleVercelConfigure}
               onAddDomain={handleAddDomain}
               onDomainStatusCheck={handleDomainStatusCheck}
+              onListAccountDomains={handleListAccountDomains}
             />
           )}
 
@@ -1205,6 +1223,7 @@ function VercelConfigPanel({
   onConfigure,
   onAddDomain,
   onDomainStatusCheck,
+  onListAccountDomains,
 }: {
   token: string
   setToken: (v: string) => void
@@ -1219,6 +1238,7 @@ function VercelConfigPanel({
   onConfigure: (domain?: string) => void
   onAddDomain: (projectId: string, domain: string) => Promise<AddDomainResult>
   onDomainStatusCheck: (domain: string) => Promise<{ ok: boolean; misconfigured?: boolean; error?: string }>
+  onListAccountDomains: () => Promise<{ ok: boolean; domains?: VercelDomain[]; error?: string }>
 }) {
   const hasProjects = projects.length > 0
   const selectedProject = projects.find((p) => p.id === selectedProjectId)
@@ -1235,6 +1255,10 @@ function VercelConfigPanel({
   } | null>(null)
   const [checkingStatus, setCheckingStatus] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
+  const [accountDomains, setAccountDomains] = useState<VercelDomain[]>([])
+  const [loadingAccountDomains, setLoadingAccountDomains] = useState(false)
+  const [accountDomainsError, setAccountDomainsError] = useState('')
+  const [accountDomainsFetched, setAccountDomainsFetched] = useState(false)
 
   // Default to a non-vercel.app domain if one exists, otherwise the vercel.app alias.
   useEffect(() => {
@@ -1251,15 +1275,34 @@ function VercelConfigPanel({
     setDomainAddError('')
     setDnsInstructions(null)
     setStatusMessage('')
+    setAccountDomains([])
+    setAccountDomainsFetched(false)
+    setAccountDomainsError('')
   }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canConfigure = hasProjects && !!selectedProjectId && !!selectedDomain
 
-  async function handleAddDomainClick() {
-    if (!newDomain.trim() || !selectedProjectId) return
+  async function handleOpenAddDomain() {
+    setShowAddDomain(true)
+    if (accountDomainsFetched) return
+    setLoadingAccountDomains(true)
+    setAccountDomainsError('')
+    const result = await onListAccountDomains()
+    setLoadingAccountDomains(false)
+    setAccountDomainsFetched(true)
+    if (!result.ok) {
+      setAccountDomainsError(result.error ?? 'Failed to list account domains')
+      return
+    }
+    setAccountDomains(result.domains ?? [])
+  }
+
+  async function handleAddDomainClick(domainToAdd?: string) {
+    const domain = (domainToAdd ?? newDomain).trim()
+    if (!domain || !selectedProjectId) return
     setAddingDomain(true)
     setDomainAddError('')
-    const result = await onAddDomain(selectedProjectId, newDomain.trim())
+    const result = await onAddDomain(selectedProjectId, domain)
     setAddingDomain(false)
     if (!result.ok) {
       setDomainAddError(result.error)
@@ -1409,7 +1452,7 @@ function VercelConfigPanel({
                   type="button"
                   className="btn btn-secondary"
                   style={{ marginTop: '0.375rem' }}
-                  onClick={() => setShowAddDomain(true)}
+                  onClick={handleOpenAddDomain}
                 >
                   + Add a custom domain
                 </button>
@@ -1417,6 +1460,39 @@ function VercelConfigPanel({
 
               {showAddDomain && (
                 <div style={{ marginTop: '0.5rem' }}>
+                  {loadingAccountDomains && (
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+                      Checking your Vercel account for other domains…
+                    </div>
+                  )}
+                  {accountDomainsError && (
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-danger)', marginBottom: '0.5rem' }}>{accountDomainsError}</div>
+                  )}
+                  {(() => {
+                    const attached = new Set(selectedProject.domains.map((d) => d.name))
+                    const unattached = accountDomains.filter((d) => !attached.has(d.name))
+                    if (unattached.length === 0) return null
+                    return (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.375rem' }}>
+                          Already in your Vercel account - attach one instead of typing it:
+                        </div>
+                        {unattached.map((d) => (
+                          <div key={d.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <span style={{ fontSize: '0.9375rem' }}>{d.name}</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={addingDomain}
+                              onClick={() => handleAddDomainClick(d.name)}
+                            >
+                              Attach
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
                       value={newDomain}
@@ -1429,7 +1505,7 @@ function VercelConfigPanel({
                       type="button"
                       className="btn btn-primary"
                       disabled={!newDomain || addingDomain}
-                      onClick={handleAddDomainClick}
+                      onClick={() => handleAddDomainClick()}
                     >
                       {addingDomain ? 'Adding…' : 'Add'}
                     </button>
