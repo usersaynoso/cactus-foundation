@@ -2395,7 +2395,7 @@ export const puckConfig = {
         activeUnderlineThickness: { type: 'text' as const, label: 'Underline thickness (px)' },
         activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
-        navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
+        navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'dropdown', label: 'Dropdown (current page)' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
         spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
         itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeightShrunk: { type: 'select' as const, label: 'Shrunk font weight', options: [{ value: '', label: 'Same as font weight' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },

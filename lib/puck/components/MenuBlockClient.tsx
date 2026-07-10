@@ -83,7 +83,13 @@ const DROPDOWN_PANEL: React.CSSProperties = {
   position: 'absolute',
   top: 'calc(100% + 4px)',
   left: 0,
+  // The panel is absolutely positioned inside a narrow <li>, so without an
+  // explicit width it shrink-to-fits to that li and comes out cramped.
+  // max-content sizes it to its longest row; minWidth stops tiny menus looking
+  // mean, maxWidth stops a very long label running off the page.
   minWidth: 180,
+  width: 'max-content',
+  maxWidth: 320,
   background: 'var(--color-surface)',
   border: '1px solid var(--color-border)',
   borderRadius: 6,
@@ -116,6 +122,7 @@ function DropdownLink({ item, hasChildren, colours, fontFamily, onToggle }: { it
         display: hasChildren ? 'flex' : 'block',
         justifyContent: hasChildren ? 'space-between' : undefined,
         alignItems: hasChildren ? 'center' : undefined,
+        whiteSpace: 'nowrap',
         padding: '0.5rem 1rem',
         fontSize: '0.9rem',
         fontFamily,
@@ -305,6 +312,95 @@ function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0 }: {
   )
 }
 
+// Walks the menu (one level of children too) for the item matching the current
+// path, so the "Dropdown" nav trigger can label itself with the page you're on.
+// Falls back to the supplied label when nothing matches (e.g. a page that isn't
+// in this menu at all).
+function currentPageLabel(items: MenuItem[], pathname: string | null, fallback: string): string {
+  for (const item of items) {
+    if (isActiveHref(item.href, pathname)) return item.label
+    const child = item.children?.find((c) => isActiveHref(c.href, pathname))
+    if (child) return child.label
+  }
+  return fallback
+}
+
+// "Dropdown" nav behaviour: a single button showing the current page, with an
+// arrow that opens the full menu below it. Hidden by default (display:none);
+// buildTokenStyles' breakpoint rules reveal it via the cactus-nav-dd-* classes
+// at whichever widths chose this mode. Reuses MobileNavItem for the panel so the
+// nested accordion behaves exactly like the hamburger drawer.
+function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
+  items: MenuItem[]
+  colours?: MenuLinkColours
+  fontFamily?: string
+  className: string
+  fallbackLabel: string
+}) {
+  const [open, setOpen] = useState(false)
+  const pathname = usePathname()
+  const ref = useRef<HTMLDivElement>(null)
+  const current = currentPageLabel(items, pathname, fallbackLabel)
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className={className} style={{ position: 'relative', display: 'none', alignItems: 'center' }}>
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          padding: '0.5rem 0.875rem',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
+          fontFamily,
+          color: 'var(--color-text)',
+          background: 'none',
+          border: '1px solid var(--color-border)',
+          borderRadius: 6,
+          cursor: 'pointer',
+        }}
+      >
+        {current}
+        <span style={{ fontSize: '0.625rem', opacity: 0.6, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} aria-hidden>▾</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          minWidth: 220,
+          width: 'max-content',
+          maxWidth: 320,
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          paddingTop: '0.375rem',
+          paddingBottom: '0.375rem',
+          zIndex: 100,
+        }}>
+          {items.map((item) => (
+            <MobileNavItem key={item.id} item={item} onClose={() => setOpen(false)} colours={colours} fontFamily={fontFamily} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const fontSizeMap: Record<string, string> = { small: '0.8125rem', medium: '0.9375rem', large: '1.0625rem' }
 const fontWeightMap: Record<string, string | number> = { normal: 400, medium: 500, semibold: 600, bold: 700 }
 const hGapMap: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem' }
@@ -398,13 +494,32 @@ export default function MenuBlockClient({
   // picked on this block alone (outside the site-token fonts buildFontHref
   // loads) still arrives - live site and editor canvas alike.
   const menuFontHref = googleFontHrefForFamily(itemFontFamily)
+  // Three nav modes per breakpoint: 'show' (inline menu), 'collapse' (hamburger)
+  // and 'dropdown' (current-page trigger). The inline menu hides at any width
+  // that isn't 'show' - the collapse-modifier class does that hiding for both
+  // replacements - while the hamburger and the dropdown each carry their own
+  // class so only the chosen one is revealed at that width.
+  const hasItems = resolvedItems.length > 0
   const collapseDesktop = showDesktopToggle !== 'show'
   const collapseMobile = showMobileToggle !== 'show'
   const collapseTablet = showTabletToggle !== 'show'
-  const showHamburger = (collapseDesktop || collapseMobile || collapseTablet) && resolvedItems.length > 0
-  const collapseModifiers = [collapseDesktop && 'cactus-nav-collapse-desktop', collapseMobile && 'cactus-nav-collapse-mobile', collapseTablet && 'cactus-nav-collapse-tablet'].filter(Boolean)
-  const menuClasses = ['cactus-nav-menu', ...collapseModifiers].join(' ')
-  const toggleBtnClasses = ['cactus-nav-toggle', ...collapseModifiers].join(' ')
+  const hamburgerDesktop = showDesktopToggle === 'collapse'
+  const hamburgerMobile = showMobileToggle === 'collapse'
+  const hamburgerTablet = showTabletToggle === 'collapse'
+  const dropdownDesktop = showDesktopToggle === 'dropdown'
+  const dropdownMobile = showMobileToggle === 'dropdown'
+  const dropdownTablet = showTabletToggle === 'dropdown'
+  const anyToggle = (collapseDesktop || collapseMobile || collapseTablet) && hasItems
+  const showHamburger = (hamburgerDesktop || hamburgerMobile || hamburgerTablet) && hasItems
+  const showDropdownNav = (dropdownDesktop || dropdownMobile || dropdownTablet) && hasItems
+  // Menu hides wherever the mode isn't 'show'; hamburger/dropdown appear only at
+  // the widths that picked them.
+  const menuHideModifiers = [collapseDesktop && 'cactus-nav-collapse-desktop', collapseMobile && 'cactus-nav-collapse-mobile', collapseTablet && 'cactus-nav-collapse-tablet'].filter(Boolean)
+  const hamburgerModifiers = [hamburgerDesktop && 'cactus-nav-collapse-desktop', hamburgerMobile && 'cactus-nav-collapse-mobile', hamburgerTablet && 'cactus-nav-collapse-tablet'].filter(Boolean)
+  const dropdownModifiers = [dropdownDesktop && 'cactus-nav-dd-desktop', dropdownMobile && 'cactus-nav-dd-mobile', dropdownTablet && 'cactus-nav-dd-tablet'].filter(Boolean)
+  const menuClasses = ['cactus-nav-menu', ...menuHideModifiers].join(' ')
+  const toggleBtnClasses = ['cactus-nav-toggle', ...hamburgerModifiers].join(' ')
+  const dropdownNavClasses = ['cactus-nav-dropdown', ...dropdownModifiers].join(' ')
 
   // Header "shrink on scroll" support - only emitted when at least one shrunk
   // value is set. Scoped under the header's own data-shrunk toggle (see
@@ -415,9 +530,10 @@ export default function MenuBlockClient({
   return (
     <>
       {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
-      {showHamburger && (
+      {anyToggle && (
         // Base (non-breakpoint) display only. The breakpoint @media rules are
         // emitted by buildTokenStyles so they track the site's breakpoint settings.
+        // The dropdown trigger's base display:none lives inline on the element.
         <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`}</style>
       )}
       {hasShrink && (
@@ -429,9 +545,9 @@ export default function MenuBlockClient({
       )}
 
       <ul
-        className={['cactus-nav-list', showHamburger ? menuClasses : ''].filter(Boolean).join(' ')}
+        className={['cactus-nav-list', anyToggle ? menuClasses : ''].filter(Boolean).join(' ')}
         style={{
-          display: showHamburger ? undefined : 'flex',
+          display: anyToggle ? undefined : 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: alignment,
@@ -466,6 +582,16 @@ export default function MenuBlockClient({
           <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
         </button>
+      )}
+
+      {showDropdownNav && (
+        <NavDropdown
+          items={resolvedItems}
+          colours={colours}
+          fontFamily={itemFontFamily || undefined}
+          className={dropdownNavClasses}
+          fallbackLabel="Menu"
+        />
       )}
 
       {showHamburger && mobileOpen && (

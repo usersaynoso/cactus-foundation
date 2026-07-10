@@ -737,6 +737,15 @@ export function buildTokenStyles(tokens: unknown): string {
   scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.cactus-nav-menu.cactus-nav-collapse-tablet{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-tablet{display:flex !important;}}`)
   scoped.push(`@media(min-width:${aboveTabletBp}){.cactus-nav-menu.cactus-nav-collapse-desktop{display:none !important;}.cactus-nav-toggle.cactus-nav-collapse-desktop{display:flex !important;}}`)
 
+  // "Dropdown" nav behaviour - a single current-page trigger replaces the menu
+  // at the chosen breakpoints (the menu itself already hides via the collapse
+  // rules above, since dropdown counts as "not always show"). The base
+  // .cactus-nav-dropdown{display:none} stays inline in MenuBlockClient; only
+  // these breakpoint reveals live here so they track the site's widths.
+  scoped.push(`@media(max-width:${mobileBp}){.cactus-nav-dropdown.cactus-nav-dd-mobile{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.cactus-nav-dropdown.cactus-nav-dd-tablet{display:flex !important;}}`)
+  scoped.push(`@media(min-width:${aboveTabletBp}){.cactus-nav-dropdown.cactus-nav-dd-desktop{display:flex !important;}}`)
+
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }
 
