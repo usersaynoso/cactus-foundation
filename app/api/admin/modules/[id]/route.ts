@@ -255,6 +255,12 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await prisma.$transaction([
       prisma.permission.deleteMany({ where: { module: mod.name } }),
       prisma.module.delete({ where: { id } }),
+      // Data teardown dropped the module's tables, so its migration history
+      // must go too - otherwise a reinstall skips the migrations and the
+      // tables never come back.
+      ...(mode === 'code_and_data'
+        ? [prisma.moduleMigration.deleteMany({ where: { moduleName: mod.name } })]
+        : []),
     ])
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })

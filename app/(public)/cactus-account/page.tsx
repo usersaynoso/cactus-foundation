@@ -11,8 +11,8 @@ export default async function AccountIndexPage() {
   if (!member) return null // layout already redirects; defensive only
 
   // Modules can append content here via the "members.account-section"
-  // extension point (no module uses it yet) - unlike core.roles-page, there
-  // is no permission gate to check since members have no permission keys.
+  // extension point - unlike core.roles-page, there is no permission gate to
+  // check since members have no permission keys.
   const extensionModules = await prisma.module.findMany({
     where: { status: { in: ['active', 'update_available'] } },
     select: { manifest: true },
