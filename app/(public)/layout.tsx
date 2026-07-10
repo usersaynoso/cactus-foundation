@@ -10,6 +10,7 @@ import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
+import { ensureStarterLayoutsCurrent } from '@/lib/setup/starterLayouts'
 
 // Favicon / app-icon metadata is resolved once at the root layout
 // (app/layout.tsx + app/manifest.ts) so it applies on every route, not just
@@ -32,6 +33,11 @@ async function getSiteConfig() {
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  // Re-seed starter templates after a core update (no-op once stamped; see
+  // ensureStarterLayoutsCurrent). Runs before layouts are resolved below so a
+  // just-updated site renders with migrated layouts, not half-refreshed ones.
+  await ensureStarterLayoutsCurrent()
+
   const config = await getSiteConfig()
 
   const [logoMedia, logoDarkMedia, privacyPage] = await Promise.all([

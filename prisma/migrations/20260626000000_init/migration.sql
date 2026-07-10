@@ -134,6 +134,7 @@ CREATE TABLE "SiteConfig" (
     "status" "SiteStatus" NOT NULL DEFAULT 'comingSoon',
     "hideFromCrawlers" BOOLEAN NOT NULL DEFAULT true,
     "trustDeviceDays" INTEGER NOT NULL DEFAULT 28,
+    "starterTemplatesVersion" TEXT,
     "emailFromName" TEXT,
     "emailFromAddress" TEXT,
     "emailProvider" TEXT,

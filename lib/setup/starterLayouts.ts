@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { moduleStarterLayouts } from '@/lib/setup/module-starter-layouts'
+import pkg from '@/package.json'
 
 const ENTIRE_SITE_CONDITIONS  = { include: [{ type: 'entire_site' }],   exclude: [] }
 const NOT_FOUND_CONDITIONS    = { include: [{ type: 'not_found' }],     exclude: [] }
@@ -406,9 +407,98 @@ const starterStatusMinimalData = {
 // refreshStarterLayouts — upserts all starter layout templates
 // ---------------------------------------------------------------------------
 
+type Template = { id: string; name: string; description: string; data: any; conditions: typeof ENTIRE_SITE_CONDITIONS; status: 'published' | 'draft' }
+
+// Starter templates are read-only in the admin: users duplicate one to get an
+// editable copy. Templates therefore always seed as drafts with no display
+// conditions. Templates marked `status: 'published'` describe which layouts a
+// fresh install needs live out of the box — those get a separate editable
+// `<id>-live` copy seeded alongside the read-only template. The copy is
+// create-only (empty upsert update) so a template refresh never overwrites a
+// site owner's edits, and never resurrects a copy they deliberately deleted.
+//
+// Installs that predate read-only starters may have a published starter row
+// acting as their live header/footer/etc. For those, the row's current
+// content and conditions are moved into the `<id>-live` copy before the
+// starter itself is demoted to draft, so the live site keeps rendering the
+// same layout. A starter that was edited but left as a draft is preserved
+// too: its content moves into a `<id>-edited` copy ("<name> (Copy)") before
+// the starter is reset to the canonical design.
+// JSON.stringify with recursively sorted object keys, so a jsonb round-trip
+// through Postgres (which does not preserve key order) still compares equal
+// to the in-code canonical template data.
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const keys = Object.keys(value as Record<string, unknown>).sort()
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+async function seedStarterTemplate(
+  db: typeof prisma,
+  type: string,
+  t: Template,
+  existing: Map<string, { name: string; builderData: unknown; displayConditions: unknown; priority: number; status: string }>,
+) {
+  const row = existing.get(t.id)
+  const copyId = `${t.id}-live`
+
+  if (row && row.status !== 'published' && row.builderData != null && stableStringify(row.builderData) !== stableStringify(t.data)) {
+    // Migration: the starter was edited (content differs from canonical) but
+    // never published. Preserve the edits as a draft copy before the starter
+    // is reset to the default design below.
+    await db.layout.upsert({
+      where: { id: `${t.id}-edited` },
+      create: {
+        id: `${t.id}-edited`, name: `${row.name} (Copy)`, type, description: t.description, isStarter: false,
+        status: 'draft', priority: row.priority,
+        displayConditions: DRAFT_CONDITIONS,
+        builderData: row.builderData as object,
+      },
+      update: {},
+    })
+  }
+
+  if (row && row.status === 'published') {
+    // Migration: preserve the previously-live starter as an editable copy.
+    await db.layout.upsert({
+      where: { id: copyId },
+      create: {
+        id: copyId, name: row.name, type, description: t.description, isStarter: false,
+        status: 'published', priority: row.priority,
+        displayConditions: (row.displayConditions ?? t.conditions) as object,
+        builderData: (row.builderData ?? t.data) as object,
+      },
+      update: {},
+    })
+  } else if (!row && t.status === 'published') {
+    // Fresh install: seed the editable working copy this site starts live with.
+    await db.layout.upsert({
+      where: { id: copyId },
+      create: {
+        id: copyId, name: t.name, type, description: t.description, isStarter: false,
+        status: 'published', displayConditions: t.conditions, builderData: t.data,
+      },
+      update: {},
+    })
+  }
+
+  await db.layout.upsert({
+    where: { id: t.id },
+    create: { id: t.id, name: t.name, type, description: t.description, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS, builderData: t.data },
+    update: { name: t.name, description: t.description, builderData: t.data, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS },
+  })
+}
+
 export async function refreshStarterLayouts(db: typeof prisma) {
 
-  type Template = { id: string; name: string; description: string; data: any; conditions: typeof ENTIRE_SITE_CONDITIONS; status: 'published' | 'draft' }
+  const existingRows = await db.layout.findMany({
+    where: { isStarter: true },
+    select: { id: true, name: true, builderData: true, displayConditions: true, priority: true, status: true },
+  })
+  const existing = new Map(existingRows.map((r) => [r.id, r]))
 
   const headerTemplates: Template[] = [
     { id: 'starter-header',             name: 'Default Header',     description: 'Logo left, navigation right.',                                       data: starterHeaderData,            conditions: ENTIRE_SITE_CONDITIONS, status: 'published' },
@@ -423,11 +513,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
   ]
 
   for (const t of headerTemplates) {
-    await db.layout.upsert({
-      where: { id: t.id },
-      create: { id: t.id, name: t.name, type: 'header', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
-      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
-    })
+    await seedStarterTemplate(db, 'header', t, existing)
   }
 
   const footerTemplates: Template[] = [
@@ -438,11 +524,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
   ]
 
   for (const t of footerTemplates) {
-    await db.layout.upsert({
-      where: { id: t.id },
-      create: { id: t.id, name: t.name, type: 'footer', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
-      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
-    })
+    await seedStarterTemplate(db, 'footer', t, existing)
   }
 
   const pageTemplates: Template[] = [
@@ -453,11 +535,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
   ]
 
   for (const t of pageTemplates) {
-    await db.layout.upsert({
-      where: { id: t.id },
-      create: { id: t.id, name: t.name, type: 'infoPage', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
-      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
-    })
+    await seedStarterTemplate(db, 'infoPage', t, existing)
   }
 
   const notFoundTemplates: Template[] = [
@@ -467,11 +545,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
   ]
 
   for (const t of notFoundTemplates) {
-    await db.layout.upsert({
-      where: { id: t.id },
-      create: { id: t.id, name: t.name, type: 'notFound', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
-      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
-    })
+    await seedStarterTemplate(db, 'notFound', t, existing)
   }
 
   const statusTemplates: Template[] = [
@@ -481,11 +555,7 @@ export async function refreshStarterLayouts(db: typeof prisma) {
   ]
 
   for (const t of statusTemplates) {
-    await db.layout.upsert({
-      where: { id: t.id },
-      create: { id: t.id, name: t.name, type: 'statusPage', description: t.description, isStarter: true, status: t.status, displayConditions: t.conditions, builderData: t.data },
-      update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
-    })
+    await seedStarterTemplate(db, 'statusPage', t, existing)
   }
 
   // Module-declared layout types (e.g. directoryCategory, gazetteEntry). These
@@ -500,11 +570,46 @@ export async function refreshStarterLayouts(db: typeof prisma) {
     const templates = buildTemplates()
     for (const t of templates as { id: string; name: string; description: string; data: any; publishByDefault?: boolean }[]) {
       const published = t.publishByDefault === true
-      await db.layout.upsert({
-        where: { id: t.id },
-        create: { id: t.id, name: t.name, type: layoutType, description: t.description, isStarter: true, status: published ? 'published' : 'draft', displayConditions: published ? ENTIRE_SITE_CONDITIONS : DRAFT_CONDITIONS, builderData: t.data },
-        update: { name: t.name, description: t.description, builderData: t.data, isStarter: true },
+      await seedStarterTemplate(db, layoutType, {
+        id: t.id, name: t.name, description: t.description, data: t.data,
+        conditions: published ? ENTIRE_SITE_CONDITIONS : DRAFT_CONDITIONS,
+        status: published ? 'published' : 'draft',
+      }, existing)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ensureStarterLayoutsCurrent — auto-refresh after a core update
+// ---------------------------------------------------------------------------
+
+// Starter templates refresh themselves: SiteConfig.starterTemplatesVersion
+// records the core version whose templates were last seeded, and the first
+// request after a deploy with a different version re-runs the seed (which
+// also migrates any user-edited starter into an editable copy). Replaces the
+// old manual "Refresh Starter Templates" button. The module-level flag keeps
+// the check to a single SiteConfig query per warm server instance; a failed
+// or raced refresh leaves the stamp unwritten, so a later request retries
+// (every write in the seed is an idempotent upsert).
+let starterLayoutsEnsured = false
+
+export async function ensureStarterLayoutsCurrent() {
+  if (starterLayoutsEnsured) return
+  try {
+    const cfg = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { setupCompleted: true, starterTemplatesVersion: true },
+    })
+    if (!cfg?.setupCompleted) return
+    if (cfg.starterTemplatesVersion !== pkg.version) {
+      await refreshStarterLayouts(prisma)
+      await prisma.siteConfig.update({
+        where: { id: 'singleton' },
+        data: { starterTemplatesVersion: pkg.version },
       })
     }
+    starterLayoutsEnsured = true
+  } catch {
+    // Never let template refresh break a page render; retried on a later request.
   }
 }

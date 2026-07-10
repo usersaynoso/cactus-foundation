@@ -13,6 +13,10 @@ export async function POST(_req: Request, { params }: Ctx) {
     const ok = await hasPermission(user, 'layouts.manage')
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    const target = await prisma.layout.findUnique({ where: { id }, select: { isStarter: true } })
+    if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (target.isStarter) return NextResponse.json({ error: 'Starter layouts are read-only. Duplicate the layout to edit it.' }, { status: 400 })
+
     const layout = await prisma.layout.update({ where: { id }, data: { status: 'published' } })
     return NextResponse.json(layout)
   } catch {

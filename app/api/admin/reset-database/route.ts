@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
+import pkg from '@/package.json'
 
 async function seedStarterContent() {
   const homePage = await prisma.infoPage.upsert({
@@ -25,7 +26,7 @@ async function seedStarterContent() {
 
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
-    data: { homepageId: homePage.id, mainMenuId: mainMenu.id },
+    data: { homepageId: homePage.id, mainMenuId: mainMenu.id, starterTemplatesVersion: pkg.version },
   })
 }
 

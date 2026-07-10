@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
@@ -54,6 +54,7 @@ function conditionSummary(layout: Layout): string {
 
 export default function LayoutBuilderPage() {
   const adminPath = useAdminPath()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const typeParam = searchParams.get('type')
   const initialTop = [...BUILTIN_TABS, ...MODULE_GROUP_TABS].some((t) => t.key === typeParam) ? typeParam! : 'all'
@@ -62,6 +63,7 @@ export default function LayoutBuilderPage() {
   const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
   const activeType = activeGroup
@@ -85,6 +87,17 @@ export default function LayoutBuilderPage() {
   function handleTopClick(key: string) {
     setActiveTop(key)
     setActiveModuleSub(null)
+  }
+
+  async function handleDuplicate(id: string) {
+    setDuplicatingId(id)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}/duplicate`, { method: 'POST' })
+      const d = await res.json()
+      if (!res.ok) { setError(d.error ?? 'Failed to duplicate layout'); setDuplicatingId(null); return }
+      router.push(`/${adminPath}/layouts/${d.id}`)
+    } catch { setError('Failed to duplicate layout'); setDuplicatingId(null) }
   }
 
   async function handleDelete(id: string) {
@@ -145,7 +158,13 @@ export default function LayoutBuilderPage() {
                 <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-muted)' }}>{conditionSummary(layout)}</p>
               </div>
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
+                {layout.isStarter ? (
+                  <button onClick={() => handleDuplicate(layout.id)} disabled={duplicatingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
+                    {duplicatingId === layout.id ? 'Duplicating…' : 'Duplicate'}
+                  </button>
+                ) : (
+                  <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
+                )}
                 <a href={`/layout-preview/${layout.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Preview</a>
                 {!layout.isStarter && (
                   <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0.375rem 0' }}>

@@ -44,6 +44,7 @@ export default function LayoutEditorPage() {
   const [error, setError] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const latestDataRef = useRef<Data | null>(null)
 
@@ -200,6 +201,17 @@ export default function LayoutEditorPage() {
     finally { setSaving(false) }
   }, [id, loadHistory])
 
+  const handleDuplicate = useCallback(async () => {
+    setDuplicating(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}/duplicate`, { method: 'POST' })
+      const d = await res.json()
+      if (!res.ok) { setError(d.error ?? 'Failed to duplicate layout'); setDuplicating(false); return }
+      window.location.href = `/${adminPath}/layouts/${d.id}`
+    } catch { setError('Failed to duplicate layout'); setDuplicating(false) }
+  }, [id, adminPath])
+
   const handleDeleteClick = useCallback(() => setDeleteConfirm(true), [])
 
   const handleDelete = useCallback(async () => {
@@ -219,6 +231,32 @@ export default function LayoutEditorPage() {
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>
   if (!layout) return <div style={{ padding: '2rem', color: 'var(--color-destructive)' }}>{error || 'Layout not found'}</div>
+
+  // Starter templates are read-only: no editor, just preview and duplicate.
+  if (layout.isStarter) {
+    return (
+      <div style={{ maxWidth: 560, margin: '4rem auto', padding: '0 1rem' }}>
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>{layout.name}</h1>
+            <span className="badge badge-gray" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>
+          </div>
+          {layout.description && <p style={{ margin: '0 0 1rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>{layout.description}</p>}
+          <p style={{ margin: '0 0 1.5rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>
+            Starter layouts are read-only templates. Duplicate this one to get your own editable copy.
+          </p>
+          {error && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" disabled={duplicating} onClick={handleDuplicate}>
+              {duplicating ? 'Duplicating…' : 'Duplicate'}
+            </button>
+            <a href={`/layout-preview/${layout.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Preview</a>
+            <button className="btn btn-secondary" onClick={() => router.push(`/${adminPath}/layouts`)}>Back to Layouts</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const initialData: Data = (layout.builderData as Data | null) ?? { content: [], root: { props: {} }, zones: {} }
 

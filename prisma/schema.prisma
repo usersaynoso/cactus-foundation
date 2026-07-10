@@ -168,6 +168,9 @@ model SiteConfig {
   status                 SiteStatus @default(comingSoon)
   hideFromCrawlers       Boolean    @default(true)
   trustDeviceDays        Int        @default(28)
+  // Core version whose starter layout templates were last seeded. Compared to
+  // package.json version on request; a mismatch triggers refreshStarterLayouts.
+  starterTemplatesVersion String?
   emailFromName          String?
   emailFromAddress       String?
   // 'brevo' | 'smtp'

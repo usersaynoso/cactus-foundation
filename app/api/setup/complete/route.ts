@@ -9,6 +9,7 @@ import { upsertVercelEnvVar } from '@/lib/vercel/env'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { isLocalMode } from '@/lib/config/env'
 import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
+import pkg from '@/package.json'
 
 export async function POST() {
   const cfg = await prisma.siteConfig.findUnique({
@@ -19,13 +20,7 @@ export async function POST() {
   if (cfg?.setupCompleted) {
     const userCount = await prisma.user.count()
     if (userCount > 0) {
-      // Allow authenticated admins to refresh starter layout templates
-      const session = await getSessionFromCookie().catch(() => null)
-      if (!session) {
-        return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
-      }
-      await refreshStarterLayouts(prisma)
-      return NextResponse.json({ templatesRefreshed: true })
+      return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
     }
   }
 
@@ -64,6 +59,7 @@ export async function POST() {
       homepageId: homePage.id,
       mainMenuId: mainMenu.id,
       designTokens: DEFAULT_DESIGN_TOKENS,
+      starterTemplatesVersion: pkg.version,
     },
   })
 
