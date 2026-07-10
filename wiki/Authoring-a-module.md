@@ -385,7 +385,17 @@ Your tab's content renders with no extra chrome - no page title, no wrapping car
 
 ## Module extension points
 
-`settingsTabs` and `puckBlocks` are extension points *core* publishes. Core's own Roles subtab (**Settings → Users → Roles**) publishes one too - `core.roles-page` - for modules that need their own per-user role assignment UI outside the core `Role`/permission model (Gazette's Contributor/Author/Editor roles are the example: they're assigned per-user in a module table, not built from core permission keys, so they don't fit `settingsTabs` or the Roles subtab's own permission matrix). A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
+`settingsTabs` and `puckBlocks` are extension points *core* publishes. A few core pages publish generic points of their own that any module can contribute to:
+
+| Point | Where it renders | Notes |
+|-------|------------------|-------|
+| `core.roles-page` | **Settings → Users → Roles** | For modules needing per-user role assignment UI outside the core `Role`/permission model (Gazette's Contributor/Author/Editor tiers were the original example). |
+| `core.admin-dashboard-widgets` | Admin dashboard | Summary widgets (e.g. Boards' thread/post counts). |
+| `core.menu-entity-provider` | Menu editor | Data contract, not a component - lets a module's content appear as menu link targets. |
+| `admins.account-section` | Admin **Account settings** page | Per-admin self-service sections, rendered above the Delete account card (e.g. Twilio's SMS login codes card). Omit `permission` for self-service features every admin should see. |
+| `members.account-section` | Member account overview page | Per-member sections (e.g. Shop's order history, Twilio's text-message sign-in codes). No permission filtering - members have no permission keys. |
+
+A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
 
 **Publishing a point (in the host module, e.g. `contact-form`):** pick a namespaced string id for the point (convention: `<your-module-name>.<page-or-area>`, e.g. `contact-form.submission-detail`), document what data your components receive, and read/render contributions from `lib/modules/extension-points.ts` in your own page - live permission-filtering happens in your page code, exactly like `navEntries` are filtered in `layout.tsx`:
 

@@ -60,6 +60,8 @@ Everything you've uploaded lives in **Media**. Along the top you'll find three t
 
 Each file also carries a small **In use** or **Unused** label, and every tab shows a count so you know how many are in each pile. The search box works within whichever tab you're on.
 
+Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
+
 **Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when - and a **Delete** button, if you decide it's for the chop. Press Esc or click outside to close.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
@@ -92,6 +94,14 @@ To move existing images to the new provider, click **Migrate now** on the Media 
 Deleting an image via the admin removes it from your storage provider immediately. There is no recycle bin or undo. If you need a deleted image back, you'll need to re-upload it or restore from a backup.
 
 If the image is still in use somewhere - a page, a layout, your logo, and so on - Cactus won't let you delete it by accident, and tells you where it's being used. Swap it out or remove it there first, then delete.
+
+### Deleting several at once
+
+Tick the small checkbox in the corner of each thumbnail to select more than one file. A bar appears above the library telling you how many you've picked, with a **Delete selected** button. Confirm in the pop-up and they're gone.
+
+Got a long run of files to bin? Tick the first one, then hold **Shift** and tick the last one - everything in between gets picked too.
+
+If any of your selection turns out to be in use somewhere, Cactus holds those back and tells you where - you can then choose **Delete anyway** if you're sure, or back out and go and unlink them first.
 
 ---
 

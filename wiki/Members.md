@@ -28,6 +28,15 @@ Members can sign in three ways, and you choose which are switched on (**Settings
 
 Members can add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member.
 
+### Sign-in codes by text message
+
+If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Settings → Users → Access control → Mobile number for sign-in codes** controls whether that's their choice:
+
+- **Optional** (the default) - members may add a mobile number from their account page if they fancy it.
+- **Required** - members with a password must add one. Anyone who hasn't yet is still let in with an email code (nobody gets locked out), but they're taken straight to the add-your-number card after signing in and reminded on every account page until it's done.
+
+Without a text-message module installed, the setting quietly does nothing - there's no way to send the texts.
+
 ---
 
 ## Registration modes
