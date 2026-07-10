@@ -2469,9 +2469,23 @@ export const puckConfig = {
     },
     ThemeToggle: {
       label: 'Theme Toggle',
-      fields: {},
-      defaultProps: {},
-      render: () => <ThemeToggleClient />,
+      fields: {
+        style: {
+          type: 'select' as const, label: 'Style',
+          options: [
+            { value: 'segmented', label: 'Segmented pill (icons)' },
+            { value: 'expand', label: 'Icon, expand on hover' },
+            { value: 'dropdown', label: 'Icon, dropdown menu' },
+            { value: 'text', label: 'Segmented pill (text)' },
+            { value: 'switch', label: 'Sun / moon switch' },
+            { value: 'cycle', label: 'Single icon, click to cycle' },
+          ],
+        },
+      },
+      defaultProps: { style: 'segmented' },
+      render: ({ style }: { style?: 'segmented' | 'expand' | 'dropdown' | 'text' | 'switch' | 'cycle' }) => (
+        <ThemeToggleClient style={style} />
+      ),
     },
     CookieSettingsLink: {
       label: 'Cookie Preferences',

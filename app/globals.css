@@ -971,6 +971,142 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+/* ---- Theme toggle: text segmented variant ---- */
+.theme-toggle--text .theme-toggle-btn {
+  width: auto;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: color var(--dur-base) var(--ease-in-out), background var(--dur-base);
+}
+/* Auto-width buttons make the sliding knob unreliable, so fall back to a
+   background on the pressed segment. */
+.theme-toggle--text .theme-toggle-knob {
+  display: none;
+}
+.theme-toggle--text .theme-toggle-btn[aria-pressed="true"] {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow);
+}
+.theme-toggle-label {
+  line-height: 1;
+}
+
+/* ============================================================
+   THEME TOGGLE — sun/moon switch (light ↔ dark, two-state)
+   ============================================================ */
+.theme-switch {
+  --ts-h: 32px;
+  --ts-w: 56px;
+  position: relative;
+  width: var(--ts-w);
+  height: var(--ts-h);
+  padding: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm) inset;
+  cursor: pointer;
+}
+.theme-switch--compact {
+  --ts-h: 28px;
+  --ts-w: 50px;
+}
+.theme-switch:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.theme-switch-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transition: color var(--dur-base), opacity var(--dur-base);
+}
+.theme-switch-icon--light { left: 7px; }
+.theme-switch-icon--dark  { right: 7px; }
+.theme-switch[data-dark="false"] .theme-switch-icon--light { color: var(--color-primary); }
+.theme-switch[data-dark="true"]  .theme-switch-icon--dark  { color: var(--color-primary); }
+.theme-switch-knob {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--ts-h) / 2);
+  width: calc(var(--ts-h) - 8px);
+  height: calc(var(--ts-h) - 8px);
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow);
+  transition: left var(--dur-slow) var(--ease-spring);
+}
+.theme-switch[data-dark="true"] .theme-switch-knob {
+  left: calc(var(--ts-w) - var(--ts-h) / 2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch-knob { transition: none; }
+}
+
+/* ============================================================
+   THEME TOGGLE — icon trigger + option menu (expand / dropdown)
+   ============================================================ */
+.theme-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.tt-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 128px;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity var(--dur-base), transform var(--dur-base), visibility var(--dur-base);
+  z-index: 30;
+}
+/* Expand: reveal on hover / keyboard focus. Dropdown: reveal when open. */
+.theme-menu-wrap--expand:hover .tt-menu,
+.theme-menu-wrap--expand:focus-within .tt-menu,
+.theme-menu-wrap[data-open="true"] .tt-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.tt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1-5) var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  text-align: left;
+  transition: background var(--dur-base), color var(--dur-base);
+}
+.tt-menu-item:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+.tt-menu-item[aria-selected="true"] {
+  color: var(--color-primary);
+}
+.tt-menu-icon {
+  display: inline-flex;
+}
+
 /* ============================================================
    ROW ACTION ICON BUTTON — used in table rows (e.g. inbox list)
    Tooltip visuals match .theme-toggle-tip above.

@@ -1,11 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 type Mode = 'auto' | 'light' | 'dark'
 
+export type ThemeToggleStyle =
+  | 'segmented'
+  | 'text'
+  | 'expand'
+  | 'dropdown'
+  | 'switch'
+  | 'cycle'
+
+function systemPrefersDark() {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
 function applyTheme(mode: Mode) {
-  const isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const isDark = mode === 'dark' || (mode === 'auto' && systemPrefersDark())
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
 }
 
@@ -32,10 +44,12 @@ const DarkIcon = (
 
 const ICONS: Record<Mode, React.ReactNode> = { light: LightIcon, auto: AutoIcon, dark: DarkIcon }
 const LABELS: Record<Mode, string> = { light: 'Light', auto: 'Auto', dark: 'Dark' }
+const MODES: Mode[] = ['light', 'auto', 'dark']
 // Cycle order when collapsed: light → auto (system) → dark → light
 const NEXT_MODE: Record<Mode, Mode> = { light: 'auto', auto: 'dark', dark: 'light' }
 
-export function ThemeToggle({ compact = false, collapsed = false }: { compact?: boolean; collapsed?: boolean }) {
+/** Shared theme state: reads persisted mode, applies it, keeps system changes live. */
+function useThemeMode(): [Mode, (m: Mode) => void] {
   const [mode, setMode] = useState<Mode>(() =>
     typeof window !== 'undefined' ? (localStorage.getItem('cactus-theme') as Mode) ?? 'auto' : 'auto'
   )
@@ -55,13 +69,69 @@ export function ThemeToggle({ compact = false, collapsed = false }: { compact?: 
     return () => mq.removeEventListener('change', onSystemChange)
   }, [mode, onSystemChange])
 
-  function apply(m: Mode) {
+  const apply = useCallback((m: Mode) => {
     setMode(m)
     localStorage.setItem('cactus-theme', m)
     applyTheme(m)
-  }
+  }, [])
 
-  if (collapsed) {
+  return [mode, apply]
+}
+
+/** Popover option list — shared by the expand (hover) and dropdown (click) styles. */
+function ThemeMenu({ mode, apply, onPick }: { mode: Mode; apply: (m: Mode) => void; onPick?: () => void }) {
+  return (
+    <div className="tt-menu" role="listbox" aria-label="Colour scheme">
+      {MODES.map((m) => (
+        <button
+          key={m}
+          type="button"
+          className="tt-menu-item"
+          role="option"
+          aria-selected={mode === m}
+          onClick={() => { apply(m); onPick?.() }}
+        >
+          <span className="tt-menu-icon" aria-hidden="true">{ICONS[m]}</span>
+          <span>{LABELS[m]}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function ThemeToggle({
+  compact = false,
+  collapsed = false,
+  style = 'segmented',
+}: {
+  compact?: boolean
+  collapsed?: boolean
+  style?: ThemeToggleStyle
+}) {
+  const [mode, apply] = useThemeMode()
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Close the dropdown menu on outside click or Escape.
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  // The admin sidebar collapses to a single cycle button regardless of style.
+  const effectiveStyle: ThemeToggleStyle = collapsed ? 'cycle' : style
+
+  // --- Cycle: one icon, click steps light → auto → dark ---
+  if (effectiveStyle === 'cycle') {
     const next = NEXT_MODE[mode]
     return (
       <button
@@ -76,47 +146,76 @@ export function ThemeToggle({ compact = false, collapsed = false }: { compact?: 
     )
   }
 
+  // --- Switch: two-state sun/moon slider (light ↔ dark, no auto) ---
+  if (effectiveStyle === 'switch') {
+    const isDark = mode === 'dark' || (mode === 'auto' && systemPrefersDark())
+    return (
+      <button
+        type="button"
+        className={`theme-switch${compact ? ' theme-switch--compact' : ''}`}
+        role="switch"
+        aria-checked={isDark}
+        aria-label={`Dark mode ${isDark ? 'on' : 'off'}`}
+        title={isDark ? 'Dark mode' : 'Light mode'}
+        data-dark={isDark ? 'true' : 'false'}
+        onClick={() => apply(isDark ? 'light' : 'dark')}
+      >
+        <span className="theme-switch-icon theme-switch-icon--light" aria-hidden="true">{LightIcon}</span>
+        <span className="theme-switch-icon theme-switch-icon--dark" aria-hidden="true">{DarkIcon}</span>
+        <span className="theme-switch-knob" aria-hidden="true" />
+      </button>
+    )
+  }
+
+  // --- Expand (hover) & Dropdown (click): trigger icon + option menu ---
+  if (effectiveStyle === 'expand' || effectiveStyle === 'dropdown') {
+    const isDropdown = effectiveStyle === 'dropdown'
+    return (
+      <div
+        ref={rootRef}
+        className={`theme-menu-wrap theme-menu-wrap--${effectiveStyle}${compact ? ' theme-menu-wrap--compact' : ''}`}
+        data-open={isDropdown && open ? 'true' : 'false'}
+      >
+        <button
+          type="button"
+          className="theme-toggle-cycle theme-menu-trigger"
+          onClick={isDropdown ? () => setOpen((v) => !v) : undefined}
+          aria-haspopup="listbox"
+          aria-expanded={isDropdown ? open : undefined}
+          title={`Colour scheme: ${LABELS[mode]}`}
+          aria-label={`Colour scheme: ${LABELS[mode]}`}
+        >
+          {ICONS[mode]}
+        </button>
+        <ThemeMenu mode={mode} apply={apply} onPick={isDropdown ? () => setOpen(false) : undefined} />
+      </div>
+    )
+  }
+
+  // --- Segmented (icons) & Text (labels): sliding-knob 3-way control ---
+  const isText = effectiveStyle === 'text'
   return (
     <div
       role="group"
       aria-label="Colour scheme"
-      className={`theme-toggle${compact ? ' theme-toggle--compact' : ''}`}
+      className={`theme-toggle${compact ? ' theme-toggle--compact' : ''}${isText ? ' theme-toggle--text' : ''}`}
       data-mode={mode}
     >
       <span className="theme-toggle-knob" aria-hidden="true" />
 
-      <button
-        type="button"
-        className="theme-toggle-btn"
-        onClick={() => apply('light')}
-        aria-pressed={mode === 'light'}
-        aria-label="Light mode"
-      >
-        {LightIcon}
-        <span className="theme-toggle-tip" aria-hidden="true">Light</span>
-      </button>
-
-      <button
-        type="button"
-        className="theme-toggle-btn"
-        onClick={() => apply('auto')}
-        aria-pressed={mode === 'auto'}
-        aria-label="Auto (follow system)"
-      >
-        {AutoIcon}
-        <span className="theme-toggle-tip" aria-hidden="true">Auto</span>
-      </button>
-
-      <button
-        type="button"
-        className="theme-toggle-btn"
-        onClick={() => apply('dark')}
-        aria-pressed={mode === 'dark'}
-        aria-label="Dark mode"
-      >
-        {DarkIcon}
-        <span className="theme-toggle-tip" aria-hidden="true">Dark</span>
-      </button>
+      {MODES.map((m) => (
+        <button
+          key={m}
+          type="button"
+          className="theme-toggle-btn"
+          onClick={() => apply(m)}
+          aria-pressed={mode === m}
+          aria-label={m === 'auto' ? 'Auto (follow system)' : `${LABELS[m]} mode`}
+        >
+          {isText ? <span className="theme-toggle-label">{LABELS[m]}</span> : ICONS[m]}
+          {!isText && <span className="theme-toggle-tip" aria-hidden="true">{LABELS[m]}</span>}
+        </button>
+      ))}
     </div>
   )
 }
