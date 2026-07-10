@@ -10,6 +10,7 @@ import { loginRejectionForStatus } from '@/lib/members/registration'
 import { createMemberEmailChallenge } from '@/lib/members/email-challenge'
 import { getActiveSmsProvider, sendLoginCodeSms, maskPhone } from '@/lib/auth/sms'
 import { decryptSecret } from '@/lib/crypto/secrets'
+import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { createMemberSession, setMemberSessionCookie, isMemberBrowserTrusted } from '@/lib/members/session'
 import { sendLoginOtp } from '@/lib/email/index'
 import { verifyTurnstile } from '@/lib/auth/turnstile'
@@ -74,7 +75,11 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') ?? undefined,
     })
     await setMemberSessionCookie(token)
-    return NextResponse.json({ step: 'done', memberId: member.id })
+    return NextResponse.json({
+      step: 'done',
+      memberId: member.id,
+      smsEnrolmentRequired: await memberNeedsSmsEnrolment(config, member.twoFactorConfigs),
+    })
   }
 
   // A verified SMS config takes priority when a provider module can actually

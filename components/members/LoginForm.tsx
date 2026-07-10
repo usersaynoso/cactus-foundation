@@ -60,6 +60,15 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
     window.location.href = `verify-email?email=${encodeURIComponent(emailForVerify)}`
   }
 
+  // When the site requires a mobile number for sign-in codes and this member
+  // hasn't added one yet, land them on the account overview (where the
+  // enrolment card lives) instead of wherever they were headed.
+  function finishLogin(smsEnrolmentRequired?: boolean) {
+    window.location.href = smsEnrolmentRequired
+      ? window.location.pathname.replace(/\/login$/, '') || '/'
+      : redirectTo
+  }
+
   async function handlePasskeyLogin() {
     setError('')
     setLoading(true)
@@ -130,7 +139,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
         throw new Error(d.error ?? 'Sign-in failed')
       }
       if (d.step === 'done') {
-        window.location.href = redirectTo
+        finishLogin(d.smsEnrolmentRequired)
         return
       }
       setMemberId(d.memberId)
@@ -158,7 +167,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
         if (d.redirectToVerify) return handleRedirectToVerify(email)
         throw new Error(d.error ?? 'Verification failed')
       }
-      window.location.href = redirectTo
+      finishLogin(d.smsEnrolmentRequired)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Verification failed')
     } finally {

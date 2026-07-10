@@ -14,6 +14,8 @@ import {
   setMemberTrustedBrowserCookie,
 } from '@/lib/members/session'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
+import { getMembersConfig } from '@/lib/members/config'
+import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { recordMemberActivity } from '@/lib/members/activity'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 
@@ -96,5 +98,9 @@ export async function POST(request: NextRequest) {
 
   await recordMemberActivity(member.id, 'login', { metadata: { method: 'PASSWORD', twoFactor: twoFactor.method } })
 
-  return NextResponse.json({ verified: true, memberId: member.id })
+  return NextResponse.json({
+    verified: true,
+    memberId: member.id,
+    smsEnrolmentRequired: await memberNeedsSmsEnrolment(await getMembersConfig(), configs),
+  })
 }

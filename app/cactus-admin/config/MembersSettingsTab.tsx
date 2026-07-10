@@ -8,6 +8,7 @@ type Config = {
   emailVerificationRequired: boolean
   allowedAuthMethods: string[]
   passwordsEnabled: boolean
+  smsTwoFactorPolicy: 'OPTIONAL' | 'REQUIRED'
   trustedBrowserDays: number
   sessionDays: number
   avatarUploadsEnabled: boolean
@@ -221,6 +222,18 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="checkbox" checked={config.passwordsEnabled} onChange={(e) => update('passwordsEnabled', e.target.checked)} />
             Enable password sign-in (2FA becomes mandatory)
           </label>
+          <div className="field">
+            <label>Mobile number for sign-in codes</label>
+            <select value={config.smsTwoFactorPolicy} onChange={(e) => update('smsTwoFactorPolicy', e.target.value as Config['smsTwoFactorPolicy'])}>
+              <option value="OPTIONAL">Optional - members may add one if they like</option>
+              <option value="REQUIRED">Required - members must add one</option>
+            </select>
+            <span className="field-hint">
+              Applies to password sign-in only, and only while a text-message module (such as Twilio)
+              is installed and configured. Members without a number are still let in with email codes,
+              but are prompted to add one until they do.
+            </span>
+          </div>
           <div className="field">
             <label>Session duration (days)</label>
             <input type="number" min={1} value={config.sessionDays} onChange={(e) => update('sessionDays', Number(e.target.value))} />

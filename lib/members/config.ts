@@ -12,6 +12,11 @@ export const MembersConfigSchema = z.object({
   emailVerificationRequired: z.boolean().default(true),
   allowedAuthMethods: z.array(z.enum(['PASSKEY', 'MAGIC_LINK', 'PASSWORD'])).default(['PASSKEY', 'MAGIC_LINK']),
   passwordsEnabled: z.boolean().default(false),
+  // Whether members must enrol a mobile number for SMS sign-in codes.
+  // REQUIRED only bites while an SMS provider module is active and configured;
+  // without one it behaves as OPTIONAL (nothing to enrol against). Applies to
+  // password sign-in only - passkey and magic-link flows never use codes.
+  smsTwoFactorPolicy: z.enum(['OPTIONAL', 'REQUIRED']).default('OPTIONAL'),
   trustedBrowserDays: z.number().int().min(1).max(365).default(30),
   // Member session duration in days (sliding expiry)
   sessionDays: z.number().int().min(1).max(365).default(30),
