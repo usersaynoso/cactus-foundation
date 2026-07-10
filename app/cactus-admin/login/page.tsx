@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 type LoginStep = 'passkey' | 'password' | 'otp' | 'totp'
@@ -31,6 +31,8 @@ export default function LoginPage() {
   const [noPasskeyUserId, setNoPasskeyUserId] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [tokenRecoveryMode] = useState(!!recoveryToken)
+  const [showFallback, setShowFallback] = useState(!!recoveryToken)
+  const autoPasskeyAttempted = useRef(false)
 
   useEffect(() => {
     fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean; neonProjectId: string | null }) => {
@@ -39,11 +41,18 @@ export default function LoginPage() {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (autoPasskeyAttempted.current || tokenRecoveryMode) return
+    autoPasskeyAttempted.current = true
+    void handlePasskeyLogin(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount to auto-prompt for a passkey
+  }, [])
+
   function redirect(path?: string) {
     window.location.href = path ?? nextUrl ?? '/'
   }
 
-  async function handlePasskeyLogin() {
+  async function handlePasskeyLogin(auto = false) {
     setError('')
     setLoading(true)
     try {
@@ -63,6 +72,7 @@ export default function LoginPage() {
       if (opts.noPasskeys) {
         setNoPasskeyUserId(opts.userId ?? '')
         setNoPasskeyMode(emailAvailable ? 'email' : 'register')
+        setShowFallback(true)
         return
       }
 
@@ -82,7 +92,14 @@ export default function LoginPage() {
       const ap = parts[1] ?? ''
       redirect(nextUrl || `/${ap}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Passkey authentication failed')
+      // A cancelled/failed automatic prompt is expected (e.g. Safari blocks
+      // WebAuthn without a user gesture) - reveal the other sign-in options
+      // without shouting about it.
+      const cancelled = err instanceof Error && err.name === 'NotAllowedError'
+      if (!(auto && cancelled)) {
+        setError(err instanceof Error ? err.message : 'Passkey authentication failed')
+      }
+      setShowFallback(true)
     } finally {
       setLoading(false)
     }
@@ -355,8 +372,20 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* ── Automatic passkey prompt (fires on page load) ── */}
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'passkey' && !showFallback && (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-6)' }}>
+              🔑 Waiting for your passkey…
+            </p>
+            <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { setShowFallback(true); setError('') }}>
+              Use another way to sign in
+            </button>
+          </div>
+        )}
+
         {/* ── Normal login flows ── */}
-        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'passkey' && (
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'passkey' && showFallback && (
           <div>
             <div className="field">
               <label>Email address (optional)</label>
@@ -369,7 +398,7 @@ export default function LoginPage() {
                 autoComplete="email"
               />
             </div>
-            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={handlePasskeyLogin}>
+            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={() => handlePasskeyLogin()}>
               {loading ? 'Waiting for passkey…' : '🔑 Sign in with passkey'}
             </button>
             {emailAvailable && (

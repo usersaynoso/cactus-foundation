@@ -83,6 +83,8 @@ To change your display name, email address, or password, click **My account** at
 
 Passkeys are the primary way to sign in to Cactus - they use your device's fingerprint reader, Face ID, or a security key instead of a password. They're faster and more secure than a password alone.
 
+The sign-in page asks your device for a passkey as soon as it loads - no button to click first. If you dismiss the prompt (or your browser wants a click before it will show one), the page reveals the other ways in: **Use another way to sign in** gives you the passkey button again alongside the password and authenticator app options.
+
 To add a new passkey:
 
 1. Go to **My account → Passkeys**.
