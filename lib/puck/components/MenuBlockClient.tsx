@@ -243,22 +243,26 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
   )
 }
 
-function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0 }: {
+function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, centered = false }: {
   item: MenuItem
   onClose: () => void
   colours?: MenuLinkColours
   fontFamily?: string
   depth?: number
+  centered?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const pathname = usePathname()
   const hasChildren = !!item.children?.length
   const active = isActiveHref(item.href, pathname)
-  const pl = depth > 0 ? `${depth + 1}rem` : '1.5rem'
+  // Centered (Dropdown nav mode) skips the depth-based indent - asymmetric
+  // left padding would throw off text-align:center - and keeps every level at
+  // the same flat 1.5rem inset instead.
+  const pl = centered ? '1.5rem' : (depth > 0 ? `${depth + 1}rem` : '1.5rem')
 
   return (
-    <div>
+    <div style={centered ? { textAlign: 'center' } : undefined}>
       <div
         style={{ padding: `0 1.5rem 0 ${pl}`, cursor: hasChildren ? 'pointer' : undefined }}
         onClick={() => hasChildren && setOpen((o) => !o)}
@@ -304,7 +308,7 @@ function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0 }: {
       {hasChildren && open && (
         <div>
           {item.children!.map((child) => (
-            <MobileNavItem key={child.id} item={child} onClose={onClose} colours={colours} fontFamily={fontFamily} depth={depth + 1} />
+            <MobileNavItem key={child.id} item={child} onClose={onClose} colours={colours} fontFamily={fontFamily} depth={depth + 1} centered={centered} />
           ))}
         </div>
       )}
@@ -325,11 +329,12 @@ function currentPageLabel(items: MenuItem[], pathname: string | null, fallback: 
   return fallback
 }
 
-// "Dropdown" nav behaviour: a single button showing the current page, with an
-// arrow that opens the full menu below it. Hidden by default (display:none);
-// buildTokenStyles' breakpoint rules reveal it via the cactus-nav-dd-* classes
-// at whichever widths chose this mode. Reuses MobileNavItem for the panel so the
-// nested accordion behaves exactly like the hamburger drawer.
+// "Dropdown" nav behaviour: a single button showing the current page, with a
+// hamburger icon on the right that opens the full (centre-aligned) menu below
+// it. Hidden by default (display:none); buildTokenStyles' breakpoint rules
+// reveal it via the cactus-nav-dd-* classes at whichever widths chose this
+// mode. Reuses MobileNavItem for the panel so the nested accordion behaves
+// like the hamburger drawer, just centred.
 function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
   items: MenuItem[]
   colours?: MenuLinkColours
@@ -374,7 +379,11 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
         }}
       >
         {current}
-        <span style={{ fontSize: '0.625rem', opacity: 0.6, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} aria-hidden>▾</span>
+        <span aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+        </span>
       </button>
       {open && (
         <div style={{
@@ -393,7 +402,7 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
           zIndex: 100,
         }}>
           {items.map((item) => (
-            <MobileNavItem key={item.id} item={item} onClose={() => setOpen(false)} colours={colours} fontFamily={fontFamily} />
+            <MobileNavItem key={item.id} item={item} onClose={() => setOpen(false)} colours={colours} fontFamily={fontFamily} centered />
           ))}
         </div>
       )}

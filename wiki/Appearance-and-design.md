@@ -186,6 +186,12 @@ To create or edit a menu:
 
 You can have multiple menus and use them in different places - for example, a main navigation in the header and a footer links menu in the footer.
 
+The **Menu** block's **Nav behaviour** setting decides how the menu appears at each screen size (desktop, tablet, mobile):
+
+- **Always show** - the full row of links, as-is.
+- **Collapse to hamburger** - the links fold away behind the usual three-line hamburger button that opens a drop-down panel.
+- **Dropdown (current page)** - the menu shrinks to a single button showing the page you're currently on, with a little arrow; clicking it opens the full menu. Handy when space is tight but a hamburger feels like overkill.
+
 Click **+ Add item** to open the picker, then choose where the link should go:
 
 - **Page** - one of your info pages. Pick this to search and select from your pages.
