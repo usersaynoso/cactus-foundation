@@ -295,7 +295,7 @@ function UpdatesPanel() {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
           <div>
-            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
+            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Updates</h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
               Running v{pkg.version}
             </p>
@@ -465,7 +465,7 @@ function UpdatesPanel() {
     <div className="card" style={{ marginBottom: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.75rem' }}>
         <div>
-          <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
+          <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Updates</h3>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
             {subtitle}
             {subtitleSuffix && <> &middot; {subtitleSuffix}</>}
