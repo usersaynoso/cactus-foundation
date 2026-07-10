@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 type Step = 'email' | 'no-passkey' | 'magic-sent' | 'consuming' | 'password' | '2fa' | 'recovery-code'
-type TwoFactorMethod = 'EMAIL' | 'AUTHENTICATOR_APP'
+type TwoFactorMethod = 'EMAIL' | 'AUTHENTICATOR_APP' | 'SMS'
 
 type Props = {
   redirectTo: string
@@ -18,6 +18,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
   const [trustBrowser, setTrustBrowser] = useState(false)
   const [memberId, setMemberId] = useState('')
   const [twoFactorMethod, setTwoFactorMethod] = useState<TwoFactorMethod>('EMAIL')
+  const [twoFactorDestination, setTwoFactorDestination] = useState('')
   const [passwordsEnabled, setPasswordsEnabled] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -134,6 +135,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
       }
       setMemberId(d.memberId)
       setTwoFactorMethod(d.method)
+      setTwoFactorDestination(d.destination ?? '')
       setStep('2fa')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sign-in failed')
@@ -209,8 +211,13 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
       <div>
         {heading}
         {error && <div className="alert alert-danger">{error}</div>}
+        {twoFactorMethod === 'SMS' && (
+          <p className="field-hint" style={{ marginBottom: 'var(--space-3)' }}>
+            We&apos;ve sent a code by text message{twoFactorDestination ? ` to ${twoFactorDestination}` : ''}.
+          </p>
+        )}
         <div className="field">
-          <label>{twoFactorMethod === 'EMAIL' ? 'Email code' : 'Authenticator code'}</label>
+          <label>{twoFactorMethod === 'EMAIL' ? 'Email code' : twoFactorMethod === 'SMS' ? 'Text message code' : 'Authenticator code'}</label>
           <input
             type="text"
             inputMode="numeric"

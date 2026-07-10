@@ -99,6 +99,19 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     component: z.string().min(1),
   })).default([]),
+  // SMS providers this module contributes. Core auth uses the first configured
+  // provider from an active module to deliver login codes by text message
+  // (admin password login and member SMS 2FA). `import`/`export` name a module
+  // file exporting an object satisfying core's SmsProvider type (lib/auth/sms.ts):
+  // { isConfigured(): boolean | Promise<boolean>, sendSms(to, body): Promise<void> }.
+  // Collected by scripts/generate-module-sms-providers.mjs into
+  // lib/modules/sms-providers.ts.
+  smsProviders: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    import: z.string().min(1),
+    export: z.string().min(1),
+  })).default([]),
   // Declarative contributions to the core Members system (see MEMBERS_SPEC.md
   // amendment 5). Pure data, read live from this manifest at request time by
   // core Members code (lib/modules/member-extensions.ts) - no codegen step,

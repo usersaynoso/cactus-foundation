@@ -24,6 +24,11 @@
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.26"
+    },
+    {
+      "name": "twilio",
+      "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
+      "version": "v0.1.0"
     }
   ]
 }

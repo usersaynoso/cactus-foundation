@@ -40,12 +40,20 @@ export async function POST(request: NextRequest) {
     where: { id: memberId },
     include: { twoFactorConfigs: true },
   })
-  const twoFactor = member?.twoFactorConfigs[0]
+  // Mirror the selection in password/login so both steps agree on the method.
+  // SMS codes live in the same challenge store as EMAIL codes (only the
+  // delivery differs), so both verify through verifyMemberEmailChallenge -
+  // which also covers the login route's silent SMS→email fallback.
+  const configs = member?.twoFactorConfigs ?? []
+  const twoFactor =
+    configs.find((c) => c.method === 'SMS' && c.verified && c.phoneEncrypted) ??
+    configs.find((c) => c.method !== 'SMS') ??
+    configs[0]
   if (!member || !twoFactor) {
     return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
   }
 
-  if (twoFactor.method === 'EMAIL') {
+  if (twoFactor.method === 'EMAIL' || twoFactor.method === 'SMS') {
     const result = await verifyMemberEmailChallenge(memberId, 'login_2fa', code)
     if (!result.success) {
       const message =

@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [userId, setUserId] = useState('')
+  const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>('email')
+  const [otpDestination, setOtpDestination] = useState('')
   const [trustDevice, setTrustDevice] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -98,6 +100,8 @@ export default function LoginPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Login failed')
       setUserId(d.userId)
+      setOtpChannel(d.channel === 'sms' ? 'sms' : 'email')
+      setOtpDestination(d.destination ?? '')
       setStep('otp')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -462,7 +466,9 @@ export default function LoginPage() {
         {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === null && step === 'otp' && (
           <div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-base)', margin: '0 0 var(--space-5)' }}>
-              We sent a 6-digit code to <strong>{email}</strong>. Enter it below.
+              {otpChannel === 'sms'
+                ? <>We sent a 6-digit code by text message to <strong>{otpDestination || 'your phone'}</strong>. Enter it below.</>
+                : <>We sent a 6-digit code to <strong>{email}</strong>. Enter it below.</>}
             </p>
             <div className="field">
               <label>Verification code</label>

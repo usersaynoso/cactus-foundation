@@ -8,6 +8,8 @@ import { verifyPassword } from '@/lib/auth/password'
 import { createEmailChallenge } from '@/lib/auth/email-challenge'
 import { sendLoginOtp } from '@/lib/email/index'
 import { verifyTurnstile } from '@/lib/auth/turnstile'
+import { getActiveSmsProvider, sendLoginCodeSms, maskPhone } from '@/lib/auth/sms'
+import { decryptSecret } from '@/lib/crypto/secrets'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 
@@ -55,13 +57,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Account suspended' }, { status: 403 })
   }
 
-  // Send OTP
+  // Send OTP - by text message when the user has enrolled a phone and an SMS
+  // provider module is active, otherwise (and on any SMS failure) by email.
+  // Both channels share the same challenge, so /api/auth/email-code verifies
+  // either without knowing which one delivered it.
   const code = await createEmailChallenge(user.id, 'login_otp')
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
     select: { siteName: true },
   })
-  await sendLoginOtp(user.email, code, config?.siteName ?? 'Cactus')
+  const siteName = config?.siteName ?? 'Cactus'
 
-  return NextResponse.json({ step: 'otp', userId: user.id })
+  let channel: 'email' | 'sms' = 'email'
+  let destination: string | undefined
+  if (user.smsOtpPhoneEncrypted) {
+    const provider = await getActiveSmsProvider()
+    if (provider) {
+      try {
+        const phone = decryptSecret(user.smsOtpPhoneEncrypted)
+        await sendLoginCodeSms(provider, phone, code, siteName)
+        channel = 'sms'
+        destination = maskPhone(phone)
+      } catch (err) {
+        console.error('[login] SMS delivery failed, falling back to email:', err)
+      }
+    }
+  }
+  if (channel === 'email') {
+    await sendLoginOtp(user.email, code, siteName)
+  }
+
+  return NextResponse.json({ step: 'otp', userId: user.id, channel, destination })
 }

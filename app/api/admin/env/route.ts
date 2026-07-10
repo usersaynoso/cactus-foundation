@@ -50,6 +50,37 @@ const ALLOWED_KEYS = new Set([
   'NEXT_PUBLIC_SITE_URL',
 ])
 
+// Strictly protected infra vars a module manifest must never be able to manage,
+// no matter what its requiredEnvVars declares.
+const PROTECTED_KEYS = new Set([
+  'DATABASE_URL',
+  'SESSION_SECRET',
+  'SITE_URL',
+  'VERCEL_API_TOKEN',
+  'VERCEL_PROJECT_ID',
+])
+
+// Installed modules declare their env vars via the manifest's requiredEnvVars;
+// those become manageable through this route without any per-module core edit.
+async function getManagedKeys(): Promise<Set<string>> {
+  const keys = new Set(ALLOWED_KEYS)
+  try {
+    const mods = await prisma.module.findMany({
+      where: { status: { in: ['active', 'update_available', 'inactive'] } },
+      select: { manifest: true },
+    })
+    for (const mod of mods) {
+      const manifest = mod.manifest as { requiredEnvVars?: Array<{ name?: string }> } | null
+      for (const v of manifest?.requiredEnvVars ?? []) {
+        if (v.name && !PROTECTED_KEYS.has(v.name)) keys.add(v.name)
+      }
+    }
+  } catch {
+    // No DB (setup phase) — core keys only.
+  }
+  return keys
+}
+
 // GET — returns which vars are currently set (boolean only, never values).
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -61,7 +92,7 @@ export async function GET() {
   // the UI can show status without ever calling the Vercel API.
   if (isLocalMode()) {
     const vars: Record<string, boolean> = {}
-    for (const key of ALLOWED_KEYS) {
+    for (const key of await getManagedKeys()) {
       vars[key] = !!process.env[key]
     }
     return NextResponse.json({ vars, localMode: true })
@@ -77,7 +108,7 @@ export async function GET() {
     const keys = await getVercelEnvVarKeys(token, projectId)
     const keySet = new Set(keys)
     const vars: Record<string, boolean> = {}
-    for (const key of ALLOWED_KEYS) {
+    for (const key of await getManagedKeys()) {
       vars[key] = keySet.has(key)
     }
     return NextResponse.json({ vars })
@@ -122,8 +153,9 @@ export async function POST(req: NextRequest) {
   // managed keys (tokens, hosts, ports, names, URLs, DSNs) legitimately carry
   // surrounding whitespace, so trimming on write is always safe - and never trust
   // the client to have done it.
+  const managedKeys = await getManagedKeys()
   const toWrite = body.vars
-    .filter(({ key, value }) => ALLOWED_KEYS.has(key) && typeof value === 'string' && value.trim() !== '')
+    .filter(({ key, value }) => managedKeys.has(key) && typeof value === 'string' && value.trim() !== '')
     .map(({ key, value }) => ({ key, value: value.trim() }))
 
   if (toWrite.length === 0) {

@@ -36,6 +36,7 @@ CREATE TABLE "User" (
     "totpSecretEncrypted" TEXT,
     "totpVerifiedAt" TIMESTAMP(3),
     "totpLastStep" BIGINT,
+    "smsOtpPhoneEncrypted" TEXT,
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
@@ -510,7 +511,7 @@ CREATE TABLE "GithubAppConnection" (
 
 CREATE TYPE "MemberStatus" AS ENUM ('PENDING_VERIFICATION', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'DELETED');
 CREATE TYPE "AvatarChoice" AS ENUM ('UPLOAD', 'GRAVATAR', 'GENERATED');
-CREATE TYPE "TwoFactorMethod" AS ENUM ('EMAIL', 'AUTHENTICATOR_APP');
+CREATE TYPE "TwoFactorMethod" AS ENUM ('EMAIL', 'AUTHENTICATOR_APP', 'SMS');
 CREATE TYPE "NotificationChannel" AS ENUM ('EMAIL');
 CREATE TYPE "DigestMode" AS ENUM ('INSTANT', 'DAILY', 'WEEKLY', 'DISABLED');
 CREATE TYPE "DataExportStatus" AS ENUM ('PENDING', 'PROCESSING', 'READY', 'EXPIRED');
@@ -571,6 +572,7 @@ CREATE TABLE "MemberTwoFactor" (
     "memberId" TEXT NOT NULL,
     "method" "TwoFactorMethod" NOT NULL,
     "secretEncrypted" TEXT,
+    "phoneEncrypted" TEXT,
     "verified" BOOLEAN NOT NULL DEFAULT false,
     "lastStep" BIGINT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

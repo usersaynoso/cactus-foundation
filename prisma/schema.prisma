@@ -32,6 +32,9 @@ model User {
   totpSecretEncrypted     String?
   totpVerifiedAt          DateTime?
   totpLastStep            BigInt?
+  // AES-256-GCM encrypted phone number (lib/crypto/secrets.ts). When set and an
+  // SMS provider module is active, password-login OTPs go by text instead of email.
+  smsOtpPhoneEncrypted    String?
 
   passkeys        Passkey[]
   sessions        Session[]
@@ -638,6 +641,7 @@ enum AvatarChoice {
 enum TwoFactorMethod {
   EMAIL
   AUTHENTICATOR_APP
+  SMS
 }
 
 enum NotificationChannel {
@@ -745,6 +749,8 @@ model MemberTwoFactor {
   method          TwoFactorMethod
   // AES-256-GCM encrypted TOTP secret (lib/crypto/secrets.ts); null for EMAIL method
   secretEncrypted String?
+  // AES-256-GCM encrypted phone number; set only for the SMS method
+  phoneEncrypted  String?
   verified        Boolean         @default(false)
   // TOTP replay guard — last accepted time step (mirrors User.totpLastStep)
   lastStep        BigInt?
