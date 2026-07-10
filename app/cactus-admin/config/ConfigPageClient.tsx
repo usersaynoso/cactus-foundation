@@ -306,6 +306,8 @@ function UpdatesPanel() {
   let subtitle: string
   let body: React.ReactNode
   let confirmModal: React.ReactNode = null
+  let updateControls: React.ReactNode = null
+  let releaseNotesModal: React.ReactNode = null
 
   if (isLocal) {
     badge = <span className="badge badge-default">Local dev</span>
@@ -345,38 +347,10 @@ function UpdatesPanel() {
   } else {
     badge = <span className="badge badge-primary">Update available</span>
     subtitle = `Running v${status.currentVersion}`
-    body = (
-      <div>
-        <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 0.75rem' }}>
-          v{status.currentVersion} &rarr; <strong>v{status.latestVersion}</strong>{' '}
-          <a
-            href={status.latestUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginLeft: '0.25rem' }}
-          >
-            View on GitHub →
-          </a>
-        </p>
+    body = null
 
-        {status.releaseNotesHtml && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <button
-              type="button"
-              onClick={() => setShowNotes((s) => !s)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 'var(--text-sm)', color: 'var(--color-primary)', fontFamily: 'inherit' }}
-            >
-              {showNotes ? 'Hide' : "What's new"} {showNotes ? '▲' : '▼'}
-            </button>
-            {showNotes && (
-              <div
-                style={{ marginTop: '0.625rem', border: '1px solid var(--color-border)', borderRadius: 6, padding: '0.75rem 1rem', maxHeight: '16rem', overflowY: 'auto', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
-                dangerouslySetInnerHTML={{ __html: status.releaseNotesHtml }}
-              />
-            )}
-          </div>
-        )}
-
+    updateControls = (
+      <>
         <button
           className="btn btn-primary"
           style={{ fontSize: 'var(--text-sm)' }}
@@ -384,8 +358,48 @@ function UpdatesPanel() {
         >
           Update now
         </button>
-      </div>
+        {status.releaseNotesHtml && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ fontSize: 'var(--text-sm)' }}
+            onClick={() => setShowNotes(true)}
+          >
+            Release notes
+          </button>
+        )}
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          v{status.currentVersion} &rarr; <strong>v{status.latestVersion}</strong>
+        </span>
+      </>
     )
+
+    if (showNotes && status.releaseNotesHtml) {
+      releaseNotesModal = (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNotes(false) }}
+        >
+          <div className="card" style={{ maxWidth: '560px', width: '100%', margin: '1rem', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.75rem' }}>
+              <h2 className="card-title" style={{ margin: 0 }}>What&rsquo;s new in v{status.latestVersion}</h2>
+              <button
+                type="button"
+                onClick={() => setShowNotes(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '1.25rem', lineHeight: 1, color: 'var(--color-text-muted)' }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div
+              style={{ overflowY: 'auto', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}
+              dangerouslySetInnerHTML={{ __html: status.releaseNotesHtml }}
+            />
+          </div>
+        </div>
+      )
+    }
 
     if (showConfirm) {
       confirmModal = (
@@ -463,7 +477,7 @@ function UpdatesPanel() {
       </div>
 
       {!isLocal && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Update channel:</span>
           <button
             type="button"
@@ -486,11 +500,18 @@ function UpdatesPanel() {
           {channelSaving && (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Saving&hellip;</span>
           )}
+          {updateControls && (
+            <>
+              <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--color-border)', margin: '0 0.25rem' }} />
+              {updateControls}
+            </>
+          )}
         </div>
       )}
 
       {body}
       {confirmModal}
+      {releaseNotesModal}
     </div>
   )
 }
