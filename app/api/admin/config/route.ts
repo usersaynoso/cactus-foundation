@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { isBlocklisted } from '@/lib/config/site'
-import { syncToEdgeConfig } from '@/lib/config/edge-config'
+import { syncToEdgeConfig, waitForAdminPathPropagation } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
@@ -220,6 +220,12 @@ export async function PATCH(request: NextRequest) {
   if (Object.keys(edgeUpdates).length > 0) {
     await syncToEdgeConfig(edgeUpdates).catch(() => {})
     invalidateSiteConfigCache()
+    // The client does a full-page redirect to the new adminPath right after
+    // this response - wait for the write to be visible so that redirect
+    // doesn't land on a 404 against a still-stale edge read.
+    if (edgeUpdates.adminPath) {
+      await waitForAdminPathPropagation(edgeUpdates.adminPath)
+    }
   }
 
   // When the media provider changed, return a per-provider breakdown of existing

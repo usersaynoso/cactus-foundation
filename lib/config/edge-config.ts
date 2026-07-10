@@ -75,3 +75,19 @@ export async function syncToEdgeConfig(updates: {
     return false
   }
 }
+
+// The Edge Config write API can return success before the new value has
+// propagated to every edge region. proxy.ts reads adminPath on every request
+// to gate the admin prefix, so a caller that redirects a user to a new
+// adminPath right after saving can send them into a 404 against a still-stale
+// read. Poll the same read path until it reflects the expected value (or give
+// up after maxWaitMs) so the caller can hold the response until it's safe to redirect.
+export async function waitForAdminPathPropagation(expected: string, maxWaitMs = 3000): Promise<void> {
+  if (!process.env.EDGE_CONFIG) return
+  const start = Date.now()
+  while (Date.now() - start < maxWaitMs) {
+    const { adminPath } = await readFromEdgeConfig()
+    if (adminPath === expected) return
+    await new Promise((r) => setTimeout(r, 300))
+  }
+}
