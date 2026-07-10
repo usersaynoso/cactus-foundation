@@ -6,13 +6,20 @@ import { ColourSwatchButton } from '@/lib/puck/ColourSwatchButton'
 type Props = {
   value: string
   onChange: (value: string) => void
+  label?: string
 }
 
-export function SiteColourField({ value, onChange }: Props) {
+export function SiteColourField({ value, onChange, label }: Props) {
   const colours = useSiteColours()
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', padding: '0.25rem 0' }}>
+    <div>
+      {label && (
+        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
+          {label}
+        </label>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', padding: '0.25rem 0' }}>
       {colours.map((c, i) => {
         const varName = `var(--color-${i + 1})`
         return (
@@ -31,6 +38,7 @@ export function SiteColourField({ value, onChange }: Props) {
         selected={!value}
         onClick={() => onChange('')}
       />
+      </div>
     </div>
   )
 }
