@@ -535,7 +535,7 @@ export default function ModulesPage() {
         ) : available.length === 0 ? (
           <div className="alert alert-info">All available modules are already installed.</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 320px))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 380px))', gap: '1.25rem' }}>
             {available.map((m) => (
               <div key={m.repoUrl} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: 0 }}>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
