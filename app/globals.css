@@ -563,7 +563,6 @@ a:hover {
   height: 12px;
   border-width: 2px;
   color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--admin-sidebar-bg, var(--color-surface));
   border-radius: var(--radius-full);
 }
 .admin-sidebar-bell-spinner.setup-spinner {
