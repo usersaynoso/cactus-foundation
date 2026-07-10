@@ -1710,8 +1710,10 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
               >SMTP</button>
             </div>
           </div>
-          {/* eslint-disable-next-line react-hooks/static-components -- EnvSectionCard is a render helper defined in this file; extracting it would require threading ~20 state values as props */}
-          <EnvSectionCard section={emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION} />
+          {/* Called as a plain function, not JSX: an inline-defined component gets a new
+              identity every parent render, so React would remount the card (and drop input
+              focus) on each keystroke. */}
+          {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div>
@@ -2287,7 +2289,9 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
             <GitHubAppCard />
             {INTEGRATION_SECTIONS.map((section) => (
-              <EnvSectionCard key={section.id} section={section} />
+              // Plain function call (wrapped for the list key) rather than JSX so the
+              // inline-defined card isn't remounted - and inputs unfocused - every render.
+              <Fragment key={section.id}>{EnvSectionCard({ section })}</Fragment>
             ))}
           </div>
         </div>
