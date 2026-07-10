@@ -9,13 +9,24 @@ If you don't have a Twilio account, none of this page applies - carry on happily
 ## Setting it up
 
 1. Install the module from **Modules** in the admin (repository: `cactus-foundation-modules/twilio`).
-2. Go to **Settings → Twilio** and enter three things from your Twilio console:
+2. Go to **Settings → Twilio** and enter two things from your Twilio console:
    - **Account SID** - starts with `AC`, sits on the console dashboard.
    - **Auth token** - right next to the Account SID. Treat it like a password, because it is one.
-   - **From number** - the Twilio number your text messages should be sent from, in international format (e.g. `+447700900123`).
 3. Save. The values take effect after the next deployment - the site will let you know one is needed.
 
 Once connected, the settings tab shows the account it's talking to, so you can tell at a glance whether the credentials work.
+
+---
+
+## Phone numbers
+
+Once connected, a **Phone numbers** section appears on the same settings tab, listing every number on your Twilio account. No typing numbers in by hand - the site fetches them for you, along with whether each one can send text messages.
+
+- **Add to site** - puts a number to work on this site. Add as many as you like; remove them just as easily.
+- **Send texts from this number** - each text-capable number you've added offers this choice, and exactly one holds it at a time. Sign-in codes go out from whichever number you've picked. The first text-capable number you add is chosen automatically, so most people never need to think about it.
+- Numbers that can't send texts are labelled **No texts** and can still be added for call forwarding - they just aren't offered for texting. The site will never try to send a text from a number that can't, which saves a certain amount of head-scratching.
+
+Until a text-capable number is added, sign-in codes carry on arriving by email as usual. Number changes apply immediately - no redeploy needed.
 
 ---
 
