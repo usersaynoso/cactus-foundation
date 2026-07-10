@@ -304,6 +304,7 @@ function UpdatesPanel() {
 
   let badge: React.ReactNode
   let subtitle: string
+  let subtitleSuffix: React.ReactNode = null
   let body: React.ReactNode
   let confirmModal: React.ReactNode = null
   let updateControls: React.ReactNode = null
@@ -339,11 +340,8 @@ function UpdatesPanel() {
   } else if (!status.updateAvailable) {
     badge = <span className="badge badge-success">Up to date</span>
     subtitle = `Running v${status.currentVersion}`
-    body = (
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-        You&rsquo;re on the latest release.
-      </p>
-    )
+    subtitleSuffix = <>You&rsquo;re on the latest release.</>
+    body = null
   } else {
     badge = <span className="badge badge-primary">Update available</span>
     subtitle = `Running v${status.currentVersion}`
@@ -458,7 +456,10 @@ function UpdatesPanel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.75rem' }}>
         <div>
           <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>{subtitle}</p>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+            {subtitle}
+            {subtitleSuffix && <> &middot; {subtitleSuffix}</>}
+          </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           {badge}
