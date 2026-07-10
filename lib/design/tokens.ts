@@ -36,6 +36,24 @@ type HeadingStyle = Typo & { colour?: string; colourDark?: string }
 export type StatusColour = { colour?: string; colourDark?: string }
 export type StatusKey = 'info' | 'success' | 'warning' | 'error'
 
+// Colours for the ButtonLink block's secondary/outline variants. Shape mirrors
+// the top-level buttons colour fields (which style the 'primary' variant).
+// Optional and per-field-optional throughout: unset falls back to the
+// variant's original behaviour (deriving from --color-primary), so old rows
+// and unstyled sites render identically.
+export type ButtonVariantStyle = {
+  textColour?: string; bgColour?: string; borderColour?: string
+  textColourDark?: string; bgColourDark?: string; borderColourDark?: string
+  hover?: { textColour?: string; bgColour?: string; textColourDark?: string; bgColourDark?: string }
+}
+
+// Colours for the Badge block's non-brand colour options ('primary' already
+// reuses --color-primary-subtle). Unset keys keep the block's original
+// hardcoded pastel hexes.
+export type BadgeColourKey = 'blue' | 'yellow' | 'red' | 'gray'
+export type BadgeStyle = { bg?: string; text?: string; bgDark?: string; textDark?: string }
+export const BADGE_COLOUR_KEYS: BadgeColourKey[] = ['blue', 'yellow', 'red', 'gray']
+
 export type DesignTokens = {
   version: 2
   designSystem: {
@@ -65,10 +83,17 @@ export type DesignTokens = {
     headingsFont?: string
     buttons: {
       typo: Typo
+      // Styles the ButtonLink block's 'primary' variant.
       textColour?: string; bgColour?: string; borderColour?: string
       textColourDark?: string; bgColourDark?: string; borderColourDark?: string
       borderWidth?: string; borderRadius?: string; padding?: string
       hover: { textColour?: string; bgColour?: string; textColourDark?: string; bgColourDark?: string }
+      // Optional - added after initial launch, read via `ts?.buttons.secondary`/
+      // `.outline`. Style the ButtonLink block's other two variants
+      // independently of 'primary'. Unset falls back to each variant's
+      // original derived-from---color-primary look, so old rows are unaffected.
+      secondary?: ButtonVariantStyle
+      outline?: ButtonVariantStyle
     }
     images: { borderRadius?: string; borderColour?: string; borderColourDark?: string; borderWidth?: string }
     formFields: {
@@ -77,6 +102,14 @@ export type DesignTokens = {
       textColourDark?: string; bgColourDark?: string; borderColourDark?: string
       labelTypo: Typo; labelColour?: string; labelColourDark?: string
     }
+    // Optional - added after initial launch, read via `ts?.badges`. Colours
+    // for the Badge block's blue/yellow/red/gray options ('primary' already
+    // reuses --color-primary-subtle so isn't listed here). Unset keys keep
+    // the block's original hardcoded pastel hexes.
+    badges?: Partial<Record<BadgeColourKey, BadgeStyle>>
+    // Optional - corner radius for the Badge and Eyebrow blocks' pill shape.
+    // Unset keeps the original hardcoded 9999px (fully round).
+    pillRadius?: string
     spacing?: {
       // Default left/right gutter applied to content blocks on public pages, so
       // they don't run to the screen edges. Emitted as --block-padding.
@@ -387,7 +420,11 @@ export function buildTokenStyles(tokens: unknown): string {
   const darkPrimary = primary ? primaryVars(primary.dark || primary.light, 'dark') : ''
 
   const spacing = SPACING_STEPS.map((m, i) => `--sp-${i + 1}: ${4 * m}px;`).join(' ')
-  const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
+  // Pill/full radius (Badge, Eyebrow) - the one radius step that's owner-
+  // configurable, since it's the only one with a real per-site styling need
+  // seen so far; the fixed sm/md/lg steps below are shared internal defaults.
+  const pillRadius = ts?.pillRadius || '9999px'
+  const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --radius-pill: ${pillRadius}; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
 
   const vars: string[] = []
   // Dark-mode overrides. Each colour is emitted as a CSS var in the light `:root`
@@ -477,6 +514,34 @@ export function buildTokenStyles(tokens: unknown): string {
   if (btns?.padding)            vars.push(`--btn-padding: ${btns.padding};`)
   colourVar('--btn-hover-text', btns?.hover?.textColour, btns?.hover?.textColourDark)
   colourVar('--btn-hover-bg', btns?.hover?.bgColour, btns?.hover?.bgColourDark)
+
+  // Secondary/outline variant colours - each field optional, so an unset one
+  // leaves its CSS var unemitted and the ButtonLink block's own fallback
+  // (deriving from --color-primary) takes over, unchanged from before these
+  // existed.
+  const sec = btns?.secondary
+  colourVar('--btn-secondary-bg', sec?.bgColour, sec?.bgColourDark)
+  colourVar('--btn-secondary-text', sec?.textColour, sec?.textColourDark)
+  colourVar('--btn-secondary-border', sec?.borderColour, sec?.borderColourDark)
+  colourVar('--btn-secondary-hover-text', sec?.hover?.textColour, sec?.hover?.textColourDark)
+  colourVar('--btn-secondary-hover-bg', sec?.hover?.bgColour, sec?.hover?.bgColourDark)
+
+  const outl = btns?.outline
+  colourVar('--btn-outline-text', outl?.textColour, outl?.textColourDark)
+  colourVar('--btn-outline-border', outl?.borderColour, outl?.borderColourDark)
+  colourVar('--btn-outline-hover-text', outl?.hover?.textColour, outl?.hover?.textColourDark)
+  colourVar('--btn-outline-hover-bg', outl?.hover?.bgColour, outl?.hover?.bgColourDark)
+  // Outline's fill starts transparent; only emit a hover background var if one
+  // was actually set; otherwise the variant just keeps its base transparency.
+
+  // Badge block colours ('primary' key already reuses --color-primary-subtle
+  // via the block's own inline fallback, so isn't handled here).
+  for (const key of BADGE_COLOUR_KEYS) {
+    const bd = ts?.badges?.[key]
+    if (!bd) continue
+    colourVar(`--badge-${key}-bg`, bd.bg, bd.bgDark)
+    colourVar(`--badge-${key}-text`, bd.text, bd.textDark)
+  }
 
   const imgs = ts?.images
   if (imgs?.borderRadius) vars.push(`--img-radius: ${imgs.borderRadius};`)
@@ -579,13 +644,24 @@ export function buildTokenStyles(tokens: unknown): string {
     if (btns.padding)      btnProps.push(`padding: ${btns.padding};`)
     if (btnProps.length) scoped.push(`main button{${btnProps.join('')}}`)
 
-    // Hover: also target the Button block's <a class="cactus-btn">. Its base state
-    // is styled inline (Puck renders inline), so !important is needed for the
-    // hover rule to win over the inline background/colour.
+    // Hover: also target the Button block's <a class="cactus-btn">, scoped by
+    // its data-variant attribute so a primary hover colour doesn't leak onto
+    // secondary/outline instances. Base state is styled inline (Puck renders
+    // inline), so !important is needed for the hover rule to win over it.
     const hoverProps: string[] = []
     if (btns.hover?.textColour) hoverProps.push(`color: var(--btn-hover-text) !important;`)
     if (btns.hover?.bgColour)   hoverProps.push(`background: var(--btn-hover-bg) !important;`)
-    if (hoverProps.length) scoped.push(`main button:hover,main .cactus-btn:hover{${hoverProps.join('')}}`)
+    if (hoverProps.length) scoped.push(`main button:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
+
+    const secHoverProps: string[] = []
+    if (btns.secondary?.hover?.textColour) secHoverProps.push(`color: var(--btn-secondary-hover-text) !important;`)
+    if (btns.secondary?.hover?.bgColour)   secHoverProps.push(`background: var(--btn-secondary-hover-bg) !important;`)
+    if (secHoverProps.length) scoped.push(`main .cactus-btn[data-variant="secondary"]:hover{${secHoverProps.join('')}}`)
+
+    const outlHoverProps: string[] = []
+    if (btns.outline?.hover?.textColour) outlHoverProps.push(`color: var(--btn-outline-hover-text) !important;`)
+    if (btns.outline?.hover?.bgColour)   outlHoverProps.push(`background: var(--btn-outline-hover-bg) !important;`)
+    if (outlHoverProps.length) scoped.push(`main .cactus-btn[data-variant="outline"]:hover{${outlHoverProps.join('')}}`)
   }
 
   if (imgs) {

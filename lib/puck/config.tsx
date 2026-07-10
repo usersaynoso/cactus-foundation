@@ -945,20 +945,21 @@ function ButtonLink(props: any) {
     padding: 'var(--btn-padding, 0.625rem 1.5rem)',
   }
   // Colours: the primary (default) button reflects the button colour tokens;
-  // secondary/outline read the site's brand primary colour directly (not the
-  // button-specific override), so all three variants stay theme-aware without
-  // any hardcoded colour. `--color-on-primary` is a WCAG-derived contrasting
+  // secondary/outline read their own Styles → Buttons tokens (buttons.secondary/
+  // .outline) when the admin has set them, falling back to deriving off the
+  // site's brand primary colour otherwise - so untouched sites look identical
+  // to before these existed. `--color-on-primary` is a WCAG-derived contrasting
   // text colour computed from the primary hex (lib/design/tokens.ts), so
-  // secondary's fill always keeps legible text regardless of brand colour.
-  // Hover is applied via the .cactus-btn rule (tokens.ts).
+  // secondary's fallback fill always keeps legible text regardless of brand
+  // colour. Hover is applied via the .cactus-btn[data-variant] rules (tokens.ts).
   const variants: Record<string, React.CSSProperties> = {
     primary:   { background: 'var(--btn-bg, var(--color-primary))', color: 'var(--btn-text-color, var(--color-bg))', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
-    secondary: { background: 'var(--color-primary)', color: 'var(--color-on-primary, var(--color-bg))', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
-    outline:   { background: 'transparent', color: 'var(--color-primary)', border: 'var(--btn-border-width, 2px) solid var(--btn-border, var(--color-primary))' },
+    secondary: { background: 'var(--btn-secondary-bg, var(--color-primary))', color: 'var(--btn-secondary-text, var(--color-on-primary, var(--color-bg)))', border: 'var(--btn-border-width, 0) solid var(--btn-secondary-border, transparent)' },
+    outline:   { background: 'transparent', color: 'var(--btn-outline-text, var(--color-primary))', border: 'var(--btn-border-width, 2px) solid var(--btn-outline-border, var(--color-primary))' },
   }
   return (
     <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
-      <a href={href} className="cactus-btn" style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
+      <a href={href} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
         {label}
       </a>
     </div>
@@ -1210,7 +1211,7 @@ function Eyebrow(props: any) {
   const pulse = showPulse === 'true' || showPulse === true
   return (
     <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 9999, padding: '7px 16px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-pill, 9999px)', padding: '7px 16px' }}>
         {pulse && <span className="cactus-eyebrow-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} aria-hidden="true" />}
         {text}
       </span>
@@ -1377,17 +1378,21 @@ function Callout(props: any) {
 
 function Badge(props: any) {
   const { label, color, padding } = props
+  // blue/yellow/red/gray read the Styles → Colours → Badges tokens when the
+  // admin has set them (lib/design/tokens.ts), falling back to the original
+  // hardcoded pastel hexes otherwise. 'primary' already reused the theme-aware
+  // --color-primary-subtle before this and is left as-is.
   const colors: Record<string, { bg: string; text: string }> = {
     primary: { bg: 'var(--color-primary-subtle, #dcfce7)', text: 'var(--color-primary)' },
-    blue:    { bg: '#dbeafe', text: '#1d4ed8' },
-    yellow:  { bg: '#fef9c3', text: '#a16207' },
-    red:     { bg: '#fee2e2', text: '#b91c1c' },
-    gray:    { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg-secondary)' },
+    blue:    { bg: 'var(--badge-blue-bg, #dbeafe)',   text: 'var(--badge-blue-text, #1d4ed8)' },
+    yellow:  { bg: 'var(--badge-yellow-bg, #fef9c3)', text: 'var(--badge-yellow-text, #a16207)' },
+    red:     { bg: 'var(--badge-red-bg, #fee2e2)',    text: 'var(--badge-red-text, #b91c1c)' },
+    gray:    { bg: 'var(--badge-gray-bg, var(--color-bg-subtle))', text: 'var(--badge-gray-text, var(--color-fg-secondary))' },
   }
   const t = (colors[color] ?? colors.gray)!
   return (
     <div className={getPaddingClasses(padding)}>
-      <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{label}</span>
+      <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius-pill, 9999px)', fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{label}</span>
     </div>
   )
 }

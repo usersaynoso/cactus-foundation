@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset, StatusKey, StatusColour } from '@/lib/design/tokens'
-import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS, STATUS_KEYS, buildFontHref } from '@/lib/design/tokens'
+import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset, StatusKey, StatusColour, ButtonVariantStyle, BadgeColourKey, BadgeStyle } from '@/lib/design/tokens'
+import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS, STATUS_KEYS, BADGE_COLOUR_KEYS, buildFontHref } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
@@ -315,6 +315,35 @@ export default function StylesPage() {
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, hover: { ...t.themeStyle.buttons.hover, ...patch } } } }))
   }
 
+  const setButtonVariant = (variant: 'secondary' | 'outline', patch: Partial<ButtonVariantStyle>) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, buttons: { ...t.themeStyle.buttons, [variant]: { ...t.themeStyle.buttons[variant], ...patch } } } }))
+  }
+
+  const setButtonVariantHover = (variant: 'secondary' | 'outline', patch: Partial<NonNullable<ButtonVariantStyle['hover']>>) => {
+    dirtyRef.current = true
+    setTokens(t => ({
+      ...t,
+      themeStyle: {
+        ...t.themeStyle,
+        buttons: {
+          ...t.themeStyle.buttons,
+          [variant]: { ...t.themeStyle.buttons[variant], hover: { ...t.themeStyle.buttons[variant]?.hover, ...patch } },
+        },
+      },
+    }))
+  }
+
+  const setBadge = (key: BadgeColourKey, patch: Partial<BadgeStyle>) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, badges: { ...t.themeStyle.badges, [key]: { ...t.themeStyle.badges?.[key], ...patch } } } }))
+  }
+
+  const setPillRadius = (value: string) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, pillRadius: value || undefined } }))
+  }
+
   const setImages = (patch: Partial<DesignTokens['themeStyle']['images']>) => {
     dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, images: { ...t.themeStyle.images, ...patch } } }))
@@ -565,6 +594,22 @@ export default function StylesPage() {
                 ))}
               </div>
             </Section>
+
+            <Section title="Badges">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Colours for the Badge block&apos;s Blue/Yellow/Red/Gray options (its Brand option already follows your primary colour above). Each needs its own background and text colour - unlike Status boxes, these aren&apos;t derived automatically.</p>
+              {BADGE_COLOUR_KEYS.map(key => (
+                <div key={key} style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--admin-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+                  <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--color-fg)', textTransform: 'capitalize' }}>{key}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <ColourInput label="Background" value={tokens.themeStyle.badges?.[key]?.bg} onChange={v => { setBadge(key, { bg: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.badges?.[key]?.bgDark} onDarkChange={v => { setBadge(key, { bgDark: v || undefined }); setSaved(false) }} colours={colours} />
+                    <ColourInput label="Text" value={tokens.themeStyle.badges?.[key]?.text} onChange={v => { setBadge(key, { text: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.badges?.[key]?.textDark} onDarkChange={v => { setBadge(key, { textDark: v || undefined }); setSaved(false) }} colours={colours} />
+                  </div>
+                </div>
+              ))}
+              <div style={{ maxWidth: 260, marginTop: '0.25rem' }}>
+                <TextField label="Badge / pill corner radius" value={tokens.themeStyle.pillRadius ?? ''} onChange={v => { setPillRadius(v); setSaved(false) }} hint="e.g. 9999px (fully round). Also applies to the Eyebrow block." />
+              </div>
+            </Section>
           </>
         )}
 
@@ -665,6 +710,33 @@ export default function StylesPage() {
               <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.hover.bgColourDark} onDarkChange={v => { setButtonHover({ bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </div>
           </Section>
+
+          <Section title="Secondary variant">
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>The ButtonLink block&apos;s Secondary option. Leave a field empty to keep its default (a filled block of your primary colour with legible text) rather than setting a custom colour.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <ColourInput label="Text colour" value={tokens.themeStyle.buttons.secondary?.textColour} onChange={v => { setButtonVariant('secondary', { textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.secondary?.textColourDark} onDarkChange={v => { setButtonVariant('secondary', { textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Background colour" value={tokens.themeStyle.buttons.secondary?.bgColour} onChange={v => { setButtonVariant('secondary', { bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.secondary?.bgColourDark} onDarkChange={v => { setButtonVariant('secondary', { bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Border colour" value={tokens.themeStyle.buttons.secondary?.borderColour} onChange={v => { setButtonVariant('secondary', { borderColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.secondary?.borderColourDark} onDarkChange={v => { setButtonVariant('secondary', { borderColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Hover state</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.secondary?.hover?.textColour} onChange={v => { setButtonVariantHover('secondary', { textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.secondary?.hover?.textColourDark} onDarkChange={v => { setButtonVariantHover('secondary', { textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Hover background" value={tokens.themeStyle.buttons.secondary?.hover?.bgColour} onChange={v => { setButtonVariantHover('secondary', { bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.secondary?.hover?.bgColourDark} onDarkChange={v => { setButtonVariantHover('secondary', { bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+          </Section>
+
+          <Section title="Outline variant">
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>The ButtonLink block&apos;s Outline option: transparent fill, coloured border and text. Leave a field empty to keep it following your primary colour.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <ColourInput label="Text / border colour" value={tokens.themeStyle.buttons.outline?.textColour} onChange={v => { setButtonVariant('outline', { textColour: v || undefined, borderColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.outline?.textColourDark} onDarkChange={v => { setButtonVariant('outline', { textColourDark: v || undefined, borderColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem', color: 'var(--color-fg)' }}>Hover state</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <ColourInput label="Hover text colour" value={tokens.themeStyle.buttons.outline?.hover?.textColour} onChange={v => { setButtonVariantHover('outline', { textColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.outline?.hover?.textColourDark} onDarkChange={v => { setButtonVariantHover('outline', { textColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+              <ColourInput label="Hover background" value={tokens.themeStyle.buttons.outline?.hover?.bgColour} onChange={v => { setButtonVariantHover('outline', { bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.outline?.hover?.bgColourDark} onDarkChange={v => { setButtonVariantHover('outline', { bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
+            </div>
+          </Section>
+
           <StickyPreview tokens={tokens}>
             {mode => <ButtonsPreview tokens={tokens} mode={mode} />}
           </StickyPreview>
@@ -836,30 +908,67 @@ function ButtonsPreview({ tokens, mode }: { tokens: DesignTokens; mode: 'light' 
   const pick = (light?: string, dark?: string) => (mode === 'dark' ? dark || light : light)
   const primary = tokens.designSystem.colours.find(c => c.id === 'primary') ?? tokens.designSystem.colours[0]
   const primaryHex = mode === 'dark' ? (primary?.dark || primary?.light) : primary?.light
-  // Fallback chain mirrors the Button block's: --btn-bg → --color-primary and
-  // --btn-text-color → --color-bg (the page background), plus its shape defaults.
-  const base: React.CSSProperties = {
+  const shape: React.CSSProperties = {
     ...typoStyle(b.typo),
     display: 'inline-block',
     fontWeight: b.typo?.weight || 600,
     fontSize: b.typo?.size || '0.9375rem',
-    color: pick(b.textColour, b.textColourDark) || (mode === 'light' ? '#ffffff' : '#0f172a'),
-    background: pick(b.bgColour, b.bgColourDark) || primaryHex || '#2c7558',
-    border: `${b.borderWidth || '0'} solid ${pick(b.borderColour, b.borderColourDark) || 'transparent'}`,
     borderRadius: b.borderRadius || '6px',
     padding: b.padding || '0.625rem 1.5rem',
     cursor: 'default',
     whiteSpace: 'nowrap',
   }
-  const hover: React.CSSProperties = {
-    ...base,
-    color: pick(b.hover.textColour, b.hover.textColourDark) || base.color,
-    background: pick(b.hover.bgColour, b.hover.bgColourDark) || base.background,
+  // Fallback chain mirrors the Button block's: --btn-bg → --color-primary and
+  // --btn-text-color → --color-bg (the page background), plus its shape defaults.
+  const primaryBase: React.CSSProperties = {
+    ...shape,
+    color: pick(b.textColour, b.textColourDark) || (mode === 'light' ? '#ffffff' : '#0f172a'),
+    background: pick(b.bgColour, b.bgColourDark) || primaryHex || '#2c7558',
+    border: `${b.borderWidth || '0'} solid ${pick(b.borderColour, b.borderColourDark) || 'transparent'}`,
+  }
+  const primaryHover: React.CSSProperties = {
+    ...primaryBase,
+    color: pick(b.hover.textColour, b.hover.textColourDark) || primaryBase.color,
+    background: pick(b.hover.bgColour, b.hover.bgColourDark) || primaryBase.background,
+  }
+  const onPrimary = mode === 'light' ? '#ffffff' : '#0f172a'
+  const sec = b.secondary
+  const secondaryBase: React.CSSProperties = {
+    ...shape,
+    color: pick(sec?.textColour, sec?.textColourDark) || onPrimary,
+    background: pick(sec?.bgColour, sec?.bgColourDark) || primaryHex || '#2c7558',
+    border: `${b.borderWidth || '0'} solid ${pick(sec?.borderColour, sec?.borderColourDark) || 'transparent'}`,
+  }
+  const secondaryHover: React.CSSProperties = {
+    ...secondaryBase,
+    color: pick(sec?.hover?.textColour, sec?.hover?.textColourDark) || secondaryBase.color,
+    background: pick(sec?.hover?.bgColour, sec?.hover?.bgColourDark) || secondaryBase.background,
+  }
+  const outl = b.outline
+  const outlineBase: React.CSSProperties = {
+    ...shape,
+    color: pick(outl?.textColour, outl?.textColourDark) || primaryHex || '#2c7558',
+    background: 'transparent',
+    border: `${b.borderWidth || '2px'} solid ${pick(outl?.borderColour, outl?.borderColourDark) || primaryHex || '#2c7558'}`,
+  }
+  const outlineHover: React.CSSProperties = {
+    ...outlineBase,
+    color: pick(outl?.hover?.textColour, outl?.hover?.textColourDark) || outlineBase.color,
+    background: pick(outl?.hover?.bgColour, outl?.hover?.bgColourDark) || outlineBase.background,
   }
   return (
-    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={base}>Button</span>
-      <span style={hover}>Hover</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {([
+        ['Primary', primaryBase, primaryHover],
+        ['Secondary', secondaryBase, secondaryHover],
+        ['Outline', outlineBase, outlineHover],
+      ] as const).map(([name, base, hover]) => (
+        <div key={name} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--color-muted)', width: 62, flexShrink: 0 }}>{name}</span>
+          <span style={base}>Button</span>
+          <span style={hover}>Hover</span>
+        </div>
+      ))}
     </div>
   )
 }

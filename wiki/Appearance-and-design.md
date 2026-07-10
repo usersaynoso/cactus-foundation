@@ -28,6 +28,7 @@ Once you've settled on a combination you like, you can save it as your own prese
 - **Page background** - the background colour for all public pages.
 - **Links** - the colour of hyperlinks and what they change to when hovered.
 - **Status boxes** - the accent colours for the four Callout box types (info, success, warning, error). Pick one colour per type and Cactus derives a matching soft background and title tint automatically, in both light and dark mode. Each has its own optional dark-mode override for a brighter accent on dark backgrounds.
+- **Badges** - background and text colours for the Badge block's Blue, Yellow, Red and Gray options (its Brand option already follows your primary colour, so isn't listed here). Unlike Status boxes, nothing is derived automatically - set both the background and text colour for each. A **Badge / pill corner radius** field alongside these controls how rounded the Badge and Eyebrow blocks are; leave it empty for the default fully-rounded pill.
 
 Every colour box on this page - and on the Headings, Buttons, Images, and Form fields tabs - also has an optional **Dark mode override** tucked just beneath it. Set one to make that colour look different when a visitor is in dark mode; leave it empty and dark mode simply reuses your light colour. See [Light and dark mode](#light-and-dark-mode) below.
 
@@ -42,9 +43,11 @@ Pick a **Headings font** once and every heading level uses it. Below that, set t
 
 ### Buttons tab
 
-Set the typography, colours (text, background, border), border radius, padding, and hover state for buttons across the whole site.
+Set the typography, colours (text, background, border), border radius, padding, and hover state for buttons across the whole site. This first section styles the **Primary** button option.
 
-A **live preview** sits pinned to the bottom of the tab, showing the button in its normal and hover states side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page.
+The Button block also offers **Secondary** and **Outline** options, each with its own section further down the tab - set their colours and hover state independently, or leave a field empty to have that variant keep following your primary colour (a filled block of it for Secondary, a border and text colour for Outline) rather than a custom one. Typography, border width, radius and padding are shared across all three variants.
+
+A **live preview** sits pinned to the bottom of the tab, showing all three variants in their normal and hover states, side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page.
 
 ### Images tab
 
