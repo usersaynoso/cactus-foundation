@@ -4,11 +4,10 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from '
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import DeployStatusLive from './DeployStatusLive'
 import {
   REDEPLOY_STARTED_EVENT,
   announceRedeployStarted,
-  deployStateLabel,
-  dismissDeployStatus,
   getDeployStatus,
   getServerDeployStatus,
   subscribeDeployStatus,
@@ -132,57 +131,6 @@ function NotificationItem({
   )
 }
 
-// Compact live view of an in-flight redeploy, shown at the top of the bell
-// dropdown. Sized to roughly three log lines; scrolls for the full history.
-function DeployStatusSection() {
-  const status = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
-  const logRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [status.lines.length])
-
-  if (!status.active) return null
-
-  const { failed, state, lines } = status
-
-  return (
-    <div className={['admin-bell-deploy', failed ? 'admin-bell-deploy--failed' : ''].filter(Boolean).join(' ')}>
-      <div className="admin-bell-deploy-top">
-        {!failed && <span className="setup-spinner admin-bell-deploy-spinner" style={{ color: 'var(--color-primary)' }} />}
-        <span className="admin-bell-deploy-title">
-          {failed ? 'Redeploy failed' : 'Redeploying your site'}
-        </span>
-        <span className={`badge ${failed ? 'badge-danger' : 'badge-info'}`}>{deployStateLabel(state, failed)}</span>
-      </div>
-      <div className="admin-bell-deploy-log" ref={logRef}>
-        {lines.length > 0 ? (
-          lines.map((line, i) => (
-            <div
-              key={i}
-              className={['admin-bell-deploy-line', i === lines.length - 1 ? 'admin-bell-deploy-line--latest' : ''].filter(Boolean).join(' ')}
-            >
-              {line}
-            </div>
-          ))
-        ) : (
-          <div className="admin-bell-deploy-line">
-            {failed ? 'Your changes may not have taken effect.' : 'Applying your changes and bringing the site back up.'}
-          </div>
-        )}
-      </div>
-      {failed && (
-        <div className="admin-bell-deploy-actions">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => dismissDeployStatus()}>
-            Dismiss
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function NotificationBell({ adminPath, unreadCount = 0, collapsed }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -194,12 +142,15 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   // useSyncExternalStore returns false on the server and true on the client,
   // which is the React-idiomatic way to gate createPortal without a setState-in-effect.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
+  const deployStatus = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const base = `/${adminPath}`
   const href = `${base}/notifications`
-  const label = count > 0 ? `Notifications (${count} unread)` : 'Notifications'
+  const label = deployStatus.active
+    ? 'Notifications (redeploying)'
+    : count > 0 ? `Notifications (${count} unread)` : 'Notifications'
 
   const fetchNotifications = useCallback(() => {
     fetch('/api/admin/notifications')
@@ -361,7 +312,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         <span className="admin-bell-dropdown-title">Notifications</span>
       </div>
 
-      <DeployStatusSection />
+      <DeployStatusLive />
 
       <div className="admin-bell-dropdown-body">
         {notifications === null ? (
@@ -424,7 +375,9 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           <path d="M12 2a1 1 0 0 1 1 1v.5a7 7 0 0 1 6 6.9V15l1.7 2.3A1 1 0 0 1 19.9 19H4.1a1 1 0 0 1-.8-1.6L5 15v-4.6A7 7 0 0 1 11 3.5V3a1 1 0 0 1 1-1Z" />
           <path d="M10 19a2 2 0 1 0 4 0h-4Z" />
         </svg>
-        {count > 0 && (
+        {deployStatus.active ? (
+          <span className="admin-sidebar-bell-spinner setup-spinner" aria-hidden="true" />
+        ) : count > 0 && (
           <span className="admin-sidebar-bell-count">{count > 99 ? '99+' : count}</span>
         )}
       </button>

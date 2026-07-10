@@ -554,6 +554,17 @@ a:hover {
   text-align: center;
   box-shadow: 0 0 0 2px var(--admin-sidebar-bg, var(--color-surface));
 }
+.admin-sidebar-bell-spinner {
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  z-index: 10;
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+  box-shadow: 0 0 0 2px var(--admin-sidebar-bg, var(--color-surface));
+  border-radius: var(--radius-full);
+}
 /* Notification bell dropdown */
 .admin-bell-dropdown {
   position: fixed;
@@ -591,6 +602,12 @@ a:hover {
   border-bottom: 1px solid var(--color-border);
   background: var(--color-primary-subtle);
   flex-shrink: 0;
+}
+/* Standalone use (notifications page) - dropdown gives it a border-bottom for free */
+.admin-bell-deploy:not(.admin-bell-dropdown > .admin-bell-deploy) {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
 }
 .admin-bell-deploy--failed {
   background: var(--color-error-bg);
@@ -1595,44 +1612,6 @@ tbody tr:hover {
 }
 .setup-step.done   { background: var(--color-primary); }
 .setup-step.active { background: var(--color-primary); opacity: 0.5; }
-
-/* ============================================================
-   ADMIN DEPLOY STATUS BAR
-   ============================================================ */
-.admin-deploy-bar {
-  position: sticky;
-  top: 0;
-  z-index: 300;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-}
-.admin-deploy-bar-spinner {
-  width: var(--space-4);
-  height: var(--space-4);
-  flex-shrink: 0;
-}
-.admin-deploy-bar-message {
-  flex: 1;
-  min-width: 0;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-@media (max-width: 768px) {
-  .admin-deploy-bar {
-    flex-wrap: wrap;
-  }
-  .admin-deploy-bar-message {
-    flex-basis: 100%;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-  }
-}
 
 /* ============================================================
    MOBILE ADMIN BURGER MENU

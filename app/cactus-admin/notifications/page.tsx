@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import NotificationActions from './NotificationActions'
+import DeployStatusLive from '@/components/admin/DeployStatusLive'
 import type { Metadata } from 'next'
 import type { NotificationType } from '@prisma/client'
 
@@ -59,6 +60,8 @@ export default async function NotificationsPage() {
           {notifications.length} total{unread > 0 ? `, ${unread} unread` : ''}
         </span>
       </div>
+
+      <DeployStatusLive />
 
       {notifications.length === 0 ? (
         <div className="card" style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: 'var(--space-8)' }}>

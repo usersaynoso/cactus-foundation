@@ -2,8 +2,8 @@
 import { translateLogLine } from '@/lib/deploy-log-translator'
 
 // Client-side singleton that tracks an in-flight redeploy for the whole admin
-// page: one poller feeds both the top deploy bar (DeployStatusBar) and the
-// notification bell's live status section, so the two never double-poll or
+// page: one poller feeds both the notification bell's live status section and
+// the notifications page (DeployStatusLive), so the two never double-poll or
 // disagree. Lives for the lifetime of the page load.
 
 export type DeployStatus = {
