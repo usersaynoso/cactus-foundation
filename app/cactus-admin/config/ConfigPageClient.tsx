@@ -290,37 +290,20 @@ function UpdatesPanel() {
     }
   }
 
-  if (checking && !status) {
-    return (
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
-          <div>
-            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Updates</h3>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-              Running v{pkg.version}
-            </p>
-          </div>
-          <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-sm)' }} disabled>
-            Checking…
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const isLocal = status !== null && 'localMode' in status
 
-  if (!status) return null
-
-  const isLocal = 'localMode' in status
-
-  let badge: React.ReactNode
-  let subtitle: string
+  let badge: React.ReactNode = null
+  let subtitle: string = `Running v${pkg.version}`
   let subtitleSuffix: React.ReactNode = null
-  let body: React.ReactNode
+  let body: React.ReactNode = null
   let confirmModal: React.ReactNode = null
   let updateControls: React.ReactNode = null
   let releaseNotesModal: React.ReactNode = null
 
-  if (isLocal) {
+  if (!status) {
+    // Initial check still running (or failed silently) - show the full card
+    // frame with the running version so the box never renders empty.
+  } else if (isLocal) {
     badge = <span className="badge badge-default">Local dev</span>
     subtitle = `Running v${status.currentVersion}`
     body = (
@@ -494,7 +477,7 @@ function UpdatesPanel() {
             type="button"
             className={channel === 'public' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ fontSize: 'var(--text-sm)' }}
-            disabled={channelSaving}
+            disabled={channelSaving || !status}
             onClick={() => handleChannelChange('public')}
           >
             Public
@@ -503,7 +486,7 @@ function UpdatesPanel() {
             type="button"
             className={channel === 'beta' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ fontSize: 'var(--text-sm)' }}
-            disabled={channelSaving}
+            disabled={channelSaving || !status}
             onClick={() => handleChannelChange('beta')}
           >
             Beta
