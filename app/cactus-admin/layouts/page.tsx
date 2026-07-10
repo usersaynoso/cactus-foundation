@@ -64,6 +64,7 @@ export default function LayoutBuilderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
 
   const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
   const activeType = activeGroup
@@ -98,6 +99,24 @@ export default function LayoutBuilderPage() {
       if (!res.ok) { setError(d.error ?? 'Failed to duplicate layout'); setDuplicatingId(null); return }
       router.push(`/${adminPath}/layouts/${d.id}`)
     } catch { setError('Failed to duplicate layout'); setDuplicatingId(null) }
+  }
+
+  async function handleUseSitewide(id: string) {
+    setPublishingId(id)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/layouts/${id}/use-sitewide`, { method: 'POST' })
+      const d = await res.json()
+      if (!res.ok) { setError(d.error ?? 'Failed to publish layout site-wide'); setPublishingId(null); return }
+      reload(activeType)
+    } catch { setError('Failed to publish layout site-wide') }
+    setPublishingId(null)
+  }
+
+  function isSitewide(layout: Layout): boolean {
+    const live = layouts.find((l) => l.id === `${layout.id}-live`)
+    if (!live || live.status !== 'published') return false
+    return (live.displayConditions?.include ?? []).some((r) => r.type === 'entire_site')
   }
 
   async function handleDelete(id: string) {
@@ -159,9 +178,16 @@ export default function LayoutBuilderPage() {
               </div>
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {layout.isStarter ? (
-                  <button onClick={() => handleDuplicate(layout.id)} disabled={duplicatingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
-                    {duplicatingId === layout.id ? 'Duplicating…' : 'Duplicate'}
-                  </button>
+                  <>
+                    <button onClick={() => handleDuplicate(layout.id)} disabled={duplicatingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
+                      {duplicatingId === layout.id ? 'Duplicating…' : 'Duplicate'}
+                    </button>
+                    {!isSitewide(layout) && (
+                      <button onClick={() => handleUseSitewide(layout.id)} disabled={publishingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
+                        {publishingId === layout.id ? 'Publishing…' : 'Use Sitewide'}
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
                 )}

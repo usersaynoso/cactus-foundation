@@ -487,8 +487,8 @@ async function seedStarterTemplate(
 
   await db.layout.upsert({
     where: { id: t.id },
-    create: { id: t.id, name: t.name, type, description: t.description, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS, builderData: t.data },
-    update: { name: t.name, description: t.description, builderData: t.data, isStarter: true, status: 'draft', displayConditions: DRAFT_CONDITIONS },
+    create: { id: t.id, name: t.name, type, description: t.description, isStarter: true, status: 'published', displayConditions: DRAFT_CONDITIONS, builderData: t.data },
+    update: { name: t.name, description: t.description, builderData: t.data, isStarter: true, status: 'published', displayConditions: DRAFT_CONDITIONS },
   })
 }
 
