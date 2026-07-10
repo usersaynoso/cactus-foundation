@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import type { PublicMenuItem } from '@/lib/menu/resolve'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import { normalizeResponsiveValue, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
 type MinMaxPair = { min?: string; max?: string }
 
@@ -10,12 +11,22 @@ type Props = {
   menuId: string
   orientation: 'horizontal' | 'vertical'
   spacing: 'tight' | 'normal' | 'wide'
+  alignment?: 'flex-start' | 'center' | 'space-between' | 'space-around'
   showDropdowns: string
   navToggle: ResponsiveValue<string> | string | undefined
   itemFontSize?: 'small' | 'medium' | 'large'
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
   itemColor?: string
+  itemFontFamily?: string
+  hoverColor?: string
+  hoverBackground?: string
+  activeColor?: string
+  activeFontWeight?: string
+  activeUnderline?: string
+  activeUnderlineColor?: string
+  activeUnderlineThickness?: string
+  activeUnderlineOffset?: string
   itemSpacingFluid?: MinMaxPair
   letterSpacingFluid?: MinMaxPair
   itemFontSizeFluid?: MinMaxPair
@@ -26,7 +37,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ menuId, orientation, spacing, navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
+export default function MenuBlockEditorPreview({ menuId, orientation, spacing, alignment = 'flex-start', showDropdowns = 'hover', navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemFontFamily, hoverColor, hoverBackground, activeColor, activeFontWeight, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -64,11 +75,14 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, n
       color: itemColor || 'var(--color-text)',
       fontWeight: fontWeightMap[itemFontWeight] ?? 500,
       fontSize: fluidFontSize ?? fontSizeMap[itemFontSize] ?? '0.9375rem',
+      fontFamily: itemFontFamily || undefined,
       letterSpacing: fluidLetterSpacing ?? undefined,
       textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
     }
+    const fontHref = googleFontHrefForFamily(itemFontFamily)
     return (
       <nav>
+        {fontHref && <link rel="stylesheet" href={fontHref} precedence="default" />}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacing] ?? '0.5rem' }}>
           {items.map((item) => (
             <li key={item.id}>
@@ -99,10 +113,21 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, n
     <MenuBlockClient
       resolvedItems={items}
       spacing={spacing}
+      alignment={alignment}
+      showDropdowns={showDropdowns}
       itemFontSize={itemFontSize}
       itemFontWeight={itemFontWeight}
       textTransform={textTransform}
       itemColor={itemColor}
+      itemFontFamily={itemFontFamily}
+      hoverColor={hoverColor}
+      hoverBackground={hoverBackground}
+      activeColor={activeColor}
+      activeFontWeight={activeFontWeight}
+      activeUnderline={activeUnderline}
+      activeUnderlineColor={activeUnderlineColor}
+      activeUnderlineThickness={activeUnderlineThickness}
+      activeUnderlineOffset={activeUnderlineOffset}
       itemSpacingFluid={itemSpacingFluid}
       letterSpacingFluid={letterSpacingFluid}
       itemFontSizeFluid={itemFontSizeFluid}

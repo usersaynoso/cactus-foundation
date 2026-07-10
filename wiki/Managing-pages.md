@@ -122,7 +122,7 @@ These blocks read from your site settings automatically - no manual content to e
 | Block | What it does |
 |-------|--------------|
 | **Site logo** | Displays your uploaded logo, or your site name if no logo is set. |
-| **Menu** | A navigation menu. Pick which menu to display and how to orientate it. |
+| **Menu** | A navigation menu. Pick which menu to display, how to orientate it, and whether dropdowns open on hover or click. Styling options cover the font (your site's fonts appear at the top of the list, or search for any Google font), link colour, hover colour and hover background, and how the current page's item stands out - its own colour, weight, and an optional underline with its own colour, thickness, and distance from the text. The same styling options are available on the Site Header block's built-in menu. |
 | **Copyright** | Displays © current year and your site name. |
 | **Login button** | Shows log-in and register links for visitors, or account and sign-out links for logged-in users. |
 | **Cookie settings link** | A button that reopens the cookie preferences panel. Place this in your footer so visitors can update their choices at any time. |

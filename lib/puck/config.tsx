@@ -21,9 +21,11 @@ import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
 import { Link } from '@tiptap/extension-link'
 import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
-import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
+import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
+import { SiteFontField } from '@/lib/puck/SiteFontField'
+import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { BorderField } from '@/lib/puck/BorderField'
 import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
@@ -523,7 +525,9 @@ function SiteHeaderBlock(props: any) {
     sticky = 'yes', border = { show: 'show', color: 'var(--color-border)' },
     maxWidth = '1200px', logoHeight = 40, showTextWithLogo = 'false',
     logoHomeUrl = '/', itemFontSize = 'medium', itemFontWeight = 'medium',
-    itemColor = '', alignment = 'flex-start', showMobileToggle = 'collapse', showTabletToggle = 'collapse',
+    itemColor = '', itemFontFamily = '', hoverColor = '', hoverBackground = '', activeColor = '', activeFontWeight = '',
+    activeUnderline = 'none', activeUnderlineColor = '', activeUnderlineThickness = '', activeUnderlineOffset = '',
+    showDropdowns = 'hover', alignment = 'flex-start', showMobileToggle = 'collapse', showTabletToggle = 'collapse',
   } = props
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color || 'var(--color-bg)'
@@ -554,7 +558,7 @@ function SiteHeaderBlock(props: any) {
       }}>
         <SiteLogoRsc logoUrl={logoUrl} logoUrlDark={logoUrlDark} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
         {resolvedItems && (
-          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
+          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} hoverBackground={hoverBackground} activeColor={activeColor} activeFontWeight={activeFontWeight} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} showDropdowns={showDropdowns} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
         )}
       </div>
     </header>
@@ -1596,6 +1600,7 @@ const menuVerticalGapMap: Record<string, string> = { tight: '0.25rem', normal: '
 function MenuBlock(props: any) {
   const {
     id, resolvedItems, orientation, spacing, alignment, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, hoverBackground,
+    hoverColor, activeColor, activeUnderline = 'none', activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, activeFontWeight, itemFontFamily, showDropdowns = 'hover',
     spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
     itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid,
   } = props
@@ -1607,6 +1612,7 @@ function MenuBlock(props: any) {
   const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
   const linkStyleOverride: React.CSSProperties = {}
   if (itemColor) linkStyleOverride.color = itemColor
+  if (itemFontFamily) linkStyleOverride.fontFamily = itemFontFamily
   if (itemFontSize !== 'medium') linkStyleOverride.fontSize = menuFontSizeMap[itemFontSize]
   if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = menuFontWeightMap[itemFontWeight]
   if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
@@ -1615,9 +1621,15 @@ function MenuBlock(props: any) {
   const shrinkListClass = `menu-vlist-shrink-${id}`
   const shrinkLinkClass = `menu-vlink-shrink-${id}`
   const hasVerticalShrink = spacingShrunk || itemFontSizeShrunk || itemFontWeightShrunk
+  const linkColours = { hoverColor, hoverBackground, activeColor, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, activeFontWeight }
+  // React hoists+dedupes precedence-tagged stylesheet links, so a Google font
+  // picked on this block alone (not in the site tokens buildFontHref covers)
+  // still loads on the published page.
+  const menuFontHref = googleFontHrefForFamily(itemFontFamily)
   if (orientation === 'vertical') {
     return (
       <nav>
+        {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
         {hasVerticalShrink && (
           <style>{[
             spacingShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkListClass}{gap:${menuVerticalGapMap[spacingShrunk] ?? '0.5rem'} !important;}` : '',
@@ -1628,15 +1640,13 @@ function MenuBlock(props: any) {
         <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacing] ?? '0.5rem' }}>
           {resolvedItems.map((item: any) => (
             <li key={item.id}>
-              <a href={item.href} target={item.openInNewTab ? '_blank' : undefined} rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+              <MenuVerticalLink item={item} colours={linkColours}
                 className={shrinkLinkClass}
-                style={{ display: 'block', padding: '0.25rem 0', fontSize: menuFontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: menuFontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }}>
-                {item.label}
-              </a>
+                style={{ display: 'block', padding: '0.25rem 0', fontSize: menuFontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: menuFontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }} />
               {item.children?.length > 0 && (
                 <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0 0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   {item.children.map((child: any) => (
-                    <li key={child.id}><a href={child.href} target={child.openInNewTab ? '_blank' : undefined} rel={child.openInNewTab ? 'noopener noreferrer' : undefined} style={{ display: 'block', padding: '0.25rem 0', fontSize: '0.9rem', color: itemColor || 'var(--color-muted)', textDecoration: 'none' }}>{child.label}</a></li>
+                    <li key={child.id}><MenuVerticalLink item={child} colours={linkColours} style={{ display: 'block', padding: '0.25rem 0', fontSize: '0.9rem', color: itemColor || 'var(--color-muted)', textDecoration: 'none' }} /></li>
                   ))}
                 </ul>
               )}
@@ -1653,7 +1663,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
+  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {
@@ -2369,7 +2379,16 @@ export const puckConfig = {
         itemFontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeight: { type: 'select' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
-        itemColor: { type: 'text' as const, label: 'Link colour' },
+        itemFontFamily: { type: 'custom' as const, label: 'Font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
+        itemColor: { type: 'custom' as const, label: 'Link colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        hoverColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        hoverBackground: { type: 'custom' as const, label: 'Hover background', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeColor: { type: 'custom' as const, label: 'Active item colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeFontWeight: { type: 'select' as const, label: 'Active font weight', options: [{ value: '', label: 'Same as items' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        activeUnderline: { type: 'select' as const, label: 'Underline active item', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
+        activeUnderlineColor: { type: 'custom' as const, label: 'Active underline colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeUnderlineThickness: { type: 'text' as const, label: 'Underline thickness (px)' },
+        activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
         spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
@@ -2379,10 +2398,15 @@ export const puckConfig = {
         letterSpacingFluid: { type: 'custom' as const, label: 'Responsive character spacing (em)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
         itemFontSizeFluid: { type: 'custom' as const, label: 'Responsive font size (rem)', minLabel: 'Min size', maxLabel: 'Max size', render: MinMaxPairField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
-      resolveFields: (_data: any, { fields, appState }: any) => {
-        if (isHeaderShrinkEnabled(appState)) return fields
-        const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = fields
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
+      resolveFields: (data: any, { fields, appState }: any) => {
+        let out = fields
+        if (data?.props?.activeUnderline !== 'underline') {
+          const { activeUnderlineColor: _auc, activeUnderlineThickness: _aut, activeUnderlineOffset: _auo, ...rest } = out
+          out = rest
+        }
+        if (isHeaderShrinkEnabled(appState)) return out
+        const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = out
         return rest
       },
       render: MenuBlock,
@@ -2475,6 +2499,16 @@ export const puckConfig = {
         itemFontSize:     { type: 'select' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         itemColor:        { type: 'custom' as const, label: 'Nav link colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        itemFontFamily:   { type: 'custom' as const, label: 'Nav font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
+        hoverColor:       { type: 'custom' as const, label: 'Nav hover colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        hoverBackground:  { type: 'custom' as const, label: 'Nav hover background', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeColor:      { type: 'custom' as const, label: 'Active item colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeFontWeight: { type: 'select' as const, label: 'Active font weight', options: [{ value: '', label: 'Same as items' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        activeUnderline:  { type: 'select' as const, label: 'Underline active item', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
+        activeUnderlineColor: { type: 'custom' as const, label: 'Active underline colour', render: ({ value, onChange }: any) => <SiteColourField value={value} onChange={onChange} /> },
+        activeUnderlineThickness: { type: 'text' as const, label: 'Underline thickness (px)' },
+        activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
+        showDropdowns:    { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         alignment:        { type: 'select' as const, label: 'Nav horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }] },
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
         showTabletToggle: { type: 'select' as const, label: 'Tablet nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
@@ -2483,7 +2517,12 @@ export const puckConfig = {
         bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes',
         border: { show: 'show', color: '' }, maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
-        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', alignment: 'flex-start' as const, showMobileToggle: 'collapse', showTabletToggle: 'collapse',
+        itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', itemFontFamily: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', alignment: 'flex-start' as const, showMobileToggle: 'collapse', showTabletToggle: 'collapse',
+      },
+      resolveFields: (data: any, { fields }: any) => {
+        if (data?.props?.activeUnderline === 'underline') return fields
+        const { activeUnderlineColor: _auc, activeUnderlineThickness: _aut, activeUnderlineOffset: _auo, ...rest } = fields
+        return rest
       },
       render: SiteHeaderBlock,
     },

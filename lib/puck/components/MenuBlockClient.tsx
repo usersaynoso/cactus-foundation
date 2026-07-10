@@ -1,6 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { fluidClamp } from '@/lib/puck/responsiveValue'
+import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
 type MenuItem = {
   id: string
@@ -8,6 +10,73 @@ type MenuItem = {
   href: string
   openInNewTab: boolean
   children?: MenuItem[]
+}
+
+export type MenuLinkColours = {
+  hoverColor?: string
+  hoverBackground?: string
+  activeColor?: string
+  activeUnderline?: string // 'none' | 'underline'
+  activeUnderlineColor?: string
+  activeUnderlineThickness?: string
+  activeUnderlineOffset?: string
+  activeFontWeight?: string // '' | 'normal' | 'medium' | 'semibold' | 'bold'
+}
+
+// Bare numbers are px; anything with a unit passes through untouched.
+function cssLen(v: string | undefined, fallback: string): string {
+  if (!v) return fallback
+  return /^\d+(\.\d+)?$/.test(v.trim()) ? `${v.trim()}px` : v.trim()
+}
+
+// Active = exact path match only (no parent-path highlighting). Only relative
+// hrefs can ever match; external URLs are never "the current page".
+function isActiveHref(href: string, pathname: string | null): boolean {
+  if (!pathname || !href || !href.startsWith('/')) return false
+  const norm = (p: string) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p)
+  return norm(href.split(/[?#]/)[0] ?? href) === norm(pathname)
+}
+
+function activeDecoration(colours?: MenuLinkColours): React.CSSProperties {
+  const weight = colours?.activeFontWeight ? { fontWeight: fontWeightMap[colours.activeFontWeight] } : {}
+  if (colours?.activeUnderline !== 'underline') return weight
+  return {
+    ...weight,
+    textDecoration: 'underline',
+    textDecorationThickness: cssLen(colours.activeUnderlineThickness, '2px'),
+    textUnderlineOffset: cssLen(colours.activeUnderlineOffset, '4px'),
+    ...(colours.activeUnderlineColor ? { textDecorationColor: colours.activeUnderlineColor } : {}),
+  }
+}
+
+// Vertical menus render server-side in config.tsx's MenuBlock, which can't know
+// the current path - this client anchor carries the hover/active styling there.
+export function MenuVerticalLink({ item, className, style, colours }: {
+  item: MenuItem
+  className?: string
+  style?: React.CSSProperties
+  colours?: MenuLinkColours
+}) {
+  const [hovered, setHovered] = useState(false)
+  const pathname = usePathname()
+  const active = isActiveHref(item.href, pathname)
+  const colour = hovered && colours?.hoverColor ? colours.hoverColor
+    : active && colours?.activeColor ? colours.activeColor
+    : undefined
+  return (
+    <a
+      href={item.href}
+      target={item.openInNewTab ? '_blank' : undefined}
+      rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+      className={className}
+      aria-current={active ? 'page' : undefined}
+      style={{ ...style, ...(colour ? { color: colour } : {}), ...(active ? activeDecoration(colours) : {}), transition: 'color 0.15s' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {item.label}
+    </a>
+  )
 }
 
 const DROPDOWN_PANEL: React.CSSProperties = {
@@ -32,23 +101,29 @@ const SUBDROPDOWN_PANEL: React.CSSProperties = {
   zIndex: 101,
 }
 
-function DropdownLink({ item, hasChildren }: { item: MenuItem; hasChildren: boolean }) {
+function DropdownLink({ item, hasChildren, colours, fontFamily, onToggle }: { item: MenuItem; hasChildren: boolean; colours?: MenuLinkColours; fontFamily?: string; onToggle?: () => void }) {
   const [hovered, setHovered] = useState(false)
+  const pathname = usePathname()
+  const active = isActiveHref(item.href, pathname)
   return (
     <a
       href={item.href}
       target={item.openInNewTab ? '_blank' : undefined}
       rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+      aria-current={active ? 'page' : undefined}
+      onClick={onToggle ? (e) => { e.preventDefault(); onToggle() } : undefined}
       style={{
         display: hasChildren ? 'flex' : 'block',
         justifyContent: hasChildren ? 'space-between' : undefined,
         alignItems: hasChildren ? 'center' : undefined,
         padding: '0.5rem 1rem',
         fontSize: '0.9rem',
-        color: hovered ? 'var(--color-primary)' : 'var(--color-text)',
-        background: hovered ? 'var(--color-primary-subtle)' : 'transparent',
+        fontFamily,
+        color: hovered ? (colours?.hoverColor || 'var(--color-primary)') : (active && colours?.activeColor) ? colours.activeColor : 'var(--color-text)',
+        background: hovered ? (colours?.hoverBackground || 'var(--color-primary-subtle)') : 'transparent',
         textDecoration: 'none',
         transition: 'color 0.15s, background 0.15s',
+        ...(active ? activeDecoration(colours) : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -61,27 +136,47 @@ function DropdownLink({ item, hasChildren }: { item: MenuItem; hasChildren: bool
   )
 }
 
-function DesktopNavItem({ item, overrides, depth = 0 }: {
+function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover', depth = 0 }: {
   item: MenuItem
   overrides?: React.CSSProperties
+  colours?: MenuLinkColours
+  fontFamily?: string
+  openOn?: string // 'hover' | 'click'
   depth?: number
 }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const pathname = usePathname()
+  const liRef = useRef<HTMLLIElement>(null)
   const hasChildren = !!item.children?.length
+  const active = isActiveHref(item.href, pathname)
+  const clickMode = openOn === 'click'
+
+  // Click mode keeps a dropdown open until the visitor clicks elsewhere -
+  // hover mode closes on mouseleave, so only click mode needs this listener.
+  useEffect(() => {
+    if (!clickMode || !open) return
+    function handler(e: MouseEvent) {
+      if (liRef.current && !liRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [clickMode, open])
 
   if (depth === 0) {
     return (
       <li
+        ref={liRef}
         style={{ position: 'relative' }}
-        onMouseEnter={() => hasChildren && setOpen(true)}
-        onMouseLeave={() => { setOpen(false); setHovered(false) }}
+        onMouseEnter={() => !clickMode && hasChildren && setOpen(true)}
+        onMouseLeave={() => { if (!clickMode) setOpen(false); setHovered(false) }}
       >
         <a
           href={item.href}
           target={item.openInNewTab ? '_blank' : undefined}
           rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
           className="cactus-nav-link"
+          aria-current={active ? 'page' : undefined}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -89,17 +184,22 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
             padding: '0.5rem 0.875rem',
             fontSize: overrides?.fontSize ?? '0.9375rem',
             fontWeight: overrides?.fontWeight ?? 500,
+            fontFamily,
             textTransform: overrides?.textTransform,
             letterSpacing: overrides?.letterSpacing,
-            color: hovered ? 'var(--color-primary)' : (overrides?.color ?? 'var(--color-text)'),
-            background: hovered ? 'var(--color-primary-subtle)' : 'transparent',
+            color: hovered ? (colours?.hoverColor || 'var(--color-primary)') : (active && colours?.activeColor) ? colours.activeColor : (overrides?.color ?? 'var(--color-text)'),
+            background: hovered ? (colours?.hoverBackground || 'var(--color-primary-subtle)') : 'transparent',
             textDecoration: 'none',
             borderRadius: 6,
             transition: 'color 0.15s, background 0.15s',
+            ...(active ? activeDecoration(colours) : {}),
           }}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
-          onClick={() => setOpen(false)}
+          onClick={(e) => {
+            if (clickMode && hasChildren) { e.preventDefault(); setOpen(o => !o) }
+            else setOpen(false)
+          }}
         >
           {item.label}
           {hasChildren && (
@@ -109,7 +209,7 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
         {hasChildren && open && (
           <ul style={DROPDOWN_PANEL}>
             {item.children!.map((child) => (
-              <DesktopNavItem key={child.id} item={child} depth={1} />
+              <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={1} />
             ))}
           </ul>
         )}
@@ -119,15 +219,16 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
 
   return (
     <li
+      ref={liRef}
       style={{ position: 'relative' }}
-      onMouseEnter={() => hasChildren && setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={() => !clickMode && hasChildren && setOpen(true)}
+      onMouseLeave={() => !clickMode && setOpen(false)}
     >
-      <DropdownLink item={item} hasChildren={hasChildren} />
+      <DropdownLink item={item} hasChildren={hasChildren} colours={colours} fontFamily={fontFamily} onToggle={clickMode && hasChildren ? () => setOpen(o => !o) : undefined} />
       {hasChildren && open && (
         <ul style={SUBDROPDOWN_PANEL}>
           {item.children!.map((child) => (
-            <DesktopNavItem key={child.id} item={child} depth={depth + 1} />
+            <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={depth + 1} />
           ))}
         </ul>
       )}
@@ -135,14 +236,18 @@ function DesktopNavItem({ item, overrides, depth = 0 }: {
   )
 }
 
-function MobileNavItem({ item, onClose, depth = 0 }: {
+function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0 }: {
   item: MenuItem
   onClose: () => void
+  colours?: MenuLinkColours
+  fontFamily?: string
   depth?: number
 }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const pathname = usePathname()
   const hasChildren = !!item.children?.length
+  const active = isActiveHref(item.href, pathname)
   const pl = depth > 0 ? `${depth + 1}rem` : '1.5rem'
 
   return (
@@ -157,6 +262,7 @@ function MobileNavItem({ item, onClose, depth = 0 }: {
             padding: '0.625rem 0',
             fontSize: '1rem',
             fontWeight: 500,
+            fontFamily,
             color: 'var(--color-text)',
             borderBottom: '1px solid var(--color-border)',
           }}>
@@ -167,15 +273,18 @@ function MobileNavItem({ item, onClose, depth = 0 }: {
             href={item.href}
             target={item.openInNewTab ? '_blank' : undefined}
             rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+            aria-current={active ? 'page' : undefined}
             style={{
               display: 'block',
               padding: '0.625rem 0',
               fontSize: '1rem',
               fontWeight: 500,
-              color: hovered ? 'var(--color-primary)' : 'var(--color-text)',
+              fontFamily,
+              color: hovered ? (colours?.hoverColor || 'var(--color-primary)') : (active && colours?.activeColor) ? colours.activeColor : 'var(--color-text)',
               textDecoration: 'none',
               borderBottom: '1px solid var(--color-border)',
               transition: 'color 0.15s',
+              ...(active ? activeDecoration(colours) : {}),
             }}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
@@ -188,7 +297,7 @@ function MobileNavItem({ item, onClose, depth = 0 }: {
       {hasChildren && open && (
         <div>
           {item.children!.map((child) => (
-            <MobileNavItem key={child.id} item={child} onClose={onClose} depth={depth + 1} />
+            <MobileNavItem key={child.id} item={child} onClose={onClose} colours={colours} fontFamily={fontFamily} depth={depth + 1} />
           ))}
         </div>
       )}
@@ -210,6 +319,16 @@ type Props = {
   itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
   textTransform?: string
   itemColor?: string
+  itemFontFamily?: string
+  hoverColor?: string
+  hoverBackground?: string
+  activeColor?: string
+  activeUnderline?: string
+  activeUnderlineColor?: string
+  activeUnderlineThickness?: string
+  activeUnderlineOffset?: string
+  activeFontWeight?: string
+  showDropdowns?: string
   showDesktopToggle?: string
   showMobileToggle?: string
   showTabletToggle?: string
@@ -230,6 +349,16 @@ export default function MenuBlockClient({
   itemFontWeight = 'medium',
   textTransform = 'none',
   itemColor,
+  itemFontFamily,
+  hoverColor,
+  hoverBackground,
+  activeColor,
+  activeUnderline = 'none',
+  activeUnderlineColor,
+  activeUnderlineThickness,
+  activeUnderlineOffset,
+  activeFontWeight,
+  showDropdowns = 'hover',
   showDesktopToggle = 'show',
   showMobileToggle = 'collapse',
   showTabletToggle = 'collapse',
@@ -264,6 +393,11 @@ export default function MenuBlockClient({
   if (fluidLetterSpacing) overrides.letterSpacing = fluidLetterSpacing
 
   const hasOverrides = Object.keys(overrides).length > 0
+  const colours: MenuLinkColours = { hoverColor, hoverBackground, activeColor, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, activeFontWeight }
+  // React hoists+dedupes precedence-tagged stylesheet links, so a Google font
+  // picked on this block alone (outside the site-token fonts buildFontHref
+  // loads) still arrives - live site and editor canvas alike.
+  const menuFontHref = googleFontHrefForFamily(itemFontFamily)
   const collapseDesktop = showDesktopToggle !== 'show'
   const collapseMobile = showMobileToggle !== 'show'
   const collapseTablet = showTabletToggle !== 'show'
@@ -280,6 +414,7 @@ export default function MenuBlockClient({
 
   return (
     <>
+      {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
       {showHamburger && (
         // Base (non-breakpoint) display only. The breakpoint @media rules are
         // emitted by buildTokenStyles so they track the site's breakpoint settings.
@@ -307,7 +442,7 @@ export default function MenuBlockClient({
         }}
       >
         {resolvedItems.map((item) => (
-          <DesktopNavItem key={item.id} item={item} overrides={hasOverrides ? overrides : undefined} />
+          <DesktopNavItem key={item.id} item={item} overrides={hasOverrides ? overrides : undefined} colours={colours} fontFamily={itemFontFamily || undefined} openOn={showDropdowns} />
         ))}
       </ul>
 
@@ -349,6 +484,8 @@ export default function MenuBlockClient({
               key={item.id}
               item={item}
               onClose={() => setMobileOpen(false)}
+              colours={colours}
+              fontFamily={itemFontFamily || undefined}
             />
           ))}
         </div>

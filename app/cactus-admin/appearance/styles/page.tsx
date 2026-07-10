@@ -10,64 +10,7 @@ import { TabStrip } from '@/components/admin/TabStrip'
 import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
 import { BrandingTab, useBrandingState } from './BrandingTab'
 import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
-
-const MAX_FONT_SEARCH_RESULTS = 50
-
-const POPULAR_FONTS = [
-  'system-ui, sans-serif',
-  'Arial, sans-serif',
-  'Georgia, serif',
-  'Times New Roman, serif',
-  'Helvetica, sans-serif',
-  'Inter',
-  'Roboto',
-  'Open Sans',
-  'Lato',
-  'Poppins',
-  'Montserrat',
-  'Raleway',
-  'Oswald',
-  'Nunito',
-  'Ubuntu',
-  'Playfair Display',
-  'Merriweather',
-  'Source Sans Pro',
-  'Source Serif Pro',
-  'PT Sans',
-  'PT Serif',
-  'Noto Sans',
-  'Noto Serif',
-  'Libre Baskerville',
-  'Libre Franklin',
-  'Work Sans',
-  'DM Sans',
-  'DM Serif Display',
-  'Outfit',
-  'Figtree',
-  'Plus Jakarta Sans',
-  'Sora',
-  'Space Grotesk',
-  'Manrope',
-  'Barlow',
-  'Josefin Sans',
-  'Cormorant Garamond',
-  'EB Garamond',
-  'Crimson Text',
-  'Lora',
-  'Bitter',
-  'Spectral',
-  'Mulish',
-  'Quicksand',
-  'Cabin',
-  'Karla',
-  'Rubik',
-  'Jost',
-  'Lexend',
-  'IBM Plex Sans',
-  'IBM Plex Serif',
-  'Fira Sans',
-  'Inconsolata',
-]
+import { POPULAR_FONTS, MAX_FONT_SEARCH_RESULTS } from '@/lib/design/font-options'
 
 const FONT_WEIGHT_OPTIONS = [
   { value: '100', label: '100 - Thin' },
@@ -347,9 +290,9 @@ export default function StylesPage() {
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, headings: { ...t.themeStyle.headings, [tag]: { ...t.themeStyle.headings[tag], ...patch } } } }))
   }
 
-  const setDisplay = (patch: Record<string, unknown>) => {
+  const setHeadingsFont = (family: string) => {
     dirtyRef.current = true
-    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, display: { ...t.themeStyle.display, ...patch } } }))
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, headingsFont: family || undefined } }))
   }
 
   const setCaption = (patch: Record<string, unknown>) => {
@@ -674,13 +617,11 @@ export default function StylesPage() {
 
         {activeTab === 'headings' && (
           <>
-            <Section title="Display (hero heading, largest - above H1)">
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>For homepage heroes and campaign banners. Set a Heading block&apos;s level to &ldquo;Display&rdquo; in Puck to use it.</p>
-              <TypoGroup value={tokens.themeStyle.display ?? {}} onChange={patch => { setDisplay(patch as Partial<Typo>); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
-              <ColourInput label="Colour" value={tokens.themeStyle.display?.colour} onChange={v => { setDisplay({ colour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.display?.colourDark} onDarkChange={v => { setDisplay({ colourDark: v || undefined }); setSaved(false) }} colours={colours} />
-            </Section>
-
             <Section title="Headings">
+              <div style={{ marginBottom: '1rem' }}>
+                <FontPickerField label="Headings font (all headings)" value={tokens.themeStyle.headingsFont ?? ''} onChange={v => { setHeadingsFont(v); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0.25rem 0 0' }}>Applies to every heading level. Set a family on an individual level below to override it. Leave empty to inherit the body font.</p>
+              </div>
               {(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).map(tag => (
                 <div key={tag} style={{ marginBottom: '0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden' }}>
                   <button

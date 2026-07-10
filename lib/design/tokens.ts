@@ -59,6 +59,10 @@ export type DesignTokens = {
       h1: HeadingStyle; h2: HeadingStyle; h3: HeadingStyle
       h4: HeadingStyle; h5: HeadingStyle; h6: HeadingStyle
     }
+    // Optional - added after initial launch, read via `ts?.headingsFont`.
+    // Font family applied to every heading level (and Display); a per-level
+    // family set below still wins over it.
+    headingsFont?: string
     buttons: {
       typo: Typo
       textColour?: string; bgColour?: string; borderColour?: string
@@ -441,16 +445,21 @@ export function buildTokenStyles(tokens: unknown): string {
     if (v.decoration)    vars.push(`--${prefix}-decoration: ${v.decoration};`)
   }
 
+  // Site-wide headings font: every level (and Display) falls back to it when
+  // no per-level family is set, mirroring how body falls back to the primary
+  // global font above.
+  const headingsFamily = ts?.headingsFont
   for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
     const h = ts?.headings?.[tag] ?? {}
-    typoVars(tag, h)
+    typoVars(tag, { ...h, family: h.family || headingsFamily })
     colourVar(`--${tag}-color`, h.colour, h.colourDark)
   }
 
   // Display (hero/largest heading, above h1) and Caption (small label/footnote
   // text, usable anywhere - not just form-field labels) - both standalone,
   // read by class rather than tag since neither has one native HTML element.
-  const display = ts?.display ?? {}
+  const display = { ...(ts?.display ?? {}) }
+  display.family = display.family || headingsFamily
   typoVars('display', display)
   colourVar('--display-color', display.colour, display.colourDark)
 
@@ -544,7 +553,7 @@ export function buildTokenStyles(tokens: unknown): string {
 
   for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
     const h = (ts?.headings?.[tag] ?? {}) as HeadingStyle
-    const hProps = [...typoProps(h)]
+    const hProps = [...typoProps({ ...h, family: h.family || headingsFamily })]
     if (h.colour) hProps.push(`color: var(--${tag}-color);`)
     if (hProps.length) scoped.push(`main ${tag}{${hProps.join('')}}`)
   }
@@ -662,6 +671,18 @@ function isSystemFont(family: string): boolean {
   return SYSTEM_KEYWORDS.some(k => lower.includes(k))
 }
 
+// Google Fonts stylesheet URL for a single family value (as stored by a font
+// picker - may be a bare name or a CSS list like "Inter, sans-serif"). Null for
+// empty/system families, which need no stylesheet. Requests the 400-700 weights
+// so per-block weight settings all render. Used by blocks whose font can be set
+// outside the site-wide tokens (which buildFontHref below already covers).
+export function googleFontHrefForFamily(family?: string): string | null {
+  if (!family) return null
+  const first = (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+  if (!first || isSystemFont(first)) return null
+  return `https://fonts.googleapis.com/css2?family=${first.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
+}
+
 export function buildFontHref(tokens: unknown): string | null {
   const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
   const families = new Map<string, Set<string>>()
@@ -677,9 +698,13 @@ export function buildFontHref(tokens: unknown): string | null {
   const ts = t.themeStyle
   if (ts) {
     add(ts.body?.family, ts.body?.weight)
+    add(ts.headingsFont)
     for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
       const h = ts.headings?.[tag]
       add(h?.family, h?.weight)
+      // Per-level weight on a level inheriting the site-wide headings font
+      // needs that weight requested against the shared family too.
+      if (!h?.family && ts.headingsFont) add(ts.headingsFont, h?.weight)
     }
     add(ts.display?.family, ts.display?.weight)
     add(ts.caption?.family, ts.caption?.weight)

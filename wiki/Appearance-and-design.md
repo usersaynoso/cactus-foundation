@@ -27,6 +27,7 @@ Once you've settled on a combination you like, you can save it as your own prese
 - **Global colours** - define up to 12 named colours, each with a light-mode and dark-mode variant. Once defined, these colours are available as swatches everywhere else in the Styles editor, keeping your palette consistent.
 - **Page background** - the background colour for all public pages.
 - **Links** - the colour of hyperlinks and what they change to when hovered.
+- **Status boxes** - the accent colours for the four Callout box types (info, success, warning, error). Pick one colour per type and Cactus derives a matching soft background and title tint automatically, in both light and dark mode. Each has its own optional dark-mode override for a brighter accent on dark backgrounds.
 
 Every colour box on this page - and on the Headings, Buttons, Images, and Form fields tabs - also has an optional **Dark mode override** tucked just beneath it. Set one to make that colour look different when a visitor is in dark mode; leave it empty and dark mode simply reuses your light colour. See [Light and dark mode](#light-and-dark-mode) below.
 
@@ -37,11 +38,13 @@ Every colour box on this page - and on the Headings, Buttons, Images, and Form f
 
 ### Headings tab
 
-Set the font, size, weight, and colour for each heading level (H1 through H6) independently. Each level is collapsible so the page stays manageable.
+Pick a **Headings font** once and every heading level uses it. Below that, set the font, size, weight, and colour for each heading level (H1 through H6) independently - a font chosen on an individual level overrides the shared one. Each level is collapsible so the page stays manageable. Leave everything empty and headings simply inherit the body font.
 
 ### Buttons tab
 
 Set the typography, colours (text, background, border), border radius, padding, and hover state for buttons across the whole site.
+
+A **live preview** sits pinned to the bottom of the tab, showing the button in its normal and hover states side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page.
 
 ### Images tab
 
@@ -50,6 +53,8 @@ Control the border radius and border style applied to images.
 ### Form fields tab
 
 Set the appearance of text inputs, labels, and other form elements - useful if you have a contact form or other forms on your site.
+
+As on the Buttons tab, a **live preview** stays pinned to the bottom of the tab showing a sample label, text input, dropdown, and message box in light and dark mode, updating as you make changes.
 
 ### Spacing & Breakpoints tab
 
@@ -90,13 +95,15 @@ Some modules add their own layout types too, shown as an extra tab alongside the
 
 ### Starter templates
 
-When you first set up Cactus, a library of ready-made starter templates is installed automatically. You can:
+When you first set up Cactus, a library of ready-made starter templates is installed automatically, marked with a **Starter** badge. Starter templates are read-only - they can't be edited, published, or deleted. Instead:
 
-- Use a starter template as-is
-- Edit a starter template to suit your needs
-- Build your own layout from scratch
+- Click **Duplicate** (on the layout card, or on the template's own page) to get your own editable copy, which opens straight in the editor as a draft
+- Click **Use Sitewide** on the layout card to publish a starter's look as-is across your whole site in one go, no editing needed - the button disappears once that template is the one currently live, and using a different template of the same type (say, another header) automatically takes over from whichever one was live before
+- Or build your own layout from scratch
 
-Starter templates can be reset to their original state at any time. Go to **Settings → General** and click **Refresh starter templates**.
+Cactus also seeds an editable working copy of each essential template (the default header, footer, page layout, 404 and status pages) when your site is first set up, so the site works out of the box and those live layouts are yours to edit freely.
+
+The template library keeps itself up to date: after each Cactus update, the starter templates are automatically refreshed to the latest designs. This never touches layouts you've duplicated or built yourself - and if you'd somehow edited a starter template in the past (older versions of Cactus allowed it), your edited version is kept as a copy of your own before the template is restored to its default design.
 
 ### Editing the header or footer
 
@@ -127,7 +134,7 @@ When multiple layouts match a page, the most specific one wins.
 
 Like pages, layouts have a draft state and a published state. Changes stay in draft until you click **Publish**. The **Preview** button lets you see the layout before making it live.
 
-Module layout types come with a few starter templates each, same as headers and footers. Most don't publish automatically - Directory, Gazette and Boards' pages, plus Shop's Category and Collection pages, already have a perfectly good built-in look, so nothing changes until you pick a starter and hit Publish yourself. Shop's Home, Product, Checkout and Confirmation pages are the exception: they have no built-in look of their own to fall back on, so a plain default is published automatically from the moment Shop is switched on - swap it for one of the other starters, or your own design, whenever you like.
+Module layout types come with a few starter templates each, same as headers and footers. Most don't publish anything automatically - Directory, Gazette and Boards' pages, plus Shop's Category and Collection pages, already have a perfectly good built-in look, so nothing changes until you duplicate a starter and hit Publish yourself. Shop's Home, Product, Checkout and Confirmation pages are the exception: they have no built-in look of their own to fall back on, so an editable working copy of a plain default is published automatically from the moment Shop is switched on - edit it, or swap it for a duplicate of another starter, whenever you like.
 
 ---
 
