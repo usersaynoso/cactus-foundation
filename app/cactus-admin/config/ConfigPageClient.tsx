@@ -297,9 +297,12 @@ function UpdatesPanel() {
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-              Running v{pkg.version} &middot; Checking for updates&hellip;
+              Running v{pkg.version}
             </p>
           </div>
+          <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-sm)' }} disabled>
+            Checking…
+          </button>
         </div>
       </div>
     )
