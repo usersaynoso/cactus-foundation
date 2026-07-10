@@ -276,6 +276,7 @@ function UpdatesPanel() {
       })
       const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
       if (!res.ok) throw new Error(d.error ?? 'Update failed')
+      setShowConfirm(false)
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
         announceRedeployStarted()
