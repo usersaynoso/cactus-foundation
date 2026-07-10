@@ -31,6 +31,11 @@ export type GlobalFont = {
 // CSS var in the dark blocks when an override exists), so old rows stay valid.
 type HeadingStyle = Typo & { colour?: string; colourDark?: string }
 
+// One accent colour per status; background and title tints are derived from it
+// per mode by statusVars, so owners pick a single colour per box type.
+export type StatusColour = { colour?: string; colourDark?: string }
+export type StatusKey = 'info' | 'success' | 'warning' | 'error'
+
 export type DesignTokens = {
   version: 2
   designSystem: {
@@ -46,6 +51,10 @@ export type DesignTokens = {
     display?: HeadingStyle
     caption?: HeadingStyle
     links: { colour?: string; hoverColour?: string; colourDark?: string; hoverColourDark?: string }
+    // Optional - added after initial launch, so older stored rows may lack it.
+    // Accent colours for the info/success/warning/error Callout boxes; read via
+    // `ts?.status`, never assume presence.
+    status?: Partial<Record<StatusKey, StatusColour>>
     headings: {
       h1: HeadingStyle; h2: HeadingStyle; h3: HeadingStyle
       h4: HeadingStyle; h5: HeadingStyle; h6: HeadingStyle
@@ -95,6 +104,14 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
     display: { size: '3rem' },
     caption: { size: '0.75rem' },
     links: { colour: '#2c7558', hoverColour: '#22604a' },
+    // Accents match the Callout block's original built-in hexes, with brighter
+    // dark-mode siblings so the boxes read on a dark page background.
+    status: {
+      info:    { colour: '#3b82f6', colourDark: '#60a5fa' },
+      success: { colour: '#16a34a', colourDark: '#4ade80' },
+      warning: { colour: '#f59e0b', colourDark: '#fbbf24' },
+      error:   { colour: '#ef4444', colourDark: '#f87171' },
+    },
     headings: {
       h1: { size: '2.5rem' },
       h2: { size: '1.875rem' },
@@ -301,6 +318,27 @@ function primaryVars(hex: string, mode: 'light' | 'dark'): string {
   return parts.join(' ')
 }
 
+// Emit the --status-{key} family the Callout block consumes: the accent
+// (border/icon colour), a soft tinted background, and a title colour with more
+// contrast against that background. All derived from the one accent hex per
+// status, per mode - light mode tints towards white, dark mode towards black.
+// Non-hex values emit the accent alone; the Callout's var() fallbacks cover
+// the derived pair.
+function statusVars(key: string, hex: string, mode: 'light' | 'dark'): string {
+  const parts = [`--status-${key}: ${hex};`]
+  if (!parseHex(hex)) return parts.join(' ')
+  if (mode === 'light') {
+    parts.push(`--status-${key}-bg: ${lighten(hex, 0.92)};`)
+    parts.push(`--status-${key}-title: ${darken(hex, 0.3)};`)
+  } else {
+    parts.push(`--status-${key}-bg: ${darken(hex, 0.8)};`)
+    parts.push(`--status-${key}-title: ${lighten(hex, 0.25)};`)
+  }
+  return parts.join(' ')
+}
+
+export const STATUS_KEYS = ['info', 'success', 'warning', 'error'] as const
+
 // Emit ONLY the semantic --color-primary family (light + dark) so the admin
 // chrome white-labels to the site's primary colour and adopts the site's primary
 // font (--font-sans, the admin UI typeface - the mono/code font is left alone).
@@ -378,6 +416,16 @@ export function buildTokenStyles(tokens: unknown): string {
   colourVar('--color-link-hover', ts?.links?.hoverColour, ts?.links?.hoverColourDark)
   colourVar('--color-page-bg', ts?.background?.colour, ts?.background?.colourDark)
   colourVar('--body-color', body.colour, body.colourDark)
+
+  // Status box colours. Unlike colourVar, the dark emission is unconditional
+  // (when a colour exists at all): the derived bg/title tints differ per mode,
+  // so dark mode needs its own derivation even without an explicit override.
+  for (const key of STATUS_KEYS) {
+    const s = ts?.status?.[key]
+    if (!s?.colour) continue
+    vars.push(statusVars(key, s.colour, 'light'))
+    darkVars.push(statusVars(key, s.colourDark || s.colour, 'dark'))
+  }
 
   // Emit a Typo as CSS variables under a prefix, so components that render with
   // inline styles (Puck blocks) can read them with `var(--prefix-x, fallback)`

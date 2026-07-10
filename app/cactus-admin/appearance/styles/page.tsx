@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset } from '@/lib/design/tokens'
-import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS } from '@/lib/design/tokens'
+import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset, StatusKey, StatusColour } from '@/lib/design/tokens'
+import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS, STATUS_KEYS, buildFontHref } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
@@ -332,6 +332,11 @@ export default function StylesPage() {
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, body: { ...t.themeStyle.body, ...patch } } }))
   }
 
+  const setStatus = (key: StatusKey, patch: StatusColour) => {
+    dirtyRef.current = true
+    setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, status: { ...t.themeStyle.status, [key]: { ...t.themeStyle.status?.[key], ...patch } } } }))
+  }
+
   const setLinks = (patch: Partial<DesignTokens['themeStyle']['links']>) => {
     dirtyRef.current = true
     setTokens(t => ({ ...t, themeStyle: { ...t.themeStyle, links: { ...t.themeStyle.links, ...patch } } }))
@@ -394,10 +399,15 @@ export default function StylesPage() {
 
   const colours = tokens.designSystem.colours
 
+  // Load the tokens' Google fonts in the admin too, so the sticky previews on
+  // the Buttons and Form Fields tabs render with the real typefaces.
+  const fontHref = useMemo(() => buildFontHref(tokens), [tokens])
+
   if (loading) return <div style={{ padding: '2rem', color: 'var(--color-muted)' }}>Loading…</div>
 
   return (
     <div>
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
       <div className="page-header">
         <h1 className="page-title">Appearance</h1>
         {activeTab === 'branding' ? (
@@ -595,6 +605,23 @@ export default function StylesPage() {
                 <ColourInput label="Hover colour" value={tokens.themeStyle.links.hoverColour} onChange={v => { setLinks({ hoverColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.links.hoverColourDark} onDarkChange={v => { setLinks({ hoverColourDark: v || undefined }); setSaved(false) }} colours={colours} />
               </div>
             </Section>
+
+            <Section title="Status boxes">
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Accent colours for the success, warning, error and info boxes (the Callout block). The box background and title tints are derived automatically from each accent, in light and dark mode.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {STATUS_KEYS.map(key => (
+                  <ColourInput
+                    key={key}
+                    label={key.charAt(0).toUpperCase() + key.slice(1)}
+                    value={tokens.themeStyle.status?.[key]?.colour}
+                    onChange={v => { setStatus(key, { colour: v || undefined }); setSaved(false) }}
+                    dark={tokens.themeStyle.status?.[key]?.colourDark}
+                    onDarkChange={v => { setStatus(key, { colourDark: v || undefined }); setSaved(false) }}
+                    colours={colours}
+                  />
+                ))}
+              </div>
+            </Section>
           </>
         )}
 
@@ -677,6 +704,7 @@ export default function StylesPage() {
         )}
 
         {activeTab === 'buttons' && (
+          <>
           <Section title="Buttons">
             <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Default button appearance for public pages. Individual Puck blocks may override these.</p>
             <TypoGroup value={tokens.themeStyle.buttons.typo} onChange={patch => { setButtonTypo(patch); setSaved(false) }} globalFonts={tokens.designSystem.fonts} />
@@ -696,6 +724,10 @@ export default function StylesPage() {
               <ColourInput label="Hover background" value={tokens.themeStyle.buttons.hover.bgColour} onChange={v => { setButtonHover({ bgColour: v || undefined }); setSaved(false) }} dark={tokens.themeStyle.buttons.hover.bgColourDark} onDarkChange={v => { setButtonHover({ bgColourDark: v || undefined }); setSaved(false) }} colours={colours} />
             </div>
           </Section>
+          <StickyPreview tokens={tokens}>
+            {mode => <ButtonsPreview tokens={tokens} mode={mode} />}
+          </StickyPreview>
+          </>
         )}
 
         {activeTab === 'images' && (
@@ -709,6 +741,7 @@ export default function StylesPage() {
         )}
 
         {activeTab === 'formFields' && (
+          <>
           <Section title="Form fields">
             <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: '0 0 1rem' }}>Styles applied to inputs, textareas, and selects on public pages.</p>
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '0 0 0.5rem', color: 'var(--color-fg)' }}>Label typography</p>
@@ -723,6 +756,10 @@ export default function StylesPage() {
               <TextField label="Border radius" value={tokens.themeStyle.formFields.borderRadius ?? ''} onChange={v => { setFormFields({ borderRadius: v || undefined }); setSaved(false) }} hint="e.g. 4px" />
             </div>
           </Section>
+          <StickyPreview tokens={tokens}>
+            {mode => <FormFieldsPreview tokens={tokens} mode={mode} />}
+          </StickyPreview>
+          </>
         )}
 
         {activeTab === 'spacing' && (
@@ -812,6 +849,118 @@ function TypoGroup({ value, onChange, globalFonts }: { value: Typo; onChange: (p
       <SelectField label="Transform" value={value.transform} onChange={v => onChange({ ...value, transform: v || undefined })} options={TRANSFORM_OPTIONS} />
       <SelectField label="Style" value={value.style} onChange={v => onChange({ ...value, style: v || undefined })} options={FONT_STYLE_OPTIONS} />
       <SelectField label="Decoration" value={value.decoration} onChange={v => onChange({ ...value, decoration: v || undefined })} options={TEXT_DECORATION_OPTIONS} />
+    </div>
+  )
+}
+
+// Inline-style equivalent of a stored Typo, for the sticky previews. They can't
+// read the public site's CSS vars (buildTokenStyles isn't loaded in the admin),
+// so the current unsaved token values are applied directly - which also means
+// the preview updates live as you type, before saving.
+function typoStyle(v?: Typo): React.CSSProperties {
+  return {
+    fontFamily: v?.family || undefined,
+    fontWeight: v?.weight || undefined,
+    fontSize: v?.size || undefined,
+    lineHeight: v?.lineHeight || undefined,
+    letterSpacing: v?.letterSpacing || undefined,
+    textTransform: (v?.transform || undefined) as React.CSSProperties['textTransform'],
+    fontStyle: v?.style || undefined,
+    textDecoration: v?.decoration || undefined,
+  }
+}
+
+// Sticks to the bottom of the viewport while its tab content is scrolled, so
+// the effect of each control stays visible. Shows light and dark side by side
+// on the site's page background colours.
+function StickyPreview({ tokens, children }: { tokens: DesignTokens; children: (mode: 'light' | 'dark') => React.ReactNode }) {
+  const bg = tokens.themeStyle.background
+  return (
+    <div style={{ position: 'sticky', bottom: 0, zIndex: 30, background: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', padding: '0.75rem 0 1rem', marginTop: '1rem' }}>
+      <p style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-muted)', margin: '0 0 0.5rem' }}>Live preview</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        {(['light', 'dark'] as const).map(mode => (
+          <div key={mode} style={{ background: mode === 'light' ? (bg.colour || '#ffffff') : (bg.colourDark || bg.colour || '#0f172a'), border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.875rem 1rem' }}>
+            <p style={{ fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: mode === 'light' ? '#94a3b8' : '#64748b', margin: '0 0 0.625rem' }}>{mode === 'light' ? 'Light mode' : 'Dark mode'}</p>
+            {children(mode)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ButtonsPreview({ tokens, mode }: { tokens: DesignTokens; mode: 'light' | 'dark' }) {
+  const b = tokens.themeStyle.buttons
+  const pick = (light?: string, dark?: string) => (mode === 'dark' ? dark || light : light)
+  const primary = tokens.designSystem.colours.find(c => c.id === 'primary') ?? tokens.designSystem.colours[0]
+  const primaryHex = mode === 'dark' ? (primary?.dark || primary?.light) : primary?.light
+  // Fallback chain mirrors the Button block's: --btn-bg → --color-primary and
+  // --btn-text-color → --color-bg (the page background), plus its shape defaults.
+  const base: React.CSSProperties = {
+    ...typoStyle(b.typo),
+    display: 'inline-block',
+    fontWeight: b.typo?.weight || 600,
+    fontSize: b.typo?.size || '0.9375rem',
+    color: pick(b.textColour, b.textColourDark) || (mode === 'light' ? '#ffffff' : '#0f172a'),
+    background: pick(b.bgColour, b.bgColourDark) || primaryHex || '#2c7558',
+    border: `${b.borderWidth || '0'} solid ${pick(b.borderColour, b.borderColourDark) || 'transparent'}`,
+    borderRadius: b.borderRadius || '6px',
+    padding: b.padding || '0.625rem 1.5rem',
+    cursor: 'default',
+    whiteSpace: 'nowrap',
+  }
+  const hover: React.CSSProperties = {
+    ...base,
+    color: pick(b.hover.textColour, b.hover.textColourDark) || base.color,
+    background: pick(b.hover.bgColour, b.hover.bgColourDark) || base.background,
+  }
+  return (
+    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={base}>Button</span>
+      <span style={hover}>Hover</span>
+    </div>
+  )
+}
+
+function FormFieldsPreview({ tokens, mode }: { tokens: DesignTokens; mode: 'light' | 'dark' }) {
+  const f = tokens.themeStyle.formFields
+  const pick = (light?: string, dark?: string) => (mode === 'dark' ? dark || light : light)
+  const label: React.CSSProperties = {
+    ...typoStyle(f.labelTypo),
+    display: 'block',
+    fontSize: f.labelTypo?.size || '0.875rem',
+    fontWeight: f.labelTypo?.weight || 500,
+    color: pick(f.labelColour, f.labelColourDark) || (mode === 'light' ? '#111827' : '#f1f5f9'),
+    marginBottom: '0.25rem',
+  }
+  const field: React.CSSProperties = {
+    ...typoStyle(f.typo),
+    width: '100%',
+    boxSizing: 'border-box',
+    fontSize: f.typo?.size || '0.9375rem',
+    color: pick(f.textColour, f.textColourDark) || (mode === 'light' ? '#111827' : '#f1f5f9'),
+    background: pick(f.bgColour, f.bgColourDark) || (mode === 'light' ? '#ffffff' : '#1e293b'),
+    border: `1px solid ${pick(f.borderColour, f.borderColourDark) || (mode === 'light' ? '#d1d5db' : '#475569')}`,
+    borderRadius: f.borderRadius || 4,
+    padding: '0.5rem 0.75rem',
+  }
+  return (
+    <div>
+      <label style={label}>Your name</label>
+      <input type="text" readOnly value="Sample text" style={field} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+        <div>
+          <label style={label}>Topic</label>
+          <select style={field} aria-label="Preview select" defaultValue="general">
+            <option value="general">General enquiry</option>
+          </select>
+        </div>
+        <div>
+          <label style={label}>Message</label>
+          <textarea readOnly rows={1} value="Hello there" style={{ ...field, resize: 'none' }} />
+        </div>
+      </div>
     </div>
   )
 }

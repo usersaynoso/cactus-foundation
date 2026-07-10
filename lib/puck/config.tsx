@@ -1353,11 +1353,14 @@ function ImageChipPanel(props: any) {
 
 function Callout(props: any) {
   const { type, title, body, padding } = props
+  // Colours come from the --status-{key} family (Styles → Colours → Status
+  // boxes, emitted by buildTokenStyles); fallbacks are the original built-in
+  // hexes so untouched/older sites look identical.
   const themes: Record<string, { bg: string; border: string; icon: string; titleColor: string }> = {
-    info:    { bg: '#eff6ff', border: '#3b82f6', icon: 'ℹ️', titleColor: '#1d4ed8' },
-    success: { bg: '#f0fdf4', border: '#16a34a', icon: '✅', titleColor: '#15803d' },
-    warning: { bg: '#fffbeb', border: '#f59e0b', icon: '⚠️', titleColor: '#b45309' },
-    error:   { bg: '#fef2f2', border: '#ef4444', icon: '❌', titleColor: '#b91c1c' },
+    info:    { bg: 'var(--status-info-bg, #eff6ff)',    border: 'var(--status-info, #3b82f6)',    icon: 'ℹ️', titleColor: 'var(--status-info-title, #1d4ed8)' },
+    success: { bg: 'var(--status-success-bg, #f0fdf4)', border: 'var(--status-success, #16a34a)', icon: '✅', titleColor: 'var(--status-success-title, #15803d)' },
+    warning: { bg: 'var(--status-warning-bg, #fffbeb)', border: 'var(--status-warning, #f59e0b)', icon: '⚠️', titleColor: 'var(--status-warning-title, #b45309)' },
+    error:   { bg: 'var(--status-error-bg, #fef2f2)',   border: 'var(--status-error, #ef4444)',   icon: '❌', titleColor: 'var(--status-error-title, #b91c1c)' },
   }
   const t = (themes[type] ?? themes.info)!
   return (
