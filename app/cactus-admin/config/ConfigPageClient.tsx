@@ -348,14 +348,10 @@ function UpdatesPanel() {
     body = null
 
     updateControls = (
-      <>
-        <button
-          className="btn btn-primary"
-          style={{ fontSize: 'var(--text-sm)' }}
-          onClick={() => { setUpdateError(''); setShowConfirm(true) }}
-        >
-          Update now
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          v{status.currentVersion} &rarr; <strong>v{status.latestVersion}</strong>
+        </span>
         {status.releaseNotesHtml && (
           <button
             type="button"
@@ -366,10 +362,14 @@ function UpdatesPanel() {
             Release notes
           </button>
         )}
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-          v{status.currentVersion} &rarr; <strong>v{status.latestVersion}</strong>
-        </span>
-      </>
+        <button
+          className="btn btn-primary"
+          style={{ fontSize: 'var(--text-sm)' }}
+          onClick={() => { setUpdateError(''); setShowConfirm(true) }}
+        >
+          Update now
+        </button>
+      </div>
     )
 
     if (showNotes && status.releaseNotesHtml) {
