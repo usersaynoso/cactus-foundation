@@ -170,15 +170,15 @@ The active provider is `SiteConfig.mediaProvider`. Changing it in Settings → M
 
 ## Notifications and deferred deployment
 
-Env-var changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall and core updates do **not** use this notification: pushing a commit (`modules.json` for modules, the upstream sync for core) is what ships their code, so they redeploy immediately and send the admin straight to the redeploying screen (see below).
+Env-var changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall and core updates do **not** use this notification: pushing a commit (`modules.json` for modules, the upstream sync for core) is what ships their code, so they redeploy immediately and surface live deploy status in the admin (see below).
 
 **What accumulates into a deployment notification (deferred):**
 - Saving email or API-key env vars (`POST /api/admin/env`)
 - Applying a Cactus core update **only when Vercel creds are missing** (fallback path)
 
 **What redeploys immediately:**
-- Installing, updating, or uninstalling a module - commits `modules.json` (the git push auto-deploys) and redirects to `/cactus-status/redeploying`.
-- Applying a Cactus core update - `syncCoreFromUpstream` pushes a fresh commit to `main` (the git push auto-deploys) and the admin is sent to `/cactus-status/redeploying`.
+- Installing, updating, or uninstalling a module - commits `modules.json` (the git push auto-deploys); live deploy status opens in the admin's notification bell, with a slim status bar pinned to the top of every admin page.
+- Applying a Cactus core update - `syncCoreFromUpstream` pushes a fresh commit to `main` (the git push auto-deploys) and the admin watches live deploy status in the notification bell.
 - Factory reset (`DELETE /api/admin/env`) - keeps its immediate redeploy to ensure a clean wipe.
 
 ### Notification data model
@@ -238,7 +238,7 @@ Module install / update / uninstall and core updates ship their code by pushing 
 
 1. The module row is set to `deploying` (install/update) or deleted (uninstall). For a core update there is no row - `syncCoreFromUpstream` (`lib/updates/core.ts`) has already committed and pushed the new core files to `main`, which auto-deploys.
 2. The handler calls `startDeferredRedeploy()` and returns `{ redeployTriggered: true }`. The core-update route (`POST /api/admin/updates`) passes `startDeferredRedeploy({ committedSince })` - the timestamp captured just before the sync push - so the helper captures that build instead of triggering a second one.
-3. The client redirects to `/cactus-status/redeploying`, where the admin watches the build through to completion.
+3. The client calls `announceRedeployStarted()` (`lib/deploy-status-client.ts`), which opens the notification bell's live deploy status section; the top-of-shell `DeployStatusBar` shows the same headline. The admin keeps working while the build runs.
 4. If Vercel creds are missing, `startDeferredRedeploy()` returns `{ triggered: false }` and the handler falls back to the deferred-notification flow (`pending_deploy` + `recordDeploymentNeeded` for modules, `recordDeploymentNeeded` for core updates) so non-Vercel installs still work.
 
 ### Module checkout is pinned to the registry version
@@ -260,13 +260,13 @@ The core-update confirm dialog (`app/cactus-admin/config/page.tsx`) offers a che
 
 `startDeferredRedeploy(opts?)` (`lib/deploy/redeploy.ts`) is used by the notification redeploy route, the module routes, and the core-update route:
 
-- Sets `SiteConfig.pendingRedeployId = 'pending'` and `pendingRedeployAt` synchronously so the proxy shows the redeploying screen immediately.
+- Sets `SiteConfig.pendingRedeployId = 'pending'` and `pendingRedeployAt` synchronously so the admin's deploy status surfaces show up immediately.
 - **`committedSince` mode** - when the caller has already pushed a commit that triggered a build (e.g. a core update via `syncCoreFromUpstream`), it passes `{ committedSince }` (the timestamp captured before that push). The `after()` callback then **skips** the module sync and `triggerVercelRedeploy()` fallback entirely and just polls Vercel for the build the existing push created, storing its UID. This avoids a double-deploy. The deploy lock guarantees no other deployment exists in that window, so the `created > committedSince` filter reliably catches the right build.
 - Otherwise (no `committedSince`), the `after()` callback calls `syncModulesJson(desired)` (`lib/modules/github.ts`), where `desired` is derived from every `Module` row (`name`, `repoUrl`, and `pendingVersion ?? version` - so an in-flight update ships its target tag, see "Confirmed vs in-flight version" below):
   - If the registry differs from git, it commits `modules.json` once. That push is what triggers the Vercel build, so `triggerVercelRedeploy()` is **not** called (calling it would double-deploy); the helper polls Vercel for the build the push created and stores its UID.
   - If the registry already matches git (e.g. an env-var-only redeploy), no commit is made and `triggerVercelRedeploy()` rebuilds the current HEAD to pick up env-var changes.
-- If the deployment-id poll comes up empty, the `'pending'` sentinel is **left in place** rather than nulled (nulling would bounce the admin off the redeploying page mid-build). The server-side 2-minute auto-release in `resolvePendingRedeploy()` (`lib/config/site.ts`) is the backstop.
-- From here the proxy gate, `/cactus-status/redeploying` screen, and Vercel webhook take over. The webhook and the other "deploy finished" paths reconcile the module rows (see "Confirmed vs in-flight version" below), and `deployment.succeeded` clears `pendingRedeployId`.
+- If the deployment-id poll comes up empty, the `'pending'` sentinel is **left in place** rather than nulled (nulling would hide the deploy status from the admin mid-build). The server-side 2-minute auto-release in `resolvePendingRedeploy()` (`lib/config/site.ts`) is the backstop.
+- From here the client deploy-status poller (`lib/deploy-status-client.ts`, feeding `DeployStatusBar` and the notification bell) and Vercel webhook take over. The webhook and the other "deploy finished" paths reconcile the module rows (see "Confirmed vs in-flight version" below), and `deployment.succeeded` clears `pendingRedeployId`.
 
 ### Confirmed vs in-flight version
 
@@ -279,9 +279,9 @@ Clicking **Update** writes `pendingVersion = release.tag` and `status = 'deployi
 
 All three "deploy finished" paths funnel through `lib/deploy/reconcile.ts` so they can't drift:
 - **`markModulesDeploySucceeded()`** - promotes `version = pendingVersion ?? version`, clears `pendingVersion`/`updateAvailable`/`updateNotes`/`lastError`, sets `active`, and clears the per-module update alert.
-- **`markModulesDeployFailed(reason)`** - drops `pendingVersion`, keeps the live `version`, and reverts a mid-update module to `update_available` (clean retry; the failure was already shown on the redeploying screen) or marks a failed **install** `failed` with the reason.
+- **`markModulesDeployFailed(reason)`** - drops `pendingVersion`, keeps the live `version`, and reverts a mid-update module to `update_available` (clean retry; the failure was already shown in the admin's deploy status surfaces) or marks a failed **install** `failed` with the reason.
 
-The callers: the Vercel webhook (Pro), the Modules-page `check-status` poll (Hobby), and the redeploying-screen dismiss (`DELETE /api/admin/redeploy-status`, which now checks `getLatestDeploymentStatus()` instead of blindly activating). `pendingVersion ?? version` leaves install flows (no `pendingVersion`) untouched.
+The callers: the Vercel webhook (Pro), the Modules-page `check-status` poll (Hobby), and the deploy-status dismiss (`DELETE /api/admin/redeploy-status`, which now checks `getLatestDeploymentStatus()` instead of blindly activating). `pendingVersion ?? version` leaves install flows (no `pendingVersion`) untouched.
 
 The **no-Vercel-creds** fallback (`pending_deploy`) has no deploy to track, so it stays optimistic: it promotes `version` immediately and clears the alert.
 
@@ -302,10 +302,10 @@ The **no-Vercel-creds** fallback (`pending_deploy`) has no deploy to track, so i
 Modules are git submodules living under `modules/<name>/`. Installing one:
 
 1. `POST /api/admin/modules` fetches `cactus.module.json`, validates the manifest, acquires the deploy lock, and creates the `Module` row. GitHub credentials (resolved by `lib/github/client.ts`: prefers a connected GitHub App installation token, falls back to `GITHUB_API_TOKEN`) are needed to commit `modules.json` during the redeploy. The App manifest defines no webhook, so GitHub returns `webhook_secret: null`; Cactus stores it as NULL and never reads it - only the private key (`pem`) is used for API authentication.
-2. The module status is set to `deploying`, the deploy lock is released, and `startDeferredRedeploy()` commits `modules.json` and captures the build (see Immediate deploy flow above). The handler returns `{ redeployTriggered: true }` and the client redirects to the redeploying screen. Update and uninstall work the same way: they mutate the database (update the row, or delete it) then redeploy immediately. The desired `modules.json` is fully derivable from the `Module` rows.
+2. The module status is set to `deploying`, the deploy lock is released, and `startDeferredRedeploy()` commits `modules.json` and captures the build (see Immediate deploy flow above). The handler returns `{ redeployTriggered: true }` and the client opens the notification bell's live deploy status. Update and uninstall work the same way: they mutate the database (update the row, or delete it) then redeploy immediately. The desired `modules.json` is fully derivable from the `Module` rows.
 3. During Vercel's build step (after the redeploy is triggered), `scripts/run-module-migrations.mjs` runs **after** `prisma migrate deploy`. It finds all active modules' SQL migration files, checks the `ModuleMigration` table for already-applied ones, and executes the rest in lexicographic order.
 4. Immediately after migrations, `scripts/sync-module-manifests.mjs` rewrites every installed module's `Module.manifest` column from its deployed `cactus.module.json`. The manifest is therefore **no longer install-time only** - it tracks the deployed module code on every build. This self-heals stale data: removed nav entries disappear from the admin sidebar, and changed `teardown` / `cookieCategories` lists stay in sync without any GitHub fetch or runtime cost. It never inserts new rows; a missing or unparseable file is logged and skipped.
-5. The Vercel webhook (`deployment.succeeded`) reconciles the module rows via `markModulesDeploySucceeded()` (promoting `pendingVersion → version`) and releases the deploy lock; `deployment.error`/`canceled` calls `markModulesDeployFailed()`. On Hobby plans without webhooks, the Modules page polls `check-status` instead, and dismissing the redeploying screen reconciles against the real deployment state. See "Confirmed vs in-flight version" above.
+5. The Vercel webhook (`deployment.succeeded`) reconciles the module rows via `markModulesDeploySucceeded()` (promoting `pendingVersion → version`) and releases the deploy lock; `deployment.error`/`canceled` calls `markModulesDeployFailed()`. On Hobby plans without webhooks, the Modules page polls `check-status` instead, and dismissing the deploy status reconciles against the real deployment state. See "Confirmed vs in-flight version" above.
 
 Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). They never touch Prisma's migration history. The core Prisma client knows nothing about module tables - modules query their own tables directly.
 

@@ -81,6 +81,8 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
 
   return (
     <AdminPathProvider value={adminPath}>
+    {/* Full-width strip above the whole shell (sidebar included) while a redeploy runs */}
+    <DeployStatusBar />
     <div className="admin-shell">
       {/* Mobile topbar — only visible on small screens */}
       <div className="admin-mobile-topbar">
@@ -196,7 +198,6 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
 
       <div className="admin-main">
         <div className={`admin-content${PUCK_EDITOR_RE.test(pathname) ? ' admin-content--puck' : ''}`}>
-          <DeployStatusBar />
           {children}
         </div>
       </div>

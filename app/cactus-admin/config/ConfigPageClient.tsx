@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } fr
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
+import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
@@ -276,7 +277,8 @@ function UpdatesPanel() {
       const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
       if (!res.ok) throw new Error(d.error ?? 'Update failed')
       if (d.redeployTriggered) {
-        window.location.assign('/cactus-status/redeploying')
+        // Opens the notification bell with live deploy status
+        announceRedeployStarted()
         return
       }
     } catch (err: unknown) {
@@ -859,12 +861,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       const d = (await res.json()) as { ok?: boolean; error?: string; redeployTriggered?: boolean }
       if (!res.ok) throw new Error(d.error ?? 'Save failed')
 
-      // A redeploy was triggered — hard reload so the proxy picks up the
-      // pendingRedeployId sentinel and shows the redeploying screen immediately.
-      if (d.redeployTriggered) {
-        window.location.reload()
-        return
-      }
+      // A redeploy was triggered - surface live status via the notification bell
+      if (d.redeployTriggered) announceRedeployStarted()
 
       // Update local status optimistically
       const updated: Record<string, boolean> = { ...envStatus }
@@ -1601,12 +1599,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                         const res = await fetch('/api/admin/env', { method: 'DELETE' })
                         const d = (await res.json()) as { ok?: boolean; error?: string; deleted?: number; failed?: Array<{ key: string; error: string }>; redeployTriggered?: boolean }
                         if (!res.ok) throw new Error(d.error ?? 'Reset failed')
-                        // A redeploy was triggered — hard reload so the proxy picks up the
-                        // pendingRedeployId sentinel and shows the redeploying screen immediately.
-                        if (d.redeployTriggered) {
-                          window.location.reload()
-                          return
-                        }
+                        // A redeploy was triggered - surface live status via the notification bell
+                        if (d.redeployTriggered) announceRedeployStarted()
                         setEnvStatus({})
                         setShowResetConfirm(false)
                         setResetDeletedCount(d.deleted ?? 0)

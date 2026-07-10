@@ -4,6 +4,15 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from '
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import {
+  REDEPLOY_STARTED_EVENT,
+  announceRedeployStarted,
+  deployStateLabel,
+  dismissDeployStatus,
+  getDeployStatus,
+  getServerDeployStatus,
+  subscribeDeployStatus,
+} from '@/lib/deploy-status-client'
 
 type Props = {
   adminPath: string
@@ -123,6 +132,57 @@ function NotificationItem({
   )
 }
 
+// Compact live view of an in-flight redeploy, shown at the top of the bell
+// dropdown. Sized to roughly three log lines; scrolls for the full history.
+function DeployStatusSection() {
+  const status = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
+  const logRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = logRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [status.lines.length])
+
+  if (!status.active) return null
+
+  const { failed, state, lines } = status
+
+  return (
+    <div className={['admin-bell-deploy', failed ? 'admin-bell-deploy--failed' : ''].filter(Boolean).join(' ')}>
+      <div className="admin-bell-deploy-top">
+        {!failed && <span className="setup-spinner admin-bell-deploy-spinner" style={{ color: 'var(--color-primary)' }} />}
+        <span className="admin-bell-deploy-title">
+          {failed ? 'Redeploy failed' : 'Redeploying your site'}
+        </span>
+        <span className={`badge ${failed ? 'badge-danger' : 'badge-info'}`}>{deployStateLabel(state, failed)}</span>
+      </div>
+      <div className="admin-bell-deploy-log" ref={logRef}>
+        {lines.length > 0 ? (
+          lines.map((line, i) => (
+            <div
+              key={i}
+              className={['admin-bell-deploy-line', i === lines.length - 1 ? 'admin-bell-deploy-line--latest' : ''].filter(Boolean).join(' ')}
+            >
+              {line}
+            </div>
+          ))
+        ) : (
+          <div className="admin-bell-deploy-line">
+            {failed ? 'Your changes may not have taken effect.' : 'Applying your changes and bringing the site back up.'}
+          </div>
+        )}
+      </div>
+      {failed && (
+        <div className="admin-bell-deploy-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => dismissDeployStatus()}>
+            Dismiss
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function NotificationBell({ adminPath, unreadCount = 0, collapsed }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -163,6 +223,16 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     if (!open) return
     fetchNotifications()
   }, [open, fetchNotifications])
+
+  // Any admin action that kicks off a redeploy broadcasts this event — pop the
+  // dropdown open so the live deploy status is immediately in view.
+  useEffect(() => {
+    function onRedeployStarted() {
+      openDropdown()
+    }
+    window.addEventListener(REDEPLOY_STARTED_EVENT, onRedeployStarted)
+    return () => window.removeEventListener(REDEPLOY_STARTED_EVENT, onRedeployStarted)
+  }, [openDropdown])
 
   // Poll for new notifications so the badge updates live, not just on
   // full page reload / next server-rendered layout pass.
@@ -228,9 +298,12 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       const res = await fetch(`/api/admin/notifications/${id}/redeploy`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Redeploy failed')
-      window.location.assign('/cactus-status/redeploying')
+      announceRedeployStarted()
+      fetchNotifications()
+      router.refresh()
     } catch (err: unknown) {
       setErr(id, err instanceof Error ? err.message : 'Redeploy failed')
+    } finally {
       setActionLoading(null)
     }
   }
@@ -287,6 +360,8 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       <div className="admin-bell-dropdown-header">
         <span className="admin-bell-dropdown-title">Notifications</span>
       </div>
+
+      <DeployStatusSection />
 
       <div className="admin-bell-dropdown-body">
         {notifications === null ? (

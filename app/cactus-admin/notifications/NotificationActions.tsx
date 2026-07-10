@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { announceRedeployStarted } from '@/lib/deploy-status-client'
 
 type Props = {
   id: string
@@ -43,7 +44,9 @@ export default function NotificationActions({ id, isRead, canRedeploy, viewHref,
       const res = await fetch(`/api/admin/notifications/${id}/redeploy`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Redeploy failed')
-      window.location.assign('/cactus-status/redeploying')
+      // Opens the notification bell with live deploy status (see deploy-status-client)
+      announceRedeployStarted()
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Redeploy failed')
     } finally {

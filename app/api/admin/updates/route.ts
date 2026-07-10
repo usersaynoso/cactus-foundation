@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     // The sync push already triggered a Vercel build. Arm the redeploy gate and capture
     // that build (committedSince mode skips module sync / triggerVercelRedeploy so we
-    // don't double-deploy), then send the admin to the redeploying screen.
+    // don't double-deploy), then surface live deploy status in the admin.
     const { triggered } = await startDeferredRedeploy({ committedSince: deployStartedAt })
     if (!triggered) {
       // No Vercel creds: there's no deploy to track, so promote any queued module

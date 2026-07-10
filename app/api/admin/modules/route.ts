@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Commit modules.json and redeploy immediately: the git push auto-deploys, and the
-    // admin is sent straight to the redeploying screen. The module ships as 'deploying'.
+    // admin sees live deploy status in the shell. The module ships as 'deploying'.
     await prisma.module.update({
       where: { name: manifest.name },
       data: { status: 'deploying', version: release.tag },

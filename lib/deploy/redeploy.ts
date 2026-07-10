@@ -5,9 +5,9 @@ import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
 
-// Opens the redeploy gate (proxy traps admin requests on /cactus-status/redeploying
-// while pendingRedeployId is set), then in an after() callback ships the current
-// module registry: commit modules.json (the git push triggers a Vercel build) and
+// Arms the redeploy gate (pendingRedeployId drives the admin deploy status bar
+// and the notification bell's live section while set), then in an after()
+// callback ships the current module registry: commit modules.json (the git push triggers a Vercel build) and
 // capture that build's id, falling back to an explicit env-var redeploy when there's
 // nothing to commit. Shared by the module lifecycle routes and the "Redeploy now"
 // notification action. Returns { triggered: false } when Vercel creds are missing so
@@ -34,7 +34,7 @@ export async function startDeferredRedeploy(
 
   const deployStartedAt = opts.committedSince ?? Date.now()
 
-  // Sentinel written synchronously so the proxy shows the redeploying screen
+  // Sentinel written synchronously so the admin deploy status surfaces show up
   // immediately; the real Vercel deployment id is resolved below via after().
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
@@ -45,7 +45,7 @@ export async function startDeferredRedeploy(
   after(async () => {
     // Persist a resolved deployment id once we have one. When the poll comes up
     // empty we intentionally leave the 'pending' sentinel in place rather than
-    // nulling it: nulling bounces the admin off the redeploying page mid-build.
+    // nulling it: nulling hides the deploy status from the admin mid-build.
     // The server-side 2-minute auto-release (resolvePendingRedeploy) is the backstop.
     const persistDeploymentId = async (uid: string | undefined) => {
       if (!uid) return

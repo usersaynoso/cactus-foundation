@@ -120,7 +120,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     try {
       // Commit modules.json and redeploy immediately: the git push auto-deploys and the
-      // admin is sent to the redeploying screen. The module ships as 'deploying' with the
+      // admin sees live deploy status in the shell. The module ships as 'deploying' with the
       // new tag held in pendingVersion - the confirmed `version` only moves once the deploy
       // succeeds (markModulesDeploySucceeded), so a failed deploy doesn't masquerade as done.
       await prisma.module.update({
@@ -267,7 +267,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     // Deleting the row above removes it from the desired registry. Commit modules.json
-    // and redeploy immediately; the admin is sent to the redeploying screen.
+    // and redeploy immediately; the admin sees live deploy status in the shell.
     const { triggered } = await startDeferredRedeploy()
     if (!triggered) {
       // No Vercel creds: fall back to the deferred-notification flow.

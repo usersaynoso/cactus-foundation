@@ -582,6 +582,57 @@ a:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Live redeploy status inside the bell dropdown */
+.admin-bell-deploy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-primary-subtle);
+  flex-shrink: 0;
+}
+.admin-bell-deploy--failed {
+  background: var(--color-error-bg);
+}
+.admin-bell-deploy-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.admin-bell-deploy-spinner {
+  width: var(--space-3);
+  height: var(--space-3);
+  flex-shrink: 0;
+}
+.admin-bell-deploy-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-bell-deploy-log {
+  /* Roughly three lines tall; scrolls to reveal the full history */
+  max-height: calc(3 * 1.5 * 0.75rem);
+  overflow-y: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+.admin-bell-deploy-line {
+  line-height: 1.5;
+}
+.admin-bell-deploy-line--latest {
+  color: var(--color-text);
+}
+.admin-bell-deploy-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .admin-bell-dropdown-body {
   overflow-y: auto;
   max-height: 320px;
@@ -1549,12 +1600,13 @@ tbody tr:hover {
    ADMIN DEPLOY STATUS BAR
    ============================================================ */
 .admin-deploy-bar {
+  position: sticky;
+  top: 0;
+  z-index: 300;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
 }
 .admin-deploy-bar-spinner {

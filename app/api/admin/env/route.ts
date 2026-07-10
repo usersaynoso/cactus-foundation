@@ -208,7 +208,7 @@ export async function DELETE() {
     return errorResponse(`Failed to delete env vars: ${message}`, 502)
   }
 
-  // Write a sentinel synchronously so the proxy shows the redeploying screen
+  // Write a sentinel synchronously so the admin deploy status surfaces show up
   // the moment the client reloads — before the real deployment ID lands in after().
   try {
     await prisma.siteConfig.update({

@@ -41,7 +41,7 @@ export async function markModulesDeploySucceeded(): Promise<void> {
 // Roll back modules whose deployment failed: keep the confirmed (still-live) version
 // and drop the in-flight target. A module that was mid-update (updateAvailable set)
 // reverts cleanly to 'update_available' so the admin can simply retry - the failure
-// reason was already surfaced on the redeploying screen, so we don't leave a stale
+// reason was already surfaced by the deploy status bar, so we don't leave a stale
 // error on the row. A failed install (no updateAvailable) becomes 'failed' with the
 // reason, since there is no prior version to fall back to.
 export async function markModulesDeployFailed(reason: string): Promise<void> {

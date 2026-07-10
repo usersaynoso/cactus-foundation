@@ -256,7 +256,7 @@ Disabling a module is a database flag flip - no redeploy, no data loss. The modu
 2. A modal offers two options:
    - **Remove code only** - removes the submodule git entry and the `Module` DB row. Database tables are preserved.
    - **Remove code and data** - same as above, plus drops every table listed in `teardown`. Only available if the module declares `teardown` in its manifest.
-3. On confirmation, Cactus commits the submodule removal to the main repo, Vercel rebuilds, and the admin is redirected to the redeploying page.
+3. On confirmation, Cactus commits the submodule removal to the main repo, Vercel rebuilds, and the admin sees live deploy status in the notification bell.
 4. Uninstall is blocked if another active module's `requiresModules` still points at this one - remove the dependent module first.
 
 ## Structuring per-version migrations

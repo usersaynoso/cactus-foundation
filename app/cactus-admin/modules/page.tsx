@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
 import { markdownToHtml } from '@/lib/markdown-client'
+import { announceRedeployStarted } from '@/lib/deploy-status-client'
 
 type GitHubAppStatus = {
   connected: boolean
@@ -121,7 +122,7 @@ export default function ModulesPage() {
         setGhStatus({ connected: gh.connected, hasInstallation: gh.hasInstallation, hasPat: gh.hasPat })
       }
       // For each installed module: reconcile stale 'deploying' status (Hobby-plan fallback
-      // for when the redeploying screen was closed mid-build), otherwise check for updates
+      // for when the deploy status was dismissed mid-build), otherwise check for updates
       // (respecting the per-module throttle unless this was a deliberate refresh).
       const installedModules = modules.filter((m) => m.installed && m.installedId)
       if (installedModules.length > 0) {
@@ -223,14 +224,15 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Install failed')
       if (d.redeployTriggered) {
-        window.location.assign('/cactus-status/redeploying')
-        return
+        // Opens the notification bell with live deploy status
+        announceRedeployStarted()
+      } else {
+        setNotice(
+          channel === 'beta'
+            ? 'Beta module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
+            : 'Module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
+        )
       }
-      setNotice(
-        channel === 'beta'
-          ? 'Beta module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
-          : 'Module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
-      )
       await loadDirectory()
       router.refresh()
     } catch (err: unknown) {
@@ -253,10 +255,8 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Action failed')
       if (d.redeployTriggered) {
-        window.location.assign('/cactus-status/redeploying')
-        return
-      }
-      if (action === 'update') {
+        announceRedeployStarted()
+      } else if (action === 'update') {
         setNotice('Module updated. Your changes are waiting to go live - review and redeploy from Notifications.')
       }
       await loadDirectory()
@@ -281,18 +281,18 @@ export default function ModulesPage() {
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Update failed')
       if (d.redeployTriggered) {
-        window.location.assign('/cactus-status/redeploying')
-        return
-      }
-      const failed: string[] = d.failed ?? []
-      if (d.updated > 0) {
-        setNotice(
-          `${d.updated} module${d.updated === 1 ? '' : 's'} updated${failed.length ? `, ${failed.length} failed` : ''}. Your changes are waiting to go live - review and redeploy from Notifications.`
-        )
-      } else if (failed.length > 0) {
-        setError(`Failed to update: ${failed.join(', ')}`)
+        announceRedeployStarted()
       } else {
-        setNotice('No updates available.')
+        const failed: string[] = d.failed ?? []
+        if (d.updated > 0) {
+          setNotice(
+            `${d.updated} module${d.updated === 1 ? '' : 's'} updated${failed.length ? `, ${failed.length} failed` : ''}. Your changes are waiting to go live - review and redeploy from Notifications.`
+          )
+        } else if (failed.length > 0) {
+          setError(`Failed to update: ${failed.join(', ')}`)
+        } else {
+          setNotice('No updates available.')
+        }
       }
       await loadDirectory()
       router.refresh()
@@ -324,10 +324,10 @@ export default function ModulesPage() {
       if (!res.ok) throw new Error(d.error ?? 'Uninstall failed')
       setUninstallModal(null)
       if (d.redeployTriggered) {
-        window.location.assign('/cactus-status/redeploying')
-        return
+        announceRedeployStarted()
+      } else {
+        setNotice('Module uninstalled. Your changes are waiting to go live - review and redeploy from Notifications.')
       }
-      setNotice('Module uninstalled. Your changes are waiting to go live - review and redeploy from Notifications.')
       await loadDirectory()
       router.refresh()
     } catch (err: unknown) {
