@@ -11,6 +11,8 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
+import { fetchManifestFromRepo, parseModuleManifest } from '@/lib/modules/manifest'
+import pkg from '@/package.json'
 
 export const maxDuration = 60
 
@@ -92,6 +94,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
+
+    // A newer module version may need a newer core (requiresCoreVersion in its
+    // manifest) - updating anyway would break the site's next build on a
+    // missing core import. Skipped silently if the manifest can't be fetched,
+    // so a transient GitHub hiccup never blocks an otherwise-fine update.
+    let requiresCoreVersion: string | undefined
+    try {
+      requiresCoreVersion = parseModuleManifest(
+        await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json')
+      ).requiresCoreVersion
+    } catch (err) {
+      console.warn(`[modules] Could not pre-check requiresCoreVersion for ${mod.name}:`, err)
+    }
+    if (requiresCoreVersion && compareVersions(pkg.version, requiresCoreVersion) < 0) {
+      return errorResponse(
+        `The new version of "${mod.name}" needs Cactus v${requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then update the module.`,
+        409
+      )
+    }
 
     await prisma.deployLock.create({
       data: { id: 'singleton', lockedBy: `module:${mod.name}` },

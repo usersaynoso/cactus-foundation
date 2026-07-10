@@ -31,6 +31,8 @@ A module installed from the Beta switch starts life on the **Beta** update chann
 
 Once installed, the module appears in your admin sidebar if it adds any admin pages.
 
+**If a module needs a newer Cactus than you're running**, the install is politely refused and you'll be told to update Cactus first. Do the update, then install the module - the other way round ends in a broken deployment, which is why we don't let it happen.
+
 ### Setting up a module
 
 Some modules need extra credentials - for example, a contact form module might need email settings to send you notifications. After installation, any required settings appear as a checklist. Fill them in and save. Cactus applies the settings with another short rebuild.

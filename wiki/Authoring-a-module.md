@@ -56,6 +56,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `version` | `string` (required) | Semver, e.g. `1.0.0`. Must match the latest tagged GitHub release. |
 | `tablePrefix` | `string` (required) | Short unique namespace for this module's tables. Must end with underscore (`^[a-z][a-z0-9_]*_$`). Example: `forum_`. **Two modules cannot share a prefix.** |
 | `description` | `string` | Short description shown in the admin. |
+| `requiresCoreVersion` | `string` | Optional. Minimum Cactus core version (semver, no leading `v`) this module needs. Install and update are refused with an "update Cactus first" message when the running core is older. Set this whenever your module imports a core helper introduced in a specific core release - without it, installing on an older core commits the module and breaks the site's next build. |
 | `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. |
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. |

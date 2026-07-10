@@ -28,7 +28,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.0"
+      "version": "v0.1.1"
     }
   ]
 }

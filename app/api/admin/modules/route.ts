@@ -18,6 +18,7 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { compareVersions } from '@/lib/updates/core'
+import pkg from '@/package.json'
 
 export const maxDuration = 60
 
@@ -72,6 +73,16 @@ export async function POST(request: NextRequest) {
     manifest = parseModuleManifest(raw)
   } catch (err: unknown) {
     return errorResponse(`Manifest error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+  }
+
+  // Check the running core is new enough for this module. Installing anyway
+  // would commit the module into modules.json and break the site's next build
+  // on a missing core import - far worse than refusing here.
+  if (manifest.requiresCoreVersion && compareVersions(pkg.version, manifest.requiresCoreVersion) < 0) {
+    return errorResponse(
+      `"${manifest.name}" needs Cactus v${manifest.requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
+      409
+    )
   }
 
   // Check tablePrefix uniqueness

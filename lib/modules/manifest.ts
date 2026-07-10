@@ -35,6 +35,11 @@ export const ModuleManifestSchema = z.object({
   // Short unique namespace for this module's tables (e.g. "forum_")
   tablePrefix: z.string().regex(/^[a-z][a-z0-9_]*_$/, 'tablePrefix must end with underscore and be lowercase'),
   description: z.string().optional(),
+  // Minimum Cactus core version this module needs (semver, no leading v).
+  // Install and update are rejected with an "update Cactus first" message when
+  // the running core is older - a module importing a core helper that doesn't
+  // exist yet would otherwise fail the site's next build.
+  requiresCoreVersion: z.string().regex(/^\d+\.\d+\.\d+/, 'requiresCoreVersion must be semver').optional(),
   requiredEnvVars: z.array(EnvVarSchema).default([]),
   navEntries: z.array(NavEntrySchema).default([]),
   // When set, this module's navEntries render under their own sidebar section
