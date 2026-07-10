@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { MediaProviderType } from '@prisma/client'
+import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
@@ -292,8 +293,14 @@ function UpdatesPanel() {
   if (checking && !status) {
     return (
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>Checking for updates&hellip;</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <div>
+            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>Core updates</h3>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+              Running v{pkg.version} &middot; Checking for updates&hellip;
+            </p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -501,12 +508,7 @@ function UpdatesPanel() {
           {channelSaving && (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Saving&hellip;</span>
           )}
-          {updateControls && (
-            <>
-              <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--color-border)', margin: '0 0.25rem' }} />
-              {updateControls}
-            </>
-          )}
+          {updateControls}
         </div>
       )}
 
