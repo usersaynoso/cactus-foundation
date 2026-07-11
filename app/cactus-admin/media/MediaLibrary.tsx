@@ -223,11 +223,23 @@ export default function MediaLibrary({
   const openItem = openIndex >= 0 ? items[openIndex] : null
 
   // --- drag and drop ---
+  // Tracks whether an in-app card drag is in flight. Safari doesn't expose
+  // dataTransfer.types contents during dragover (only on drop), so the grid's
+  // dragover can't tell an external file drag from an internal card drag by
+  // sniffing types. This ref is the reliable signal: it's only ever true while a
+  // card is being dragged, so anything else is an external file drop.
+  const draggingInternal = useRef(false)
+
   function onDragStart(e: React.DragEvent, id: string) {
     // Drag the whole selection if the grabbed card is part of it, else just it.
     const ids = selected.has(id) ? Array.from(selected) : [id]
     e.dataTransfer.setData('text/plain', ids.join(','))
     e.dataTransfer.effectAllowed = 'move'
+    draggingInternal.current = true
+  }
+
+  function onDragEnd() {
+    draggingInternal.current = false
   }
 
   async function onDropToFolder(targetFolderId: string | null, raw: string) {
@@ -468,14 +480,21 @@ export default function MediaLibrary({
           // below a short grid (or an empty folder) still uploads.
           style={{ position: 'relative', minHeight: '60vh' }}
           onDragOver={canUpload ? (e) => {
-            if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setFileDragOver(true) }
+            // preventDefault unconditionally (like the folder rows) so the drop
+            // fires in every browser - Safari won't report a file drag in
+            // dataTransfer.types here, so gating on it silently killed uploads.
+            // The ref tells an internal card drag from an external file drop.
+            if (draggingInternal.current) return
+            e.preventDefault()
+            setFileDragOver(true)
           } : undefined}
           onDragLeave={canUpload ? (e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false)
           } : undefined}
           onDrop={canUpload ? (e) => {
-            if (e.dataTransfer.files.length > 0) { e.preventDefault(); setFileDragOver(false); uploadFiles(e.dataTransfer.files) }
-            else setFileDragOver(false)
+            setFileDragOver(false)
+            // files is reliably populated on drop in every browser.
+            if (e.dataTransfer.files.length > 0) { e.preventDefault(); uploadFiles(e.dataTransfer.files) }
           } : undefined}
         >
           {fileDragOver && (
@@ -574,6 +593,7 @@ export default function MediaLibrary({
                   onOpen={setOpenId}
                   draggable={canUpload}
                   onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
                   onContextMenu={(e, id) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
                   tags={item.tags}
                   dimmed={clipboardIdSet.has(item.id)}

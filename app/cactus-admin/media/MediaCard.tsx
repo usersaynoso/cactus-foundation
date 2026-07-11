@@ -47,6 +47,7 @@ export default function MediaCard({
   onOpen,
   draggable = false,
   onDragStart,
+  onDragEnd,
   onContextMenu,
   tags,
   dimmed = false,
@@ -66,6 +67,8 @@ export default function MediaCard({
   /** Enable drag-to-folder. */
   draggable?: boolean
   onDragStart?: (e: DragEvent, id: string) => void
+  /** Fires when an in-app card drag ends, so the parent can clear its drag state. */
+  onDragEnd?: () => void
   /** Right-click handler for the cut/copy/paste/rename/delete menu. */
   onContextMenu?: (e: MouseEvent, id: string) => void
   /** Tag names to show under the item. */
@@ -84,6 +87,7 @@ export default function MediaCard({
       <div
         draggable={draggable}
         onDragStart={draggable ? (e) => onDragStart?.(e, item.id) : undefined}
+        onDragEnd={draggable ? () => onDragEnd?.() : undefined}
         onContextMenu={onContextMenu ? (e) => onContextMenu(e, item.id) : undefined}
         style={{ border: `1px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)', opacity: dimmed ? 0.5 : 1, cursor: draggable ? 'grab' : 'default' }}
       >
