@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { CustomFieldRender } from '@puckeditor/core'
 
 type MediaItem = {
@@ -18,6 +18,9 @@ function MediaPickerModal({ onSelect, onClose }: {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/admin/media?perPage=50')
@@ -25,6 +28,30 @@ function MediaPickerModal({ onSelect, onClose }: {
       .then((d) => { setItems(d.items ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  async function handleUpload(files: FileList | null) {
+    const file = files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('altText', '')
+    try {
+      const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
+      const record = await res.json()
+      if (!res.ok) throw new Error(record.error ?? 'Upload failed')
+      const item: MediaItem = {
+        id: record.id, url: record.url, key: record.key,
+        altText: record.altText ?? null, mimeType: record.mimeType,
+      }
+      setItems((prev) => [item, ...prev])
+      onSelect(item)
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+      setUploading(false)
+    }
+  }
 
   const filtered = query
     ? items.filter((i) =>
@@ -56,6 +83,21 @@ function MediaPickerModal({ onSelect, onClose }: {
             autoFocus
             style={{ flex: 1, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'inherit', background: 'var(--color-bg)', color: 'var(--color-text)' }}
           />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={(e) => handleUpload(e.target.files)}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            style={{ flexShrink: 0, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: uploading ? 'default' : 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--color-text)', opacity: uploading ? 0.6 : 1 }}
+          >
+            {uploading ? 'Uploading…' : '+ Upload'}
+          </button>
           <button
             type="button"
             aria-label="Close"
@@ -66,6 +108,7 @@ function MediaPickerModal({ onSelect, onClose }: {
           </button>
         </div>
         <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
+          {uploadError && <p style={{ color: 'var(--color-destructive)', textAlign: 'center', fontSize: '0.8125rem', marginTop: 0 }}>{uploadError}</p>}
           {loading && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>Loading…</p>}
           {!loading && filtered.filter((i) => i.mimeType.startsWith('image/')).length === 0 && (
             <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>No images found</p>

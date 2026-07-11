@@ -40,11 +40,11 @@ Not sure where a particular value comes from? The credentials panel shows a **Wh
 
 Once a provider is connected, an **Upload** button appears in:
 
-- The **Image** block settings in the page editor
+- Any block with an image picker in the page editor - **Image**, **Image + Floating Chips**, and **Card** - where the picker opens a window to choose an existing image, with a **+ Upload** button in its top corner for adding a new one
 - The **Site logo** settings in the page editor
 - **Appearance → Styles → Branding** (for your logo and favicon)
 
-Click **Upload**, select a file from your computer, and it will be stored with your chosen provider and added to your media library.
+Click **Upload** (or **+ Upload** in the picker window), select a file from your computer, and it will be stored with your chosen provider and added to your media library. In the block pickers the freshly uploaded image is popped in and selected for you straight away, so there's no need to nip off to the media library first.
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG.
 
