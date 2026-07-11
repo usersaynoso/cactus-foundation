@@ -48,6 +48,12 @@ const KNOWN_PROVIDERS = new Set([
 export interface Env {
   ALLOWED_ORIGIN: string
 
+  // Shared HMAC key (derived from the app's SESSION_SECRET) that authorises
+  // direct uploads. The app signs a short-lived token bound to the object key;
+  // the Worker verifies it here before writing. Absent = uploads disabled (the
+  // Worker only serves), so the client falls back to the serverless path.
+  UPLOAD_SIGNING_SECRET?: string
+
   // B2
   B2_APPLICATION_KEY_ID?: string
   B2_APPLICATION_KEY?: string
@@ -98,6 +104,15 @@ const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
 
+    // Cross-origin PUT with an Authorization header triggers a CORS preflight.
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(env) })
+    }
+
+    if (request.method === 'PUT') {
+      return handleUpload(request, env, url)
+    }
+
     if (request.method !== 'GET') {
       return new Response('Method not allowed', { status: 405 })
     }
@@ -143,6 +158,195 @@ const worker = {
   },
 }
 export default worker
+
+// ---------------------------------------------------------------------------
+// Upload (PUT) — authorised direct writes from the browser
+// ---------------------------------------------------------------------------
+
+// CORS headers for the upload endpoint. The site PUTs from its own origin, so
+// the browser preflights (PUT + Authorization are non-simple). Every upload
+// response echoes these so the browser can read the result.
+function corsHeaders(env: Env): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Max-Age': '86400',
+  }
+}
+
+function uploadError(message: string, status: number, env: Env): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders(env), 'content-type': 'application/json' },
+  })
+}
+
+// The provider that owns a key, from its path. Mirrors the GET-side resolution:
+// "media/<PROVIDER>/…" → that provider; legacy "media/…" → B2.
+function providerFromKey(fullKey: string): string {
+  const afterMedia = fullKey.slice('media/'.length)
+  const slashIdx = afterMedia.indexOf('/')
+  const maybeProvider = slashIdx !== -1 ? afterMedia.slice(0, slashIdx) : ''
+  return KNOWN_PROVIDERS.has(maybeProvider) ? maybeProvider : 'B2'
+}
+
+async function handleUpload(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.UPLOAD_SIGNING_SECRET) {
+    return uploadError('Uploads are not enabled on this Worker.', 503, env)
+  }
+
+  const fullKey = url.pathname.slice(1)
+  if (!fullKey.startsWith('media/') || fullKey.length < 8) {
+    return uploadError('Invalid object key.', 400, env)
+  }
+
+  // Verify the signed, key-bound, short-lived token before doing any work.
+  const authHeader = request.headers.get('authorization') ?? ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  if (!(await verifyUploadToken(env.UPLOAD_SIGNING_SECRET, fullKey, token, Date.now()))) {
+    return uploadError('Not authorised to upload here.', 403, env)
+  }
+
+  const provider = providerFromKey(fullKey)
+  const params = s3ParamsFor(provider, env)
+  if (!params) {
+    // Only the S3-compatible family accepts Worker writes; the app never signs a
+    // token for anything else, so this is a defensive guard.
+    return uploadError(`Uploads to ${provider} are not supported here.`, 400, env)
+  }
+
+  const contentType = request.headers.get('content-type') || 'application/octet-stream'
+  try {
+    // Buffer the body: images are small enough for the Worker's memory, it gives
+    // storage a definite Content-Length (some S3 providers reject chunked PUTs),
+    // lets us sign the real payload hash below, and sidesteps request-stream
+    // duplex quirks.
+    const bytes = await request.arrayBuffer()
+    const put = await putS3Compatible(params, fullKey, bytes, contentType)
+    if (!put.ok) {
+      return uploadError(`Storage rejected the upload (${put.status}).`, 502, env)
+    }
+    return new Response(JSON.stringify({ ok: true, key: fullKey }), {
+      status: 200,
+      headers: { ...corsHeaders(env), 'content-type': 'application/json' },
+    })
+  } catch {
+    return uploadError('Upload failed reaching storage.', 502, env)
+  }
+}
+
+type S3Params = {
+  endpoint: string
+  bucket: string
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
+}
+
+// Endpoint/bucket/creds/region for each S3-compatible provider, matching the
+// GET-side fetchFromProvider switch. Returns null for non-S3 providers.
+function s3ParamsFor(provider: string, env: Env): S3Params | null {
+  switch (provider) {
+    case 'B2':
+      return { endpoint: env.B2_ENDPOINT ?? '', bucket: env.B2_BUCKET_NAME ?? '', accessKeyId: env.B2_APPLICATION_KEY_ID ?? '', secretAccessKey: env.B2_APPLICATION_KEY ?? '', region: 'auto' }
+    case 'R2':
+      return { endpoint: `https://${env.R2_ACCOUNT_ID ?? ''}.r2.cloudflarestorage.com`, bucket: env.R2_BUCKET_NAME ?? '', accessKeyId: env.R2_ACCESS_KEY_ID ?? '', secretAccessKey: env.R2_SECRET_ACCESS_KEY ?? '', region: 'auto' }
+    case 'S3':
+      return { endpoint: `https://s3.${env.S3_REGION ?? 'us-east-1'}.amazonaws.com`, bucket: env.S3_BUCKET_NAME ?? '', accessKeyId: env.S3_ACCESS_KEY_ID ?? '', secretAccessKey: env.S3_SECRET_ACCESS_KEY ?? '', region: env.S3_REGION ?? 'us-east-1' }
+    case 'SPACES':
+      return { endpoint: `https://${env.SPACES_REGION ?? 'nyc3'}.digitaloceanspaces.com`, bucket: env.SPACES_BUCKET_NAME ?? '', accessKeyId: env.SPACES_ACCESS_KEY_ID ?? '', secretAccessKey: env.SPACES_SECRET_ACCESS_KEY ?? '', region: env.SPACES_REGION ?? 'nyc3' }
+    case 'WASABI':
+      return { endpoint: `https://s3.${env.WASABI_REGION ?? 'us-east-1'}.wasabisys.com`, bucket: env.WASABI_BUCKET_NAME ?? '', accessKeyId: env.WASABI_ACCESS_KEY_ID ?? '', secretAccessKey: env.WASABI_SECRET_ACCESS_KEY ?? '', region: env.WASABI_REGION ?? 'us-east-1' }
+    case 'MINIO':
+      return { endpoint: env.MINIO_ENDPOINT ?? '', bucket: env.MINIO_BUCKET_NAME ?? '', accessKeyId: env.MINIO_ACCESS_KEY_ID ?? '', secretAccessKey: env.MINIO_SECRET_ACCESS_KEY ?? '', region: 'us-east-1' }
+    default:
+      return null
+  }
+}
+
+// SigV4-signed PUT. Signs the real SHA-256 payload hash (maximally compatible
+// across S3-compatible providers, including Backblaze B2). Content-Type is sent
+// unsigned - S3 still stores it - so it need not be part of the signature.
+async function putS3Compatible(
+  p: S3Params,
+  key: string,
+  body: ArrayBuffer,
+  contentType: string,
+): Promise<Response> {
+  const base = normalizeEndpoint(p.endpoint)
+  const objectUrl = `${base}/${p.bucket}/${key}`
+  const url = new URL(objectUrl)
+
+  const now = new Date()
+  const dateStamp = formatDate(now)
+  const amzDate = formatAmzDate(now)
+  const payloadHash = await sha256hexBytes(body)
+
+  const headers: Record<string, string> = {
+    host: url.hostname,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date': amzDate,
+  }
+  const sortedHeaders = Object.entries(headers).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  const signedHeaders = sortedHeaders.map(([k]) => k).join(';')
+
+  const canonicalRequest = [
+    'PUT',
+    url.pathname,
+    url.search.slice(1),
+    sortedHeaders.map(([k, v]) => `${k}:${v}`).join('\n') + '\n',
+    signedHeaders,
+    payloadHash,
+  ].join('\n')
+
+  const credentialScope = `${dateStamp}/${p.region}/s3/aws4_request`
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    amzDate,
+    credentialScope,
+    await sha256hex(canonicalRequest),
+  ].join('\n')
+
+  const signingKey = await deriveSigningKey(p.secretAccessKey, dateStamp, p.region)
+  const signature = await hmacHex(signingKey, stringToSign)
+
+  const authorization =
+    `AWS4-HMAC-SHA256 Credential=${p.accessKeyId}/${credentialScope},` +
+    `SignedHeaders=${signedHeaders},Signature=${signature}`
+
+  return fetch(objectUrl, {
+    method: 'PUT',
+    headers: { ...headers, 'content-type': contentType, Authorization: authorization },
+    body,
+  })
+}
+
+// Verify a `<exp>.<sig>` upload token: signature over "<key>\n<exp>" with the
+// shared secret, and not past its expiry. Constant-time signature compare.
+async function verifyUploadToken(secret: string, key: string, token: string, nowMs: number): Promise<boolean> {
+  const dot = token.indexOf('.')
+  if (dot === -1) return false
+  const exp = Number(token.slice(0, dot))
+  const sig = token.slice(dot + 1)
+  if (!Number.isFinite(exp) || exp < nowMs) return false
+  const expected = base64url(await hmac(new TextEncoder().encode(secret), `${key}\n${exp}`))
+  return constantTimeEqual(sig, expected)
+}
+
+function base64url(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
 
 // ---------------------------------------------------------------------------
 // Per-provider fetch
@@ -348,6 +552,10 @@ function buildImageResizingOptions(url: URL): RequestInit['cf'] {
 async function sha256hex(data: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))
   return hex(buf)
+}
+
+async function sha256hexBytes(data: ArrayBuffer): Promise<string> {
+  return hex(await crypto.subtle.digest('SHA-256', data))
 }
 
 async function hmac(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {

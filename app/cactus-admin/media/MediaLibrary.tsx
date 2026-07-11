@@ -6,6 +6,7 @@ import MediaLightbox from './MediaLightbox'
 import MediaImageEditor from './MediaImageEditor'
 import MediaUpload from './MediaUpload'
 import FolderTree, { type FolderNode } from './FolderTree'
+import { uploadOneFile } from '@/lib/media/upload-client'
 
 export type LibraryItem = MediaCardItem & { folderId: string | null; tags: string[] }
 export type TagInfo = { id: string; name: string; count: number }
@@ -420,12 +421,7 @@ export default function MediaLibrary({
     setError('')
     try {
       for (const file of list) {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('altText', '')
-        if (targetFolderId) fd.append('folderId', targetFolderId)
-        const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? 'Upload failed') }
+        await uploadOneFile(file, targetFolderId)
       }
       await Promise.all([fetchItems(), refetchFolders()])
     } catch (err) {

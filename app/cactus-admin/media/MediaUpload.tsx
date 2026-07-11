@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { uploadOneFile } from '@/lib/media/upload-client'
 
 export default function MediaUpload({
   folderId = null,
@@ -23,17 +24,8 @@ export default function MediaUpload({
     setError('')
 
     for (const file of Array.from(files)) {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('altText', '')
-      if (folderId) fd.append('folderId', folderId)
-
       try {
-        const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
-        if (!res.ok) {
-          const d = await res.json()
-          throw new Error(d.error ?? 'Upload failed')
-        }
+        await uploadOneFile(file, folderId)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Upload failed')
       }

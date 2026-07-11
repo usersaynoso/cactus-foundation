@@ -12,6 +12,7 @@ import {
 } from '@/lib/media/providers'
 import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib/media/cloudflare-deploy'
 import { rebaseProxiedMediaUrls } from '@/lib/media/upload'
+import { deriveUploadSigningKey } from '@/lib/media/upload-token'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
@@ -109,6 +110,16 @@ export async function POST(req: NextRequest) {
     secrets.push({ name: 'ALLOWED_ORIGIN', text: origin })
   } else {
     missing.push('ALLOWED_ORIGIN (set SITE_URL)')
+  }
+
+  // Signing key for direct uploads. Derived from SESSION_SECRET so there's
+  // nothing extra for the operator to configure; pushing it here is what turns
+  // the Worker's upload endpoint on. Skipped (uploads stay on the serverless
+  // path) if SESSION_SECRET isn't set rather than failing the whole deploy.
+  try {
+    secrets.push({ name: 'UPLOAD_SIGNING_SECRET', text: deriveUploadSigningKey() })
+  } catch {
+    // SESSION_SECRET absent - leave uploads disabled on the Worker.
   }
 
   if (missing.length > 0) {

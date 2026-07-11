@@ -6,8 +6,8 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
+import { MAX_UPLOAD_BYTES, tooLargeReason } from '@/lib/media/limits'
 
-const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 
 // Maps each allowed client-supplied MIME type to the image format sharp
@@ -44,10 +44,10 @@ export async function validateUpload(
       reason: `File type "${mimeType}" is not allowed. Accepted: JPEG, PNG, WebP, GIF, SVG.`,
     }
   }
-  if (sizeBytes > MAX_SIZE_BYTES) {
+  if (sizeBytes > MAX_UPLOAD_BYTES) {
     return {
       valid: false,
-      reason: `File size ${(sizeBytes / 1024 / 1024).toFixed(1)} MB exceeds the 10 MB limit.`,
+      reason: tooLargeReason(sizeBytes),
     }
   }
 
@@ -145,7 +145,7 @@ function filenameLabel(originalFilename?: string): string {
   return safe ? `-${safe}` : ''
 }
 
-function workerUrl(): string {
+export function workerUrl(): string {
   return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
 }
 
@@ -278,7 +278,7 @@ function getS3Config(provider: MediaProviderType): S3Config {
 }
 
 const S3_PROVIDERS: MediaProviderType[] = ['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO']
-function isS3Provider(provider: MediaProviderType): boolean {
+export function isS3Provider(provider: MediaProviderType): boolean {
   return S3_PROVIDERS.includes(provider)
 }
 
@@ -290,7 +290,7 @@ function isS3Provider(provider: MediaProviderType): boolean {
 // the provider segment so the Worker still resolves the provider from the path,
 // while the URL mirrors the media library's folder tree. The nanoid stays in the
 // filename so two files with the same name in one folder never collide in storage.
-function buildKey(
+export function buildKey(
   provider: MediaProviderType,
   mimeType: string,
   originalFilename?: string,

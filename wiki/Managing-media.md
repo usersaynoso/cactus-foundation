@@ -48,6 +48,8 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG.
 
+**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, so there's no practical size limit - drop in the full-fat shot from a phone or camera and it'll go up. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a large photo, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy, and big uploads will flow. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+
 ---
 
 ## Your media library
@@ -68,7 +70,7 @@ Got a big library? Just keep scrolling - more files load in automatically as you
 
 **Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. From here you can also **Edit image…**, **Cut**, **Copy**, **Rename…**, **Move to…**, **Tag…** or **Delete** the file, without having to close the preview and hunt for the right-click menu first. Press Esc or click outside to close.
 
-**Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first.
+**Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first. You can also drop them straight onto a folder in the tree on the left to upload into it without opening it first.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
 
