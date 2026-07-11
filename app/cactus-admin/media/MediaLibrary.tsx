@@ -410,9 +410,10 @@ export default function MediaLibrary({
     }
   }
 
-  // Upload files dropped straight onto the grid from the desktop. Same endpoint
-  // and folder-targeting as the header's Upload button.
-  async function uploadFiles(files: FileList) {
+  // Upload files dropped straight onto the grid, or onto a folder row in the
+  // sidebar, from the desktop. Same endpoint as the header's Upload button.
+  // Defaults to the open folder; a sidebar drop passes the row's folder instead.
+  async function uploadFiles(files: FileList, targetFolderId: string | null = currentFolderId) {
     const list = Array.from(files)
     if (list.length === 0) return
     setBusy('Uploading…')
@@ -422,7 +423,7 @@ export default function MediaLibrary({
         const fd = new FormData()
         fd.append('file', file)
         fd.append('altText', '')
-        if (currentFolderId) fd.append('folderId', currentFolderId)
+        if (targetFolderId) fd.append('folderId', targetFolderId)
         const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
         if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? 'Upload failed') }
       }
@@ -458,6 +459,7 @@ export default function MediaLibrary({
           canDelete={canDelete}
           onNavigate={(id) => { setSearch(''); setSearchInput(''); setTagFilter(''); setCurrentFolderId(id) }}
           onDropItems={onDropToFolder}
+          onDropFiles={(folderId, files) => uploadFiles(files, folderId)}
           onMoveFolder={performMoveFolder}
           onNewFolder={() => setNewFolderOpen(true)}
           onRenameFolder={(f) => setRenameFolderNode(f)}

@@ -14,6 +14,7 @@ export default function FolderTree({
   canDelete,
   onNavigate,
   onDropItems,
+  onDropFiles,
   onMoveFolder,
   onNewFolder,
   onRenameFolder,
@@ -26,6 +27,8 @@ export default function FolderTree({
   canDelete: boolean
   onNavigate: (id: string | null) => void
   onDropItems: (targetFolderId: string | null, raw: string) => void
+  /** Files dragged in from outside the browser, dropped directly onto a folder row. */
+  onDropFiles: (targetFolderId: string | null, files: FileList) => void
   onMoveFolder: (folderId: string, targetParentId: string | null) => void
   onNewFolder: () => void
   onRenameFolder: (folder: FolderNode) => void
@@ -58,6 +61,7 @@ export default function FolderTree({
         depth={0}
         onClick={() => onNavigate(null)}
         onDropItems={(raw) => onDropItems(null, raw)}
+        onDropFiles={canManage ? (files) => onDropFiles(null, files) : undefined}
         onDropFolder={canManage ? (fid) => onMoveFolder(fid, null) : undefined}
       />
       {roots.map((f) => (
@@ -73,6 +77,7 @@ export default function FolderTree({
           onToggle={toggle}
           onNavigate={onNavigate}
           onDropItems={onDropItems}
+          onDropFiles={onDropFiles}
           onMoveFolder={onMoveFolder}
           onRenameFolder={onRenameFolder}
           onDeleteFolder={onDeleteFolder}
@@ -92,7 +97,7 @@ export default function FolderTree({
 }
 
 function FolderRow({
-  folder, depth, currentFolderId, canManage, canDelete, childrenOf, isOpen, onToggle, onNavigate, onDropItems, onMoveFolder, onRenameFolder, onDeleteFolder,
+  folder, depth, currentFolderId, canManage, canDelete, childrenOf, isOpen, onToggle, onNavigate, onDropItems, onDropFiles, onMoveFolder, onRenameFolder, onDeleteFolder,
 }: {
   folder: FolderNode; depth: number; currentFolderId: string | null; canManage: boolean; canDelete: boolean
   childrenOf: (id: string) => FolderNode[]
@@ -100,6 +105,7 @@ function FolderRow({
   onToggle: (id: string) => void
   onNavigate: (id: string | null) => void
   onDropItems: (targetFolderId: string | null, raw: string) => void
+  onDropFiles: (targetFolderId: string | null, files: FileList) => void
   onMoveFolder: (folderId: string, targetParentId: string | null) => void
   onRenameFolder: (f: FolderNode) => void
   onDeleteFolder: (f: FolderNode) => void
@@ -118,6 +124,7 @@ function FolderRow({
         onToggle={() => onToggle(folder.id)}
         onClick={() => onNavigate(folder.id)}
         onDropItems={(raw) => onDropItems(folder.id, raw)}
+        onDropFiles={canManage ? (files) => onDropFiles(folder.id, files) : undefined}
         onDropFolder={canManage ? (fid) => onMoveFolder(fid, folder.id) : undefined}
         draggableFolderId={canManage ? folder.id : undefined}
         actions={
@@ -142,6 +149,7 @@ function FolderRow({
           onToggle={onToggle}
           onNavigate={onNavigate}
           onDropItems={onDropItems}
+          onDropFiles={onDropFiles}
           onMoveFolder={onMoveFolder}
           onRenameFolder={onRenameFolder}
           onDeleteFolder={onDeleteFolder}
@@ -152,12 +160,14 @@ function FolderRow({
 }
 
 function Row({
-  label, count, active, depth, hasChildren, expanded, onToggle, onClick, onDropItems, onDropFolder, draggableFolderId, actions,
+  label, count, active, depth, hasChildren, expanded, onToggle, onClick, onDropItems, onDropFiles, onDropFolder, draggableFolderId, actions,
 }: {
   label: string; count: number; active: boolean; depth: number
   hasChildren?: boolean; expanded?: boolean; onToggle?: () => void
   onClick: () => void
   onDropItems: (raw: string) => void
+  /** Accept files dragged in from outside the browser, uploaded straight to this folder. Absent = uploads disabled. */
+  onDropFiles?: (files: FileList) => void
   /** Accept a dropped folder (move it here). Absent = folders can't be dropped here. */
   onDropFolder?: (folderId: string) => void
   /** When set, this row can be dragged onto another folder to move it. */
@@ -173,6 +183,7 @@ function Row({
       onDragLeave={() => setOver(false)}
       onDrop={(e) => {
         e.preventDefault(); setOver(false)
+        if (e.dataTransfer.files.length > 0) { onDropFiles?.(e.dataTransfer.files); return }
         const folderId = e.dataTransfer.getData(FOLDER_DND_TYPE)
         if (folderId) { onDropFolder?.(folderId); return }
         const raw = e.dataTransfer.getData('text/plain')
