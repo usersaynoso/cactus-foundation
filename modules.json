@@ -33,7 +33,7 @@
     {
       "name": "gemini-watermark-remover",
       "repoUrl": "https://github.com/cactus-foundation-modules/gemini-watermark-remover",
-      "version": "v0.1.3"
+      "version": "v0.1.4"
     }
   ]
 }
