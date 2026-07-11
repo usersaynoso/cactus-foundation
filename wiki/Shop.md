@@ -44,8 +44,8 @@ From **Shop → Products → New product**, fill in a name and price to get star
 - **Inventory** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder).
 - **Pre-order** - flag a product as a pre-order with an expected dispatch date and an optional note. Customers can buy it straight away; stock only comes off the shelf once you actually mark the order as shipped.
 - **Digital files** - for digital products, attach the file customers download after paying, with an optional download limit and expiry.
-- **Images** - add one or more, first one becomes the main photo.
-- **Categories, tags and collections** - organise your catalogue however suits.
+- **Images** - add one or more, first one becomes the main photo. When you save, your product photos are tidied away into a folder named after the product's master category, and renamed after the product (so "Blue Mug" ends up as blue-mug1, blue-mug2 and so on). Housekeeping you never have to think about.
+- **Categories, tags and collections** - organise your catalogue however suits. A product can sit in as many categories as you like, but one of them is its **master category** - the lead one, chosen from a dropdown of the categories you've ticked. It's the category the product's photos get filed under.
 - **SEO** - a custom page title and description for search engines.
 
 **Save** as a draft to keep working on it privately, or set it **Active** to put it in front of customers straight away.
@@ -54,7 +54,7 @@ From **Shop → Products → New product**, fill in a name and price to get star
 
 ## Categories, tags and collections
 
-**Categories** are the usual hierarchical grouping (Mugs, under Kitchenware, under Homeware). **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+**Categories** are the usual hierarchical grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
 
 ---
 

@@ -295,9 +295,16 @@ function buildKey(
   mimeType: string,
   originalFilename?: string,
   folderPath?: string,
+  // When true, the sanitised original filename becomes the key basename verbatim,
+  // with no nanoid prefix — the caller guarantees uniqueness within the folder
+  // (the shop names product images <product-slug><n>). Two exact-named uploads to
+  // the same folder deliberately overwrite in storage. Falls back to the nanoid
+  // form when no usable filename is given.
+  exactName?: boolean,
 ): string {
   const ext = extensionForMimeType(mimeType)
-  const id = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
+  const exactBase = exactName ? sanitizeFilename((originalFilename ?? '').replace(/\.[^./\\]+$/, '')) : ''
+  const id = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
   const prefix = provider === 'B2' ? 'media' : `media/${provider}`
   const dir = folderPath ? `${prefix}/${folderPath}` : prefix
   return `${dir}/${id}`
@@ -315,10 +322,13 @@ export async function uploadMedia(
   // Sanitised, slash-joined folder path the item should live under. Omitted for
   // uploads into the library root and for all generated media (icons, avatars).
   folderPath?: string,
+  // Opt-in: use the exact (sanitised) filename as the key basename, no nanoid.
+  // Callers that pass this own uniqueness within the folder. See buildKey.
+  exactName?: boolean,
 ): Promise<UploadResult> {
   if (isS3Provider(provider)) {
     const { client, bucket } = getS3Config(provider)
-    const key = buildKey(provider, mimeType, originalFilename, folderPath)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     await client.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -333,7 +343,7 @@ export async function uploadMedia(
 
   if (provider === 'VERCEL_BLOB') {
     const { put } = await import('@vercel/blob')
-    const key = buildKey(provider, mimeType, originalFilename, folderPath)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     // access 'public' returns a stable blob URL; the Worker fetches it by key.
     await put(key, buffer, {
       access: 'public',
@@ -354,7 +364,7 @@ export async function uploadMedia(
       }
     )
     const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME ?? ''
-    const key = buildKey(provider, mimeType, originalFilename, folderPath)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     const { error } = await storage.from(bucket).upload(key, buffer, { contentType: mimeType, upsert: true })
     if (error) throw new Error(`Supabase upload failed: ${error.message}`)
     return { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes: buffer.length }
@@ -385,7 +395,8 @@ export async function uploadMedia(
     const { default: ImageKit, toFile } = await import('@imagekit/nodejs')
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
     const ext = extensionForMimeType(mimeType)
-    const fileName = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
+    const exactBase = exactName ? sanitizeFilename((originalFilename ?? '').replace(/\.[^./\\]+$/, '')) : ''
+    const fileName = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
     const result = await ik.files.upload({ file: uploadable, fileName, ...(folderPath ? { folder: `/${folderPath}` } : {}) })
     // Direct provider: store the fileId as key (needed for deletes), url is the CDN url.
@@ -533,13 +544,16 @@ export async function relocateMediaBlob(
   media: { provider: MediaProviderType; key: string; url: string; mimeType: string; sizeBytes: number; originalName: string | null },
   folderPath: string | undefined,
   newOriginalName?: string,
+  // Opt-in exact-name keying (no nanoid) — see buildKey. Used by callers that
+  // organise blobs under a deterministic name (the shop's product images).
+  exactName?: boolean,
 ): Promise<UploadResult> {
   const provider = media.provider
   const name = newOriginalName ?? media.originalName ?? undefined
 
   if (isS3Provider(provider)) {
     const { client, bucket } = getS3Config(provider)
-    const key = buildKey(provider, media.mimeType, name, folderPath)
+    const key = buildKey(provider, media.mimeType, name, folderPath, exactName)
     await client.send(
       new CopyObjectCommand({
         Bucket: bucket,
@@ -558,7 +572,7 @@ export async function relocateMediaBlob(
   // re-upload into the new location. uploadMedia handles each provider's folder
   // convention and returns the new key + serving url.
   const buffer = await downloadMedia(provider, media.key, media.url)
-  return uploadMedia(buffer, media.mimeType, provider, name, folderPath)
+  return uploadMedia(buffer, media.mimeType, provider, name, folderPath, exactName)
 }
 
 // ---------------------------------------------------------------------------

@@ -212,7 +212,9 @@ async function takeOverMediaReferences(victim: Media, replacement: Media): Promi
  */
 export async function moveOrRenameMedia(
   mediaId: string,
-  opts: { targetFolderId?: string | null; newName?: string; collision?: CollisionMode },
+  // exactName: opt into deterministic, nanoid-free storage keys (the shop's
+  // product images). The caller owns uniqueness within the target folder.
+  opts: { targetFolderId?: string | null; newName?: string; collision?: CollisionMode; exactName?: boolean },
 ): Promise<Media | null> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) throw new Error('Media item not found')
@@ -228,7 +230,7 @@ export async function moveOrRenameMedia(
   if ('skip' in resolved) return null
 
   const folderPath = await resolveFolderPath(targetFolderId)
-  const relocated = await relocateMediaBlob(media, folderPath || undefined, resolved.name ?? undefined)
+  const relocated = await relocateMediaBlob(media, folderPath || undefined, resolved.name ?? undefined, opts.exactName)
 
   const updated = await prisma.media.update({
     where: { id: mediaId },
@@ -316,6 +318,24 @@ export async function createFolder(name: string, parentId: string | null): Promi
 
   const folder = await prisma.folder.create({ data: { name: clean, parentId } })
   return { id: folder.id, name: folder.name }
+}
+
+/**
+ * Walk (creating as needed) a chain of folders by display name, root first, and
+ * return the leaf folder's id. Idempotent — an existing folder at each level is
+ * reused rather than duplicated. Empty/blank segments are skipped; an empty
+ * result path returns null (the library root). Used to auto-file items into a
+ * known tree (the shop puts product images under Shop / <master category>).
+ */
+export async function getOrCreateFolderByPath(names: string[]): Promise<string | null> {
+  let parentId: string | null = null
+  for (const raw of names) {
+    const clean = cleanFolderName(raw)
+    if (!clean) continue
+    const existing: { id: string } | null = await prisma.folder.findFirst({ where: { parentId, name: clean }, select: { id: true } })
+    parentId = existing ? existing.id : (await prisma.folder.create({ data: { name: clean, parentId } })).id
+  }
+  return parentId
 }
 
 /**
