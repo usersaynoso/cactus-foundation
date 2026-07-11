@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { renameFolder, deleteFolderCascade, summariseFolderDeletion } from '@/lib/media/organise'
+import { renameFolder, moveFolder, deleteFolderCascade, summariseFolderDeletion } from '@/lib/media/organise'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -21,8 +21,9 @@ export async function GET(_request: NextRequest, { params }: Ctx) {
   }
 }
 
-// PATCH — rename a folder. Body: { name }. Relocates every descendant item so
-// its serving url reflects the new folder path.
+// PATCH — rename or move a folder. Body carrying `parentId` (string or null)
+// moves the folder under that parent; body carrying `name` renames it. Either
+// way every descendant item is relocated so its serving url reflects the change.
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
@@ -30,6 +31,17 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
   const { id } = await params
   const body = await request.json().catch(() => null)
+
+  if (body && Object.prototype.hasOwnProperty.call(body, 'parentId')) {
+    const parentId = typeof body.parentId === 'string' ? body.parentId : null
+    try {
+      await moveFolder(id, parentId)
+      return NextResponse.json({ ok: true })
+    } catch (err: unknown) {
+      return errorResponse(err instanceof Error ? err.message : 'Move failed', 400)
+    }
+  }
+
   const name = typeof body?.name === 'string' ? body.name : ''
   if (!name.trim()) return errorResponse('Folder name is required')
 

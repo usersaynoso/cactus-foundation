@@ -27,6 +27,7 @@ const badgeStyle = (inUse: boolean) => ({
 // navigate (disabled at either end - see hasPrev/hasNext from MediaGrid).
 export default function MediaLightbox({
   item,
+  canManage,
   canDelete,
   hasPrev,
   hasNext,
@@ -34,8 +35,15 @@ export default function MediaLightbox({
   onClose,
   onPrev,
   onNext,
+  onCut,
+  onCopy,
+  onRename,
+  onMove,
+  onTags,
 }: {
   item: MediaCardItem
+  /** Whether the current user may cut/copy/rename/move/tag (same permission as upload). */
+  canManage: boolean
   canDelete: boolean
   hasPrev: boolean
   hasNext: boolean
@@ -43,6 +51,11 @@ export default function MediaLightbox({
   onClose: () => void
   onPrev: () => void
   onNext: () => void
+  onCut: () => void
+  onCopy: () => void
+  onRename: () => void
+  onMove: () => void
+  onTags: () => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
   const filename = item.originalName || item.key.split('/').pop()
@@ -105,7 +118,7 @@ export default function MediaLightbox({
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', maxWidth: 'min(900px, 92vw)', width: '100%', maxHeight: '90vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}
+        style={{ position: 'relative', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', maxWidth: 'min(900px, 92vw)', width: '100%', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
         <button
           type="button"
@@ -117,16 +130,16 @@ export default function MediaLightbox({
           ×
         </button>
 
-        <div style={{ background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', minHeight: 200, borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ flex: '1 1 auto', minHeight: 200, background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', overflow: 'hidden', borderBottom: '1px solid var(--color-border)' }}>
           {isImage ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={item.url} alt={item.altText ?? ''} style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', display: 'block' }} />
+            <img src={item.url} alt={item.altText ?? ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
           ) : (
             <span style={{ fontSize: '4rem' }}>📄</span>
           )}
         </div>
 
-        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ flexShrink: 0, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)', wordBreak: 'break-all' }}>
               {filename}
@@ -155,6 +168,15 @@ export default function MediaLightbox({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
             <a className="btn btn-secondary btn-sm" href={item.url} target="_blank" rel="noopener noreferrer">Open original ↗</a>
+            {canManage && (
+              <>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onCut}>Cut</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onCopy}>Copy</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onMove}>Move to…</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onTags}>Tags…</button>
+              </>
+            )}
             {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} />}
           </div>
         </div>

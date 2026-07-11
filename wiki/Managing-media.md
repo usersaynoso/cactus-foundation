@@ -66,7 +66,9 @@ Each file carries a small **In use** or **Unused** label. Files you've already s
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
 
-**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. Press Esc or click outside to close.
+**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. From here you can also **Cut**, **Copy**, **Rename…**, **Move to…**, **Tag…** or **Delete** the file, without having to close the preview and hunt for the right-click menu first. Press Esc or click outside to close.
+
+**Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
 
@@ -82,6 +84,8 @@ Folders keep a growing library tidy - one for logos, one for blog photos, one fo
 - **Upload straight into a folder** by opening it first, then clicking **Upload** - the new files land right there.
 
 **Drag and drop** is the quickest way to file things away: grab any thumbnail and drop it onto a folder in the tree (or onto a step in the breadcrumb). Selected several files first? Dragging any one of them carries the whole selection along.
+
+**Reorganise whole folders** the same way - drag a folder in the tree onto another folder to nest it there, or drop it on **Media** at the top to move it back to the root. Everything inside travels with it.
 
 > **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. There's no undo, so read that summary before you confirm.
 

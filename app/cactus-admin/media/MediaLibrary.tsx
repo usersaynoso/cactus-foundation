@@ -75,6 +75,7 @@ export default function MediaLibrary({
   const [menu, setMenu] = useState<Menu>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
+  const [fileDragOver, setFileDragOver] = useState(false)
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
@@ -261,6 +262,35 @@ export default function MediaLibrary({
     }
   }
 
+  // Move a whole folder under another (or to root) via drag-and-drop. No-ops and
+  // illegal drops (onto itself or one of its own descendants) are dropped before
+  // hitting the API; the server guards these too.
+  async function performMoveFolder(folderId: string, targetParentId: string | null) {
+    const node = folders.find((f) => f.id === folderId)
+    if (!node) return
+    if (targetParentId === (node.parentId ?? null)) return
+    if (targetParentId === folderId || isDescendant(folders, folderId, targetParentId)) {
+      setError("A folder can't be moved inside itself")
+      return
+    }
+    setBusy('Moving folder…')
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/media/folders/${folderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: targetParentId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Move failed')
+      await Promise.all([refetchFolders(), fetchItems()])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Move failed')
+    } finally {
+      setBusy('')
+    }
+  }
+
   async function performRename(id: string, newName: string, mode: 'error' | 'suffix' | 'replace') {
     setBusy('Renaming…')
     setError('')
@@ -378,6 +408,31 @@ export default function MediaLibrary({
     }
   }
 
+  // Upload files dropped straight onto the grid from the desktop. Same endpoint
+  // and folder-targeting as the header's Upload button.
+  async function uploadFiles(files: FileList) {
+    const list = Array.from(files)
+    if (list.length === 0) return
+    setBusy('Uploading…')
+    setError('')
+    try {
+      for (const file of list) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('altText', '')
+        if (currentFolderId) fd.append('folderId', currentFolderId)
+        const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? 'Upload failed') }
+      }
+      await Promise.all([fetchItems(), refetchFolders()])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+      await Promise.all([fetchItems(), refetchFolders()])
+    } finally {
+      setBusy('')
+    }
+  }
+
   const currentTrail = useMemo(() => trailFor(currentFolderId, folders), [currentFolderId, folders])
 
   const clipboardIdSet = useMemo(() => new Set(clipboard?.mode === 'cut' ? clipboard.ids : []), [clipboard])
@@ -401,12 +456,30 @@ export default function MediaLibrary({
           canDelete={canDelete}
           onNavigate={(id) => { setSearch(''); setSearchInput(''); setTagFilter(''); setCurrentFolderId(id) }}
           onDropItems={onDropToFolder}
+          onMoveFolder={performMoveFolder}
           onNewFolder={() => setNewFolderOpen(true)}
           onRenameFolder={(f) => setRenameFolderNode(f)}
           onDeleteFolder={(f) => setDeleteFolderNode(f)}
         />
 
-        <div>
+        <div
+          style={{ position: 'relative' }}
+          onDragOver={canUpload ? (e) => {
+            if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setFileDragOver(true) }
+          } : undefined}
+          onDragLeave={canUpload ? (e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false)
+          } : undefined}
+          onDrop={canUpload ? (e) => {
+            if (e.dataTransfer.files.length > 0) { e.preventDefault(); setFileDragOver(false); uploadFiles(e.dataTransfer.files) }
+            else setFileDragOver(false)
+          } : undefined}
+        >
+          {fileDragOver && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--color-primary)', borderRadius: 'var(--radius)', background: 'var(--color-overlay)', color: 'var(--color-text)', fontSize: 'var(--text-base)', fontWeight: 600, pointerEvents: 'none' }}>
+              Drop to upload{currentTrail.length > 0 ? ` to ${currentTrail[currentTrail.length - 1]?.name}` : ''}
+            </div>
+          )}
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: 'var(--text-sm)' }}>
             <BreadcrumbCrumb label="Media" onClick={() => setCurrentFolderId(null)} onDrop={(raw) => onDropToFolder(null, raw)} active={currentFolderId === null && !search && !tagFilter} />
@@ -517,6 +590,7 @@ export default function MediaLibrary({
       {openItem && (
         <MediaLightbox
           item={openItem}
+          canManage={canUpload}
           canDelete={canDelete}
           hasPrev={openIndex > 0}
           hasNext={openIndex >= 0 && openIndex < items.length - 1}
@@ -524,6 +598,11 @@ export default function MediaLibrary({
           onClose={() => setOpenId(null)}
           onPrev={() => { const p = items[openIndex - 1]; if (p) setOpenId(p.id) }}
           onNext={() => { const n = items[openIndex + 1]; if (n) setOpenId(n.id) }}
+          onCut={() => { setClipboard({ mode: 'cut', ids: [openItem.id] }); setOpenId(null) }}
+          onCopy={() => { setClipboard({ mode: 'copy', ids: [openItem.id] }); setOpenId(null) }}
+          onRename={() => { setRenameItem(openItem); setOpenId(null) }}
+          onMove={() => { setMoveIds([openItem.id]); setOpenId(null) }}
+          onTags={() => { setTagItem(openItem); setOpenId(null) }}
         />
       )}
 
@@ -697,6 +776,20 @@ export default function MediaLibrary({
 const inputStyle: React.CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
 const selectStyle: React.CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', fontFamily: 'inherit', fontSize: 'var(--text-sm)', background: 'var(--color-surface)', color: 'var(--color-text)' }
 const barStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)' }
+
+// Is `maybeDescendantId` the ancestor folder itself, or nested somewhere beneath
+// it? Used to reject dragging a folder into its own subtree.
+function isDescendant(folders: FolderNode[], ancestorId: string, maybeDescendantId: string | null): boolean {
+  if (!maybeDescendantId) return false
+  const byId = new Map(folders.map((f) => [f.id, f]))
+  let id: string | null = maybeDescendantId
+  let guard = 0
+  while (id && guard++ < 50) {
+    if (id === ancestorId) return true
+    id = byId.get(id)?.parentId ?? null
+  }
+  return false
+}
 
 function trailFor(folderId: string | null, folders: FolderNode[]): FolderNode[] {
   if (!folderId) return []

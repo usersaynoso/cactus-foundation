@@ -371,10 +371,45 @@ async function relocateWithinSameFolder(mediaId: string): Promise<void> {
 }
 
 /**
+ * Move a folder under `newParentId` (null = the library root). Rejects cycles
+ * (into itself or one of its own descendants) and name clashes in the
+ * destination. Because a folder's name is part of every contained item's storage
+ * path, every descendant item is relocated so its url reflects the new ancestry.
+ */
+export async function moveFolder(folderId: string, newParentId: string | null): Promise<void> {
+  const folder = await prisma.folder.findUnique({ where: { id: folderId } })
+  if (!folder) throw new Error('Folder not found')
+  if (newParentId === folder.parentId) return
+
+  if (await wouldCreateCycle(folderId, newParentId)) {
+    throw new Error("A folder can't be moved inside itself")
+  }
+  if (newParentId) {
+    const parent = await prisma.folder.findUnique({ where: { id: newParentId }, select: { id: true } })
+    if (!parent) throw new Error('Target folder not found')
+  }
+
+  const clash = await prisma.folder.findFirst({
+    where: { parentId: newParentId, name: folder.name, id: { not: folderId } },
+    select: { id: true },
+  })
+  if (clash) throw new Error(`A folder named "${folder.name}" already exists here`)
+
+  await prisma.folder.update({ where: { id: folderId }, data: { parentId: newParentId } })
+
+  // The path prefix for everything under this folder just changed; rebuild each
+  // descendant item's key/url from its (now-relocated) folder path.
+  const subtreeIds = await collectFolderSubtree(folderId)
+  const items = await prisma.media.findMany({ where: { folderId: { in: subtreeIds } }, select: { id: true } })
+  for (const item of items) {
+    await relocateWithinSameFolder(item.id)
+  }
+}
+
+/**
  * Permanently delete a folder, every subfolder, and every file inside — blobs
  * and rows. This is the destructive "cascade" the admin explicitly confirms.
- * Returns how many media items were removed. Folder rows are removed last; the
- * DB cascades subfolder rows from the top folder's deletion.
+ * Returns how many media items were removed.
  */
 export async function deleteFolderCascade(folderId: string): Promise<{ deletedMedia: number }> {
   const subtreeIds = await collectFolderSubtree(folderId)
@@ -386,11 +421,14 @@ export async function deleteFolderCascade(folderId: string): Promise<{ deletedMe
     } catch {
       /* orphaned blob; still remove the row so the library is consistent */
     }
-    await prisma.media.delete({ where: { id: item.id } })
   }
 
-  // Deleting the top folder cascades its descendant folder rows (FK onDelete).
-  await prisma.folder.delete({ where: { id: folderId } })
+  // deleteMany is idempotent: a row that's already gone (a double-submitted
+  // confirm, or a subfolder swept up in the same subtree) removes zero rows
+  // instead of throwing P2025. Deleting the whole subtree by id also removes
+  // children directly rather than leaning on the FK cascade firing in order.
+  await prisma.media.deleteMany({ where: { id: { in: items.map((i) => i.id) } } })
+  await prisma.folder.deleteMany({ where: { id: { in: subtreeIds } } })
   return { deletedMedia: items.length }
 }
 
