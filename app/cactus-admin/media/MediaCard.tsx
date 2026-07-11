@@ -13,6 +13,7 @@ export type MediaCardItem = {
   sizeBytes: number
   createdAt: Date | string
   inUse: boolean
+  optimised: boolean
   uploadedBy: { username: string } | null
 }
 
@@ -37,6 +38,9 @@ const badgeStyle = (inUse: boolean): CSSProperties => ({
 export default function MediaCard({
   item,
   canDelete,
+  canOptimise = false,
+  optimising = false,
+  onOptimise,
   selectable = false,
   selected = false,
   onToggleSelect,
@@ -44,6 +48,11 @@ export default function MediaCard({
 }: {
   item: MediaCardItem
   canDelete: boolean
+  /** Whether the current user may optimise media (same permission as upload). */
+  canOptimise?: boolean
+  /** This card's item is mid-optimise. */
+  optimising?: boolean
+  onOptimise?: (id: string) => void
   /** Show the bulk-select checkbox overlay (only meaningful alongside a delete permission). */
   selectable?: boolean
   selected?: boolean
@@ -51,7 +60,10 @@ export default function MediaCard({
   onOpen: (id: string) => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
+  const isSvg = item.mimeType === 'image/svg+xml'
   const filename = item.originalName || item.key.split('/').pop()
+  // SVGs are already tiny vector text; only raster images can be re-encoded.
+  const canOptimiseThis = canOptimise && isImage && !isSvg && !item.optimised
 
   return (
     <>
@@ -70,6 +82,28 @@ export default function MediaCard({
               <span style={{ fontSize: '2rem' }}>📄</span>
             )}
           </button>
+          {item.optimised && (
+            <span
+              title="Re-encoded to WebP to save space"
+              style={{
+                position: 'absolute',
+                top: '0.4rem',
+                left: '0.4rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                padding: '0.0625rem 0.375rem',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-success)',
+                background: 'var(--color-success-bg)',
+                border: '1px solid var(--color-success-border)',
+              }}
+            >
+              ✓ Optimised
+            </span>
+          )}
           {selectable && (
             <label
               onClick={(e) => e.stopPropagation()}
@@ -110,6 +144,17 @@ export default function MediaCard({
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
             {formatBytes(item.sizeBytes)}
           </div>
+          {canOptimiseThis && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={optimising}
+              onClick={() => onOptimise?.(item.id)}
+              style={{ width: '100%', marginTop: '0.5rem' }}
+            >
+              {optimising ? 'Optimising…' : 'Optimise'}
+            </button>
+          )}
           {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} />}
         </div>
       </div>

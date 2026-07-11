@@ -38,7 +38,7 @@ export default async function MediaPage({ searchParams }: Props) {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, key: true, url: true, altText: true, originalName: true, mimeType: true,
-        sizeBytes: true, createdAt: true, isDecorative: true,
+        sizeBytes: true, createdAt: true, isDecorative: true, optimised: true,
         uploadedBy: { select: { username: true } },
       },
     }),
@@ -99,7 +99,7 @@ export default async function MediaPage({ searchParams }: Props) {
                 : 'No media files yet'}
         </div>
       ) : (
-        <MediaGrid items={items} canDelete={canDelete} hasMore={hasMore} search={search} filter={filter} perPage={perPage} />
+        <MediaGrid items={items} canDelete={canDelete} canOptimise={canUpload} hasMore={hasMore} search={search} filter={filter} perPage={perPage} />
       )}
     </div>
   )

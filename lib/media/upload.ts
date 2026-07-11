@@ -596,3 +596,132 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
 
   return refs
 }
+
+// ---------------------------------------------------------------------------
+// In-place optimise — re-encode an existing media item to WebP without changing
+// its identity. Powers the media library's single + bulk "Optimise" actions.
+//
+// Unlike the Branding tab's /optimise route (which mints a *new* Media row and
+// repoints one config field at it), this keeps the same Media.id, so every
+// existing reference — config icons, member avatars, page social images — stays
+// valid untouched. The re-encoded blob lands at a fresh storage key; any url/key
+// embedded in Puck builder content is rewritten to match; the pre-optimise blob
+// is then deleted so no orphan is left behind ("delete the originals").
+// ---------------------------------------------------------------------------
+
+export type OptimiseResult =
+  | { optimised: false; reason: string; before?: number; after?: number }
+  | { optimised: true; before: number; after: number }
+
+export async function optimiseMediaInPlace(mediaId: string, userId?: string): Promise<OptimiseResult> {
+  const media = await prisma.media.findUnique({ where: { id: mediaId } })
+  if (!media) return { optimised: false, reason: 'Media item not found' }
+  if (media.optimised) return { optimised: false, reason: 'Already optimised' }
+  if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
+    return { optimised: false, reason: 'Only raster images can be optimised' }
+  }
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+
+  // Lossy WebP (quality 82) is the sweet spot for library media: near-invisible
+  // quality loss for a big weight saving, and — unlike lossless — reliably
+  // smaller than an already-compressed JPEG source. Dimensions are preserved
+  // (no downscale): library images are used at many sizes across the site,
+  // unlike a logo. Animated sources keep their frames.
+  const encoded = await sharp(original, { animated: true })
+    .webp({ quality: 82, effort: 6 })
+    .toBuffer()
+
+  const before = original.length
+  const after = encoded.length
+  if (after >= before) {
+    // Source was already smaller than we can manage — mark it optimised so it
+    // isn't offered again, but leave the original bytes in place.
+    await prisma.media.update({ where: { id: media.id }, data: { optimised: true } })
+    return { optimised: false, reason: 'Already as small as it gets', before, after }
+  }
+
+  const oldKey = media.key
+  const oldUrl = media.url
+
+  // Store the WebP under a new key, then point the existing row at it. Id is
+  // untouched, so id-based references need no change.
+  const result = await uploadMedia(encoded, 'image/webp', media.provider, media.originalName ?? undefined)
+
+  await prisma.media.update({
+    where: { id: media.id },
+    data: {
+      key: result.key,
+      url: result.url,
+      mimeType: result.mimeType,
+      sizeBytes: result.sizeBytes,
+      optimised: true,
+    },
+  })
+
+  // Rewrite url/key references embedded in Puck content before deleting the old
+  // blob, so a failure here leaves the old blob still serving the old url.
+  await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
+
+  // Delete the pre-optimise blob. Best-effort: a storage hiccup shouldn't undo
+  // an otherwise-successful optimise (the row already points at the new blob).
+  try {
+    await deleteMedia(media.provider, oldKey)
+  } catch {
+    // Orphaned original left in storage; harmless, still deletable later.
+  }
+
+  return { optimised: true, before, after }
+}
+
+// Rewrite every occurrence of a media item's old url/key to its new url/key
+// inside Puck builder JSON (page draft + published content, and layouts). Only
+// touches rows whose blob actually mentions the old value, and only writes back
+// the columns that changed. The url/key are long unique strings (nanoid), so a
+// plain string swap can't collide with unrelated content.
+async function rewriteMediaReferencesInContent(
+  oldUrl: string,
+  newUrl: string,
+  oldKey: string,
+  newKey: string,
+): Promise<void> {
+  const swap = (json: Prisma.JsonValue | null): Prisma.InputJsonValue | undefined => {
+    if (json == null) return undefined
+    const before = JSON.stringify(json)
+    let text = before
+    if (oldUrl && oldUrl !== newUrl) text = text.split(oldUrl).join(newUrl)
+    if (oldKey && oldKey !== newKey) text = text.split(oldKey).join(newKey)
+    if (text === before) return undefined
+    return JSON.parse(text) as Prisma.InputJsonValue
+  }
+
+  const pages = await prisma.infoPage.findMany({ select: { id: true, builderData: true, publishedData: true } })
+  for (const p of pages) {
+    const nextBuilder = swap(p.builderData)
+    const nextPublished = swap(p.publishedData)
+    if (nextBuilder !== undefined || nextPublished !== undefined) {
+      await prisma.infoPage.update({
+        where: { id: p.id },
+        data: {
+          ...(nextBuilder !== undefined ? { builderData: nextBuilder } : {}),
+          ...(nextPublished !== undefined ? { publishedData: nextPublished } : {}),
+        },
+      })
+    }
+  }
+
+  const layouts = await prisma.layout.findMany({ select: { id: true, builderData: true, publishedData: true } })
+  for (const l of layouts) {
+    const nextBuilder = swap(l.builderData)
+    const nextPublished = swap(l.publishedData)
+    if (nextBuilder !== undefined || nextPublished !== undefined) {
+      await prisma.layout.update({
+        where: { id: l.id },
+        data: {
+          ...(nextBuilder !== undefined ? { builderData: nextBuilder } : {}),
+          ...(nextPublished !== undefined ? { publishedData: nextPublished } : {}),
+        },
+      })
+    }
+  }
+}

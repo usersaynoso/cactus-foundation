@@ -218,6 +218,7 @@ CREATE TABLE "Media" (
     "originalName" TEXT,
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
+    "optimised" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Media_pkey" PRIMARY KEY ("id")
 );

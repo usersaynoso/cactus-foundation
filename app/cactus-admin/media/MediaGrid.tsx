@@ -8,6 +8,8 @@ import MediaLightbox from './MediaLightbox'
 type MediaGridProps = {
   items: MediaCardItem[]
   canDelete: boolean
+  /** Whether the current user may optimise media (same permission as upload). */
+  canOptimise: boolean
   /** Whether the server has more matching items beyond this first batch. */
   hasMore: boolean
   search: string
@@ -19,7 +21,7 @@ type MediaGridProps = {
 // about its siblings), incremental loading of further pages as the user
 // scrolls, and the confirm-and-delete flow. Both reset whenever the initial
 // item list changes (search, filter).
-export default function MediaGrid({ items, canDelete, hasMore, search, filter, perPage }: MediaGridProps) {
+export default function MediaGrid({ items, canDelete, canOptimise, hasMore, search, filter, perPage }: MediaGridProps) {
   const router = useRouter()
   const [loadedItems, setLoadedItems] = useState<MediaCardItem[]>(items)
   const [page, setPage] = useState(1)
@@ -31,6 +33,9 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
+  const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
+  const [bulkOptimising, setBulkOptimising] = useState(false)
+  const [optimiseMsg, setOptimiseMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -48,6 +53,7 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
     setSelected(new Set())
     setSkippedInUse([])
     setLastToggledIndex(null)
+    setOptimiseMsg('')
   }
 
   async function loadMore(): Promise<MediaCardItem[]> {
@@ -176,26 +182,87 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
     }
   }
 
+  async function handleOptimiseSingle(id: string) {
+    setOptimisingIds((prev) => new Set(prev).add(id))
+    setOptimiseMsg('')
+    try {
+      const res = await fetch(`/api/admin/media/${id}/optimise`, { method: 'POST' })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
+      if (!d.optimised) setOptimiseMsg(d.reason ?? 'Nothing to optimise')
+      router.refresh()
+    } catch (err: unknown) {
+      setOptimiseMsg(err instanceof Error ? err.message : 'Optimise failed')
+    } finally {
+      setOptimisingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
+  async function handleOptimiseBulk() {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+    setBulkOptimising(true)
+    setOptimiseMsg('')
+    try {
+      const res = await fetch('/api/admin/media/bulk-optimise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
+      const savedKb = Math.round((d.bytesSaved ?? 0) / 1024)
+      const parts = [`${d.optimised.length} optimised`]
+      if (d.skipped.length) parts.push(`${d.skipped.length} skipped`)
+      if (d.failed.length) parts.push(`${d.failed.length} failed`)
+      setOptimiseMsg(`${parts.join(', ')}${savedKb > 0 ? ` — ${savedKb} KB saved` : ''}.`)
+      setSelected(new Set())
+      router.refresh()
+    } catch (err: unknown) {
+      setOptimiseMsg(err instanceof Error ? err.message : 'Optimise failed')
+    } finally {
+      setBulkOptimising(false)
+    }
+  }
+
   const selectedCount = selected.size
+  const canSelect = canDelete || canOptimise
 
   return (
     <>
-      {canDelete && selectedCount > 0 && (
+      {canSelect && selectedCount > 0 && (
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
             marginBottom: '1rem', padding: '0.5rem 0.75rem',
             border: '1px solid var(--color-border)', borderRadius: 'var(--radius)',
             background: 'var(--color-bg-subtle)',
           }}
         >
           <span style={{ fontSize: 'var(--text-sm)' }}>{selectedCount} selected</span>
-          <button type="button" className="btn btn-danger btn-sm" onClick={() => { setSkippedInUse([]); setError(''); setConfirming(true) }}>
-            Delete selected
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelected(new Set())}>
+          {canOptimise && (
+            <button type="button" className="btn btn-secondary btn-sm" disabled={bulkOptimising} onClick={handleOptimiseBulk}>
+              {bulkOptimising ? 'Optimising…' : 'Optimise selected'}
+            </button>
+          )}
+          {canDelete && (
+            <button type="button" className="btn btn-danger btn-sm" disabled={bulkOptimising} onClick={() => { setSkippedInUse([]); setError(''); setConfirming(true) }}>
+              Delete selected
+            </button>
+          )}
+          <button type="button" className="btn btn-secondary btn-sm" disabled={bulkOptimising} onClick={() => setSelected(new Set())}>
             Clear selection
           </button>
+        </div>
+      )}
+
+      {optimiseMsg && (
+        <div style={{ marginBottom: '1rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+          {optimiseMsg}
         </div>
       )}
 
@@ -205,7 +272,10 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
             key={item.id}
             item={item}
             canDelete={canDelete}
-            selectable={canDelete}
+            canOptimise={canOptimise}
+            optimising={optimisingIds.has(item.id)}
+            onOptimise={handleOptimiseSingle}
+            selectable={canSelect}
             selected={selected.has(item.id)}
             onToggleSelect={toggleSelect}
             onOpen={setOpenId}
