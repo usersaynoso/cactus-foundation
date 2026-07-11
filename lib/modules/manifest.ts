@@ -233,3 +233,16 @@ export function parseGitHubRepo(repoUrl: string): { owner: string; repo: string 
   }
   return { owner, repo }
 }
+
+// Human-readable module name for user-facing copy (errors, notifications) - the
+// same "cactus-module-foo-bar" -> "Foo Bar" transform the Modules admin page
+// uses for its cards, kept here so server-side messages match what the admin
+// actually sees instead of leaking the manifest's kebab-case `name` slug.
+export function formatModuleDisplayName(repoUrl: string): string {
+  const { repo } = parseGitHubRepo(repoUrl)
+  return repo
+    .replace(/^cactus-module-/, '')
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}

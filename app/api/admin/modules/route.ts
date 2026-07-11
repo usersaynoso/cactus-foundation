@@ -8,6 +8,7 @@ import {
   fetchManifestFromRepo,
   parseModuleManifest,
   parseGitHubRepo,
+  formatModuleDisplayName,
   validateTablePrefixUnique,
   validatePublicBasePathUnique,
 } from '@/lib/modules/manifest'
@@ -79,9 +80,16 @@ export async function POST(request: NextRequest) {
   // would commit the module into modules.json and break the site's next build
   // on a missing core import - far worse than refusing here.
   if (manifest.requiresCoreVersion && compareVersions(pkg.version, manifest.requiresCoreVersion) < 0) {
-    return errorResponse(
-      `"${manifest.name}" needs Cactus v${manifest.requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
-      409
+    const displayName = formatModuleDisplayName(repoUrl)
+    return NextResponse.json(
+      {
+        error: `"${displayName}" needs Cactus v${manifest.requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
+        code: 'core_version_required',
+        moduleName: displayName,
+        requiredVersion: manifest.requiresCoreVersion,
+        currentVersion: pkg.version,
+      },
+      { status: 409 }
     )
   }
 

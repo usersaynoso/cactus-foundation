@@ -36,6 +36,12 @@ type UninstallModal = {
   hasTeardown: boolean
 }
 
+type CoreVersionModal = {
+  moduleName: string
+  requiredVersion: string
+  currentVersion: string
+}
+
 const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> = {
   pending_install: { label: 'Pending', className: 'badge-yellow' },
   deploying: { label: 'Deploying', className: 'badge-blue' },
@@ -72,6 +78,7 @@ export default function ModulesPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [releaseNotesFor, setReleaseNotesFor] = useState<string | null>(null)
   const [uninstallModal, setUninstallModal] = useState<UninstallModal | null>(null)
+  const [coreVersionModal, setCoreVersionModal] = useState<CoreVersionModal | null>(null)
   const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
   const [uninstalling, setUninstalling] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
@@ -222,7 +229,13 @@ export default function ModulesPage() {
         body: JSON.stringify({ repoUrl, channel }),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Install failed')
+      if (!res.ok) {
+        if (d.code === 'core_version_required') {
+          setCoreVersionModal({ moduleName: d.moduleName, requiredVersion: d.requiredVersion, currentVersion: d.currentVersion })
+          return
+        }
+        throw new Error(d.error ?? 'Install failed')
+      }
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
         announceRedeployStarted()
@@ -253,7 +266,13 @@ export default function ModulesPage() {
         body: JSON.stringify({ action }),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Action failed')
+      if (!res.ok) {
+        if (d.code === 'core_version_required') {
+          setCoreVersionModal({ moduleName: d.moduleName, requiredVersion: d.requiredVersion, currentVersion: d.currentVersion })
+          return
+        }
+        throw new Error(d.error ?? 'Action failed')
+      }
       if (d.redeployTriggered) {
         announceRedeployStarted()
       } else if (action === 'update') {
@@ -714,6 +733,44 @@ export default function ModulesPage() {
           </div>
         )
       })()}
+
+      {/* Core version required modal */}
+      {coreVersionModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setCoreVersionModal(null) }}
+        >
+          <div className="card" style={{ maxWidth: '480px', width: '100%', margin: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+              <h2 className="card-title" style={{ margin: 0 }}>Cactus needs updating first</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setCoreVersionModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: 'var(--color-text-muted)' }}
+              >
+                &times;
+              </button>
+            </div>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
+              &ldquo;{coreVersionModal.moduleName}&rdquo; needs Cactus v{coreVersionModal.requiredVersion} or newer -
+              this site is on v{coreVersionModal.currentVersion}. Update Cactus first from the update panel, then
+              install the module.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setCoreVersionModal(null)}>
+                Cancel
+              </button>
+              <a className="btn btn-primary" href="../config?tab=general">
+                Go to update panel
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -11,7 +11,7 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
-import { fetchManifestFromRepo, parseModuleManifest } from '@/lib/modules/manifest'
+import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName } from '@/lib/modules/manifest'
 import pkg from '@/package.json'
 
 export const maxDuration = 60
@@ -108,9 +108,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       console.warn(`[modules] Could not pre-check requiresCoreVersion for ${mod.name}:`, err)
     }
     if (requiresCoreVersion && compareVersions(pkg.version, requiresCoreVersion) < 0) {
-      return errorResponse(
-        `The new version of "${mod.name}" needs Cactus v${requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then update the module.`,
-        409
+      const displayName = formatModuleDisplayName(mod.repoUrl)
+      return NextResponse.json(
+        {
+          error: `The new version of "${displayName}" needs Cactus v${requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then update the module.`,
+          code: 'core_version_required',
+          moduleName: displayName,
+          requiredVersion: requiresCoreVersion,
+          currentVersion: pkg.version,
+        },
+        { status: 409 }
       )
     }
 
