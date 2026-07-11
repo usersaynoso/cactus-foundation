@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
@@ -285,11 +285,22 @@ function isS3Provider(provider: MediaProviderType): boolean {
 // Object key for a new upload. B2 keeps the legacy `media/<id>.ext` form for
 // backward compatibility; every other proxied provider is namespaced with its
 // provider so the Worker can resolve which provider holds the key from the path.
-function buildKey(provider: MediaProviderType, mimeType: string, originalFilename?: string): string {
+//
+// `folderPath` (already sanitised, slash-joined ancestor names) slots in *after*
+// the provider segment so the Worker still resolves the provider from the path,
+// while the URL mirrors the media library's folder tree. The nanoid stays in the
+// filename so two files with the same name in one folder never collide in storage.
+function buildKey(
+  provider: MediaProviderType,
+  mimeType: string,
+  originalFilename?: string,
+  folderPath?: string,
+): string {
   const ext = extensionForMimeType(mimeType)
   const id = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
-  if (provider === 'B2') return `media/${id}`
-  return `media/${provider}/${id}`
+  const prefix = provider === 'B2' ? 'media' : `media/${provider}`
+  const dir = folderPath ? `${prefix}/${folderPath}` : prefix
+  return `${dir}/${id}`
 }
 
 // ---------------------------------------------------------------------------
@@ -300,11 +311,14 @@ export async function uploadMedia(
   buffer: Buffer,
   mimeType: string,
   provider: MediaProviderType,
-  originalFilename?: string
+  originalFilename?: string,
+  // Sanitised, slash-joined folder path the item should live under. Omitted for
+  // uploads into the library root and for all generated media (icons, avatars).
+  folderPath?: string,
 ): Promise<UploadResult> {
   if (isS3Provider(provider)) {
     const { client, bucket } = getS3Config(provider)
-    const key = buildKey(provider, mimeType, originalFilename)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath)
     await client.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -319,7 +333,7 @@ export async function uploadMedia(
 
   if (provider === 'VERCEL_BLOB') {
     const { put } = await import('@vercel/blob')
-    const key = buildKey(provider, mimeType, originalFilename)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath)
     // access 'public' returns a stable blob URL; the Worker fetches it by key.
     await put(key, buffer, {
       access: 'public',
@@ -340,7 +354,7 @@ export async function uploadMedia(
       }
     )
     const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME ?? ''
-    const key = buildKey(provider, mimeType, originalFilename)
+    const key = buildKey(provider, mimeType, originalFilename, folderPath)
     const { error } = await storage.from(bucket).upload(key, buffer, { contentType: mimeType, upsert: true })
     if (error) throw new Error(`Supabase upload failed: ${error.message}`)
     return { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes: buffer.length }
@@ -355,7 +369,7 @@ export async function uploadMedia(
     })
     const result = await new Promise<{ public_id: string; secure_url: string }>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { resource_type: 'image' },
+        { resource_type: 'image', ...(folderPath ? { folder: folderPath } : {}) },
         (err, res) => {
           if (err || !res) return reject(err ?? new Error('Cloudinary upload failed'))
           resolve({ public_id: res.public_id, secure_url: res.secure_url })
@@ -373,7 +387,7 @@ export async function uploadMedia(
     const ext = extensionForMimeType(mimeType)
     const fileName = `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
-    const result = await ik.files.upload({ file: uploadable, fileName })
+    const result = await ik.files.upload({ file: uploadable, fileName, ...(folderPath ? { folder: `/${folderPath}` } : {}) })
     // Direct provider: store the fileId as key (needed for deletes), url is the CDN url.
     return { key: result.fileId ?? '', url: result.url ?? '', mimeType, sizeBytes: buffer.length }
   }
@@ -508,6 +522,46 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
 }
 
 // ---------------------------------------------------------------------------
+// Relocate a blob to a new folder path and/or a new filename. Creates the new
+// blob only — the old one is left in place so the caller can rewrite references
+// first and delete the original last (the same failure-safe order the optimise
+// flow uses). For S3-compatible providers this is a cheap server-side copy; for
+// everyone else the original bytes are downloaded and re-uploaded into the new
+// location. The returned key/url point at the freshly-created blob.
+// ---------------------------------------------------------------------------
+export async function relocateMediaBlob(
+  media: { provider: MediaProviderType; key: string; url: string; mimeType: string; sizeBytes: number; originalName: string | null },
+  folderPath: string | undefined,
+  newOriginalName?: string,
+): Promise<UploadResult> {
+  const provider = media.provider
+  const name = newOriginalName ?? media.originalName ?? undefined
+
+  if (isS3Provider(provider)) {
+    const { client, bucket } = getS3Config(provider)
+    const key = buildKey(provider, media.mimeType, name, folderPath)
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        // Keys only contain [a-z0-9._-/]; encodeURI keeps the slashes intact.
+        CopySource: encodeURI(`${bucket}/${media.key}`),
+        Key: key,
+        ContentType: media.mimeType,
+        MetadataDirective: 'COPY',
+        ACL: 'private',
+      })
+    )
+    return { key, url: `${workerUrl()}/${key}`, mimeType: media.mimeType, sizeBytes: media.sizeBytes }
+  }
+
+  // Vercel Blob, Supabase, Cloudinary, ImageKit: download the original bytes and
+  // re-upload into the new location. uploadMedia handles each provider's folder
+  // convention and returns the new key + serving url.
+  const buffer = await downloadMedia(provider, media.key, media.url)
+  return uploadMedia(buffer, media.mimeType, provider, name, folderPath)
+}
+
+// ---------------------------------------------------------------------------
 // Persist a Media row. `url` differs by kind: proxied providers serve through the
 // Worker; direct providers store the provider's own CDN url returned by the SDK.
 // ---------------------------------------------------------------------------
@@ -527,6 +581,8 @@ export async function saveMediaRecord(data: {
   // The filename the user uploaded, kept for display. Omitted by generated-file
   // callers (icons, avatars, exports) that have no user-facing name.
   originalName?: string
+  // The folder the item was uploaded into. Null/omitted = the library root.
+  folderId?: string | null
 }): Promise<Media> {
   // For proxied providers the canonical serving url is always the Worker url.
   const url = isProxied(data.provider) ? `${workerUrl()}/${data.key}` : data.url
@@ -541,6 +597,7 @@ export async function saveMediaRecord(data: {
       altText: data.altText ?? null,
       isDecorative: data.isDecorative ?? false,
       originalName: data.originalName ?? null,
+      folderId: data.folderId ?? null,
     },
   })
 }
@@ -645,8 +702,12 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
   const oldUrl = media.url
 
   // Store the WebP under a new key, then point the existing row at it. Id is
-  // untouched, so id-based references need no change.
-  const result = await uploadMedia(encoded, 'image/webp', media.provider, media.originalName ?? undefined)
+  // untouched, so id-based references need no change. Keep the item under its
+  // current folder path so optimising doesn't quietly shunt it back to the root
+  // (lazy import breaks the upload↔organise module cycle).
+  const { resolveFolderPath } = await import('@/lib/media/organise')
+  const folderPath = await resolveFolderPath(media.folderId)
+  const result = await uploadMedia(encoded, 'image/webp', media.provider, media.originalName ?? undefined, folderPath || undefined)
 
   await prisma.media.update({
     where: { id: media.id },
@@ -679,7 +740,7 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
 // touches rows whose blob actually mentions the old value, and only writes back
 // the columns that changed. The url/key are long unique strings (nanoid), so a
 // plain string swap can't collide with unrelated content.
-async function rewriteMediaReferencesInContent(
+export async function rewriteMediaReferencesInContent(
   oldUrl: string,
   newUrl: string,
   oldKey: string,

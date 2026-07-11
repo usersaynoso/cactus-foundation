@@ -52,19 +52,66 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 ## Your media library
 
-Everything you've uploaded lives in **Media**. Along the top you'll find three tabs so you can tell at a glance what's earning its keep and what's just taking up room:
+Everything you've uploaded lives in **Media**. Down the left is your **folder tree**, and the main area shows whatever's in the folder you're currently looking at, with a breadcrumb trail along the top so you always know where you are.
 
-- **All** - every file you've uploaded.
-- **In Use** - files that are actually referenced somewhere: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
-- **Not In Use** - files nothing currently points to. A good place to look before a tidy-up.
+Above the files sits a row of controls to help you find things in a hurry:
 
-Each file also carries a small **In use** or **Unused** label, and every tab shows a count so you know how many are in each pile. The search box works within whichever tab you're on.
+- A **search box** that looks across every folder, not just the one you're in.
+- **Sort** - newest or oldest first, by name A-Z or Z-A, or largest to smallest.
+- **File type** - show everything, just images, or just other files.
+- **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
+- **Tags** - narrow down to a single tag (see [Tags](#tags) below).
+
+Each file carries a small **In use** or **Unused** label. Files you've already slimmed down wear a green **✓ Optimised** badge, and any tags you've added show as little chips underneath.
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
 
-**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when - and a **Delete** button, if you decide it's for the chop. Press Esc or click outside to close.
+**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. Press Esc or click outside to close.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
+
+---
+
+## Organising with folders
+
+Folders keep a growing library tidy - one for logos, one for blog photos, one for that client's product shots, however you like to work.
+
+- **Make a folder** with the **+ New folder** button at the bottom of the folder tree. It's created inside whichever folder you're currently viewing, so you can nest them as deep as you like.
+- **Open a folder** by clicking its name in the tree, or a step in the breadcrumb trail to hop back up.
+- **Rename or delete a folder** using the small pencil and bin icons that appear beside its name in the tree.
+- **Upload straight into a folder** by opening it first, then clicking **Upload** - the new files land right there.
+
+**Drag and drop** is the quickest way to file things away: grab any thumbnail and drop it onto a folder in the tree (or onto a step in the breadcrumb). Selected several files first? Dragging any one of them carries the whole selection along.
+
+> **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. There's no undo, so read that summary before you confirm.
+
+---
+
+## Renaming and moving files
+
+- **Rename a file** by right-clicking it and choosing **Rename…**. The new name flows through to everywhere the file is used, so nothing on your site breaks.
+- **Move files** either by dragging them onto a folder, or by selecting them and choosing **Move to…** (from the right-click menu or the selection bar) and picking a destination.
+
+If a file you're moving or renaming would end up with the same name as one already in the destination, Cactus stops and asks what to do: **Keep both** (it adds a number, so `logo.png` becomes `logo (1).png`), **Replace** the existing one, or **Skip** it and leave things be.
+
+---
+
+## Cut, copy and paste
+
+Right-click any file for a familiar **Cut**, **Copy** and **Paste** menu - handy for shuffling things between folders.
+
+- **Cut** then **Paste** *moves* the files into the folder you're viewing (cut files look faded until you paste them).
+- **Copy** then **Paste** makes a *duplicate* in the folder you're viewing, leaving the original where it was.
+
+Select several files first and the whole lot travels together. You can also cut, copy and paste from the bar that appears when you've got files selected.
+
+---
+
+## Tags
+
+Folders put a file in one place; **tags** let you label it with as many keywords as you like - "hero", "winter-campaign", "team" - so you can round up related images no matter which folder they live in.
+
+Right-click a file and choose **Tags…**. Type a word and press Enter to add it; start typing and Cactus suggests tags you've used before so you keep them consistent. Remove one with the little × on its chip. Once you're using tags, the **Tags** filter above the library lets you show just the files carrying a particular one.
 
 ---
 
@@ -102,6 +149,24 @@ Tick the small checkbox in the corner of each thumbnail to select more than one 
 Got a long run of files to bin? Tick the first one, then hold **Shift** and tick the last one - everything in between gets picked too.
 
 If any of your selection turns out to be in use somewhere, Cactus holds those back and tells you where - you can then choose **Delete anyway** if you're sure, or back out and go and unlink them first.
+
+---
+
+## Optimising images
+
+Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you.
+
+Every un-optimised photo in the library shows an **Optimise** button. Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
+
+### Doing several at once
+
+Tick the checkbox in the corner of each thumbnail (or tick the first, hold **Shift**, and tick the last to grab a whole run), then press **Optimise selected** in the bar that appears above the library. Cactus works through them one by one and tells you how many it slimmed down and roughly how much space you saved.
+
+A few sensible rules keep things safe:
+
+- **Logos and icons in the SVG format are left alone** - they're already tiny and shrinking them would do more harm than good.
+- **Anything already as small as it's going to get** is skipped rather than made bigger, and marked as optimised so you're not offered it again.
+- Optimising is a one-way tidy-up - there's no "un-optimise" - but since the picture stays visually the same, there's rarely a reason to want one.
 
 ---
 

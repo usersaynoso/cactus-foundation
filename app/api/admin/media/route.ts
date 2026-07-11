@@ -11,45 +11,20 @@ import {
   getMediaReferences,
 } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
-import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
-
-type MediaFilter = 'all' | 'in-use' | 'unused'
+import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
+import { resolveFolderPath } from '@/lib/media/organise'
 
 export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
 
-  const { skip, perPage, page } = parsePaginationParams(
+  const { perPage, page } = parsePaginationParams(
     Object.fromEntries(request.nextUrl.searchParams)
   )
-  const search = request.nextUrl.searchParams.get('q') ?? undefined
-  const rawFilter = request.nextUrl.searchParams.get('filter')
-  const filter: MediaFilter = rawFilter === 'in-use' || rawFilter === 'unused' ? rawFilter : 'all'
-  const where = search
-    ? { OR: [{ key: { contains: search } }, { originalName: { contains: search } }, { altText: { contains: search } }] }
-    : undefined
+  const query = parseLibraryQuery(request.nextUrl.searchParams, perPage, page)
+  const { items, total, hasMore } = await queryMediaLibrary(query)
 
-  // "In use" is computed, not a column, so — same as the media page's server
-  // render — we load every matching row, classify it, then filter and window
-  // in memory rather than at the DB level.
-  const [allItems, usage] = await Promise.all([
-    prisma.media.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: { uploadedBy: { select: { username: true } } },
-    }),
-    loadMediaUsageIndex(),
-  ])
-
-  const classified = allItems.map((item) => ({ ...item, inUse: isMediaInUse(item, usage) }))
-  const filtered =
-    filter === 'in-use' ? classified.filter((i) => i.inUse)
-      : filter === 'unused' ? classified.filter((i) => !i.inUse)
-        : classified
-
-  const items = filtered.slice(skip, skip + perPage)
-
-  return NextResponse.json({ items, total: filtered.length, page, perPage })
+  return NextResponse.json({ items, total, page, perPage, hasMore })
 }
 
 export async function POST(request: NextRequest) {
@@ -72,9 +47,12 @@ export async function POST(request: NextRequest) {
 
   const altText = formData.get('altText') as string | null
   const isDecorative = formData.get('isDecorative') === 'true'
+  const rawFolderId = formData.get('folderId')
+  const folderId = typeof rawFolderId === 'string' && rawFolderId ? rawFolderId : null
 
   try {
-    const result = await uploadMedia(validation.buffer, file.type, provider, file.name)
+    const folderPath = folderId ? await resolveFolderPath(folderId) : ''
+    const result = await uploadMedia(validation.buffer, file.type, provider, file.name, folderPath || undefined)
     const record = await saveMediaRecord({
       key: result.key,
       url: result.url,
@@ -85,6 +63,7 @@ export async function POST(request: NextRequest) {
       altText: altText ?? undefined,
       isDecorative,
       originalName: file.name || undefined,
+      folderId,
     })
     return NextResponse.json(record, { status: 201 })
   } catch (err: unknown) {

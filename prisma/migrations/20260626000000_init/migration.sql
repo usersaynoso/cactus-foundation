@@ -219,8 +219,30 @@ CREATE TABLE "Media" (
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
     "optimised" BOOLEAN NOT NULL DEFAULT false,
+    "folderId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Media_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Folder" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "parentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Folder_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Tag" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MediaTag" (
+    "mediaId" TEXT NOT NULL,
+    "tagId" TEXT NOT NULL,
+    CONSTRAINT "MediaTag_pkey" PRIMARY KEY ("mediaId", "tagId")
 );
 
 CREATE TABLE "MediaMigrationJob" (
@@ -417,6 +439,14 @@ CREATE UNIQUE INDEX "Media_key_key" ON "Media"("key");
 CREATE INDEX "Media_uploadedById_idx" ON "Media"("uploadedById");
 CREATE INDEX "Media_createdAt_idx" ON "Media"("createdAt");
 CREATE INDEX "Media_provider_idx" ON "Media"("provider");
+CREATE INDEX "Media_folderId_idx" ON "Media"("folderId");
+
+CREATE UNIQUE INDEX "Folder_parentId_name_key" ON "Folder"("parentId", "name");
+CREATE INDEX "Folder_parentId_idx" ON "Folder"("parentId");
+
+CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
+
+CREATE INDEX "MediaTag_tagId_idx" ON "MediaTag"("tagId");
 
 CREATE INDEX "MediaMigrationJob_status_idx" ON "MediaMigrationJob"("status");
 CREATE INDEX "MediaMigrationJob_startedAt_idx" ON "MediaMigrationJob"("startedAt");
@@ -462,6 +492,12 @@ ALTER TABLE "InfoPage" ADD CONSTRAINT "InfoPage_createdById_fkey" FOREIGN KEY ("
 ALTER TABLE "ConsentRecord" ADD CONSTRAINT "ConsentRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "Media" ADD CONSTRAINT "Media_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Media" ADD CONSTRAINT "Media_folderId_fkey" FOREIGN KEY ("folderId") REFERENCES "Folder"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "Folder" ADD CONSTRAINT "Folder_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Folder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "MediaTag" ADD CONSTRAINT "MediaTag_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MediaTag" ADD CONSTRAINT "MediaTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "MenuItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;

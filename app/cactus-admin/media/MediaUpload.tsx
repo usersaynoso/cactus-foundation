@@ -3,7 +3,15 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function MediaUpload() {
+export default function MediaUpload({
+  folderId = null,
+  onUploaded,
+}: {
+  /** Folder new uploads land in. Null = the library root. */
+  folderId?: string | null
+  /** Called after a batch finishes, so a parent can refresh without a full reload. */
+  onUploaded?: () => void
+} = {}) {
   const router = useRouter()
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -18,6 +26,7 @@ export default function MediaUpload() {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('altText', '')
+      if (folderId) fd.append('folderId', folderId)
 
       try {
         const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
@@ -31,7 +40,8 @@ export default function MediaUpload() {
     }
 
     setUploading(false)
-    router.refresh()
+    if (onUploaded) onUploaded()
+    else router.refresh()
   }
 
   return (

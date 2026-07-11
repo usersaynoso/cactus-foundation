@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties } from 'react'
+import { type CSSProperties, type DragEvent, type MouseEvent } from 'react'
 import MediaDelete from './MediaDelete'
 
 export type MediaCardItem = {
@@ -45,6 +45,11 @@ export default function MediaCard({
   selected = false,
   onToggleSelect,
   onOpen,
+  draggable = false,
+  onDragStart,
+  onContextMenu,
+  tags,
+  dimmed = false,
 }: {
   item: MediaCardItem
   canDelete: boolean
@@ -58,6 +63,15 @@ export default function MediaCard({
   selected?: boolean
   onToggleSelect?: (id: string, shiftKey: boolean) => void
   onOpen: (id: string) => void
+  /** Enable drag-to-folder. */
+  draggable?: boolean
+  onDragStart?: (e: DragEvent, id: string) => void
+  /** Right-click handler for the cut/copy/paste/rename/delete menu. */
+  onContextMenu?: (e: MouseEvent, id: string) => void
+  /** Tag names to show under the item. */
+  tags?: string[]
+  /** Faded appearance — used while the item sits on the cut clipboard. */
+  dimmed?: boolean
 }) {
   const isImage = item.mimeType.startsWith('image/')
   const isSvg = item.mimeType === 'image/svg+xml'
@@ -67,7 +81,12 @@ export default function MediaCard({
 
   return (
     <>
-      <div style={{ border: `1px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)' }}>
+      <div
+        draggable={draggable}
+        onDragStart={draggable ? (e) => onDragStart?.(e, item.id) : undefined}
+        onContextMenu={onContextMenu ? (e) => onContextMenu(e, item.id) : undefined}
+        style={{ border: `1px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--color-bg-subtle)', opacity: dimmed ? 0.5 : 1, cursor: draggable ? 'grab' : 'default' }}
+      >
         <div style={{ position: 'relative' }}>
           <button
             type="button"
@@ -144,6 +163,18 @@ export default function MediaCard({
           <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
             {formatBytes(item.sizeBytes)}
           </div>
+          {tags && tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.375rem' }}>
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  style={{ fontSize: '0.6875rem', padding: '0.0625rem 0.375rem', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
           {canOptimiseThis && (
             <button
               type="button"

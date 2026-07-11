@@ -336,11 +336,59 @@ model Media {
   // library's optimise action (single or bulk). Drives the "Optimised" badge
   // and stops the item being offered for optimising a second time.
   optimised    Boolean  @default(false)
+  // Which folder this item lives in. Null = the media library root. Folders are
+  // "physical": the folder path is baked into the storage `key`/`url`, so moving
+  // an item between folders relocates the blob and rewrites every reference to it.
+  folderId     String?
+  folder       Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags         MediaTag[]
   createdAt    DateTime @default(now())
 
   @@index([uploadedById])
   @@index([createdAt])
   @@index([provider])
+  @@index([folderId])
+}
+
+// A folder in the media library. Folders nest (self-relation) to any depth; a
+// null parentId is a root-level folder. The folder path (every ancestor name
+// joined) is baked into each contained item's storage key, so renaming a folder
+// or moving an item rebuilds keys and rewrites references. Deleting a folder
+// cascades — its subfolders and every file inside are permanently removed.
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderTree")
+  media     Media[]
+  createdAt DateTime @default(now())
+
+  // Two folders can't share a name under the same parent. (Postgres treats NULL
+  // parentId rows as distinct, so uniqueness among root folders is enforced in
+  // application code as well.)
+  @@unique([parentId, name])
+  @@index([parentId])
+}
+
+// A freeform, cross-cutting label. Unlike a folder (one per item), a media item
+// can carry many tags. Created on the fly when first typed.
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  media     MediaTag[]
+}
+
+// Join row: which tags are on which media items.
+model MediaTag {
+  mediaId String
+  tagId   String
+  media   Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, tagId])
+  @@index([tagId])
 }
 
 // A media migration job moves every Media row not already on `toProvider`
