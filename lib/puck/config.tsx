@@ -33,6 +33,7 @@ import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/Responsiv
 import { VisibilityField } from '@/lib/puck/VisibilityField'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { MinMaxPairField, type MinMaxPair } from '@/lib/puck/MinMaxPairField'
+import { ClearableNumberField } from '@/lib/puck/ClearableNumberField'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -2341,7 +2342,7 @@ export const puckConfig = {
       // own "Height" / "Shrunk height" so the two never read as duplicate
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'number' as const, label: 'Element height' }, cellHeightShrunk: { type: 'number' as const, label: 'Element height when shrunk' }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
       // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
       // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
       // truth for the default. Puck backfills any missing prop from
