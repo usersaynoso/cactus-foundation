@@ -355,8 +355,16 @@ function GridBlock(props: any) {
         const content = typeof slot === 'function' ? slot() : null
         // A scaled column manages its own flex/alignment inside ScaleToFit, so
         // the track div stays a plain block (no flex/fit-content wrapper).
+        // Explicit gridColumn ONLY when a column is centred (header true-
+        // centering) - see comment below. Pinning every column to its track
+        // unconditionally breaks the generic mobile collapse: when the
+        // grid-template drops to a single `1fr` track (tokens.ts mobile rule),
+        // a child still carrying `grid-column:2` is shunted into an implicit
+        // second track instead of stacking, so the columns never go vertical
+        // on a phone. Left undefined, auto-placement stacks them as intended.
+        const explicitCol = centerColIndexes.length > 0 ? i + 1 : undefined
         return (
-          <div key={i} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: i + 1, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+          <div key={i} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
             {/* Explicit gridColumn matters once any column is centred: an
                 absolutely-positioned grid item is skipped by CSS Grid's
                 auto-placement, so without an explicit track, later columns
