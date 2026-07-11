@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MediaCard, { type MediaCardItem } from './MediaCard'
 import MediaLightbox from './MediaLightbox'
+import MediaImageEditor from './MediaImageEditor'
 import MediaUpload from './MediaUpload'
 import FolderTree, { type FolderNode } from './FolderTree'
 
@@ -87,6 +88,7 @@ export default function MediaLibrary({
   const [deleteFolderNode, setDeleteFolderNode] = useState<FolderNode | null>(null)
   const [moveIds, setMoveIds] = useState<string[] | null>(null)
   const [tagItem, setTagItem] = useState<LibraryItem | null>(null)
+  const [editItem, setEditItem] = useState<LibraryItem | null>(null)
   const [collision, setCollision] = useState<CollisionState>(null)
 
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -463,7 +465,10 @@ export default function MediaLibrary({
         />
 
         <div
-          style={{ position: 'relative' }}
+          // minHeight makes the whole panel a file-drop target, not just the
+          // rows the images happen to fill - so dropping into the empty space
+          // below a short grid (or an empty folder) still uploads.
+          style={{ position: 'relative', minHeight: '60vh' }}
           onDragOver={canUpload ? (e) => {
             if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setFileDragOver(true) }
           } : undefined}
@@ -603,6 +608,19 @@ export default function MediaLibrary({
           onRename={() => { setRenameItem(openItem); setOpenId(null) }}
           onMove={() => { setMoveIds([openItem.id]); setOpenId(null) }}
           onTags={() => { setTagItem(openItem); setOpenId(null) }}
+          onEdit={() => { setEditItem(openItem); setOpenId(null) }}
+        />
+      )}
+
+      {editItem && (
+        <MediaImageEditor
+          item={editItem}
+          onCancel={() => setEditItem(null)}
+          onSaved={(mode) => {
+            setEditItem(null)
+            setBusy(mode === 'new' ? 'Saved new image' : 'Replaced image')
+            Promise.all([fetchItems(), refetchFolders()]).finally(() => setBusy(''))
+          }}
         />
       )}
 
@@ -612,12 +630,14 @@ export default function MediaLibrary({
           canUpload={canUpload}
           canDelete={canDelete}
           hasClipboard={!!clipboard}
+          canEdit={(() => { const it = items.find((i) => i.id === menu.id); return !!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml' })()}
           onCut={() => setClipboard({ mode: 'cut', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
           onCopy={() => setClipboard({ mode: 'copy', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
           onPaste={() => paste(currentFolderId)}
           onRename={() => { const it = items.find((i) => i.id === menu.id); if (it) setRenameItem(it) }}
           onMove={() => setMoveIds(selected.has(menu.id) ? Array.from(selected) : [menu.id])}
           onTags={() => { const it = items.find((i) => i.id === menu.id); if (it) setTagItem(it) }}
+          onEdit={() => { const it = items.find((i) => i.id === menu.id); if (it) setEditItem(it) }}
           onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] }) }}
         />
       )}
@@ -822,10 +842,10 @@ function BreadcrumbCrumb({ label, onClick, onDrop, active }: { label: string; on
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, onCut, onCopy, onPaste, onRename, onMove, onTags, onDelete }: {
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
   menu: { x: number; y: number; id: string }
-  canUpload: boolean; canDelete: boolean; hasClipboard: boolean
-  onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onDelete: () => void
+  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean
+  onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
 }) {
   const item = (label: string, fn: () => void, danger = false, disabled = false) => (
     <button
@@ -840,8 +860,9 @@ function ContextMenu({ menu, canUpload, canDelete, hasClipboard, onCut, onCopy, 
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - 260), left: Math.min(menu.x, window.innerWidth - 200), zIndex: 100, width: 190, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
+      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - 300), left: Math.min(menu.x, window.innerWidth - 200), zIndex: 100, width: 190, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
     >
+      {canUpload && canEdit && item('Edit image…', onEdit)}
       {canUpload && item('Cut', onCut)}
       {canUpload && item('Copy', onCopy)}
       {canUpload && item('Paste here', onPaste, false, !hasClipboard)}

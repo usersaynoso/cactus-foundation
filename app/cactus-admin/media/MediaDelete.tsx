@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function MediaDelete({ mediaId, mediaUrl }: { mediaId: string; mediaUrl: string }) {
+// fullWidth (default) stacks a block Delete button in the grid card; the
+// lightbox action row passes fullWidth={false} so it sits inline with the other
+// btn-sm actions rather than dropping onto its own full-width line.
+export default function MediaDelete({ mediaId, mediaUrl, fullWidth = true }: { mediaId: string; mediaUrl: string; fullWidth?: boolean }) {
   const router = useRouter()
   const [confirm, setConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -31,7 +34,7 @@ export default function MediaDelete({ mediaId, mediaUrl }: { mediaId: string; me
       <button className="btn btn-secondary btn-sm" onClick={() => setConfirm(false)}>Cancel</button>
     </div>
   ) : (
-    <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.375rem', width: '100%' }} onClick={() => setConfirm(true)}>
+    <button className="btn btn-secondary btn-sm" style={fullWidth ? { marginTop: '0.375rem', width: '100%' } : undefined} onClick={() => setConfirm(true)}>
       Delete
     </button>
   )

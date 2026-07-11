@@ -735,6 +735,128 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
   return { optimised: true, before, after }
 }
 
+// ---------------------------------------------------------------------------
+// Crop / edit — extract a rectangle from an existing raster image and either
+// replace the original in place (same Media.id, every reference preserved — the
+// optimise-in-place pattern) or mint a fresh Media row (leaving the original
+// untouched). The crop rectangle is in the source image's own pixels; it is
+// clamped to the image bounds server-side so a stale client rect can't fail the
+// extract. The output keeps the source format so the extension and every
+// embedded reference stay coherent.
+// ---------------------------------------------------------------------------
+
+export type CropRect = { left: number; top: number; width: number; height: number }
+
+// Re-encode a cropped buffer in the source's own format, so a JPEG stays a JPEG
+// (etc.) and the stored extension keeps matching the bytes. Anything sharp can't
+// write back in kind falls to WebP. Cropping reads the first frame only, so an
+// animated source becomes a still — acceptable for a crop tool.
+function encodeCrop(input: Buffer, mimeType: string, rect: CropRect): Promise<Buffer> {
+  const s = sharp(input).extract(rect)
+  switch (mimeType) {
+    case 'image/jpeg':
+      return s.jpeg({ quality: 90 }).toBuffer()
+    case 'image/png':
+      return s.png().toBuffer()
+    case 'image/webp':
+      return s.webp({ quality: 90 }).toBuffer()
+    case 'image/gif':
+      return s.gif().toBuffer()
+    case 'image/avif':
+      return s.avif({ quality: 60 }).toBuffer()
+    default:
+      return s.webp({ quality: 90 }).toBuffer()
+  }
+}
+
+// Ensure a user-typed filename carries the extension its bytes actually need, so
+// "logo" saved from a PNG source lands as "logo.png".
+function withExtensionForMime(name: string, mimeType: string): string {
+  const ext = extensionForMimeType(mimeType)
+  const trimmed = name.trim()
+  return new RegExp(`\\.${ext}$`, 'i').test(trimmed) ? trimmed : `${trimmed.replace(/\.[^./\\]+$/, '')}.${ext}`
+}
+
+export async function editMediaImage(
+  mediaId: string,
+  crop: CropRect,
+  opts: { mode: 'replace' | 'new'; newName?: string },
+  userId?: string,
+): Promise<Media> {
+  const media = await prisma.media.findUnique({ where: { id: mediaId } })
+  if (!media) throw new Error('Media item not found')
+  if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
+    throw new Error('Only raster images can be edited')
+  }
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+  const meta = await sharp(original).metadata()
+  const iw = meta.width ?? 0
+  const ih = meta.height ?? 0
+  if (!iw || !ih) throw new Error('Could not read image dimensions')
+
+  // Clamp the requested rect to the image so a rounding error or a stale client
+  // rect can't push extract() past an edge.
+  const left = Math.max(0, Math.min(Math.round(crop.left), iw - 1))
+  const top = Math.max(0, Math.min(Math.round(crop.top), ih - 1))
+  const width = Math.max(1, Math.min(Math.round(crop.width), iw - left))
+  const height = Math.max(1, Math.min(Math.round(crop.height), ih - top))
+
+  const encoded = await encodeCrop(original, media.mimeType, { left, top, width, height })
+
+  const provider = media.provider
+  // Keep the edited blob in the source's folder (lazy import breaks the
+  // upload↔organise module cycle, as in optimiseMediaInPlace).
+  const { resolveFolderPath } = await import('@/lib/media/organise')
+  const folderPath = await resolveFolderPath(media.folderId)
+
+  if (opts.mode === 'new') {
+    const base = opts.newName?.trim() || `${(media.originalName ?? 'image').replace(/\.[^./\\]+$/, '')} (edited)`
+    const finalName = withExtensionForMime(base, media.mimeType)
+    const result = await uploadMedia(encoded, media.mimeType, provider, finalName, folderPath || undefined)
+    return saveMediaRecord({
+      key: result.key,
+      url: result.url,
+      provider,
+      mimeType: result.mimeType,
+      sizeBytes: result.sizeBytes,
+      uploadedById: userId,
+      altText: media.altText ?? undefined,
+      isDecorative: media.isDecorative,
+      originalName: finalName,
+      folderId: media.folderId,
+    })
+  }
+
+  // Replace in place — mirror optimiseMediaInPlace: store the new blob, repoint
+  // the existing row (id untouched), rewrite embedded url/key references, then
+  // delete the pre-edit blob. optimised is reset because the bytes changed.
+  const oldKey = media.key
+  const oldUrl = media.url
+  const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined)
+
+  const updated = await prisma.media.update({
+    where: { id: media.id },
+    data: {
+      key: result.key,
+      url: result.url,
+      mimeType: result.mimeType,
+      sizeBytes: result.sizeBytes,
+      optimised: false,
+    },
+  })
+
+  await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
+
+  try {
+    await deleteMedia(provider, oldKey)
+  } catch {
+    // Orphaned pre-edit blob left in storage; harmless, still deletable later.
+  }
+
+  return updated
+}
+
 // Rewrite every occurrence of a media item's old url/key to its new url/key
 // inside Puck builder JSON (page draft + published content, and layouts). Only
 // touches rows whose blob actually mentions the old value, and only writes back

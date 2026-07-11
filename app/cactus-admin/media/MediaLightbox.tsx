@@ -40,6 +40,7 @@ export default function MediaLightbox({
   onRename,
   onMove,
   onTags,
+  onEdit,
 }: {
   item: MediaCardItem
   /** Whether the current user may cut/copy/rename/move/tag (same permission as upload). */
@@ -56,8 +57,11 @@ export default function MediaLightbox({
   onRename: () => void
   onMove: () => void
   onTags: () => void
+  onEdit: () => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
+  // Only raster images can be cropped; SVG is vector, so the editor is hidden.
+  const canEdit = isImage && item.mimeType !== 'image/svg+xml'
   const filename = item.originalName || item.key.split('/').pop()
   const uploadedOn = new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -170,6 +174,7 @@ export default function MediaLightbox({
             <a className="btn btn-secondary btn-sm" href={item.url} target="_blank" rel="noopener noreferrer">Open original ↗</a>
             {canManage && (
               <>
+                {canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onCut}>Cut</button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onCopy}>Copy</button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>
@@ -177,7 +182,7 @@ export default function MediaLightbox({
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onTags}>Tags…</button>
               </>
             )}
-            {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} />}
+            {canDelete && <MediaDelete mediaId={item.id} mediaUrl={item.url} fullWidth={false} />}
           </div>
         </div>
       </div>

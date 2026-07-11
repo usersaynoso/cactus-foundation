@@ -66,7 +66,7 @@ Each file carries a small **In use** or **Unused** label. Files you've already s
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
 
-**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. From here you can also **Cut**, **Copy**, **Rename…**, **Move to…**, **Tag…** or **Delete** the file, without having to close the preview and hunt for the right-click menu first. Press Esc or click outside to close.
+**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. From here you can also **Edit image…**, **Cut**, **Copy**, **Rename…**, **Move to…**, **Tag…** or **Delete** the file, without having to close the preview and hunt for the right-click menu first. Press Esc or click outside to close.
 
 **Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first.
 
@@ -97,6 +97,23 @@ Folders keep a growing library tidy - one for logos, one for blog photos, one fo
 - **Move files** either by dragging them onto a folder, or by selecting them and choosing **Move to…** (from the right-click menu or the selection bar) and picking a destination.
 
 If a file you're moving or renaming would end up with the same name as one already in the destination, Cactus stops and asks what to do: **Keep both** (it adds a number, so `logo.png` becomes `logo (1).png`), **Replace** the existing one, or **Skip** it and leave things be.
+
+---
+
+## Cropping and editing images
+
+Need to trim an image down or reframe it? **Edit image…** opens a built-in crop tool - no need to fire up Photoshop for a quick tidy-up. You'll find it two ways: right-click any picture, or open its preview and use the button in the action row. (It only shows for photos - the sort of vector logo that scales to any size has nothing to crop.)
+
+Drag the corners or edges of the box to choose the part you want to keep; drag from the middle to slide the whole box around. The bit you're cutting away dims so you can see exactly what you'll be left with.
+
+- **Preset shapes** - tap **1:1** for a perfect square, **16:9** for a widescreen banner, or any of the other common ratios (**3:2**, **4:3**, **2:3**, **3:4**, **9:16**). The box then keeps that shape however you resize it.
+- **Your own shape** - pop your own numbers into the two ratio boxes (say `5` and `4`) and press **Apply** to lock the crop to that.
+- **Free-form** - or leave it on **Free** and crop to whatever suits.
+
+When you're happy, you've two ways to save:
+
+- **Save (replaces original)** swaps the cropped version in for the old one *everywhere it's used on your site* - pages, logos, everywhere. It's a genuine replacement with no undo, so Cactus asks you to confirm first.
+- **Save as new…** keeps the original exactly as it was and tucks a fresh, cropped copy into the same folder. It'll suggest a name (the original plus "(edited)"), which you're free to change.
 
 ---
 
