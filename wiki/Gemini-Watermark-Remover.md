@@ -25,7 +25,7 @@ You can drop in more than one image at a time; each is processed and reported on
 
 ## How it works, in plain terms
 
-Gemini's watermark is a faint stamp laid over your picture, so the module works out the exact spot Gemini stamps for an image of that size and mathematically lifts the stamp back off - putting the original pixels back as they were underneath. Because it reconstructs rather than paints over, sharp lines like a desk edge or a shelf stay crisp instead of smudging. It all happens right in your browser; nothing is uploaded anywhere else to do it.
+Gemini's watermark is a faint stamp laid over your picture. The module checks the handful of spots Gemini is known to stamp, confirms the stamp is genuinely sitting in one of them by looking at the actual pixels (Gemini has been known to move it about between updates), then mathematically lifts the stamp back off - putting the original pixels back as they were underneath. Because it reconstructs rather than paints over, sharp lines like a desk edge or a shelf stay crisp instead of smudging. It all happens right in your browser; nothing is uploaded anywhere else to do it.
 
 On the rare image where it can't fully clean the mark, it tells you so rather than pretending the job's done.
 
