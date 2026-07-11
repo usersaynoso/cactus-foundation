@@ -9,6 +9,10 @@
 --
 -- Additive only. Never drop, rename, or alter existing columns here.
 
+-- Media.originalName (added with the media library rewrite; the library query
+-- selects it, so an install missing it crashes the admin media page).
+ALTER TABLE "Media" ADD COLUMN IF NOT EXISTS "originalName" TEXT;
+
 -- Media.optimised (added with in-library image optimisation).
 ALTER TABLE "Media" ADD COLUMN IF NOT EXISTS "optimised" BOOLEAN NOT NULL DEFAULT false;
 
