@@ -1321,7 +1321,7 @@ npm run dev`}
       )}
 
       <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
-        <div style={{ fontStyle: 'italic', marginBottom: '0.375rem' }}>Tough on the outside. Warmer than it lets on. Thrives on neglect. Refuses to die.</div>
+        <div style={{ fontStyle: 'italic', marginBottom: '0.375rem' }}>Tough on the outside. Thrives on neglect. Refuses to die.</div>
         v{process.env.NEXT_PUBLIC_APP_VERSION}
       </div>
     </div>

@@ -45,10 +45,6 @@ The preference is saved immediately and the update check refreshes straight away
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 
-### Refresh starter templates
-
-Clicking **Refresh starter templates** resets all the built-in starter layouts (headers, footers, page layouts, 404 pages, and status pages) back to their original designs. Your custom layouts are not affected.
-
 ### Danger zone - Reset Everything
 
 At the bottom of the General tab is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.

@@ -4,7 +4,7 @@
 
 <h1 align="center">Cactus Foundation</h1>
 
-> **Tough on the outside. Warmer than it lets on. Thrives on neglect. Refuses to die.**
+> **Tough on the outside. Thrives on neglect. Refuses to die.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
@@ -64,18 +64,34 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 
 **Available modules:**
 
+- [Shop](https://github.com/cactus-foundation-modules/shop) - a full e-commerce foundation: products, categories, collections, cart, checkout, payments, orders, refunds, customers, discounts, tax and shipping, all run from your own admin. No third-party shop platform required.
+- [Directory](https://github.com/cactus-foundation-modules/directory) - map-based listings with categories, featured entries, and a public directory page.
 - [Contact Form](https://github.com/cactus-foundation-modules/contact-form) - a contact form for any page, with an admin inbox and reply composer.
 - [Contact Form Reply Catcher](https://github.com/cactus-foundation-modules/reply-catcher) - threads real mailbox replies back into the Contact Form inbox.
 - [Boards](https://github.com/cactus-foundation-modules/boards) - a discussion forum, with polls, moderation, and a phpBB/Discourse importer.
 - [Gazette](https://github.com/cactus-foundation-modules/gazette) - a writing-first blog/news module, with tags, series, comments, reactions, an RSS feed, and a WordPress/Medium/Substack importer.
-- [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers, plus sign-in codes by text message for admins and members.
+- [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers with call and message logs, recording playback, click-to-dial, plus sign-in codes by text message for admins and members.
 - [Gemini Watermark Remover](https://github.com/cactus-foundation-modules/gemini-watermark-remover) - drop in an image from Google Gemini and it comes back watermark-free, straight into your media library.
+
+### 👥 Members (visitor accounts, kept well away from the controls)
+
+Flip one switch and your site gains a proper **members system**: registration, sign-in, public profiles, avatars, and optional members-only areas of the site. Members are completely separate from the admin Users who run the site - a member can never wander into your admin panel, and your admins never appear in the members directory. You choose the registration policy, whether usernames are a thing, and which parts of the site require signing in. With the Twilio module installed, members can even get their sign-in codes by text message.
+
+### 🔄 One-click updates
+
+Cactus checks for new releases and shows them in **Settings → Updates**, release notes included - written for humans, not robots. One click and your site updates itself; the little bell in the admin sidebar keeps you posted on how the redeploy is getting on. No terminal, no `git pull`, no crossing of fingers.
+
+### 🎭 Themes
+
+Beyond the Appearance editor, whole **themes** can be installed through the admin and activated without a redeploy. Developers can build and publish their own - there's a [full authoring guide](wiki/Authoring-a-theme.md) in the wiki.
 
 ### 📸 Image storage that won't bankrupt you
 
 Photos and images go into cloud storage (your choice of provider - Backblaze, Amazon S3, Cloudflare, Cloudinary, and several others) and are served through a **Cloudflare Worker** - a fast, cheap middleman that handles resizing and caching. This matters because some hosting platforms charge handsomely for serving large files through their infrastructure. The Worker handles all of that outside the expensive bits. Your bank account remains in better shape than anticipated.
 
 Ten media providers are supported. Pick whichever you already have, or whichever looks least threatening.
+
+The media library itself has grown up nicely too: built-in image optimisation (single images or the whole lot in one go), a lightbox with previous/next browsing, shift-click range selection, and infinite scroll - so a few thousand photos won't reduce it to tears.
 
 ### 🔐 Security taken seriously
 
@@ -204,11 +220,27 @@ The app runs at `http://localhost:3000`. Passkeys work on localhost - Cactus han
 
 Everything in more depth is in the `/wiki` folder:
 
+**Getting going**
 - **[Home](wiki/Home.md)** - overview and philosophy
 - **[Getting started](wiki/Getting-started.md)** - the full setup process, step by step
-- **[Architecture overview](wiki/Architecture-overview.md)** - how everything fits together (for the curious)
+- **[Running locally](wiki/Running-locally.md)** - developing on your own machine
+
+**Day-to-day**
+- **[Managing pages](wiki/Managing-pages.md)** - the page builder and everything on it
+- **[Managing media](wiki/Managing-media.md)** - the media library, providers, and optimisation
+- **[Managing users](wiki/Managing-users.md)** - admin users, roles, and permissions
+- **[Members](wiki/Members.md)** - visitor accounts, profiles, and members-only areas
+- **[Appearance and design](wiki/Appearance-and-design.md)** - header, footer, design tokens, layouts
+- **[Modules](wiki/Modules.md)** - installing, updating, and removing modules
+
+**Module guides**
+- **[Shop](wiki/Shop.md)**, **[Directory](wiki/Directory.md)**, **[Boards](wiki/Boards.md)**, **[Gazette](wiki/Gazette.md)**, **[Twilio](wiki/Twilio.md)**, **[Reply Catcher](wiki/Reply-catcher.md)**, **[Gemini Watermark Remover](wiki/Gemini-Watermark-Remover.md)**
+
+**For the curious and the technical**
+- **[Architecture overview](wiki/Architecture-overview.md)** - how everything fits together
 - **[Configuration reference](wiki/Configuration-reference.md)** - every setting and what it does
 - **[Authoring a module](wiki/Authoring-a-module.md)** - build and publish your own extension
+- **[Authoring a theme](wiki/Authoring-a-theme.md)** - build and ship a theme
 - **[Self-hosting and operations](wiki/Self-hosting-and-operations.md)** - backups, recovery, and "oh no" procedures
 
 ---

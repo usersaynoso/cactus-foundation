@@ -580,7 +580,7 @@ RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in
 
 ### Starter templates
 
-`app/api/setup/complete/route.ts` seeds a library of starter layouts on first setup. The same function (`refreshStarterLayouts`) is called when an admin clicks **Settings → General → Refresh Starter Templates**, so templates are always resettable to their canonical state.
+`app/api/setup/complete/route.ts` seeds a library of starter layouts on first setup. After that, templates keep themselves current automatically: `SiteConfig.starterTemplatesVersion` records the core version whose templates were last seeded, and `ensureStarterLayoutsCurrent()` (called from the public layout and the admin layouts list API) re-runs `refreshStarterLayouts` on the first request after a deploy with a different `package.json` version, then stamps the new version. A module-level flag keeps the check to one `SiteConfig` query per warm server instance; a failed or raced refresh leaves the stamp unwritten so a later request retries (every write is an idempotent upsert). The old manual **Refresh Starter Templates** button (and the authenticated re-POST branch of `/api/setup/complete` that backed it) has been removed.
 
 | Type | Count | IDs |
 |---|---|---|
@@ -590,7 +590,7 @@ RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in
 | `notFound` | 3 | `starter-404-hero`, `starter-404-minimal`, `starter-404-branded` |
 | `statusPage` | 3 | `starter-status-coming-soon`, `starter-status-maintenance`, `starter-status-minimal` |
 
-All starter layouts have `isStarter: true`, `status: published`, and `displayConditions: entire_site`. They are upserted (never duplicate-inserted), so re-running setup or the refresh button is idempotent.
+All starter layouts have `isStarter: true` and are **read-only**: seeded as `status: draft` with empty `displayConditions`, and the layouts PATCH/DELETE API rejects them. Users create an editable copy via `POST /api/admin/layouts/[id]/duplicate` (a **Duplicate** button in the admin - starters show it in place of Edit, and the layout editor route shows a read-only card for them). Templates a fresh install needs live out of the box (default header, footer, page layout, 404 hero, coming-soon/maintenance, plus module templates flagged `publishByDefault`) also get a non-starter **editable working copy** seeded alongside them, id `<template-id>-live`, published with the template's canonical conditions. The copy is create-only (empty upsert `update`), so a refresh never overwrites the owner's edits and never resurrects a copy they deleted. Installs that predate read-only starters migrate on their next refresh: a published starter row's current content and conditions move into its `-live` copy before the starter is demoted to draft. Starter rows themselves are upserted, so re-running setup or the refresh button is idempotent.
 
 ### Styles info page (`style-guide`)
 
