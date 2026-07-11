@@ -63,7 +63,8 @@ function buildCsp(): string {
     `img-src ${imgSrc}`,
     `font-src 'self' https://fonts.gstatic.com`,
     // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
-    `connect-src 'self' https://api.stripe.com`,
+    // workerHost - direct-to-Worker PUT upload (admin > Media) fetches the Worker directly from the browser
+    `connect-src 'self' https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
     `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
     `frame-ancestors 'none'`,
