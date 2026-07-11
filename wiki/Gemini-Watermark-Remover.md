@@ -27,6 +27,8 @@ You can drop in more than one image at a time; each is processed and reported on
 
 Newer Gemini images tuck their watermark into busy, textured corners where simply reversing the stamp leaves a faint ghost behind. So the module first works out exactly where the watermark sits, then uses a small on-device AI eraser to rebuild those pixels from what surrounds them - the mark disappears and the rest of the picture is left untouched. It all happens right in your browser; nothing is uploaded anywhere else to do it.
 
+On some busy backgrounds the watermark finder can point at slightly the wrong spot, which used to mean the mark survived the cleaning. The eraser now also cleans the corner position Gemini officially stamps for an image of that size, so the mark comes off even when the finder is having an off day.
+
 On the rare image where it can't fully clean the mark, it tells you so rather than pretending the job's done.
 
 ---
