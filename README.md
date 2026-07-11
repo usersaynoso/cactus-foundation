@@ -69,6 +69,7 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 - [Boards](https://github.com/cactus-foundation-modules/boards) - a discussion forum, with polls, moderation, and a phpBB/Discourse importer.
 - [Gazette](https://github.com/cactus-foundation-modules/gazette) - a writing-first blog/news module, with tags, series, comments, reactions, an RSS feed, and a WordPress/Medium/Substack importer.
 - [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers, plus sign-in codes by text message for admins and members.
+- [Gemini Watermark Remover](https://github.com/cactus-foundation-modules/gemini-watermark-remover) - drop in an image from Google Gemini and it comes back watermark-free, straight into your media library.
 
 ### 📸 Image storage that won't bankrupt you
 

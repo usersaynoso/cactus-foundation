@@ -28,6 +28,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Directory](Directory) | Map-based listings with categories, featured entries, geocoding and a CSV importer |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |
+| [Gemini Watermark Remover](Gemini-Watermark-Remover) | Stripping the watermark from Google Gemini images, straight into your media library |
 | [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
 
 ## For developers
