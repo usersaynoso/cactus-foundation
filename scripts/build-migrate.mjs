@@ -119,4 +119,8 @@ function runMigrateDeployWithRetry(retries = 3, backoffMs = 10_000) {
 }
 
 runMigrateDeployWithRetry()
+// Reconcile additive core-schema drift on installs whose init migration predates
+// later additive changes (migrate deploy never re-applies the edited-in-place
+// core migration). Idempotent — a no-op on fresh or up-to-date installs.
+runWithRetry('Core schema reconcile', 'node', ['scripts/reconcile-core-schema.mjs'])
 runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
