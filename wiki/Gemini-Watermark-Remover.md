@@ -25,7 +25,9 @@ You can drop in more than one image at a time; each is processed and reported on
 
 ## How it works, in plain terms
 
-The watermark is removed by working out the maths behind how Gemini stamped it on in the first place, then reversing it - a bit like unmixing paint once you know exactly what was mixed in. Nothing is uploaded anywhere else to do this; it all happens on your own site.
+Newer Gemini images tuck their watermark into busy, textured corners where simply reversing the stamp leaves a faint ghost behind. So the module first works out exactly where the watermark sits, then uses a small on-device AI eraser to rebuild those pixels from what surrounds them - the mark disappears and the rest of the picture is left untouched. It all happens right in your browser; nothing is uploaded anywhere else to do it.
+
+On the rare image where it can't fully clean the mark, it tells you so rather than pretending the job's done.
 
 ---
 

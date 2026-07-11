@@ -60,6 +60,10 @@ const config: NextConfig = {
   // the deployed function bundle on Vercel despite working fine in dev.
   outputFileTracingIncludes: {
     'app/api/admin/backup/database/route.ts': ['./prisma/migrations/**'],
+    // Modules can ship browser assets (e.g. ML model + wasm) served same-origin
+    // by a module route that reads them via fs. Generic glob (no module name)
+    // so any module's assets/ dir is traced into the module-API function.
+    'app/api/m/[module]/[...path]/route.ts': ['./modules/*/assets/**'],
   },
   // Security headers are applied in proxy.ts
 }
