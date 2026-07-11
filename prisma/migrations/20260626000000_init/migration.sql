@@ -215,6 +215,7 @@ CREATE TABLE "Media" (
     "uploadedById" TEXT,
     "altText" TEXT,
     "isDecorative" BOOLEAN NOT NULL DEFAULT false,
+    "originalName" TEXT,
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

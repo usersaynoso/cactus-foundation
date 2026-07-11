@@ -324,6 +324,12 @@ model Media {
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   altText      String?
   isDecorative Boolean  @default(false)
+  // The filename the user uploaded, kept verbatim for display. The storage
+  // `key` is deliberately mangled (nanoid prefix, sanitised, unique) so this is
+  // the only place the human-readable name survives. Nullable: legacy rows and
+  // generated files (icons, avatars, exports) have none — callers fall back to
+  // the key's basename.
+  originalName String?
   mimeType     String
   sizeBytes    Int
   createdAt    DateTime @default(now())

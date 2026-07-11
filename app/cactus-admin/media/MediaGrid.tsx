@@ -143,7 +143,7 @@ export default function MediaGrid({ items, canDelete, hasMore, search, filter, p
 
   function itemLabel(id: string): string {
     const item = loadedItems.find((i) => i.id === id)
-    return item ? (item.key.split('/').pop() ?? item.key) : id
+    return item ? (item.originalName || item.key.split('/').pop() || item.key) : id
   }
 
   async function handleConfirmDelete(force: boolean) {

@@ -28,7 +28,7 @@ export default async function MediaPage({ searchParams }: Props) {
   const search = params.get('q') ?? ''
   const rawFilter = params.get('filter')
   const filter: MediaFilter = rawFilter === 'in-use' || rawFilter === 'unused' ? rawFilter : 'all'
-  const where = search ? { OR: [{ key: { contains: search } }, { altText: { contains: search } }] } : {}
+  const where = search ? { OR: [{ key: { contains: search } }, { originalName: { contains: search } }, { altText: { contains: search } }] } : {}
 
   // "In use" is computed, not a column, so we load every matching row, classify
   // it against the usage index, then filter and paginate in memory.
@@ -37,7 +37,7 @@ export default async function MediaPage({ searchParams }: Props) {
       where,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, key: true, url: true, altText: true, mimeType: true,
+        id: true, key: true, url: true, altText: true, originalName: true, mimeType: true,
         sizeBytes: true, createdAt: true, isDecorative: true,
         uploadedBy: { select: { username: true } },
       },

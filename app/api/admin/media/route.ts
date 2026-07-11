@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const rawFilter = request.nextUrl.searchParams.get('filter')
   const filter: MediaFilter = rawFilter === 'in-use' || rawFilter === 'unused' ? rawFilter : 'all'
   const where = search
-    ? { OR: [{ key: { contains: search } }, { altText: { contains: search } }] }
+    ? { OR: [{ key: { contains: search } }, { originalName: { contains: search } }, { altText: { contains: search } }] }
     : undefined
 
   // "In use" is computed, not a column, so — same as the media page's server
@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       uploadedById: user.id,
       altText: altText ?? undefined,
       isDecorative,
+      originalName: file.name || undefined,
     })
     return NextResponse.json(record, { status: 201 })
   } catch (err: unknown) {

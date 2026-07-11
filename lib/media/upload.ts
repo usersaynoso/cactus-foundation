@@ -65,9 +65,15 @@ export async function validateUpload(
 
   let actualFormat: string | undefined
   try {
-    actualFormat = (await sharp(buffer).metadata()).format
-  } catch {
-    return { valid: false, reason: 'File could not be read as a valid image.' }
+    // `failOn: 'none'` so the format sniff doesn't abort on recoverable libwebp
+    // warnings — plenty of perfectly good WebP files (Photoshop / cwebp exports,
+    // animated WebP) emit a warning that sharp otherwise escalates to a thrown
+    // error, which was rejecting valid uploads. We only need the container
+    // format here, not a pedantic decode.
+    actualFormat = (await sharp(buffer, { failOn: 'none' }).metadata()).format
+  } catch (err) {
+    const detail = err instanceof Error && err.message ? ` (${err.message})` : ''
+    return { valid: false, reason: `File could not be read as a valid image${detail}.` }
   }
   if (actualFormat !== MIME_TO_SHARP_FORMAT[mimeType]) {
     return {
@@ -518,6 +524,9 @@ export async function saveMediaRecord(data: {
   uploadedById?: string
   altText?: string
   isDecorative?: boolean
+  // The filename the user uploaded, kept for display. Omitted by generated-file
+  // callers (icons, avatars, exports) that have no user-facing name.
+  originalName?: string
 }): Promise<Media> {
   // For proxied providers the canonical serving url is always the Worker url.
   const url = isProxied(data.provider) ? `${workerUrl()}/${data.key}` : data.url
@@ -531,6 +540,7 @@ export async function saveMediaRecord(data: {
       uploadedById: data.uploadedById ?? null,
       altText: data.altText ?? null,
       isDecorative: data.isDecorative ?? false,
+      originalName: data.originalName ?? null,
     },
   })
 }

@@ -8,6 +8,7 @@ export type MediaCardItem = {
   key: string
   url: string
   altText: string | null
+  originalName: string | null
   mimeType: string
   sizeBytes: number
   createdAt: Date | string
@@ -50,7 +51,7 @@ export default function MediaCard({
   onOpen: (id: string) => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
-  const filename = item.key.split('/').pop()
+  const filename = item.originalName || item.key.split('/').pop()
 
   return (
     <>

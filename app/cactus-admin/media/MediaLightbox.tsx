@@ -45,7 +45,7 @@ export default function MediaLightbox({
   onNext: () => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
-  const filename = item.key.split('/').pop()
+  const filename = item.originalName || item.key.split('/').pop()
   const uploadedOn = new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
   useEffect(() => {

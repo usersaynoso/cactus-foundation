@@ -8,6 +8,7 @@ type MediaItem = {
   url: string
   key: string
   altText: string | null
+  originalName: string | null
   mimeType: string
 }
 
@@ -43,7 +44,8 @@ function MediaPickerModal({ onSelect, onClose }: {
       if (!res.ok) throw new Error(record.error ?? 'Upload failed')
       const item: MediaItem = {
         id: record.id, url: record.url, key: record.key,
-        altText: record.altText ?? null, mimeType: record.mimeType,
+        altText: record.altText ?? null, originalName: record.originalName ?? null,
+        mimeType: record.mimeType,
       }
       setItems((prev) => [item, ...prev])
       onSelect(item)
@@ -56,6 +58,7 @@ function MediaPickerModal({ onSelect, onClose }: {
   const filtered = query
     ? items.filter((i) =>
         i.key.toLowerCase().includes(query.toLowerCase()) ||
+        (i.originalName ?? '').toLowerCase().includes(query.toLowerCase()) ||
         (i.altText ?? '').toLowerCase().includes(query.toLowerCase())
       )
     : items
@@ -130,7 +133,7 @@ function MediaPickerModal({ onSelect, onClose }: {
                   style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
                 />
                 <div style={{ padding: '0.375rem 0.5rem', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
-                  {item.key.split('/').pop()}
+                  {item.originalName || item.key.split('/').pop()}
                 </div>
               </button>
             ))}
