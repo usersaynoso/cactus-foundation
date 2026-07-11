@@ -374,14 +374,14 @@ export default function ModulesPage() {
       {ghStatus && !ghStatus.hasPat && !ghStatus.connected && (
         <div className="alert alert-warning">
           GitHub is not configured. Module install requires a GitHub connection.{' '}
-          <a href="../config?tab=integrations">Go to Settings &rarr; Integrations</a> to connect a GitHub App or add a personal access token.
+          <a href="config?tab=integrations">Go to Settings &rarr; Integrations</a> to connect a GitHub App or add a personal access token.
         </div>
       )}
 
       {ghStatus && !ghStatus.hasPat && ghStatus.connected && !ghStatus.hasInstallation && (
         <div className="alert alert-warning">
           GitHub App is connected but not yet installed on a repository. Module install will fail until you complete the setup.{' '}
-          <a href="../config?tab=integrations">Go to Settings &rarr; Integrations</a> and click &ldquo;Install app on repository&rdquo;.
+          <a href="config?tab=integrations">Go to Settings &rarr; Integrations</a> and click &ldquo;Install app on repository&rdquo;.
         </div>
       )}
 
@@ -764,7 +764,7 @@ export default function ModulesPage() {
               <button className="btn btn-secondary" onClick={() => setCoreVersionModal(null)}>
                 Cancel
               </button>
-              <a className="btn btn-primary" href="../config?tab=general">
+              <a className="btn btn-primary" href="config?tab=general">
                 Go to update panel
               </a>
             </div>
