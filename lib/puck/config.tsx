@@ -694,7 +694,11 @@ function SectionBlock(props: any) {
   const bgStyle: React.CSSProperties = {}
   if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
   if (bgType === 'gradient' && bgColor) bgStyle.background = bgColor
-  if (bgType === 'image' && bgImage) {
+  // A chosen background image always paints, whatever the Background type is.
+  // The picker sits alongside (not inside) the type dropdown, so gating the
+  // image on mode === 'image' meant an owner could pick a photo and see nothing.
+  // Any colour/gradient above stays as the base layer beneath the image.
+  if (bgImage) {
     bgStyle.backgroundImage = `url(${bgImage})`
     bgStyle.backgroundSize = bgSize === 'repeat' ? 'auto' : bgSize
     bgStyle.backgroundPosition = 'center'
@@ -716,7 +720,7 @@ function SectionBlock(props: any) {
     // section leaves overflow visible so a `position: sticky` descendant - e.g.
     // a sticky image column inside a Grid - isn't trapped by an overflow context
     // it doesn't need. overflow:hidden on an ancestor silently kills sticky.
-    overflow: (borderRadius !== 'none' || bgType === 'image' || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
+    overflow: (borderRadius !== 'none' || bgImage || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
   }
 
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
@@ -1142,7 +1146,9 @@ function Hero(props: any) {
   const bgStyle: React.CSSProperties = {}
   if (bgType === 'gradient') bgStyle.background = bgColor || 'linear-gradient(135deg, var(--color-primary-subtle, #f0fdf4) 0%, var(--color-primary-subtle, #dcfce7) 100%)'
   else if (bgType === 'color' && bgColor) bgStyle.backgroundColor = bgColor
-  else if (bgType === 'image' && bgImage) { bgStyle.backgroundImage = `url(${bgImage})`; bgStyle.backgroundSize = 'cover'; bgStyle.backgroundPosition = 'center' }
+  // A chosen background image always paints over any colour/gradient base,
+  // whatever the Background type is - the picker sits alongside the type dropdown.
+  if (bgImage) { bgStyle.backgroundImage = `url(${bgImage})`; bgStyle.backgroundSize = 'cover'; bgStyle.backgroundPosition = 'center' }
 
   const textColor = textScheme === 'light' ? 'var(--color-bg)' : 'var(--color-fg)'
   const subColor = textScheme === 'light' ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)'
