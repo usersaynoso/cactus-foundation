@@ -1585,6 +1585,17 @@ tbody tr:hover {
   line-height: var(--leading-lg);
 }
 
+/* Media library grid tile - lift on hover and reveal its select checkbox. */
+.media-card {
+  transition: box-shadow var(--dur-base), border-color var(--dur-base);
+}
+.media-card:hover {
+  box-shadow: var(--shadow-md);
+}
+.media-card:hover .media-card__check {
+  opacity: 1 !important;
+}
+
 /* ============================================================
    BADGES
    ============================================================ */

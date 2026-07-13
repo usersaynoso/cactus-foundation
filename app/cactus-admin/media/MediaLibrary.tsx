@@ -1,37 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import MediaCard, { type MediaCardItem } from './MediaCard'
-import MediaLightbox from './MediaLightbox'
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import MediaCard from './MediaCard'
+import MediaList from './MediaList'
+import MediaDetailPanel from './MediaDetailPanel'
 import MediaImageEditor from './MediaImageEditor'
 import MediaUpload from './MediaUpload'
+import MediaStatsBar, { type LibraryStats } from './MediaStatsBar'
+import MediaToolbar from './MediaToolbar'
+import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
 import FolderTree, { type FolderNode } from './FolderTree'
 import { uploadOneFile } from '@/lib/media/upload-client'
-
-export type LibraryItem = MediaCardItem & { folderId: string | null; tags: string[] }
-export type TagInfo = { id: string; name: string; count: number }
-
-type Sort = 'newest' | 'oldest' | 'name' | 'name_desc' | 'largest' | 'smallest'
-type TypeFilter = 'all' | 'image' | 'other'
-type UseFilter = 'all' | 'in-use' | 'unused'
+import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
 type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
-
 type Menu = { x: number; y: number; id: string } | null
-
 type CollisionState =
   | { kind: 'rename'; id: string; newName: string; name: string }
   | { kind: 'move'; ids: string[]; targetFolderId: string | null; name: string }
   | null
 
-const SORTS: { value: Sort; label: string }[] = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'name', label: 'Name (A–Z)' },
-  { value: 'name_desc', label: 'Name (Z–A)' },
-  { value: 'largest', label: 'Largest first' },
-  { value: 'smallest', label: 'Smallest first' },
-]
+const VIEW_KEY = 'cactus.media.view'
 
 export default function MediaLibrary({
   initialItems,
@@ -39,6 +28,7 @@ export default function MediaLibrary({
   folders: initialFolders,
   rootCount: initialRootCount,
   tags: initialTags,
+  stats,
   canUpload,
   canDelete,
   perPage,
@@ -49,6 +39,7 @@ export default function MediaLibrary({
   folders: FolderNode[]
   rootCount: number
   tags: TagInfo[]
+  stats: LibraryStats
   canUpload: boolean
   canDelete: boolean
   perPage: number
@@ -58,6 +49,9 @@ export default function MediaLibrary({
   const [tags, setTags] = useState<TagInfo[]>(initialTags)
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  // Forces the whole-library scope (all folders) even without a search/tag -
+  // set when a stat tile is clicked, cleared as soon as a folder is browsed.
+  const [browseAll, setBrowseAll] = useState(false)
   const [items, setItems] = useState<LibraryItem[]>(initialItems)
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [page, setPage] = useState(1)
@@ -69,14 +63,15 @@ export default function MediaLibrary({
   const [tagFilter, setTagFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [view, setView] = useState<ViewMode>('grid')
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [lastToggled, setLastToggled] = useState<number | null>(null)
   const [clipboard, setClipboard] = useState<Clipboard>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [menu, setMenu] = useState<Menu>(null)
-  const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
+  const [savingTags, setSavingTags] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
@@ -88,14 +83,35 @@ export default function MediaLibrary({
   const [renameFolderNode, setRenameFolderNode] = useState<FolderNode | null>(null)
   const [deleteFolderNode, setDeleteFolderNode] = useState<FolderNode | null>(null)
   const [moveIds, setMoveIds] = useState<string[] | null>(null)
-  const [tagItem, setTagItem] = useState<LibraryItem | null>(null)
   const [editItem, setEditItem] = useState<LibraryItem | null>(null)
   const [collision, setCollision] = useState<CollisionState>(null)
 
+  // --- toasts ---
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const toastSeq = useRef(0)
+  const pushToast = useCallback((kind: ToastKind, msg: string) => {
+    const id = ++toastSeq.current
+    setToasts((prev) => [...prev, { id, kind, msg }])
+    if (kind !== 'busy') setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500)
+  }, [])
+  const dismissToast = useCallback((id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)), [])
+  const allToasts = useMemo<Toast[]>(() => (busy ? [...toasts, { id: -1, kind: 'busy', msg: busy }] : toasts), [toasts, busy])
+
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  // A search or tag filter searches the whole tree; folder browsing scopes to one.
-  const folderScope = search || tagFilter ? 'all' : currentFolderId ?? 'root'
+  // Restore the saved grid/list preference once, on the client. Must run in an
+  // effect, not a lazy initializer: reading localStorage during render would
+  // diverge from the server's default and trip a hydration mismatch.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(VIEW_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydrate of a persisted UI pref; safe one-shot re-render
+    if (saved === 'grid' || saved === 'list') setView(saved)
+  }, [])
+  useEffect(() => { window.localStorage.setItem(VIEW_KEY, view) }, [view])
+
+  // A search, tag filter or stat-tile drill-down spans the whole tree; plain
+  // folder browsing scopes to one folder.
+  const folderScope = search || tagFilter || browseAll ? 'all' : currentFolderId ?? 'root'
 
   const buildQuery = useCallback(
     (pageNum: number) => {
@@ -112,7 +128,6 @@ export default function MediaLibrary({
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
-    setError('')
     try {
       const res = await fetch(`/api/admin/media?${buildQuery(1)}`)
       const d = await res.json()
@@ -123,20 +138,17 @@ export default function MediaLibrary({
       setSelected(new Set())
       setLastToggled(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load media')
+      pushToast('error', err instanceof Error ? err.message : 'Failed to load media')
     } finally {
       setLoading(false)
     }
-  }, [buildQuery])
+  }, [buildQuery, pushToast])
 
-  // Reload whenever the query changes. Skips the very first run — the server
-  // already provided the root's first page as initialItems.
+  // Reload whenever the query changes. Skips the first run - the server already
+  // provided the root's first page as initialItems.
   const firstRun = useRef(true)
   useEffect(() => {
-    if (firstRun.current) {
-      firstRun.current = false
-      return
-    }
+    if (firstRun.current) { firstRun.current = false; return }
     fetchItems()
   }, [fetchItems])
 
@@ -144,13 +156,8 @@ export default function MediaLibrary({
     try {
       const res = await fetch('/api/admin/media/folders')
       const d = await res.json()
-      if (res.ok) {
-        setFolders(d.folders)
-        setRootCount(d.rootCount)
-      }
-    } catch {
-      /* leave the tree as-is on a transient error */
-    }
+      if (res.ok) { setFolders(d.folders); setRootCount(d.rootCount) }
+    } catch { /* leave the tree as-is on a transient error */ }
   }, [])
 
   const refetchTags = useCallback(async () => {
@@ -158,9 +165,7 @@ export default function MediaLibrary({
       const res = await fetch('/api/admin/media/tags')
       const d = await res.json()
       if (res.ok) setTags(d.tags)
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }, [])
 
   async function loadMore() {
@@ -174,11 +179,7 @@ export default function MediaLibrary({
       setItems((prev) => [...prev, ...d.items])
       setPage(next)
       setHasMore(d.hasMore)
-    } catch {
-      /* sentinel retries on next scroll */
-    } finally {
-      setLoading(false)
-    }
+    } catch { /* sentinel retries on next scroll */ } finally { setLoading(false) }
   }
 
   useEffect(() => {
@@ -200,11 +201,13 @@ export default function MediaLibrary({
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
     window.addEventListener('click', close)
     window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('click', close)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', onKey) }
   }, [menu])
+
+  // --- navigation ---
+  const navigateFolder = useCallback((id: string | null) => {
+    setSearch(''); setSearchInput(''); setTagFilter(''); setBrowseAll(false); setCurrentFolderId(id)
+  }, [])
 
   // --- selection ---
   function toggleSelect(id: string, shiftKey: boolean) {
@@ -218,30 +221,25 @@ export default function MediaLibrary({
     }
     setLastToggled(index)
   }
+  const allShownSelected = items.length > 0 && items.every((i) => selected.has(i.id))
+  function toggleSelectAll() {
+    setSelected((prev) => (items.every((i) => prev.has(i.id)) ? new Set() : new Set(items.map((i) => i.id))))
+  }
 
   const openIndex = openId ? items.findIndex((i) => i.id === openId) : -1
   const openItem = openIndex >= 0 ? items[openIndex] : null
 
   // --- drag and drop ---
-  // Tracks whether an in-app card drag is in flight. Safari doesn't expose
-  // dataTransfer.types contents during dragover (only on drop), so the grid's
-  // dragover can't tell an external file drag from an internal card drag by
-  // sniffing types. This ref is the reliable signal: it's only ever true while a
-  // card is being dragged, so anything else is an external file drop.
+  // Safari doesn't expose dataTransfer.types during dragover, so this ref is the
+  // reliable "an internal card drag is in flight" signal for the grid dropzone.
   const draggingInternal = useRef(false)
-
   function onDragStart(e: React.DragEvent, id: string) {
-    // Drag the whole selection if the grabbed card is part of it, else just it.
     const ids = selected.has(id) ? Array.from(selected) : [id]
     e.dataTransfer.setData('text/plain', ids.join(','))
     e.dataTransfer.effectAllowed = 'move'
     draggingInternal.current = true
   }
-
-  function onDragEnd() {
-    draggingInternal.current = false
-  }
-
+  function onDragEnd() { draggingInternal.current = false }
   async function onDropToFolder(targetFolderId: string | null, raw: string) {
     const ids = raw.split(',').filter(Boolean)
     if (ids.length === 0) return
@@ -251,98 +249,66 @@ export default function MediaLibrary({
   // --- mutations ---
   async function performMove(ids: string[], targetFolderId: string | null, mode: 'error' | 'suffix' | 'replace' | 'skip') {
     setBusy('Moving…')
-    setError('')
     try {
       const res = await fetch('/api/admin/media/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, targetFolderId, collision: mode }),
       })
       const d = await res.json()
-      if (res.status === 409 && d.collision) {
-        setCollision({ kind: 'move', ids, targetFolderId, name: d.name })
-        return
-      }
+      if (res.status === 409 && d.collision) { setCollision({ kind: 'move', ids, targetFolderId, name: d.name }); return }
       if (!res.ok) throw new Error(d.error ?? 'Move failed')
       setCollision(null)
       setSelected(new Set())
+      pushToast('success', `Moved ${ids.length} item${ids.length === 1 ? '' : 's'}`)
       await Promise.all([fetchItems(), refetchFolders()])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Move failed')
-      // A mid-batch failure may have moved some items already; resync so the grid
-      // reflects reality rather than showing a stale pre-move state.
+      pushToast('error', err instanceof Error ? err.message : 'Move failed')
       await Promise.all([fetchItems(), refetchFolders()])
-    } finally {
-      setBusy('')
-    }
+    } finally { setBusy('') }
   }
 
-  // Move a whole folder under another (or to root) via drag-and-drop. No-ops and
-  // illegal drops (onto itself or one of its own descendants) are dropped before
-  // hitting the API; the server guards these too.
   async function performMoveFolder(folderId: string, targetParentId: string | null) {
     const node = folders.find((f) => f.id === folderId)
     if (!node) return
     if (targetParentId === (node.parentId ?? null)) return
     if (targetParentId === folderId || isDescendant(folders, folderId, targetParentId)) {
-      setError("A folder can't be moved inside itself")
-      return
+      pushToast('error', "A folder can't be moved inside itself"); return
     }
     setBusy('Moving folder…')
-    setError('')
     try {
       const res = await fetch(`/api/admin/media/folders/${folderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parentId: targetParentId }),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parentId: targetParentId }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Move failed')
       await Promise.all([refetchFolders(), fetchItems()])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Move failed')
-    } finally {
-      setBusy('')
-    }
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Move failed') } finally { setBusy('') }
   }
 
   async function performRename(id: string, newName: string, mode: 'error' | 'suffix' | 'replace') {
     setBusy('Renaming…')
-    setError('')
     try {
       const res = await fetch(`/api/admin/media/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newName, collision: mode }),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newName, collision: mode }),
       })
       const d = await res.json()
-      if (res.status === 409 && d.collision) {
-        setCollision({ kind: 'rename', id, newName, name: d.name })
-        return
-      }
+      if (res.status === 409 && d.collision) { setCollision({ kind: 'rename', id, newName, name: d.name }); return }
       if (!res.ok) throw new Error(d.error ?? 'Rename failed')
       setCollision(null)
       setRenameItem(null)
       await fetchItems()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rename failed')
-    } finally {
-      setBusy('')
-    }
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Rename failed') } finally { setBusy('') }
   }
 
   async function paste(targetFolderId: string | null) {
     if (!clipboard) return
     setBusy(clipboard.mode === 'cut' ? 'Moving…' : 'Pasting…')
-    setError('')
     try {
       if (clipboard.mode === 'cut') {
         await performMove(clipboard.ids, targetFolderId, 'error')
       } else {
         const res = await fetch('/api/admin/media/duplicate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: clipboard.ids, targetFolderId }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: clipboard.ids, targetFolderId }),
         })
         const d = await res.json()
         if (!res.ok) throw new Error(d.error ?? 'Paste failed')
@@ -350,25 +316,19 @@ export default function MediaLibrary({
       }
       setClipboard(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Paste failed')
-      // Some copies/moves may have landed before the failure; resync the grid.
+      pushToast('error', err instanceof Error ? err.message : 'Paste failed')
       await Promise.all([fetchItems(), refetchFolders()])
-    } finally {
-      setBusy('')
-    }
+    } finally { setBusy('') }
   }
 
-  // Delete flow mirrors the old grid: a first pass without force reports any
-  // items still referenced elsewhere so the admin can reconsider before forcing.
+  // First pass without force reports any items still referenced elsewhere so the
+  // admin can reconsider before forcing.
   async function runDelete(ids: string[], force: boolean) {
     if (ids.length === 0) return
     setBusy('Deleting…')
-    setError('')
     try {
       const res = await fetch('/api/admin/media/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, force }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, force }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Delete failed')
@@ -376,38 +336,30 @@ export default function MediaLibrary({
         setSkippedInUse(d.skipped)
         setDeleteConfirm({ ids: d.skipped.map((s: { id: string }) => s.id) })
       } else {
-        setDeleteConfirm(null)
-        setSkippedInUse([])
-        setSelected(new Set())
+        setDeleteConfirm(null); setSkippedInUse([]); setSelected(new Set())
+        if (openId && ids.includes(openId)) setOpenId(null)
+        pushToast('success', `Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}`)
       }
       await Promise.all([fetchItems(), refetchFolders()])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
-    } finally {
-      setBusy('')
-    }
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Delete failed') } finally { setBusy('') }
   }
 
   async function optimiseSingle(id: string) {
     setOptimisingIds((prev) => new Set(prev).add(id))
-    setError('')
     try {
       const res = await fetch(`/api/admin/media/${id}/optimise`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
+      pushToast('success', 'Image optimised')
       await fetchItems()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Optimise failed')
-    } finally {
-      setOptimisingIds((prev) => { const n = new Set(prev); n.delete(id); return n })
-    }
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') }
+    finally { setOptimisingIds((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
   async function optimiseBulk() {
     const ids = Array.from(selected)
     if (ids.length === 0) return
     setBusy('Optimising…')
-    setError('')
     try {
       const res = await fetch('/api/admin/media/bulk-optimise', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
@@ -415,57 +367,82 @@ export default function MediaLibrary({
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
       setSelected(new Set())
+      pushToast('success', `Optimised ${ids.length} item${ids.length === 1 ? '' : 's'}`)
       await fetchItems()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Optimise failed')
-    } finally {
-      setBusy('')
-    }
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') } finally { setBusy('') }
   }
 
-  // Upload files dropped straight onto the grid, or onto a folder row in the
-  // sidebar, from the desktop. Same endpoint as the header's Upload button.
-  // Defaults to the open folder; a sidebar drop passes the row's folder instead.
+  async function saveTags(item: LibraryItem, names: string[]) {
+    setSavingTags(true)
+    try {
+      const res = await fetch(`/api/admin/media/${item.id}/tags`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags: names }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Could not save tags')
+      pushToast('success', 'Tags saved')
+      await Promise.all([fetchItems(), refetchTags()])
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not save tags') } finally { setSavingTags(false) }
+  }
+
+  // Upload files dropped onto the grid or a folder row. Defaults to the open
+  // folder; a sidebar drop passes the row's folder instead.
   async function uploadFiles(files: FileList, targetFolderId: string | null = currentFolderId) {
     const list = Array.from(files)
     if (list.length === 0) return
     setBusy('Uploading…')
-    setError('')
     try {
-      for (const file of list) {
-        await uploadOneFile(file, targetFolderId)
-      }
+      for (const file of list) await uploadOneFile(file, targetFolderId)
+      pushToast('success', `Uploaded ${list.length} file${list.length === 1 ? '' : 's'}`)
       await Promise.all([fetchItems(), refetchFolders()])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      pushToast('error', err instanceof Error ? err.message : 'Upload failed')
       await Promise.all([fetchItems(), refetchFolders()])
-    } finally {
-      setBusy('')
-    }
+    } finally { setBusy('') }
   }
 
   const currentTrail = useMemo(() => trailFor(currentFolderId, folders), [currentFolderId, folders])
-
   const clipboardIdSet = useMemo(() => new Set(clipboard?.mode === 'cut' ? clipboard.ids : []), [clipboard])
+  const folderNameById = useMemo(() => new Map(folders.map((f) => [f.id, f.name])), [folders])
+  const folderName = useCallback((id: string | null) => (id ? folderNameById.get(id) ?? '—' : 'Media'), [folderNameById])
+
+  const activeFilter: 'all' | 'unused' | 'optimisable' | 'other' =
+    use === 'unused' ? 'unused'
+    : browseAll && type === 'image' ? 'optimisable'
+    : browseAll && type === 'all' && use === 'all' && !tagFilter && !search ? 'all'
+    : 'other'
+
+  function clearAllFilters() {
+    setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('all')
+  }
+
+  const selectionActive = selected.size > 0
 
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Media Library</h1>
+        <h1 className="page-title">Media library</h1>
         {canUpload && <MediaUpload folderId={currentFolderId} onUploaded={() => { fetchItems(); refetchFolders() }} />}
       </div>
 
-      {error && <div style={{ marginBottom: '1rem', color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>{error}</div>}
-      {busy && <div style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>{busy}</div>}
+      <MediaStatsBar
+        stats={stats}
+        folderCount={folders.length}
+        activeFilter={activeFilter}
+        onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
+        onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setBrowseAll(true) }}
+        onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('image'); setBrowseAll(true) }}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
         <FolderTree
           folders={folders}
           rootCount={rootCount}
           currentFolderId={currentFolderId}
+          browsingAll={browseAll || !!search || !!tagFilter}
           canManage={canUpload}
           canDelete={canDelete}
-          onNavigate={(id) => { setSearch(''); setSearchInput(''); setTagFilter(''); setCurrentFolderId(id) }}
+          onNavigate={navigateFolder}
           onDropItems={onDropToFolder}
           onDropFiles={(folderId, files) => uploadFiles(files, folderId)}
           onMoveFolder={performMoveFolder}
@@ -475,83 +452,66 @@ export default function MediaLibrary({
         />
 
         <div
-          // minHeight makes the whole panel a file-drop target, not just the
-          // rows the images happen to fill - so dropping into the empty space
-          // below a short grid (or an empty folder) still uploads.
+          // minHeight makes the whole panel a file-drop target, not just the rows
+          // the images fill - so dropping into empty space still uploads.
           style={{ position: 'relative', minHeight: '60vh' }}
           onDragOver={canUpload ? (e) => {
-            // preventDefault unconditionally (like the folder rows) so the drop
-            // fires in every browser - Safari won't report a file drag in
-            // dataTransfer.types here, so gating on it silently killed uploads.
-            // The ref tells an internal card drag from an external file drop.
             if (draggingInternal.current) return
-            e.preventDefault()
-            setFileDragOver(true)
+            e.preventDefault(); setFileDragOver(true)
           } : undefined}
-          onDragLeave={canUpload ? (e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false)
-          } : undefined}
+          onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false) } : undefined}
           onDrop={canUpload ? (e) => {
             setFileDragOver(false)
-            // files is reliably populated on drop in every browser.
             if (e.dataTransfer.files.length > 0) { e.preventDefault(); uploadFiles(e.dataTransfer.files) }
           } : undefined}
         >
           {fileDragOver && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--color-primary)', borderRadius: 'var(--radius)', background: 'var(--color-overlay)', color: 'var(--color-text)', fontSize: 'var(--text-base)', fontWeight: 600, pointerEvents: 'none' }}>
-              Drop to upload{currentTrail.length > 0 ? ` to ${currentTrail[currentTrail.length - 1]?.name}` : ''}
+              Drop to upload{currentTrail.length > 0 && !browseAll && !search && !tagFilter ? ` to ${currentTrail[currentTrail.length - 1]?.name}` : ''}
             </div>
           )}
+
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: 'var(--text-sm)' }}>
-            <BreadcrumbCrumb label="Media" onClick={() => setCurrentFolderId(null)} onDrop={(raw) => onDropToFolder(null, raw)} active={currentFolderId === null && !search && !tagFilter} />
-            {currentTrail.map((f) => (
+            <BreadcrumbCrumb label="Media" onClick={() => navigateFolder(null)} onDrop={(raw) => onDropToFolder(null, raw)} active={currentFolderId === null && !search && !tagFilter && !browseAll} />
+            {!browseAll && !search && !tagFilter && currentTrail.map((f) => (
               <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>/</span>
-                <BreadcrumbCrumb label={f.name} onClick={() => setCurrentFolderId(f.id)} onDrop={(raw) => onDropToFolder(f.id, raw)} active={f.id === currentFolderId} />
+                <BreadcrumbCrumb label={f.name} onClick={() => navigateFolder(f.id)} onDrop={(raw) => onDropToFolder(f.id, raw)} active={f.id === currentFolderId} />
               </span>
             ))}
-          </div>
-
-          {/* Toolbar */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-            <form
-              onSubmit={(e) => { e.preventDefault(); setSearch(searchInput.trim()) }}
-              style={{ flex: '1 1 220px', minWidth: 180 }}
-            >
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search all folders…"
-                style={inputStyle}
-              />
-            </form>
-            <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} style={selectStyle} aria-label="Sort order">
-              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-            <select value={type} onChange={(e) => setType(e.target.value as TypeFilter)} style={selectStyle} aria-label="File type">
-              <option value="all">All types</option>
-              <option value="image">Images</option>
-              <option value="other">Other files</option>
-            </select>
-            <select value={use} onChange={(e) => setUse(e.target.value as UseFilter)} style={selectStyle} aria-label="Usage">
-              <option value="all">All</option>
-              <option value="in-use">In use</option>
-              <option value="unused">Not in use</option>
-            </select>
-            {tags.length > 0 && (
-              <select value={tagFilter} onChange={(e) => { setTagFilter(e.target.value); if (e.target.value) { setSearch(''); setSearchInput('') } }} style={selectStyle} aria-label="Filter by tag">
-                <option value="">All tags</option>
-                {tags.map((t) => <option key={t.id} value={t.name}>{t.name} ({t.count})</option>)}
-              </select>
+            {(browseAll || search || tagFilter) && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>/</span>
+                <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>All folders</span>
+              </span>
             )}
           </div>
 
+          <MediaToolbar
+            searchInput={searchInput}
+            onSearchInput={setSearchInput}
+            onSearchSubmit={(value) => { setTagFilter(''); setSearch((value ?? searchInput).trim()) }}
+            sort={sort}
+            onSort={setSort}
+            type={type}
+            onType={setType}
+            use={use}
+            onUse={setUse}
+            tagFilter={tagFilter}
+            onTagFilter={(v) => { setTagFilter(v); if (v) { setSearch(''); setSearchInput('') } }}
+            tags={tags}
+            view={view}
+            onView={setView}
+            activeSearch={search}
+            onClearAll={clearAllFilters}
+          />
+
           {/* Selection / clipboard bar */}
-          {(selected.size > 0 || clipboard) && (
+          {(selectionActive || clipboard) && (
             <div style={barStyle}>
-              {selected.size > 0 && <span style={{ fontSize: 'var(--text-sm)' }}>{selected.size} selected</span>}
-              {selected.size > 0 && canUpload && (
+              {selectionActive && <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{selected.size} selected</span>}
+              {selectionActive && canUpload && (
                 <>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'cut', ids: Array.from(selected) })}>Cut</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'copy', ids: Array.from(selected) })}>Copy</button>
@@ -559,7 +519,7 @@ export default function MediaLibrary({
                   <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy} onClick={optimiseBulk}>Optimise</button>
                 </>
               )}
-              {selected.size > 0 && canDelete && (
+              {selectionActive && canDelete && (
                 <button type="button" className="btn btn-danger btn-sm" onClick={() => { setSkippedInUse([]); setDeleteConfirm({ ids: Array.from(selected) }) }}>Delete</button>
               )}
               {clipboard && canUpload && (
@@ -567,27 +527,19 @@ export default function MediaLibrary({
                   Paste {clipboard.ids.length} here ({clipboard.mode})
                 </button>
               )}
-              {(selected.size > 0 || clipboard) && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSelected(new Set()); setClipboard(null) }}>Clear</button>
-              )}
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => { setSelected(new Set()); setClipboard(null) }}>Clear</button>
             </div>
           )}
 
           {items.length === 0 ? (
-            <div style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '3rem' }}>
-              {loading ? 'Loading…' : search ? 'No media matches your search' : 'This folder is empty'}
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+            <EmptyState loading={loading} search={search} canUpload={canUpload} />
+          ) : view === 'grid' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '1rem' }}>
               {items.map((item) => (
                 <MediaCard
                   key={item.id}
                   item={item}
-                  canDelete={false}
-                  canOptimise={canUpload}
-                  optimising={optimisingIds.has(item.id)}
-                  onOptimise={optimiseSingle}
-                  selectable
+                  selectionActive={selectionActive}
                   selected={selected.has(item.id)}
                   onToggleSelect={toggleSelect}
                   onOpen={setOpenId}
@@ -600,6 +552,23 @@ export default function MediaLibrary({
                 />
               ))}
             </div>
+          ) : (
+            <MediaList
+              items={items}
+              selected={selected}
+              allSelected={allShownSelected}
+              onToggleSelect={toggleSelect}
+              onToggleAll={toggleSelectAll}
+              onOpen={setOpenId}
+              onContextMenu={(e, id) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
+              draggable={canUpload}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              sort={sort}
+              onSort={setSort}
+              folderName={folderName}
+              clipboardIdSet={clipboardIdSet}
+            />
           )}
 
           {hasMore && (
@@ -611,22 +580,29 @@ export default function MediaLibrary({
       </div>
 
       {openItem && (
-        <MediaLightbox
+        <MediaDetailPanel
+          key={openItem.id}
           item={openItem}
           canManage={canUpload}
           canDelete={canDelete}
           hasPrev={openIndex > 0}
           hasNext={openIndex >= 0 && openIndex < items.length - 1}
           loadingNext={loading}
+          allTags={tags}
+          folderName={folderName}
+          savingTags={savingTags}
+          optimising={optimisingIds.has(openItem.id)}
           onClose={() => setOpenId(null)}
           onPrev={() => { const p = items[openIndex - 1]; if (p) setOpenId(p.id) }}
           onNext={() => { const n = items[openIndex + 1]; if (n) setOpenId(n.id) }}
+          onEdit={() => { setEditItem(openItem); setOpenId(null) }}
+          onRename={() => setRenameItem(openItem)}
+          onMove={() => setMoveIds([openItem.id])}
           onCut={() => { setClipboard({ mode: 'cut', ids: [openItem.id] }); setOpenId(null) }}
           onCopy={() => { setClipboard({ mode: 'copy', ids: [openItem.id] }); setOpenId(null) }}
-          onRename={() => { setRenameItem(openItem); setOpenId(null) }}
-          onMove={() => { setMoveIds([openItem.id]); setOpenId(null) }}
-          onTags={() => { setTagItem(openItem); setOpenId(null) }}
-          onEdit={() => { setEditItem(openItem); setOpenId(null) }}
+          onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: [openItem.id] }) }}
+          onOptimise={() => optimiseSingle(openItem.id)}
+          onSaveTags={(names) => saveTags(openItem, names)}
         />
       )}
 
@@ -636,8 +612,8 @@ export default function MediaLibrary({
           onCancel={() => setEditItem(null)}
           onSaved={(mode) => {
             setEditItem(null)
-            setBusy(mode === 'new' ? 'Saved new image' : 'Replaced image')
-            Promise.all([fetchItems(), refetchFolders()]).finally(() => setBusy(''))
+            pushToast('success', mode === 'new' ? 'Saved new image' : 'Replaced image')
+            Promise.all([fetchItems(), refetchFolders()])
           }}
         />
       )}
@@ -649,12 +625,15 @@ export default function MediaLibrary({
           canDelete={canDelete}
           hasClipboard={!!clipboard}
           canEdit={(() => { const it = items.find((i) => i.id === menu.id); return !!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml' })()}
+          canOptimise={(() => { const it = items.find((i) => i.id === menu.id); return !!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml' && !it.optimised })()}
+          onOpen={() => setOpenId(menu.id)}
+          onOptimise={() => optimiseSingle(menu.id)}
           onCut={() => setClipboard({ mode: 'cut', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
           onCopy={() => setClipboard({ mode: 'copy', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
           onPaste={() => paste(currentFolderId)}
           onRename={() => { const it = items.find((i) => i.id === menu.id); if (it) setRenameItem(it) }}
           onMove={() => setMoveIds(selected.has(menu.id) ? Array.from(selected) : [menu.id])}
-          onTags={() => { const it = items.find((i) => i.id === menu.id); if (it) setTagItem(it) }}
+          onTags={() => setOpenId(menu.id)}
           onEdit={() => { const it = items.find((i) => i.id === menu.id); if (it) setEditItem(it) }}
           onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] }) }}
         />
@@ -662,33 +641,26 @@ export default function MediaLibrary({
 
       {newFolderOpen && (
         <NameDialog
-          title="New folder"
-          label="Folder name"
-          confirmLabel="Create"
+          title="New folder" label="Folder name" confirmLabel="Create"
           onCancel={() => setNewFolderOpen(false)}
           onSubmit={async (name) => {
             setBusy('Creating folder…')
             try {
               const res = await fetch('/api/admin/media/folders', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, parentId: currentFolderId }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, parentId: currentFolderId }),
               })
               const d = await res.json()
               if (!res.ok) throw new Error(d.error ?? 'Could not create folder')
               setNewFolderOpen(false)
               await refetchFolders()
-            } catch (err) { setError(err instanceof Error ? err.message : 'Could not create folder') }
-            finally { setBusy('') }
+            } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not create folder') } finally { setBusy('') }
           }}
         />
       )}
 
       {renameFolderNode && (
         <NameDialog
-          title="Rename folder"
-          label="Folder name"
-          confirmLabel="Rename"
-          initial={renameFolderNode.name}
+          title="Rename folder" label="Folder name" confirmLabel="Rename" initial={renameFolderNode.name}
           onCancel={() => setRenameFolderNode(null)}
           onSubmit={async (name) => {
             setBusy('Renaming folder…')
@@ -700,18 +672,14 @@ export default function MediaLibrary({
               if (!res.ok) throw new Error(d.error ?? 'Rename failed')
               setRenameFolderNode(null)
               await Promise.all([refetchFolders(), fetchItems()])
-            } catch (err) { setError(err instanceof Error ? err.message : 'Rename failed') }
-            finally { setBusy('') }
+            } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Rename failed') } finally { setBusy('') }
           }}
         />
       )}
 
       {renameItem && (
         <NameDialog
-          title="Rename file"
-          label="Filename"
-          confirmLabel="Rename"
-          initial={renameItem.originalName ?? ''}
+          title="Rename file" label="Filename" confirmLabel="Rename" initial={renameItem.originalName ?? ''}
           onCancel={() => setRenameItem(null)}
           onSubmit={(name) => performRename(renameItem.id, name, 'error')}
         />
@@ -731,39 +699,16 @@ export default function MediaLibrary({
               setDeleteFolderNode(null)
               if (currentFolderId === deletedId) setCurrentFolderId(null)
               await Promise.all([refetchFolders(), fetchItems()])
-            } catch (err) { setError(err instanceof Error ? err.message : 'Delete failed') }
-            finally { setBusy('') }
+            } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Delete failed') } finally { setBusy('') }
           }}
         />
       )}
 
       {moveIds && (
         <MoveDialog
-          folders={folders}
-          currentFolderId={currentFolderId}
+          folders={folders} currentFolderId={currentFolderId}
           onCancel={() => setMoveIds(null)}
           onSubmit={(target) => { const ids = moveIds; setMoveIds(null); performMove(ids, target, 'error') }}
-        />
-      )}
-
-      {tagItem && (
-        <TagDialog
-          item={tagItem}
-          allTags={tags}
-          onCancel={() => setTagItem(null)}
-          onSubmit={async (names) => {
-            setBusy('Saving tags…')
-            try {
-              const res = await fetch(`/api/admin/media/${tagItem.id}/tags`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags: names }),
-              })
-              const d = await res.json()
-              if (!res.ok) throw new Error(d.error ?? 'Could not save tags')
-              setTagItem(null)
-              await Promise.all([fetchItems(), refetchTags()])
-            } catch (err) { setError(err instanceof Error ? err.message : 'Could not save tags') }
-            finally { setBusy('') }
-          }}
         />
       )}
 
@@ -806,17 +751,30 @@ export default function MediaLibrary({
           }}
         />
       )}
+
+      <MediaToasts toasts={allToasts} onDismiss={dismissToast} />
     </div>
   )
 }
 
 // --- shared styles ---
-const inputStyle: React.CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
-const selectStyle: React.CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', fontFamily: 'inherit', fontSize: 'var(--text-sm)', background: 'var(--color-surface)', color: 'var(--color-text)' }
-const barStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)' }
+const inputStyle: CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
+const barStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)', position: 'sticky', top: '0.5rem', zIndex: 30 }
 
-// Is `maybeDescendantId` the ancestor folder itself, or nested somewhere beneath
-// it? Used to reject dragging a folder into its own subtree.
+function EmptyState({ loading, search, canUpload }: { loading: boolean; search: string; canUpload: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3.5rem 1rem', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+      <span style={{ fontSize: '2rem' }} aria-hidden>🗂️</span>
+      <span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 500 }}>
+        {loading ? 'Loading…' : search ? 'Nothing matches your search' : 'This folder is empty'}
+      </span>
+      {!loading && !search && canUpload && (
+        <span style={{ fontSize: 'var(--text-sm)' }}>Drag files here, or use the Upload button.</span>
+      )}
+    </div>
+  )
+}
+
 function isDescendant(folders: FolderNode[], ancestorId: string, maybeDescendantId: string | null): boolean {
   if (!maybeDescendantId) return false
   const byId = new Map(folders.map((f) => [f.id, f]))
@@ -853,17 +811,17 @@ function BreadcrumbCrumb({ label, onClick, onDrop, active }: { label: string; on
       onDragOver={(e) => { e.preventDefault(); setOver(true) }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); onDrop(e.dataTransfer.getData('text/plain')) }}
-      style={{ background: over ? 'var(--color-primary)' : 'transparent', color: over ? 'var(--color-primary-contrast, #fff)' : active ? 'var(--color-text)' : 'var(--color-text-muted)', border: 'none', padding: '0.15rem 0.4rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: active ? 600 : 400, fontSize: 'inherit', fontFamily: 'inherit' }}
+      style={{ background: over ? 'var(--color-primary)' : 'transparent', color: over ? '#fff' : active ? 'var(--color-text)' : 'var(--color-text-muted)', border: 'none', padding: '0.15rem 0.4rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: active ? 600 : 400, fontSize: 'inherit', fontFamily: 'inherit' }}
     >
       {label}
     </button>
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
   menu: { x: number; y: number; id: string }
-  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean
-  onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
+  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean
+  onOpen: () => void; onOptimise: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
 }) {
   const item = (label: string, fn: () => void, danger = false, disabled = false) => (
     <button
@@ -878,8 +836,10 @@ function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, onCut,
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - 300), left: Math.min(menu.x, window.innerWidth - 200), zIndex: 100, width: 190, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
+      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - 320), left: Math.min(menu.x, window.innerWidth - 200), zIndex: 100, width: 190, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
     >
+      {item('Open details', onOpen)}
+      {canUpload && canOptimise && item('Optimise', onOptimise)}
       {canUpload && canEdit && item('Edit image…', onEdit)}
       {canUpload && item('Cut', onCut)}
       {canUpload && item('Copy', onCopy)}
@@ -946,7 +906,7 @@ function MoveDialog({ folders, currentFolderId, onCancel, onSubmit }: { folders:
   const childrenOf = (id: string) => folders.filter((f) => f.parentId === id)
   const renderNode = (f: FolderNode, depth: number): React.ReactNode => (
     <div key={f.id}>
-      <button type="button" onClick={() => setTarget(f.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', paddingLeft: `${0.5 + depth * 1}rem`, border: 'none', borderRadius: 'var(--radius-sm)', background: target === f.id ? 'var(--color-primary)' : 'transparent', color: target === f.id ? 'var(--color-primary-contrast, #fff)' : 'var(--color-text)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+      <button type="button" onClick={() => setTarget(f.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', paddingLeft: `${0.5 + depth * 1}rem`, border: 'none', borderRadius: 'var(--radius-sm)', background: target === f.id ? 'var(--color-primary)' : 'transparent', color: target === f.id ? '#fff' : 'var(--color-text)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
         {f.name}
       </button>
       {childrenOf(f.id).map((c) => renderNode(c, depth + 1))}
@@ -956,7 +916,7 @@ function MoveDialog({ folders, currentFolderId, onCancel, onSubmit }: { folders:
     <Overlay onCancel={onCancel}>
       <h2 style={dialogTitle}>Move to folder</h2>
       <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.25rem' }}>
-        <button type="button" onClick={() => setTarget(null)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', border: 'none', borderRadius: 'var(--radius-sm)', background: target === null ? 'var(--color-primary)' : 'transparent', color: target === null ? 'var(--color-primary-contrast, #fff)' : 'var(--color-text)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+        <button type="button" onClick={() => setTarget(null)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', border: 'none', borderRadius: 'var(--radius-sm)', background: target === null ? 'var(--color-primary)' : 'transparent', color: target === null ? '#fff' : 'var(--color-text)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
           Media (root)
         </button>
         {roots.map((f) => renderNode(f, 1))}
@@ -964,38 +924,6 @@ function MoveDialog({ folders, currentFolderId, onCancel, onSubmit }: { folders:
       <DialogButtons>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
         <button type="button" className="btn btn-primary btn-sm" disabled={target === currentFolderId} onClick={() => onSubmit(target)}>Move here</button>
-      </DialogButtons>
-    </Overlay>
-  )
-}
-
-function TagDialog({ item, allTags, onCancel, onSubmit }: { item: LibraryItem; allTags: TagInfo[]; onCancel: () => void; onSubmit: (names: string[]) => void }) {
-  const [names, setNames] = useState<string[]>(item.tags)
-  const [input, setInput] = useState('')
-  const suggestions = allTags.map((t) => t.name).filter((n) => !names.includes(n) && n.toLowerCase().includes(input.toLowerCase()) && input.trim())
-  function add(name: string) { const n = name.trim(); if (n && !names.includes(n)) setNames([...names, n]); setInput('') }
-  return (
-    <Overlay onCancel={onCancel}>
-      <h2 style={dialogTitle}>Tags</h2>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-        {names.map((n) => (
-          <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--text-sm)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)' }}>
-            {n}
-            <button type="button" onClick={() => setNames(names.filter((x) => x !== n))} aria-label={`Remove ${n}`} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, lineHeight: 1 }}>×</button>
-          </span>
-        ))}
-      </div>
-      <input autoFocus value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(input) } }} placeholder="Type a tag and press Enter…" style={inputStyle} />
-      {suggestions.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-          {suggestions.slice(0, 8).map((s) => (
-            <button key={s} type="button" onClick={() => add(s)} style={{ fontSize: 'var(--text-sm)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px dashed var(--color-border)', cursor: 'pointer', color: 'var(--color-text-muted)', fontFamily: 'inherit' }}>+ {s}</button>
-          ))}
-        </div>
-      )}
-      <DialogButtons>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => onSubmit(names)}>Save</button>
       </DialogButtons>
     </Overlay>
   )
@@ -1030,5 +958,5 @@ function DialogButtons({ children }: { children: React.ReactNode }) {
   return <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.25rem', flexWrap: 'wrap' }}>{children}</div>
 }
 
-const dialogTitle: React.CSSProperties = { margin: 0, fontSize: 'var(--text-base)', fontWeight: 600 }
-const dialogText: React.CSSProperties = { margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }
+const dialogTitle: CSSProperties = { margin: 0, fontSize: 'var(--text-base)', fontWeight: 600 }
+const dialogText: CSSProperties = { margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }

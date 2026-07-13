@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { LibraryItem } from './MediaLibrary'
+import type { LibraryItem } from './types'
 
 // Aspect presets. `ratio` is width/height; null means free-form (no lock).
 const PRESETS: { key: string; label: string; ratio: number | null }[] = [

@@ -3,6 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { parsePaginationParams } from '@/lib/utils'
 import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
+import { computeLibraryStats } from '@/lib/media/library-stats'
 import MediaLibrary from './MediaLibrary'
 import type { Metadata } from 'next'
 
@@ -25,11 +26,12 @@ export default async function MediaPage({ searchParams }: Props) {
   // and filtering happens client-side against /api/admin/media.
   const query = parseLibraryQuery(new URLSearchParams(), perPage, 1)
 
-  const [initial, folders, folderCounts, tags] = await Promise.all([
+  const [initial, folders, folderCounts, tags, stats] = await Promise.all([
     queryMediaLibrary(query),
     prisma.folder.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, parentId: true } }),
     prisma.media.groupBy({ by: ['folderId'], _count: { _all: true } }),
     prisma.tag.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, _count: { select: { media: true } } } }),
+    computeLibraryStats(),
   ])
 
   const countByFolder = new Map<string, number>()
@@ -47,6 +49,7 @@ export default async function MediaPage({ searchParams }: Props) {
       folders={folders.map((f) => ({ ...f, mediaCount: countByFolder.get(f.id) ?? 0 }))}
       rootCount={rootCount}
       tags={tags.map((t) => ({ id: t.id, name: t.name, count: t._count.media }))}
+      stats={stats}
       canUpload={canUpload}
       canDelete={canDelete}
       perPage={perPage}
