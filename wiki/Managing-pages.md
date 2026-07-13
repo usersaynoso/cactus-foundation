@@ -65,7 +65,7 @@ Use these to structure the page and create visual sections.
 
 | Block | What it does |
 |-------|--------------|
-| **Section** | A full-width container with a background colour, image, or gradient. Drop other blocks inside it. Great for creating distinct visual sections. |
+| **Section** | A full-width container with a background colour, image, or gradient. Drop other blocks inside it. Great for creating distinct visual sections. When the background is a colour, a **Colour opacity** slider lets you make it see-through - handy for a soft, readable panel sitting over a background photo. The same slider is available on the Hero block. |
 | **Grid** | A two-to-four column grid. Drop content into each column independently. |
 | **Split** | A two-column layout where each side is a separate drop zone. Good for side-by-side content. |
 | **Group** | A flexible container for arranging blocks side by side or stacked. |
