@@ -11,6 +11,7 @@ import MediaToolbar from './MediaToolbar'
 import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
 import MediaUploadQueue, { type UploadTask } from './MediaUploadQueue'
 import FolderTree, { type FolderNode } from './FolderTree'
+import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile } from '@/lib/media/upload-client'
 import { preflightUploadError } from '@/lib/media/limits'
 import { formatBytes } from './format'
@@ -31,10 +32,13 @@ type CollisionState =
   | null
 
 const VIEW_KEY = 'cactus.media.view'
+const SORT_KEY = 'cactus.media.sort'
+const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest']
 
 export default function MediaLibrary({
   initialItems,
   initialHasMore,
+  initialTotal,
   folders: initialFolders,
   rootCount: initialRootCount,
   tags: initialTags,
@@ -64,6 +68,7 @@ export default function MediaLibrary({
   const [browseAll, setBrowseAll] = useState(false)
   const [items, setItems] = useState<LibraryItem[]>(initialItems)
   const [hasMore, setHasMore] = useState(initialHasMore)
+  const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
 
@@ -82,6 +87,7 @@ export default function MediaLibrary({
   const [menu, setMenu] = useState<Menu>(null)
   const [busy, setBusy] = useState('')
   const [savingTags, setSavingTags] = useState(false)
+  const [savingMeta, setSavingMeta] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
   const [uploads, setUploads] = useState<UploadTask[]>([])
   const uploadSeq = useRef(0)
@@ -123,6 +129,27 @@ export default function MediaLibrary({
   }, [])
   useEffect(() => { window.localStorage.setItem(VIEW_KEY, view) }, [view])
 
+  // Restore the saved sort preference once, on the client - same one-shot hydrate
+  // as the view mode. The subsequent fetch effect picks up the change.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SORT_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydrate of a persisted UI pref; safe one-shot re-render
+    if (saved && (SORT_VALUES as string[]).includes(saved)) setSort(saved as Sort)
+  }, [])
+  useEffect(() => { window.localStorage.setItem(SORT_KEY, sort) }, [sort])
+
+  // Live search: commit the typed query after a short pause so results filter as
+  // you type. Enter still commits instantly via the toolbar's submit handler.
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === search) return
+    const t = setTimeout(() => {
+      setSearch(trimmed)
+      if (trimmed) setTagFilter('')
+    }, 350)
+    return () => clearTimeout(t)
+  }, [searchInput, search])
+
   // A search, tag filter or stat-tile drill-down spans the whole tree; plain
   // folder browsing scopes to one folder.
   const folderScope = search || tagFilter || browseAll ? 'all' : currentFolderId ?? 'root'
@@ -148,6 +175,7 @@ export default function MediaLibrary({
       if (!res.ok) throw new Error(d.error ?? 'Failed to load media')
       setItems(d.items)
       setHasMore(d.hasMore)
+      setTotal(d.total ?? d.items.length)
       setPage(1)
       setSelected(new Set())
       setLastToggled(null)
@@ -182,8 +210,8 @@ export default function MediaLibrary({
     } catch { /* ignore */ }
   }, [])
 
-  async function loadMore() {
-    if (loading || !hasMore) return
+  async function loadMore(): Promise<LibraryItem[]> {
+    if (loading || !hasMore) return []
     setLoading(true)
     try {
       const next = page + 1
@@ -193,7 +221,21 @@ export default function MediaLibrary({
       setItems((prev) => [...prev, ...d.items])
       setPage(next)
       setHasMore(d.hasMore)
-    } catch { /* sentinel retries on next scroll */ } finally { setLoading(false) }
+      setTotal(d.total ?? total)
+      return d.items as LibraryItem[]
+    } catch { return [] /* sentinel retries on next scroll */ } finally { setLoading(false) }
+  }
+
+  // Advance the detail panel to the next item, paging in another batch when the
+  // current one runs out - so Next never dead-ends while more items exist.
+  async function openNext() {
+    if (openIndex < 0) return
+    const n = items[openIndex + 1]
+    if (n) { setOpenId(n.id); return }
+    if (!hasMore) return
+    const loaded = await loadMore()
+    const first = loaded[0]
+    if (first) setOpenId(first.id)
   }
 
   useEffect(() => {
@@ -229,6 +271,10 @@ export default function MediaLibrary({
       const mod = e.metaKey || e.ctrlKey
       if (mod && e.key.toLowerCase() === 'a' && items.length > 0) {
         e.preventDefault(); setSelected(new Set(items.map((i) => i.id)))
+      } else if (mod && e.key.toLowerCase() === 'x' && canUpload && selected.size > 0) {
+        e.preventDefault(); setClipboard({ mode: 'cut', ids: Array.from(selected) })
+      } else if (mod && e.key.toLowerCase() === 'c' && canUpload && selected.size > 0) {
+        e.preventDefault(); setClipboard({ mode: 'copy', ids: Array.from(selected) })
       } else if (mod && e.key.toLowerCase() === 'v' && clipboard && canUpload) {
         e.preventDefault(); paste(currentFolderId)
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && canDelete && selected.size > 0) {
@@ -457,6 +503,32 @@ export default function MediaLibrary({
     a.remove()
   }
 
+  // Copy several items' public URLs at once, newline-separated - handy for
+  // pasting a batch into content or a spreadsheet.
+  async function copyManyLinks(ids: string[]) {
+    const urls = items
+      .filter((i) => ids.includes(i.id))
+      .map((i) => (i.url.startsWith('http') ? i.url : `${window.location.origin}${i.url}`))
+    if (urls.length === 0) return
+    try {
+      await navigator.clipboard.writeText(urls.join('\n'))
+      pushToast('success', `Copied ${urls.length} link${urls.length === 1 ? '' : 's'}`)
+    } catch { pushToast('error', 'Could not copy links') }
+  }
+
+  async function saveMeta(item: LibraryItem, altText: string, isDecorative: boolean) {
+    setSavingMeta(true)
+    try {
+      const res = await fetch(`/api/admin/media/${item.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ altText, isDecorative }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Could not save alt text')
+      pushToast('success', 'Alt text saved')
+      await fetchItems()
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not save alt text') } finally { setSavingMeta(false) }
+  }
+
   async function saveTags(item: LibraryItem, names: string[]) {
     setSavingTags(true)
     try {
@@ -537,6 +609,8 @@ export default function MediaLibrary({
 
   const selectionActive = selected.size > 0
   const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
+  const anyFilterActive = !!search || type !== 'all' || use !== 'all' || !!tagFilter
+  const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
   return (
     <div>
@@ -635,6 +709,9 @@ export default function MediaLibrary({
           {(selectionActive || clipboard) && (
             <div style={barStyle}>
               {selectionActive && <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{selected.size} selected</span>}
+              {selectionActive && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => copyManyLinks(Array.from(selected))}>Copy links</button>
+              )}
               {selectionActive && canUpload && (
                 <>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'cut', ids: Array.from(selected) })}>Cut</button>
@@ -655,11 +732,23 @@ export default function MediaLibrary({
             </div>
           )}
 
+          {/* Result count - orients you within a filtered or paged view. */}
+          {countLabel && (
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.6rem' }} aria-live="polite">{countLabel}</div>
+          )}
+
           {/* Right-clicking empty space (not a card) opens a menu with paste/new
               folder/upload - so you can paste without needing an image to aim at. */}
-          <div style={{ minHeight: '45vh' }} onContextMenu={canUpload ? (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: null }) } : undefined}>
+          <div style={{ position: 'relative', minHeight: '45vh' }} onContextMenu={canUpload ? (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: null }) } : undefined}>
+          {/* A dim veil while a filter/sort/folder change is in flight, so a slow
+              query reads as loading rather than frozen. */}
+          {loading && items.length > 0 && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '2rem', background: 'var(--color-overlay)', borderRadius: 'var(--radius)', pointerEvents: 'none' }}>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '0.3rem 0.9rem', boxShadow: 'var(--shadow-md)' }}>Loading…</span>
+            </div>
+          )}
           {items.length === 0 ? (
-            <EmptyState loading={loading} search={search} canUpload={canUpload} onChoose={() => whitespaceUploadRef.current?.click()} />
+            <EmptyState loading={loading} search={search} hasFilters={anyFilterActive} canUpload={canUpload} onChoose={() => whitespaceUploadRef.current?.click()} onClearFilters={clearAllFilters} />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '1rem' }}>
               {items.map((item) => (
@@ -718,15 +807,16 @@ export default function MediaLibrary({
           canManage={canUpload}
           canDelete={canDelete}
           hasPrev={openIndex > 0}
-          hasNext={openIndex >= 0 && openIndex < items.length - 1}
+          hasNext={openIndex >= 0 && (openIndex < items.length - 1 || hasMore)}
           loadingNext={loading}
           allTags={tags}
           folderName={folderName}
           savingTags={savingTags}
+          savingMeta={savingMeta}
           optimising={optimisingIds.has(openItem.id)}
           onClose={() => setOpenId(null)}
           onPrev={() => { const p = items[openIndex - 1]; if (p) setOpenId(p.id) }}
-          onNext={() => { const n = items[openIndex + 1]; if (n) setOpenId(n.id) }}
+          onNext={openNext}
           onEdit={() => { setEditItem(openItem); setOpenId(null) }}
           onRename={() => setRenameItem(openItem)}
           onMove={() => setMoveIds([openItem.id])}
@@ -737,6 +827,7 @@ export default function MediaLibrary({
           onCopyLink={() => copyLink(openItem)}
           onDownload={() => downloadItem(openItem)}
           onSaveTags={(names) => saveTags(openItem, names)}
+          onSaveMeta={(altText, isDecorative) => saveMeta(openItem, altText, isDecorative)}
         />
       )}
 
@@ -927,14 +1018,18 @@ export default function MediaLibrary({
 const inputStyle: CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
 const barStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)', position: 'sticky', top: '0.5rem', zIndex: 30 }
 
-function EmptyState({ loading, search, canUpload, onChoose }: { loading: boolean; search: string; canUpload: boolean; onChoose: () => void }) {
+function EmptyState({ loading, search, hasFilters, canUpload, onChoose, onClearFilters }: { loading: boolean; search: string; hasFilters: boolean; canUpload: boolean; onChoose: () => void; onClearFilters: () => void }) {
+  const filteredEmpty = !loading && hasFilters
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3.5rem 1rem', border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-subtle)' }}>
-      <span style={{ fontSize: '2.25rem' }} aria-hidden>{search ? '🔍' : '🗂️'}</span>
+      <span style={{ fontSize: '2.25rem' }} aria-hidden>{filteredEmpty ? '🔍' : '🗂️'}</span>
       <span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 500 }}>
-        {loading ? 'Loading…' : search ? 'Nothing matches your search' : 'This folder is empty'}
+        {loading ? 'Loading…' : filteredEmpty ? (search ? 'Nothing matches your search' : 'Nothing matches these filters') : 'This folder is empty'}
       </span>
-      {!loading && !search && canUpload && (
+      {filteredEmpty && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onClearFilters}>Clear filters</button>
+      )}
+      {!loading && !hasFilters && canUpload && (
         <>
           <span style={{ fontSize: 'var(--text-sm)' }}>Drag images anywhere here to upload them.</span>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onChoose}>Choose files…</button>
@@ -1144,9 +1239,17 @@ function CollisionDialog({ name, allowSkip, onCancel, onChoose }: { name: string
 }
 
 function Overlay({ children, onCancel }: { children: React.ReactNode; onCancel: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useFocusTrap(ref)
+  // Escape closes any dialog, matching the detail panel and context menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
   return (
     <div role="dialog" aria-modal="true" onClick={onCancel} style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'var(--color-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', maxWidth: 'min(460px, 92vw)', width: '100%', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div ref={ref} tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', maxWidth: 'min(460px, 92vw)', width: '100%', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {children}
       </div>
     </div>

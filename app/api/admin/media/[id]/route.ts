@@ -11,6 +11,9 @@ type Ctx = { params: Promise<{ id: string }> }
 // Rename and/or move a single item. Body: { newName?, targetFolderId?, collision? }.
 // A name clash under the default 'error' mode returns 409 { collision, name } so
 // the client can offer keep-both / replace / skip.
+//
+// Metadata-only edits (alt text, decorative flag) are handled up front as a plain
+// update - these never collide, so they skip the move/rename path entirely.
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
@@ -21,6 +24,27 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return errorResponse('Invalid body')
+
+  // Alt text / decorative flag: a self-contained metadata edit.
+  const isMetadataEdit = 'altText' in body || 'isDecorative' in body
+  if (isMetadataEdit && !('newName' in body) && !('targetFolderId' in body)) {
+    const data: { altText?: string | null; isDecorative?: boolean } = {}
+    if ('altText' in body) {
+      if (body.altText !== null && typeof body.altText !== 'string') return errorResponse('altText must be a string or null')
+      const trimmed = typeof body.altText === 'string' ? body.altText.trim() : null
+      data.altText = trimmed ? trimmed : null
+    }
+    if ('isDecorative' in body) {
+      if (typeof body.isDecorative !== 'boolean') return errorResponse('isDecorative must be a boolean')
+      data.isDecorative = body.isDecorative
+    }
+    // A decorative image must carry no alt text - keep the two consistent.
+    if (data.isDecorative === true) data.altText = null
+    const exists = await prisma.media.findUnique({ where: { id }, select: { id: true } })
+    if (!exists) return errorResponse('Not found', 404)
+    const updated = await prisma.media.update({ where: { id }, data })
+    return NextResponse.json({ ok: true, item: updated })
+  }
 
   const opts: { targetFolderId?: string | null; newName?: string; collision?: CollisionMode } = {}
   if ('targetFolderId' in body) {

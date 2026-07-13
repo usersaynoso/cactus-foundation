@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, type DragEvent, type MouseEvent } from 'react'
+import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import { formatBytes, filenameOf, fileKind } from './format'
 
 export type MediaCardItem = {
@@ -8,6 +8,7 @@ export type MediaCardItem = {
   key: string
   url: string
   altText: string | null
+  isDecorative: boolean
   originalName: string | null
   mimeType: string
   sizeBytes: number
@@ -64,6 +65,10 @@ export default function MediaCard({
   const filename = filenameOf(item)
   const showOptimise = !!onOptimise && optimisable
   const showCopy = !!onCopyLink
+  const [broken, setBroken] = useState(false)
+  // An image that isn't flagged decorative and carries no alt text is an
+  // accessibility/SEO gap - flag it on the tile so it's fixable at a glance.
+  const missingAlt = isImage && item.mimeType !== 'image/svg+xml' && !item.isDecorative && !item.altText?.trim()
 
   return (
     <div
@@ -90,16 +95,20 @@ export default function MediaCard({
           aria-label={`Open ${filename}`}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', aspectRatio: '4 / 3', padding: 0, border: 'none', background: 'var(--color-bg-subtle)', cursor: 'zoom-in', overflow: 'hidden' }}
         >
-          {isImage ? (
+          {isImage && !broken ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={item.url} alt={item.altText ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={item.url} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
-            <span style={{ fontSize: '2.25rem' }}>📄</span>
+            <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : undefined}>{broken ? '🚫' : '📄'}</span>
           )}
         </button>
 
         {item.optimised && (
           <span title="Re-encoded to WebP to save space" style={cornerBadge('left')}>✓ Optimised</span>
+        )}
+
+        {missingAlt && (
+          <span title="No alt text - add some for accessibility and SEO" aria-label="Missing alt text" style={altBadge}>Alt?</span>
         )}
 
         {(showOptimise || showCopy) && (
@@ -206,6 +215,19 @@ const actionBtn: CSSProperties = {
   cursor: 'pointer',
   fontSize: '0.85rem',
   lineHeight: 1,
+}
+
+const altBadge: CSSProperties = {
+  position: 'absolute',
+  bottom: '0.4rem',
+  right: '0.4rem',
+  fontSize: '0.625rem',
+  fontWeight: 700,
+  padding: '0.0625rem 0.375rem',
+  borderRadius: 'var(--radius-sm)',
+  color: 'var(--color-warning)',
+  background: 'var(--color-warning-bg)',
+  border: '1px solid var(--color-warning-border)',
 }
 
 const cornerBadge = (side: 'left' | 'right'): CSSProperties => ({

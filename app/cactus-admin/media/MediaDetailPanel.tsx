@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import type { LibraryItem, TagInfo } from './types'
 import { formatBytes, formatDate, filenameOf, fileKind } from './format'
+import { useFocusTrap } from './useFocusTrap'
 
 // Slide-over that replaces the old lightbox. It's both the viewer (large preview,
 // Prev/Next across the loaded list) and the single home for per-item actions and
@@ -17,6 +18,7 @@ export default function MediaDetailPanel({
   allTags,
   folderName,
   savingTags,
+  savingMeta,
   optimising,
   onClose,
   onPrev,
@@ -31,6 +33,7 @@ export default function MediaDetailPanel({
   onCopyLink,
   onDownload,
   onSaveTags,
+  onSaveMeta,
 }: {
   item: LibraryItem
   canManage: boolean
@@ -41,6 +44,7 @@ export default function MediaDetailPanel({
   allTags: TagInfo[]
   folderName: (id: string | null) => string
   savingTags: boolean
+  savingMeta: boolean
   optimising: boolean
   onClose: () => void
   onPrev: () => void
@@ -55,12 +59,32 @@ export default function MediaDetailPanel({
   onCopyLink: () => void
   onDownload: () => void
   onSaveTags: (names: string[]) => void
+  onSaveMeta: (altText: string, isDecorative: boolean) => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
   const isSvg = item.mimeType === 'image/svg+xml'
   const canEdit = isImage && !isSvg
   const canOptimise = isImage && !isSvg && !item.optimised
   const filename = filenameOf(item)
+  const asideRef = useRef<HTMLElement>(null)
+  useFocusTrap(asideRef)
+  const [broken, setBroken] = useState(false)
+
+  // Alt text / decorative draft. Same content-keyed re-sync as tags so an
+  // ordinary refetch doesn't clobber an in-progress edit but a real change (or
+  // switching item via remount) seeds correctly.
+  const [altDraft, setAltDraft] = useState(item.altText ?? '')
+  const [decorativeDraft, setDecorativeDraft] = useState(item.isDecorative)
+  const metaKey = `${item.altText ?? ''} ${item.isDecorative}`
+  const [syncedMetaKey, setSyncedMetaKey] = useState(metaKey)
+  if (metaKey !== syncedMetaKey) {
+    setSyncedMetaKey(metaKey)
+    setAltDraft(item.altText ?? '')
+    setDecorativeDraft(item.isDecorative)
+  }
+  const metaDirty = altDraft.trim() !== (item.altText ?? '').trim() || decorativeDraft !== item.isDecorative
+  const showAltEditor = canManage && isImage && !isSvg
+  const missingAlt = isImage && !isSvg && !item.isDecorative && !item.altText?.trim()
 
   // Local tag draft. Navigating to another item remounts the panel (parent keys
   // by id), so this seeds correctly on switch. The render-phase reset below then
@@ -107,6 +131,8 @@ export default function MediaDetailPanel({
       style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'var(--color-overlay)', display: 'flex', justifyContent: 'flex-end' }}
     >
       <aside
+        ref={asideRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(440px, 100vw)',
@@ -129,11 +155,11 @@ export default function MediaDetailPanel({
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {/* Preview */}
           <div style={{ background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, maxHeight: 320, padding: 'var(--space-4)', overflow: 'hidden' }}>
-            {isImage ? (
+            {isImage && !broken ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={item.url} alt={item.altText ?? ''} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
+              <img src={item.url} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : (
-              <span style={{ fontSize: '4rem' }}>📄</span>
+              <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : undefined}>{broken ? '🚫' : '📄'}</span>
             )}
           </div>
 
@@ -144,6 +170,8 @@ export default function MediaDetailPanel({
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <span className={`badge ${item.inUse ? 'badge-green' : 'badge-gray'}`}>{item.inUse ? 'In use' : 'Unused'}</span>
                 {item.optimised && <span className="badge badge-green">✓ Optimised</span>}
+                {item.isDecorative && <span className="badge badge-gray">Decorative</span>}
+                {missingAlt && <span className="badge badge-yellow" title="No alt text - add some for accessibility and SEO">No alt text</span>}
               </div>
             </div>
 
@@ -152,9 +180,37 @@ export default function MediaDetailPanel({
               <Meta label="Type">{fileKind(item.mimeType)} · {item.mimeType}</Meta>
               <Meta label="Size">{formatBytes(item.sizeBytes)}</Meta>
               <Meta label="Folder">{folderName(item.folderId)}</Meta>
-              {item.altText && <Meta label="Alt text">{item.altText}</Meta>}
               <Meta label="Uploaded">{formatDate(item.createdAt)}{item.uploadedBy ? ` · ${item.uploadedBy.username}` : ''}</Meta>
             </dl>
+
+            {/* Alt text + decorative flag - the accessibility/SEO description. */}
+            {showAltEditor ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <span style={sectionLabel}>Alt text</span>
+                <textarea
+                  value={altDraft}
+                  onChange={(e) => setAltDraft(e.target.value)}
+                  disabled={decorativeDraft}
+                  rows={2}
+                  placeholder={decorativeDraft ? 'Decorative image - no alt text needed' : 'Describe this image for screen readers and search engines…'}
+                  style={{ ...inputStyle, resize: 'vertical', minHeight: '3.2rem', opacity: decorativeDraft ? 0.6 : 1 }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={decorativeDraft} onChange={(e) => setDecorativeDraft(e.target.checked)} style={{ margin: 0, cursor: 'pointer' }} />
+                  Decorative - skip in screen readers
+                </label>
+                {metaDirty && (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={savingMeta} onClick={() => onSaveMeta(altDraft, decorativeDraft)}>{savingMeta ? 'Saving…' : 'Save alt text'}</button>
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={savingMeta} onClick={() => { setAltDraft(item.altText ?? ''); setDecorativeDraft(item.isDecorative) }}>Reset</button>
+                  </div>
+                )}
+              </div>
+            ) : item.altText ? (
+              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.35rem 1rem', fontSize: 'var(--text-sm)' }}>
+                <Meta label="Alt text">{item.altText}</Meta>
+              </dl>
+            ) : null}
 
             {/* Tags */}
             {canManage && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, type DragEvent, type MouseEvent } from 'react'
+import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import type { LibraryItem, Sort } from './types'
 import { formatBytes, formatDate, filenameOf, fileKind } from './format'
 
@@ -106,14 +106,7 @@ export default function MediaList({
                   />
                 </td>
                 <td style={{ width: '3.5rem' }}>
-                  <span style={thumbBox}>
-                    {isImage ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={item.url} alt={item.altText ?? ''} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    ) : (
-                      <span style={{ fontSize: '1.1rem' }}>📄</span>
-                    )}
-                  </span>
+                  <ListThumb url={item.url} alt={item.altText ?? ''} isImage={isImage} />
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
@@ -139,6 +132,22 @@ export default function MediaList({
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Its own component so each row can track its own broken-image state and fall
+// back to a placeholder rather than showing the browser's broken-image glyph.
+function ListThumb({ url, alt, isImage }: { url: string; alt: string; isImage: boolean }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span style={thumbBox}>
+      {isImage && !broken ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={url} alt={alt} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      ) : (
+        <span style={{ fontSize: '1.1rem' }} title={broken ? 'Preview unavailable' : undefined}>{broken ? '🚫' : '📄'}</span>
+      )}
+    </span>
   )
 }
 
