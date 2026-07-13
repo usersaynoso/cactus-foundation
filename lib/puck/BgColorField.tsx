@@ -13,11 +13,11 @@ type BgColorProps = Parameters<CustomFieldRender<BgColorValue>>[0]
 // back into its base colour + alpha so the swatches and the opacity slider stay
 // in sync. Anything we don't recognise (a legacy rgba(), a raw hex) is treated
 // as a fully-opaque base so it still edits cleanly.
-const OPACITY_RE = /^color-mix\(in srgb,\s*(.+?)\s+(\d+(?:\.\d+)?)%,\s*transparent\)$/
+const OPACITY_RE = /^color-mix\(in srgb,\s*([\s\S]+?)\s+(\d+(?:\.\d+)?)%,\s*transparent\)$/
 
 function splitBgColour(color: string): { base: string; alpha: number } {
   const m = color.match(OPACITY_RE)
-  if (m && m[1]) return { base: m[1], alpha: Math.round(Number(m[2])) }
+  if (m && m[1]) return { base: m[1].trim(), alpha: Math.round(Number(m[2])) }
   return { base: color, alpha: 100 }
 }
 
@@ -27,16 +27,79 @@ function composeBgColour(base: string, alpha: number): string {
   return `color-mix(in srgb, ${base} ${alpha}%, transparent)`
 }
 
+// A per-block dark-mode override is encoded straight into the colour value as
+// CSS `light-dark(<light>, <dark>)`. The site sets `color-scheme: light|dark`
+// alongside its theme (globals.css), so the browser resolves the right arm with
+// no render-side change - blocks that already paint `backgroundColor: color`
+// adapt for free. When there's no dark override the value stays the plain light
+// colour, so legacy data and every other consumer are untouched.
+function splitLightDark(color: string): { light: string; dark: string } {
+  const m = color.match(/^light-dark\(\s*([\s\S]*)\)\s*$/)
+  if (!m || !m[1]) return { light: color, dark: '' }
+  const inner = m[1]
+  // Split on the top-level comma only - each arm may itself be a color-mix()
+  // that contains commas, so track parenthesis depth.
+  let depth = 0
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i]
+    if (ch === '(') depth++
+    else if (ch === ')') depth--
+    else if (ch === ',' && depth === 0) {
+      return { light: inner.slice(0, i).trim(), dark: inner.slice(i + 1).trim() }
+    }
+  }
+  return { light: inner.trim(), dark: '' }
+}
+
+function composeLightDark(light: string, dark: string): string {
+  if (!dark) return light
+  if (!light) return ''
+  return `light-dark(${light}, ${dark})`
+}
+
+type BgFieldOpts = { allowOpacity?: boolean; allowDark?: boolean }
+
 // Shared body for every "background mode select + colour swatches, one box"
 // field. Named with a `use` prefix (not a component) so it can call hooks -
 // each exported field below is the actual component, just delegating render.
-// `allowOpacity` adds a see-through slider for solid-colour backgrounds so an
-// owner can make a colour translucent (e.g. a readable card over a photo).
-function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgColorProps, allowOpacity = false) {
+// `allowOpacity` adds a see-through slider for solid-colour backgrounds (e.g. a
+// readable card over a photo). `allowDark` adds a separate dark-mode colour so a
+// block can carry one colour for light mode and another for dark.
+function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgColorProps, { allowOpacity = false, allowDark = false }: BgFieldOpts = {}) {
   const colours = useSiteColours()
   const mode = value?.mode ?? options[0]?.value ?? ''
   const color = value?.color ?? ''
-  const { base, alpha } = splitBgColour(color)
+  const { light, dark } = splitLightDark(color)
+  const { base: lightBase, alpha } = splitBgColour(light)
+  const { base: darkBase } = splitBgColour(dark)
+
+  // Rebuild the whole colour value from its parts - one opacity applies to both
+  // arms so the panel stays equally see-through in either mode.
+  const build = (nextLight: string, nextDark: string, nextAlpha: number) =>
+    composeLightDark(composeBgColour(nextLight, nextAlpha), nextDark ? composeBgColour(nextDark, nextAlpha) : '')
+
+  const swatchRow = (selectedBase: string, onPick: (varName: string) => void, noneLabel: string, onNone: () => void) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', padding: '0.25rem 0' }}>
+      {colours.map((c, i) => {
+        const varName = `var(--color-${i + 1})`
+        return (
+          <ColourSwatchButton
+            key={i}
+            name={c.name}
+            background={`linear-gradient(135deg, ${c.light} 50%, ${c.dark || c.light} 50%)`}
+            selected={selectedBase === varName}
+            onClick={() => onPick(varName)}
+          />
+        )
+      })}
+      <ColourSwatchButton
+        name={noneLabel}
+        background="repeating-linear-gradient(45deg, var(--color-bg-subtle), var(--color-bg-subtle) 4px, var(--color-surface) 4px, var(--color-surface) 8px)"
+        selected={!selectedBase}
+        onClick={onNone}
+      />
+    </div>
+  )
 
   return (
     <div>
@@ -50,29 +113,24 @@ function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgCo
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {mode !== 'none' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', padding: '0.25rem 0' }}>
-          {colours.map((c, i) => {
-            const varName = `var(--color-${i + 1})`
-            return (
-              <ColourSwatchButton
-                key={i}
-                name={c.name}
-                background={`linear-gradient(135deg, ${c.light} 50%, ${c.dark || c.light} 50%)`}
-                selected={base === varName}
-                onClick={() => onChange({ mode, color: composeBgColour(varName, alpha) })}
-              />
-            )
-          })}
-          <ColourSwatchButton
-            name="None / transparent"
-            background="repeating-linear-gradient(45deg, var(--color-bg-subtle), var(--color-bg-subtle) 4px, var(--color-surface) 4px, var(--color-surface) 8px)"
-            selected={!base}
-            onClick={() => onChange({ mode, color: '' })}
-          />
+      {mode !== 'none' && swatchRow(
+        lightBase,
+        (varName) => onChange({ mode, color: build(varName, darkBase, alpha) }),
+        'None / transparent',
+        () => onChange({ mode, color: build('', darkBase, alpha) }),
+      )}
+      {allowDark && mode === 'color' && lightBase && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.125rem' }}>Dark mode colour</label>
+          {swatchRow(
+            darkBase,
+            (varName) => onChange({ mode, color: build(lightBase, varName, alpha) }),
+            'Same as light',
+            () => onChange({ mode, color: build(lightBase, '', alpha) }),
+          )}
         </div>
       )}
-      {allowOpacity && mode === 'color' && base && (
+      {allowOpacity && mode === 'color' && lightBase && (
         <div style={{ marginTop: '0.5rem' }}>
           <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.25rem' }}>
             <span>Colour opacity</span>
@@ -84,7 +142,7 @@ function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgCo
             max={100}
             step={1}
             value={alpha}
-            onChange={(e) => onChange({ mode, color: composeBgColour(base, Number(e.target.value)) })}
+            onChange={(e) => onChange({ mode, color: build(lightBase, darkBase, Number(e.target.value)) })}
             style={{ width: '100%', accentColor: 'var(--color-primary)' }}
           />
         </div>
@@ -99,14 +157,14 @@ export const SectionBgColorField: CustomFieldRender<BgColorValue> = (props) => u
   { value: 'gradient', label: 'Gradient (CSS)' },
   { value: 'image', label: 'Image URL' },
   { value: 'grid-scan', label: 'Grid + scan beam (decorative)' },
-], props, true)
+], props, { allowOpacity: true, allowDark: true })
 
 export const HeroBgColorField: CustomFieldRender<BgColorValue> = (props) => useBgColorFieldBody([
   { value: 'gradient', label: 'Gradient' },
   { value: 'color', label: 'Colour' },
   { value: 'image', label: 'Image' },
   { value: 'none', label: 'None' },
-], props, true)
+], props, { allowOpacity: true, allowDark: true })
 
 export const HeaderBgColorField: CustomFieldRender<BgColorValue> = (props) => useBgColorFieldBody([
   { value: 'color', label: 'Solid colour' },
