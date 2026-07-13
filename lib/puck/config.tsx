@@ -244,10 +244,13 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
+  const colStickies = [col1Sticky, col2Sticky, col3Sticky, col4Sticky].map((s) => s === 'on')
+  const colStickyOffsets = [col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset]
+  const anyColSticky = colStickies.slice(0, colCount).some(Boolean)
   const justifyMap: Record<string, string> = { center: 'center', end: 'flex-end' }
 
   // Header-only true-centering. A column set to "Centre" is pulled onto the
@@ -337,6 +340,12 @@ function GridBlock(props: any) {
         ).join('\n')}</style>
       )}
       {gapVAlignCss && <style>{gapVAlignCss}</style>}
+      {anyColSticky && (
+        <style>{[
+          `${mobileMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
+          stackAtTablet === 'on' && `${tabletMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
+        ].filter(Boolean).join('')}</style>
+      )}
       <div
         className={`puck-grid ${getPaddingClasses(padding)}`}
         data-cols={colCount}
@@ -364,8 +373,17 @@ function GridBlock(props: any) {
         // second track instead of stacking, so the columns never go vertical
         // on a phone. Left undefined, auto-placement stacks them as intended.
         const explicitCol = centerColIndexes.length > 0 ? i + 1 : undefined
+        // A sticky column pins its own track box (whose containing block is the
+        // full-height grid row) while the taller sibling scrolls past. `start`
+        // align keeps the box its content height (not stretched to the row) so
+        // there is room to travel; the media rules below drop it back to static
+        // once the grid stacks. Marked with data-col-sticky for those rules.
+        const colSticky = colStickies[i]
+        const stickyStyle = colSticky
+          ? { position: 'sticky' as const, top: colStickyOffsets[i] || '0px', alignSelf: 'start' as const, zIndex: 1 }
+          : {}
         return (
-          <div key={i} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+          <div key={i} {...(colSticky ? { 'data-col-sticky': '' } : {})} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...stickyStyle, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
             {/* Explicit gridColumn matters once any column is centred: an
                 absolutely-positioned grid item is skipped by CSS Grid's
                 auto-placement, so without an explicit track, later columns
@@ -426,6 +444,12 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
+  // Pin a column in place while the taller column scrolls past (e.g. an image
+  // that stays beside a long text column). Auto-releases once the grid stacks
+  // to one column (mobile, or the tablet band when "Stack on tablet" is on) so
+  // the pinned block just sits in normal flow there instead of floating.
+  for (const n of cols) fields[`col${n}Sticky`] = { type: 'select' as const, label: `Col ${n} sticky`, options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick while scrolling' }] }
+  for (const n of cols) fields[`col${n}StickyOffset`] = { type: 'text' as const, label: `Col ${n} sticky offset (e.g. 88px)` }
   // Shrunk-state fields - only shown when this Grid sits in a header with
   // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
   // shrink that column/gap. Setting a shrunk width also opts the column into
@@ -437,7 +461,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
   const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackAtTablet: 'off', gapShrunk: '' }
-  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = '' }
+  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
 
   return {
     label: `Grid (${colCount} columns)`,
