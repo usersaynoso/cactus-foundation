@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { PublicMenuItem } from '@/lib/menu/resolve'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
-import { normalizeResponsiveValue, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, pickResponsive, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
 type MinMaxPair = { min?: string; max?: string }
@@ -10,13 +10,13 @@ type MinMaxPair = { min?: string; max?: string }
 type Props = {
   menuId: string
   orientation: 'horizontal' | 'vertical'
-  spacing: 'tight' | 'normal' | 'wide'
-  alignment?: 'flex-start' | 'center' | 'space-between' | 'space-around'
+  spacing: ResponsiveValue<string> | 'tight' | 'normal' | 'wide'
+  alignment?: ResponsiveValue<string> | 'flex-start' | 'center' | 'space-between' | 'space-around'
   showDropdowns: string
   navToggle: ResponsiveValue<string> | string | undefined
-  itemFontSize?: 'small' | 'medium' | 'large'
-  itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
-  textTransform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase'
+  itemFontSize?: ResponsiveValue<string> | 'small' | 'medium' | 'large'
+  itemFontWeight?: ResponsiveValue<string> | 'normal' | 'medium' | 'semibold' | 'bold'
+  textTransform?: ResponsiveValue<string> | 'none' | 'uppercase' | 'capitalize' | 'lowercase'
   itemColor?: string
   itemFontFamily?: string
   hoverColor?: string
@@ -71,19 +71,25 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, a
     const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
     const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
     const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
+    // This hand-rolled vertical stand-in only shows the desktop base; the live
+    // MenuBlock carries the tablet/mobile media rules.
+    const spacingD = pickResponsive(normalizeResponsiveValue<string>(spacing), 'desktop') ?? 'normal'
+    const fontSizeD = pickResponsive(normalizeResponsiveValue<string>(itemFontSize), 'desktop') ?? 'medium'
+    const fontWeightD = pickResponsive(normalizeResponsiveValue<string>(itemFontWeight), 'desktop') ?? 'medium'
+    const transformD = pickResponsive(normalizeResponsiveValue<string>(textTransform), 'desktop') ?? 'none'
     const linkStyle: React.CSSProperties = {
       color: itemColor || 'var(--color-text)',
-      fontWeight: fontWeightMap[itemFontWeight] ?? 500,
-      fontSize: fluidFontSize ?? fontSizeMap[itemFontSize] ?? '0.9375rem',
+      fontWeight: fontWeightMap[fontWeightD] ?? 500,
+      fontSize: fluidFontSize ?? fontSizeMap[fontSizeD] ?? '0.9375rem',
       fontFamily: itemFontFamily || undefined,
       letterSpacing: fluidLetterSpacing ?? undefined,
-      textTransform: (textTransform !== 'none' ? textTransform : undefined) as React.CSSProperties['textTransform'],
+      textTransform: (transformD !== 'none' ? transformD : undefined) as React.CSSProperties['textTransform'],
     }
     const fontHref = googleFontHrefForFamily(itemFontFamily)
     return (
       <nav>
         {fontHref && <link rel="stylesheet" href={fontHref} precedence="default" />}
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacing] ?? '0.5rem' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacingD] ?? '0.5rem' }}>
           {items.map((item) => (
             <li key={item.id}>
               <span style={linkStyle}>{item.label}</span>

@@ -23,6 +23,7 @@ import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
+import { linkifyEmails, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { SiteColourField } from '@/lib/puck/SiteColourField'
 import { SiteFontField } from '@/lib/puck/SiteFontField'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
@@ -780,10 +781,10 @@ function ContentSlot(_props: any) {
 // `needle`, wrapping the matches in an emphasised span. Non-matching runs stay
 // plain strings. Returns the original line untouched when there's no needle or
 // no hit, so the common (no-highlight) path allocates nothing extra.
-function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string): React.ReactNode {
-  if (!needle) return line
+function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string, obfuscate = false): React.ReactNode {
+  if (!needle) return obfuscate ? linkifyEmails(line) : line
   const parts = line.split(needle)
-  if (parts.length === 1) return line
+  if (parts.length === 1) return obfuscate ? linkifyEmails(line) : line
   const emColor = 'var(--color-primary)'
   // The "mark" is a chunky bar that sits UNDER the word (a thick underline),
   // never behind the glyphs. Drawn with text-decoration so it always tracks the
@@ -798,7 +799,7 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
   }
   const out: React.ReactNode[] = []
   parts.forEach((seg, i) => {
-    if (seg) out.push(seg)
+    if (seg) out.push(obfuscate ? linkifyEmails(seg) : seg)
     if (i < parts.length - 1) {
       out.push(
         <em key={`${keyPrefix}-em-${i}`} style={{ fontStyle: 'normal', color: emColor, ...markStyle }}>{needle}</em>,
@@ -809,7 +810,10 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
 }
 
 function Heading(props: any) {
-  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline' } = props
+  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', puck } = props
+  // Obfuscate email addresses on the published site only - the editor keeps the
+  // plain address so it stays editable (see lib/email-obfuscate).
+  const obfuscate = !puck?.isEditing
   // `align` is a ResponsiveValue<string> ({desktop,tablet,mobile}); desktop is
   // the base text-align, tablet/mobile emitted as media overrides below. Plain
   // legacy string data normalises to {desktop: value}, so it renders unchanged.
@@ -847,10 +851,10 @@ function Heading(props: any) {
   const content = revealAnimation === 'stagger-lines'
     ? text.split('\n').map((line: string, i: number) => (
         <span key={i} className="cactus-stagger-line">
-          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`)}</span>
+          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`, obfuscate)}</span>
         </span>
       ))
-    : renderHighlight(text, highlightText, highlightMark, 'h')
+    : renderHighlight(text, highlightText, highlightMark, 'h', obfuscate)
   const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
   return (
     <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
@@ -863,7 +867,8 @@ function Heading(props: any) {
 }
 
 function TextBlock(props: any) {
-  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default' } = props
+  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', puck } = props
+  const body = puck?.isEditing ? content : linkifyEmails(content)
   const sizeMap: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
   const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
   const colorMap: Record<string, string> = { default: 'var(--color-fg-secondary)', muted: 'var(--color-muted)', dark: 'var(--color-fg)' }
@@ -894,14 +899,15 @@ function TextBlock(props: any) {
     <>
       {mediaCss && <style>{mediaCss}</style>}
       <div data-text-id={id} className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {content}
+        {body}
       </div>
     </>
   )
 }
 
 function RichTextBlock(props: any) {
-  const { content, padding } = props
+  const { content, padding, puck } = props
+  const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
@@ -921,25 +927,28 @@ function RichTextBlock(props: any) {
     } catch {
       html = ''
     }
+    if (obfuscate) html = obfuscateEmailsInHtml(html)
     return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: html }} />
   }
-  return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: content }} />
+  return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: obfuscate ? obfuscateEmailsInHtml(content) : content }} />
 }
 
 function Quote(props: any) {
-  const { quote, attribution, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { quote, attribution, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const editing = puck?.isEditing
   return (
     <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
       <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
-        <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{quote}</p>
-        {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {attribution}</footer>}
+        <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{editing ? quote : linkifyEmails(quote)}</p>
+        {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {editing ? attribution : linkifyEmails(attribution)}</footer>}
       </blockquote>
     </div>
   )
 }
 
 function Caption(props: any) {
-  const { id, text, align, padding } = props
+  const { id, text, align, padding, puck } = props
+  const body = puck?.isEditing ? text : linkifyEmails(text)
   const alignRv = normalizeResponsiveValue<string>(align)
   const alignBase = pickResponsive(alignRv, 'desktop') ?? 'left'
   const alignCss = responsiveMediaCssFor(`[data-caption-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
@@ -961,7 +970,7 @@ function Caption(props: any) {
         color: 'var(--caption-color, var(--color-muted))',
       }}
       >
-        {text}
+        {body}
       </p>
     </>
   )
@@ -1655,15 +1664,27 @@ function MenuBlock(props: any) {
   if (!resolvedItems) {
     return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
   }
+  // spacing/font-size/font-weight/text-transform are each a ResponsiveValue.
+  // Desktop is the vertical menu's inline base; tablet/mobile are folded into
+  // the per-id media rules below. Legacy plain-string data normalises to
+  // desktop-only, so it renders identically and emits no media rules.
+  const spacingRv = normalizeResponsiveValue<string>(spacing)
+  const fontSizeRv = normalizeResponsiveValue<string>(itemFontSize)
+  const fontWeightRv = normalizeResponsiveValue<string>(itemFontWeight)
+  const transformRv = normalizeResponsiveValue<string>(textTransform)
+  const spacingD = pickResponsive(spacingRv, 'desktop') ?? 'normal'
+  const fontSizeD = pickResponsive(fontSizeRv, 'desktop') ?? 'medium'
+  const fontWeightD = pickResponsive(fontWeightRv, 'desktop') ?? 'medium'
+  const transformD = pickResponsive(transformRv, 'desktop') ?? 'none'
   const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
   const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
   const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
   const linkStyleOverride: React.CSSProperties = {}
   if (itemColor) linkStyleOverride.color = itemColor
   if (itemFontFamily) linkStyleOverride.fontFamily = itemFontFamily
-  if (itemFontSize !== 'medium') linkStyleOverride.fontSize = menuFontSizeMap[itemFontSize]
-  if (itemFontWeight !== 'medium') linkStyleOverride.fontWeight = menuFontWeightMap[itemFontWeight]
-  if (textTransform !== 'none') linkStyleOverride.textTransform = textTransform as React.CSSProperties['textTransform']
+  if (fontSizeD !== 'medium') linkStyleOverride.fontSize = menuFontSizeMap[fontSizeD]
+  if (fontWeightD !== 'medium') linkStyleOverride.fontWeight = menuFontWeightMap[fontWeightD]
+  if (transformD !== 'none') linkStyleOverride.textTransform = transformD as React.CSSProperties['textTransform']
   if (fluidFontSize) linkStyleOverride.fontSize = fluidFontSize
   if (fluidLetterSpacing) linkStyleOverride.letterSpacing = fluidLetterSpacing
   const shrinkListClass = `menu-vlist-shrink-${id}`
@@ -1674,10 +1695,24 @@ function MenuBlock(props: any) {
   // picked on this block alone (not in the site tokens buildFontHref covers)
   // still loads on the published page.
   const menuFontHref = googleFontHrefForFamily(itemFontFamily)
+  // Per-breakpoint overrides for the vertical menu, keyed on the block's own
+  // shrink classes (already unique per id). Font-size is skipped when the fluid
+  // clamp owns it; gap is skipped when fluid item spacing does. Matches the
+  // top-level-only scope of linkStyleOverride (child links are untouched here).
+  const vLinkMediaCss = responsiveMediaCssFor(`.${shrinkLinkClass}`, (d) => {
+    const parts: string[] = []
+    if (!fluidFontSize) parts.push(`font-size:${menuFontSizeMap[pickResponsive(fontSizeRv, d) ?? 'medium'] ?? menuFontSizeMap.medium}`)
+    parts.push(`font-weight:${menuFontWeightMap[pickResponsive(fontWeightRv, d) ?? 'medium'] ?? menuFontWeightMap.medium}`)
+    parts.push(`text-transform:${pickResponsive(transformRv, d) ?? 'none'}`)
+    return parts.join(';') + ';'
+  })
+  const vListMediaCss = fluidGap ? '' : responsiveMediaCssFor(`.${shrinkListClass}`, (d) => `gap:${menuVerticalGapMap[pickResponsive(spacingRv, d) ?? 'normal'] ?? '0.5rem'};`)
+  const vMediaCss = [vLinkMediaCss, vListMediaCss].filter(Boolean).join('\n')
   if (orientation === 'vertical') {
     return (
       <nav>
         {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
+        {vMediaCss && <style>{vMediaCss}</style>}
         {hasVerticalShrink && (
           <style>{[
             spacingShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkListClass}{gap:${menuVerticalGapMap[spacingShrunk] ?? '0.5rem'} !important;}` : '',
@@ -1685,12 +1720,12 @@ function MenuBlock(props: any) {
             itemFontWeightShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkLinkClass}{font-weight:${menuFontWeightMap[itemFontWeightShrunk]} !important;}` : '',
           ].filter(Boolean).join('\n')}</style>
         )}
-        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacing] ?? '0.5rem' }}>
+        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacingD] ?? '0.5rem' }}>
           {resolvedItems.map((item: any) => (
             <li key={item.id}>
               <MenuVerticalLink item={item} colours={linkColours}
                 className={shrinkLinkClass}
-                style={{ display: 'block', padding: '0.25rem 0', fontSize: menuFontSizeMap[itemFontSize] ?? '0.9375rem', fontWeight: menuFontWeightMap[itemFontWeight] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }} />
+                style={{ display: 'block', padding: '0.25rem 0', fontSize: menuFontSizeMap[fontSizeD] ?? '0.9375rem', fontWeight: menuFontWeightMap[fontWeightD] ?? 500, color: itemColor || 'var(--color-fg-secondary)', textDecoration: 'none', ...linkStyleOverride }} />
               {item.children?.length > 0 && (
                 <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0 0 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   {item.children.map((child: any) => (
@@ -1711,7 +1746,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
+  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {
@@ -2422,11 +2457,11 @@ export const puckConfig = {
       fields: {
         menuId: { type: 'text' as const, label: 'Menu ID' }, menuName: { type: 'text' as const, label: 'Menu name (display)' },
         orientation: { type: 'select' as const, label: 'Orientation', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }] },
-        spacing: { type: 'select' as const, label: 'Item spacing', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
-        alignment: { type: 'select' as const, label: 'Horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }] },
-        itemFontSize: { type: 'select' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
-        itemFontWeight: { type: 'select' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
-        textTransform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
+        spacing: { type: 'custom' as const, label: 'Item spacing', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
+        alignment: { type: 'custom' as const, label: 'Horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }], render: ResponsiveSelectField },
+        itemFontSize: { type: 'custom' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], render: ResponsiveSelectField },
+        itemFontWeight: { type: 'custom' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }], render: ResponsiveSelectField },
+        textTransform: { type: 'custom' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }], render: ResponsiveSelectField },
         itemFontFamily: { type: 'custom' as const, label: 'Font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
         itemColor: { type: 'custom' as const, label: 'Link colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         hoverColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
@@ -2446,7 +2481,7 @@ export const puckConfig = {
         letterSpacingFluid: { type: 'custom' as const, label: 'Responsive character spacing (em)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
         itemFontSizeFluid: { type: 'custom' as const, label: 'Responsive font size (rem)', minLabel: 'Min size', maxLabel: 'Max size', render: MinMaxPairField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: 'normal' as const, alignment: 'flex-start' as const, itemFontSize: 'medium' as const, itemFontWeight: 'medium' as const, textTransform: 'none' as const, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
       resolveFields: (data: any, { fields, appState }: any) => {
         let out = fields
         if (data?.props?.activeUnderline !== 'underline') {

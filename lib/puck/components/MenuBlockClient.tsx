@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { fluidClamp } from '@/lib/puck/responsiveValue'
+import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
 type MenuItem = {
@@ -417,12 +417,13 @@ const hGapMap: Record<string, string> = { tight: '0', normal: '0', wide: '0.5rem
 type MinMaxPair = { min?: string; max?: string }
 
 type Props = {
+  blockId?: string
   resolvedItems?: MenuItem[]
-  spacing?: 'tight' | 'normal' | 'wide'
-  alignment?: 'flex-start' | 'center' | 'space-between' | 'space-around'
-  itemFontSize?: 'small' | 'medium' | 'large'
-  itemFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold'
-  textTransform?: string
+  spacing?: ResponsiveValue<string> | 'tight' | 'normal' | 'wide'
+  alignment?: ResponsiveValue<string> | 'flex-start' | 'center' | 'space-between' | 'space-around'
+  itemFontSize?: ResponsiveValue<string> | 'small' | 'medium' | 'large'
+  itemFontWeight?: ResponsiveValue<string> | 'normal' | 'medium' | 'semibold' | 'bold'
+  textTransform?: ResponsiveValue<string> | string
   itemColor?: string
   itemFontFamily?: string
   hoverColor?: string
@@ -447,6 +448,7 @@ type Props = {
 }
 
 export default function MenuBlockClient({
+  blockId,
   resolvedItems,
   spacing = 'normal',
   alignment = 'flex-start',
@@ -487,13 +489,48 @@ export default function MenuBlockClient({
   const fluidGap = fluidClamp(itemSpacingFluid?.min, itemSpacingFluid?.max, 'rem')
   const fluidFontSize = fluidClamp(itemFontSizeFluid?.min, itemFontSizeFluid?.max, 'rem')
   const fluidLetterSpacing = fluidClamp(letterSpacingFluid?.min, letterSpacingFluid?.max, 'em')
-  const hGap = fluidGap ?? hGapMap[spacing] ?? '0'
+  // alignment/spacing/font-size/font-weight/text-transform are each a
+  // ResponsiveValue: desktop is the inline base, tablet/mobile ride in as
+  // !important @media overrides keyed on this block's id (legacy plain-string
+  // data normalises to desktop-only, so it renders unchanged and emits no media
+  // rules). Cascades desktop→tablet→mobile to match the "Same as desktop/tablet"
+  // placeholders ResponsiveSelectField shows.
+  const alignRv = normalizeResponsiveValue<string>(alignment)
+  const spacingRv = normalizeResponsiveValue<string>(spacing)
+  const fontSizeRv = normalizeResponsiveValue<string>(itemFontSize)
+  const fontWeightRv = normalizeResponsiveValue<string>(itemFontWeight)
+  const transformRv = normalizeResponsiveValue<string>(textTransform)
+  const alignBase = pickResponsive(alignRv, 'desktop') ?? 'flex-start'
+  const spacingD = pickResponsive(spacingRv, 'desktop') ?? 'normal'
+  const fontSizeD = pickResponsive(fontSizeRv, 'desktop') ?? 'medium'
+  const fontWeightD = pickResponsive(fontWeightRv, 'desktop') ?? 'medium'
+  const transformD = pickResponsive(transformRv, 'desktop') ?? 'none'
+
+  const hGap = fluidGap ?? hGapMap[spacingD] ?? '0'
+
+  // Base rule targets the ul (which carries data-menu-id); the link rules target
+  // its top-level anchors only (.cactus-nav-link), matching where `overrides`
+  // applies. Font-size is skipped when the fluid clamp owns it; gap when fluid
+  // item spacing does.
+  const alignCss = blockId ? responsiveMediaCssFor(`[data-menu-id="${blockId}"]`, (d) => {
+    const parts = [`justify-content:${pickResponsive(alignRv, d) ?? 'flex-start'};`]
+    if (!fluidGap) parts.push(`gap:${hGapMap[pickResponsive(spacingRv, d) ?? 'normal'] ?? '0'};`)
+    return parts.join('')
+  }) : ''
+  const linkCss = blockId ? responsiveMediaCssFor(`[data-menu-id="${blockId}"] .cactus-nav-link`, (d) => {
+    const parts: string[] = []
+    if (!fluidFontSize) parts.push(`font-size:${fontSizeMap[pickResponsive(fontSizeRv, d) ?? 'medium'] ?? fontSizeMap.medium}`)
+    parts.push(`font-weight:${fontWeightMap[pickResponsive(fontWeightRv, d) ?? 'medium'] ?? fontWeightMap.medium}`)
+    parts.push(`text-transform:${pickResponsive(transformRv, d) ?? 'none'}`)
+    return parts.join(';') + ';'
+  }) : ''
+  const menuMediaCss = [alignCss, linkCss].filter(Boolean).join('\n')
 
   const overrides: React.CSSProperties = {}
   if (itemColor) overrides.color = itemColor
-  if (itemFontSize !== 'medium') overrides.fontSize = fontSizeMap[itemFontSize]
-  if (itemFontWeight !== 'medium') overrides.fontWeight = fontWeightMap[itemFontWeight]
-  if (textTransform !== 'none') overrides.textTransform = textTransform as React.CSSProperties['textTransform']
+  if (fontSizeD !== 'medium') overrides.fontSize = fontSizeMap[fontSizeD]
+  if (fontWeightD !== 'medium') overrides.fontWeight = fontWeightMap[fontWeightD]
+  if (transformD !== 'none') overrides.textTransform = transformD as React.CSSProperties['textTransform']
   if (fluidFontSize) overrides.fontSize = fluidFontSize
   if (fluidLetterSpacing) overrides.letterSpacing = fluidLetterSpacing
 
@@ -553,13 +590,15 @@ export default function MenuBlockClient({
         ].filter(Boolean).join('\n')}</style>
       )}
 
+      {menuMediaCss && <style>{menuMediaCss}</style>}
       <ul
+        data-menu-id={blockId}
         className={['cactus-nav-list', anyToggle ? menuClasses : ''].filter(Boolean).join(' ')}
         style={{
           display: anyToggle ? undefined : 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
-          justifyContent: alignment,
+          justifyContent: alignBase,
           listStyle: 'none',
           margin: 0,
           padding: 0,
