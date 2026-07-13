@@ -1,58 +1,38 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { uploadOneFile } from '@/lib/media/upload-client'
+import { useRef } from 'react'
+import { ACCEPTED_UPLOAD_TYPES } from '@/lib/media/limits'
 
+const ACCEPT = Array.from(ACCEPTED_UPLOAD_TYPES).join(',')
+
+// Header upload trigger. It no longer uploads itself - it just picks files and
+// hands them to the library, which owns the shared upload queue (progress,
+// per-file status). Showing the destination folder makes it obvious where the
+// files will land before you pick them.
 export default function MediaUpload({
-  folderId = null,
-  onUploaded,
+  destinationLabel,
+  onFiles,
 }: {
-  /** Folder new uploads land in. Null = the library root. */
-  folderId?: string | null
-  /** Called after a batch finishes, so a parent can refresh without a full reload. */
-  onUploaded?: () => void
-} = {}) {
-  const router = useRouter()
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
+  /** Name of the folder new uploads land in, shown on the button. */
+  destinationLabel: string
+  onFiles: (files: FileList) => void
+}) {
   const ref = useRef<HTMLInputElement>(null)
-
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return
-    setUploading(true)
-    setError('')
-
-    for (const file of Array.from(files)) {
-      try {
-        await uploadOneFile(file, folderId)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Upload failed')
-      }
-    }
-
-    setUploading(false)
-    if (onUploaded) onUploaded()
-    else router.refresh()
-  }
-
   return (
     <div>
-      {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-base)', marginRight: 'var(--space-3)' }}>{error}</span>}
       <input
         ref={ref}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={ACCEPT}
         multiple
         style={{ display: 'none' }}
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) onFiles(e.target.files)
+          e.target.value = '' // let the same file be re-picked
+        }}
       />
-      <button
-        className="btn btn-primary"
-        disabled={uploading}
-        onClick={() => ref.current?.click()}
-      >
-        {uploading ? 'Uploading…' : '+ Upload'}
+      <button className="btn btn-primary" onClick={() => ref.current?.click()} title={`Upload to ${destinationLabel}`}>
+        + Upload to {destinationLabel}
       </button>
     </div>
   )

@@ -28,6 +28,8 @@ export default function MediaDetailPanel({
   onCopy,
   onDelete,
   onOptimise,
+  onCopyLink,
+  onDownload,
   onSaveTags,
 }: {
   item: LibraryItem
@@ -50,6 +52,8 @@ export default function MediaDetailPanel({
   onCopy: () => void
   onDelete: () => void
   onOptimise: () => void
+  onCopyLink: () => void
+  onDownload: () => void
   onSaveTags: (names: string[]) => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
@@ -193,6 +197,8 @@ export default function MediaDetailPanel({
         {/* Action footer */}
         <div style={{ borderTop: '1px solid var(--color-border)', padding: 'var(--space-3) var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           <a className="btn btn-secondary btn-sm" href={item.url} target="_blank" rel="noopener noreferrer">Open original ↗</a>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onCopyLink}>Copy link</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onDownload}>Download</button>
           {canManage && canOptimise && <button type="button" className="btn btn-secondary btn-sm" disabled={optimising} onClick={onOptimise}>{optimising ? 'Optimising…' : 'Optimise'}</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>}

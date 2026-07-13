@@ -9,12 +9,22 @@ import MediaUpload from './MediaUpload'
 import MediaStatsBar, { type LibraryStats } from './MediaStatsBar'
 import MediaToolbar from './MediaToolbar'
 import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
+import MediaUploadQueue, { type UploadTask } from './MediaUploadQueue'
 import FolderTree, { type FolderNode } from './FolderTree'
 import { uploadOneFile } from '@/lib/media/upload-client'
+import { preflightUploadError } from '@/lib/media/limits'
+import { formatBytes } from './format'
+import type { MediaCardItem } from './MediaCard'
 import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
 type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
-type Menu = { x: number; y: number; id: string } | null
+// A context menu over a specific item (id set) or over empty grid space (id null).
+type Menu = { x: number; y: number; id: string | null } | null
+
+// True when an image can still be optimised: raster, not SVG, not already done.
+function isOptimisable(item: { mimeType: string; optimised: boolean }): boolean {
+  return item.mimeType.startsWith('image/') && item.mimeType !== 'image/svg+xml' && !item.optimised
+}
 type CollisionState =
   | { kind: 'rename'; id: string; newName: string; name: string }
   | { kind: 'move'; ids: string[]; targetFolderId: string | null; name: string }
@@ -73,6 +83,8 @@ export default function MediaLibrary({
   const [busy, setBusy] = useState('')
   const [savingTags, setSavingTags] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
+  const [uploads, setUploads] = useState<UploadTask[]>([])
+  const uploadSeq = useRef(0)
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
@@ -98,6 +110,8 @@ export default function MediaLibrary({
   const allToasts = useMemo<Toast[]>(() => (busy ? [...toasts, { id: -1, kind: 'busy', msg: busy }] : toasts), [toasts, busy])
 
   const sentinelRef = useRef<HTMLDivElement>(null)
+  // Hidden file input driven by the empty-state and whitespace-menu "upload" actions.
+  const whitespaceUploadRef = useRef<HTMLInputElement>(null)
 
   // Restore the saved grid/list preference once, on the client. Must run in an
   // effect, not a lazy initializer: reading localStorage during render would
@@ -204,6 +218,30 @@ export default function MediaLibrary({
     return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', onKey) }
   }, [menu])
 
+  // Library-wide keyboard shortcuts. Suppressed while typing or while any dialog,
+  // menu or the detail panel is open (each of those owns its own keys).
+  useEffect(() => {
+    const anyOverlayOpen = !!(openId || editItem || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || menu)
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      if (anyOverlayOpen) return
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === 'a' && items.length > 0) {
+        e.preventDefault(); setSelected(new Set(items.map((i) => i.id)))
+      } else if (mod && e.key.toLowerCase() === 'v' && clipboard && canUpload) {
+        e.preventDefault(); paste(currentFolderId)
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && canDelete && selected.size > 0) {
+        e.preventDefault(); setSkippedInUse([]); setDeleteConfirm({ ids: Array.from(selected) })
+      } else if (e.key === 'Escape' && (selected.size > 0 || clipboard)) {
+        setSelected(new Set()); setClipboard(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paste closes over current state; re-bind on the inputs that gate the shortcuts
+  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, menu])
+
   // --- navigation ---
   const navigateFolder = useCallback((id: string | null) => {
     setSearch(''); setSearchInput(''); setTagFilter(''); setBrowseAll(false); setCurrentFolderId(id)
@@ -240,6 +278,18 @@ export default function MediaLibrary({
     draggingInternal.current = true
   }
   function onDragEnd() { draggingInternal.current = false }
+
+  // Safety net for the internal-drag flag. If a card unmounts mid-drag - e.g. a
+  // move triggers a refetch that re-renders the grid before the card's own
+  // onDragEnd fires - the flag could stick "on", which would then make onDragOver
+  // bail and silently block every subsequent file drop. A window-level reset on
+  // any drag end or drop guarantees it clears.
+  useEffect(() => {
+    const reset = () => { draggingInternal.current = false }
+    window.addEventListener('dragend', reset)
+    window.addEventListener('drop', reset)
+    return () => { window.removeEventListener('dragend', reset); window.removeEventListener('drop', reset) }
+  }, [])
   async function onDropToFolder(targetFolderId: string | null, raw: string) {
     const ids = raw.split(',').filter(Boolean)
     if (ids.length === 0) return
@@ -350,15 +400,24 @@ export default function MediaLibrary({
       const res = await fetch(`/api/admin/media/${id}/optimise`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
-      pushToast('success', 'Image optimised')
+      // The server won't touch an already-optimised (or already-tiny) image and
+      // reports that back - reflect the real outcome instead of always claiming success.
+      if (d.optimised) {
+        const saved = typeof d.before === 'number' && typeof d.after === 'number' ? d.before - d.after : 0
+        pushToast('success', saved > 0 ? `Optimised - saved ${formatBytes(saved)}` : 'Image optimised')
+      } else {
+        pushToast('info', d.reason === 'Already optimised' ? 'Already optimised - nothing to do' : d.reason ?? 'Nothing to optimise')
+      }
       await fetchItems()
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') }
     finally { setOptimisingIds((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
   async function optimiseBulk() {
-    const ids = Array.from(selected)
-    if (ids.length === 0) return
+    // Only send the ones that can actually be optimised - the rest would just be
+    // skipped server-side and muddy the result.
+    const ids = items.filter((i) => selected.has(i.id) && isOptimisable(i)).map((i) => i.id)
+    if (ids.length === 0) { pushToast('info', 'Nothing selected can be optimised'); return }
     setBusy('Optimising…')
     try {
       const res = await fetch('/api/admin/media/bulk-optimise', {
@@ -367,9 +426,35 @@ export default function MediaLibrary({
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
       setSelected(new Set())
-      pushToast('success', `Optimised ${ids.length} item${ids.length === 1 ? '' : 's'}`)
+      const n = d.optimised?.length ?? 0
+      const saved = typeof d.bytesSaved === 'number' ? d.bytesSaved : 0
+      const extra = d.failed?.length ? `, ${d.failed.length} failed` : ''
+      if (n > 0) pushToast('success', `Optimised ${n} item${n === 1 ? '' : 's'}${saved > 0 ? ` - saved ${formatBytes(saved)}` : ''}${extra}`)
+      else pushToast('info', `Nothing to optimise${extra}`)
       await fetchItems()
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') } finally { setBusy('') }
+  }
+
+  // Copy an item's public URL to the clipboard - the quickest way to reuse an
+  // image in a link, an email, or content elsewhere.
+  async function copyLink(item: MediaCardItem) {
+    const url = item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`
+    try {
+      await navigator.clipboard.writeText(url)
+      pushToast('success', 'Link copied')
+    } catch { pushToast('error', 'Could not copy link') }
+  }
+
+  // Trigger a browser download of the original file. The download attribute is a
+  // hint only for cross-origin storage, but the file still opens/saves either way.
+  function downloadItem(item: MediaCardItem) {
+    const a = document.createElement('a')
+    a.href = item.url
+    a.download = item.originalName || item.key.split('/').pop() || 'download'
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   async function saveTags(item: LibraryItem, names: string[]) {
@@ -385,20 +470,54 @@ export default function MediaLibrary({
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not save tags') } finally { setSavingTags(false) }
   }
 
-  // Upload files dropped onto the grid or a folder row. Defaults to the open
-  // folder; a sidebar drop passes the row's folder instead.
-  async function uploadFiles(files: FileList, targetFolderId: string | null = currentFolderId) {
+  const updateTask = useCallback((id: string, patch: Partial<UploadTask>) => {
+    setUploads((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+  }, [])
+  const clearFinishedUploads = useCallback(() => {
+    setUploads((prev) => prev.filter((t) => t.status === 'queued' || t.status === 'uploading'))
+  }, [])
+  const dismissUpload = useCallback((id: string) => {
+    setUploads((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  // Upload files picked from the header button, dropped onto the grid, or dropped
+  // onto a folder row. Each file becomes a task in the upload queue with its own
+  // live progress bar, so the batch is visible rather than a silent spinner.
+  // Invalid files (wrong type / too big) are flagged instantly without a request.
+  async function enqueueFiles(files: FileList | File[], targetFolderId: string | null = currentFolderId) {
     const list = Array.from(files)
     if (list.length === 0) return
-    setBusy('Uploading…')
-    try {
-      for (const file of list) await uploadOneFile(file, targetFolderId)
-      pushToast('success', `Uploaded ${list.length} file${list.length === 1 ? '' : 's'}`)
-      await Promise.all([fetchItems(), refetchFolders()])
-    } catch (err) {
-      pushToast('error', err instanceof Error ? err.message : 'Upload failed')
-      await Promise.all([fetchItems(), refetchFolders()])
-    } finally { setBusy('') }
+    const destination = folderName(targetFolderId)
+
+    const tasks = list.map((file) => {
+      const reason = preflightUploadError(file)
+      const id = `u${++uploadSeq.current}`
+      return {
+        file,
+        task: {
+          id, name: file.name, size: file.size, destination,
+          status: reason ? ('error' as const) : ('queued' as const),
+          progress: 0,
+          error: reason ?? undefined,
+        } satisfies UploadTask,
+      }
+    })
+    setUploads((prev) => [...prev, ...tasks.map((t) => t.task)])
+
+    let uploaded = 0
+    for (const { file, task } of tasks) {
+      if (task.status === 'error') continue
+      updateTask(task.id, { status: 'uploading', progress: 0 })
+      try {
+        await uploadOneFile(file, targetFolderId, (fraction) => updateTask(task.id, { progress: fraction }))
+        updateTask(task.id, { status: 'done', progress: 1 })
+        uploaded++
+      } catch (err) {
+        updateTask(task.id, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
+      }
+    }
+
+    if (uploaded > 0) await Promise.all([fetchItems(), refetchFolders()])
   }
 
   const currentTrail = useMemo(() => trailFor(currentFolderId, folders), [currentFolderId, folders])
@@ -417,12 +536,13 @@ export default function MediaLibrary({
   }
 
   const selectionActive = selected.size > 0
+  const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Media library</h1>
-        {canUpload && <MediaUpload folderId={currentFolderId} onUploaded={() => { fetchItems(); refetchFolders() }} />}
+        {canUpload && <MediaUpload destinationLabel={folderName(currentFolderId)} onFiles={(files) => enqueueFiles(files)} />}
       </div>
 
       <MediaStatsBar
@@ -444,7 +564,7 @@ export default function MediaLibrary({
           canDelete={canDelete}
           onNavigate={navigateFolder}
           onDropItems={onDropToFolder}
-          onDropFiles={(folderId, files) => uploadFiles(files, folderId)}
+          onDropFiles={(folderId, files) => enqueueFiles(files, folderId)}
           onMoveFolder={performMoveFolder}
           onNewFolder={() => setNewFolderOpen(true)}
           onRenameFolder={(f) => setRenameFolderNode(f)}
@@ -456,13 +576,17 @@ export default function MediaLibrary({
           // the images fill - so dropping into empty space still uploads.
           style={{ position: 'relative', minHeight: '60vh' }}
           onDragOver={canUpload ? (e) => {
+            // Skip internal card drags (those target folder rows). For anything
+            // dragged in from outside, preventDefault enables the drop. Gating
+            // only on the internal flag keeps this working in Safari, which
+            // doesn't expose dataTransfer.types during dragover.
             if (draggingInternal.current) return
             e.preventDefault(); setFileDragOver(true)
           } : undefined}
           onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false) } : undefined}
           onDrop={canUpload ? (e) => {
             setFileDragOver(false)
-            if (e.dataTransfer.files.length > 0) { e.preventDefault(); uploadFiles(e.dataTransfer.files) }
+            if (e.dataTransfer.files.length > 0) { e.preventDefault(); enqueueFiles(e.dataTransfer.files) }
           } : undefined}
         >
           {fileDragOver && (
@@ -516,7 +640,7 @@ export default function MediaLibrary({
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'cut', ids: Array.from(selected) })}>Cut</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'copy', ids: Array.from(selected) })}>Copy</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveIds(Array.from(selected))}>Move to…</button>
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy} onClick={optimiseBulk}>Optimise</button>
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy || !optimisableSelected} title={optimisableSelected ? 'Optimise selected images' : 'Nothing selected can be optimised'} onClick={optimiseBulk}>Optimise</button>
                 </>
               )}
               {selectionActive && canDelete && (
@@ -531,8 +655,11 @@ export default function MediaLibrary({
             </div>
           )}
 
+          {/* Right-clicking empty space (not a card) opens a menu with paste/new
+              folder/upload - so you can paste without needing an image to aim at. */}
+          <div style={{ minHeight: '45vh' }} onContextMenu={canUpload ? (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id: null }) } : undefined}>
           {items.length === 0 ? (
-            <EmptyState loading={loading} search={search} canUpload={canUpload} />
+            <EmptyState loading={loading} search={search} canUpload={canUpload} onChoose={() => whitespaceUploadRef.current?.click()} />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '1rem' }}>
               {items.map((item) => (
@@ -546,7 +673,11 @@ export default function MediaLibrary({
                   draggable={canUpload}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
-                  onContextMenu={(e, id) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
+                  onContextMenu={(e, id) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
+                  onOptimise={canUpload ? optimiseSingle : undefined}
+                  onCopyLink={copyLink}
+                  optimisable={isOptimisable(item)}
+                  optimising={optimisingIds.has(item.id)}
                   tags={item.tags}
                   dimmed={clipboardIdSet.has(item.id)}
                 />
@@ -560,7 +691,7 @@ export default function MediaLibrary({
               onToggleSelect={toggleSelect}
               onToggleAll={toggleSelectAll}
               onOpen={setOpenId}
-              onContextMenu={(e, id) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
+              onContextMenu={(e, id) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
               draggable={canUpload}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
@@ -570,6 +701,7 @@ export default function MediaLibrary({
               clipboardIdSet={clipboardIdSet}
             />
           )}
+          </div>
 
           {hasMore && (
             <div ref={sentinelRef} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
@@ -602,6 +734,8 @@ export default function MediaLibrary({
           onCopy={() => { setClipboard({ mode: 'copy', ids: [openItem.id] }); setOpenId(null) }}
           onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: [openItem.id] }) }}
           onOptimise={() => optimiseSingle(openItem.id)}
+          onCopyLink={() => copyLink(openItem)}
+          onDownload={() => downloadItem(openItem)}
           onSaveTags={(names) => saveTags(openItem, names)}
         />
       )}
@@ -618,24 +752,43 @@ export default function MediaLibrary({
         />
       )}
 
-      {menu && (
-        <ContextMenu
-          menu={menu}
-          canUpload={canUpload}
-          canDelete={canDelete}
+      {menu && menu.id !== null && (() => {
+        const id = menu.id
+        const it = items.find((i) => i.id === id)
+        return (
+          <ContextMenu
+            menu={{ x: menu.x, y: menu.y }}
+            canUpload={canUpload}
+            canDelete={canDelete}
+            hasClipboard={!!clipboard}
+            canEdit={!!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml'}
+            canOptimise={!!it && isOptimisable(it)}
+            onOpen={() => setOpenId(id)}
+            onOptimise={() => optimiseSingle(id)}
+            onCopyLink={() => { if (it) copyLink(it) }}
+            onDownload={() => { if (it) downloadItem(it) }}
+            onCut={() => setClipboard({ mode: 'cut', ids: selected.has(id) ? Array.from(selected) : [id] })}
+            onCopy={() => setClipboard({ mode: 'copy', ids: selected.has(id) ? Array.from(selected) : [id] })}
+            onPaste={() => paste(currentFolderId)}
+            onRename={() => { if (it) setRenameItem(it) }}
+            onMove={() => setMoveIds(selected.has(id) ? Array.from(selected) : [id])}
+            onTags={() => setOpenId(id)}
+            onEdit={() => { if (it) setEditItem(it) }}
+            onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: selected.has(id) ? Array.from(selected) : [id] }) }}
+          />
+        )
+      })()}
+
+      {menu && menu.id === null && (
+        <WhitespaceMenu
+          menu={{ x: menu.x, y: menu.y }}
           hasClipboard={!!clipboard}
-          canEdit={(() => { const it = items.find((i) => i.id === menu.id); return !!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml' })()}
-          canOptimise={(() => { const it = items.find((i) => i.id === menu.id); return !!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml' && !it.optimised })()}
-          onOpen={() => setOpenId(menu.id)}
-          onOptimise={() => optimiseSingle(menu.id)}
-          onCut={() => setClipboard({ mode: 'cut', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
-          onCopy={() => setClipboard({ mode: 'copy', ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] })}
+          clipboardCount={clipboard?.ids.length ?? 0}
+          hasItems={items.length > 0}
+          onUpload={() => whitespaceUploadRef.current?.click()}
+          onNewFolder={() => setNewFolderOpen(true)}
           onPaste={() => paste(currentFolderId)}
-          onRename={() => { const it = items.find((i) => i.id === menu.id); if (it) setRenameItem(it) }}
-          onMove={() => setMoveIds(selected.has(menu.id) ? Array.from(selected) : [menu.id])}
-          onTags={() => setOpenId(menu.id)}
-          onEdit={() => { const it = items.find((i) => i.id === menu.id); if (it) setEditItem(it) }}
-          onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: selected.has(menu.id) ? Array.from(selected) : [menu.id] }) }}
+          onSelectAll={() => setSelected(new Set(items.map((i) => i.id)))}
         />
       )}
 
@@ -753,6 +906,19 @@ export default function MediaLibrary({
       )}
 
       <MediaToasts toasts={allToasts} onDismiss={dismissToast} />
+      <MediaUploadQueue tasks={uploads} onClear={clearFinishedUploads} onDismiss={dismissUpload} />
+
+      {/* Off-screen input backing the empty-state and whitespace-menu upload actions. */}
+      {canUpload && (
+        <input
+          ref={whitespaceUploadRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+          multiple
+          style={{ display: 'none' }}
+          onChange={(e) => { if (e.target.files && e.target.files.length > 0) enqueueFiles(e.target.files); e.target.value = '' }}
+        />
+      )}
     </div>
   )
 }
@@ -761,15 +927,18 @@ export default function MediaLibrary({
 const inputStyle: CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
 const barStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)', position: 'sticky', top: '0.5rem', zIndex: 30 }
 
-function EmptyState({ loading, search, canUpload }: { loading: boolean; search: string; canUpload: boolean }) {
+function EmptyState({ loading, search, canUpload, onChoose }: { loading: boolean; search: string; canUpload: boolean; onChoose: () => void }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3.5rem 1rem', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-      <span style={{ fontSize: '2rem' }} aria-hidden>🗂️</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3.5rem 1rem', border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-subtle)' }}>
+      <span style={{ fontSize: '2.25rem' }} aria-hidden>{search ? '🔍' : '🗂️'}</span>
       <span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 500 }}>
         {loading ? 'Loading…' : search ? 'Nothing matches your search' : 'This folder is empty'}
       </span>
       {!loading && !search && canUpload && (
-        <span style={{ fontSize: 'var(--text-sm)' }}>Drag files here, or use the Upload button.</span>
+        <>
+          <span style={{ fontSize: 'var(--text-sm)' }}>Drag images anywhere here to upload them.</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onChoose}>Choose files…</button>
+        </>
       )}
     </div>
   )
@@ -818,12 +987,19 @@ function BreadcrumbCrumb({ label, onClick, onDrop, active }: { label: string; on
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
-  menu: { x: number; y: number; id: string }
-  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean
-  onOpen: () => void; onOptimise: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
-}) {
-  const item = (label: string, fn: () => void, danger = false, disabled = false) => (
+function MenuShell({ menu, children, width = 190, height = 360 }: { menu: { x: number; y: number }; children: React.ReactNode; width?: number; height?: number }) {
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - height), left: Math.min(menu.x, window.innerWidth - width - 10), zIndex: 100, width, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function menuItem(label: string, fn: () => void, danger = false, disabled = false) {
+  return (
     <button
       type="button"
       disabled={disabled}
@@ -833,22 +1009,45 @@ function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOpt
       {label}
     </button>
   )
+}
+
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
+  menu: { x: number; y: number }
+  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean
+  onOpen: () => void; onOptimise: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
+}) {
   return (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - 320), left: Math.min(menu.x, window.innerWidth - 200), zIndex: 100, width: 190, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
-    >
-      {item('Open details', onOpen)}
-      {canUpload && canOptimise && item('Optimise', onOptimise)}
-      {canUpload && canEdit && item('Edit image…', onEdit)}
-      {canUpload && item('Cut', onCut)}
-      {canUpload && item('Copy', onCopy)}
-      {canUpload && item('Paste here', onPaste, false, !hasClipboard)}
-      {canUpload && item('Rename…', onRename)}
-      {canUpload && item('Move to…', onMove)}
-      {canUpload && item('Tags…', onTags)}
-      {canDelete && item('Delete', onDelete, true)}
-    </div>
+    <MenuShell menu={menu}>
+      {menuItem('Open details', onOpen)}
+      {menuItem('Copy link', onCopyLink)}
+      {menuItem('Download', onDownload)}
+      {canUpload && canOptimise && menuItem('Optimise', onOptimise)}
+      {canUpload && canEdit && menuItem('Edit image…', onEdit)}
+      {canUpload && menuItem('Cut', onCut)}
+      {canUpload && menuItem('Copy', onCopy)}
+      {canUpload && menuItem('Paste here', onPaste, false, !hasClipboard)}
+      {canUpload && menuItem('Rename…', onRename)}
+      {canUpload && menuItem('Move to…', onMove)}
+      {canUpload && menuItem('Tags…', onTags)}
+      {canDelete && menuItem('Delete', onDelete, true)}
+    </MenuShell>
+  )
+}
+
+// The menu you get from right-clicking empty grid space - so paste, new folder
+// and upload don't require an image to aim at.
+function WhitespaceMenu({ menu, hasClipboard, clipboardCount, hasItems, onUpload, onNewFolder, onPaste, onSelectAll }: {
+  menu: { x: number; y: number }
+  hasClipboard: boolean; clipboardCount: number; hasItems: boolean
+  onUpload: () => void; onNewFolder: () => void; onPaste: () => void; onSelectAll: () => void
+}) {
+  return (
+    <MenuShell menu={menu} height={180}>
+      {menuItem(hasClipboard ? `Paste ${clipboardCount} here` : 'Paste here', onPaste, false, !hasClipboard)}
+      {menuItem('Upload files…', onUpload)}
+      {menuItem('New folder…', onNewFolder)}
+      {menuItem('Select all', onSelectAll, false, !hasItems)}
+    </MenuShell>
   )
 }
 

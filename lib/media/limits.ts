@@ -23,6 +23,31 @@ export function isRasterDirectType(mimeType: string): boolean {
   return RASTER_DIRECT_TYPES.has(mimeType)
 }
 
+// Every type the library accepts. Rasters go direct-to-Worker (no size cap);
+// SVG is sanitised on the size-guarded serverless path. Anything else is
+// rejected on the client before a request is made, so the user gets an instant,
+// plain reason instead of a failed upload.
+export const ACCEPTED_UPLOAD_TYPES = new Set([...RASTER_DIRECT_TYPES, 'image/svg+xml'])
+
+export function isAcceptedUploadType(mimeType: string): boolean {
+  return ACCEPTED_UPLOAD_TYPES.has(mimeType)
+}
+
+// Client-side pre-flight for a picked/dropped file. Returns a human reason if the
+// file can't be uploaded, or null if it's fine to enqueue. Mirrors the server's
+// own rules so failures surface immediately rather than after a round trip.
+export function preflightUploadError(file: { name: string; type: string; size: number }): string | null {
+  if (!isAcceptedUploadType(file.type)) {
+    return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG).`
+  }
+  // Only the serverless path (SVG and any non-raster-direct type) is size-capped;
+  // rasters upload straight to the Worker with no ceiling.
+  if (!isRasterDirectType(file.type) && file.size > MAX_UPLOAD_BYTES) {
+    return `“${file.name}”: ${tooLargeReason(file.size)}`
+  }
+  return null
+}
+
 // Shared, human-readable reason string so the client guard, the server
 // validator, and the 413 fallback all say the same thing.
 export function tooLargeReason(sizeBytes: number): string {

@@ -1595,6 +1595,17 @@ tbody tr:hover {
 .media-card:hover .media-card__check {
   opacity: 1 !important;
 }
+/* Quick-action toolbar - hidden until hover (or keyboard focus within). */
+.media-card__actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast);
+}
+.media-card:hover .media-card__actions,
+.media-card:focus-within .media-card__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 /* ============================================================
    BADGES

@@ -18,7 +18,44 @@ type UploadUrlResponse =
   | { available: true; uploadUrl: string; key: string; token: string }
   | { available: false }
 
-async function directUpload(file: File, folderId: string | null): Promise<boolean> {
+// Fraction of a file's journey spent transferring bytes. The signing and
+// recording round-trips are near-instant, so the progress bar is driven almost
+// entirely by the byte transfer - we just leave a sliver at each end for them.
+export type ProgressFn = (fraction: number) => void
+
+// Minimal XHR wrapper: fetch can't report upload progress, so the two calls that
+// actually move the file bytes (Worker PUT, serverless POST) go through this.
+function xhrSend(
+  method: 'PUT' | 'POST',
+  url: string,
+  body: XMLHttpRequestBodyInit,
+  headers: Record<string, string>,
+  onProgress?: ProgressFn,
+): Promise<{ ok: boolean; status: number; text: string }> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(method, url)
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v)
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    }
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText })
+    xhr.onerror = () => resolve({ ok: false, status: 0, text: '' })
+    xhr.send(body)
+  })
+}
+
+// Adapt an xhrSend result to the subset of the fetch Response that
+// uploadErrorMessage() reads, so both upload paths share one error formatter.
+function asResponse(r: { ok: boolean; status: number; text: string }): Response {
+  return {
+    ok: r.ok,
+    status: r.status,
+    json: async () => JSON.parse(r.text),
+  } as unknown as Response
+}
+
+async function directUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<boolean> {
   // Ask for a signed target. A non-OK response or { available: false } means the
   // direct route isn't on for this provider/file - caller falls back.
   let info: UploadUrlResponse
@@ -37,12 +74,14 @@ async function directUpload(file: File, folderId: string | null): Promise<boolea
 
   // PUT the bytes straight to the Worker. If the Worker is old (no PUT support)
   // or rejects the token, fall back rather than hard-failing.
-  const put = await fetch(info.uploadUrl, {
-    method: 'PUT',
-    headers: { 'content-type': file.type, authorization: `Bearer ${info.token}` },
-    body: file,
-  }).catch(() => null)
-  if (!put || !put.ok) return false
+  const put = await xhrSend(
+    'PUT',
+    info.uploadUrl,
+    file,
+    { 'content-type': file.type, authorization: `Bearer ${info.token}` },
+    onProgress,
+  )
+  if (!put.ok) return false
 
   // Record the row. This one must succeed - the bytes are already stored.
   const rec = await fetch('/api/admin/media/record', {
@@ -60,7 +99,7 @@ async function directUpload(file: File, folderId: string | null): Promise<boolea
   return true
 }
 
-async function serverlessUpload(file: File, folderId: string | null): Promise<void> {
+async function serverlessUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<void> {
   // Guard before the request: the platform 413s bodies over its cap before our
   // route runs, returning a non-JSON body that would otherwise surface as a
   // cryptic parse error.
@@ -69,15 +108,17 @@ async function serverlessUpload(file: File, folderId: string | null): Promise<vo
   fd.append('file', file)
   fd.append('altText', '')
   if (folderId) fd.append('folderId', folderId)
-  const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
-  if (!res.ok) throw new Error(await uploadErrorMessage(res, file))
+  const res = await xhrSend('POST', '/api/admin/media', fd, {}, onProgress)
+  if (!res.ok) throw new Error(await uploadErrorMessage(asResponse(res), file))
 }
 
-// Upload a single file. Throws with a user-ready message on failure.
-export async function uploadOneFile(file: File, folderId: string | null): Promise<void> {
+// Upload a single file. Throws with a user-ready message on failure. onProgress
+// reports a 0..1 transfer fraction so callers can render a live progress bar.
+export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<void> {
   if (isRasterDirectType(file.type)) {
-    const done = await directUpload(file, folderId)
-    if (done) return
+    const done = await directUpload(file, folderId, onProgress)
+    if (done) { onProgress?.(1); return }
   }
-  await serverlessUpload(file, folderId)
+  await serverlessUpload(file, folderId, onProgress)
+  onProgress?.(1)
 }

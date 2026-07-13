@@ -17,10 +17,10 @@ export type MediaCardItem = {
   uploadedBy: { username: string } | null
 }
 
-// A single grid tile. Deliberately light on controls: the thumbnail opens the
-// detail panel, the checkbox selects, right-click gives the full action menu.
-// Per-item optimise/delete used to crowd the footer - those now live in the
-// detail panel, context menu and bulk bar instead.
+// A single grid tile. The thumbnail opens the detail panel, the checkbox selects,
+// right-click gives the full action menu - and on hover a small toolbar surfaces
+// the two most-wanted quick actions (Optimise, Copy link) so they aren't hidden
+// behind a right-click.
 export default function MediaCard({
   item,
   selected = false,
@@ -31,6 +31,10 @@ export default function MediaCard({
   onDragStart,
   onDragEnd,
   onContextMenu,
+  onOptimise,
+  onCopyLink,
+  optimisable = false,
+  optimising = false,
   tags,
   dimmed = false,
 }: {
@@ -44,12 +48,22 @@ export default function MediaCard({
   onDragStart?: (e: DragEvent, id: string) => void
   onDragEnd?: () => void
   onContextMenu?: (e: MouseEvent, id: string) => void
+  /** Quick-optimise this item. Absent when the viewer can't upload. */
+  onOptimise?: (id: string) => void
+  /** Copy the item's URL to the clipboard. */
+  onCopyLink?: (item: MediaCardItem) => void
+  /** True when this item can still be optimised (raster, not SVG, not already done). */
+  optimisable?: boolean
+  /** True while this item's optimise is in flight. */
+  optimising?: boolean
   tags?: string[]
   /** Faded appearance - used while the item sits on the cut clipboard. */
   dimmed?: boolean
 }) {
   const isImage = item.mimeType.startsWith('image/')
   const filename = filenameOf(item)
+  const showOptimise = !!onOptimise && optimisable
+  const showCopy = !!onCopyLink
 
   return (
     <div
@@ -86,6 +100,34 @@ export default function MediaCard({
 
         {item.optimised && (
           <span title="Re-encoded to WebP to save space" style={cornerBadge('left')}>✓ Optimised</span>
+        )}
+
+        {(showOptimise || showCopy) && (
+          <div className="media-card__actions" style={hoverActions}>
+            {showOptimise && (
+              <button
+                type="button"
+                title="Optimise (re-encode to WebP)"
+                aria-label={`Optimise ${filename}`}
+                disabled={optimising}
+                onClick={(e) => { e.stopPropagation(); onOptimise?.(item.id) }}
+                style={actionBtn}
+              >
+                {optimising ? '…' : '⚡'}
+              </button>
+            )}
+            {showCopy && (
+              <button
+                type="button"
+                title="Copy link"
+                aria-label={`Copy link to ${filename}`}
+                onClick={(e) => { e.stopPropagation(); onCopyLink?.(item) }}
+                style={actionBtn}
+              >
+                🔗
+              </button>
+            )}
+          </div>
         )}
 
         {onToggleSelect && (
@@ -141,6 +183,29 @@ export default function MediaCard({
       </div>
     </div>
   )
+}
+
+const hoverActions: CSSProperties = {
+  position: 'absolute',
+  bottom: '0.4rem',
+  left: '0.4rem',
+  display: 'inline-flex',
+  gap: '0.25rem',
+}
+
+const actionBtn: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '1.75rem',
+  height: '1.75rem',
+  border: 'none',
+  borderRadius: 'var(--radius-sm)',
+  background: 'rgba(0, 0, 0, 0.55)',
+  color: '#fff',
+  cursor: 'pointer',
+  fontSize: '0.85rem',
+  lineHeight: 1,
 }
 
 const cornerBadge = (side: 'left' | 'right'): CSSProperties => ({
