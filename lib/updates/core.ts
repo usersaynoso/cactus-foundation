@@ -182,9 +182,35 @@ export type SyncResult = {
 
 export type ModuleRegistryEntry = { name: string; repoUrl: string; version: string }
 
-// Copies changed core files from the upstream release into the admin's repo.
+// Pure reconciliation planner (drift-proof, unit-tested) lives in its own dependency-free
+// module; imported for use below and re-exported so external importers keep one entry point.
+import { planCoreSync, isSkippedCorePath, type CoreTreeEntry, type CoreSyncPlan } from './core-plan'
+export { planCoreSync, isSkippedCorePath, type CoreTreeEntry, type CoreSyncPlan }
+
+// Reads the admin repo's current main: HEAD sha, base tree sha, a path->blob-sha map of
+// every tracked blob, and whether the recursive tree read was truncated.
+async function readAdminBase(
+  octokit: Awaited<ReturnType<typeof getGithubClient>>,
+  owner: string,
+  repo: string,
+): Promise<{ headSha: string; baseTreeSha: string; shaByPath: Map<string, string>; truncated: boolean }> {
+  const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: 'heads/main' })
+  const headSha = ref.object.sha
+  const { data: headCommit } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: headSha })
+  const baseTreeSha = headCommit.tree.sha
+  const { data: baseTree } = await octokit.rest.git.getTree({
+    owner, repo, tree_sha: baseTreeSha, recursive: 'true',
+  })
+  const shaByPath = new Map<string, string>()
+  for (const e of baseTree.tree) {
+    if (e.type === 'blob' && e.path && e.sha) shaByPath.set(e.path, e.sha)
+  }
+  return { headSha, baseTreeSha, shaByPath, truncated: Boolean(baseTree.truncated) }
+}
+
+// Reconciles the admin's core files toward the upstream release (not a replayed diff).
 // Skips anything under modules/, .gitmodules, or modules.json.
-// Uses createTree(base_tree=adminHEAD) so user files outside the delta are preserved.
+// Uses createTree(base_tree=adminHEAD) so user files outside core are preserved.
 //
 // `modulesJson`, when given, pins the module registry to it in the SAME commit as the
 // core sync (rather than a separate push) - this is what makes checkout-modules.mjs's
@@ -227,14 +253,32 @@ export async function syncCoreFromUpstream(
   const fromTree = await getUpstreamTree(fromTag)
   const toTree = await getUpstreamTree(toTag)
 
-  // Build tree entries, skipping modules/ and .gitmodules. Text files are inlined
-  // via the tree's `content` field so GitHub creates their blobs atomically as part
-  // of the single createTree write. This sidesteps the createBlob -> createTree
-  // replication race that surfaced as GitRPC::BadObjectState: a blob created moments
-  // earlier is not always visible to the immediately following createTree, and the
-  // whole tree is atomic, so one lagging blob out of a large delta fails everything.
-  // Only genuinely binary files (which can't be inlined as UTF-8) still go through
-  // createBlob, shrinking the race window to the rare image/font in a delta.
+  // Read the admin repo's ACTUAL base tree once, up front, and plan the reconcile
+  // against it (not against the upstream from-tag). This is what makes the update
+  // self-healing: it drives core toward the target from wherever the repo actually is,
+  // so drift from a failed update, a user edit, or a version skip is corrected, not
+  // tripped over. See planCoreSync.
+  const initialBase = await retryTransient(() => readAdminBase(octokit, adminOwner, adminRepo))
+  if (initialBase.truncated) {
+    console.warn('[core-update] base tree read was truncated - skipping deletions this run')
+  }
+  const plan = planCoreSync({
+    toEntries: toTree,
+    fromPaths: new Set(fromTree.keys()),
+    baseShaByPath: initialBase.shaByPath,
+    baseTruncated: initialBase.truncated,
+  })
+
+  // Already at target and no registry pin to write: return a graceful no-op (current
+  // HEAD, zero files) instead of throwing, so a re-run after a successful update is calm.
+  if (plan.writes.length === 0 && plan.deletes.length === 0 && !modulesJson) {
+    return { commitSha: initialBase.headSha, fromVersion, toVersion, fileCount: 0 }
+  }
+
+  // Fetch target content for each write. Text is inlined via the tree's `content` field
+  // (GitHub makes the blob atomically inside createTree - no replication race); genuinely
+  // binary files (inline `content` is UTF-8 only) go through a replication-confirmed blob
+  // so createTree never references an unreplicated object.
   type TreeEntry = {
     path: string
     mode: '100644' | '100755'
@@ -242,52 +286,23 @@ export async function syncCoreFromUpstream(
     sha?: string | null
     content?: string
   }
-
   const treeEntries: TreeEntry[] = []
-  const skipped = (path: string) => path === '.gitmodules' || path === 'modules.json' || path.startsWith('modules/')
-
-  for (const [path, toEntry] of toTree) {
-    if (skipped(path)) continue
-    const fromEntry = fromTree.get(path)
-    if (fromEntry && fromEntry.sha === toEntry.sha) continue // unchanged
-
-    // Read the file's bytes from upstream by blob sha. getBlob (unlike getContent)
-    // has no 1 MB ceiling, so large changed files are no longer silently dropped.
-    // Wrapped so a transient upstream read (5xx / replication lag on a freshly
-    // pushed release) doesn't abort the whole build.
+  for (const w of plan.writes) {
+    // getBlob (unlike getContent) has no 1 MB ceiling, so large files aren't dropped.
     const { data: upstreamBlob } = await retryTransient(() =>
-      octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: toEntry.sha }),
+      octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: w.sha }),
     )
     const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
-
-    // A null byte means binary: inline `content` is UTF-8 only and would corrupt it,
-    // so create a real blob and reference it by sha. createReplicatedBlob confirms the
-    // blob has replicated before we reference it, closing the createBlob->createTree
-    // BadObjectState race at the source.
     if (bytes.includes(0)) {
       const sha = await createReplicatedBlob(octokit, {
         owner: adminOwner, repo: adminRepo,
         content: bytes.toString('base64'),
         encoding: 'base64',
       })
-      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', sha })
+      treeEntries.push({ path: w.path, mode: w.mode, type: 'blob', sha })
     } else {
-      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', content: bytes.toString('utf8') })
+      treeEntries.push({ path: w.path, mode: w.mode, type: 'blob', content: bytes.toString('utf8') })
     }
-  }
-
-  // Paths upstream removed between the two tags. NOT pushed blindly: a deletion
-  // (sha: null) for a path that is absent from the admin repo's actual base tree
-  // makes createTree fail with GitRPC::BadObjectState. That happens precisely after
-  // a failed update - the repo HEAD was advanced by the failed push (so the file is
-  // already gone from base) while the running version, which computes this diff, is
-  // older (so the from-tag still has it). We reconcile against the real base tree
-  // inside the write transaction below, emitting a deletion only for paths that are
-  // genuinely still present.
-  const deletionCandidates: string[] = []
-  for (const path of fromTree.keys()) {
-    if (skipped(path) || toTree.has(path)) continue
-    deletionCandidates.push(path)
   }
 
   if (modulesJson) {
@@ -296,65 +311,49 @@ export async function syncCoreFromUpstream(
     treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
   }
 
-  if (treeEntries.length === 0 && deletionCandidates.length === 0) {
-    throw new Error('No core files changed between these versions')
-  }
-
-  // Count adds/modifies (inlined text carries `content`; binary carries a real `sha`)
-  // for the user-facing count. Deletions carry sha === null and are excluded.
+  // adds/modifies for the user-facing count (deletions carry sha === null, excluded).
   const fileCount = treeEntries.filter((e) => e.content !== undefined || typeof e.sha === 'string').length
 
-  // Write the whole thing as one retryable, idempotent transaction. Each attempt
-  // re-reads admin HEAD and rebuilds the commit on the *current* base, so:
-  //   - a transient BadObjectState / 5xx on any step is absorbed, not surfaced;
-  //   - if HEAD moved between read and updateRef (a concurrent push, or a prior
-  //     half-applied attempt), the next try rebases onto the new HEAD instead of
-  //     failing non-fast-forward.
-  // The tree is base_tree + full delta, so every attempt converges to the exact
-  // same target tree - re-running after any failure is always safe. This is what
-  // makes "retry after a failed update" reliable: it re-pushes the full delta from
-  // the last-good build and lands it whole.
-  const commitSha = await retryTransient(async () => {
-    const { data: ref } = await octokit.rest.git.getRef({ owner: adminOwner, repo: adminRepo, ref: 'heads/main' })
-    const headSha = ref.object.sha
-    const { data: headCommit } = await octokit.rest.git.getCommit({ owner: adminOwner, repo: adminRepo, commit_sha: headSha })
-    const baseTreeSha = headCommit.tree.sha
+  // Write it all as one retryable, idempotent transaction. Each attempt re-reads admin
+  // HEAD and rebuilds the commit on the CURRENT base, so a transient BadObjectState / 5xx
+  // is absorbed and a moved HEAD (concurrent push, or a prior half-applied attempt)
+  // rebases instead of failing non-fast-forward. Deletions are re-checked against the
+  // fresh base each attempt - a sha: null for an absent path is the one thing createTree
+  // refuses. Every attempt converges to the same target, so re-running is always safe.
+  let commitSha: string
+  try {
+    commitSha = await retryTransient(async () => {
+      const base = await readAdminBase(octokit, adminOwner, adminRepo)
+      const finalTree: TreeEntry[] = [
+        ...treeEntries,
+        ...plan.deletes
+          .filter((path) => base.shaByPath.has(path))
+          .map((path) => ({ path, mode: '100644' as const, type: 'blob' as const, sha: null })),
+      ]
 
-    // Reconcile deletions against what is ACTUALLY in the base tree right now: a
-    // sha: null for a path that isn't there throws BadObjectState. Reading the base
-    // tree fresh each attempt (recursive) also keeps deletions correct if HEAD moved.
-    const { data: baseTree } = await octokit.rest.git.getTree({
-      owner: adminOwner, repo: adminRepo, tree_sha: baseTreeSha, recursive: 'true',
+      const { data: newTree } = await octokit.rest.git.createTree({
+        owner: adminOwner, repo: adminRepo,
+        base_tree: base.baseTreeSha,
+        tree: finalTree,
+      })
+      const { data: newCommit } = await octokit.rest.git.createCommit({
+        owner: adminOwner, repo: adminRepo,
+        message: `chore: update Cactus Foundation to v${toVersion}\n\n[cactus-core-update]`,
+        tree: newTree.sha,
+        parents: [base.headSha],
+      })
+      await octokit.rest.git.updateRef({
+        owner: adminOwner, repo: adminRepo, ref: 'heads/main', sha: newCommit.sha,
+      })
+      return newCommit.sha
     })
-    const basePaths = new Set(
-      baseTree.tree.filter((e) => e.type === 'blob' && e.path).map((e) => e.path as string),
+  } catch (err) {
+    // Surface enough context that an at-scale failure is reportable without repo access.
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `Core update push failed (${fromVersion} -> ${toVersion}: ${treeEntries.length} writes, up to ${plan.deletes.length} deletions): ${detail}`,
     )
-    const finalTree = [
-      ...treeEntries,
-      ...deletionCandidates
-        .filter((path) => basePaths.has(path))
-        .map((path) => ({ path, mode: '100644' as const, type: 'blob' as const, sha: null })),
-    ]
-
-    const { data: newTree } = await octokit.rest.git.createTree({
-      owner: adminOwner, repo: adminRepo,
-      base_tree: baseTreeSha,
-      tree: finalTree,
-    })
-
-    const { data: newCommit } = await octokit.rest.git.createCommit({
-      owner: adminOwner, repo: adminRepo,
-      message: `chore: update Cactus Foundation to v${toVersion}\n\n[cactus-core-update]`,
-      tree: newTree.sha,
-      parents: [headSha],
-    })
-
-    await octokit.rest.git.updateRef({
-      owner: adminOwner, repo: adminRepo, ref: 'heads/main', sha: newCommit.sha,
-    })
-
-    return newCommit.sha
-  })
+  }
 
   return { commitSha, fromVersion, toVersion, fileCount }
 }
