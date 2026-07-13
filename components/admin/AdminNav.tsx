@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
+import AboutModal from './AboutModal'
 
 type ModuleNavGroup = {
   label: string | null
@@ -106,6 +107,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   // Maps section label -> true when the user has minimised it. Defaults to
   // empty (i.e. everything maximised) when there's no saved state.
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   // Read the saved preference after mount — reading localStorage synchronously in a
   // useState initializer makes the client's first render diverge from the
@@ -292,9 +294,17 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
           </button>
         </form>
         {!collapsed && (
-          <p className="admin-nav-version">v{version}</p>
+          <button
+            type="button"
+            className="admin-nav-version admin-nav-version-btn"
+            onClick={() => setAboutOpen(true)}
+            title="About Cactus Foundation"
+          >
+            v{version}
+          </button>
         )}
       </div>
+      {aboutOpen && <AboutModal version={version} onClose={() => setAboutOpen(false)} />}
     </nav>
   )
 }

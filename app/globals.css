@@ -1343,6 +1343,30 @@ a:hover {
   margin: 0;
 }
 
+/* The version number doubles as the trigger for the About dialog. Reset the
+   button chrome so it still reads as the quiet caption it was, with a subtle
+   hover cue that it's clickable. */
+.admin-nav-version-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.admin-nav-version-btn:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+.admin-nav-version-btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* Header toolbar: collapse toggle, theme switcher, notification bell as one
    row of icon controls instead of separate bordered rows. Grid (not flex
    space-between) so the theme switcher sits on the true centre line

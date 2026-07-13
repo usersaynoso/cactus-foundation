@@ -86,6 +86,67 @@ async function fetchUpstreamReleases(owner: string, repo: string, configured: bo
   return data
 }
 
+// Reads a single page of upstream releases (newest first). Mirrors
+// fetchUpstreamReleases' auth-then-unauth fallback so a private upstream fork
+// still works, but takes page/per_page for the About panel's infinite scroll.
+async function fetchUpstreamReleasesPage(
+  owner: string,
+  repo: string,
+  configured: boolean,
+  page: number,
+  perPage: number,
+) {
+  if (configured) {
+    try {
+      const octokit = await getGithubClient()
+      const { data } = await octokit.rest.repos.listReleases({ owner, repo, per_page: perPage, page })
+      return data
+    } catch {
+      // Fall through to an unauthenticated read of the public upstream repo.
+    }
+  }
+  const octokit = new Octokit()
+  const { data } = await octokit.rest.repos.listReleases({ owner, repo, per_page: perPage, page })
+  return data
+}
+
+export type ReleaseNoteItem = {
+  version: string
+  tag: string
+  publishedAt: string | null
+  html: string
+  url: string
+}
+
+// Paginated release notes for the admin About dialog. Unlike getCoreUpdateStatus
+// (which only aggregates releases NEWER than the running version, filtered by
+// channel), this returns EVERY published release newest-first regardless of the
+// prerelease flag - the About panel is a full history, not an update prompt. The
+// public upstream repo is readable unauthenticated, so this also works locally.
+export async function getReleaseNotesPage(
+  opts: { page: number; perPage?: number },
+): Promise<{ items: ReleaseNoteItem[]; hasMore: boolean }> {
+  const perPage = Math.min(Math.max(opts.perPage ?? 15, 1), 100)
+  const page = Math.max(opts.page, 1)
+  const { owner, repo } = parseRepo(UPSTREAM_REPO)
+  const configured = await isGitHubConfigured()
+
+  const releases = await fetchUpstreamReleasesPage(owner, repo, configured, page, perPage)
+  // A full page back implies there may be more; a short page means we hit the end.
+  const hasMore = releases.length === perPage
+  const items: ReleaseNoteItem[] = releases
+    .filter((r) => !r.draft)
+    .map((r) => ({
+      version: r.tag_name.replace(/^v/, ''),
+      tag: r.tag_name,
+      publishedAt: r.published_at ?? null,
+      html: r.body?.trim() ? markdownToHtml(r.body) : '',
+      url: r.html_url,
+    }))
+
+  return { items, hasMore }
+}
+
 export async function getCoreUpdateStatus(
   opts?: { bust?: boolean; channel?: 'public' | 'beta' }
 ): Promise<CoreUpdateStatus> {
