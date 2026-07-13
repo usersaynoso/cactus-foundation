@@ -46,6 +46,8 @@ Once a provider is connected, an **Upload** button appears in:
 
 Click **Upload** (or **+ Upload** in the picker window), select a file from your computer, and it will be stored with your chosen provider and added to your media library. In the block pickers the freshly uploaded image is popped in and selected for you straight away, so there's no need to nip off to the media library first.
 
+In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
+
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG.
 
 **File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, so there's no practical size limit - drop in the full-fat shot from a phone or camera and it'll go up. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a large photo, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy, and big uploads will flow. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
@@ -56,21 +58,47 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 Everything you've uploaded lives in **Media**. Down the left is your **folder tree**, and the main area shows whatever's in the folder you're currently looking at, with a breadcrumb trail along the top so you always know where you are.
 
-Above the files sits a row of controls to help you find things in a hurry:
+### The overview at a glance
 
-- A **search box** that looks across every folder, not just the one you're in.
+Across the top sits a row of summary tiles, so you can see the state of your library without digging:
+
+- **Files** - how many you've got, and how many folders you've sorted them into.
+- **Storage used** - the total space everything is taking up.
+- **Unused** - how many files nothing on your site points to, and how much space you'd get back by clearing them out. Click the tile to jump straight to those files.
+- **Optimisable** - how many photos could still be slimmed down (and how many you've already done). Click it to line them all up ready for a tidy-up.
+
+The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place.
+
+### Finding things
+
+Below that is a row of controls to help you find things in a hurry:
+
+- A **search box** that looks across every folder, not just the one you're in. It filters as you type, so you don't have to press Enter and wait.
 - **Sort** - newest or oldest first, by name A-Z or Z-A, or largest to smallest.
 - **File type** - show everything, just images, or just other files.
 - **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
 - **Tags** - narrow down to a single tag (see [Tags](#tags) below).
+- A **view switch** on the right flips between a **grid** of thumbnails and a tidy **list** - the list is handy when you want to eyeball names, sizes and folders down a column, and you can sort it by tapping the Name, Size or Uploaded headings. Cactus remembers both your chosen view and sort order for next time.
 
-Each file carries a small **In use** or **Unused** label. Files you've already slimmed down wear a green **✓ Optimised** badge, and any tags you've added show as little chips underneath.
+Whenever a filter is on, a little tag appears under the controls spelling out what you're looking at ("Images only", "Not in use", and so on). Each has an × to lift just that one, or **Clear all** to start fresh. A small line above the files tells you how many there are, so you always know how big the set you're looking at is. If a search or filter turns up nothing, the empty message offers a one-click **Clear filters** to get everything back.
+
+Each file carries a small **in use** dot (green) or unused (grey) marker. Files you've already slimmed down wear a green **✓ Optimised** badge, and any tags you've added show as little chips. Any photo that's missing its alt text gets a small **Alt?** flag in the corner, so gaps in your descriptions are easy to spot and fix. If a file's preview can't be loaded, you'll see a tidy placeholder rather than a broken-image icon.
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
 
-**Click any thumbnail** to open a larger preview. It shows the full picture along with the filename, file size, type, alt text, and who uploaded it and when. From here you can also **Edit image…**, **Cut**, **Copy**, **Rename…**, **Move to…**, **Tag…** or **Delete** the file, without having to close the preview and hunt for the right-click menu first. Press Esc or click outside to close.
+Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
+
+**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
+
+**Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
 **Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first. You can also drop them straight onto a folder in the tree on the left to upload into it without opening it first.
+
+**Right-click an empty patch** of the library (not on a file) for a handy menu to **paste**, **upload**, make a **new folder** or **select all** - so pasting no longer needs a file to aim at.
+
+A few **keyboard shortcuts** if you like to move quickly: Ctrl/Cmd+A selects everything on show, Ctrl/Cmd+X cuts and Ctrl/Cmd+C copies your selection, Ctrl/Cmd+V pastes whatever you've cut or copied, Delete removes what's selected (with the usual confirmation), and Esc clears your selection.
+
+When you've got a few files selected, a **Copy links** button on the selection bar puts all their web addresses on your clipboard at once, one per line - handy for pasting a batch into an email or a spreadsheet.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
 
@@ -134,7 +162,7 @@ Select several files first and the whole lot travels together. You can also cut,
 
 Folders put a file in one place; **tags** let you label it with as many keywords as you like - "hero", "winter-campaign", "team" - so you can round up related images no matter which folder they live in.
 
-Right-click a file and choose **Tags…**. Type a word and press Enter to add it; start typing and Cactus suggests tags you've used before so you keep them consistent. Remove one with the little × on its chip. Once you're using tags, the **Tags** filter above the library lets you show just the files carrying a particular one.
+Click a file to open its details panel (or right-click and choose **Tags…**, which opens the same panel). In the **Tags** section, type a word and press Enter to add it; start typing and Cactus suggests tags you've used before so you keep them consistent. Remove one with the little × on its chip, then press **Save tags**. Once you're using tags, the **Tags** filter above the library lets you show just the files carrying a particular one.
 
 ---
 
@@ -167,7 +195,7 @@ If the image is still in use somewhere - a page, a layout, your logo, and so on 
 
 ### Deleting several at once
 
-Tick the small checkbox in the corner of each thumbnail to select more than one file. A bar appears above the library telling you how many you've picked, with a **Delete selected** button. Confirm in the pop-up and they're gone.
+Tick the small checkbox in the corner of each thumbnail (or the tick-boxes in the list view) to select more than one file. A bar appears above the library telling you how many you've picked, with a **Delete** button. Confirm in the pop-up and they're gone.
 
 Got a long run of files to bin? Tick the first one, then hold **Shift** and tick the last one - everything in between gets picked too.
 
@@ -179,11 +207,13 @@ If any of your selection turns out to be in use somewhere, Cactus holds those ba
 
 Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you.
 
-Every un-optimised photo in the library shows an **Optimise** button. Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
+Open any un-optimised photo and its details panel has an **Optimise** button (it's on the right-click menu too). Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
+
+Not sure where to start? The **Optimisable** tile at the top of the library tells you how many photos are still worth doing and, with a click, rounds them all up for you.
 
 ### Doing several at once
 
-Tick the checkbox in the corner of each thumbnail (or tick the first, hold **Shift**, and tick the last to grab a whole run), then press **Optimise selected** in the bar that appears above the library. Cactus works through them one by one and tells you how many it slimmed down and roughly how much space you saved.
+Tick the checkbox in the corner of each thumbnail (or tick the first, hold **Shift**, and tick the last to grab a whole run - the list view has tick-boxes too, and a "select all" box at the top), then press **Optimise** in the bar that appears above the library. Cactus works through them one by one and tells you how many it slimmed down and roughly how much space you saved.
 
 A few sensible rules keep things safe:
 

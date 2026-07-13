@@ -122,12 +122,25 @@ These blocks read from your site settings automatically - no manual content to e
 | Block | What it does |
 |-------|--------------|
 | **Site logo** | Displays your uploaded logo, or your site name if no logo is set. |
-| **Menu** | A navigation menu. Pick which menu to display, how to orientate it, and whether dropdowns open on hover or click. Styling options cover the font (your site's fonts appear at the top of the list, or search for any Google font), link colour, hover colour and hover background, and how the current page's item stands out - its own colour, weight, and an optional underline with its own colour, thickness, and distance from the text. The same styling options are available on the Site Header block's built-in menu. |
+| **Menu** | A navigation menu. Pick which menu to display, how to orientate it, and whether dropdowns open on hover or click. Its horizontal alignment, item spacing, font size, font weight and text transform can each be set separately for desktop, tablet and mobile (look for the little screen icons beside the setting) - so a menu can spread out across the header on desktop and sit centred on a phone, for instance. Styling options cover the font (your site's fonts appear at the top of the list, or search for any Google font), link colour, hover colour and hover background, and how the current page's item stands out - its own colour, weight, and an optional underline with its own colour, thickness, and distance from the text. The same styling options are available on the Site Header block's built-in menu. |
 | **Copyright** | Displays © current year and your site name. |
 | **Login button** | Shows log-in and register links for visitors, or account and sign-out links for logged-in users. |
 | **Cookie settings link** | A button that reopens the cookie preferences panel. Place this in your footer so visitors can update their choices at any time. |
 
 If you have modules installed, they may add extra blocks under a **Modules** category.
+
+---
+
+## Email addresses are protected automatically
+
+Put an email address anywhere in your page text - in a Heading, Text, Rich Text, Quote or Caption block - and Cactus quietly protects it from spam bots on the live site. You don't need to do anything, or use a special block. Just type the address as normal.
+
+Behind the scenes, the address is scrambled in the page's underlying code so the automated programs that trawl the web harvesting addresses for spam lists come away empty-handed. Visitors still see the address exactly as you typed it, and clicking it opens their email app with a new message ready to go - the address is quietly reassembled in their browser at the last moment.
+
+A couple of things worth knowing:
+
+- **In the editor you'll still see the plain address** - the protection only applies once the page is live, so you can always read and edit what you typed.
+- **On the rare browser with JavaScript switched off**, the address still shows and is still readable - it just isn't clickable. Everyone else gets the normal click-to-email link.
 
 ---
 
