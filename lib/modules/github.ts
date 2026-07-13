@@ -4,6 +4,7 @@
 
 import { parseGitHubRepo } from './manifest'
 import { getGithubClient } from '@/lib/github/client'
+import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 
 function getMainRepo(): { owner: string; repo: string } {
   const raw = process.env.GITHUB_REPO ?? ''
@@ -94,14 +95,10 @@ async function commitModulesJson(
   message: string,
   deleteGitmodules = false
 ): Promise<{ commitSha: string }> {
-  const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: 'heads/main' })
-  const headSha = ref.object.sha
-
-  const { data: headCommit } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: headSha })
-  const baseTreeSha = headCommit.tree.sha
-
   const jsonContent = JSON.stringify(updated, null, 2) + '\n'
-  const { data: blob } = await octokit.rest.git.createBlob({
+  // Confirm the blob has replicated before it's referenced in the tree, closing the
+  // createBlob->createTree BadObjectState race at the source.
+  const blobSha = await createReplicatedBlob(octokit, {
     owner, repo,
     content: Buffer.from(jsonContent).toString('base64'),
     encoding: 'base64',
@@ -113,29 +110,41 @@ async function commitModulesJson(
     type: 'blob' | 'tree' | 'commit'
     sha: string | null
   }> = [
-    { path: 'modules.json', mode: '100644', type: 'blob', sha: blob.sha },
+    { path: 'modules.json', mode: '100644', type: 'blob', sha: blobSha },
   ]
 
   if (deleteGitmodules) {
     treeItems.push({ path: '.gitmodules', mode: '100644', type: 'blob', sha: null })
   }
 
-  const { data: newTree } = await octokit.rest.git.createTree({
-    owner, repo,
-    base_tree: baseTreeSha,
-    tree: treeItems,
+  // One retryable, idempotent transaction: re-read HEAD each attempt and rebuild the
+  // commit on the current base, so a transient Git Data API error or a HEAD race is
+  // absorbed rather than surfaced (same guarantee as the core-update sync).
+  const commitSha = await retryTransient(async () => {
+    const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: 'heads/main' })
+    const headSha = ref.object.sha
+    const { data: headCommit } = await octokit.rest.git.getCommit({ owner, repo, commit_sha: headSha })
+    const baseTreeSha = headCommit.tree.sha
+
+    const { data: newTree } = await octokit.rest.git.createTree({
+      owner, repo,
+      base_tree: baseTreeSha,
+      tree: treeItems,
+    })
+
+    const { data: newCommit } = await octokit.rest.git.createCommit({
+      owner, repo,
+      message,
+      tree: newTree.sha,
+      parents: [headSha],
+    })
+
+    await octokit.rest.git.updateRef({ owner, repo, ref: 'heads/main', sha: newCommit.sha })
+
+    return newCommit.sha
   })
 
-  const { data: newCommit } = await octokit.rest.git.createCommit({
-    owner, repo,
-    message,
-    tree: newTree.sha,
-    parents: [headSha],
-  })
-
-  await octokit.rest.git.updateRef({ owner, repo, ref: 'heads/main', sha: newCommit.sha })
-
-  return { commitSha: newCommit.sha }
+  return { commitSha }
 }
 
 async function hasGitmodules(

@@ -6,6 +6,7 @@
 import { Octokit } from '@octokit/rest'
 import pkg from '@/package.json'
 import { getGithubClient } from '@/lib/github/client'
+import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { isGitHubConfigured, isLocalMode } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
 
@@ -172,29 +173,6 @@ export async function getCoreUpdateStatus(
   }
 }
 
-function isBadObjectState(err: unknown): boolean {
-  return err instanceof Error && err.message.includes('BadObjectState')
-}
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-// GitHub's Git Data API sometimes hasn't finished replicating blobs created
-// moments earlier, which surfaces as GitRPC::BadObjectState on the following
-// createTree call. Text files now go in via inline `content` (no separate blob to
-// replicate), so this only guards the residual binary-blob path - but binaries can
-// still lag, so keep a generous backoff (1+2+4+8+16 = 31s over 6 tries).
-async function retryOnBadObjectState<T>(fn: () => Promise<T>, attempts = 6): Promise<T> {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn()
-    } catch (err) {
-      if (!isBadObjectState(err) || i === attempts - 1) throw err
-      await sleep(1000 * 2 ** i)
-    }
-  }
-  throw new Error('unreachable')
-}
-
 export type SyncResult = {
   commitSha: string
   fromVersion: string
@@ -226,12 +204,6 @@ export async function syncCoreFromUpstream(
 
   const fromTag = fromVersion.startsWith('v') ? fromVersion : `v${fromVersion}`
   const toTag = toVersion.startsWith('v') ? toVersion : `v${toVersion}`
-
-  // Get admin repo HEAD
-  const { data: ref } = await octokit.rest.git.getRef({ owner: adminOwner, repo: adminRepo, ref: 'heads/main' })
-  const headSha = ref.object.sha
-  const { data: headCommit } = await octokit.rest.git.getCommit({ owner: adminOwner, repo: adminRepo, commit_sha: headSha })
-  const baseTreeSha = headCommit.tree.sha
 
   // Diff the two tags by their tree contents (path + blob sha) rather than via
   // compareCommits: the upstream repo's history was rewritten at one point, so
@@ -281,20 +253,24 @@ export async function syncCoreFromUpstream(
 
     // Read the file's bytes from upstream by blob sha. getBlob (unlike getContent)
     // has no 1 MB ceiling, so large changed files are no longer silently dropped.
-    const { data: upstreamBlob } = await octokit.rest.git.getBlob({
-      owner: upOwner, repo: upRepo, file_sha: toEntry.sha,
-    })
+    // Wrapped so a transient upstream read (5xx / replication lag on a freshly
+    // pushed release) doesn't abort the whole build.
+    const { data: upstreamBlob } = await retryTransient(() =>
+      octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: toEntry.sha }),
+    )
     const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
 
     // A null byte means binary: inline `content` is UTF-8 only and would corrupt it,
-    // so create a real blob and reference it by sha (covered by the retry below).
+    // so create a real blob and reference it by sha. createReplicatedBlob confirms the
+    // blob has replicated before we reference it, closing the createBlob->createTree
+    // BadObjectState race at the source.
     if (bytes.includes(0)) {
-      const { data: blob } = await octokit.rest.git.createBlob({
+      const sha = await createReplicatedBlob(octokit, {
         owner: adminOwner, repo: adminRepo,
         content: bytes.toString('base64'),
         encoding: 'base64',
       })
-      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', sha: blob.sha })
+      treeEntries.push({ path, mode: toEntry.mode, type: 'blob', sha })
     } else {
       treeEntries.push({ path, mode: toEntry.mode, type: 'blob', content: bytes.toString('utf8') })
     }
@@ -319,30 +295,43 @@ export async function syncCoreFromUpstream(
   // for the user-facing count. Deletions carry sha === null and are excluded.
   const fileCount = treeEntries.filter((e) => e.content !== undefined || typeof e.sha === 'string').length
 
-  // Any binary blobs created just above can lag GitHub's storage replication by a
-  // second or two, which makes an immediate createTree fail with GitRPC::BadObjectState
-  // even though the blobs are valid. Retry with backoff before giving up. (Text files
-  // are inlined into the tree, so they don't hit this at all.)
-  const newTree = await retryOnBadObjectState(() =>
-    octokit.rest.git.createTree({
+  // Write the whole thing as one retryable, idempotent transaction. Each attempt
+  // re-reads admin HEAD and rebuilds the commit on the *current* base, so:
+  //   - a transient BadObjectState / 5xx on any step is absorbed, not surfaced;
+  //   - if HEAD moved between read and updateRef (a concurrent push, or a prior
+  //     half-applied attempt), the next try rebases onto the new HEAD instead of
+  //     failing non-fast-forward.
+  // The tree is base_tree + full delta, so every attempt converges to the exact
+  // same target tree - re-running after any failure is always safe. This is what
+  // makes "retry after a failed update" reliable: it re-pushes the full delta from
+  // the last-good build and lands it whole.
+  const commitSha = await retryTransient(async () => {
+    const { data: ref } = await octokit.rest.git.getRef({ owner: adminOwner, repo: adminRepo, ref: 'heads/main' })
+    const headSha = ref.object.sha
+    const { data: headCommit } = await octokit.rest.git.getCommit({ owner: adminOwner, repo: adminRepo, commit_sha: headSha })
+    const baseTreeSha = headCommit.tree.sha
+
+    const { data: newTree } = await octokit.rest.git.createTree({
       owner: adminOwner, repo: adminRepo,
       base_tree: baseTreeSha,
       tree: treeEntries,
     })
-  ).then((r) => r.data)
 
-  const { data: newCommit } = await octokit.rest.git.createCommit({
-    owner: adminOwner, repo: adminRepo,
-    message: `chore: update Cactus Foundation to v${toVersion}\n\n[cactus-core-update]`,
-    tree: newTree.sha,
-    parents: [headSha],
+    const { data: newCommit } = await octokit.rest.git.createCommit({
+      owner: adminOwner, repo: adminRepo,
+      message: `chore: update Cactus Foundation to v${toVersion}\n\n[cactus-core-update]`,
+      tree: newTree.sha,
+      parents: [headSha],
+    })
+
+    await octokit.rest.git.updateRef({
+      owner: adminOwner, repo: adminRepo, ref: 'heads/main', sha: newCommit.sha,
+    })
+
+    return newCommit.sha
   })
 
-  await octokit.rest.git.updateRef({
-    owner: adminOwner, repo: adminRepo, ref: 'heads/main', sha: newCommit.sha,
-  })
-
-  return { commitSha: newCommit.sha, fromVersion, toVersion, fileCount }
+  return { commitSha, fromVersion, toVersion, fileCount }
 }
 
 export function invalidateCoreUpdateCache() {
