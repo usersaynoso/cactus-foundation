@@ -13,7 +13,10 @@ type Props = {
 function Overlay({ zIndex, onClose, children }: { zIndex: number; onClose: () => void; children: React.ReactNode }) {
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      // isolation: 'isolate' pins this overlay to its own stacking context, so
+      // its z-index always wins against page chrome regardless of ambient
+      // z-index elsewhere in the admin shell.
+      style={{ position: 'fixed', inset: 0, zIndex, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', isolation: 'isolate' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       {children}
@@ -42,6 +45,9 @@ const cardStyle: React.CSSProperties = {
   width: '100%',
   display: 'flex',
   flexDirection: 'column',
+  // Clip header/body/footer to the card's rounded corners so nothing overhangs
+  // past the border and reveals the page underneath.
+  overflow: 'hidden',
 }
 
 export default function AboutModal({ version, onClose }: Props) {
@@ -62,7 +68,7 @@ export default function AboutModal({ version, onClose }: Props) {
     <Overlay zIndex={80} onClose={onClose}>
       <div style={{ ...cardStyle, maxWidth: 640, maxHeight: '85vh' }} role="dialog" aria-modal="true" aria-label="About Cactus Foundation">
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/cactus.svg" alt="" width={44} height={44} style={{ flexShrink: 0, borderRadius: 'var(--radius-md)' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -74,7 +80,7 @@ export default function AboutModal({ version, onClose }: Props) {
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
+        <div style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', background: 'var(--color-bg)' }}>
           <p style={{ margin: '0 0 1.5rem', fontSize: 'var(--text-sm)', lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
             {ABOUT.paragraph}
           </p>
@@ -109,7 +115,7 @@ export default function AboutModal({ version, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
           <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
           <button type="button" className="btn btn-primary" onClick={() => setShowReleases(true)}>Release notes</button>
         </div>
@@ -177,12 +183,12 @@ function ReleaseNotesModal({ onClose }: { onClose: () => void }) {
   return (
     <Overlay zIndex={90} onClose={onClose}>
       <div style={{ ...cardStyle, maxWidth: 640, height: '85vh' }} role="dialog" aria-modal="true" aria-label="Release notes">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
           <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-text)' }}>Release notes</h2>
           <CloseButton onClose={onClose} />
         </div>
 
-        <div ref={scrollRef} onScroll={onScroll} style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', flex: 1 }}>
+        <div ref={scrollRef} onScroll={onScroll} style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', flex: 1, background: 'var(--color-bg)' }}>
           {items.map((item) => (
             <article key={item.tag} style={{ paddingBottom: '1.25rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--color-border)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>

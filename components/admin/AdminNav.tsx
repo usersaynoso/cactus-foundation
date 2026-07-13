@@ -300,7 +300,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
             onClick={() => setAboutOpen(true)}
             title="About Cactus Foundation"
           >
-            v{version}
+            Cactus Foundation v{version}
           </button>
         )}
       </div>

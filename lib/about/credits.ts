@@ -22,7 +22,7 @@ export type CreditGroup = {
 
 export const ABOUT = {
   name: 'Cactus Foundation',
-  slogan: 'The website platform that looks after itself.',
+  slogan: 'Tough on the outside. Thrives on neglect. Refuses to die.',
   paragraph:
     'Cactus Foundation is a website platform for building and running proper websites without the usual faff. ' +
     'A visual page builder, media handling, user accounts, contact forms and a self-updating core all come in one ' +
