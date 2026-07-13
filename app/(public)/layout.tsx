@@ -3,6 +3,7 @@ import { Render } from '@puckeditor/core/rsc'
 import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config.rsc'
 import type { Data } from '@puckeditor/core'
 import AosInit from '@/lib/puck/components/AosInit'
+import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -87,6 +88,7 @@ export default async function PublicLayout({ children }: { children: React.React
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />
+      <EmailDeobfuscator />
       {headerData
 
         ? <Render config={headerPuckRscConfig as any} data={headerData as Data} />
