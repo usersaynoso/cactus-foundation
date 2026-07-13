@@ -294,6 +294,10 @@ export async function duplicateMedia(mediaId: string, targetFolderId: string | n
       sizeBytes: relocated.sizeBytes,
       altText: media.altText,
       isDecorative: media.isDecorative,
+      // Carry the optimised flag: the relocated blob is a byte copy of the
+      // source's already-WebP file, so the copy is optimised too. Without this
+      // it defaults to false and the copy is wrongly offered for optimising.
+      optimised: media.optimised,
       originalName: name,
       folderId: targetFolderId,
       uploadedById: null,
