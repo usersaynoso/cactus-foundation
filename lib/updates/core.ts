@@ -276,9 +276,18 @@ export async function syncCoreFromUpstream(
     }
   }
 
+  // Paths upstream removed between the two tags. NOT pushed blindly: a deletion
+  // (sha: null) for a path that is absent from the admin repo's actual base tree
+  // makes createTree fail with GitRPC::BadObjectState. That happens precisely after
+  // a failed update - the repo HEAD was advanced by the failed push (so the file is
+  // already gone from base) while the running version, which computes this diff, is
+  // older (so the from-tag still has it). We reconcile against the real base tree
+  // inside the write transaction below, emitting a deletion only for paths that are
+  // genuinely still present.
+  const deletionCandidates: string[] = []
   for (const path of fromTree.keys()) {
     if (skipped(path) || toTree.has(path)) continue
-    treeEntries.push({ path, mode: '100644', type: 'blob', sha: null })
+    deletionCandidates.push(path)
   }
 
   if (modulesJson) {
@@ -287,7 +296,7 @@ export async function syncCoreFromUpstream(
     treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
   }
 
-  if (treeEntries.length === 0) {
+  if (treeEntries.length === 0 && deletionCandidates.length === 0) {
     throw new Error('No core files changed between these versions')
   }
 
@@ -311,10 +320,26 @@ export async function syncCoreFromUpstream(
     const { data: headCommit } = await octokit.rest.git.getCommit({ owner: adminOwner, repo: adminRepo, commit_sha: headSha })
     const baseTreeSha = headCommit.tree.sha
 
+    // Reconcile deletions against what is ACTUALLY in the base tree right now: a
+    // sha: null for a path that isn't there throws BadObjectState. Reading the base
+    // tree fresh each attempt (recursive) also keeps deletions correct if HEAD moved.
+    const { data: baseTree } = await octokit.rest.git.getTree({
+      owner: adminOwner, repo: adminRepo, tree_sha: baseTreeSha, recursive: 'true',
+    })
+    const basePaths = new Set(
+      baseTree.tree.filter((e) => e.type === 'blob' && e.path).map((e) => e.path as string),
+    )
+    const finalTree = [
+      ...treeEntries,
+      ...deletionCandidates
+        .filter((path) => basePaths.has(path))
+        .map((path) => ({ path, mode: '100644' as const, type: 'blob' as const, sha: null })),
+    ]
+
     const { data: newTree } = await octokit.rest.git.createTree({
       owner: adminOwner, repo: adminRepo,
       base_tree: baseTreeSha,
-      tree: treeEntries,
+      tree: finalTree,
     })
 
     const { data: newCommit } = await octokit.rest.git.createCommit({
