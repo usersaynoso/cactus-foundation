@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { ABOUT, CREDITS } from '@/lib/about/credits'
 import type { ReleaseNoteItem } from '@/lib/updates/core'
 
@@ -52,6 +53,9 @@ const cardStyle: React.CSSProperties = {
 
 export default function AboutModal({ version, onClose }: Props) {
   const [showReleases, setShowReleases] = useState(false)
+  // useSyncExternalStore returns false on the server and true on the client,
+  // the React-idiomatic way to gate createPortal without a setState-in-effect.
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
 
   // Escape closes the topmost layer (release notes first, then the about card).
   useEffect(() => {
@@ -64,7 +68,16 @@ export default function AboutModal({ version, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [showReleases, onClose])
 
-  return (
+  if (!mounted) return null
+
+  // Portals to document.body: AdminNav mounts this inside .admin-sidebar,
+  // which is `position: sticky` and therefore its own stacking context. A
+  // fixed-position overlay nested in there still paints within that
+  // context, so <main> (later in the DOM, its own top-level stacking
+  // context) painted over it regardless of z-index - the dialog's header
+  // showed the page's own tab strip bleeding through. Portalling escapes
+  // the sidebar's stacking context entirely, matching NotificationBell.
+  return createPortal(
     <Overlay zIndex={80} onClose={onClose}>
       <div style={{ ...cardStyle, maxWidth: 640, maxHeight: '85vh' }} role="dialog" aria-modal="true" aria-label="About Cactus Foundation">
         {/* Header */}
@@ -122,7 +135,8 @@ export default function AboutModal({ version, onClose }: Props) {
       </div>
 
       {showReleases && <ReleaseNotesModal onClose={() => setShowReleases(false)} />}
-    </Overlay>
+    </Overlay>,
+    document.body
   )
 }
 
