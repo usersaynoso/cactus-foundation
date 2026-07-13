@@ -9,7 +9,7 @@ import MediaUpload from './MediaUpload'
 import MediaStatsBar, { type LibraryStats } from './MediaStatsBar'
 import MediaToolbar from './MediaToolbar'
 import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
-import MediaUploadQueue, { type UploadTask } from './MediaUploadQueue'
+import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-client'
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile } from '@/lib/media/upload-client'
@@ -89,7 +89,6 @@ export default function MediaLibrary({
   const [savingTags, setSavingTags] = useState(false)
   const [savingMeta, setSavingMeta] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
-  const [uploads, setUploads] = useState<UploadTask[]>([])
   const uploadSeq = useRef(0)
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
@@ -542,16 +541,6 @@ export default function MediaLibrary({
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not save tags') } finally { setSavingTags(false) }
   }
 
-  const updateTask = useCallback((id: string, patch: Partial<UploadTask>) => {
-    setUploads((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
-  }, [])
-  const clearFinishedUploads = useCallback(() => {
-    setUploads((prev) => prev.filter((t) => t.status === 'queued' || t.status === 'uploading'))
-  }, [])
-  const dismissUpload = useCallback((id: string) => {
-    setUploads((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
   // Upload files picked from the header button, dropped onto the grid, or dropped
   // onto a folder row. Each file becomes a task in the upload queue with its own
   // live progress bar, so the batch is visible rather than a silent spinner.
@@ -574,18 +563,18 @@ export default function MediaLibrary({
         } satisfies UploadTask,
       }
     })
-    setUploads((prev) => [...prev, ...tasks.map((t) => t.task)])
+    addUploads(tasks.map((t) => t.task))
 
     let uploaded = 0
     for (const { file, task } of tasks) {
       if (task.status === 'error') continue
-      updateTask(task.id, { status: 'uploading', progress: 0 })
+      updateUpload(task.id, { status: 'uploading', progress: 0 })
       try {
-        await uploadOneFile(file, targetFolderId, (fraction) => updateTask(task.id, { progress: fraction }))
-        updateTask(task.id, { status: 'done', progress: 1 })
+        await uploadOneFile(file, targetFolderId, (fraction) => updateUpload(task.id, { progress: fraction }))
+        updateUpload(task.id, { status: 'done', progress: 1 })
         uploaded++
       } catch (err) {
-        updateTask(task.id, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
+        updateUpload(task.id, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
       }
     }
 
@@ -997,7 +986,6 @@ export default function MediaLibrary({
       )}
 
       <MediaToasts toasts={allToasts} onDismiss={dismissToast} />
-      <MediaUploadQueue tasks={uploads} onClear={clearFinishedUploads} onDismiss={dismissUpload} />
 
       {/* Off-screen input backing the empty-state and whitespace-menu upload actions. */}
       {canUpload && (
@@ -1085,7 +1073,6 @@ function BreadcrumbCrumb({ label, onClick, onDrop, active }: { label: string; on
 function MenuShell({ menu, children, width = 190, height = 360 }: { menu: { x: number; y: number }; children: React.ReactNode; width?: number; height?: number }) {
   return (
     <div
-      onClick={(e) => e.stopPropagation()}
       style={{ position: 'fixed', top: Math.min(menu.y, window.innerHeight - height), left: Math.min(menu.x, window.innerWidth - width - 10), zIndex: 100, width, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xl)', padding: '0.25rem 0', overflow: 'hidden' }}
     >
       {children}
@@ -1098,7 +1085,7 @@ function menuItem(label: string, fn: () => void, danger = false, disabled = fals
     <button
       type="button"
       disabled={disabled}
-      onClick={(e) => { e.stopPropagation(); fn() }}
+      onClick={() => fn()}
       style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.4rem 0.75rem', border: 'none', background: 'transparent', color: disabled ? 'var(--color-text-muted)' : danger ? 'var(--color-destructive)' : 'var(--color-text)', cursor: disabled ? 'default' : 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}
     >
       {label}

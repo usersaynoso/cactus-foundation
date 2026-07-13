@@ -12,6 +12,16 @@ import {
   getServerDeployStatus,
   subscribeDeployStatus,
 } from '@/lib/deploy-status-client'
+import {
+  UPLOAD_STARTED_EVENT,
+  type UploadTask,
+  clearFinishedUploads,
+  dismissUpload,
+  getServerUploads,
+  getUploads,
+  subscribeUploads,
+} from '@/lib/upload-status-client'
+import { formatBytes } from '@/app/cactus-admin/media/format'
 
 type Props = {
   adminPath: string
@@ -131,6 +141,69 @@ function NotificationItem({
   )
 }
 
+function uploadGlyph(s: UploadTask['status']): string {
+  return s === 'done' ? '✓' : s === 'error' ? '⚠' : s === 'skipped' ? '–' : '↑'
+}
+
+// The live upload batch, rendered as its own section at the top of the bell
+// dropdown. These are ephemeral and have no read/unread state - just progress,
+// with a Clear for finished files and a per-file dismiss.
+function UploadSection({ uploads, onClear, onDismiss }: {
+  uploads: UploadTask[]
+  onClear: () => void
+  onDismiss: (id: string) => void
+}) {
+  if (uploads.length === 0) return null
+
+  const active = uploads.filter((t) => t.status === 'queued' || t.status === 'uploading').length
+  const done = uploads.filter((t) => t.status === 'done').length
+  const failed = uploads.filter((t) => t.status === 'error').length
+  const title = active > 0
+    ? `Uploading ${active} file${active === 1 ? '' : 's'}…`
+    : failed > 0
+      ? `${done} uploaded, ${failed} failed`
+      : `Uploaded ${done} file${done === 1 ? '' : 's'}`
+
+  return (
+    <div className="admin-bell-uploads" role="status" aria-live="polite">
+      <div className="admin-bell-uploads-head">
+        <span className="admin-bell-uploads-title">{title}</span>
+        {active === 0 && (
+          <button type="button" className="admin-bell-uploads-clear" onClick={onClear}>Clear</button>
+        )}
+      </div>
+      <ul className="admin-bell-uploads-list">
+        {uploads.map((t) => {
+          const finished = t.status === 'done' || t.status === 'error' || t.status === 'skipped'
+          return (
+            <li key={t.id} className="admin-bell-upload-row">
+              <span aria-hidden="true" className={`admin-bell-upload-glyph admin-bell-upload-glyph--${t.status}`}>{uploadGlyph(t.status)}</span>
+              <div className="admin-bell-upload-main">
+                <div className="admin-bell-upload-line">
+                  <span className="admin-bell-upload-name">{t.name}</span>
+                  <span className="admin-bell-upload-size">{formatBytes(t.size)}</span>
+                </div>
+                {t.status === 'uploading' || t.status === 'queued' ? (
+                  <div className="admin-bell-upload-track">
+                    <div className="admin-bell-upload-fill" style={{ width: `${Math.round((t.status === 'uploading' ? t.progress : 0) * 100)}%` }} />
+                  </div>
+                ) : t.error ? (
+                  <div className="admin-bell-upload-error">{t.error}</div>
+                ) : (
+                  <div className="admin-bell-upload-meta">{t.status === 'skipped' ? 'Skipped' : `Uploaded to ${t.destination}`}</div>
+                )}
+              </div>
+              {finished && (
+                <button type="button" className="admin-bell-upload-dismiss" aria-label={`Dismiss ${t.name}`} onClick={() => onDismiss(t.id)}>×</button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 export default function NotificationBell({ adminPath, unreadCount = 0, collapsed }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -143,6 +216,8 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   // which is the React-idiomatic way to gate createPortal without a setState-in-effect.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const deployStatus = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
+  const uploads = useSyncExternalStore(subscribeUploads, getUploads, getServerUploads)
+  const activeUploads = uploads.filter((t) => t.status === 'queued' || t.status === 'uploading').length
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -150,7 +225,9 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   const href = `${base}/notifications`
   const label = deployStatus.active
     ? 'Notifications (redeploying)'
-    : count > 0 ? `Notifications (${count} unread)` : 'Notifications'
+    : activeUploads > 0
+      ? `Notifications (uploading ${activeUploads} file${activeUploads === 1 ? '' : 's'})`
+      : count > 0 ? `Notifications (${count} unread)` : 'Notifications'
 
   const fetchNotifications = useCallback(() => {
     fetch('/api/admin/notifications')
@@ -183,6 +260,16 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     }
     window.addEventListener(REDEPLOY_STARTED_EVENT, onRedeployStarted)
     return () => window.removeEventListener(REDEPLOY_STARTED_EVENT, onRedeployStarted)
+  }, [openDropdown])
+
+  // A fresh upload batch pops the dropdown open too, so progress is never a
+  // silent spinner now that the floating panel is gone.
+  useEffect(() => {
+    function onUploadStarted() {
+      openDropdown()
+    }
+    window.addEventListener(UPLOAD_STARTED_EVENT, onUploadStarted)
+    return () => window.removeEventListener(UPLOAD_STARTED_EVENT, onUploadStarted)
   }, [openDropdown])
 
   // Poll for new notifications so the badge updates live, not just on
@@ -314,6 +401,8 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
 
       <DeployStatusLive />
 
+      <UploadSection uploads={uploads} onClear={clearFinishedUploads} onDismiss={dismissUpload} />
+
       <div className="admin-bell-dropdown-body">
         {notifications === null ? (
           <p className="admin-bell-dropdown-empty">Loading&hellip;</p>
@@ -375,7 +464,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           <path d="M12 2a1 1 0 0 1 1 1v.5a7 7 0 0 1 6 6.9V15l1.7 2.3A1 1 0 0 1 19.9 19H4.1a1 1 0 0 1-.8-1.6L5 15v-4.6A7 7 0 0 1 11 3.5V3a1 1 0 0 1 1-1Z" />
           <path d="M10 19a2 2 0 1 0 4 0h-4Z" />
         </svg>
-        {deployStatus.active ? (
+        {deployStatus.active || activeUploads > 0 ? (
           <span className="admin-sidebar-bell-spinner setup-spinner" aria-hidden="true" />
         ) : count > 0 && (
           <span className="admin-sidebar-bell-count">{count > 99 ? '99+' : count}</span>
