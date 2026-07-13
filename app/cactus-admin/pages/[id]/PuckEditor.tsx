@@ -8,7 +8,7 @@ import '@/lib/puck/tabs/sidebarOverrides.css'
 import '@/lib/puck/tabs/gridColumnOutline.css'
 import puckConfig, { wrapResponsiveRender } from '@/lib/puck/config'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
-import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
+import { withImagePickerFields } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
@@ -169,43 +169,12 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     return () => window.removeEventListener('beforeunload', handler)
   }, [hasUnsavedChanges])
 
-  const editorConfig = useMemo(() => ({
-    ...puckConfig,
+  const editorConfig = useMemo(() => {
+    const base = withImagePickerFields(puckConfig)
+    return {
+    ...base,
     components: {
-      ...puckConfig.components,
-      ImageBlock: {
-        ...puckConfig.components.ImageBlock,
-        fields: {
-          ...puckConfig.components.ImageBlock.fields,
-          mediaUrl: {
-            type: 'custom' as const,
-            label: 'Image',
-            render: ImageUrlPickerField,
-          },
-        },
-      },
-      Card: {
-        ...puckConfig.components.Card,
-        fields: {
-          ...puckConfig.components.Card.fields,
-          mediaUrl: {
-            type: 'custom' as const,
-            label: 'Image',
-            render: ImageUrlPickerField,
-          },
-        },
-      },
-      ImageChipPanel: {
-        ...puckConfig.components.ImageChipPanel,
-        fields: {
-          ...puckConfig.components.ImageChipPanel.fields,
-          mediaUrl: {
-            type: 'custom' as const,
-            label: 'Image',
-            render: ImageUrlPickerField,
-          },
-        },
-      },
+      ...base.components,
       SiteLogo: {
         ...puckConfig.components.SiteLogo,
         render: wrapResponsiveRender((props: any) => <SiteLogoEditorPreview {...props} />),
@@ -245,7 +214,8 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         )),
       },
     },
-  }), [])
+    }
+  }, [])
 
   const doAutosave = useCallback(async (data: Data) => {
     setSaveError('')

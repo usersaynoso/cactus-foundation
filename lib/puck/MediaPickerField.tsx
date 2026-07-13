@@ -201,6 +201,41 @@ export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange,
   )
 }
 
+// Every block field that holds an image URL, keyed by component then field, with
+// the label to show in the editor. The picker stores the Worker URL directly so
+// the server render can display the image without a DB lookup. Both Puck editors
+// run their config through `withImagePickerFields` so adding a new image field
+// here is all that's needed — no per-editor wiring to keep in sync.
+const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
+  ImageBlock:     { mediaUrl: 'Image' },
+  Card:           { mediaUrl: 'Image' },
+  ImageChipPanel: { mediaUrl: 'Image' },
+  Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)' },
+  Section:        { bgImage: 'Background image' },
+}
+
+// Swap every known image URL text field in a Puck config for the media picker.
+// Components/fields not present in the given config are skipped, so this is safe
+// on the layout editor's filtered config too.
+export function withImagePickerFields<C>(config: C): C {
+  const cfg = config as { components?: Record<string, { fields?: Record<string, unknown> }> }
+  if (!cfg?.components) return config
+  const components = { ...cfg.components }
+  for (const [componentName, fieldLabels] of Object.entries(IMAGE_PICKER_FIELDS)) {
+    const component = components[componentName]
+    if (!component?.fields) continue
+    const fields = { ...component.fields }
+    let changed = false
+    for (const [fieldName, label] of Object.entries(fieldLabels)) {
+      if (!(fieldName in fields)) continue
+      fields[fieldName] = { type: 'custom' as const, label, render: ImageUrlPickerField }
+      changed = true
+    }
+    if (changed) components[componentName] = { ...component, fields }
+  }
+  return { ...cfg, components } as C
+}
+
 // For ImageBlock.mediaUrl field — stores the Worker URL directly so the server
 // render can display the image without a DB lookup.
 export const ImageUrlPickerField: CustomFieldRender<string> = ({ value, onChange, field }) => {

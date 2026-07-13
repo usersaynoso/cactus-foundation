@@ -10,7 +10,7 @@ import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfi
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
-import { ImageUrlPickerField } from '@/lib/puck/MediaPickerField'
+import { withImagePickerFields } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
@@ -173,30 +173,12 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports, layoutType],
   )
 
-  const editorConfig = useMemo(() => ({
-    ...baseConfig,
+  const editorConfig = useMemo(() => {
+    const picked = withImagePickerFields(baseConfig)
+    return {
+    ...picked,
     components: {
-      ...baseConfig.components,
-      ...(('ImageBlock' in (baseConfig.components ?? {})) ? {
-        ImageBlock: {
-
-          ...(baseConfig.components as any).ImageBlock,
-          fields: {
-
-            ...(baseConfig.components as any).ImageBlock?.fields,
-            mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
-          },
-        },
-      } : {}),
-      ...(('ImageChipPanel' in (baseConfig.components ?? {})) ? {
-        ImageChipPanel: {
-          ...(baseConfig.components as any).ImageChipPanel,
-          fields: {
-            ...(baseConfig.components as any).ImageChipPanel?.fields,
-            mediaUrl: { type: 'custom' as const, label: 'Image', render: ImageUrlPickerField },
-          },
-        },
-      } : {}),
+      ...picked.components,
       ...(('SiteLogo' in (baseConfig.components ?? {})) ? {
         SiteLogo: {
           ...(baseConfig.components as any).SiteLogo,
@@ -239,7 +221,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         },
       } : {}),
     },
-  }), [baseConfig])
+    }
+  }, [baseConfig])
 
   const handleChange = useCallback((data: Data) => {
     latestDataRef.current = data

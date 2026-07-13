@@ -40,7 +40,7 @@ Not sure where a particular value comes from? The credentials panel shows a **Wh
 
 Once a provider is connected, an **Upload** button appears in:
 
-- Any block with an image picker in the page editor - **Image**, **Image + Floating Chips**, and **Card** - where the picker opens a window to choose an existing image, with a **+ Upload** button in its top corner for adding a new one
+- Any block with a picture in the page editor - **Image**, **Image + Floating Chips**, **Card**, plus the **Hero** (its background and side image) and any **Section** background - where the picker opens a window to choose an existing image, with a **+ Upload** button in its top corner for adding a new one. You pick from your library or upload on the spot, rather than pasting in a web address
 - The **Site logo** settings in the page editor
 - **Appearance → Styles → Branding** (for your logo and favicon)
 
