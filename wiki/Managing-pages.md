@@ -51,7 +51,7 @@ The screen icons and the preview are linked both ways: click a screen icon and t
 
 You only set the ones you want to change. Leave tablet or mobile blank and they simply follow the size above - mobile falls back to tablet, tablet falls back to desktop - so you can nudge the odd setting on smaller screens without redoing the lot. A small dot on a screen icon shows where you've set something specific.
 
-A few settings that used to be one-size-only now join in: the shared left/right padding on most blocks, an image's maximum width and alignment, a video's aspect ratio, an embed's height, the Hero's layout (so a text-and-image hero on desktop can become a centred text hero on phones), and the column counts on the shop's product and category grids and the Gazette feed.
+A few settings that used to be one-size-only now join in: the shared left/right padding on most blocks, an image's maximum width and alignment, a video's aspect ratio, an embed's height, the Hero's layout (so a text-and-image hero on desktop can become a centred text hero on phones), the column counts on the shop's product and category grids and the Gazette feed, and the number of columns in a Group.
 
 This is a different thing from hiding a block on certain screens (the show/hide-per-device toggle), which carries on working exactly as before.
 
@@ -68,7 +68,7 @@ Use these to structure the page and create visual sections.
 | **Section** | A full-width container with a background colour, image, or gradient. Drop other blocks inside it. Great for creating distinct visual sections. When the background is a colour, a **Colour opacity** slider lets you make it see-through - handy for a soft, readable panel sitting over a background photo - and a **Dark mode colour** picker lets you choose a different colour for dark mode (so a panel can be light in light mode and dark in dark mode). Both are available on the Hero block too. |
 | **Grid** | A two-to-four column grid. Drop content into each column independently. |
 | **Split** | A two-column layout where each side is a separate drop zone. Good for side-by-side content. |
-| **Group** | A flexible container for arranging blocks side by side or stacked. |
+| **Group** | A flexible container for arranging blocks side by side or stacked. Switch on **Columns** to lay any number of blocks out in an even grid - and pick a different number of columns for desktop, tablet and phone (say three across on a computer, two on a tablet, one on a phone). Handy when a Grid's fixed two-to-four columns won't line up the way you want. |
 | **Spacer** | Adds a fixed vertical gap between blocks. |
 | **Divider** | A horizontal line to visually separate content. |
 

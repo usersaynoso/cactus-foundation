@@ -32,7 +32,7 @@ import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorF
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
 import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
 import { VisibilityField } from '@/lib/puck/VisibilityField'
-import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import { MinMaxPairField, type MinMaxPair } from '@/lib/puck/MinMaxPairField'
 import { ClearableNumberField } from '@/lib/puck/ClearableNumberField'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
@@ -507,7 +507,7 @@ const grid3Component = makeGridColumnComponent(3)
 const grid4Component = makeGridColumnComponent(4)
 
 function GroupBlock(props: any) {
-  const { id, direction, justify, align, wrap, gap, gapShrunk, padding, items } = props
+  const { id, direction, justify, align, wrap, gap, gapShrunk, padding, items, columns } = props
   const justifyMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between', around: 'space-around', evenly: 'space-evenly' }
   const alignMap: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
   if (typeof items !== 'function') return null
@@ -533,6 +533,49 @@ function GroupBlock(props: any) {
   const dirBase = pickResponsive(dirRv, 'desktop')
   const alignBase = pickResponsive(alignRv, 'desktop')
   const gapBase = pickResponsive(gapRv, 'desktop')
+
+  // "Columns" turns the Group from its default flex-wrap flow into an equal-
+  // width CSS grid: an arbitrary number of children sit N-per-row and reflow to
+  // a different N per breakpoint (e.g. 3 desktop / 2 tablet / 1 mobile). This is
+  // what the fixed-track Grid block can't do - Grid caps at 4 tracks with one
+  // child DropZone each, so 6 boxes there become two 3-track grids that orphan
+  // the odd item when a track drops out at tablet. 'auto' (or blank / any legacy
+  // Group with no columns prop) keeps the flex behaviour untouched, so every
+  // existing Group renders byte-identically.
+  const colsRv = normalizeResponsiveValue<string>(columns)
+  const parseCols = (v?: string) => {
+    const n = v && v !== 'auto' ? parseInt(v, 10) : NaN
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  const gridMode = parseCols(pickResponsive(colsRv, 'desktop')) !== null
+
+  if (gridMode) {
+    // Column count cascades desktop→tablet→mobile like every other responsive
+    // field; a breakpoint left on 'auto' inherits the nearest set count rather
+    // than dropping back to flow, so the grid stays a grid all the way down.
+    const tracksAt = (d: Device) => {
+      const n = parseCols(pickResponsive(colsRv, d)) ?? parseCols(pickResponsive(colsRv, 'desktop')) ?? 1
+      return `repeat(${n}, minmax(0, 1fr))`
+    }
+    const gridCss = responsiveMediaCssFor(`.${rspClass}`, (d) => `grid-template-columns:${tracksAt(d)};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};`)
+    const gridSlotClassName = [gapShrunk ? shrinkClass : '', rspClass, getPaddingClasses(padding)].filter(Boolean).join(' ')
+    return (
+      <>
+        {gapShrunk && <style>{`${HEADER_SHRUNK_SELECTOR} .${shrinkClass}{gap:${GAP_MAP[gapShrunk] ?? '1rem'} !important;}`}</style>}
+        {gridCss && <style>{gridCss}</style>}
+        {items({
+          className: gridSlotClassName,
+          style: {
+            display: 'grid',
+            gridTemplateColumns: tracksAt('desktop'),
+            alignItems: alignMap[alignBase ?? 'stretch'] ?? 'stretch',
+            gap: GAP_MAP[gapBase ?? 'md'] ?? '1rem',
+          }
+        })}
+      </>
+    )
+  }
+
   const rspCss = responsiveMediaCssFor(`.${rspClass}`, (d) => `flex-direction:${pickResponsive(dirRv, d) === 'column' ? 'column' : 'row'};align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
   const slotClassName = [gapShrunk ? shrinkClass : '', wantsCenter ? centerClass : '', rspClass, getPaddingClasses(padding)].filter(Boolean).join(' ')
   // Pass flex styles directly to the SlotRender wrapper so its children are
@@ -2053,6 +2096,7 @@ export const puckConfig = {
     Group: {
       label: 'Group',
       fields: {
+        columns: { type: 'custom' as const, label: 'Columns (grid)', options: [{ value: 'auto', label: 'Auto (flow)' }, { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6', label: '6' }], render: ResponsiveSelectField },
         direction: { type: 'custom' as const, label: 'Direction', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }], render: ResponsiveSelectField },
         justify: { type: 'select' as const, label: 'Justify content', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'End' }, { value: 'between', label: 'Space between' }, { value: 'around', label: 'Space around' }, { value: 'evenly', label: 'Space evenly' }] },
         align: { type: 'custom' as const, label: 'Align items', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'End' }, { value: 'stretch', label: 'Stretch' }], render: ResponsiveSelectField },
@@ -2062,7 +2106,7 @@ export const puckConfig = {
         gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         items: { type: 'slot' as const },
       },
-      defaultProps: { direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none', gapShrunk: '' },
+      defaultProps: { columns: 'auto', direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none', gapShrunk: '' },
       resolveFields: (_data: any, { fields, appState }: any) => {
         if (isHeaderShrinkEnabled(appState)) return fields
         const { gapShrunk: _g, ...rest } = fields
