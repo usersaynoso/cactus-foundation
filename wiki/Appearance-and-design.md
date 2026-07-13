@@ -117,6 +117,8 @@ The template library keeps itself up to date: after each Cactus update, the star
 
 The **Site logo**, **Menu**, **Login button**, **Copyright**, and **Cookie settings link** blocks are all designed for use in headers and footers - they read your site settings automatically and don't need manual content.
 
+The header editor also offers the **Heading**, **Text**, **Rich text** and **Button** blocks, plus a **Divider**, so you can drop in things like a phone number, a strapline, or a "Call us" button alongside the logo and menu. Use a Button pointed at a `tel:` link if you want the number to be tappable on a phone.
+
 **Centring things in the header.** When you set a header column, or a spaced-out group, to centre, whatever sits in the middle now lines up with the true centre of the header itself - and stays there even when something beside it changes width, such as your logo shrinking as the page scrolls. It used to quietly drift off to one side whenever its neighbours grew or shrank, which rather defeated the point of centring it. Nothing to switch on: it just behaves itself now.
 
 **Site logo height.** The Site logo block's height setting is labelled **Element height**, with a matching **Element height when shrunk** if your header is set to shrink on scroll. The logo scales to that height and keeps its proportions.

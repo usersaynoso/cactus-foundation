@@ -2807,8 +2807,10 @@ const headerModuleBlocks = moduleComponentsByLayoutType['header'] ?? {}
 
 export const headerPuckConfig = {
   categories: {
-    site:   { title: 'Site',      components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
-    layout: { title: 'Structure', components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
+    layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
+    typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink'], defaultExpanded: false },
     ...(Object.keys(headerModuleBlocks).length > 0
       ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
       : {}),
@@ -2843,6 +2845,11 @@ export const headerPuckConfig = {
     Grid4:        puckConfig.components.Grid4,
     Group:        puckConfig.components.Group,
     Spacer:       puckConfig.components.Spacer,
+    Divider:      puckConfig.components.Divider,
+    Heading:      puckConfig.components.Heading,
+    TextBlock:    puckConfig.components.TextBlock,
+    RichTextBlock: puckConfig.components.RichTextBlock,
+    ButtonLink:   puckConfig.components.ButtonLink,
     ...headerModuleBlocks,
   },
 }
