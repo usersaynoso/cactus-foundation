@@ -60,6 +60,13 @@
   --radius-lg:   12px;
   --radius-xl:   16px;
   --radius-full: 9999px;
+  /* Admin-chrome radius, immune to site theme injection. buildTokenStyles
+     overrides :root --radius-lg (to 9999px) whenever the Puck/layout editor
+     mounts the site's design tokens into document.head; admin chrome that
+     portals to document.body (e.g. the notification bell dropdown) would then
+     inherit that pill radius and render as a circle. This var is never emitted
+     by the token injector, so it stays put. */
+  --admin-radius-lg: 12px;
 
   /* Shadow tokens */
   --shadow-none: none;
@@ -576,7 +583,7 @@ a:hover {
   width: 320px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--admin-radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
