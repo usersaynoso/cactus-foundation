@@ -700,6 +700,11 @@ export function buildTokenStyles(tokens: unknown): string {
   // this entirely - its own scoped <style> tag takes over instead.
   scoped.push(`@media(max-width:${mobileBp}){.puck-grid:not([data-responsive-set]),.puck-split{grid-template-columns:1fr !important;}}`)
   scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
+  // Grids with "Stack on tablet" (config.tsx stackAtTablet) collapse to a single
+  // column across the whole tablet band too, not just mobile - one rule up to
+  // the tablet breakpoint covers both. Wins over the 3/4-col tablet rule above
+  // for a grid that opts in.
+  scoped.push(`@media(max-width:${tabletBp}){.puck-grid[data-stack-tablet]:not(header *){grid-template-columns:1fr !important;}}`)
 
   // Per-device horizontal padding utilities for the Puck blocks' shared
   // "Padding (left/right)" field (config.tsx getPaddingClasses). Three class

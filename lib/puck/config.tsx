@@ -244,7 +244,7 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
@@ -341,6 +341,7 @@ function GridBlock(props: any) {
         className={`puck-grid ${getPaddingClasses(padding)}`}
         data-cols={colCount}
         data-grid-id={id}
+        {...(stackAtTablet === 'on' ? { 'data-stack-tablet': '' } : {})}
         {...(selfManagedColumns ? { 'data-responsive-set': '' } : {})}
         style={{
       display: 'grid',
@@ -418,6 +419,10 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
     gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
     padding: paddingField,
     spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+    // Force a single stacked column from the tablet breakpoint down (not just
+    // mobile). Default 'off' keeps the standard behaviour where a 2-column grid
+    // stays side-by-side through the tablet band and only stacks on mobile.
+    stackAtTablet: { type: 'select' as const, label: 'Stack on tablet', options: [{ value: 'off', label: 'Off (stack on mobile only)' }, { value: 'on', label: 'On (stack from tablet down)' }] },
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
@@ -431,7 +436,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, render: ResponsiveTextField }
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
-  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', gapShrunk: '' }
+  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackAtTablet: 'off', gapShrunk: '' }
   for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = '' }
 
   return {
@@ -681,7 +686,12 @@ function SectionBlock(props: any) {
     boxShadow: shadowMap[boxShadow] ?? 'none',
     border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
     borderRadius: radiusMap[borderRadius] ?? '0',
-    overflow: 'hidden',
+    // Only clip when the section actually paints something to a rounded/edged
+    // box (radius, background image, overlay scrim, shadow, scan beam). A plain
+    // section leaves overflow visible so a `position: sticky` descendant - e.g.
+    // a sticky image column inside a Grid - isn't trapped by an overflow context
+    // it doesn't need. overflow:hidden on an ancestor silently kills sticky.
+    overflow: (borderRadius !== 'none' || bgType === 'image' || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
   }
 
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
