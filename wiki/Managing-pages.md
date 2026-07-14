@@ -19,7 +19,7 @@ The editor has three areas:
 
 - **Left panel** - a row of tabs down the side:
   - **Blocks** - browse and drag blocks onto your page, organised into categories.
-  - **Outline** - a tree view of every block on the page, handy for jumping to something buried deep in the layout.
+  - **Outline** - a tree view of every block on the page, handy for jumping to something buried deep in the layout. You can also drag blocks up and down the tree to reorder them, or drop one inside a column or group to nest it - often easier than aiming on the canvas when a page gets long.
   - **Settings** - the page's title, URL slug, status, and which menus it appears in.
   - **SEO** - the page's meta description and social-share (OG) image.
   - **History** - past published versions, with a one-click restore.
@@ -37,7 +37,7 @@ Your changes are saved automatically as you type. You won't lose anything if you
 2. Drag it onto the canvas and drop it where you want it.
 3. Click the block on the canvas to open its settings in the right panel.
 
-To reorder blocks, drag them up or down the canvas.
+To reorder blocks, drag them up or down the canvas, or use the **Outline** tab in the left panel and drag them there instead - drop a block onto a column or group to tuck it inside. On a keyboard, select a block in the Outline and hold Alt while pressing the arrow keys to move it.
 
 To remove a block, select it and click the delete icon.
 

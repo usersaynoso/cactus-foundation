@@ -17,6 +17,7 @@ import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
+import OutlineTree from '@/lib/puck/outline/OutlineTree'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
 import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
 import { EditorDirtyProvider } from '@/lib/puck/tabs/editorDirtyState'
@@ -173,6 +174,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         canDelete,
       }),
       ...((baseConfig as { root?: { fields?: unknown } }).root?.fields ? {} : { fields: hideRootFieldsOverride }),
+      outline: OutlineTree,
       puck: createViewportDropdownOverride(puckViewports, { shrinkPreview: layoutType === 'header' }),
     }),
     [baseConfig, backHref, layoutId, onDeleteClick, deleting, canDelete, puckViewports, layoutType],
