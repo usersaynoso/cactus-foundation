@@ -857,7 +857,7 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
 }
 
 function Heading(props: any) {
-  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', puck } = props
+  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', href = '', hoverUnderline = 'none', hoverUnderlineColor = '', minHeight = 'none', verticalAlign = 'top', puck } = props
   // Obfuscate email addresses on the published site only - the editor keeps the
   // plain address so it stays editable (see lib/email-obfuscate).
   const obfuscate = !puck?.isEditing
@@ -866,7 +866,11 @@ function Heading(props: any) {
   // legacy string data normalises to {desktop: value}, so it renders unchanged.
   const alignRv = normalizeResponsiveValue<string>(align)
   const alignBase = pickResponsive(alignRv, 'desktop') ?? 'left'
-  const colors: Record<string, string> = { muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
+  // Colour: legacy preset strings (dark/muted/brand) still map to their old
+  // values; anything else is a raw CSS colour from the swatch/manual picker.
+  // Empty (or legacy "dark") defers to the per-level heading colour token.
+  const legacyColour: Record<string, string> = { dark: '', muted: 'var(--color-muted)', brand: 'var(--color-primary)' }
+  const resolvedColour = color ? (color in legacyColour ? legacyColour[color] : color) : ''
   const sizes: Record<string, string> = { display: '3rem', h2: '1.875rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem' }
   const weights: Record<string, number> = { display: 800, h2: 800, h3: 700, h4: 700, h5: 600 }
   const lvl = (level ?? 'h2') as 'display' | 'h2' | 'h3' | 'h4' | 'h5'
@@ -878,6 +882,15 @@ function Heading(props: any) {
   // info pages don't auto-inject their own page-title H1) styled via the
   // separate --display-* tokens (Styles → Headings → Display), read by class
   // rather than tag since --${lvl}-* already resolves to --display-* here.
+  // Vertical positioning: when a block height is set, the wrapper becomes a flex
+  // column so the heading can sit top / middle / bottom within that height. Auto
+  // height (the default) leaves the wrapper in normal flow, unchanged.
+  const vAlignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
+  const minHeightMap: Record<string, string | undefined> = { none: undefined, sm: '240px', md: '400px', lg: '600px', screen: '100vh' }
+  const mh = minHeightMap[minHeight] ?? undefined
+  const wrapStyle: React.CSSProperties | undefined = mh
+    ? { display: 'flex', flexDirection: 'column', justifyContent: vAlignMap[verticalAlign] ?? 'flex-start', minHeight: mh }
+    : undefined
   const style: React.CSSProperties = {
     fontFamily: `var(--${lvl}-family)`,
     fontSize: `var(--${lvl}-size, ${sizes[lvl] ?? sizes.h2})`,
@@ -886,9 +899,11 @@ function Heading(props: any) {
     letterSpacing: `var(--${lvl}-letter-spacing, normal)`,
     textTransform: `var(--${lvl}-transform, none)` as React.CSSProperties['textTransform'],
     fontStyle: `var(--${lvl}-style, normal)`,
-    color: colors[color] ?? `var(--${lvl}-color, var(--color-fg))`,
+    color: resolvedColour || `var(--${lvl}-color, var(--color-fg))`,
     textAlign: alignBase as React.CSSProperties['textAlign'],
-    margin: '0 0 1rem',
+    // A centred/bottom-aligned block drops the bottom margin so the flex
+    // centring is true; the wrapper's padding owns the outer spacing there.
+    margin: mh ? '0' : '0 0 1rem',
   }
   const Tag = lvl === 'display' ? 'h1' : lvl
   const headingClassName = lvl === 'display' ? 'cactus-display' : undefined
@@ -903,12 +918,24 @@ function Heading(props: any) {
       ))
     : renderHighlight(text, highlightText, highlightMark, 'h', obfuscate)
   const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
+  // Whole-heading link: the anchor wraps the tag and inherits its colour, so the
+  // heading looks identical until hovered. The optional hover underline is
+  // scoped to this block's id; its colour defaults to the heading's own colour.
+  const showHoverUnderline = Boolean(href) && hoverUnderline === 'yes'
+  const hoverCss = showHoverUnderline
+    ? `a[data-heading-link="${id}"]:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:0.12em;text-decoration-color:${hoverUnderlineColor || 'currentColor'};}`
+    : ''
+  const headingEl = (
+    <Tag data-heading-id={id} style={style} className={headingClassName}>
+      {content}
+    </Tag>
+  )
   return (
-    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {alignCss && <style>{alignCss}</style>}
-      <Tag data-heading-id={id} style={style} className={headingClassName}>
-        {content}
-      </Tag>
+    <div className={getPaddingClasses(padding)} style={wrapStyle} {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {(alignCss || hoverCss) && <style>{`${alignCss}${hoverCss}`}</style>}
+      {href
+        ? <a href={href} data-heading-link={id} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>{headingEl}</a>
+        : headingEl}
     </div>
   )
 }
@@ -2190,14 +2217,19 @@ export const puckConfig = {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'dark', label: 'Dark' }, { value: 'muted', label: 'Muted' }, { value: 'brand', label: 'Brand' }] },
+        minHeight: { type: 'select' as const, label: 'Block height', options: [{ value: 'none', label: 'Auto' }, { value: 'sm', label: 'Small (240px)' }, { value: 'md', label: 'Medium (400px)' }, { value: 'lg', label: 'Large (600px)' }, { value: 'screen', label: 'Full screen' }] },
+        verticalAlign: { type: 'select' as const, label: 'Vertical position (needs a block height)', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
+        color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
         highlightMark: { type: 'select' as const, label: 'Emphasis mark', options: [{ value: 'underline', label: 'Highlighter underline' }, { value: 'none', label: 'Colour only' }] },
+        href: { type: 'text' as const, label: 'Link URL (makes the whole heading clickable)' },
+        hoverUnderline: { type: 'select' as const, label: 'Underline on hover (linked headings)', options: [{ value: 'none', label: 'No' }, { value: 'yes', label: 'Yes' }] },
+        hoverUnderlineColor: { type: 'custom' as const, label: 'Hover underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         revealAnimation: { type: 'select' as const, label: 'Reveal animation (on load)', options: [{ value: 'none', label: 'None' }, { value: 'stagger-lines', label: 'Stagger lines in' }] },
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, color: 'dark' as const, highlightText: '', highlightMark: 'underline' as const, padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
       render: Heading,
     },
     TextBlock: {
