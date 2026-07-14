@@ -13,10 +13,10 @@
 -- in the same file, in that order.
 --
 -- The runtime prune still handles the `<id>-live`/`<id>-edited` copies the old
--- scheme spawned: deciding those is a content comparison against the in-code
+-- scheme spawned: deciding those needs a content comparison against the in-code
 -- templates, which is not something SQL can do. It keys on row id, display
--- conditions and builderData - never on this column - so it keeps working once
--- the column is gone.
+-- conditions, builderData and the created/updated timestamps - never on this
+-- column - so it keeps working once the column is gone.
 --
 -- Idempotent: the DELETE is guarded on the column still existing, and the drops
 -- are IF EXISTS. Re-running on an already-migrated install is a no-op.

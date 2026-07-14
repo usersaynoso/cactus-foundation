@@ -78,6 +78,57 @@ describe('planStarterCleanup', () => {
   })
 })
 
+// Block props get renamed as the builder grows (logoHeight became cellHeight,
+// and so on), so a copy the seeder stamped years ago no longer matches today's
+// template even though nobody ever opened it. Content equality alone left those
+// rows in the Layouts list for good, which is the clutter this whole change set
+// out to clear. An untouched row's updatedAt never left its createdAt, and that
+// does not rot.
+describe('planStarterCleanup, on a copy stamped from an older template', () => {
+  const stale = { content: [{ type: 'SiteLogo', props: { id: 'logo-1', cellHeight: 40 } }], root: { props: {} }, zones: {} }
+  const at = (iso: string) => new Date(iso)
+
+  const untouched = {
+    builderData: stale,
+    createdAt: at('2026-01-01T00:00:00.000Z'),
+    updatedAt: at('2026-01-01T00:00:00.000Z'),
+    publishedAt: null,
+  }
+
+  it('deletes it, though its content no longer matches the template', () => {
+    expect(planStarterCleanup([row(untouched)], templates)).toEqual(['starter-header-live'])
+  })
+
+  it('allows the millisecond of slack between the row being created and stamped', () => {
+    const r = row({ ...untouched, updatedAt: at('2026-01-01T00:00:00.400Z') })
+    expect(planStarterCleanup([r], templates)).toEqual(['starter-header-live'])
+  })
+
+  it('keeps it once somebody has saved it', () => {
+    const r = row({ ...untouched, updatedAt: at('2026-03-04T11:22:00.000Z') })
+    expect(planStarterCleanup([r], templates)).toEqual([])
+  })
+
+  it('keeps it once somebody has published it', () => {
+    const r = row({ ...untouched, publishedAt: at('2026-03-04T11:22:00.000Z') })
+    expect(planStarterCleanup([r], templates)).toEqual([])
+  })
+
+  it('still refuses a live one, however untouched', () => {
+    expect(planStarterCleanup([row({ ...untouched, displayConditions: SITE_WIDE })], templates)).toEqual([])
+  })
+
+  it('still refuses a layout the owner built, however untouched', () => {
+    const own = row({ ...untouched, id: 'cmr6tone90000rngfpeip28gn' })
+    expect(planStarterCleanup([own], templates)).toEqual([])
+  })
+
+  it('keeps a saved row whose content drifted, which is the owner\'s to delete', () => {
+    const r = row({ builderData: stale, createdAt: at('2026-01-01T00:00:00.000Z'), updatedAt: at('2026-06-01T00:00:00.000Z') })
+    expect(planStarterCleanup([r], templates)).toEqual([])
+  })
+})
+
 describe('stableStringify', () => {
   it('sorts keys at every depth', () => {
     expect(stableStringify({ b: 1, a: { d: 2, c: 3 } })).toBe(stableStringify({ a: { c: 3, d: 2 }, b: 1 }))

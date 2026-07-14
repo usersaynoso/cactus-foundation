@@ -39,11 +39,31 @@ export type LayoutRow = {
   id: string
   builderData: unknown
   displayConditions: unknown
+  createdAt?: Date
+  updatedAt?: Date
+  publishedAt?: Date | null
 }
 
 function hasNoDisplayConditions(row: LayoutRow): boolean {
   const conditions = row.displayConditions as { include?: unknown[] } | null
   return !conditions?.include?.length
+}
+
+/**
+ * A row nobody has ever saved. The copies were minted by the server mid-deploy,
+ * so `updatedAt` still sitting on `createdAt` means no human has opened this one
+ * and pressed anything: every edit and every publish goes through an update that
+ * moves it. The few seconds of slack absorb the gap between the row's database
+ * default `createdAt` and the `updatedAt` the client stamps on it; no owner can
+ * have opened, changed and saved a layout inside five seconds of a deploy
+ * conjuring it.
+ */
+const UNTOUCHED_WINDOW_MS = 5_000
+
+function neverSaved(row: LayoutRow): boolean {
+  if (!row.createdAt || !row.updatedAt) return false
+  if (row.publishedAt) return false
+  return Math.abs(row.updatedAt.getTime() - row.createdAt.getTime()) < UNTOUCHED_WINDOW_MS
 }
 
 /**
@@ -55,12 +75,25 @@ function hasNoDisplayConditions(row: LayoutRow): boolean {
  * dozens of published-but-condition-less layouts that render nowhere and exist
  * only to clutter the Layouts list.
  *
- * This returns the ids that are provably safe to delete: a copy of a known
- * template, that has never been given a display condition (so it renders
- * nowhere), whose content is still byte-for-byte the template it was stamped
- * from (so the owner has never edited it). Anything the owner touched, gave a
- * condition to, or built themselves fails one of those three and survives - to
- * be deleted by hand if they want it gone.
+ * This returns the ids that are provably safe to delete. A row has to clear all
+ * of:
+ *
+ *   1. The id is `<known-template-id>-live` or `-edited`. Only the old seeder
+ *      ever minted those; every layout an owner makes (including Duplicate) gets
+ *      a cuid, so this can never match something they built.
+ *   2. It has no display conditions, so it renders nowhere and deleting it
+ *      cannot change what the site looks like.
+ *   3. The owner has never touched it - proven EITHER by the row never having
+ *      been saved (see `neverSaved`), OR by its content still being byte-for-byte
+ *      the template it was stamped from.
+ *
+ * Two proofs for (3) because either alone leaks. Content equality alone misses
+ * copies stamped from an older vintage of the same template: block props get
+ * renamed over time (`logoHeight` -> `cellHeight`, and so on), so a years-old
+ * copy no longer matches today's catalogue and would survive forever despite
+ * nobody ever having opened it. Timestamps alone would miss a row whose
+ * `updatedAt` was nudged by some unrelated write. A row that fails both was
+ * genuinely worked on, and survives - to be deleted by hand if they want it gone.
  */
 export function planStarterCleanup(
   rows: LayoutRow[],
@@ -78,6 +111,7 @@ export function planStarterCleanup(
       const expected = canonical.get(row.id)
       if (expected === undefined) return false
       if (!hasNoDisplayConditions(row)) return false
+      if (neverSaved(row)) return true
       return stableStringify(row.builderData) === expected
     })
     .map((row) => row.id)
@@ -139,7 +173,7 @@ export async function seedDefaultLayouts(db: typeof prisma) {
  * gone by the time this runs, so a `where: { isStarter: true }` here would
  * throw, get swallowed by the catch below, and leave the stamp unwritten
  * forever. Everything this function keys on - row id, display conditions,
- * builderData - survives the column being dropped.
+ * builderData, timestamps - survives the column being dropped.
  */
 let layoutsEnsured = false
 
@@ -166,7 +200,10 @@ export async function ensureLayoutsCurrent() {
 
 export async function pruneLegacyStarterCopies(db: typeof prisma) {
   const rows = await db.layout.findMany({
-    select: { id: true, displayConditions: true, builderData: true },
+    select: {
+      id: true, displayConditions: true, builderData: true,
+      createdAt: true, updatedAt: true, publishedAt: true,
+    },
   })
   const stale = planStarterCleanup(rows, allStarterTemplates())
   if (stale.length) {
