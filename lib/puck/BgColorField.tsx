@@ -2,7 +2,7 @@
 
 import type { CustomFieldRender } from '@puckeditor/core'
 import { useSiteColours } from '@/lib/puck/useSiteColours'
-import { ColourSwatchButton } from '@/lib/puck/ColourSwatchButton'
+import { ColourSwatchButton, CustomColourSwatch } from '@/lib/puck/ColourSwatchButton'
 
 export type BgColorValue = { mode: string; color: string }
 type Option = { value: string; label: string }
@@ -98,6 +98,7 @@ function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgCo
         selected={!selectedBase}
         onClick={onNone}
       />
+      <CustomColourSwatch value={selectedBase} onSelect={onPick} />
     </div>
   )
 

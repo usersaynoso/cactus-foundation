@@ -1997,13 +1997,21 @@ export const puckConfig = {
         stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
         boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         borderStyle: { type: 'select' as const, label: 'Border', options: [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }] },
-        borderColor: { type: 'text' as const, label: 'Border colour' },
+        borderColor: { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         borderWidth: { type: 'select' as const, label: 'Border width', options: [{ value: '1px', label: '1px' }, { value: '2px', label: '2px' }, { value: '4px', label: '4px' }] },
         borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
       defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      // With no background (mode "none") a background image and its overlay scrim
+      // have nothing to sit on, so hide those four fields until a background is set.
+      resolveFields: (data: any, { fields }: any) => {
+        const mode = data.props?.bg?.mode ?? 'none'
+        if (mode !== 'none') return fields
+        const { bgImage: _bi, bgSize: _bs, overlayColor: _oc, overlayOpacity: _oo, ...rest } = fields
+        return rest
+      },
       render: SectionBlock,
     },
     Grid: {
@@ -2320,7 +2328,7 @@ export const puckConfig = {
         },
         boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         borderStyle: { type: 'select' as const, label: 'Border', options: [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }] },
-        borderColor: { type: 'text' as const, label: 'Border colour' },
+        borderColor: { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         borderWidth: { type: 'select' as const, label: 'Border width', options: [{ value: '1px', label: '1px' }, { value: '2px', label: '2px' }, { value: '4px', label: '4px' }] },
         borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
         framePadding: { type: 'select' as const, label: 'Frame padding (blueprint gutter)', options: [{ value: 'none', label: 'None (image fills panel)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (30px)' }, { value: 'lg', label: 'Large (44px)' }] },
@@ -2452,7 +2460,7 @@ export const puckConfig = {
       fields: {
         items: { type: 'array' as const, label: 'Links', getItemSummary: (item: { platform?: string }) => item.platform || 'Link', arrayFields: { platform: { type: 'select' as const, label: 'Platform', options: [{ value: 'twitter-x', label: 'Twitter / X' }, { value: 'instagram', label: 'Instagram' }, { value: 'facebook', label: 'Facebook' }, { value: 'linkedin', label: 'LinkedIn' }, { value: 'youtube', label: 'YouTube' }, { value: 'github', label: 'GitHub' }, { value: 'tiktok', label: 'TikTok' }] }, url: { type: 'text' as const, label: 'URL' } }, defaultItemProps: { platform: 'twitter-x', url: '' } },
         iconSize: { type: 'custom' as const, label: 'Icon size', options: [{ value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
-        iconColor: { type: 'text' as const, label: 'Icon colour (hex/CSS)' },
+        iconColor: { type: 'custom' as const, label: 'Icon colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }], render: ResponsiveSelectField },
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         padding: paddingField,
@@ -2469,7 +2477,7 @@ export const puckConfig = {
       // own "Height" / "Shrunk height" so the two never read as duplicate
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'text' as const, label: 'Text colour' } },
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
       // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
       // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
       // truth for the default. Puck backfills any missing prop from
@@ -2493,7 +2501,7 @@ export const puckConfig = {
         startYear: { type: 'number' as const, label: 'Range start year' }, showSiteName: { type: 'select' as const, label: 'Show site name', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] },
         suffix: { type: 'text' as const, label: 'Suffix text' }, alignment: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         fontSize: { type: 'custom' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], render: ResponsiveSelectField },
-        textColor: { type: 'text' as const, label: 'Text colour' },
+        textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         privacyPolicyUrl: { type: 'text' as const, label: 'Privacy Policy URL' }, privacyPolicyLabel: { type: 'text' as const, label: 'Privacy Policy label' },
         termsUrl: { type: 'text' as const, label: 'Terms URL' }, termsLabel: { type: 'text' as const, label: 'Terms label' },
         customLink1Url: { type: 'text' as const, label: 'Extra link 1 URL' }, customLink1Label: { type: 'text' as const, label: 'Extra link 1 label' },

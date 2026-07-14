@@ -2,7 +2,7 @@
 
 import type { CustomFieldRender } from '@puckeditor/core'
 import { useSiteColours } from '@/lib/puck/useSiteColours'
-import { ColourSwatchButton } from '@/lib/puck/ColourSwatchButton'
+import { ColourSwatchButton, CustomColourSwatch } from '@/lib/puck/ColourSwatchButton'
 
 export type BorderFieldValue = { show: 'show' | 'hide'; color: string }
 
@@ -45,6 +45,7 @@ export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChan
               selected={!color}
               onClick={() => onChange({ show, color: '' })}
             />
+            <CustomColourSwatch value={color} onSelect={(c) => onChange({ show, color: c })} />
           </div>
         )}
       </div>
