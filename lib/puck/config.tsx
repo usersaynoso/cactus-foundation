@@ -794,6 +794,7 @@ function SectionBlock(props: any) {
     id, content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
     paddingY = 'lg', maxWidth = 'standard', textColor = '',
+    contentAlign = 'top',
     sticky = 'off', stickyOffset = '0px',
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
@@ -853,9 +854,21 @@ function SectionBlock(props: any) {
   const isScreen = (v: string | undefined) => v === 'screen'
   const pyPad = (v: string | undefined) => paddingYMap[isScreen(v) ? 'lg' : (v ?? 'lg')] ?? '6rem'
   const desktopPy = pickResponsive(pyRv, 'desktop')
+  // Content vertical alignment. Only bites when the content box is taller than
+  // its content - i.e. a "Full view height" section, or one whose height is set
+  // by a taller sibling. "Top" stays display:block so a plain section's children
+  // keep their normal block flow (and margin collapsing) exactly as before; the
+  // other two switch the content box to a flex column and push the stack.
+  const caRv = normalizeResponsiveValue<string>(contentAlign)
+  const alignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
+  const alignDecl = (v: string | undefined) => {
+    const a = v ?? 'top'
+    return a === 'top' ? 'display:block;' : `display:flex;flex-direction:column;justify-content:${alignMap[a] ?? 'flex-start'};`
+  }
+  const desktopCa = pickResponsive(caRv, 'desktop') ?? 'top'
   const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
     const v = pickResponsive(pyRv, d)
-    return `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};`
+    return `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
   })
 
   return (
@@ -870,6 +883,9 @@ function SectionBlock(props: any) {
         margin: '0 auto',
         padding: `${pyPad(desktopPy)} 1.5rem`,
         minHeight: isScreen(desktopPy) ? '100vh' : undefined,
+        display: desktopCa === 'top' ? undefined : 'flex',
+        flexDirection: desktopCa === 'top' ? undefined : 'column',
+        justifyContent: desktopCa === 'top' ? undefined : (alignMap[desktopCa] ?? 'flex-start'),
         position: 'relative',
         zIndex: 1,
       }}>
@@ -2326,6 +2342,7 @@ export const puckConfig = {
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }], render: ResponsiveSelectField },
+        contentAlign: { type: 'custom' as const, label: 'Content vertical alignment', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
         stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
@@ -2337,7 +2354,7 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
       // Two independent trims: with no background (mode "none") a background image
       // and its overlay scrim have nothing to sit on, so hide those four fields;
       // and with no border (borderStyle "none") the border colour and width have
