@@ -573,6 +573,13 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [downloadingBackup, setDownloadingBackup] = useState(false)
   const [backupError, setBackupError] = useState('')
 
+  // Database restore state
+  const restoreInputRef = useRef<HTMLInputElement>(null)
+  const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [restoreError, setRestoreError] = useState('')
+  const [restoreDone, setRestoreDone] = useState(false)
+
   // Reset Everything state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -965,6 +972,29 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       setBackupError(err instanceof Error ? err.message : 'Backup failed')
     } finally {
       setDownloadingBackup(false)
+    }
+  }
+
+  async function handleRestoreBackup() {
+    if (!restoreFile) return
+    setRestoring(true)
+    setRestoreError('')
+    try {
+      const body = new FormData()
+      body.append('file', restoreFile)
+      const res = await fetch('/api/admin/backup/import', { method: 'POST', body })
+      const d = (await res.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; loginPath?: string }
+        | null
+      if (!res.ok || !d?.ok) throw new Error(d?.error ?? 'Restore failed')
+      setRestoreDone(true)
+      // Every session row was wiped by the restore, this admin included - send
+      // them to the (possibly newly restored) login.
+      setTimeout(() => { window.location.href = d.loginPath ?? '/' }, 2500)
+    } catch (err: unknown) {
+      setRestoreError(err instanceof Error ? err.message : 'Restore failed')
+    } finally {
+      setRestoring(false)
     }
   }
 
@@ -1472,6 +1502,61 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             >
               {downloadingBackup ? 'Preparing backup…' : 'Download Backup'}
             </button>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Restore from a backup</h2>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+              Upload a backup file to put your site back exactly as it was. This <strong>replaces everything</strong> currently in the database - every page, user, layout, and setting - with the contents of the file, so everyone (you included) will be signed out afterwards.
+            </p>
+            <input
+              ref={restoreInputRef}
+              type="file"
+              accept=".sql,application/sql,text/plain"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                setRestoreFile(e.target.files?.[0] ?? null)
+                setRestoreError('')
+              }}
+            />
+            {restoreError && (
+              <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{restoreError}</div>
+            )}
+            {restoreDone ? (
+              <div className="alert alert-info" style={{ marginBottom: '0.5rem' }}>
+                Backup restored. Signing you out and taking you to the login…
+              </div>
+            ) : !restoreFile ? (
+              <button className="btn btn-secondary" onClick={() => restoreInputRef.current?.click()}>
+                Choose backup file…
+              </button>
+            ) : (
+              <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+                <p style={{ fontSize: '0.875rem', margin: '0 0 0.5rem' }}>
+                  Restore from <strong>{restoreFile.name}</strong>?
+                </p>
+                <p style={{ fontSize: '0.875rem', margin: '0 0 1rem' }}>
+                  This <strong>permanently replaces all current data</strong> with the backup and cannot be undone.
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button className="btn btn-danger" disabled={restoring} onClick={handleRestoreBackup}>
+                    {restoring ? 'Restoring…' : 'Restore and replace everything'}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    disabled={restoring}
+                    onClick={() => {
+                      setRestoreFile(null)
+                      setRestoreError('')
+                      if (restoreInputRef.current) restoreInputRef.current.value = ''
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
