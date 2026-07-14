@@ -34,3 +34,23 @@ export function siteLogoAlign(
     css: id ? responsiveMediaCssFor(`a[data-sitelogo-id="${id}"]`, (d) => `justify-content:${at(d)};`) : '',
   }
 }
+
+// Element height per breakpoint. The logo image is sized by the shared
+// --header-cell-height custom property, so the tablet/mobile overrides just
+// swap the variable via media rules - the shrink-on-scroll override (a more
+// specific selector, also !important) still wins at every breakpoint. Legacy
+// plain-number data normalises to desktop-only; `legacy` carries the
+// pre-rename logoHeight key so the old `cellHeight ?? logoHeight ?? 40`
+// fallback chain holds even when every breakpoint is cleared.
+export function siteLogoCellHeight(
+  id: string | undefined,
+  cellHeight: ResponsiveValue<number> | number | undefined,
+  legacy?: number,
+): { base: number; css: string } {
+  const rv = normalizeResponsiveValue<number>(cellHeight)
+  const at = (d: Device) => pickResponsive(rv, d) ?? legacy ?? 40
+  return {
+    base: at('desktop'),
+    css: id ? responsiveMediaCssFor(`a[data-sitelogo-id="${id}"] img[data-site-logo]`, (d) => `--header-cell-height:${at(d)}px;`) : '',
+  }
+}

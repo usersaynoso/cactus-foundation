@@ -2,6 +2,8 @@
 // height fields, so the two offer the same presets and the same "Fill
 // container" behaviour rather than drifting into two half-implementations.
 
+import { responsiveMediaCssFor, type Device } from '@/lib/puck/responsiveValue'
+
 export const BLOCK_HEIGHT_OPTIONS = [
   { value: 'none', label: 'Auto' },
   { value: 'sm', label: 'Small (240px)' },
@@ -31,4 +33,15 @@ export const BLOCK_HEIGHT_MAP: Record<string, string | undefined> = {
 // simply auto again.
 export function blockFillCss(attribute: string, id: string): string {
   return `*:has(> [${attribute}="${id}"]){height:100%;}`
+}
+
+// Per-breakpoint sibling of blockFillCss, for blocks whose height field is
+// responsive: lifts the parent only at the breakpoints where "Fill container"
+// is actually picked. No base rule is needed when desktop isn't filling - the
+// parent's natural height IS auto - so a tablet-only fill emits just the one
+// media rule and desktop renders byte-identically to before.
+export function blockFillCssResponsive(attribute: string, id: string, fillAt: (d: Device) => boolean): string {
+  const sel = `*:has(> [${attribute}="${id}"])`
+  const base = fillAt('desktop') ? `${sel}{height:100%;}` : ''
+  return base + responsiveMediaCssFor(sel, (d) => `height:${fillAt(d) ? '100%' : 'auto'};`)
 }

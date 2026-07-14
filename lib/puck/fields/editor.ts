@@ -26,6 +26,7 @@ import {
 import { VisibilityField } from '@/lib/puck/VisibilityField'
 import { MinMaxPairField } from '@/lib/puck/MinMaxPairField'
 import { ClearableNumberField } from '@/lib/puck/ClearableNumberField'
+import { UnitValueField, ResponsiveUnitValueField } from '@/lib/puck/UnitValueField'
 
 // Called at module scope by the Puck editors. A plain side-effecting import would
 // be legal too, but calling an exported function keeps the import a *used* value,
@@ -46,5 +47,7 @@ export function registerEditorFields(): void {
     VisibilityField,
     MinMaxPairField,
     ClearableNumberField,
+    UnitValueField,
+    ResponsiveUnitValueField,
   })
 }

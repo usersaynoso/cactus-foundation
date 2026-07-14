@@ -37,6 +37,10 @@ import type {
 import type { VisibilityField as VisibilityFieldImpl } from '@/lib/puck/VisibilityField'
 import type { MinMaxPairField as MinMaxPairFieldImpl } from '@/lib/puck/MinMaxPairField'
 import type { ClearableNumberField as ClearableNumberFieldImpl } from '@/lib/puck/ClearableNumberField'
+import type {
+  UnitValueField as UnitValueFieldImpl,
+  ResponsiveUnitValueField as ResponsiveUnitValueFieldImpl,
+} from '@/lib/puck/UnitValueField'
 
 // Every widget config.tsx can name. The editor must register all of them - see the
 // guard test in lib/puck/fields/registry.test.ts, which fails if the two lists drift
@@ -56,6 +60,8 @@ export const FIELD_WIDGET_NAMES = [
   'VisibilityField',
   'MinMaxPairField',
   'ClearableNumberField',
+  'UnitValueField',
+  'ResponsiveUnitValueField',
 ] as const
 
 export type FieldWidgetName = (typeof FIELD_WIDGET_NAMES)[number]
@@ -101,3 +107,5 @@ export const ResponsiveNumberField = fieldProxy('ResponsiveNumberField') as type
 export const VisibilityField = fieldProxy('VisibilityField') as typeof VisibilityFieldImpl
 export const MinMaxPairField = fieldProxy('MinMaxPairField') as typeof MinMaxPairFieldImpl
 export const ClearableNumberField = fieldProxy('ClearableNumberField') as typeof ClearableNumberFieldImpl
+export const UnitValueField = fieldProxy('UnitValueField') as typeof UnitValueFieldImpl
+export const ResponsiveUnitValueField = fieldProxy('ResponsiveUnitValueField') as typeof ResponsiveUnitValueFieldImpl

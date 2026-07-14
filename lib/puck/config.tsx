@@ -26,8 +26,8 @@ import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { emailSafeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
-import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCss } from '@/lib/puck/blockHeight'
-import { LOGO_ALIGN_OPTIONS, siteLogoAlign } from '@/lib/puck/siteLogoAlign'
+import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '@/lib/puck/blockHeight'
+import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
@@ -44,12 +44,13 @@ import {
   HeaderBgColorField,
   PageBgColorField,
   LayoutPickerField,
-  ResponsiveTextField,
   ResponsiveSelectField,
   ResponsiveNumberField,
   VisibilityField,
   MinMaxPairField,
   ClearableNumberField,
+  UnitValueField,
+  ResponsiveUnitValueField,
 } from '@/lib/puck/fields/registry'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
@@ -179,7 +180,7 @@ const AOS_TYPE_MAP: Record<string, string> = {
 const AOS_DURATION_MAP: Record<string, string> = { fast: '300', normal: '600', slow: '1000' }
 const AOS_DELAY_MAP: Record<string, string> = { none: '0', '100ms': '100', '200ms': '200', '400ms': '400', '600ms': '600' }
 
-function getAosProps(animationType: string, animationDuration: string, animationDelay: string): Record<string, string> {
+export function getAosProps(animationType: string, animationDuration: string, animationDelay: string): Record<string, string> {
   if (!animationType || animationType === 'none') return {}
   return {
     'data-aos': AOS_TYPE_MAP[animationType] ?? animationType,
@@ -213,6 +214,25 @@ const aosFields = {
   },
 }
 const aosDefaults = { animationType: 'none', animationDuration: 'normal', animationDelay: 'none' }
+
+// Generic "stick while scrolling" pair, shared by the content blocks that can
+// usefully pin themselves beside taller siblings (an image next to long text,
+// a buy-box button column, a spec sheet). Same field keys the Section block
+// already uses, so the central stickyOffset trim in withResponsiveVisibility
+// covers every one of them. The offset needs `sticky: 'on'` to show at all.
+const STICKY_FIELDS = {
+  sticky: { type: 'select' as const, label: 'Stick while scrolling', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On (sticks within its column/section)' }] },
+  stickyOffset: { type: 'custom' as const, label: 'Sticky offset', units: ['px', 'rem', 'vh'], render: UnitValueField },
+}
+const STICKY_DEFAULTS = { sticky: 'off', stickyOffset: '' }
+
+// position:sticky only travels while the block's parent is taller than the
+// block, and is silently disabled by any overflow:hidden ancestor - both are
+// layout facts the block can't check from here, so 'on' just sets the style.
+export function getStickyStyle(sticky: string | undefined, stickyOffset: string | undefined): React.CSSProperties {
+  if (sticky !== 'on') return {}
+  return { position: 'sticky', top: stickyOffset || '0px', zIndex: 1 }
+}
 
 // Responsive visibility — injected into every component below (see the
 // `withResponsiveVisibility` map at the bottom of `components:`) rather than
@@ -251,10 +271,31 @@ export function wrapResponsiveRender(render: (props: any) => React.ReactNode) {
 }
 
 function withResponsiveVisibility(def: any): any {
+  const ownResolve = def.resolveFields
   return {
     ...def,
     fields: { ...VISIBILITY_FIELDS, ...def.fields },
     defaultProps: { ...VISIBILITY_DEFAULTS, ...def.defaultProps },
+    // Central applicable-only trims, applied AFTER any per-block resolveFields
+    // so every component (module blocks included) gets them for free: animation
+    // speed/delay only mean anything once a scroll animation is picked, and a
+    // sticky offset only once the block actually sticks.
+    resolveFields: (data: any, ctx: any) => {
+      let fields = ownResolve ? ownResolve(data, ctx) : ctx.fields
+      const p = data?.props ?? {}
+      if ('animationDuration' in fields && (!p.animationType || p.animationType === 'none')) {
+        const rest = { ...fields }
+        delete rest.animationDuration
+        delete rest.animationDelay
+        fields = rest
+      }
+      if ('sticky' in fields && 'stickyOffset' in fields && p.sticky !== 'on') {
+        const rest = { ...fields }
+        delete rest.stickyOffset
+        fields = rest
+      }
+      return fields
+    },
     render: wrapResponsiveRender(def.render),
   }
 }
@@ -310,7 +351,7 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset, animationType, animationDuration, animationDelay } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
@@ -372,14 +413,15 @@ function GridBlock(props: any) {
   const shrunkTabletCols = hasShrunkOverride ? shrunkColsAt('tablet') : tabletCols
   const shrunkMobileCols = hasShrunkOverride ? shrunkColsAt('mobile') : mobileCols
 
-  // gap and vertical alignment vary per breakpoint too (columns already do,
-  // above). col*Align is deliberately NOT responsive: the header true-centering
-  // fix reads it in JS (centerColIndexes) to decide which columns to absolutely
-  // centre, so a per-breakpoint object there would break that gate.
+  // gap, vertical alignment and space-below vary per breakpoint too (columns
+  // already do, above). col*Align is deliberately NOT responsive: the header
+  // true-centering fix reads it in JS (centerColIndexes) to decide which
+  // columns to absolutely centre, so a per-breakpoint object would break that.
   const gapRv = normalizeResponsiveValue<string>(gap)
   const vAlignRv = normalizeResponsiveValue<string>(verticalAlign)
+  const spaceBelowRv = normalizeResponsiveValue<string>(spaceBelow)
   const vAlignMap: Record<string, string> = { stretch: 'stretch', start: 'start', center: 'center', end: 'end' }
-  const gapVAlignCss = responsiveMediaCssFor(`[data-grid-id="${id}"]`, (d) => `gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};align-items:${vAlignMap[pickResponsive(vAlignRv, d) ?? 'stretch'] ?? 'stretch'};`)
+  const gapVAlignCss = responsiveMediaCssFor(`[data-grid-id="${id}"]`, (d) => `gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};align-items:${vAlignMap[pickResponsive(vAlignRv, d) ?? 'stretch'] ?? 'stretch'};margin-bottom:${SPACE_BELOW_MAP[pickResponsive(spaceBelowRv, d) ?? 'md'] ?? '1.5rem'};`)
 
   // data-responsive-set opts this instance out of the generic tablet/mobile
   // collapse rules in buildTokenStyles (lib/design/tokens.ts), which only
@@ -416,13 +458,14 @@ function GridBlock(props: any) {
         className={`puck-grid ${getPaddingClasses(padding)}`}
         data-cols={colCount}
         data-grid-id={id}
+        {...getAosProps(animationType, animationDuration, animationDelay)}
         {...(stackAtTablet === 'on' ? { 'data-stack-tablet': '' } : {})}
         {...(selfManagedColumns ? { 'data-responsive-set': '' } : {})}
         style={{
       display: 'grid',
       gridTemplateColumns: desktopCols,
       gap: GAP_MAP[pickResponsive(gapRv, 'desktop') ?? 'md'] ?? '1rem',
-      marginBottom: SPACE_BELOW_MAP[spaceBelow ?? 'md'] ?? '1.5rem',
+      marginBottom: SPACE_BELOW_MAP[pickResponsive(spaceBelowRv, 'desktop') ?? 'md'] ?? '1.5rem',
       alignItems: (vAlignMap as any)[pickResponsive(vAlignRv, 'desktop') ?? 'stretch'] ?? 'stretch',
     }}>
       {slots.map((slot, i) => {
@@ -510,20 +553,20 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
     verticalAlign: { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
     gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
     padding: paddingField,
-    spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+    spaceBelow: { type: 'custom' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
     // Force a single stacked column from the tablet breakpoint down (not just
     // mobile). Default 'off' keeps the standard behaviour where a 2-column grid
     // stays side-by-side through the tablet band and only stacks on mobile.
     stackAtTablet: { type: 'select' as const, label: 'Stack on tablet', options: [{ value: 'off', label: 'Off (stack on mobile only)' }, { value: 'on', label: 'On (stack from tablet down)' }] },
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
-  for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width (e.g. 300px, 40%, 2fr)`, render: ResponsiveTextField }
+  for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width`, units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField }
   // Pin a column in place while the taller column scrolls past (e.g. an image
   // that stays beside a long text column). Auto-releases once the grid stacks
   // to one column (mobile, or the tablet band when "Stack on tablet" is on) so
   // the pinned block just sits in normal flow there instead of floating.
   for (const n of cols) fields[`col${n}Sticky`] = { type: 'select' as const, label: `Col ${n} sticky`, options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick while scrolling' }] }
-  for (const n of cols) fields[`col${n}StickyOffset`] = { type: 'text' as const, label: `Col ${n} sticky offset (e.g. 88px)` }
+  for (const n of cols) fields[`col${n}StickyOffset`] = { type: 'custom' as const, label: `Col ${n} sticky offset`, units: ['px', 'rem'], render: UnitValueField }
   // Shrunk-state fields - only shown when this Grid sits in a header with
   // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
   // shrink that column/gap. Setting a shrunk width also opts the column into
@@ -531,10 +574,11 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   // transform scale) automatically, since that's the only case a column's
   // rendered width actually changes at runtime.
   fields.gapShrunk = { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] }
-  for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, render: ResponsiveTextField }
+  for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField }
+  Object.assign(fields, aosFields)
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
-  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackAtTablet: 'off', gapShrunk: '' }
+  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackAtTablet: 'off', gapShrunk: '', ...aosDefaults }
   for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
 
   return {
@@ -542,18 +586,18 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
     fields,
     defaultProps,
     resolveFields: (data: any, { fields: f, appState }: any) => {
-      let result = f
+      const result: Record<string, any> = { ...f }
       if (!isHeaderShrinkEnabled(appState)) {
-        const rest = { ...result }
-        delete rest.gapShrunk
-        for (const n of cols) delete rest[`col${n}WidthShrunk`]
-        result = rest
+        delete result.gapShrunk
+        for (const n of cols) delete result[`col${n}WidthShrunk`]
+      }
+      // A sticky offset has nothing to offset until that column actually sticks.
+      for (const n of cols) {
+        if (data.props?.[`col${n}Sticky`] !== 'on') delete result[`col${n}StickyOffset`]
       }
       const isManual = readColumnSizesMode(data.props?.columnSizes) === 'manual'
-      if (isManual) return result
-      const trimmed = { ...result }
-      for (const n of cols) delete trimmed[`col${n}Width`]
-      return trimmed
+      if (!isManual) for (const n of cols) delete result[`col${n}Width`]
+      return result
     },
     // Leaving Manual mode hides col*Width but getGridTemplateColumns still lets
     // a non-blank width win over the preset regardless of columnSizes - without
@@ -721,7 +765,7 @@ function SiteHeaderBlock(props: any) {
 }
 
 function SplitBlock(props: any) {
-  const { puck, id, ratio, align = 'stretch', gap = 'md', padding } = props
+  const { puck, id, ratio, align = 'stretch', gap = 'md', padding, animationType, animationDuration, animationDelay } = props
   const alignMap: Record<string, string> = { stretch: 'stretch', start: 'flex-start', center: 'center', end: 'flex-end' }
 
   const gridCols: Record<string, string> = {
@@ -747,7 +791,7 @@ function SplitBlock(props: any) {
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-split-id={id} className={`puck-split ${getPaddingClasses(padding)}`} style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padBase === 'none' ? 0 : '1.5rem' }}>
+      <div data-split-id={id} className={`puck-split ${getPaddingClasses(padding)}`} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padBase === 'none' ? 0 : '1.5rem' }}>
         <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
         <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
       </div>
@@ -759,14 +803,24 @@ function Spacer(props: any) {
   const { id } = props
   const heights: Record<string, number> = { xs: 8, sm: 16, md: 32, lg: 64, xl: 96 }
   const rv = normalizeResponsiveValue<string>(props.height)
-  const base = pickResponsive(rv, 'desktop') ?? 'md'
-  const css = responsiveMediaCssFor(`[data-spacer-id="${id}"]`, (d) => `height:${heights[pickResponsive(rv, d) ?? 'md'] ?? 32}px;`)
-  return <>{css && <style>{css}</style>}<div data-spacer-id={id} style={{ height: heights[base] ?? 32 }} /></>
+  // 'custom' takes its exact height from the paired unit field; blank custom
+  // falls back to the medium preset rather than collapsing to nothing.
+  const customRv = normalizeResponsiveValue<string>(props.heightCustom)
+  const heightAt = (d: Device) => {
+    const v = pickResponsive(rv, d) ?? 'md'
+    if (v === 'custom') return (pickResponsive(customRv, d) ?? '').trim() || '32px'
+    return `${heights[v] ?? 32}px`
+  }
+  const css = responsiveMediaCssFor(`[data-spacer-id="${id}"]`, (d) => `height:${heightAt(d)};`)
+  return <>{css && <style>{css}</style>}<div data-spacer-id={id} style={{ height: heightAt('desktop') }} /></>
 }
 
 function Divider(props: any) {
-  const { id, style, color, thickness } = props
+  const { id, style, color, thickness, animationType, animationDuration, animationDelay } = props
+  // gray/dark/brand are the legacy preset values; anything else is a raw CSS
+  // colour straight from the swatch/manual picker. Blank keeps the old gray.
   const colors: Record<string, string> = { gray: 'var(--color-border)', dark: 'var(--color-fg)', brand: 'var(--color-primary)' }
+  const lineColour = colors[color] ?? (color || colors.gray)
   const heights: Record<string, string> = { thin: '1px', medium: '2px', thick: '4px' }
   const rv = normalizeResponsiveValue<string>(thickness)
   const base = pickResponsive(rv, 'desktop') ?? 'thin'
@@ -776,9 +830,9 @@ function Divider(props: any) {
   return (
     <>
       {css && <style>{css}</style>}
-      <hr data-divider-id={id} style={{
+      <hr data-divider-id={id} {...getAosProps(animationType, animationDuration, animationDelay)} style={{
         border: 'none',
-        borderTop: `${heights[base] ?? '1px'} ${style ?? 'solid'} ${colors[color] ?? colors.gray}`,
+        borderTop: `${heights[base] ?? '1px'} ${style ?? 'solid'} ${lineColour}`,
         margin: '1.5rem 0',
       }} />
     </>
@@ -793,7 +847,7 @@ function SectionBlock(props: any) {
   const {
     id, content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
-    paddingY = 'lg', maxWidth = 'standard', textColor = '',
+    paddingY = 'lg', maxWidth = 'standard', maxWidthCustom = '', textColor = '',
     contentAlign = 'top',
     sticky = 'off', stickyOffset = '0px',
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
@@ -851,6 +905,14 @@ function SectionBlock(props: any) {
   // one - the media rules only fire when a breakpoint differs from desktop.
   const pyRv = normalizeResponsiveValue<string>(paddingY)
   const mwRv = normalizeResponsiveValue<string>(maxWidth)
+  // 'custom' reads its width from the paired unit field; blank custom falls
+  // back to the standard width so a half-set field never collapses the section.
+  const mwCustomRv = normalizeResponsiveValue<string>(maxWidthCustom)
+  const mwAt = (d: Device) => {
+    const v = pickResponsive(mwRv, d) ?? 'standard'
+    if (v === 'custom') return (pickResponsive(mwCustomRv, d) ?? '').trim() || '960px'
+    return maxWidthMap[v] ?? '960px'
+  }
   const isScreen = (v: string | undefined) => v === 'screen'
   const pyPad = (v: string | undefined) => paddingYMap[isScreen(v) ? 'lg' : (v ?? 'lg')] ?? '6rem'
   const desktopPy = pickResponsive(pyRv, 'desktop')
@@ -868,7 +930,7 @@ function SectionBlock(props: any) {
   const desktopCa = pickResponsive(caRv, 'desktop') ?? 'top'
   const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
     const v = pickResponsive(pyRv, d)
-    return `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
+    return `max-width:${mwAt(d)};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
   })
 
   return (
@@ -879,7 +941,7 @@ function SectionBlock(props: any) {
       )}
       {innerCss && <style>{innerCss}</style>}
       <div data-section-id={id} style={{
-        maxWidth: maxWidthMap[pickResponsive(mwRv, 'desktop') ?? 'standard'] ?? '960px',
+        maxWidth: mwAt('desktop'),
         margin: '0 auto',
         padding: `${pyPad(desktopPy)} 1.5rem`,
         minHeight: isScreen(desktopPy) ? '100vh' : undefined,
@@ -971,7 +1033,7 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
 }
 
 function Heading(props: any) {
-  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', href = '', hoverUnderline = 'none', hoverUnderlineColor = '', minHeight = 'none', verticalAlign = 'top', fitOneLine = 'no', puck } = props
+  const { id, text, level, align, color, fontSize = '', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', href = '', hoverUnderline = 'none', hoverUnderlineColor = '', minHeight = 'none', verticalAlign = 'top', fitOneLine = 'no', sticky = 'off', stickyOffset = '', puck } = props
   // Obfuscate email addresses on the published site only - the editor keeps the
   // plain address so it stays editable (see lib/email-obfuscate).
   const obfuscate = !puck?.isEditing
@@ -1003,20 +1065,39 @@ function Heading(props: any) {
   // "fill" stretches the block to its container's height (a stretch Grid/Split/
   // Group column, or any parent that has a resolved height) rather than a fixed
   // min-height, so the vertical position sits against the full section.
-  const isFill = minHeight === 'fill'
-  const mh = BLOCK_HEIGHT_MAP[minHeight] ?? undefined
-  const hasHeight = Boolean(mh) || isFill
-  const wrapStyle: React.CSSProperties | undefined = hasHeight
+  // Height and vertical position are per-breakpoint: a full-screen hero heading
+  // on desktop can drop back to auto height on a phone. Desktop is the inline
+  // base; the other breakpoints ride media rules on the wrapper's own id hook.
+  const mhRv = normalizeResponsiveValue<string>(minHeight)
+  const vaRv = normalizeResponsiveValue<string>(verticalAlign)
+  const mhAt = (d: Device) => pickResponsive(mhRv, d) ?? 'none'
+  const isFill = (['desktop', 'tablet', 'mobile'] as const).some((d) => mhAt(d) === 'fill')
+  const hasHeight = (['desktop', 'tablet', 'mobile'] as const).some((d) => mhAt(d) !== 'none')
+  const desktopMh = mhAt('desktop')
+  const wrapDecl = (d: Device) => {
+    const v = mhAt(d)
+    if (v === 'none') return 'display:block;min-height:auto;height:auto;align-self:auto;'
+    const flex = `display:flex;flex-direction:column;justify-content:${vAlignMap[pickResponsive(vaRv, d) ?? 'top'] ?? 'flex-start'};`
+    if (v === 'fill') return `${flex}height:100%;align-self:stretch;min-height:auto;`
+    return `${flex}min-height:${BLOCK_HEIGHT_MAP[v]};height:auto;align-self:auto;`
+  }
+  const wrapCss = hasHeight ? responsiveMediaCssFor(`[data-heading-wrap="${id}"]`, wrapDecl) : ''
+  const wrapStyle: React.CSSProperties | undefined = desktopMh !== 'none'
     ? {
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: vAlignMap[verticalAlign] ?? 'flex-start',
-        ...(isFill ? { height: '100%', alignSelf: 'stretch' } : { minHeight: mh }),
+        justifyContent: vAlignMap[pickResponsive(vaRv, 'desktop') ?? 'top'] ?? 'flex-start',
+        ...(desktopMh === 'fill' ? { height: '100%', alignSelf: 'stretch' } : { minHeight: BLOCK_HEIGHT_MAP[desktopMh] }),
       }
     : undefined
+  // Optional per-block font-size override (unit field, per-breakpoint); blank
+  // keeps the per-level token exactly as before.
+  const fsRv = normalizeResponsiveValue<string>(fontSize)
+  const fsAt = (d: Device) => (pickResponsive(fsRv, d) ?? '').trim()
+  const tokenSize = (l: string) => `var(--${l}-size, ${sizes[l] ?? sizes.h2})`
   const style: React.CSSProperties = {
     fontFamily: `var(--${lvl}-family)`,
-    fontSize: `var(--${lvl}-size, ${sizes[lvl] ?? sizes.h2})`,
+    fontSize: fsAt('desktop') || tokenSize(lvl),
     fontWeight: `var(--${lvl}-weight, ${weights[lvl] ?? 700})` as React.CSSProperties['fontWeight'],
     lineHeight: `var(--${lvl}-line-height, 1.25)`,
     letterSpacing: `var(--${lvl}-letter-spacing, normal)`,
@@ -1026,7 +1107,7 @@ function Heading(props: any) {
     textAlign: alignBase as React.CSSProperties['textAlign'],
     // A centred/bottom-aligned block drops the bottom margin so the flex
     // centring is true; the wrapper's padding owns the outer spacing there.
-    margin: hasHeight ? '0' : '0 0 1rem',
+    margin: desktopMh !== 'none' ? '0' : '0 0 1rem',
   }
   const Tag = lvl === 'display' ? 'h1' : lvl
   const headingClassName = lvl === 'display' ? 'cactus-display' : undefined
@@ -1045,7 +1126,9 @@ function Heading(props: any) {
   // by default, and it's the only thing here that needs client JS, so the plain
   // heading stays a pure server-rendered tag.
   const content = fitOneLine === 'yes' ? <HeadingFitText>{rawContent}</HeadingFitText> : rawContent
-  const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
+  // One per-breakpoint rule on the tag itself carries alignment, the margin
+  // that toggles with block height, and the optional font-size override.
+  const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};margin:${mhAt(d) !== 'none' ? '0' : '0 0 1rem'};font-size:${fsAt(d) || tokenSize(lvl)};`)
   // Whole-heading link: the anchor wraps the tag and inherits its colour, so the
   // heading looks identical until hovered. The optional hover underline is
   // scoped to this block's id; its colour defaults to the heading's own colour.
@@ -1060,8 +1143,9 @@ function Heading(props: any) {
     : ''
   // Gives the wrapper's parent a height for the `height: 100%` above to resolve
   // against - see blockFillCss for why the published page needs this and the
-  // editor doesn't.
-  const fillCss = isFill ? blockFillCss('data-heading-fill', id) : ''
+  // editor doesn't. Responsive: only lifts the parent at breakpoints where
+  // "Fill container" is actually picked.
+  const fillCss = isFill ? blockFillCssResponsive('data-heading-fill', id, (d) => mhAt(d) === 'fill') : ''
   const headingEl = (
     <Tag data-heading-id={id} style={style} className={headingClassName}>
       {content}
@@ -1070,11 +1154,12 @@ function Heading(props: any) {
   return (
     <div
       className={getPaddingClasses(padding)}
-      style={wrapStyle}
+      style={{ ...wrapStyle, ...getStickyStyle(sticky, stickyOffset) }}
+      {...(hasHeight ? { 'data-heading-wrap': id } : {})}
       {...(isFill ? { 'data-heading-fill': id } : {})}
       {...getAosProps(animationType, animationDuration, animationDelay)}
     >
-      {(alignCss || linkBaseCss || hoverCss || fillCss) && <style>{`${alignCss}${linkBaseCss}${hoverCss}${fillCss}`}</style>}
+      {(alignCss || wrapCss || linkBaseCss || hoverCss || fillCss) && <style>{`${alignCss}${wrapCss}${linkBaseCss}${hoverCss}${fillCss}`}</style>}
       {href
         ? <a {...emailSafeHref(href, obfuscate)} data-heading-link={id} style={{ display: 'block', color: 'inherit' }}>{headingEl}</a>
         : headingEl}
@@ -1083,11 +1168,14 @@ function Heading(props: any) {
 }
 
 function TextBlock(props: any) {
-  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', puck } = props
+  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const body = puck?.isEditing ? content : linkifyEmails(content)
   const sizeMap: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
   const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
+  // default/muted/dark are the legacy preset values; anything else is a raw
+  // CSS colour from the swatch/manual picker. Blank keeps the old secondary.
   const colorMap: Record<string, string> = { default: 'var(--color-fg-secondary)', muted: 'var(--color-muted)', dark: 'var(--color-fg)' }
+  const resolvedColour = colorMap[color] ?? (color || 'var(--color-fg-secondary)')
   // align/size/maxWidth are each ResponsiveValue<string>, and they interact - a
   // capped width anchors the block to its text alignment via auto side margins -
   // so all three fold into a single per-breakpoint declaration set rather than
@@ -1114,7 +1202,7 @@ function TextBlock(props: any) {
   return (
     <>
       {mediaCss && <style>{mediaCss}</style>}
-      <div data-text-id={id} className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: colorMap[color] ?? 'var(--color-fg-secondary)', textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      <div data-text-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: resolvedColour, textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...getStickyStyle(sticky, stickyOffset) }}>
         {body}
       </div>
     </>
@@ -1140,18 +1228,20 @@ export function richTextColourCss(id: string | undefined, colour: string): strin
 }
 
 function RichTextBlock(props: any) {
-  const { id, content, padding, textColor, puck } = props
+  const { id, content, padding, textColor, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
   const colourCss = richTextColourCss(id, textColor)
+  const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
+  const stickyStyle = getStickyStyle(sticky, stickyOffset)
   // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
   // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
   // Render it directly rather than passing to dangerouslySetInnerHTML.
   if (React.isValidElement(content)) {
     return (
-      <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id}>
+      <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id} {...aosAttrs} style={stickyStyle}>
         {colourCss && <style>{colourCss}</style>}
         {content}
       </div>
@@ -1161,7 +1251,7 @@ function RichTextBlock(props: any) {
   // page never renders through here: config.rsc.tsx swaps in a version that runs
   // this same HTML through DOMPurify first.
   return (
-    <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id}>
+    <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id} {...aosAttrs} style={stickyStyle}>
       {colourCss && <style>{colourCss}</style>}
       <div dangerouslySetInnerHTML={{ __html: richTextContentToHtml(content, obfuscate) }} />
     </div>
@@ -1169,7 +1259,7 @@ function RichTextBlock(props: any) {
 }
 
 function Quote(props: any) {
-  const { quote, attribution, padding, mediaUrl, alt, imageSize = 'md', imageShape = 'circle', imageHeight = 0, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { quote, attribution, padding, mediaUrl, alt, imageSize = 'md', imageShape = 'circle', imageHeight = 0, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const editing = puck?.isEditing
   const photoSizeMap: Record<string, number> = { sm: 72, md: 112, lg: 160 }
   const photoRadiusMap: Record<string, string> = { circle: '50%', rounded: '8px', square: '0' }
@@ -1185,7 +1275,7 @@ function Quote(props: any) {
     </>
   )
   return (
-    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={getStickyStyle(sticky, stickyOffset)}>
       <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
         {mediaUrl ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
@@ -1206,7 +1296,7 @@ function Quote(props: any) {
 }
 
 function Caption(props: any) {
-  const { id, text, align, padding, puck } = props
+  const { id, text, align, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const body = puck?.isEditing ? text : linkifyEmails(text)
   const alignRv = normalizeResponsiveValue<string>(align)
   const alignBase = pickResponsive(alignRv, 'desktop') ?? 'left'
@@ -1216,6 +1306,7 @@ function Caption(props: any) {
       {alignCss && <style>{alignCss}</style>}
       <p
         data-caption-id={id}
+        {...getAosProps(animationType, animationDuration, animationDelay)}
         className={`cactus-caption ${getPaddingClasses(padding)}`}
         style={{
           margin: 0, textAlign: alignBase as React.CSSProperties['textAlign'],
@@ -1265,6 +1356,7 @@ function ButtonLink(props: any) {
   const {
     id, label, href, variant, align, padding, puck,
     bgColor, textColor, hoverBgColor, hoverTextColor, borderWidth, borderColor,
+    sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
   } = props
   // A "mailto:" button is the most exposed address on any site - it sits in the
   // href AND usually in the label. Both are protected on the published site;
@@ -1313,8 +1405,18 @@ function ButtonLink(props: any) {
   // saved before this field existed keep taking their container's alignment
   // instead of being silently yanked left.
   const alignRv = normalizeResponsiveValue<string>(align)
-  const alignAt = (d: Device) => pickResponsive(alignRv, d) || 'inherit'
+  const rawAlignAt = (d: Device) => pickResponsive(alignRv, d) || ''
+  const alignAt = (d: Device) => {
+    const a = rawAlignAt(d)
+    return a === 'full' ? 'inherit' : (a || 'inherit')
+  }
+  // 'full' stretches the button across its container - the classic mobile
+  // treatment - by switching the <a> from inline-block to block; the label
+  // centres within it. Per-breakpoint like the alignment itself, so a button
+  // can sit inline on desktop and go full-width on phones.
+  const isFullAt = (d: Device) => rawAlignAt(d) === 'full'
   const alignCss = responsiveMediaCssFor(`[data-btn-id="${id}"]`, (d) => `text-align:${alignAt(d)};`)
+    + responsiveMediaCssFor(`a[data-btn-link="${id}"]`, (d) => `display:${isFullAt(d) ? 'block' : 'inline-block'};text-align:${isFullAt(d) ? 'center' : 'inherit'};`)
   // Hover on the three presets comes from the global .cactus-btn[data-variant]
   // rules in tokens.ts; data-variant="custom" deliberately matches none of them,
   // so a custom button's hover is emitted here instead, scoped to this block.
@@ -1328,10 +1430,11 @@ function ButtonLink(props: any) {
     <div
       className={getPaddingClasses(padding)}
       data-btn-id={id}
-      style={{ marginBottom: '1rem', textAlign: alignAt('desktop') as React.CSSProperties['textAlign'] }}
+      {...getAosProps(animationType, animationDuration, animationDelay)}
+      style={{ marginBottom: '1rem', textAlign: alignAt('desktop') as React.CSSProperties['textAlign'], ...getStickyStyle(sticky, stickyOffset) }}
     >
       {(alignCss || hoverCss) && <style>{`${alignCss}${hoverCss}`}</style>}
-      <a {...emailSafeHref(href, obfuscate)} data-btn-link={id} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
+      <a {...emailSafeHref(href, obfuscate)} data-btn-link={id} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary), ...(isFullAt('desktop') ? { display: 'block', textAlign: 'center' } : {}) }}>
         {maskEmailText(label, obfuscate)}
       </a>
     </div>
@@ -1339,14 +1442,23 @@ function ButtonLink(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, padding, paddingY = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', padding, paddingY = 'none', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
     white: { bg: 'var(--color-bg)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     light: { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     brand: { bg: 'var(--color-primary)', text: 'var(--color-bg)', sub: 'rgba(255,255,255,0.85)' },
   }
-  const t = bgs[background] ?? bgs.light!
+  // 'custom' paints this banner's own picked colours; each one left blank falls
+  // back to the Light preset it started from. The sub-text rides the picked
+  // text colour at 75% so it always reads against the same background.
+  const t = background === 'custom'
+    ? {
+        bg: bgColor || 'var(--color-bg-subtle)',
+        text: textColor || 'var(--color-fg)',
+        sub: textColor ? `color-mix(in srgb, ${textColor} 75%, transparent)` : 'var(--color-muted)',
+      }
+    : bgs[background] ?? bgs.light!
   // Height of the banner: the existing "Padding (left/right)" field only ever set
   // padding-left/right (via the cactus-pad-* classes), so the coloured box had
   // nothing holding it off the text above and below it. Per-breakpoint like every
@@ -1362,7 +1474,7 @@ function CTABanner(props: any) {
       <section
         data-cta-id={id}
         className={getPaddingClasses(padding)}
-        style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop') }}
+        style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop'), ...getStickyStyle(sticky, stickyOffset) }}
         {...getAosProps(animationType, animationDuration, animationDelay)}
       >
         {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{protectText(heading, obfuscate)}</h2>}
@@ -1382,7 +1494,7 @@ function CTABanner(props: any) {
 // ---------------------------------------------------------------------------
 
 function ImageBlock(props: any) {
-  const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // The caption is protected; `alt` can't be - it's an attribute, and React
   // escapes attribute values, so an entity-encoded address would show up as the
   // literal text "&#64;". Attributes are the hard edge of this technique.
@@ -1410,7 +1522,7 @@ function ImageBlock(props: any) {
     return `max-width:${mw || 'none'};margin-left:${ml};margin-right:${mr};`
   })
   return (
-    <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined }} {...getAosProps(animationType, animationDuration, animationDelay)}>
+    <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined, ...getStickyStyle(sticky, stickyOffset) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {sizeCss && <style>{sizeCss}</style>}
       {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look.
           Deliberately not lazy: an Image block can be the first thing on a page, and lazy-loading the
@@ -1433,7 +1545,7 @@ function toEmbedUrl(url: string): string | null {
 }
 
 function VideoEmbed(props: any) {
-  const { id, url, aspectRatio, title, padding } = props
+  const { id, url, aspectRatio, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!url) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No video URL entered</div>
   const embedUrl = toEmbedUrl(url)
   if (!embedUrl) return <div style={{ background: '#fef2f2', borderRadius: 6, padding: '1rem', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
@@ -1443,7 +1555,7 @@ function VideoEmbed(props: any) {
   const arRv = normalizeResponsiveValue<string>(aspectRatio)
   const arCss = responsiveMediaCssFor(`[data-video-id="${id}"]`, (d) => `padding-bottom:${paddings[pickResponsive(arRv, d) ?? '16:9'] ?? '56.25%'};`)
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
       {arCss && <style>{arCss}</style>}
       <div data-video-id={id} style={{ position: 'relative', paddingBottom: paddings[pickResponsive(arRv, 'desktop') ?? '16:9'] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
         <iframe src={embedUrl} title={title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
@@ -1453,7 +1565,7 @@ function VideoEmbed(props: any) {
 }
 
 function Embed(props: any) {
-  const { id, src, height, title, padding } = props
+  const { id, src, height, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!src) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No embed URL entered</div>
   // Height is per-device: embedded widgets frequently need a taller (or
   // shorter) box once the viewport narrows.
@@ -1461,7 +1573,7 @@ function Embed(props: any) {
   const hAt = (d: 'desktop' | 'tablet' | 'mobile') => (pickResponsive(hRv, d) ?? '').trim() || '400px'
   const hCss = responsiveMediaCssFor(`[data-embed-id="${id}"]`, (d) => `height:${hAt(d)};`)
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
       {hCss && <style>{hCss}</style>}
       <iframe data-embed-id={id} src={src} title={title || 'Embedded content'} style={{ width: '100%', height: hAt('desktop'), border: 'none', borderRadius: 6, display: 'block' }} allowFullScreen />
     </div>
@@ -1568,7 +1680,7 @@ const SOCIAL_ICONS: Record<string, string> = {
 }
 
 function SocialLinks(props: any) {
-  const { id, items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding, puck } = props
+  const { id, items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const sizes: Record<string, number> = { sm: 20, md: 28, lg: 40 }
   const gapMap: Record<string, string> = { tight: '0.5rem', normal: '1rem', wide: '1.75rem' }
@@ -1591,7 +1703,7 @@ function SocialLinks(props: any) {
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-social-id={id} className={getPaddingClasses(padding)} style={containerStyle}>
+      <div data-social-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ ...containerStyle, ...getStickyStyle(sticky, stickyOffset) }}>
         {items.map((item: any, i: number) => (
           <a key={i} {...emailSafeHref(item.url || '#', obfuscate)} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
             style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: 'var(--social-icon)', height: 'var(--social-icon)', flexShrink: 0 }}
@@ -1608,11 +1720,11 @@ function SocialLinks(props: any) {
 // ---------------------------------------------------------------------------
 
 function Eyebrow(props: any) {
-  const { text, showPulse = 'false', padding, puck } = props
+  const { text, showPulse = 'false', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const pulse = showPulse === 'true' || showPulse === true
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1rem' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-pill, 9999px)', padding: '7px 16px' }}>
         {pulse && <span className="cactus-eyebrow-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} aria-hidden="true" />}
         {protectText(text, obfuscate)}
@@ -1645,7 +1757,7 @@ const GLYPH_ICONS: Record<string, string> = {
 }
 
 function Trustline(props: any) {
-  const { id, items = [], gap = 'normal', padding, puck } = props
+  const { id, items = [], gap = 'normal', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
   if (!items?.length) return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>No trust items yet — add some in the panel.</div>
@@ -1654,7 +1766,7 @@ function Trustline(props: any) {
   return (
     <>
       {css && <style>{css}</style>}
-      <div data-trustline-id={id} className={getPaddingClasses(padding)} style={{ display: 'flex', gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)' }}>
+      <div data-trustline-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ display: 'flex', gap: gapMap[pickResponsive(gapRv, 'desktop') ?? 'normal'] ?? '1.625rem', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-fg-secondary)' }}>
         {items.map((item: any, i: number) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
@@ -1700,28 +1812,42 @@ function Chip(props: any) {
 }
 
 function Card(props: any) {
-  const { id, mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, minHeight = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, minHeight = 'none', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   // "Fill container" stretches the card to whatever holds it - a Grid column, a
   // stretch Group - so a row of cards ends up the same height as its tallest
   // sibling instead of each one hugging its own text. Anything else is a plain
   // floor: the card grows past a fixed height rather than clipping its content.
-  const isFill = minHeight === 'fill'
-  const mh = BLOCK_HEIGHT_MAP[minHeight] ?? undefined
-  const fillCss = isFill ? blockFillCss('data-card-fill', id) : ''
+  // Per-breakpoint, same shape as Heading: desktop is the inline base, the
+  // other breakpoints ride media rules on the card's own id hook.
+  const mhRv = normalizeResponsiveValue<string>(minHeight)
+  const mhAt = (d: Device) => pickResponsive(mhRv, d) ?? 'none'
+  const isFill = (['desktop', 'tablet', 'mobile'] as const).some((d) => mhAt(d) === 'fill')
+  const hasHeight = (['desktop', 'tablet', 'mobile'] as const).some((d) => mhAt(d) !== 'none')
+  const desktopMh = mhAt('desktop')
+  const heightDecl = (d: Device) => {
+    const v = mhAt(d)
+    // A filled card owns the whole container, so the usual bottom margin has
+    // to go: 100% + 1.5rem overflows the very box it was told to fit.
+    if (v === 'fill') return 'height:100%;align-self:stretch;min-height:auto;margin-bottom:0;'
+    if (v === 'none') return 'height:auto;align-self:auto;min-height:auto;margin-bottom:1.5rem;'
+    return `height:auto;align-self:auto;min-height:${BLOCK_HEIGHT_MAP[v]};margin-bottom:1.5rem;`
+  }
+  const wrapCss = hasHeight ? responsiveMediaCssFor(`[data-card-id="${id}"]`, heightDecl) : ''
+  const fillCss = isFill ? blockFillCssResponsive('data-card-fill', id, (d) => mhAt(d) === 'fill') : ''
   return (
     <div
       className={getPaddingClasses(padding)}
+      {...(hasHeight ? { 'data-card-id': id } : {})}
       {...(isFill ? { 'data-card-fill': id } : {})}
       style={{
         border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', background: 'var(--color-bg)',
-        // A filled card owns the whole container, so the usual bottom margin has
-        // to go: 100% + 1.5rem overflows the very box it was told to fit.
-        marginBottom: isFill ? 0 : '1.5rem',
-        ...(isFill ? { height: '100%', alignSelf: 'stretch' } : mh ? { minHeight: mh } : {}),
+        marginBottom: desktopMh === 'fill' ? 0 : '1.5rem',
+        ...(desktopMh === 'fill' ? { height: '100%', alignSelf: 'stretch' } : BLOCK_HEIGHT_MAP[desktopMh] ? { minHeight: BLOCK_HEIGHT_MAP[desktopMh] } : {}),
+        ...getStickyStyle(sticky, stickyOffset),
       }}
       {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {fillCss && <style>{fillCss}</style>}
+      {(wrapCss || fillCss) && <style>{`${wrapCss}${fillCss}`}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
       {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
@@ -1737,7 +1863,8 @@ function ImageChipPanel(props: any) {
   const {
     mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none',
     borderColor = 'var(--color-border)', borderWidth = '1px', padding,
-    framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off', puck,
+    framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off',
+    sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
@@ -1760,13 +1887,17 @@ function ImageChipPanel(props: any) {
   return (
     <div
       className={[gridPattern !== 'none' ? 'cactus-section-grid-scan' : '', hasFrame ? '' : getPaddingClasses(padding)].filter(Boolean).join(' ') || undefined}
+      {...getAosProps(animationType, animationDuration, animationDelay)}
       style={{
+        // getStickyStyle swaps position to sticky when on; the chips'
+        // absolute positioning anchors to either the same way.
         position: 'relative', overflow: 'hidden', marginBottom: '1.5rem',
         boxShadow: shadowMap[boxShadow] ?? 'none',
         borderRadius: panelRadius,
         border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
         background: bgMap[frameBg],
         padding: hasFrame ? innerPad : undefined,
+        ...getStickyStyle(sticky, stickyOffset),
       }}
     >
       {scanEffect === 'on' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
@@ -1784,7 +1915,7 @@ function ImageChipPanel(props: any) {
 }
 
 function Callout(props: any) {
-  const { type, title, body, padding, puck } = props
+  const { type, title, body, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   // Colours come from the --status-{key} family (Styles → Colours → Status
   // boxes, emitted by buildTokenStyles); fallbacks are the original built-in
@@ -1797,7 +1928,7 @@ function Callout(props: any) {
   }
   const t = (themes[type] ?? themes.info)!
   return (
-    <div className={getPaddingClasses(padding)} style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
       {title && <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>{t.icon} {protectText(title, obfuscate)}</p>}
       <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{protectText(body, obfuscate)}</p>
     </div>
@@ -1805,7 +1936,7 @@ function Callout(props: any) {
 }
 
 function Badge(props: any) {
-  const { label, color, padding, puck } = props
+  const { label, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   // blue/yellow/red/gray read the Styles → Colours → Badges tokens when the
   // admin has set them (lib/design/tokens.ts), falling back to the original
@@ -1820,18 +1951,18 @@ function Badge(props: any) {
   }
   const t = (colors[color] ?? colors.gray)!
   return (
-    <div className={getPaddingClasses(padding)}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
       <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius-pill, 9999px)', fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{protectText(label, obfuscate)}</span>
     </div>
   )
 }
 
 function Accordion(props: any) {
-  const { items, padding, puck } = props
+  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No accordion items yet — add some in the panel.</div>
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem' }}>
       {items.map((item: any, i: number) => (
         <details key={i} style={{ borderBottom: '1px solid var(--color-border)', padding: 0 }}>
           <summary style={{ padding: '0.875rem 0', fontWeight: 600, color: 'var(--color-fg)', cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
@@ -1903,12 +2034,12 @@ function FeatureList(props: any) {
 // ── Spec data panel (concept's ".xcard": a windowed table with a dot title-bar
 //    and an optional "same price for all" pill on a highlighted row) ──────────
 function SpecPanel(props: any) {
-  const { title = '', rows = [], boxShadow = 'md', borderRadius = 'lg', padding, puck } = props
+  const { title = '', rows = [], boxShadow = 'md', borderRadius = 'lg', padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.10)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
+    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
       <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: radiusMap[borderRadius] ?? '16px', boxShadow: shadowMap[boxShadow] ?? shadowMap.md, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--color-border)', background: 'linear-gradient(90deg, var(--color-primary-subtle, rgba(0,0,0,0.03)), transparent)' }}>
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-primary)', flexShrink: 0 }} />
@@ -1939,13 +2070,13 @@ function SpecPanel(props: any) {
 // ── Ticker / marquee band (concept's ".ticker-band": a teal strip of phrases
 //    scrolling seamlessly; items are duplicated so the -50% loop is invisible) ─
 function Ticker(props: any) {
-  const { items = [], speed = 'normal', puck } = props
+  const { items = [], speed = 'normal', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   const speedMap: Record<string, string> = { slow: '45s', normal: '30s', fast: '20s' }
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No ticker phrases yet — add some in the panel.</div>
   const loop = [...items, ...items]
   return (
-    <div style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '16px 0', overflow: 'hidden', marginBottom: '1.5rem' }}>
+    <div {...getAosProps(animationType, animationDuration, animationDelay)} style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '16px 0', overflow: 'hidden', marginBottom: '1.5rem' }}>
       <div className="cactus-ticker" style={{ animationDuration: speedMap[speed] ?? '30s' }}>
         {loop.map((it: any, i: number) => (
           <span key={i} className="cactus-ticker-item" aria-hidden={i >= items.length ? 'true' : undefined}>{protectText(it.text, obfuscate)}</span>
@@ -2238,8 +2369,9 @@ export function SiteLogoRsc(props: any) {
   const { id, logoUrl, logoUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, align, homeUrl = '/' } = props
   // cellHeight/cellHeightShrunk are the current field keys; logoHeight/
   // logoHeightShrunk are accepted as a fallback for pre-rename saved data and
-  // for SiteHeaderBlock, which still passes logoHeight.
-  const cellH = cellHeight ?? logoHeight ?? 40
+  // for SiteHeaderBlock, which still passes logoHeight. Per-breakpoint via the
+  // same helper SiteLogoClient uses, so the two halves cannot drift.
+  const { base: cellH, css: cellHCss } = siteLogoCellHeight(id, cellHeight, logoHeight)
   const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
@@ -2262,6 +2394,7 @@ export function SiteLogoRsc(props: any) {
     return (
       <a href={homeUrl || '/'} data-sitelogo-id={id} style={style}>
         {alignCss && <style>{alignCss}</style>}
+        {cellHCss && <style>{cellHCss}</style>}
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
@@ -2339,13 +2472,14 @@ export const puckConfig = {
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
-        overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
+        overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
-        maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }], render: ResponsiveSelectField },
+        maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
+        maxWidthCustom: { type: 'custom' as const, label: 'Custom max-width', units: ['px', '%', 'rem', 'vw', 'ch'], render: ResponsiveUnitValueField },
         contentAlign: { type: 'custom' as const, label: 'Content vertical alignment', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
-        stickyOffset: { type: 'text' as const, label: 'Sticky offset (e.g. 64px)' },
+        stickyOffset: { type: 'custom' as const, label: 'Sticky offset', units: ['px', 'rem', 'vh'], render: UnitValueField },
         boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         borderStyle: { type: 'select' as const, label: 'Border', options: [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }] },
         borderColor: { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
@@ -2354,25 +2488,29 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
-      // Two independent trims: with no background (mode "none") a background image
-      // and its overlay scrim have nothing to sit on, so hide those four fields;
-      // and with no border (borderStyle "none") the border colour and width have
-      // nothing to paint, so hide those two. Border radius stays either way - it
-      // rounds the section's background/image even without a border.
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      // Only applicable fields survive: the image picker/size belong to the
+      // 'image' background (though they stay visible while a legacy block still
+      // carries an image under another mode, so a painting value is never
+      // invisible-but-active); the overlay scrim needs a background to sit on,
+      // and its opacity needs a colour to apply to; border colour/width need a
+      // border style; the sticky offset needs sticky on; the custom width needs
+      // "Custom…" picked at some breakpoint. Border radius stays either way -
+      // it rounds the section's background/image even without a border.
       resolveFields: (data: any, { fields }: any) => {
-        let result = fields
-        const mode = data.props?.bg?.mode ?? 'none'
-        if (mode === 'none') {
-          const { bgImage: _bi, bgSize: _bs, overlayColor: _oc, overlayOpacity: _oo, ...rest } = result
-          result = rest
-        }
-        const borderStyle = data.props?.borderStyle ?? 'none'
-        if (borderStyle === 'none') {
-          const { borderColor: _bc, borderWidth: _bw, ...rest } = result
-          result = rest
-        }
-        return result
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        const mode = p.bg?.mode ?? 'none'
+        if (mode !== 'image' && !p.bgImage) { delete rest.bgImage; delete rest.bgSize }
+        else if (!p.bgImage) delete rest.bgSize
+        if (mode === 'none' && !p.bgImage) { delete rest.overlayColor; delete rest.overlayOpacity }
+        else if (!p.overlayColor) delete rest.overlayOpacity
+        if ((p.borderStyle ?? 'none') === 'none') { delete rest.borderColor; delete rest.borderWidth }
+        // (sticky's offset trim happens centrally in withResponsiveVisibility)
+        const mw = p.maxWidth
+        const mwVals = typeof mw === 'string' ? [mw] : [mw?.desktop, mw?.tablet, mw?.mobile]
+        if (!mwVals.includes('custom')) delete rest.maxWidthCustom
+        return rest
       },
       render: SectionBlock,
     },
@@ -2384,27 +2522,28 @@ export const puckConfig = {
         verticalAlign: { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
-        spaceBelow: { type: 'select' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
+        spaceBelow: { type: 'custom' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         col1Align: { type: 'select' as const, label: 'Col 1 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
-        col1Width: { type: 'custom' as const, label: 'Col 1 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
-        col2Width: { type: 'custom' as const, label: 'Col 2 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
-        col3Width: { type: 'custom' as const, label: 'Col 3 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
-        col4Width: { type: 'custom' as const, label: 'Col 4 width (e.g. 300px, 40%, 2fr)', render: ResponsiveTextField },
+        col1Width: { type: 'custom' as const, label: 'Col 1 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col2Width: { type: 'custom' as const, label: 'Col 2 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col3Width: { type: 'custom' as const, label: 'Col 3 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col4Width: { type: 'custom' as const, label: 'Col 4 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
         // Shrunk-state fields - only shown when this Grid sits in a header with
         // "Shrink on scroll" turned on (see resolveFields below). Blank = don't
         // shrink that column/gap. Setting a shrunk width also opts the column
         // into "scale to width" automatically (see GridBlock's colScaled).
         gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
-        col1WidthShrunk: { type: 'custom' as const, label: 'Col 1 shrunk width', render: ResponsiveTextField },
-        col2WidthShrunk: { type: 'custom' as const, label: 'Col 2 shrunk width', render: ResponsiveTextField },
-        col3WidthShrunk: { type: 'custom' as const, label: 'Col 3 shrunk width', render: ResponsiveTextField },
-        col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', render: ResponsiveTextField },
+        col1WidthShrunk: { type: 'custom' as const, label: 'Col 1 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col2WidthShrunk: { type: 'custom' as const, label: 'Col 2 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col3WidthShrunk: { type: 'custom' as const, label: 'Col 3 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        ...aosFields,
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '' },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
       resolveFields: (data: any, { fields, appState }: any) => {
         let result = fields
         if (!isHeaderShrinkEnabled(appState)) {
@@ -2477,9 +2616,16 @@ export const puckConfig = {
         items: { type: 'slot' as const },
       },
       defaultProps: { columns: 'auto', direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none', gapShrunk: '' },
-      resolveFields: (_data: any, { fields, appState }: any) => {
-        if (isHeaderShrinkEnabled(appState)) return fields
-        const { gapShrunk: _g, ...rest } = fields
+      resolveFields: (data: any, { fields, appState }: any) => {
+        const rest: Record<string, any> = { ...fields }
+        if (!isHeaderShrinkEnabled(appState)) delete rest.gapShrunk
+        // With a column count set the Group renders as an equal-width grid
+        // (GroupBlock's gridMode, gated on the desktop value), so the flex-only
+        // knobs - direction, justify, wrap - do nothing and come off the panel.
+        const colsProp = data.props?.columns
+        const colsDesktop = typeof colsProp === 'string' ? colsProp : colsProp?.desktop
+        const n = colsDesktop && colsDesktop !== 'auto' ? parseInt(colsDesktop, 10) : NaN
+        if (Number.isFinite(n) && n > 0) { delete rest.direction; delete rest.justify; delete rest.wrap }
         return rest
       },
       render: GroupBlock,
@@ -2491,24 +2637,36 @@ export const puckConfig = {
         align:   { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
         gap:     { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
+        ...aosFields,
       },
-      defaultProps: { ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none' },
+      defaultProps: { ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none', ...aosDefaults },
       render: SplitBlock,
     },
     Spacer: {
       label: 'Space',
-      fields: { height: { type: 'custom' as const, label: 'Height', options: [{ value: 'xs', label: 'XS (8px)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (32px)' }, { value: 'lg', label: 'Large (64px)' }, { value: 'xl', label: 'XL (96px)' }], render: ResponsiveSelectField } },
-      defaultProps: { height: 'md' as const },
+      fields: {
+        height: { type: 'custom' as const, label: 'Height', options: [{ value: 'xs', label: 'XS (8px)' }, { value: 'sm', label: 'Small (16px)' }, { value: 'md', label: 'Medium (32px)' }, { value: 'lg', label: 'Large (64px)' }, { value: 'xl', label: 'XL (96px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
+        heightCustom: { type: 'custom' as const, label: 'Custom height', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
+      },
+      defaultProps: { height: 'md' as const, heightCustom: '' },
+      resolveFields: (data: any, { fields }: any) => {
+        const h = data.props?.height
+        const vals = typeof h === 'string' ? [h] : [h?.desktop, h?.tablet, h?.mobile]
+        if (vals.includes('custom')) return fields
+        const { heightCustom: _hc, ...rest } = fields
+        return rest
+      },
       render: Spacer,
     },
     Divider: {
       label: 'Divider',
       fields: {
         style: { type: 'select' as const, label: 'Line style', options: [{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }] },
-        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'gray', label: 'Gray' }, { value: 'dark', label: 'Dark' }, { value: 'brand', label: 'Brand' }] },
+        color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         thickness: { type: 'custom' as const, label: 'Thickness', options: [{ value: 'thin', label: 'Thin' }, { value: 'medium', label: 'Medium' }, { value: 'thick', label: 'Thick' }], render: ResponsiveSelectField },
+        ...aosFields,
       },
-      defaultProps: { style: 'solid' as const, color: 'gray' as const, thickness: 'thin' as const },
+      defaultProps: { style: 'solid' as const, color: '' as const, thickness: 'thin' as const, ...aosDefaults },
       render: Divider,
     },
     // ── Embed ───────────────────────────────────────────────────────────────
@@ -2553,8 +2711,9 @@ export const puckConfig = {
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         fitOneLine: { type: 'select' as const, label: 'Keep on one line (shrink text to fit)', options: [{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }] },
-        minHeight: { type: 'select' as const, label: 'Block height', options: BLOCK_HEIGHT_OPTIONS },
-        verticalAlign: { type: 'select' as const, label: 'Vertical position (needs a block height)', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
+        fontSize: { type: 'custom' as const, label: 'Font size (blank = site style)', units: ['px', 'rem', 'em', 'vw'], render: ResponsiveUnitValueField },
+        minHeight: { type: 'custom' as const, label: 'Block height', options: BLOCK_HEIGHT_OPTIONS, render: ResponsiveSelectField },
+        verticalAlign: { type: 'custom' as const, label: 'Vertical position', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }], render: ResponsiveSelectField },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
         highlightMark: { type: 'select' as const, label: 'Emphasis mark', options: [{ value: 'underline', label: 'Highlighter underline' }, { value: 'none', label: 'Colour only' }] },
@@ -2562,17 +2721,23 @@ export const puckConfig = {
         hoverUnderline: { type: 'select' as const, label: 'Underline on hover (linked headings)', options: [{ value: 'none', label: 'No' }, { value: 'yes', label: 'Yes' }] },
         hoverUnderlineColor: { type: 'custom' as const, label: 'Hover underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
+        ...STICKY_FIELDS,
         revealAnimation: { type: 'select' as const, label: 'Reveal animation (on load)', options: [{ value: 'none', label: 'None' }, { value: 'stagger-lines', label: 'Stagger lines in' }] },
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, fitOneLine: 'no' as const, minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
-      // The hover-underline colour only bites when the hover underline is on, so
-      // hide it otherwise (it also needs a link to do anything, but the underline
-      // toggle already gates that).
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, fitOneLine: 'no' as const, fontSize: '', minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', ...STICKY_DEFAULTS, revealAnimation: 'none' as const, ...aosDefaults },
+      // Only applicable fields survive: the vertical position needs a block
+      // height (at some breakpoint) to move within; the emphasis mark needs a
+      // phrase to emphasise; the hover underline (and colour) needs a link.
       resolveFields: (data: any, { fields: f }: any) => {
-        if (data.props?.hoverUnderline === 'yes') return f
-        const rest = { ...f }
-        delete rest.hoverUnderlineColor
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...f }
+        const mh = p.minHeight
+        const mhVals = typeof mh === 'string' ? [mh] : [mh?.desktop, mh?.tablet, mh?.mobile]
+        if (!mhVals.some((v: string | undefined) => v && v !== 'none')) delete rest.verticalAlign
+        if (!p.highlightText) delete rest.highlightMark
+        if (!p.href) { delete rest.hoverUnderline; delete rest.hoverUnderlineColor }
+        else if (p.hoverUnderline !== 'yes') delete rest.hoverUnderlineColor
         return rest
       },
       render: Heading,
@@ -2584,10 +2749,12 @@ export const puckConfig = {
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         size: { type: 'custom' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }], render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }], render: ResponsiveSelectField },
-        color: { type: 'select' as const, label: 'Colour', options: [{ value: 'default', label: 'Secondary' }, { value: 'muted', label: 'Muted' }, { value: 'dark', label: 'Dark' }] },
+        color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
-      defaultProps: { content: 'Enter your text here…', align: 'left' as const, size: 'base' as const, maxWidth: 'none' as const, color: 'default' as const, padding: 'default' },
+      defaultProps: { content: 'Enter your text here…', align: 'left' as const, size: 'base' as const, maxWidth: 'none' as const, color: '' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       render: TextBlock,
     },
     RichTextBlock: {
@@ -2596,8 +2763,10 @@ export const puckConfig = {
         content: { type: 'richtext' as const, label: 'Content' },
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
-      defaultProps: { content: '', textColor: '', padding: 'default' },
+      defaultProps: { content: '', textColor: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       render: RichTextBlock,
     },
     Quote: {
@@ -2611,9 +2780,10 @@ export const puckConfig = {
         imageHeight: { type: 'number' as const, label: 'Photo height (px, blank = square)' },
         imageShape: { type: 'select' as const, label: 'Photo shape', options: [{ value: 'circle', label: 'Circle' }, { value: 'rounded', label: 'Rounded' }, { value: 'square', label: 'Square' }] },
         padding: paddingField,
+        ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { quote: 'Enter a quote here…', attribution: '', mediaUrl: '', alt: '', imageSize: 'md' as const, imageHeight: 0, imageShape: 'circle' as const, padding: 'default', ...aosDefaults },
+      defaultProps: { quote: 'Enter a quote here…', attribution: '', mediaUrl: '', alt: '', imageSize: 'md' as const, imageHeight: 0, imageShape: 'circle' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       // Photo settings are noise until there's a photo to settle.
       resolveFields: (data: any, { fields }: any) => {
         if (data?.props?.mediaUrl) return fields
@@ -2628,8 +2798,9 @@ export const puckConfig = {
         text: { type: 'text' as const, label: 'Text' },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
         padding: paddingField,
+        ...aosFields,
       },
-      defaultProps: { text: 'Caption text', align: 'left' as const, padding: 'default' },
+      defaultProps: { text: 'Caption text', align: 'left' as const, padding: 'default', ...aosDefaults },
       render: Caption,
     },
 
@@ -2639,7 +2810,7 @@ export const puckConfig = {
       fields: {
         label: { type: 'text' as const, label: 'Label' }, href: { type: 'text' as const, label: 'URL' },
         variant: { type: 'select' as const, label: 'Style', options: [{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }, { value: 'outline', label: 'Outline' }, { value: 'custom', label: 'Custom' }] },
-        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }, { value: 'full', label: 'Full width' }], render: ResponsiveSelectField },
         bgColor: { type: 'custom' as const, label: 'Button colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         hoverBgColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
@@ -2647,8 +2818,10 @@ export const puckConfig = {
         borderWidth: { type: 'select' as const, label: 'Border', options: BUTTON_BORDER_OPTIONS },
         borderColor: { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
-      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, align: '' as const, bgColor: '', textColor: '', hoverBgColor: '', hoverTextColor: '', borderWidth: 'none' as const, borderColor: '', padding: 'default' },
+      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, align: '' as const, bgColor: '', textColor: '', hoverBgColor: '', hoverTextColor: '', borderWidth: 'none' as const, borderColor: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       // Only what's applicable. The three preset variants take their colours and
       // border from the site's Styles → Buttons tokens, so the per-block colour
       // and border fields are dead weight on them - they belong to Custom alone.
@@ -2673,12 +2846,22 @@ export const puckConfig = {
       fields: {
         heading: { type: 'text' as const, label: 'Heading' }, subtext: { type: 'textarea' as const, label: 'Sub-text' },
         ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' },
-        background: { type: 'select' as const, label: 'Background', options: [{ value: 'light', label: 'Light' }, { value: 'white', label: 'White (bordered)' }, { value: 'brand', label: 'Brand colour' }] },
+        background: { type: 'select' as const, label: 'Background', options: [{ value: 'light', label: 'Light' }, { value: 'white', label: 'White (bordered)' }, { value: 'brand', label: 'Brand colour' }, { value: 'custom', label: 'Custom colours' }] },
+        bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         paddingY: { type: 'custom' as const, label: 'Vertical padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, padding: 'none', paddingY: 'none' as const, ...aosDefaults },
+      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, bgColor: '', textColor: '', padding: 'none', paddingY: 'none' as const, ...STICKY_DEFAULTS, ...aosDefaults },
+      // The three presets carry their own colours, so the per-block colour
+      // pickers only appear on Custom.
+      resolveFields: (data: any, { fields }: any) => {
+        if (data.props?.background === 'custom') return fields
+        const { bgColor: _bg, textColor: _tx, ...rest } = fields
+        return rest
+      },
       render: CTABanner,
     },
 
@@ -2687,23 +2870,50 @@ export const puckConfig = {
       label: 'Image',
       fields: {
         mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, caption: { type: 'text' as const, label: 'Caption' },
-        maxWidth: { type: 'custom' as const, label: 'Max width (e.g. 400px or 60%)', render: ResponsiveTextField },
-        align: { type: 'custom' as const, label: 'Alignment (needs a max width)', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        padding: paddingField, ...aosFields,
+        maxWidth: { type: 'custom' as const, label: 'Max width', units: ['px', '%', 'rem', 'vw'], render: ResponsiveUnitValueField },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        padding: paddingField, ...STICKY_FIELDS, ...aosFields,
       },
-      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', maxWidth: '', align: 'left', padding: 'default', ...aosDefaults },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', caption: '', maxWidth: '', align: 'left', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Until an image is picked, the block is just a placeholder - the text,
+      // sizing and alignment settings have nothing to describe. Alignment also
+      // needs a max width: a full-width image has nothing to align against.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        if (!p.mediaUrl) {
+          for (const k of ['alt', 'caption', 'maxWidth', 'align', 'sticky', 'stickyOffset', 'animationType', 'animationDuration', 'animationDelay']) delete rest[k]
+          return rest
+        }
+        const mw = p.maxWidth
+        const hasMw = typeof mw === 'string' ? !!mw.trim() : !!(mw?.desktop || mw?.tablet || mw?.mobile)
+        if (!hasMw) delete rest.align
+        return rest
+      },
       render: ImageBlock,
     },
     VideoEmbed: {
       label: 'Video',
-      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField },
-      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'default' },
+      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Everything else describes a video; without a URL there isn't one.
+      resolveFields: (data: any, { fields }: any) => {
+        if (data.props?.url) return fields
+        const { title: _t, aspectRatio: _ar, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = fields
+        return rest
+      },
       render: VideoEmbed,
     },
     Embed: {
       label: 'Embed',
-      fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'custom' as const, label: 'Height (e.g. 400px)', render: ResponsiveTextField }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField },
-      defaultProps: { src: '', height: '400px', title: '', padding: 'default' },
+      fields: { src: { type: 'text' as const, label: 'URL to embed' }, height: { type: 'custom' as const, label: 'Height', units: ['px', 'vh', 'rem'], render: ResponsiveUnitValueField }, title: { type: 'text' as const, label: 'Title (accessibility)' }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { src: '', height: '400px', title: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Everything else describes the embedded frame; no URL, no frame.
+      resolveFields: (data: any, { fields }: any) => {
+        if (data.props?.src) return fields
+        const { height: _h, title: _t, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = fields
+        return rest
+      },
       render: Embed,
     },
 
@@ -2716,7 +2926,7 @@ export const puckConfig = {
         cta2Label: { type: 'text' as const, label: 'Second CTA label' }, cta2Href: { type: 'text' as const, label: 'Second CTA URL' },
         cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
         bg: { type: 'custom' as const, label: 'Background', render: HeroBgColorField }, bgImage: { type: 'text' as const, label: 'Background image URL' },
-        overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
+        overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }], render: ResponsiveSelectField },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
         textScheme: { type: 'select' as const, label: 'Text colour', options: [{ value: 'dark', label: 'Dark (for light backgrounds)' }, { value: 'light', label: 'Light (for dark backgrounds)' }] },
@@ -2724,12 +2934,29 @@ export const puckConfig = {
         padding: paddingField, ...aosFields,
       },
       defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
+      // Only applicable fields survive: the background image belongs to the
+      // 'image' background (but stays visible while a legacy block still
+      // carries one under another mode); overlay opacity needs an overlay
+      // colour; the side image needs a right-image layout at some breakpoint;
+      // the second CTA's style needs a second CTA.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        const mode = p.bg?.mode ?? 'gradient'
+        if (mode !== 'image' && !p.bgImage) delete rest.bgImage
+        if (!p.overlayColor) delete rest.overlayOpacity
+        const l = p.layout
+        const layouts = typeof l === 'string' ? [l] : [l?.desktop, l?.tablet, l?.mobile]
+        if (!layouts.includes('right-image')) delete rest.imageUrl
+        if (!p.cta2Label) delete rest.cta2Variant
+        return rest
+      },
       render: Hero,
     },
     Card: {
       label: 'Card',
-      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, minHeight: { type: 'select' as const, label: 'Card height', options: BLOCK_HEIGHT_OPTIONS }, padding: paddingField, ...aosFields },
-      defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', minHeight: 'none' as const, padding: 'none', ...aosDefaults },
+      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, minHeight: { type: 'custom' as const, label: 'Card height', options: BLOCK_HEIGHT_OPTIONS, render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', minHeight: 'none' as const, padding: 'none', ...STICKY_DEFAULTS, ...aosDefaults },
       render: Card,
     },
     ImageChipPanel: {
@@ -2759,26 +2986,44 @@ export const puckConfig = {
         gridPattern: { type: 'select' as const, label: 'Blueprint grid', options: [{ value: 'none', label: 'Off' }, { value: 'subtle', label: 'On' }] },
         scanEffect: { type: 'select' as const, label: 'Scan sheen (animated)', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
       defaultProps: {
         mediaUrl: '', alt: '',
         chips: [{ label: 'Label', value: 'Detail text', position: 'top-right' as const, animationType: 'none' as const, animationDelay: 'none' as const }],
         boxShadow: 'md' as const, borderStyle: 'solid' as const, borderColor: 'var(--color-border)', borderWidth: '1px' as const, borderRadius: 'lg' as const,
         framePadding: 'none' as const, frameBg: 'none' as const, gridPattern: 'none' as const, scanEffect: 'off' as const,
-        padding: 'none',
+        padding: 'none', ...STICKY_DEFAULTS, ...aosDefaults,
+      },
+      // Until an image is picked the panel is just a placeholder, so only the
+      // picker (and padding) show. Border colour/width need a border style;
+      // the panel background only shows through a frame gutter.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        if (!p.mediaUrl) {
+          for (const k of Object.keys(rest)) {
+            if (k !== 'mediaUrl' && k !== 'padding' && k !== 'visibility') delete rest[k]
+          }
+          return rest
+        }
+        if ((p.borderStyle ?? 'none') === 'none') { delete rest.borderColor; delete rest.borderWidth }
+        if ((p.framePadding ?? 'none') === 'none') delete rest.frameBg
+        return rest
       },
       render: ImageChipPanel,
     },
     Callout: {
       label: 'Callout',
-      fields: { type: { type: 'select' as const, label: 'Type', options: [{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }, { value: 'error', label: 'Error' }] }, title: { type: 'text' as const, label: 'Title' }, body: { type: 'textarea' as const, label: 'Body' }, padding: paddingField },
-      defaultProps: { type: 'info' as const, title: '', body: 'Notice text here…', padding: 'none' },
+      fields: { type: { type: 'select' as const, label: 'Type', options: [{ value: 'info', label: 'Info' }, { value: 'success', label: 'Success' }, { value: 'warning', label: 'Warning' }, { value: 'error', label: 'Error' }] }, title: { type: 'text' as const, label: 'Title' }, body: { type: 'textarea' as const, label: 'Body' }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { type: 'info' as const, title: '', body: 'Notice text here…', padding: 'none', ...STICKY_DEFAULTS, ...aosDefaults },
       render: Callout,
     },
     Badge: {
       label: 'Badge',
-      fields: { label: { type: 'text' as const, label: 'Label' }, color: { type: 'select' as const, label: 'Colour', options: [{ value: 'primary', label: 'Brand' }, { value: 'blue', label: 'Blue' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }, { value: 'gray', label: 'Gray' }] }, padding: paddingField },
-      defaultProps: { label: 'New', color: 'primary' as const, padding: 'default' },
+      fields: { label: { type: 'text' as const, label: 'Label' }, color: { type: 'select' as const, label: 'Colour', options: [{ value: 'primary', label: 'Brand' }, { value: 'blue', label: 'Blue' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }, { value: 'gray', label: 'Gray' }] }, padding: paddingField, ...aosFields },
+      defaultProps: { label: 'New', color: 'primary' as const, padding: 'default', ...aosDefaults },
       render: Badge,
     },
     Eyebrow: {
@@ -2787,8 +3032,9 @@ export const puckConfig = {
         text: { type: 'text' as const, label: 'Text' },
         showPulse: { type: 'select' as const, label: 'Pulsing dot', options: [{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }] },
         padding: paddingField,
+        ...aosFields,
       },
-      defaultProps: { text: 'New', showPulse: 'false', padding: 'default' },
+      defaultProps: { text: 'New', showPulse: 'false', padding: 'default', ...aosDefaults },
       render: Eyebrow,
     },
     Trustline: {
@@ -2797,8 +3043,9 @@ export const puckConfig = {
         items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { text?: string }) => item.text || 'Item', arrayFields: { icon: { type: 'select' as const, label: 'Icon', options: [{ value: 'check', label: 'Checkmark' }, { value: 'truck', label: 'Delivery' }, { value: 'shield', label: 'Shield' }, { value: 'clock', label: 'Clock' }, { value: 'star', label: 'Star' }, { value: 'tag', label: 'Price tag' }] }, text: { type: 'text' as const, label: 'Text' } }, defaultItemProps: { icon: 'check', text: 'Reassurance point' } },
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         padding: paddingField,
+        ...aosFields,
       },
-      defaultProps: { items: [{ icon: 'check', text: 'Reassurance point' }], gap: 'normal' as const, padding: 'default' },
+      defaultProps: { items: [{ icon: 'check', text: 'Reassurance point' }], gap: 'normal' as const, padding: 'default', ...aosDefaults },
       render: Trustline,
     },
     Chip: {
@@ -2814,8 +3061,8 @@ export const puckConfig = {
     },
     Accordion: {
       label: 'Accordion',
-      fields: { items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { question?: string }) => item.question || 'Question', arrayFields: { question: { type: 'text' as const, label: 'Question' }, answer: { type: 'textarea' as const, label: 'Answer' } }, defaultItemProps: { question: 'What is the question?', answer: 'This is the answer.' } }, padding: paddingField },
-      defaultProps: { items: [{ question: 'What is the question?', answer: 'This is the answer.' }], padding: 'default' },
+      fields: { items: { type: 'array' as const, label: 'Items', getItemSummary: (item: { question?: string }) => item.question || 'Question', arrayFields: { question: { type: 'text' as const, label: 'Question' }, answer: { type: 'textarea' as const, label: 'Answer' } }, defaultItemProps: { question: 'What is the question?', answer: 'This is the answer.' } }, padding: paddingField, ...aosFields },
+      defaultProps: { items: [{ question: 'What is the question?', answer: 'This is the answer.' }], padding: 'default', ...aosDefaults },
       render: Accordion,
     },
     FeatureList: {
@@ -2846,6 +3093,8 @@ export const puckConfig = {
         boxShadow: { type: 'select' as const, label: 'Box shadow', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
         borderRadius: { type: 'select' as const, label: 'Border radius', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small (4px)' }, { value: 'md', label: 'Medium (8px)' }, { value: 'lg', label: 'Large (16px)' }] },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
       defaultProps: {
         title: 'Product record',
@@ -2853,7 +3102,7 @@ export const puckConfig = {
           { label: 'Price', value: '£249.00', highlight: 'true', badge: '✓ same for every buyer' },
           { label: 'Lead time', value: '3 to 5 working days', highlight: '', badge: '' },
         ],
-        boxShadow: 'md' as const, borderRadius: 'lg' as const, padding: 'none',
+        boxShadow: 'md' as const, borderRadius: 'lg' as const, padding: 'none', ...STICKY_DEFAULTS, ...aosDefaults,
       },
       render: SpecPanel,
     },
@@ -2862,8 +3111,9 @@ export const puckConfig = {
       fields: {
         items: { type: 'array' as const, label: 'Phrases', getItemSummary: (item: { text?: string }) => item.text || 'Phrase', arrayFields: { text: { type: 'text' as const, label: 'Text' } }, defaultItemProps: { text: 'A short phrase' } },
         speed: { type: 'select' as const, label: 'Speed', options: [{ value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }] },
+        ...aosFields,
       },
-      defaultProps: { items: [{ text: 'One price for all' }, { text: 'Every answer on the page' }, { text: 'Direct from supplier to door' }], speed: 'normal' as const },
+      defaultProps: { items: [{ text: 'One price for all' }, { text: 'Every answer on the page' }, { text: 'Direct from supplier to door' }], speed: 'normal' as const, ...aosDefaults },
       render: Ticker,
     },
     Stats: {
@@ -2887,8 +3137,10 @@ export const puckConfig = {
         layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'row', label: 'Row' }, { value: 'column', label: 'Column' }], render: ResponsiveSelectField },
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
       },
-      defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal', padding: 'default' },
+      defaultProps: { items: [{ platform: 'twitter-x', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       render: SocialLinks,
     },
 
@@ -2900,7 +3152,7 @@ export const puckConfig = {
       // own "Height" / "Shrunk height" so the two never read as duplicate
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, align: { type: 'custom' as const, label: 'Alignment', options: LOGO_ALIGN_OPTIONS, render: ResponsiveSelectField }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, align: { type: 'custom' as const, label: 'Alignment', options: LOGO_ALIGN_OPTIONS, render: ResponsiveSelectField }, cellHeight: { type: 'custom' as const, label: 'Element height (px)', render: ResponsiveNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
       // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
       // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
       // truth for the default. Puck backfills any missing prop from
@@ -2935,6 +3187,19 @@ export const puckConfig = {
         customLink2Url: { type: 'text' as const, label: 'Extra link 2 URL' }, customLink2Label: { type: 'text' as const, label: 'Extra link 2 label' },
       },
       defaultProps: { prefix: '©', customPrefix: '', yearFormat: 'current', startYear: new Date().getFullYear(), showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', textColor: 'var(--color-muted)', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' },
+      // The custom prefix needs "Custom…" picked; the start year needs the
+      // range format; each link label needs its link to actually exist.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        if (p.prefix !== 'custom') delete rest.customPrefix
+        if (p.yearFormat !== 'range') delete rest.startYear
+        if (!p.privacyPolicyUrl) delete rest.privacyPolicyLabel
+        if (!p.termsUrl) delete rest.termsLabel
+        if (!p.customLink1Url) delete rest.customLink1Label
+        if (!p.customLink2Url) delete rest.customLink2Label
+        return rest
+      },
       render: Copyright,
     },
     MenuBlock: {
@@ -2957,8 +3222,8 @@ export const puckConfig = {
         activeFontWeight: { type: 'select' as const, label: 'Active font weight', options: [{ value: '', label: 'Same as items' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         activeUnderline: { type: 'select' as const, label: 'Underline active item', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
         activeUnderlineColor: { type: 'custom' as const, label: 'Active underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
-        activeUnderlineThickness: { type: 'text' as const, label: 'Underline thickness (px)' },
-        activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
+        activeUnderlineThickness: { type: 'custom' as const, label: 'Underline thickness', units: ['px', 'em'], render: UnitValueField },
+        activeUnderlineOffset: { type: 'custom' as const, label: 'Underline offset', units: ['px', 'em'], render: UnitValueField },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'dropdown', label: 'Dropdown (current page)' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
         dropdownAlign: { type: 'select' as const, label: 'Dropdown alignment (hamburger + dropdown)', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }] },
@@ -2971,14 +3236,21 @@ export const puckConfig = {
       },
       defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, scale: { desktop: 100 }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, dropdownAlign: 'left' as const, fitOneLine: 'no' as const, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
       resolveFields: (data: any, { fields, appState }: any) => {
-        let out = fields
-        if (data?.props?.activeUnderline !== 'underline') {
-          const { activeUnderlineColor: _auc, activeUnderlineThickness: _aut, activeUnderlineOffset: _auo, ...rest } = out
-          out = rest
+        const p = data?.props ?? {}
+        const out: Record<string, any> = { ...fields }
+        if (p.activeUnderline !== 'underline') {
+          delete out.activeUnderlineColor; delete out.activeUnderlineThickness; delete out.activeUnderlineOffset
         }
-        if (isHeaderShrinkEnabled(appState)) return out
-        const { spacingShrunk: _s, itemFontSizeShrunk: _fs, itemFontWeightShrunk: _fw, ...rest } = out
-        return rest
+        // A vertical menu is a plain stacked list: no hamburger/dropdown
+        // behaviour, no horizontal alignment, nothing to fit on one line.
+        if (p.orientation === 'vertical') {
+          delete out.alignment; delete out.navToggle; delete out.dropdownAlign
+          delete out.showDropdowns; delete out.fitOneLine
+        }
+        if (!isHeaderShrinkEnabled(appState)) {
+          delete out.spacingShrunk; delete out.itemFontSizeShrunk; delete out.itemFontWeightShrunk
+        }
+        return out
       },
       render: MenuBlock,
     },
@@ -3081,8 +3353,8 @@ export const puckConfig = {
         logoHeight:       { type: 'number' as const, label: 'Logo height (px)' },
         showTextWithLogo: { type: 'select' as const, label: 'Show site name', options: [{ value: 'false', label: 'Logo only' }, { value: 'true', label: 'Logo + name' }] },
         logoHomeUrl:      { type: 'text' as const, label: 'Logo link URL' },
-        itemFontSize:     { type: 'select' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
-        itemFontWeight:   { type: 'select' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
+        itemFontSize:     { type: 'custom' as const, label: 'Nav font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], render: ResponsiveSelectField },
+        itemFontWeight:   { type: 'custom' as const, label: 'Nav font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }], render: ResponsiveSelectField },
         itemColor:        { type: 'custom' as const, label: 'Nav link colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         itemFontFamily:   { type: 'custom' as const, label: 'Nav font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
         hoverColor:       { type: 'custom' as const, label: 'Nav hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
@@ -3091,10 +3363,10 @@ export const puckConfig = {
         activeFontWeight: { type: 'select' as const, label: 'Active font weight', options: [{ value: '', label: 'Same as items' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
         activeUnderline:  { type: 'select' as const, label: 'Underline active item', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
         activeUnderlineColor: { type: 'custom' as const, label: 'Active underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
-        activeUnderlineThickness: { type: 'text' as const, label: 'Underline thickness (px)' },
-        activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
+        activeUnderlineThickness: { type: 'custom' as const, label: 'Underline thickness', units: ['px', 'em'], render: UnitValueField },
+        activeUnderlineOffset: { type: 'custom' as const, label: 'Underline offset', units: ['px', 'em'], render: UnitValueField },
         showDropdowns:    { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
-        alignment:        { type: 'select' as const, label: 'Nav horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }] },
+        alignment:        { type: 'custom' as const, label: 'Nav horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }], render: ResponsiveSelectField },
         showMobileToggle: { type: 'select' as const, label: 'Mobile nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
         showTabletToggle: { type: 'select' as const, label: 'Tablet nav', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'show', label: 'Always show' }] },
       },
@@ -3346,7 +3618,7 @@ export const headerPuckConfig = {
       border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
-      shrinkHeight: { type: 'text' as const, label: 'Shrunk height (e.g. 40px, 3rem)' },
+      shrinkHeight: { type: 'custom' as const, label: 'Shrunk height', units: ['px', 'rem'], render: UnitValueField },
     },
     defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {

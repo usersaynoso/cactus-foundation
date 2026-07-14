@@ -59,6 +59,14 @@ function composeLightDark(light: string, dark: string): string {
 
 type BgFieldOpts = { allowOpacity?: boolean; allowDark?: boolean }
 
+// Which second input each background mode actually needs. Solid-colour modes
+// (including "transparent → solid on scroll", whose colour is the solid it
+// lands on) get the swatch row; 'gradient' is a CSS gradient string, which no
+// swatch can express, so it gets its own text box; image/decorative/none modes
+// paint nothing from `color`, so they show no colour input at all — showing
+// swatches there was exactly the "options that aren't applicable" noise.
+const SWATCH_MODES = new Set(['color', 'transparent-scroll'])
+
 // Shared body for every "background mode select + colour swatches, one box"
 // field. Named with a `use` prefix (not a component) so it can call hooks -
 // each exported field below is the actual component, just delegating render.
@@ -114,11 +122,20 @@ function useBgColorFieldBody(options: Option[], { value, onChange, field }: BgCo
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {mode !== 'none' && swatchRow(
+      {SWATCH_MODES.has(mode) && swatchRow(
         lightBase,
         (varName) => onChange({ mode, color: build(varName, darkBase, alpha) }),
         'None / transparent',
         () => onChange({ mode, color: build('', darkBase, alpha) }),
+      )}
+      {mode === 'gradient' && (
+        <input
+          type="text"
+          value={color}
+          onChange={(e) => onChange({ mode, color: e.target.value })}
+          placeholder="e.g. linear-gradient(135deg, #0ea5e9, #9333ea)"
+          style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+        />
       )}
       {allowDark && mode === 'color' && lightBase && (
         <div style={{ marginTop: '0.5rem' }}>

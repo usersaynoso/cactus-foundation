@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { siteLogoAlign } from '@/lib/puck/siteLogoAlign'
+import { siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 
 type Props = {
@@ -12,7 +12,7 @@ type Props = {
   // "Element height when shrunk"). logoHeight/logoHeightShrunk are accepted as a
   // fallback so pre-rename saved data (and SiteHeaderBlock, which still passes
   // logoHeight) keeps rendering without a data migration.
-  cellHeight?: number
+  cellHeight?: ResponsiveValue<number> | number
   cellHeightShrunk?: number
   logoHeight?: number
   logoHeightShrunk?: number
@@ -41,7 +41,9 @@ export default function SiteLogoClient({
 }: Props) {
   const [hovered, setHovered] = useState(false)
 
-  const cellH = cellHeight ?? logoHeight ?? 40
+  // Per-breakpoint element height; siteLogoCellHeight handles the legacy
+  // plain-number shape and the pre-rename logoHeight fallback.
+  const { base: cellH, css: cellHCss } = siteLogoCellHeight(id, cellHeight, logoHeight)
   const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const href = homeUrl || '/'
   const showTextBool = showTextWithLogo === true || (showTextWithLogo as string) === 'true'
@@ -85,6 +87,7 @@ export default function SiteLogoClient({
     return (
       <a href={href} data-sitelogo-id={id} style={style} {...events}>
         {alignCss && <style>{alignCss}</style>}
+        {cellHCss && <style>{cellHCss}</style>}
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}

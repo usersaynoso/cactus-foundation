@@ -51,9 +51,25 @@ The screen icons and the preview are linked both ways: click a screen icon and t
 
 You only set the ones you want to change. Leave tablet or mobile blank and they simply follow the size above - mobile falls back to tablet, tablet falls back to desktop - so you can nudge the odd setting on smaller screens without redoing the lot. A small dot on a screen icon shows where you've set something specific.
 
-A few settings that used to be one-size-only now join in: the shared left/right padding on most blocks, an image's maximum width and alignment, a video's aspect ratio, an embed's height, the Hero's layout (so a text-and-image hero on desktop can become a centred text hero on phones), the column counts on the shop's product and category grids and the Gazette feed, and the number of columns in a Group.
+A few settings that used to be one-size-only now join in: the shared left/right padding on most blocks, an image's maximum width and alignment, a video's aspect ratio, an embed's height, the Hero's layout (so a text-and-image hero on desktop can become a centred text hero on phones), the column counts on the shop's product and category grids and the Gazette feed, and the number of columns in a Group. Also per screen size now: a grid's space below, a Heading's block height, vertical position and font size, a Card's height, a button's alignment (including full width), the Site Logo's height (a smaller logo on phones, at last), and the header menu's font size, weight and alignment.
 
 This is a different thing from hiding a block on certain screens (the show/hide-per-device toggle), which carries on working exactly as before.
+
+---
+
+## Sizes, colours, and settings that stay out of your way
+
+Three things hold across every block's settings panel:
+
+**Sizes come with a unit picker.** Anywhere a size is yours to choose - a column width, an image's maximum width, an embed's height, a sticky offset - you type the number and pick the unit from the little dropdown to its right: `px` for exact pixels, `%` for a share of the available space, `vh`/`vw` for a share of the screen, and so on. Type 50 and pick %, rather than having to know to write "50%". If you'd previously typed a value by hand it still works and shows up in the new picker.
+
+**Colours always offer your palette plus a custom pick.** Every colour setting shows your site's colour swatches first (each previewing its light and dark half), with a rainbow swatch on the end that opens a full colour picker for anything else. That now includes the Divider's line colour, the Text block's colour, and the CTA Banner (choose **Custom colours** as its background). Backgrounds are smarter about what they ask for, too: pick a gradient and you get a proper gradient box instead of colour swatches that wouldn't apply; pick an image and the colour swatches step aside.
+
+**Only settings that apply are shown.** A border's colour and width only appear once you've chosen a border style; a sticky offset only once the block is sticky; an overlay's strength only once you've picked an overlay colour; an image's alt text, size and alignment only once there's an image; a second button's style only once there's a second button; a vertical menu doesn't offer hamburger options, and so on. If a setting seems to be missing, it's usually waiting for the thing it depends on.
+
+A couple of blocks gained proper custom sizes along the way: the Section's **Content max-width** and the Spacer's **Height** both have a **Custom…** option that reveals a size field with the unit picker - per screen size, like everything else.
+
+**Scroll animations and sticking are everywhere they make sense.** Nearly every block now has a **Scroll animation** setting (fade, slide, zoom) - pick one and the speed and delay options appear; leave it on None and they stay hidden. Content blocks that might sit beside something taller - images, cards, text, buttons, spec panels, videos and the like - also have **Stick while scrolling**, which pins the block in place while its neighbour scrolls past (an offset field appears once it's on, for clearing a sticky header). Sticking only has room to work when the block's column is taller than the block itself.
 
 ---
 
@@ -69,14 +85,14 @@ Use these to structure the page and create visual sections.
 | **Grid** | A two-to-four column grid. Drop content into each column independently. |
 | **Split** | A two-column layout where each side is a separate drop zone. Good for side-by-side content. |
 | **Group** | A flexible container for arranging blocks side by side or stacked. Switch on **Columns** to lay any number of blocks out in an even grid - and pick a different number of columns for desktop, tablet and phone (say three across on a computer, two on a tablet, one on a phone). Handy when a Grid's fixed two-to-four columns won't line up the way you want. |
-| **Spacer** | Adds a fixed vertical gap between blocks. |
-| **Divider** | A horizontal line to visually separate content. |
+| **Spacer** | Adds a fixed vertical gap between blocks. Pick a preset size, or choose **Custom…** and set an exact height with the unit picker - per screen size if you like. |
+| **Divider** | A horizontal line to visually separate content. Its colour comes from your site's swatches, or pick any custom colour. |
 
 ### Text and headings
 
 | Block | What it does |
 |-------|--------------|
-| **Heading** | A standalone heading. Choose from sizes H2 through H5. |
+| **Heading** | A standalone heading. Choose from sizes H2 through H5 (or Display for the biggest hero text). A **Font size** override lets one heading break from the sitewide style - type a number, pick the unit, per screen size if you like. **Block height** and **Vertical position** place the heading within a taller space (or the full screen), and both can differ per screen size too - a full-screen statement on desktop can settle back to normal height on phones. |
 | **Text** | A paragraph of body text. |
 | **Rich Text** | A full text editor with bold, italic, bullet lists, numbered lists, links, and blockquotes. A **Text colour** setting recolours the whole block - pick one of your site colours or set a custom colour of your own. Links keep their usual link colour so they still look clickable. |
 | **Quote** | A styled pull quote with optional attribution, and an optional photo (pick one from your media library). The photo sits *inside* the quote panel, tucked between the coloured bar down the left edge and the quote itself. Choose its width, its shape (circle, rounded or square), and - if square isn't what you're after - type a height in pixels. Leave the height blank and it stays square, as before. |
@@ -85,7 +101,7 @@ Use these to structure the page and create visual sections.
 
 | Block | What it does |
 |-------|--------------|
-| **Button** | A clickable button that links to a URL or another page. Choose where it sits with **Alignment** (left, centre or right, and you can set it differently on mobile). **Style** picks one of your three sitewide button looks, or **Custom** if this one button needs to stand apart - Custom lets you set its colour, text colour, hover colours and border on the block itself, without touching any other button on the site. |
+| **Button** | A clickable button that links to a URL or another page. Choose where it sits with **Alignment** (left, centre, right or **Full width**, and you can set it differently on mobile - a button can sit inline on desktop and stretch edge to edge on phones). **Style** picks one of your three sitewide button looks, or **Custom** if this one button needs to stand apart - Custom lets you set its colour, text colour, hover colours and border on the block itself, without touching any other button on the site. |
 | **CTA Banner** | A call-to-action banner with a heading, description, and button. **Vertical padding** sets how tall the banner is - how much breathing room sits above and below the text - and can differ per screen size. Left at None, the coloured panel hugs the text, which is how it has always behaved. |
 
 ### Media
@@ -101,7 +117,7 @@ Use these to structure the page and create visual sections.
 | Block | What it does |
 |-------|--------------|
 | **Hero** | A large banner section with a heading, sub-heading, and an optional button. Great for the top of a homepage. |
-| **Card** | An image, heading, body text, and optional button. Good inside a Grid. **Card height** lets you pin it to a set height, or to **Fill container** so a row of cards all match the tallest one instead of each ending wherever its own text happens to stop. |
+| **Card** | An image, heading, body text, and optional button. Good inside a Grid. **Card height** lets you pin it to a set height, or to **Fill container** so a row of cards all match the tallest one instead of each ending wherever its own text happens to stop - and it can differ per screen size. |
 | **Callout** | A highlighted notice box. Available in info, success, warning, and error styles. |
 | **Badge** | A small coloured pill label. |
 | **Accordion** | Collapsible questions and answers. A good choice for FAQ sections - no extra scripts needed. |
