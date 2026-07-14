@@ -3,7 +3,10 @@ import { fullPagePuckRscConfig } from '@/lib/puck/config.rsc'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { prisma } from '@/lib/db/prisma'
+import AosInit from '@/lib/puck/components/AosInit'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
+import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
+import type { DesignTokens } from '@/lib/design/tokens'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -15,7 +18,7 @@ export default async function MaintenancePage() {
   if (layout?.builderData) {
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
-      select: { siteName: true, adminPath: true, logoMediaId: true, logoDarkMediaId: true },
+      select: { siteName: true, adminPath: true, logoMediaId: true, logoDarkMediaId: true, designTokens: true },
     }).catch(() => null)
     const [logoMedia, logoDarkMedia] = await Promise.all([
       config?.logoMediaId
@@ -28,11 +31,21 @@ export default async function MaintenancePage() {
     const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, logoDarkUrl: logoDarkMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
     const resolved = await resolveTemplateData(layout.builderData, ctx).catch(() => layout.builderData as Data)
 
+    const tokens = config?.designTokens as DesignTokens | undefined
+    const cssStyles = buildTokenStyles(tokens)
+    const fontHref = buildFontHref(tokens)
+
     // Renders the site's own chrome but sits outside app/(public)/layout.tsx,
-    // so it carries its own email deobfuscator - without it a protected mailto:
-    // link on this page would never get its href back (see lib/email-obfuscate).
+    // so it carries its own copies of everything that layout normally provides -
+    // design token CSS vars/font (without them the Puck blocks lose all their
+    // colours, borders and overlays), AOS init, and the email deobfuscator (a
+    // protected mailto: link would never get its href back otherwise, see
+    // lib/email-obfuscate).
     return (
       <>
+        {fontHref && <link rel="stylesheet" href={fontHref} />}
+        {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
+        <AosInit />
         <EmailDeobfuscator />
         <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
       </>
