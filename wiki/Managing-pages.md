@@ -76,17 +76,17 @@ Use these to structure the page and create visual sections.
 
 | Block | What it does |
 |-------|--------------|
-| **Heading** | A standalone heading. Choose from sizes H2 through H5. Switch on **Keep on one line** and a heading that would otherwise wrap shrinks itself just enough to stay on a single line - handy in a narrow column or a header, where a long heading spilling onto a second line throws the whole row out. It only ever shrinks, never grows, so a heading that already fits is left exactly as it is, and it re-checks itself whenever the space changes, so it holds on a phone as well as it does on a desktop. |
+| **Heading** | A standalone heading. Choose from sizes H2 through H5. |
 | **Text** | A paragraph of body text. |
 | **Rich Text** | A full text editor with bold, italic, bullet lists, numbered lists, links, and blockquotes. |
-| **Quote** | A styled pull quote with optional attribution. |
+| **Quote** | A styled pull quote with optional attribution, and an optional photo (pick one from your media library). The photo sits *inside* the quote panel, tucked between the coloured bar down the left edge and the quote itself. Choose its width, its shape (circle, rounded or square), and - if square isn't what you're after - type a height in pixels. Leave the height blank and it stays square, as before. |
 
 ### Actions
 
 | Block | What it does |
 |-------|--------------|
 | **Button** | A clickable button that links to a URL or another page. |
-| **CTA Banner** | A call-to-action banner with a heading, description, and button. |
+| **CTA Banner** | A call-to-action banner with a heading, description, and button. **Vertical padding** sets how tall the banner is - how much breathing room sits above and below the text - and can differ per screen size. Left at None, the coloured panel hugs the text, which is how it has always behaved. |
 
 ### Media
 
@@ -101,7 +101,7 @@ Use these to structure the page and create visual sections.
 | Block | What it does |
 |-------|--------------|
 | **Hero** | A large banner section with a heading, sub-heading, and an optional button. Great for the top of a homepage. |
-| **Card** | An image, heading, body text, and optional button. Good inside a Grid. |
+| **Card** | An image, heading, body text, and optional button. Good inside a Grid. **Card height** lets you pin it to a set height, or to **Fill container** so a row of cards all match the tallest one instead of each ending wherever its own text happens to stop. |
 | **Callout** | A highlighted notice box. Available in info, success, warning, and error styles. |
 | **Badge** | A small coloured pill label. |
 | **Accordion** | Collapsible questions and answers. A good choice for FAQ sections - no extra scripts needed. |
@@ -133,7 +133,12 @@ If you have modules installed, they may add extra blocks under a **Modules** cat
 
 ## Email addresses are protected automatically
 
-Put an email address anywhere in your page text - in a Heading, Text, Rich Text, Quote or Caption block - and Cactus quietly protects it from spam bots on the live site. You don't need to do anything, or use a special block. Just type the address as normal.
+Put an email address anywhere on a page and Cactus quietly protects it from spam bots on the live site. You don't need to do anything, or use a special block. Just type the address as normal.
+
+This covers every place an address can end up on a page:
+
+- **Typed into your words** - any block at all: a Heading, Text or Rich Text block, but equally a Card's body, a call-to-action's message, an FAQ answer, a stat, a caption, a footer line.
+- **Used as a link** - an "Email us" button, a call-to-action, a card, a menu item, a footer link, a linked heading, or a social link. This is the one that matters most: an email link is the easiest thing on a page for a spam bot to spot, easier than the address itself, so a button pointing at your inbox used to be the most exposed address on the whole site.
 
 Behind the scenes, the address is scrambled in the page's underlying code so the automated programs that trawl the web harvesting addresses for spam lists come away empty-handed. Visitors still see the address exactly as you typed it, and clicking it opens their email app with a new message ready to go - the address is quietly reassembled in their browser at the last moment.
 
@@ -141,6 +146,8 @@ A couple of things worth knowing:
 
 - **In the editor you'll still see the plain address** - the protection only applies once the page is live, so you can always read and edit what you typed.
 - **On the rare browser with JavaScript switched off**, the address still shows and is still readable - it just isn't clickable. Everyone else gets the normal click-to-email link.
+- **An address in a code sample is left alone.** If you deliberately wrote one inside a Rich Text code block, it's there as an example, so Cactus doesn't touch it.
+- **One spot it can't reach**: an address hidden in an image's alt text (the description a screen reader reads out) isn't scrambled, because of how that part of the page works. Keep contact addresses in your visible words or a link, which is where visitors look for them anyway.
 
 ---
 
@@ -151,6 +158,7 @@ Every page starts as a **draft** - not visible to the public. When you're ready 
 - While editing, all your changes stay in the draft only. The live page is unchanged.
 - Clicking **Publish** makes the current draft live and saves a snapshot of the previous version in history.
 - You can keep editing after publishing - the live page won't change again until you publish again.
+- The button greys out when there's nothing new to publish, so you can tell at a glance whether your latest edits are already live.
 
 ### Previewing before you publish
 

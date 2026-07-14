@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, type MouseEvent, type ReactNode } from 'react'
+import { useEditorDirtyState } from './editorDirtyState'
 
 // Puck's `headerActions` override wraps whatever sits in the header's action
 // area (just its native Update/Publish button by default) — piggyback on it
@@ -11,6 +12,25 @@ export function createHeaderActionsOverride(opts: {
   canDelete?: boolean
 }) {
   return function HeaderActionsOverride({ children }: { children: ReactNode }) {
+    const { canUpdate } = useEditorDirtyState()
+
+    // `children` is Puck's own Update button. Puck gives no prop hook for its state,
+    // but the Button it renders does take `disabled` — clone that in so it greys out
+    // with Puck's own disabled styling rather than us rebuilding the button by hand.
+    const updateButton = Children.map(children, (child) => (
+      isValidElement<{ disabled?: boolean }>(child)
+        ? cloneElement(child, { disabled: !canUpdate })
+        : child
+    ))
+
+    // That Button renders as a <span> (Puck passes it neither `type` nor `href`), so the
+    // disabled attribute is cosmetic there — it greys the button but a click would still
+    // reach Puck's own onClick and publish. Swallow the click in the capture phase, which
+    // in React halts the whole dispatch before the span's own handler runs.
+    const swallowClickWhenDisabled = (e: MouseEvent) => {
+      if (!canUpdate) { e.preventDefault(); e.stopPropagation() }
+    }
+
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {opts.canDelete !== false && (
@@ -33,7 +53,14 @@ export function createHeaderActionsOverride(opts: {
         >
           Preview
         </a>
-        {children}
+        <span
+          onClickCapture={swallowClickWhenDisabled}
+          aria-disabled={!canUpdate}
+          title={canUpdate ? undefined : 'No changes to update'}
+          style={{ display: 'inline-flex' }}
+        >
+          {updateButton}
+        </span>
       </div>
     )
   }

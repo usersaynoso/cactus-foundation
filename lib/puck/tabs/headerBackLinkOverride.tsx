@@ -1,16 +1,6 @@
-import { createContext, useContext, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-
-// Context, not a prop baked in at createBackLinkOverride-call time: the override
-// factory only runs inside a useMemo (backHref/label rarely change), so if
-// hasUnsavedChanges were a plain argument instead, the memo would need it in its
-// deps - and it flips false->true exactly once (the first real edit), which
-// recreated the whole overrides object and made Puck reinitialise mid-edit
-// (lost focus/scroll on whatever field was being typed into). Reading it via
-// context inside BackLinkOverride's own render lets the caller's memo stay
-// stable while this component still sees the live value on every render.
-const UnsavedChangesContext = createContext(false)
-export const UnsavedChangesProvider = UnsavedChangesContext.Provider
+import { useEditorDirtyState } from './editorDirtyState'
 
 // Puck hardcodes the button label as "Publish" with no override hook for the text itself
 // (only for surrounding markup). We already wrap the header in a wrapper here for the
@@ -38,7 +28,7 @@ function relabelPublishButton(root: HTMLElement) {
 export function createBackLinkOverride(href: string, label: string) {
   return function BackLinkOverride({ children }: { children: ReactNode }) {
     const ref = useRef<HTMLDivElement>(null)
-    const hasUnsavedChanges = useContext(UnsavedChangesContext)
+    const { hasUnsavedChanges } = useEditorDirtyState()
     useEffect(() => {
       if (ref.current) relabelPublishButton(ref.current)
     })

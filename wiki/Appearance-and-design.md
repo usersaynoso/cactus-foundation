@@ -96,17 +96,19 @@ Layouts use exactly the same drag-and-drop editor as pages, with all the same bl
 
 Some modules add their own layout types too, shown as an extra tab alongside the built-in ones (with a second row of tabs underneath for that module's own sub-types). At the moment: **Directory** (Category, Entry), **Gazette** (Listing, Post), **Boards** (Board, Thread), and **Shop** (Shop Home, Category, Collection, Product, Checkout, Confirmation) - so you can design the look of a directory category page, a blog article, a forum thread, or a shop product the same way you design your header or footer. See each module's own wiki page for what its sub-tabs mean.
 
-### Starter templates
+### Starting points
 
-When you first set up Cactus, a library of ready-made starter templates is installed automatically, marked with a **Starter** badge. Starter templates are read-only - they can't be edited, published, or deleted. Instead:
+Click **+ New Layout** and Cactus shows you a gallery of ready-made designs to start from, sorted into the same tabs as the Layouts list itself: headers, footers, page layouts, 404s, status pages, and a tab for each module that adds its own. Every design has a little sketch of its structure on the card, so you can see at a glance which one puts the logo in the middle, which one has the sidebar on the left, and which one is a blank canvas - rather than reading four nearly identical descriptions and guessing.
 
-- Click **Duplicate** (on the layout card, or on the template's own page) to get your own editable copy, which opens straight in the editor as a draft
-- Click **Use Sitewide** on the layout card to publish a starter's look as-is across your whole site in one go, no editing needed - the button disappears once that template is the one currently live, and using a different template of the same type (say, another header) automatically takes over from whichever one was live before
-- Or build your own layout from scratch
+Pick one and it becomes a layout of your own immediately, opening straight in the editor. There is nothing read-only about it: rename it, gut it, publish it, delete it. It was only ever a starting point.
 
-Cactus also seeds an editable working copy of each essential template (the default header, footer, page layout, 404 and status pages) when your site is first set up, so the site works out of the box and those live layouts are yours to edit freely.
+Every type offers a **Blank** option too, if you would rather begin with nothing. (Page layouts are the exception - they always need somewhere for the page's content to go, so every page layout starts with a content slot in it.)
 
-The template library keeps itself up to date: after each Cactus update, the starter templates are automatically refreshed to the latest designs. This never touches layouts you've duplicated or built yourself - and if you'd somehow edited a starter template in the past (older versions of Cactus allowed it), your edited version is kept as a copy of your own before the template is restored to its default design.
+Starting points are not layouts in their own right, so they never clutter up your Layouts list. That list only ever shows layouts you actually have.
+
+Cactus does create a handful of real layouts when your site is first set up - a default header, footer, page layout, 404 and the coming-soon/maintenance screens - so the site works the moment it goes up. Those are ordinary layouts, yours to edit or bin like any other.
+
+> **Upgrading from an older version?** Earlier versions of Cactus installed every starting point into your Layouts list as a read-only **Starter** template, and a fault meant each Cactus update quietly added more copies of them. Those get cleared out on your next update. Anything you edited, published, or built yourself is left exactly where it is - if you are not sure whether something was yours, it survives.
 
 ### Editing the header or footer
 
@@ -137,9 +139,9 @@ When multiple layouts match a page, the most specific one wins.
 
 ### Publishing layouts
 
-Like pages, layouts have a draft state and a published state. Changes stay in draft until you click **Publish**. The **Preview** button lets you see the layout before making it live.
+Like pages, layouts have a draft state and a published state. Changes stay in draft until you click **Publish**. The button greys out when there's nothing new to publish, so an untouched layout won't tempt you into a pointless save. The **Preview** button lets you see the layout before making it live.
 
-Module layout types come with a few starter templates each, same as headers and footers. Most don't publish anything automatically - Directory, Gazette and Boards' pages, plus Shop's Category and Collection pages, already have a perfectly good built-in look, so nothing changes until you duplicate a starter and hit Publish yourself. Shop's Home, Product, Checkout and Confirmation pages are the exception: they have no built-in look of their own to fall back on, so an editable working copy of a plain default is published automatically from the moment Shop is switched on - edit it, or swap it for a duplicate of another starter, whenever you like.
+Module layout types come with their own starting points, same as headers and footers, and nothing about a module's pages changes until you create a layout from one and publish it. Directory, Gazette and Boards' pages, plus Shop's Category and Collection pages, already have a perfectly good built-in look, so they carry on looking exactly as they do until you say otherwise. Shop's Home, Product, Checkout and Confirmation pages are the exception: they have no built-in look of their own to fall back on, so a plain default layout is created for them the moment Shop is switched on - edit it, or replace it with one built from a different starting point, whenever you like.
 
 ---
 

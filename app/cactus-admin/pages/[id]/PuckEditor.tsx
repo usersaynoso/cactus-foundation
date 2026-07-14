@@ -14,7 +14,8 @@ import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
-import { createBackLinkOverride, UnsavedChangesProvider } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { EditorDirtyProvider } from '@/lib/puck/tabs/editorDirtyState'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
@@ -31,6 +32,9 @@ type Props = {
   initialData: Data
   canPublish: boolean
   canManageMenus: boolean
+  // The saved draft already differs from what's live (a restored version, say), so
+  // Update has work to do even before the editor is touched — see canUpdate below.
+  hasUnpublishedDraft: boolean
   backHref: string
   onDeleteClick: () => void
   deleting: boolean
@@ -44,7 +48,7 @@ type HistoryVersion = {
   isLive: boolean
 }
 
-export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, backHref, onDeleteClick, deleting }: Props) {
+export default function PuckEditor({ pageId, initialData, canPublish, canManageMenus, hasUnpublishedDraft, backHref, onDeleteClick, deleting }: Props) {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -52,6 +56,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [draftAheadOfLive, setDraftAheadOfLive] = useState(hasUnpublishedDraft)
   const rootProps = initialData.root?.props as Record<string, unknown> | undefined
   const [isPublished, setIsPublished] = useState(rootProps?.status === 'published')
 
@@ -298,6 +303,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           setIsPublished(true)
           setLastSaved(new Date())
           setHasUnsavedChanges(false)
+          setDraftAheadOfLive(false)
           if (d.slug) setPublishedSlug(d.slug)
           loadHistory()
         }
@@ -342,6 +348,14 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   }, [pageId, doAutosave])
 
   const puckViewports = useMemo(() => buildPuckViewports(designTokens), [designTokens])
+
+  // Update is only worth clicking when it would change something: either edits made
+  // here, or a saved draft that is still sitting behind what's live. A draft page's
+  // Update just saves content, so there the session's own edits are the whole story.
+  const dirtyState = useMemo(() => ({
+    hasUnsavedChanges,
+    canUpdate: hasUnsavedChanges || (isPublished && draftAheadOfLive),
+  }), [hasUnsavedChanges, isPublished, draftAheadOfLive])
 
   const puckOverrides = useMemo(() => ({
     header: createBackLinkOverride(backHref, 'Back to Pages'),
@@ -399,7 +413,7 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
   ], [canManageMenus, saving, lastSaved, saveError, publishError, isPublished, publishedSlug, historyVersions, historyLoading, historyError, restoringIndex, handleRestore])
 
   return (
-    <UnsavedChangesProvider value={hasUnsavedChanges}>
+    <EditorDirtyProvider value={dirtyState}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Puck editor — takes remaining height */}
         <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
@@ -427,6 +441,6 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           </div>
         )}
       </div>
-    </UnsavedChangesProvider>
+    </EditorDirtyProvider>
   )
 }

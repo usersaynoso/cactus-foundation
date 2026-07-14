@@ -17,7 +17,8 @@ import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
 import SiteLogoEditorPreview from '@/lib/puck/SiteLogoEditorPreview'
 import { createPanelPlugin, settingsTabIcon, conditionsTabIcon, historyTabIcon, savedBlocksTabIcon } from '@/lib/puck/tabs/createPanelPlugin'
 import { hideRootFieldsOverride } from '@/lib/puck/tabs/rootFieldsOverride'
-import { createBackLinkOverride, UnsavedChangesProvider } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { createBackLinkOverride } from '@/lib/puck/tabs/headerBackLinkOverride'
+import { EditorDirtyProvider } from '@/lib/puck/tabs/editorDirtyState'
 import { createViewportDropdownOverride } from '@/lib/puck/tabs/ViewportDropdownOverride'
 import { createHeaderActionsOverride } from '@/lib/puck/tabs/headerActionsOverride'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
@@ -239,6 +240,14 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     onChange(data)
   }, [onChange])
 
+  // A layout keeps one content blob, and restoring an old version writes it straight
+  // back (see handleRestore in the parent), so unlike a page there's no saved-but-unlive
+  // draft to catch up on: edits made here are the only thing Update has to do.
+  const dirtyState = useMemo(
+    () => ({ hasUnsavedChanges, canUpdate: hasUnsavedChanges }),
+    [hasUnsavedChanges],
+  )
+
   const plugins = useMemo(() => [
     createPanelPlugin({
       name: 'settings', label: 'Settings', icon: settingsTabIcon,
@@ -283,7 +292,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
   ], [name, description, priority, status, onSettingsSave, onStatusChange, saving, saved, error, displayConditions, layoutType, onConditionsSave, historyVersions, historyLoading, historyError, restoringIndex, onRestore])
 
   return (
-    <UnsavedChangesProvider value={hasUnsavedChanges}>
+    <EditorDirtyProvider value={dirtyState}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div ref={canvasWrapRef} style={{ flex: 1, overflow: 'hidden' }}>
           {canvasReady && tokensReady && (
@@ -311,6 +320,6 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           </div>
         )}
       </div>
-    </UnsavedChangesProvider>
+    </EditorDirtyProvider>
   )
 }

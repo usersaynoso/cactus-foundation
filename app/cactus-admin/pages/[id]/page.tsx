@@ -21,10 +21,22 @@ type PageData = {
   body: string
   bodyFormat: 'markdown' | 'builder'
   builderData: Data | null
+  publishedData: Data | null
   metaDescription: string | null
   ogImageId: string | null
   status: 'draft' | 'published'
   menuIds: string[]
+}
+
+// Restoring an old version writes the draft (builderData) but never touches what's
+// live (publishedData), so a page can legitimately open with nothing edited yet still
+// have something to publish. Both blobs are written by the same server-side
+// normalisation and stored as jsonb (which orders keys deterministically), so a
+// stringify comparison is a fair one. Only meaningful once a page is live: for a
+// draft page, Update simply saves the content.
+function hasUnpublishedDraft(page: PageData): boolean {
+  if (page.status !== 'published') return false
+  return JSON.stringify(page.builderData) !== JSON.stringify(page.publishedData)
 }
 
 function buildInitialPuckData(page: PageData): Data {
@@ -130,6 +142,7 @@ export default function EditPagePage() {
         initialData={initialData}
         canPublish={canPublish}
         canManageMenus={canManageMenus}
+        hasUnpublishedDraft={hasUnpublishedDraft(page)}
         backHref={`/${adminPath}/pages`}
         onDeleteClick={() => setDeleteConfirm(true)}
         deleting={loading}
