@@ -56,6 +56,12 @@ if (!process.env.DIRECT_URL && migrateUrl.includes('-pooler.')) {
 const env = {
   ...process.env,
   DATABASE_URL: migrateUrl,
+  // Silence the Prisma CLI's version check and "update available" banner. Both cost
+  // a network round trip on the deploy critical path and neither is actionable
+  // mid-build. Set here too (not only in prebuild.mjs) so a direct invocation of
+  // this script gets the same behaviour.
+  CHECKPOINT_DISABLE: '1',
+  PRISMA_HIDE_UPDATE_MESSAGE: 'true',
   // Skip the Postgres advisory lock: Vercel runs one build at a time so there
   // is no concurrent-migration risk, and Neon cold-starts frequently exceed
   // Prisma's 10 s advisory lock timeout.

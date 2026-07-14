@@ -58,6 +58,11 @@ const config: NextConfig = {
     // whole index. date-fns in particular is enormous on disk and only a handful of
     // its functions are ever called.
     optimizePackageImports: ['date-fns', 'date-fns-tz'],
+    // Turbopack writes its compilation cache to .next/cache, which Vercel already
+    // restores from the previous deployment. Without this, the 40s compile is paid
+    // in full on every deploy even when the diff is a version bump; with it, only
+    // what actually changed is recompiled.
+    turbopackFileSystemCacheForBuild: true,
   },
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
