@@ -887,9 +887,21 @@ function Heading(props: any) {
   // height (the default) leaves the wrapper in normal flow, unchanged.
   const vAlignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
   const minHeightMap: Record<string, string | undefined> = { none: undefined, sm: '240px', md: '400px', lg: '600px', screen: '100vh' }
+  // "fill" stretches the block to its container's height (a stretch Split/Group
+  // column, or any parent that has a resolved height) rather than a fixed min-
+  // height, so the vertical position sits against the full section. On the
+  // frontend the drop zone renders items as bare children (no wrapper div), so
+  // height:100% + align-self:stretch resolve straight against that parent.
+  const isFill = minHeight === 'fill'
   const mh = minHeightMap[minHeight] ?? undefined
-  const wrapStyle: React.CSSProperties | undefined = mh
-    ? { display: 'flex', flexDirection: 'column', justifyContent: vAlignMap[verticalAlign] ?? 'flex-start', minHeight: mh }
+  const hasHeight = Boolean(mh) || isFill
+  const wrapStyle: React.CSSProperties | undefined = hasHeight
+    ? {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: vAlignMap[verticalAlign] ?? 'flex-start',
+        ...(isFill ? { height: '100%', alignSelf: 'stretch' } : { minHeight: mh }),
+      }
     : undefined
   const style: React.CSSProperties = {
     fontFamily: `var(--${lvl}-family)`,
@@ -903,7 +915,7 @@ function Heading(props: any) {
     textAlign: alignBase as React.CSSProperties['textAlign'],
     // A centred/bottom-aligned block drops the bottom margin so the flex
     // centring is true; the wrapper's padding owns the outer spacing there.
-    margin: mh ? '0' : '0 0 1rem',
+    margin: hasHeight ? '0' : '0 0 1rem',
   }
   const Tag = lvl === 'display' ? 'h1' : lvl
   const headingClassName = lvl === 'display' ? 'cactus-display' : undefined
@@ -921,6 +933,11 @@ function Heading(props: any) {
   // Whole-heading link: the anchor wraps the tag and inherits its colour, so the
   // heading looks identical until hovered. The optional hover underline is
   // scoped to this block's id; its colour defaults to the heading's own colour.
+  // Base rule kills the anchor's default underline. It used to be an inline
+  // text-decoration:none on the <a>, but an inline style beats a stylesheet
+  // :hover rule, so the hover underline never showed. As two scoped rules the
+  // higher-specificity :hover wins cleanly and keeps its custom colour/thickness.
+  const linkBaseCss = href ? `a[data-heading-link="${id}"]{text-decoration:none;}` : ''
   const showHoverUnderline = Boolean(href) && hoverUnderline === 'yes'
   const hoverCss = showHoverUnderline
     ? `a[data-heading-link="${id}"]:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:0.12em;text-decoration-color:${hoverUnderlineColor || 'currentColor'};}`
@@ -932,9 +949,9 @@ function Heading(props: any) {
   )
   return (
     <div className={getPaddingClasses(padding)} style={wrapStyle} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {(alignCss || hoverCss) && <style>{`${alignCss}${hoverCss}`}</style>}
+      {(alignCss || linkBaseCss || hoverCss) && <style>{`${alignCss}${linkBaseCss}${hoverCss}`}</style>}
       {href
-        ? <a href={href} data-heading-link={id} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>{headingEl}</a>
+        ? <a href={href} data-heading-link={id} style={{ display: 'block', color: 'inherit' }}>{headingEl}</a>
         : headingEl}
     </div>
   )
@@ -2217,7 +2234,7 @@ export const puckConfig = {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        minHeight: { type: 'select' as const, label: 'Block height', options: [{ value: 'none', label: 'Auto' }, { value: 'sm', label: 'Small (240px)' }, { value: 'md', label: 'Medium (400px)' }, { value: 'lg', label: 'Large (600px)' }, { value: 'screen', label: 'Full screen' }] },
+        minHeight: { type: 'select' as const, label: 'Block height', options: [{ value: 'none', label: 'Auto' }, { value: 'sm', label: 'Small (240px)' }, { value: 'md', label: 'Medium (400px)' }, { value: 'lg', label: 'Large (600px)' }, { value: 'screen', label: 'Full screen' }, { value: 'fill', label: 'Fill container' }] },
         verticalAlign: { type: 'select' as const, label: 'Vertical position (needs a block height)', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
@@ -2230,6 +2247,15 @@ export const puckConfig = {
         ...aosFields,
       },
       defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
+      // The hover-underline colour only bites when the hover underline is on, so
+      // hide it otherwise (it also needs a link to do anything, but the underline
+      // toggle already gates that).
+      resolveFields: (data: any, { fields: f }: any) => {
+        if (data.props?.hoverUnderline === 'yes') return f
+        const rest = { ...f }
+        delete rest.hoverUnderlineColor
+        return rest
+      },
       render: Heading,
     },
     TextBlock: {
