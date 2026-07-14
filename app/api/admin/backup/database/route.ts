@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs'
 import path from 'path'
 import { NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
+import { serializeValue } from '@/lib/backup/serialize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 
@@ -177,24 +177,6 @@ function sortSelfReferencingRows(rows: Row[], pkCol: string, selfFkCol: string):
     for (const row of rows) if (!seen.has(row)) ordered.push(row)
   }
   return ordered
-}
-
-function serializeValue(value: unknown, udtName: string): string {
-  if (value === null || value === undefined) return 'NULL'
-  if (typeof value === 'bigint') return value.toString()
-  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL'
-  if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`
-  if (value instanceof Date) return `'${value.toISOString()}'`
-  if (value instanceof Prisma.Decimal) return value.toString()
-  if (Buffer.isBuffer(value)) return `'\\x${value.toString('hex')}'`
-  if (Array.isArray(value)) {
-    const baseType = udtName.replace(/^_/, '') || 'text'
-    if (value.length === 0) return `ARRAY[]::${baseType}[]`
-    return `ARRAY[${value.map((v) => serializeValue(v, baseType)).join(', ')}]`
-  }
-  // Anything left (plain object) is a JSON/JSONB column.
-  return `'${JSON.stringify(value).replace(/'/g, "''")}'`
 }
 
 export async function GET() {
