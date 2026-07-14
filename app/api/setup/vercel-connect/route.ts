@@ -4,6 +4,36 @@ import { upsertVercelEnvVars } from '@/lib/vercel/env'
 
 const VERCEL_API = 'https://api.vercel.com'
 
+type Challenge = { type: string; domain: string; value: string; reason: string }
+type DnsRecord = { type: string; host: string; value: string }
+
+// The full picture for one domain. Two independent things can be outstanding:
+//   misconfigured  — DNS isn't pointing at Vercel yet (A / CNAME / nameservers)
+//   !verified      — Vercel hasn't accepted proof of ownership yet (TXT challenge)
+// A domain can be pointed correctly and still be unverified (Vercel saw it
+// registered under another account), so both must be reported and both gate setup.
+type DomainState = {
+  name: string
+  verified: boolean
+  verification: Challenge[]
+  misconfigured: boolean
+  recommended: DnsRecord
+}
+
+// Host label for a DNS record: '@' for the apex, otherwise everything left of the
+// apex ('www', 'shop.eu', …). Splitting on the first dot breaks deep subdomains.
+function recordHost(name: string, apexName?: string): string {
+  if (!apexName || name === apexName) return '@'
+  return name.endsWith(`.${apexName}`) ? name.slice(0, -(apexName.length + 1)) : name
+}
+
+function defaultRecord(name: string, apexName?: string): DnsRecord {
+  const host = recordHost(name, apexName)
+  return host === '@'
+    ? { type: 'A', host: '@', value: '76.76.21.21' }
+    : { type: 'CNAME', host, value: 'cname.vercel-dns.com' }
+}
+
 async function isSetupComplete(): Promise<boolean> {
   if (!process.env.DATABASE_URL) return false
   try {
@@ -18,12 +48,135 @@ async function isSetupComplete(): Promise<boolean> {
   }
 }
 
+type ProjectDomain = {
+  name?: string
+  apexName?: string
+  verified?: boolean
+  verification?: Challenge[]
+}
+
+async function fetchProjectDomain(
+  token: string,
+  projectId: string,
+  name: string
+): Promise<ProjectDomain | null> {
+  try {
+    const res = await fetch(
+      `${VERCEL_API}/v9/projects/${projectId}/domains/${encodeURIComponent(name)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10_000),
+      }
+    )
+    if (!res.ok) return null
+    return (await res.json()) as ProjectDomain
+  } catch {
+    return null
+  }
+}
+
+// Asks Vercel to re-check the ownership TXT record. Vercel does not flip a domain
+// to verified on its own the moment the record lands — the dashboard's "Verify"
+// button hits this endpoint, so the wizard has to as well or the user waits forever.
+// Best-effort: a 4xx here just means the record isn't visible yet.
+async function attemptVerify(token: string, projectId: string, name: string): Promise<void> {
+  try {
+    await fetch(
+      `${VERCEL_API}/v9/projects/${projectId}/domains/${encodeURIComponent(name)}/verify`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: '{}',
+        signal: AbortSignal.timeout(10_000),
+      }
+    )
+  } catch {
+    // Ignore — the follow-up read reports the real state.
+  }
+}
+
+// The add-domain response's `verified` flag only tells you about ownership. Whether
+// DNS actually points here comes from the domain config endpoint's `misconfigured`
+// flag, which also gives Vercel's own recommended A/CNAME target rather than a guess.
+async function fetchDomainConfig(
+  token: string,
+  name: string,
+  apexName?: string
+): Promise<{ misconfigured: boolean; recommended: DnsRecord }> {
+  let misconfigured = true
+  let recommended = defaultRecord(name, apexName)
+  try {
+    const res = await fetch(`${VERCEL_API}/v6/domains/${encodeURIComponent(name)}/config`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (res.ok) {
+      const data = (await res.json()) as {
+        misconfigured?: boolean
+        recommendedIPv4?: Array<{ value: string[] }>
+        recommendedCNAME?: Array<{ value: string }>
+      }
+      misconfigured = data.misconfigured ?? true
+      const host = recordHost(name, apexName)
+      if (host === '@' && data.recommendedIPv4?.[0]?.value?.[0]) {
+        recommended = { type: 'A', host: '@', value: data.recommendedIPv4[0].value[0] }
+      } else if (host !== '@' && data.recommendedCNAME?.[0]?.value) {
+        recommended = {
+          type: 'CNAME',
+          host,
+          value: data.recommendedCNAME[0].value.replace(/\.$/, ''),
+        }
+      }
+    }
+  } catch {
+    // Best-effort — fall back to the default recommendation above.
+  }
+  return { misconfigured, recommended }
+}
+
+// Composite read: ownership state from the project-domain record, DNS state from the
+// domain config endpoint. `.vercel.app` aliases are always live and never need either.
+async function getDomainState(
+  token: string,
+  projectId: string,
+  name: string,
+  opts: { attemptVerify?: boolean } = {}
+): Promise<DomainState | null> {
+  if (name.endsWith('.vercel.app')) {
+    return {
+      name,
+      verified: true,
+      verification: [],
+      misconfigured: false,
+      recommended: defaultRecord(name),
+    }
+  }
+
+  let domain = await fetchProjectDomain(token, projectId, name)
+  if (!domain) return null
+
+  if (opts.attemptVerify && domain.verified === false) {
+    await attemptVerify(token, projectId, name)
+    domain = (await fetchProjectDomain(token, projectId, name)) ?? domain
+  }
+
+  const { misconfigured, recommended } = await fetchDomainConfig(token, name, domain.apexName)
+
+  return {
+    name: domain.name ?? name,
+    verified: domain.verified ?? false,
+    verification: domain.verification ?? [],
+    misconfigured,
+    recommended,
+  }
+}
+
 // POST /api/setup/vercel-connect
 //
 // action: 'list-projects'        — validates the token and returns accessible projects
 // action: 'list-account-domains' — returns all domains in the account/team, not just this project
 // action: 'add-domain'           — adds a custom domain to the selected project
-// action: 'domain-status'        — checks whether a domain's DNS is configured correctly
+// action: 'domain-status'        — re-checks ownership + DNS for a domain on the project
 // action: 'configure'            — writes bootstrap env vars to the selected project
 //                                   and triggers a redeploy
 export async function POST(req: NextRequest) {
@@ -152,14 +305,19 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(10_000),
     })
 
-    const data = (await res.json()) as {
-      name?: string
-      apexName?: string
-      verification?: Array<{ type: string; domain: string; value: string; reason: string }>
-      error?: { message?: string }
-    }
+    const data = (await res.json()) as ProjectDomain & { error?: { message?: string } }
 
     if (!res.ok) {
+      // Vercel 409s when the domain is already attached to this project. That's not a
+      // failure from the user's point of view — report the domain's real state instead
+      // of a dead-end error, so any outstanding records still get shown. Confirm it is
+      // genuinely attached first, or a rejected add would be dressed up as a success.
+      const attached = await fetchProjectDomain(token, projectId, domain)
+      if (attached) {
+        const existing = await getDomainState(token, projectId, domain)
+        if (existing) return NextResponse.json(existing)
+      }
+
       return NextResponse.json(
         { error: data.error?.message ?? `Failed to add domain (${res.status})` },
         { status: 400 }
@@ -167,65 +325,36 @@ export async function POST(req: NextRequest) {
     }
 
     const name = data.name ?? domain
-    const isApex = name === (data.apexName ?? name)
+    const { misconfigured, recommended } = await fetchDomainConfig(token, name, data.apexName)
 
-    // The add-domain response's `verified` flag only means "no ownership conflict" —
-    // it's true for almost every freshly added domain, even ones whose DNS isn't
-    // pointed at Vercel yet. Whether DNS is actually configured comes from the
-    // domain config endpoint's `misconfigured` flag, which also gives Vercel's own
-    // recommended A/CNAME target rather than a hardcoded guess.
-    let misconfigured = true
-    let recommended = isApex
-      ? { type: 'A', host: '@', value: '76.76.21.21' }
-      : { type: 'CNAME', host: name.split('.')[0], value: 'cname.vercel-dns.com' }
-    try {
-      const configRes = await fetch(`${VERCEL_API}/v6/domains/${name}/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(10_000),
-      })
-      if (configRes.ok) {
-        const configData = (await configRes.json()) as {
-          misconfigured?: boolean
-          recommendedIPv4?: Array<{ value: string[] }>
-          recommendedCNAME?: Array<{ value: string }>
-        }
-        misconfigured = configData.misconfigured ?? true
-        if (isApex && configData.recommendedIPv4?.[0]?.value?.[0]) {
-          recommended = { type: 'A', host: '@', value: configData.recommendedIPv4[0].value[0] }
-        } else if (!isApex && configData.recommendedCNAME?.[0]?.value) {
-          recommended = { type: 'CNAME', host: name.split('.')[0], value: configData.recommendedCNAME[0].value.replace(/\.$/, '') }
-        }
-      }
-    } catch {
-      // Config check is best-effort — fall back to the hardcoded recommendation above.
-    }
-
-    return NextResponse.json({
+    const state: DomainState = {
       name,
-      misconfigured,
+      verified: data.verified ?? false,
       verification: data.verification ?? [],
+      misconfigured,
       recommended,
-    })
+    }
+    return NextResponse.json(state)
   }
 
-  // ── Check DNS configuration status for a domain ─────────────────────────────
+  // ── Re-check ownership + DNS for a domain ───────────────────────────────────
   if (action === 'domain-status') {
-    const { domain } = body
+    const { projectId, domain } = body
+    if (!projectId) {
+      return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
     if (!domain) {
       return NextResponse.json({ error: 'domain is required' }, { status: 400 })
     }
 
-    const res = await fetch(`${VERCEL_API}/v6/domains/${domain}/config`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(10_000),
-    })
-
-    if (!res.ok) {
-      return NextResponse.json({ error: `Failed to check domain status (${res.status})` }, { status: 400 })
+    const state = await getDomainState(token, projectId, domain, { attemptVerify: true })
+    if (!state) {
+      return NextResponse.json(
+        { error: `Could not read the status of "${domain}" from Vercel.` },
+        { status: 400 }
+      )
     }
-
-    const data = (await res.json()) as { misconfigured?: boolean }
-    return NextResponse.json({ misconfigured: data.misconfigured ?? true })
+    return NextResponse.json(state)
   }
 
   // ── Configure project ─────────────────────────────────────────────────────
@@ -286,6 +415,29 @@ export async function POST(req: NextRequest) {
     if (!primaryDomain) {
       return NextResponse.json(
         { error: 'No domain found for this project. Please add a domain in the Vercel dashboard first.' },
+        { status: 400 }
+      )
+    }
+
+    // The gate that actually matters. SITE_URL is written here, and SITE_URL is the
+    // WebAuthn relying-party ID — it cannot be changed once the admin has registered a
+    // passkey in the next step. So setup must not bake in a domain Vercel will not
+    // serve. The wizard disables its own button for this, but that is only a courtesy.
+    const state = await getDomainState(token, projectId, primaryDomain, { attemptVerify: true })
+    if (!state) {
+      return NextResponse.json(
+        { error: `Could not confirm the status of "${primaryDomain}" with Vercel. Try again in a moment.` },
+        { status: 400 }
+      )
+    }
+    if (!state.verified || state.misconfigured) {
+      const problems: string[] = []
+      if (state.misconfigured) problems.push('its DNS is not pointing at Vercel yet')
+      if (!state.verified) problems.push('Vercel has not verified that you own it')
+      return NextResponse.json(
+        {
+          error: `Domain "${primaryDomain}" is not ready: ${problems.join(', and ')}. Add the DNS records the wizard listed, then try again.`,
+        },
         { status: 400 }
       )
     }
