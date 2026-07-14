@@ -194,6 +194,12 @@ The **Menu** block's **Nav behaviour** setting decides how the menu appears at e
 - **Collapse to hamburger** - the links fold away behind the usual three-line hamburger button that opens a drop-down panel.
 - **Dropdown (current page)** - the menu shrinks to a single button showing the page you're currently on, with a little arrow; clicking it opens the full menu. Handy when space is tight but a hamburger feels like overkill.
 
+**Dropdown alignment** decides which side of its space the collapsed menu sits on: **Left** (the default, and how it has always behaved), **Centre** or **Right**. It moves the button itself - the hamburger, or the current-page dropdown - and everything that opens out of it follows: the hamburger's links line up to the same side, and the dropdown's panel hangs from the matching edge of the button rather than wandering off towards the middle of the page.
+
+**Scale (%)** shrinks or grows the whole menu, and like the other settings it can differ per screen size. 100 is normal size. Set it to, say, 50 on the phone toggle and the menu (or its hamburger button) renders at half size on phones and takes up half the room, without you having to fiddle with font sizes and spacing one at a time. The hamburger's full-width panel is deliberately left at normal size, so its links stay comfortably tappable however small you shrink the button.
+
+**Keep on one line** is the lazy way to do the same job. Switch it on and the menu measures itself against the room it has been given and shrinks its links just enough to keep them all on a single row, rather than letting the last one or two drop onto a second line. It only ever shrinks, never grows, so a menu that already fits is left exactly as it is. Add a link later and it simply tightens up a bit more. Worth remembering that there is a floor to this in practice: shrink a ten-item menu into a narrow header and you'll get a row of very small links, which is what the hamburger is for.
+
 Click **+ Add item** to open the picker, then choose where the link should go:
 
 - **Page** - one of your info pages. Pick this to search and select from your pages.

@@ -5,12 +5,34 @@ import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCs
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
-// Which edge the collapsed menu sits against: the hamburger drawer's item text,
-// and the side the "Dropdown (current page)" panel hangs from.
+// Which edge the collapsed menu sits against: where the hamburger button and the
+// "Dropdown (current page)" trigger sit in the slot the block was dropped into,
+// the hamburger drawer's item text, and the side the dropdown panel hangs from.
 export type MenuDropAlign = 'left' | 'center' | 'right'
 
 function toDropAlign(v: unknown): MenuDropAlign {
   return v === 'center' || v === 'right' ? v : 'left'
+}
+
+const FLEX_PLACE: Record<MenuDropAlign, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
+
+// Placing the collapsed control itself takes two mechanisms, because it lands in
+// one of two very different parents and each mechanism is inert exactly where the
+// other bites.
+//
+// Dropped into a Grid column (or any plain slot) the control's parent is a block,
+// so the control - which the breakpoint rules in tokens.ts flip to `display:flex`
+// - is a block-level flex box that fills the column's width. Its own
+// justify/align therefore places the button inside it, while these auto margins
+// resolve to zero against the auto width. Dropped into a Group the parent is
+// itself a flex row, so the control shrink-wraps to a flex item: now the auto
+// margins place the box, and there is no free space left inside it for
+// justify/align to distribute. Both are set, and between them every parent is
+// covered. 'left' emits no margins at all, so the default renders as before.
+function dropAlignMargins(align: MenuDropAlign): React.CSSProperties {
+  if (align === 'center') return { marginLeft: 'auto', marginRight: 'auto' }
+  if (align === 'right') return { marginLeft: 'auto' }
+  return {}
 }
 
 type MenuItem = {
@@ -358,9 +380,10 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
   const current = currentPageLabel(items, pathname, fallbackLabel)
   // Which edge of the trigger the panel hangs from. It used to be pinned to
   // `left: 0` with no way to move it, which on a right-hand trigger threw the
-  // panel out towards the middle of the page. The rows inside stay centred -
-  // that is this mode's look, and it is what every existing dropdown menu
-  // already renders.
+  // panel out towards the middle of the page. The panel is absolute inside the
+  // wrapper below, so it follows the trigger wherever that wrapper's
+  // justifyContent puts it. The rows inside stay centred - that is this mode's
+  // look, and it is what every existing dropdown menu already renders.
   const panelPos: React.CSSProperties = panelAlign === 'center'
     ? { left: '50%', transform: 'translateX(-50%)' }
     : panelAlign === 'right'
@@ -377,7 +400,7 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
   }, [open])
 
   return (
-    <div ref={ref} className={className} style={{ position: 'relative', display: 'none', alignItems: 'center' }}>
+    <div ref={ref} className={className} style={{ position: 'relative', display: 'none', alignItems: 'center', justifyContent: FLEX_PLACE[panelAlign], ...dropAlignMargins(panelAlign) }}>
       <button
         type="button"
         aria-haspopup="true"
@@ -725,7 +748,13 @@ export default function MenuBlockClient({
             padding: '0.5rem',
             flexDirection: 'column',
             justifyContent: 'center',
+            // The button stacks its three bars, so alignItems is its horizontal
+            // axis. 'flex-start' is what the bars already do under the default
+            // `stretch` (they carry an explicit 22px width, so there is nothing
+            // to stretch), which keeps Left rendering exactly as it did.
+            alignItems: FLEX_PLACE[dropAlign],
             gap: '5px',
+            ...dropAlignMargins(dropAlign),
           }}
         >
           <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
