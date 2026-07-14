@@ -437,8 +437,6 @@ model Layout {
   displayConditions Json?
   // Manual tiebreaker when two layouts have the same specificity score
   priority          Int        @default(0)
-  // Starter layouts are seeded and cannot be deleted by users
-  isStarter         Boolean    @default(false)
   status            PageStatus @default(draft)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -447,7 +445,6 @@ model Layout {
   // and it runs three times on every public page render - header, footer, body. Without
   // this the planner had nothing to work with and seq-scanned the table each time.
   @@index([type, status, priority, updatedAt])
-  @@index([isStarter])
 }
 
 // A reusable Puck block snapshot, saved from any page or layout editor and

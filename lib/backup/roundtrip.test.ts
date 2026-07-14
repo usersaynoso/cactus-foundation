@@ -168,8 +168,8 @@ async function seedAwkwardValues(db: PrismaClient): Promise<void> {
     history,
   )
   await db.$executeRawUnsafe(
-    `INSERT INTO "Layout" ("id", "name", "history", "priority", "isStarter", "updatedAt")
-     VALUES ('layout-1', 'Default', $1::jsonb, 0, false, now())`,
+    `INSERT INTO "Layout" ("id", "name", "history", "priority", "updatedAt")
+     VALUES ('layout-1', 'Default', $1::jsonb, 0, now())`,
     history,
   )
   // A real text[] column, and an empty one, right next to the jsonb arrays above.

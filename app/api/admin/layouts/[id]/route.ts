@@ -36,9 +36,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const ok = await hasPermission(user, 'layouts.manage')
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const target = await prisma.layout.findUnique({ where: { id }, select: { isStarter: true } })
+    const target = await prisma.layout.findUnique({ where: { id }, select: { id: true } })
     if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (target.isStarter) return NextResponse.json({ error: 'Starter layouts are read-only. Duplicate the layout to edit it.' }, { status: 400 })
 
     const body = await req.json()
 
@@ -115,9 +114,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     const ok = await hasPermission(user, 'layouts.manage')
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const layout = await prisma.layout.findUnique({ where: { id }, select: { isStarter: true } })
+    const layout = await prisma.layout.findUnique({ where: { id }, select: { id: true } })
     if (!layout) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (layout.isStarter) return NextResponse.json({ error: 'Starter layouts cannot be deleted' }, { status: 400 })
 
     await prisma.layout.delete({ where: { id } })
     return NextResponse.json({ ok: true })

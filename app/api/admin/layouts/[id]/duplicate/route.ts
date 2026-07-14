@@ -5,10 +5,9 @@ import { hasPermission } from '@/lib/permissions/check'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-// Creates an editable copy of a layout. This is the only way to "edit" a
-// starter template (starters are read-only), but it works for any layout.
-// The copy always starts as a draft with no display conditions so it can
-// never displace a live layout by accident.
+// Creates a copy of a layout, so an owner can fork a design they already like
+// rather than rebuild it. The copy always starts as a draft with no display
+// conditions so it can never displace a live layout by accident.
 export async function POST(_req: Request, { params }: Ctx) {
   const { id } = await params
   try {
@@ -29,7 +28,6 @@ export async function POST(_req: Request, { params }: Ctx) {
         status: 'draft',
         displayConditions: { include: [], exclude: [] },
         priority: source.priority,
-        isStarter: false,
       },
     })
     return NextResponse.json(copy, { status: 201 })

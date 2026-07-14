@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.398",
+  "version": "0.5.399",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:backup-roundtrip": "RUN_BACKUP_ROUNDTRIP=1 vitest run lib/backup/roundtrip.test.ts",
     "db:migrate": "prisma migrate dev",
-    "db:push": "echo 'Use prisma migrate dev instead of db push \u2014 see AGENTS.md' && exit 1",
+    "db:push": "echo 'Use prisma migrate dev instead of db push — see AGENTS.md' && exit 1",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:status": "prisma migrate status",

@@ -1,592 +1,192 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
+import { TabStrip } from '@/components/admin/TabStrip'
+import { LayoutPreview } from '@/components/admin/LayoutPreview'
 import { moduleLayoutTypeGroups } from '@/lib/layout/module-layout-types'
+import { CORE_TYPE_TABS, MODULE_GROUP_TABS, CORE_LAYOUT_TYPES } from '@/lib/layout/layout-type-tabs'
+import { getStarterTemplates, type StarterTemplate } from '@/lib/layout/starter-templates'
 
-type LayoutTypeOption = {
-  key: string
-  label: string
-  description: string
-  icon: string
-}
-
-type Starter = {
-  key: string
-  name: string
-  description: string
-  builderData: object
-}
-
-const LAYOUT_TYPES: LayoutTypeOption[] = [
-  { key: 'header',     label: 'Header',                    description: 'Site-wide header bar with logo and navigation.', icon: '▬' },
-  { key: 'footer',     label: 'Footer',                    description: 'Site-wide footer with links and copyright.', icon: '▁' },
-  { key: 'infoPage',   label: 'Page Layout',               description: 'Body shell with a content slot for page content.', icon: '▣' },
-  { key: 'notFound',   label: '404 Page',                  description: 'Shown when a page cannot be found.', icon: '?' },
-  { key: 'statusPage', label: 'Coming Soon / Maintenance', description: 'Standalone status screen shown before launch or during maintenance.', icon: '⚐' },
-]
-
-// Inline slot content helper for Group blocks (items stored in props, not zones)
-const g = (id: string, overrides: Record<string, unknown> = {}) => ({
-  type: 'Group',
-  props: { id, direction: 'row', justify: 'between', align: 'center', gap: 'md', padding: 'none', wrap: 'nowrap', ...overrides },
-})
-const logoBlock = (id: string, overrides: Record<string, unknown> = {}) => ({
-  type: 'SiteLogo',
-  props: { id, homeUrl: '/', logoHeight: 40, showTextWithLogo: 'false', showIcon: 'true', textColor: '', ...overrides },
-})
-const menuBlock = (id: string, overrides: Record<string, unknown> = {}) => ({
-  type: 'MenuBlock',
-  props: { id, menuId: '', menuName: '', orientation: 'horizontal', spacing: 'normal', itemFontSize: 'medium', itemFontWeight: 'medium', textTransform: 'none', itemColor: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, ...overrides },
-})
-const loginBlock = (id: string) => ({ type: 'LoginButton', props: { id, loginLabel: 'Sign in', registerLabel: 'Register' } })
-const toggleBlock = (id: string) => ({ type: 'ThemeToggle', props: { id } })
-
-const STARTERS_BY_TYPE: Record<string, Starter[]> = {
-  header: [
-    {
-      key: 'blank',
-      name: 'Blank',
-      description: 'Start from scratch.',
-      builderData: { content: [], root: { props: {} }, zones: {} },
-    },
-    {
-      key: 'logo-nav-right',
-      name: 'Logo Left + Nav Right',
-      description: 'Standard header with logo on the left and navigation on the right.',
-      builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [logoBlock('logo-1'), menuBlock('menu-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'logo-nav-login',
-      name: 'Logo Left + Nav + Login',
-      description: 'Logo left, navigation, and login button.',
-      builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [logoBlock('logo-1'), menuBlock('menu-1'), loginBlock('login-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'logo-nav-centred',
-      name: 'Logo Centred + Nav Right',
-      description: 'Logo truly centred in the bar, navigation right-aligned.',
-      builderData: {
-        content: [{ type: 'Grid', props: {
-          id: 'header-grid', columns: '3', columnSizes: 'equal', gap: 'md', padding: 'none',
-          verticalAlign: 'center', spaceBelow: 'none',
-          col1Align: 'start', col2Align: 'center', col3Align: 'end',
-          col1: [], col2: [logoBlock('logo-1')], col3: [menuBlock('menu-1')],
-        } }],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'full-width',
-      name: 'Full Width',
-      description: '1400px max-width, no border — good for wide sites.',
-      builderData: {
-        content: [g('cols-1', { gap: 'md', items: [logoBlock('logo-1'), menuBlock('menu-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'hide', color: '' }, maxWidth: '1400px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'logo-name',
-      name: 'Logo + Site Name',
-      description: 'Logo with site name visible next to it, navigation on the right.',
-      builderData: {
-        content: [g('cols-1', { gap: 'md', items: [logoBlock('logo-1', { showTextWithLogo: 'true' }), menuBlock('menu-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'tall',
-      name: 'Tall',
-      description: '80px height — logo left, nav, login and theme toggle right.',
-      builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [
-          logoBlock('logo-1', { logoHeight: 48 }),
-          menuBlock('menu-1', { spacing: 'wide' }),
-          g('actions-row', { justify: 'end', wrap: 'nowrap', gap: 'sm', items: [loginBlock('login-1'), toggleBlock('toggle-1')] }),
-        ] })],
-        root: { props: { height: '80px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'minimal',
-      name: 'Minimal',
-      description: 'Logo centred, no navigation, no border.',
-      builderData: {
-        content: [g('cols-1', { justify: 'center', gap: 'md', items: [logoBlock('logo-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'hide', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'transparent',
-      name: 'Transparent on Scroll',
-      description: 'Transparent background that becomes solid when the user scrolls.',
-      builderData: {
-        content: [g('cols-1', { gap: 'md', items: [logoBlock('logo-1'), menuBlock('menu-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', bg: { mode: 'transparent-scroll', color: '' }, border: { show: 'hide', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'compact',
-      name: 'Compact',
-      description: '48px height with smaller logo and nav text.',
-      builderData: {
-        content: [g('cols-1', { gap: 'md', items: [logoBlock('logo-1', { logoHeight: 28 }), menuBlock('menu-1', { itemFontSize: 'small' })] })],
-        root: { props: { height: '48px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'logo-right',
-      name: 'Logo Right + Nav Left',
-      description: 'Navigation on the left, logo on the right.',
-      builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [menuBlock('menu-1'), logoBlock('logo-1')] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'stacked',
-      name: 'Stacked (Two Row)',
-      description: 'Logo centred on one row, navigation centred below.',
-      builderData: {
-        content: [g('outer', { direction: 'column', justify: 'center', align: 'center', gap: 'sm', items: [
-          g('row-logo', { justify: 'center', items: [logoBlock('logo-1')] }),
-          g('row-nav', { justify: 'center', items: [menuBlock('menu-1')] }),
-        ] })],
-        root: { props: { height: 'auto', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-    {
-      key: 'login-toggle',
-      name: 'With Login + Theme Toggle',
-      description: 'Logo left, navigation, login and theme toggle grouped on the right.',
-      builderData: {
-        content: [g('cols-1', { gap: 'lg', items: [
-          logoBlock('logo-1'),
-          menuBlock('menu-1'),
-          g('actions-row', { justify: 'end', wrap: 'nowrap', gap: 'sm', items: [loginBlock('login-1'), toggleBlock('toggle-1')] }),
-        ] })],
-        root: { props: { height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px' } },
-        zones: {},
-      },
-    },
-  ],
-  footer: [
-    {
-      key: 'blank',
-      name: 'Blank',
-      description: 'Start from scratch.',
-      builderData: { content: [], root: { props: {} }, zones: {} },
-    },
-    {
-      key: 'standard',
-      name: 'Standard Footer',
-      description: 'Simple copyright line centred at the bottom.',
-      builderData: {
-        content: [{ type: 'Copyright', props: { id: 'copyright-1', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'center', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } }],
-        root: { props: { paddingY: 'md', border: { show: 'show', color: '' } } },
-        zones: {},
-      },
-    },
-    {
-      key: 'logo-links',
-      name: 'Logo + Links',
-      description: 'Logo and site name left, menu and copyright right.',
-      builderData: {
-        content: [{ type: 'Grid', props: {
-          id: 'footer-grid', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none',
-          verticalAlign: 'start', spaceBelow: 'none',
-          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
-          col1: [logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
-          col2: [
-            menuBlock('footer-menu', { orientation: 'horizontal', spacing: 'normal', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'show', mobile: 'show' } }),
-            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
-          ],
-        } }],
-        root: { props: { paddingY: 'lg', border: { show: 'show', color: '' } } },
-        zones: {},
-      },
-    },
-    {
-      key: 'three-col',
-      name: 'Three Column',
-      description: 'Brand, navigation links, and social icons in three columns.',
-      builderData: {
-        content: [{ type: 'Grid', props: {
-          id: 'footer-grid', columns: '3', columnSizes: 'equal', gap: 'lg', padding: 'none',
-          verticalAlign: 'start', spaceBelow: 'none',
-          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
-          col1: [
-            logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' }),
-            { type: 'TextBlock', props: { id: 'footer-tagline', content: 'Your tagline or description goes here.', align: 'left', padding: 'none' } },
-          ],
-          col2: [
-            { type: 'Heading', props: { id: 'footer-nav-heading', text: 'Quick Links', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-            menuBlock('footer-menu', { orientation: 'vertical', spacing: 'tight', itemFontSize: 'small', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'show' } }),
-          ],
-          col3: [
-            { type: 'Heading', props: { id: 'footer-social-heading', text: 'Follow Us', level: 'h4', align: 'left', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-            { type: 'SocialLinks', props: { id: 'footer-social', items: [{ platform: 'twitter-x', url: '' }, { platform: 'instagram', url: '' }, { platform: 'linkedin', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' } },
-            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'left', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
-          ],
-        } }],
-        root: { props: { paddingY: 'lg', border: { show: 'show', color: '' } } },
-        zones: {},
-      },
-    },
-    {
-      key: 'social',
-      name: 'With Social Links',
-      description: 'Logo left, social icons and copyright right.',
-      builderData: {
-        content: [{ type: 'Grid', props: {
-          id: 'footer-grid', columns: '2', columnSizes: '30-70', gap: 'lg', padding: 'none',
-          verticalAlign: 'start', spaceBelow: 'none',
-          col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start',
-          col1: [logoBlock('footer-logo', { logoHeight: 36, showTextWithLogo: 'true' })],
-          col2: [
-            { type: 'SocialLinks', props: { id: 'footer-social', items: [{ platform: 'twitter-x', url: '' }, { platform: 'instagram', url: '' }, { platform: 'linkedin', url: '' }], iconSize: 'md', iconColor: '', layout: 'row', gap: 'normal' } },
-            { type: 'Copyright', props: { id: 'footer-copy', prefix: '©', customPrefix: '', yearFormat: 'current', showSiteName: 'true', suffix: '', alignment: 'right', fontSize: 'small', privacyPolicyUrl: '', privacyPolicyLabel: 'Privacy Policy', termsUrl: '', termsLabel: 'Terms of Service', customLink1Url: '', customLink1Label: '', customLink2Url: '', customLink2Label: '' } },
-          ],
-        } }],
-        root: { props: { paddingY: 'md', border: { show: 'show', color: '' } } },
-        zones: {},
-      },
-    },
-  ],
-  infoPage: [
-    {
-      key: 'full-width',
-      name: 'Full Width',
-      description: 'Content fills the full width.',
-      builderData: { content: [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }], root: { props: {} }, zones: {} },
-    },
-    {
-      key: 'boxed',
-      name: 'Boxed (centred)',
-      description: 'Content centred with a max-width — good for articles.',
-      builderData: {
-        content: [{ type: 'Section', props: { id: 'section-1', paddingY: 'md', maxWidth: 'standard', bg: { mode: 'none', color: '' }, content: [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }] } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-    {
-      key: 'right-sidebar',
-      name: 'Right Sidebar (70/30)',
-      description: 'Main content (70%) with a sidebar on the right (30%).',
-      builderData: {
-        content: [{ type: 'Split', props: { id: 'columns-1', ratio: '70/30', padding: 'none' } }],
-        root: { props: {} },
-        zones: { 'columns-1:left': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }], 'columns-1:right': [] },
-      },
-    },
-    {
-      key: 'left-sidebar',
-      name: 'Left Sidebar (30/70)',
-      description: 'Sidebar on the left (30%), main content on the right (70%).',
-      builderData: {
-        content: [{ type: 'Split', props: { id: 'columns-1', ratio: '30/70', padding: 'none' } }],
-        root: { props: {} },
-        zones: { 'columns-1:left': [], 'columns-1:right': [{ type: 'ContentSlot', props: { id: 'content-slot-1' } }] },
-      },
-    },
-  ],
-  notFound: [
-    {
-      key: 'blank',
-      name: 'Blank',
-      description: 'Start from scratch.',
-      builderData: { content: [], root: { props: {} }, zones: {} },
-    },
-    {
-      key: 'hero',
-      name: 'Full Hero',
-      description: 'Full-screen gradient hero with heading and home button.',
-      builderData: {
-        content: [{ type: 'Hero', props: { id: 'hero-1', heading: '404 — Page Not Found', subheading: 'Sorry, the page you were looking for does not exist.', ctaLabel: 'Go Home', ctaHref: '/', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'full', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-    {
-      key: 'minimal',
-      name: 'Minimal',
-      description: 'Simple centred heading, message, and back link.',
-      builderData: {
-        content: [{ type: 'Section', props: { id: 'section-1', bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
-          { type: 'Heading', props: { id: 'h-404', text: '404', level: 'h2', align: 'center', color: 'dark', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-          { type: 'TextBlock', props: { id: 't-404', content: "The page you're looking for could not be found.", align: 'center', padding: 'none' } },
-          { type: 'ButtonLink', props: { id: 'btn-home', label: '← Back to Home', href: '/', variant: 'outline', padding: 'md' } },
-        ] } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-    {
-      key: 'branded',
-      name: 'Branded',
-      description: 'Hero with gradient and dual call-to-action buttons.',
-      builderData: {
-        content: [{ type: 'Hero', props: { id: 'hero-1', heading: 'Page Not Found', subheading: "We've looked everywhere and can't find that page. Let's get you back on track.", ctaLabel: 'Go Home', ctaHref: '/', cta2Label: 'Contact Us', cta2Href: '/contact', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'half', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-  ],
-  statusPage: [
-    {
-      key: 'blank',
-      name: 'Blank',
-      description: 'Start from scratch.',
-      builderData: { content: [], root: { props: {} }, zones: {} },
-    },
-    {
-      key: 'coming-soon',
-      name: 'Coming Soon',
-      description: 'Full-screen gradient hero for a coming-soon page.',
-      builderData: {
-        content: [{ type: 'Hero', props: { id: 'hero-1', heading: 'Coming Soon', subheading: "We're working on something exciting. Check back shortly.", ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'full', padding: 'none', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-    {
-      key: 'maintenance',
-      name: 'Maintenance',
-      description: 'Maintenance notice with logo, heading, and callout block.',
-      builderData: {
-        content: [{ type: 'Section', props: { id: 'section-1', bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
-          { type: 'SiteLogo', props: { id: 'site-logo', homeUrl: '/', logoHeight: 48, showTextWithLogo: 'false', showIcon: 'true', textColor: '' } },
-          { type: 'Heading', props: { id: 'h-main', text: 'Down for Maintenance', level: 'h2', align: 'center', color: 'dark', padding: 'md', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-          { type: 'Callout', props: { id: 'callout-1', type: 'warning', title: 'Scheduled Maintenance', body: "We're making some improvements. We'll be back shortly - thank you for your patience.", padding: 'none' } },
-          { type: 'TextBlock', props: { id: 't-contact', content: 'Need urgent help? Get in touch via email.', align: 'center', padding: 'md' } },
-        ] } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-    {
-      key: 'minimal',
-      name: 'Minimal',
-      description: 'Logo, heading, and brief message. Nothing more.',
-      builderData: {
-        content: [{ type: 'Section', props: { id: 'section-1', bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'xl', maxWidth: 'narrow', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', animationType: 'none', animationDuration: 'normal', animationDelay: 'none', content: [
-          { type: 'SiteLogo', props: { id: 'site-logo', homeUrl: '/', logoHeight: 48, showTextWithLogo: 'false', showIcon: 'true', textColor: '' } },
-          { type: 'Heading', props: { id: 'h-main', text: "We'll be right back.", level: 'h2', align: 'center', color: 'dark', padding: 'md', animationType: 'none', animationDuration: 'normal', animationDelay: 'none' } },
-          { type: 'TextBlock', props: { id: 't-sub', content: 'This site is temporarily unavailable. Please check back soon.', align: 'center', padding: 'none' } },
-        ] } }],
-        root: { props: {} },
-        zones: {},
-      },
-    },
-  ],
-}
-
-type ModuleStarter = { key: string; name: string; description: string; builderData: object }
+const ALL_TABS = [...CORE_TYPE_TABS, ...MODULE_GROUP_TABS]
 
 export default function NewLayoutPage() {
   const router = useRouter()
   const adminPath = useAdminPath()
-  const [step, setStep] = useState<1 | '1b' | 2>(1)
-  const [selectedModule, setSelectedModule] = useState<string | null>(null)
-  const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [selectedStarter, setSelectedStarter] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [creating, setCreating] = useState(false)
+  const searchParams = useSearchParams()
+
+  // Arriving from a tab on the Layouts list lands on the matching tab here. A
+  // module's layout type (e.g. gazetteEntry) selects its group tab *and* the
+  // sub-tab within it.
+  const typeParam = searchParams.get('type')
+  const paramGroup = moduleLayoutTypeGroups.find((g) => g.types.some((t) => t.key === typeParam)) ?? null
+  const initialTop = paramGroup
+    ? paramGroup.moduleName
+    : CORE_TYPE_TABS.some((t) => t.key === typeParam) ? typeParam! : 'header'
+
+  const [activeTop, setActiveTop] = useState(initialTop)
+  const [activeModuleSub, setActiveModuleSub] = useState<string | null>(paramGroup ? typeParam : null)
+  const [creatingId, setCreatingId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [moduleStarters, setModuleStarters] = useState<ModuleStarter[]>([])
-  const [loadingStarters, setLoadingStarters] = useState(false)
 
-  const activeGroup = moduleLayoutTypeGroups.find(g => g.moduleName === selectedModule) ?? null
-  const isModuleType = !!activeGroup
+  const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
+  const activeType = activeGroup
+    ? (activeModuleSub ?? activeGroup.types[0]?.key ?? null)
+    : activeTop
 
-  function handleTypeSelect(key: string) {
-    setSelectedType(key)
-    setSelectedStarter(null)
-    setStep(2)
+  const templates = activeType ? getStarterTemplates(activeType) : []
+
+  const blurb = activeGroup
+    ? `Pick a starting point for your ${activeGroup.groupLabel.toLowerCase()} pages. You can change everything afterwards.`
+    : CORE_LAYOUT_TYPES.find((t) => t.key === activeType)?.description ?? ''
+
+  function handleTopClick(key: string) {
+    setActiveTop(key)
+    setActiveModuleSub(null)
+    setError('')
   }
 
-  function handleModuleCardSelect(moduleName: string) {
-    setSelectedModule(moduleName)
-    setStep('1b')
-  }
-
-  function handleModuleSubTypeSelect(key: string) {
-    setSelectedType(key)
-    setSelectedStarter(null)
-    setLoadingStarters(true)
-    setModuleStarters([])
-    fetch(`/api/admin/layouts?type=${key}`)
-      .then(r => r.json())
-      .then(d => {
-        const starters = ((d.layouts ?? []) as Array<{ id: string; name: string; description: string | null; isStarter: boolean; builderData: object }>)
-          .filter(l => l.isStarter)
-          .map(l => ({ key: l.id, name: l.name, description: l.description ?? '', builderData: l.builderData }))
-        setModuleStarters(starters)
-        setLoadingStarters(false)
-      })
-      .catch(() => setLoadingStarters(false))
-    setStep(2)
-  }
-
-  async function handleCreate() {
-    if (!name.trim()) { setError('Please enter a name'); return }
-    if (!selectedStarter) { setError('Please choose a starting structure'); return }
-    const starters: ModuleStarter[] = isModuleType ? moduleStarters : (STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? [])
-    const starter = starters.find(s => s.key === selectedStarter)
-    if (!starter) return
-    setCreating(true); setError('')
+  async function handleChoose(template: StarterTemplate) {
+    if (creatingId || !activeType) return
+    setCreatingId(template.id)
+    setError('')
     try {
       const res = await fetch('/api/admin/layouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), type: selectedType, builderData: starter.builderData }),
+        body: JSON.stringify({
+          name: template.name,
+          description: template.description,
+          type: activeType,
+          builderData: template.data,
+        }),
       })
-      if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed to create'); setCreating(false); return }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error ?? 'Failed to create the layout')
+        setCreatingId(null)
+        return
+      }
       const layout = await res.json()
       router.push(`/${adminPath}/layouts/${layout.id}`)
-    } catch { setError('Failed to create layout'); setCreating(false) }
+    } catch {
+      setError('Failed to create the layout')
+      setCreatingId(null)
+    }
   }
-
-  if (step === 1) {
-    return (
-      <div style={{ maxWidth: 640 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>New Layout</h1>
-        <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>What kind of layout do you want to create?</p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-          {LAYOUT_TYPES.map(t => (
-            <button
-              key={t.key}
-              onClick={() => handleTypeSelect(t.key)}
-              style={{
-                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'border-color var(--dur-base), box-shadow var(--dur-base)',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px var(--color-primary-ring, rgba(44,117,88,0.1))' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
-            >
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t.icon}</div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{t.label}</div>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{t.description}</div>
-            </button>
-          ))}
-          {moduleLayoutTypeGroups.map(g => (
-            <button
-              key={g.moduleName}
-              onClick={() => handleModuleCardSelect(g.moduleName)}
-              style={{
-                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'border-color var(--dur-base), box-shadow var(--dur-base)',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px var(--color-primary-ring, rgba(44,117,88,0.1))' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none' }}
-            >
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>▥</div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{g.groupLabel}</div>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Design {g.groupLabel.toLowerCase()} {g.types.map(t => t.label.toLowerCase()).join(' and ')} pages.</div>
-            </button>
-          ))}
-        </div>
-
-        <div style={{ marginTop: '1.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => router.back()}>Cancel</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === '1b' && activeGroup) {
-    return (
-      <div style={{ maxWidth: 640 }}>
-        <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
-          ← Back to type selection
-        </button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem' }}>{activeGroup.groupLabel}</h1>
-        <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>Which kind of {activeGroup.groupLabel.toLowerCase()} page is this for?</p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-          {activeGroup.types.map(t => (
-            <button
-              key={t.key}
-              onClick={() => handleModuleSubTypeSelect(t.key)}
-              style={{
-                textAlign: 'left', padding: '1.25rem', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius)', background: 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>{t.label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  const typeOption = LAYOUT_TYPES.find(t => t.key === selectedType)
-  const typeLabel = isModuleType ? (activeGroup?.types.find(t => t.key === selectedType)?.label ?? selectedType) : typeOption?.label
-  const starters: ModuleStarter[] = isModuleType ? moduleStarters : (STARTERS_BY_TYPE[selectedType ?? 'infoPage'] ?? [])
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      <button onClick={() => setStep(isModuleType ? '1b' : 1)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '1.5rem', fontFamily: 'inherit' }}>
-        ← Back
-      </button>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>New {typeLabel}</h1>
-      <p style={{ color: 'var(--color-text-muted)', margin: '0 0 2rem' }}>Give it a name and choose a starting structure.</p>
-
-      <div className="field">
-        <label>Layout name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${typeLabel ?? 'My Layout'}`} autoFocus />
+    <div>
+      <div style={{ marginBottom: '1.25rem' }}>
+        <button
+          onClick={() => router.push(`/${adminPath}/layouts`)}
+          style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 'var(--text-sm)', padding: 0, marginBottom: '0.75rem', fontFamily: 'inherit' }}
+        >
+          ← Back to Layouts
+        </button>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>New Layout</h1>
+        <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-base)' }}>
+          Choose a starting point. It becomes yours to edit the moment you pick it.
+        </p>
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ fontSize: '0.875rem', fontWeight: 500, display: 'block', marginBottom: '0.75rem' }}>Starting structure</label>
-        {isModuleType && loadingStarters && <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>Loading…</p>}
-        {isModuleType && !loadingStarters && starters.length === 0 && (
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>No starting structures available for this type yet.</p>
-        )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-          {starters.map(s => (
-            <button key={s.key} onClick={() => setSelectedStarter(s.key)} style={{
-              textAlign: 'left', padding: '1rem', border: selectedStarter === s.key ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-              borderRadius: 'var(--radius)', background: selectedStarter === s.key ? 'var(--color-primary-subtle)' : 'var(--color-surface)', cursor: 'pointer', fontFamily: 'inherit',
-            }}>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>{s.name}</div>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>{s.description}</div>
-            </button>
+      <TabStrip
+        style={{ marginBottom: activeGroup ? '0.75rem' : '1.25rem' }}
+        items={ALL_TABS.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          active: activeTop === tab.key,
+          onClick: () => handleTopClick(tab.key),
+        }))}
+      />
+
+      {activeGroup && (
+        <TabStrip
+          style={{ marginBottom: '1.25rem' }}
+          items={activeGroup.types.map((t) => ({
+            key: t.key,
+            label: t.label,
+            active: activeType === t.key,
+            onClick: () => { setActiveModuleSub(t.key); setError('') },
+          }))}
+        />
+      )}
+
+      {blurb && (
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', margin: '0 0 1.25rem', maxWidth: '52ch' }}>
+          {blurb}
+        </p>
+      )}
+
+      {error && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{error}</div>}
+
+      {templates.length === 0 ? (
+        <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          No starting points for this type yet.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+          {templates.map((template) => (
+            <StarterCard
+              key={template.id}
+              template={template}
+              type={activeType!}
+              busy={creatingId !== null}
+              creating={creatingId === template.id}
+              onChoose={() => handleChoose(template)}
+            />
           ))}
         </div>
-      </div>
-
-      {error && <p style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>{error}</p>}
-
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <button className="btn btn-primary" onClick={handleCreate} disabled={creating || !selectedStarter || !name.trim()}>
-          {creating ? 'Creating…' : 'Create Layout'}
-        </button>
-        <button className="btn btn-secondary" onClick={() => router.back()} disabled={creating}>Cancel</button>
-      </div>
+      )}
     </div>
+  )
+}
+
+function StarterCard({
+  template, type, busy, creating, onChoose,
+}: {
+  template: StarterTemplate
+  type: string
+  busy: boolean
+  creating: boolean
+  onChoose: () => void
+}) {
+  const [hover, setHover] = useState(false)
+
+  return (
+    <button
+      type="button"
+      onClick={onChoose}
+      disabled={busy}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        textAlign: 'left',
+        padding: 0,
+        background: 'var(--color-surface)',
+        border: `1px solid ${hover && !busy ? 'var(--color-primary)' : 'var(--color-border)'}`,
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+        cursor: busy ? 'default' : 'pointer',
+        fontFamily: 'inherit',
+        display: 'flex',
+        flexDirection: 'column',
+        opacity: busy && !creating ? 0.55 : 1,
+        transition: 'border-color var(--dur-base), opacity var(--dur-base)',
+      }}
+    >
+      <div style={{ padding: '0.75rem', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }}>
+        <LayoutPreview type={type} data={template.data} />
+      </div>
+      <div style={{ padding: '0.875rem 1rem', flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)', marginBottom: '0.25rem' }}>
+          {creating ? 'Creating…' : template.name}
+        </div>
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+          {template.description}
+        </div>
+      </div>
+    </button>
   )
 }

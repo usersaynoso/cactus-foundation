@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { syncToEdgeConfig } from '@/lib/config/edge-config'
 import { getSessionFromCookie, createSession, setSessionCookie } from '@/lib/auth/session'
-import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
+import { seedDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 import { upsertVercelEnvVar } from '@/lib/vercel/env'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
@@ -44,8 +44,9 @@ export async function POST() {
     },
   })
 
-  // Seed all starter layout templates
-  await refreshStarterLayouts(prisma)
+  // Seed the layouts this site goes live with (header, footer, page shell, 404,
+  // status screens). Starter templates themselves stay in code.
+  await seedDefaultLayouts(prisma)
 
   // Seed the Styles info page (installed by default as a draft)
   await upsertStylesInfoPage(prisma)

@@ -11,7 +11,7 @@ import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
-import { ensureStarterLayoutsCurrent } from '@/lib/setup/starterLayouts'
+import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
 
 // Favicon / app-icon metadata is resolved once at the root layout
 // (app/layout.tsx + app/manifest.ts) so it applies on every route, not just
@@ -34,18 +34,19 @@ async function getSiteConfig() {
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  // Re-seed starter templates after a core update (no-op once stamped; see
-  // ensureStarterLayoutsCurrent). It re-seeds the very rows resolveThemeLayout
-  // reads, so it has to finish before the layouts below - but it needs nothing
-  // from the config or session reads, so the three run together.
+  // Retire the old read-only starter rows after a core update (no-op once
+  // stamped; see ensureLayoutsCurrent). It prunes the very table
+  // resolveThemeLayout reads, so it has to finish before the layouts below -
+  // but it needs nothing from the config or session reads, so the three run
+  // together.
   const [, config, user] = await Promise.all([
-    ensureStarterLayoutsCurrent(),
+    ensureLayoutsCurrent(),
     getSiteConfig(),
     getSessionFromCookie().catch(() => null),
   ])
 
-  // The media/privacy lookups need `config`; the layout reads need the starter
-  // re-seed above. Both hold by here, so all five go out together.
+  // The media/privacy lookups need `config`; the layout reads need the prune
+  // above. Both hold by here, so all five go out together.
   const [logoMedia, logoDarkMedia, privacyPage, headerLayout, footerLayout] = await Promise.all([
     config?.logoMediaId
       ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)

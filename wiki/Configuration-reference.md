@@ -196,7 +196,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Cloudinary credentials. |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | No | ImageKit credentials. |
 | `GITHUB_API_TOKEN` | No | GitHub personal access token (`repo` scope). Used for module and theme installs when a GitHub App is not connected. |
-| `ENCRYPTION_KEY` | No | 64-character hex key for encrypting GitHub App credentials. Required to connect a GitHub App. Generate with `openssl rand -hex 32`. Must not change after a GitHub App is connected. |
+| `ENCRYPTION_KEY` | No | 64-character hex key for encrypting GitHub App credentials, authenticator secrets and stored phone numbers. Required to connect a GitHub App. Generate with `openssl rand -hex 32`. Setup generates one per site. **Changing it makes everything encrypted with the old one unreadable** - the GitHub App connection and any two-factor enrolments would have to be set up again. It is not in your backup file either, which is why a backup restored onto a *different* site clears those items rather than pretending they work - see [Self-hosting and operations](Self-hosting-and-operations#what-a-backup-cant-carry-across-to-a-different-site). |
 | `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | No | Vercel Edge Config credentials. Used for faster admin-path and site-status lookups. |
 | `VERCEL_WEBHOOK_SECRET` | No | Enables automatic deployment status updates. Requires a Vercel Pro or Enterprise plan. |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No | Cloudflare Turnstile credentials. Adds bot protection to public-facing forms. |

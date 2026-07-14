@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
-import { refreshStarterLayouts } from '@/lib/setup/starterLayouts'
+import { seedDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 import pkg from '@/package.json'
 
@@ -20,7 +20,7 @@ async function seedStarterContent() {
     },
   })
 
-  await refreshStarterLayouts(prisma)
+  await seedDefaultLayouts(prisma)
 
   await upsertStylesInfoPage(prisma)
 

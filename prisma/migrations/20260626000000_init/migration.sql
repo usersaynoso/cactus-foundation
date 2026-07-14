@@ -275,7 +275,6 @@ CREATE TABLE "Layout" (
     "history" JSONB,
     "displayConditions" JSONB,
     "priority" INTEGER NOT NULL DEFAULT 0,
-    "isStarter" BOOLEAN NOT NULL DEFAULT false,
     "status" "PageStatus" NOT NULL DEFAULT 'draft',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -457,7 +456,6 @@ CREATE UNIQUE INDEX "Module_tablePrefix_key" ON "Module"("tablePrefix");
 CREATE INDEX "Module_status_idx" ON "Module"("status");
 
 CREATE INDEX "Layout_type_status_priority_updatedAt_idx" ON "Layout"("type", "status", "priority", "updatedAt");
-CREATE INDEX "Layout_isStarter_idx" ON "Layout"("isStarter");
 
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");

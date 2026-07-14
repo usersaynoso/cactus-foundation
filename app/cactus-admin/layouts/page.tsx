@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { LayoutPreview } from '@/components/admin/LayoutPreview'
 import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { CORE_TYPE_TABS, MODULE_GROUP_TABS, TYPE_LABELS, type LayoutTypeTab } from '@/lib/layout/layout-type-tabs'
 
 type Layout = {
   id: string
@@ -13,29 +15,13 @@ type Layout = {
   type: string
   description: string | null
   status: string
-  isStarter: boolean
+  builderData: unknown
   displayConditions: { include?: Array<{ type: string; value?: string }> } | null
   createdAt: string
 }
 
-type Tab = { key: string; label: string; type: string | null }
-
-const BUILTIN_TABS: Tab[] = [
-  { key: 'all',        label: 'All',          type: null },
-  { key: 'header',     label: 'Header',       type: 'header' },
-  { key: 'footer',     label: 'Footer',       type: 'footer' },
-  { key: 'infoPage',   label: 'Page Layout',  type: 'infoPage' },
-  { key: 'notFound',   label: '404',          type: 'notFound' },
-  { key: 'statusPage', label: 'Status Page',  type: 'statusPage' },
-]
-
-// Top-level tab key for a module group is its moduleName (unique per manifest).
-const MODULE_GROUP_TABS: Tab[] = moduleLayoutTypeGroups.map((g) => ({ key: g.moduleName, label: g.groupLabel, type: null }))
-
-const TYPE_LABELS: Record<string, string> = {
-  header: 'Header', footer: 'Footer', infoPage: 'Page Layout',
-  notFound: '404', statusPage: 'Status Page',
-}
+const ALL_TAB: LayoutTypeTab = { key: 'all', label: 'All', type: null }
+const TABS: LayoutTypeTab[] = [ALL_TAB, ...CORE_TYPE_TABS, ...MODULE_GROUP_TABS]
 
 function conditionSummary(layout: Layout): string {
   if (layout.status === 'draft') return 'Draft — no conditions set'
@@ -57,19 +43,24 @@ export default function LayoutBuilderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const typeParam = searchParams.get('type')
-  const initialTop = [...BUILTIN_TABS, ...MODULE_GROUP_TABS].some((t) => t.key === typeParam) ? typeParam! : 'all'
+  const initialTop = TABS.some((t) => t.key === typeParam) ? typeParam! : 'all'
   const [activeTop, setActiveTop] = useState<string>(initialTop)
   const [activeModuleSub, setActiveModuleSub] = useState<string | null>(null)
   const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
-  const [publishingId, setPublishingId] = useState<string | null>(null)
 
   const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
   const activeType = activeGroup
     ? (activeModuleSub ?? activeGroup.types[0]?.key ?? null)
-    : (BUILTIN_TABS.find(t => t.key === activeTop)?.type ?? null)
+    : (TABS.find(t => t.key === activeTop)?.type ?? null)
+
+  // The picker opens on whichever type is in view, so "+ New Layout" from the
+  // Footer tab starts you on footers.
+  const newHref = activeType
+    ? `/${adminPath}/layouts/new?type=${activeType}`
+    : `/${adminPath}/layouts/new`
 
   function reload(type: string | null) {
     setLoading(true)
@@ -101,24 +92,6 @@ export default function LayoutBuilderPage() {
     } catch { setError('Failed to duplicate layout'); setDuplicatingId(null) }
   }
 
-  async function handleUseSitewide(id: string) {
-    setPublishingId(id)
-    setError('')
-    try {
-      const res = await fetch(`/api/admin/layouts/${id}/use-sitewide`, { method: 'POST' })
-      const d = await res.json()
-      if (!res.ok) { setError(d.error ?? 'Failed to publish layout site-wide'); setPublishingId(null); return }
-      reload(activeType)
-    } catch { setError('Failed to publish layout site-wide') }
-    setPublishingId(null)
-  }
-
-  function isSitewide(layout: Layout): boolean {
-    const live = layouts.find((l) => l.id === `${layout.id}-live`)
-    if (!live || live.status !== 'published') return false
-    return (live.displayConditions?.include ?? []).some((r) => r.type === 'entire_site')
-  }
-
   async function handleDelete(id: string) {
     if (!confirm('Delete this layout? This cannot be undone.')) return
     try {
@@ -134,12 +107,12 @@ export default function LayoutBuilderPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Layouts</h1>
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-base)' }}>Create typed layouts for headers, footers, pages, and status screens.</p>
         </div>
-        <Link href={`/${adminPath}/layouts/new`} className="btn btn-primary">+ New Layout</Link>
+        <Link href={newHref} className="btn btn-primary">+ New Layout</Link>
       </div>
 
       <TabStrip
         style={{ marginBottom: activeGroup ? '0.75rem' : '1.5rem' }}
-        items={[...BUILTIN_TABS, ...MODULE_GROUP_TABS].map((tab) => ({ key: tab.key, label: tab.label, active: activeTop === tab.key, onClick: () => handleTopClick(tab.key) }))}
+        items={TABS.map((tab) => ({ key: tab.key, label: tab.label, active: activeTop === tab.key, onClick: () => handleTopClick(tab.key) }))}
       />
 
       {activeGroup && (
@@ -154,7 +127,7 @@ export default function LayoutBuilderPage() {
 
       {!loading && layouts.length === 0 && (
         <div style={{ background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          No layouts here yet. <Link href={`/${adminPath}/layouts/new`}>Create your first layout</Link>.
+          No layouts here yet. <Link href={newHref}>Create your first layout</Link>.
         </div>
       )}
 
@@ -162,41 +135,27 @@ export default function LayoutBuilderPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {layouts.map((layout) => (
             <div key={layout.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ background: 'var(--color-bg-subtle)', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--color-border)' }}>
-                <LayoutThumbnail type={layout.type} name={layout.name} />
+              <div style={{ background: 'var(--color-bg-subtle)', padding: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
+                <LayoutPreview type={layout.type} data={layout.builderData} height={88} />
               </div>
               <div style={{ padding: '1rem', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{layout.name}</h3>
                   <TypeBadge type={layout.type} />
-                  {layout.status === 'published' && <StatusBadge status="published" />}
-                  {layout.status === 'draft' && <StatusBadge status="draft" />}
-                  {layout.isStarter && <span className="badge badge-gray" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem' }}>Starter</span>}
+                  <StatusBadge status={layout.status} />
                 </div>
                 {layout.description && <p style={{ margin: '0 0 0.5rem', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{layout.description}</p>}
                 <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-muted)' }}>{conditionSummary(layout)}</p>
               </div>
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {layout.isStarter ? (
-                  <>
-                    <button onClick={() => handleDuplicate(layout.id)} disabled={duplicatingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
-                      {duplicatingId === layout.id ? 'Duplicating…' : 'Duplicate'}
-                    </button>
-                    {!isSitewide(layout) && (
-                      <button onClick={() => handleUseSitewide(layout.id)} disabled={publishingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
-                        {publishingId === layout.id ? 'Publishing…' : 'Use Sitewide'}
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
-                )}
+                <Link href={`/${adminPath}/layouts/${layout.id}`} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Edit</Link>
                 <a href={`/layout-preview/${layout.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>Preview</a>
-                {!layout.isStarter && (
-                  <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0.375rem 0' }}>
-                    Delete
-                  </button>
-                )}
+                <button onClick={() => handleDuplicate(layout.id)} disabled={duplicatingId !== null} className="btn btn-secondary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem' }}>
+                  {duplicatingId === layout.id ? 'Duplicating…' : 'Duplicate'}
+                </button>
+                <button onClick={() => handleDelete(layout.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--color-destructive)', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0.375rem 0' }}>
+                  Delete
+                </button>
               </div>
             </div>
           ))}
@@ -217,40 +176,4 @@ function TypeBadge({ type }: { type: string }) {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'published') return <span className="badge badge-green" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Published</span>
   return <span className="badge badge-yellow" style={{ padding: '0.125rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 500 }}>Draft</span>
-}
-
-function LayoutThumbnail({ type, name }: { type: string; name: string }) {
-  if (type === 'header') {
-    return (
-      <div style={{ width: '80%', height: 28, background: 'var(--color-primary-subtle)', borderRadius: 3, display: 'flex', alignItems: 'center', padding: '0 8px', justifyContent: 'space-between' }}>
-        <div style={{ width: 24, height: 10, background: 'var(--color-primary)', borderRadius: 2, opacity: 0.4 }} />
-        <div style={{ display: 'flex', gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 14, height: 6, background: 'var(--color-primary)', borderRadius: 2, opacity: 0.4 }} />)}</div>
-      </div>
-    )
-  }
-  if (type === 'footer') {
-    return (
-      <div style={{ width: '80%', height: 28, background: 'var(--color-bg-subtle)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 60, height: 6, background: 'var(--color-border-strong)', borderRadius: 2 }} />
-      </div>
-    )
-  }
-  if (type === 'notFound' || type === 'statusPage') {
-    return (
-      <div style={{ width: '80%', height: 36, background: 'var(--color-warning-bg)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 40, height: 10, background: 'var(--color-warning)', borderRadius: 2, opacity: 0.5 }} />
-      </div>
-    )
-  }
-  const n = name.toLowerCase()
-  if (n.includes('sidebar') && (n.includes('right') || n.includes('70'))) {
-    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 7, background: 'var(--color-primary-subtle)', borderRadius: 3 }} /><div style={{ flex: 3, background: 'var(--color-bg-subtle)', borderRadius: 3 }} /></div>
-  }
-  if (n.includes('sidebar') && n.includes('left')) {
-    return <div style={{ display: 'flex', gap: 4, height: 44, width: '80%' }}><div style={{ flex: 3, background: 'var(--color-bg-subtle)', borderRadius: 3 }} /><div style={{ flex: 7, background: 'var(--color-primary-subtle)', borderRadius: 3 }} /></div>
-  }
-  if (n.includes('boxed') || n.includes('centred') || n.includes('centered')) {
-    return <div style={{ display: 'flex', justifyContent: 'center', height: 44, width: '80%' }}><div style={{ width: '70%', background: 'var(--color-primary-subtle)', borderRadius: 3 }} /></div>
-  }
-  return <div style={{ width: '80%', height: 44, background: 'var(--color-primary-subtle)', borderRadius: 3 }} />
 }

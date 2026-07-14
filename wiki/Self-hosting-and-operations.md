@@ -30,6 +30,21 @@ Things worth knowing:
 - **Modules.** If the backup came from a site with a module you don't have installed here (the shop, say), that module's data is skipped and reported rather than aborting the whole restore. Install the module first if you want its data back.
 - **Sequence counters** - such as the shop's order numbers - are restored along with the data, so the next order after a restore carries on from where the old site left off rather than re-issuing numbers that already exist.
 - **Version mismatches are refused, not fudged.** If the backup was taken on a newer version of Cactus than the site you're restoring onto, the restore stops and tells you to update the site first. It won't quietly drop the data it has nowhere to put. Nothing is changed when it refuses.
+- **Some things cannot travel between sites, and are cleared rather than faked.** See below.
+
+### What a backup can't carry across to a different site
+
+A few things are locked to the site that made the backup. Every install has its own encryption key, generated when it is set up, and the backup file deliberately does not contain it - a backup that carried the keys to everything it protects would be a poor sort of secret. So a handful of items are unlocked by a key the new site simply doesn't have.
+
+Rather than restore them and let you find out the hard way, the restore tries to read each one, clears anything it can't, and lists what it cleared on the screen when it finishes. Restoring onto the **same** site (rebuilding a lost database, say) keeps everything - the key hasn't changed, so nothing needs clearing.
+
+What you'll need to set up again on the new site:
+
+- **The GitHub App connection**, under admin > Settings > Integrations. Until you do, updates and the module directory won't work - they need GitHub access, and the old site's credentials are just so much noise here. If you're looking at a site restored before this behaviour existed, the Integrations tab now says so plainly and offers a Reconnect button, instead of insisting everything is fine while nothing works.
+- **Authenticator-app sign-in** for admins, if anyone was using it. Sign in with your password and the code sent to your email, then set the authenticator up again from your account settings.
+- **Members' two-factor authentication.** Nobody is locked out: any member whose authenticator or phone came across gets a code by email at sign-in instead, until they re-enrol from their own account settings.
+
+Your pages, media, settings, users, orders and everything else come across exactly as they were.
 
 **Media backups:**
 

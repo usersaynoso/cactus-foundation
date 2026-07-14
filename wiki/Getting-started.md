@@ -102,6 +102,21 @@ The wizard runs once, at `/_setup`, and completes in three steps:
 
 When setup completes, the wizard marks `setupCompleted = true` and redirects you to the admin dashboard.
 
+### Choosing a domain
+
+Step 1 lists every domain already attached to the chosen Vercel project, plus any other domain sitting in your Vercel account waiting to be attached, and lets you add a brand new one. Whichever you pick becomes `SITE_URL`, so the wizard will not let you continue until that domain actually works.
+
+Two separate things can be outstanding, and Vercel treats them independently:
+
+- **The domain is not pointing at Vercel yet.** You need the `A` (or `CNAME`) record the wizard shows you.
+- **Vercel needs proof the domain is yours.** This happens when the domain is also registered under a different Vercel account. Vercel issues a verification record - usually a `TXT` on `_vercel.yourdomain.com` - and will not serve the domain until it sees it.
+
+A domain can need one, the other, or both. The wizard lists every record that is still outstanding in a copy-and-paste table, rechecks every ten seconds, and unlocks the **Configure project** button as soon as Vercel is happy. If you would rather not touch individual records, pointing the domain's nameservers at Vercel (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`) satisfies both conditions on its own.
+
+Until then you cannot continue, and that is deliberate rather than us being difficult. The domain you choose becomes the address your passkeys are bound to, and that binding cannot be changed once the first passkey exists - so a domain that never comes to life would strand the whole site. Better a short wait now than a locked front door later.
+
+DNS changes can take a while to spread. If you would rather not sit and watch, pick your `*.vercel.app` address instead: it works the moment the project exists, needs none of the above, and lets you finish setup straight away. You can attach the proper domain afterwards - just be aware that switching the site's address later means re-registering passkeys.
+
 Optional features (email, image storage, bot protection, etc.) are not configured during setup. After setup, the dashboard shows an **Additional features** checklist with friendly descriptions and direct links to the relevant settings section.
 
 ## Database setup: three paths

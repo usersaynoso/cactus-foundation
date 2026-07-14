@@ -10,9 +10,6 @@
 CREATE INDEX IF NOT EXISTS "Layout_type_status_priority_updatedAt_idx"
   ON "Layout" ("type", "status", "priority", "updatedAt");
 
--- ensureStarterLayoutsCurrent() filters on isStarter on the first request after a deploy.
-CREATE INDEX IF NOT EXISTS "Layout_isStarter_idx" ON "Layout" ("isStarter");
-
 -- Module.status is filtered on every admin page load and by the proxy's module route
 -- tier lookup.
 CREATE INDEX IF NOT EXISTS "Module_status_idx" ON "Module" ("status");

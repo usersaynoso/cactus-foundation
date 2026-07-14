@@ -2,22 +2,22 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { ensureStarterLayoutsCurrent } from '@/lib/setup/starterLayouts'
+import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
 
 export async function GET(req: Request) {
   try {
     const user = await getSessionFromCookie()
     if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-    // Admin-only sites still pick up new starter templates after an update
-    // even if the public site hasn't been visited yet.
-    await ensureStarterLayoutsCurrent()
+    // Admin-only sites still get the post-update prune even if the public site
+    // hasn't been visited since the deploy.
+    await ensureLayoutsCurrent()
 
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type')
     const layouts = await prisma.layout.findMany({
       where: type ? { type } : undefined,
-      orderBy: [{ isStarter: 'desc' }, { createdAt: 'asc' }],
+      orderBy: { createdAt: 'asc' },
     })
     return NextResponse.json({ layouts })
   } catch {
