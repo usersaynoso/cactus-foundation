@@ -178,13 +178,6 @@ export default function SetupPage() {
   const [siteName, setSiteName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
 
-  // Restore-from-backup (offered on the database step once the DB is connected)
-  const restoreInputRef = useRef<HTMLInputElement>(null)
-  const [restoreFile, setRestoreFile] = useState<File | null>(null)
-  const [restoring, setRestoring] = useState(false)
-  const [restoreError, setRestoreError] = useState('')
-  const [restoreDone, setRestoreDone] = useState(false)
-
   const steps: Step[] = ['connect', 'database', 'configure']
   const stepIndex = steps.indexOf(step)
 
@@ -708,30 +701,6 @@ export default function SetupPage() {
     return false
   }
 
-  async function handleRestoreBackup() {
-    if (!restoreFile) return
-    setRestoring(true)
-    setRestoreError('')
-    try {
-      const body = new FormData()
-      body.append('file', restoreFile)
-      const res = await fetch('/api/setup/import-backup', { method: 'POST', body })
-      if (res.status === 404) throw new Error('Setup is already complete on this site.')
-      const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; loginPath?: string }
-        | null
-      if (!res.ok || !data?.ok) throw new Error(data?.error ?? 'Restore failed')
-      setRestoreDone(true)
-      // The backup carries its own admin account and completed-setup flag, so the
-      // wizard's work is done - send the owner to their restored login.
-      setTimeout(() => { window.location.href = data.loginPath ?? '/' }, 2500)
-    } catch (err: unknown) {
-      setRestoreError(err instanceof Error ? err.message : 'Restore failed')
-    } finally {
-      setRestoring(false)
-    }
-  }
-
   async function handleSmartContinue() {
     if (await checkSiteUrlAndRedirectIfNeeded()) return
     if (!usingExistingData) {
@@ -1133,59 +1102,7 @@ export default function SetupPage() {
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
 
-              <div>
-                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Restoring from a backup?</h3>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
-                  If you have a Cactus backup file from another site, you can import it here to skip the rest of setup entirely.
-                </p>
-                <input
-                  ref={restoreInputRef}
-                  type="file"
-                  accept=".sql,application/sql,text/plain"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    setRestoreFile(e.target.files?.[0] ?? null)
-                    setRestoreError('')
-                  }}
-                />
-                {restoreError && (
-                  <div className="alert alert-danger" style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>{restoreError}</div>
-                )}
-                {restoreDone ? (
-                  <div className="alert alert-info" style={{ marginBottom: '0.5rem' }}>
-                    Backup restored. Taking you to your login…
-                  </div>
-                ) : !restoreFile ? (
-                  <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={() => restoreInputRef.current?.click()}>
-                    Choose backup file…
-                  </button>
-                ) : (
-                  <div className="card" style={{ borderColor: 'var(--color-destructive)', padding: '1rem' }}>
-                    <p style={{ fontSize: '0.875rem', margin: '0 0 0.5rem' }}>
-                      Restore from <strong>{restoreFile.name}</strong>?
-                    </p>
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
-                      This replaces the empty database with the backup&apos;s contents and finishes setup for you.
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                      <button className="btn btn-primary" disabled={restoring} onClick={handleRestoreBackup}>
-                        {restoring ? 'Restoring…' : 'Restore backup'}
-                      </button>
-                      <button
-                        className="btn btn-secondary"
-                        disabled={restoring}
-                        onClick={() => {
-                          setRestoreFile(null)
-                          setRestoreError('')
-                          if (restoreInputRef.current) restoreInputRef.current.value = ''
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <RestoreBackupPanel />
             </>
           )}
 
@@ -1284,6 +1201,14 @@ npm run dev`}
               ? 'An admin account already exists — just configure your site below.'
               : 'Name your site and create your admin account.'}
           </p>
+
+          {/* Step 2 auto-advances the moment the health check passes, so its copy of this
+              panel is rarely seen - this is the one most owners get. It sits above the form
+              because it's a fork rather than an afterthought: completing the form finishes
+              setup, which closes the import endpoint for good. */}
+          <RestoreBackupPanel />
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
 
           {adminAlreadyExists && (
             <div className="alert alert-info" style={{ marginBottom: '1.5rem', fontSize: '0.875rem' }}>
@@ -1423,6 +1348,100 @@ npm run dev`}
         <div style={{ fontStyle: 'italic', marginBottom: '0.375rem' }}>Tough on the outside. Thrives on neglect. Refuses to die.</div>
         v{process.env.NEXT_PUBLIC_APP_VERSION}
       </div>
+    </div>
+  )
+}
+
+// ── Restore-from-backup panel ───────────────────────────────────────────────────
+// Rendered on both the database step (once connected) and the configure step. The
+// import endpoint is step-agnostic - it refuses only once setup is genuinely complete
+// and a user exists - so it is safe to offer from either place. Self-contained state so
+// the two instances never share a file selection.
+
+function RestoreBackupPanel() {
+  const restoreInputRef = useRef<HTMLInputElement>(null)
+  const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [restoreError, setRestoreError] = useState('')
+  const [restoreDone, setRestoreDone] = useState(false)
+
+  async function handleRestoreBackup() {
+    if (!restoreFile) return
+    setRestoring(true)
+    setRestoreError('')
+    try {
+      const body = new FormData()
+      body.append('file', restoreFile)
+      const res = await fetch('/api/setup/import-backup', { method: 'POST', body })
+      if (res.status === 404) throw new Error('Setup is already complete on this site.')
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; loginPath?: string }
+        | null
+      if (!res.ok || !data?.ok) throw new Error(data?.error ?? 'Restore failed')
+      setRestoreDone(true)
+      // The backup carries its own admin account and completed-setup flag, so the
+      // wizard's work is done - send the owner to their restored login.
+      setTimeout(() => { window.location.href = data.loginPath ?? '/' }, 2500)
+    } catch (err: unknown) {
+      setRestoreError(err instanceof Error ? err.message : 'Restore failed')
+    } finally {
+      setRestoring(false)
+    }
+  }
+
+  return (
+    <div>
+      <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Restoring from a backup?</h3>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
+        If you have a Cactus backup file from another site, you can import it here to skip the rest of setup entirely.
+      </p>
+      <input
+        ref={restoreInputRef}
+        type="file"
+        accept=".sql,application/sql,text/plain"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          setRestoreFile(e.target.files?.[0] ?? null)
+          setRestoreError('')
+        }}
+      />
+      {restoreError && (
+        <div className="alert alert-danger" style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>{restoreError}</div>
+      )}
+      {restoreDone ? (
+        <div className="alert alert-info" style={{ marginBottom: '0.5rem' }}>
+          Backup restored. Taking you to your login…
+        </div>
+      ) : !restoreFile ? (
+        <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} onClick={() => restoreInputRef.current?.click()}>
+          Choose backup file…
+        </button>
+      ) : (
+        <div className="card" style={{ borderColor: 'var(--color-destructive)', padding: '1rem' }}>
+          <p style={{ fontSize: '0.875rem', margin: '0 0 0.5rem' }}>
+            Restore from <strong>{restoreFile.name}</strong>?
+          </p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0 0 0.75rem' }}>
+            This replaces the empty database with the backup&apos;s contents and finishes setup for you.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn btn-primary" disabled={restoring} onClick={handleRestoreBackup}>
+              {restoring ? 'Restoring…' : 'Restore backup'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              disabled={restoring}
+              onClick={() => {
+                setRestoreFile(null)
+                setRestoreError('')
+                if (restoreInputRef.current) restoreInputRef.current.value = ''
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
