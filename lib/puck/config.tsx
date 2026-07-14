@@ -27,6 +27,7 @@ import { emailSafeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } fr
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCss } from '@/lib/puck/blockHeight'
+import { LOGO_ALIGN_OPTIONS, siteLogoAlign } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
@@ -156,6 +157,17 @@ const PADDING_Y_OPTIONS = [
   { value: 'md', label: 'Medium' },
   { value: 'lg', label: 'Large' },
   { value: 'xl', label: 'Extra large' },
+]
+// Section's own vertical-padding list: the shared options plus "Full view
+// height", which isn't a padding value at all but a `min-height: 100vh` on the
+// section - it lives in this setting because that's where an owner looks to make
+// a section taller. Section-only (not on the shared list) so the other blocks
+// that reuse PADDING_Y_OPTIONS, like CTABanner, don't offer an option their
+// render can't honour. When 'screen' is picked the padding falls back to the
+// 'lg' spacing so the content isn't jammed against the viewport edges.
+const SECTION_PADDING_Y_OPTIONS = [
+  ...PADDING_Y_OPTIONS,
+  { value: 'screen', label: 'Full view height (100vh)' },
 ]
 
 // AOS (Animate On Scroll) helpers — data attributes rendered server-side, AOS JS picks them up client-side
@@ -831,10 +843,20 @@ function SectionBlock(props: any) {
 
   // paddingY (vertical padding) and maxWidth both vary per breakpoint; fold them
   // into one media override on the inner content wrapper. Desktop is the base
-  // inline style, so plain legacy string data renders unchanged.
+  // inline style, so plain legacy string data renders unchanged. The special
+  // 'screen' value makes the section fill the viewport (min-height:100vh) with
+  // the 'lg' vertical padding; min-height is emitted on every breakpoint (auto
+  // when not 'screen') so a wider breakpoint's 100vh never leaks into a narrower
+  // one - the media rules only fire when a breakpoint differs from desktop.
   const pyRv = normalizeResponsiveValue<string>(paddingY)
   const mwRv = normalizeResponsiveValue<string>(maxWidth)
-  const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${paddingYMap[pickResponsive(pyRv, d) ?? 'lg'] ?? '6rem'} 1.5rem;`)
+  const isScreen = (v: string | undefined) => v === 'screen'
+  const pyPad = (v: string | undefined) => paddingYMap[isScreen(v) ? 'lg' : (v ?? 'lg')] ?? '6rem'
+  const desktopPy = pickResponsive(pyRv, 'desktop')
+  const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
+    const v = pickResponsive(pyRv, d)
+    return `max-width:${maxWidthMap[pickResponsive(mwRv, d) ?? 'standard'] ?? '960px'};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};`
+  })
 
   return (
     <div style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
@@ -846,7 +868,8 @@ function SectionBlock(props: any) {
       <div data-section-id={id} style={{
         maxWidth: maxWidthMap[pickResponsive(mwRv, 'desktop') ?? 'standard'] ?? '960px',
         margin: '0 auto',
-        padding: `${paddingYMap[pickResponsive(pyRv, 'desktop') ?? 'lg'] ?? '6rem'} 1.5rem`,
+        padding: `${pyPad(desktopPy)} 1.5rem`,
+        minHeight: isScreen(desktopPy) ? '100vh' : undefined,
         position: 'relative',
         zIndex: 1,
       }}>
@@ -1082,26 +1105,50 @@ function TextBlock(props: any) {
   )
 }
 
+// A RichText block's "Text colour" recolours the text-carrying elements the
+// globals.css `.puck-richtext …` rules paint with `--color-fg`/`-fg-secondary`
+// (p, lists, headings, blockquote). Those rules set an explicit colour on the
+// descendants, so a plain inline `color` on the wrapper can't cascade past them
+// - it takes a scoped stylesheet rule, keyed on the block's id, at the same
+// element depth. Links are deliberately left on `--color-primary`: a
+// recoloured link that no longer looks like a link is a usability regression,
+// not a feature. Exported so config.rsc.tsx's published render emits the exact
+// same CSS. `cssColourValue` strips the characters that could break out of the
+// declaration (the colour field accepts free text via allowManual).
+export function richTextColourCss(id: string | undefined, colour: string): string {
+  if (!id || !colour) return ''
+  const c = cssColourValue(colour)
+  const sel = `.puck-richtext[data-richtext-id="${id}"]`
+  const targets = ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']
+  return `${targets.map((t) => `${sel} ${t}`).join(',')}{color:${c};}`
+}
+
 function RichTextBlock(props: any) {
-  const { content, padding, puck } = props
+  const { id, content, padding, textColor, puck } = props
   const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
+  const colourCss = richTextColourCss(id, textColor)
   // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
   // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
   // Render it directly rather than passing to dangerouslySetInnerHTML.
   if (React.isValidElement(content)) {
-    return <div className={`puck-richtext ${getPaddingClasses(padding)}`}>{content}</div>
+    return (
+      <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id}>
+        {colourCss && <style>{colourCss}</style>}
+        {content}
+      </div>
+    )
   }
   // Editor-canvas fallback for a raw string / TipTap JSON value. The published
   // page never renders through here: config.rsc.tsx swaps in a version that runs
   // this same HTML through DOMPurify first.
   return (
-    <div
-      className={`puck-richtext ${getPaddingClasses(padding)}`}
-      dangerouslySetInnerHTML={{ __html: richTextContentToHtml(content, obfuscate) }}
-    />
+    <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id}>
+      {colourCss && <style>{colourCss}</style>}
+      <div dangerouslySetInnerHTML={{ __html: richTextContentToHtml(content, obfuscate) }} />
+    </div>
   )
 }
 
@@ -1176,8 +1223,33 @@ function Caption(props: any) {
 // Action blocks
 // ---------------------------------------------------------------------------
 
+// Border widths offered by the Custom button style. "None" is the absence of a
+// border, not a zero-width one, so picking it also retires the border colour
+// field (see ButtonLink's resolveFields).
+const BUTTON_BORDER_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: '1px', label: '1px' },
+  { value: '2px', label: '2px' },
+  { value: '3px', label: '3px' },
+  { value: '4px', label: '4px' },
+]
+
+// A colour heading into a *stylesheet* rule rather than an inline style needs
+// the characters that would end the declaration or the <style> element taken
+// off it - the colour fields accept free text (allowManual), so the value is
+// whatever the admin typed. No legitimate CSS colour contains any of these
+// (`rgb(0 0 0 / 50%)`, `var(--color-1)` and `#abc` all survive untouched), so
+// this costs nothing and closes the break-out. Inline styles don't need it:
+// React serialises those through the style object, which can't break out.
+function cssColourValue(value: string): string {
+  return String(value ?? '').replace(/[<>{};]/g, '')
+}
+
 function ButtonLink(props: any) {
-  const { label, href, variant, padding, puck } = props
+  const {
+    id, label, href, variant, align, padding, puck,
+    bgColor, textColor, hoverBgColor, hoverTextColor, borderWidth, borderColor,
+  } = props
   // A "mailto:" button is the most exposed address on any site - it sits in the
   // href AND usually in the label. Both are protected on the published site;
   // the editor keeps them plain so they stay editable (see lib/email-obfuscate).
@@ -1204,14 +1276,46 @@ function ButtonLink(props: any) {
   // text colour computed from the primary hex (lib/design/tokens.ts), so
   // secondary's fallback fill always keeps legible text regardless of brand
   // colour. Hover is applied via the .cactus-btn[data-variant] rules (tokens.ts).
+  //
+  // "custom" is the one variant that ignores the site's button tokens and paints
+  // what this block was given - a one-off button that shouldn't drag every other
+  // button on the site with it. Each colour left blank falls back to the same
+  // token the primary button uses, so a freshly-switched custom button looks
+  // exactly like the primary it came from and diverges only as colours are set.
+  // A chosen border with no colour picked paints in `currentColor` rather than
+  // transparent: a border you asked for that renders invisibly is a bug report.
+  const hasBorder = Boolean(borderWidth) && borderWidth !== 'none'
   const variants: Record<string, React.CSSProperties> = {
     primary:   { background: 'var(--btn-bg, var(--color-primary))', color: 'var(--btn-text-color, var(--color-bg))', border: 'var(--btn-border-width, 0) solid var(--btn-border, transparent)' },
     secondary: { background: 'var(--btn-secondary-bg, var(--color-primary))', color: 'var(--btn-secondary-text, var(--color-on-primary, var(--color-bg)))', border: 'var(--btn-border-width, 0) solid var(--btn-secondary-border, transparent)' },
     outline:   { background: 'transparent', color: 'var(--btn-outline-text, var(--color-primary))', border: 'var(--btn-border-width, 2px) solid var(--btn-outline-border, var(--color-primary))' },
+    custom:    { background: bgColor || 'var(--btn-bg, var(--color-primary))', color: textColor || 'var(--btn-text-color, var(--color-bg))', border: hasBorder ? `${borderWidth} solid ${borderColor || 'currentColor'}` : 'none' },
   }
+  // Alignment sits on the wrapper, not the button: the <a> is inline-block, so
+  // text-align moves it within the full-width wrapper. Unset means `inherit`,
+  // which for an inherited property is the same as declaring nothing - buttons
+  // saved before this field existed keep taking their container's alignment
+  // instead of being silently yanked left.
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const alignAt = (d: Device) => pickResponsive(alignRv, d) || 'inherit'
+  const alignCss = responsiveMediaCssFor(`[data-btn-id="${id}"]`, (d) => `text-align:${alignAt(d)};`)
+  // Hover on the three presets comes from the global .cactus-btn[data-variant]
+  // rules in tokens.ts; data-variant="custom" deliberately matches none of them,
+  // so a custom button's hover is emitted here instead, scoped to this block.
+  // !important for the same reason those rules carry it: the base state is an
+  // inline style, and an inline style beats any plain stylesheet selector.
+  const hoverDecls = variant === 'custom'
+    ? `${hoverBgColor ? `background:${cssColourValue(hoverBgColor)} !important;` : ''}${hoverTextColor ? `color:${cssColourValue(hoverTextColor)} !important;` : ''}`
+    : ''
+  const hoverCss = hoverDecls ? `a[data-btn-link="${id}"]:hover{${hoverDecls}}` : ''
   return (
-    <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
-      <a {...emailSafeHref(href, obfuscate)} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
+    <div
+      className={getPaddingClasses(padding)}
+      data-btn-id={id}
+      style={{ marginBottom: '1rem', textAlign: alignAt('desktop') as React.CSSProperties['textAlign'] }}
+    >
+      {(alignCss || hoverCss) && <style>{`${alignCss}${hoverCss}`}</style>}
+      <a {...emailSafeHref(href, obfuscate)} data-btn-link={id} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
         {maskEmailText(label, obfuscate)}
       </a>
     </div>
@@ -2115,7 +2219,7 @@ function MembersProfileBlock() {
 // safe to live in the client-reachable base config (SiteHeaderBlock below
 // renders it directly, in both the editor and the real page).
 export function SiteLogoRsc(props: any) {
-  const { logoUrl, logoUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, homeUrl = '/' } = props
+  const { id, logoUrl, logoUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, align, homeUrl = '/' } = props
   // cellHeight/cellHeightShrunk are the current field keys; logoHeight/
   // logoHeightShrunk are accepted as a fallback for pre-rename saved data and
   // for SiteHeaderBlock, which still passes logoHeight.
@@ -2123,7 +2227,10 @@ export function SiteLogoRsc(props: any) {
   const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
   const showTextBool = showTextWithLogo === true || showTextWithLogo === 'true'
   const showIconBool = showIcon !== false && showIcon !== 'false'
-  const style: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-text)', textDecoration: 'none' }
+  // Alignment comes from the same helper SiteLogoClient uses, so the editor and
+  // the published page cannot disagree about it.
+  const { justifyContent, css: alignCss } = siteLogoAlign(id, align)
+  const style: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent, gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-text)', textDecoration: 'none' }
   if (logoUrl) {
     // Shared --header-cell-height custom property drives the logo image height;
     // the shrink override just swaps the variable. Mirrors SiteLogoClient (the
@@ -2137,7 +2244,8 @@ export function SiteLogoRsc(props: any) {
       transition: 'height 0.25s ease',
     } as React.CSSProperties
     return (
-      <a href={homeUrl || '/'} style={style}>
+      <a href={homeUrl || '/'} data-sitelogo-id={id} style={style}>
+        {alignCss && <style>{alignCss}</style>}
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
@@ -2152,7 +2260,8 @@ export function SiteLogoRsc(props: any) {
     )
   }
   return (
-    <a href={homeUrl || '/'} style={style}>
+    <a href={homeUrl || '/'} data-sitelogo-id={id} style={style}>
+      {alignCss && <style>{alignCss}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- SVG logo asset with known static path; no CDN optimisation needed */}
       {showIconBool && <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />}
       {siteName ?? 'Site Name'}
@@ -2215,7 +2324,7 @@ export const puckConfig = {
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
-        paddingY: { type: 'custom' as const, label: 'Vertical padding', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
@@ -2229,13 +2338,24 @@ export const puckConfig = {
         ...aosFields,
       },
       defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
-      // With no background (mode "none") a background image and its overlay scrim
-      // have nothing to sit on, so hide those four fields until a background is set.
+      // Two independent trims: with no background (mode "none") a background image
+      // and its overlay scrim have nothing to sit on, so hide those four fields;
+      // and with no border (borderStyle "none") the border colour and width have
+      // nothing to paint, so hide those two. Border radius stays either way - it
+      // rounds the section's background/image even without a border.
       resolveFields: (data: any, { fields }: any) => {
+        let result = fields
         const mode = data.props?.bg?.mode ?? 'none'
-        if (mode !== 'none') return fields
-        const { bgImage: _bi, bgSize: _bs, overlayColor: _oc, overlayOpacity: _oo, ...rest } = fields
-        return rest
+        if (mode === 'none') {
+          const { bgImage: _bi, bgSize: _bs, overlayColor: _oc, overlayOpacity: _oo, ...rest } = result
+          result = rest
+        }
+        const borderStyle = data.props?.borderStyle ?? 'none'
+        if (borderStyle === 'none') {
+          const { borderColor: _bc, borderWidth: _bw, ...rest } = result
+          result = rest
+        }
+        return result
       },
       render: SectionBlock,
     },
@@ -2455,8 +2575,12 @@ export const puckConfig = {
     },
     RichTextBlock: {
       label: 'Rich Text',
-      fields: { content: { type: 'richtext' as const, label: 'Content' }, padding: paddingField },
-      defaultProps: { content: '', padding: 'default' },
+      fields: {
+        content: { type: 'richtext' as const, label: 'Content' },
+        textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        padding: paddingField,
+      },
+      defaultProps: { content: '', textColor: '', padding: 'default' },
       render: RichTextBlock,
     },
     Quote: {
@@ -2497,10 +2621,34 @@ export const puckConfig = {
       label: 'Button',
       fields: {
         label: { type: 'text' as const, label: 'Label' }, href: { type: 'text' as const, label: 'URL' },
-        variant: { type: 'select' as const, label: 'Style', options: [{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }, { value: 'outline', label: 'Outline' }] },
+        variant: { type: 'select' as const, label: 'Style', options: [{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }, { value: 'outline', label: 'Outline' }, { value: 'custom', label: 'Custom' }] },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        bgColor: { type: 'custom' as const, label: 'Button colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverBgColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverTextColor: { type: 'custom' as const, label: 'Hover text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        borderWidth: { type: 'select' as const, label: 'Border', options: BUTTON_BORDER_OPTIONS },
+        borderColor: { type: 'custom' as const, label: 'Border colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
       },
-      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, padding: 'default' },
+      defaultProps: { label: 'Click here', href: '#', variant: 'primary' as const, align: '' as const, bgColor: '', textColor: '', hoverBgColor: '', hoverTextColor: '', borderWidth: 'none' as const, borderColor: '', padding: 'default' },
+      // Only what's applicable. The three preset variants take their colours and
+      // border from the site's Styles → Buttons tokens, so the per-block colour
+      // and border fields are dead weight on them - they belong to Custom alone.
+      // A border colour, in turn, has nothing to paint until a border width is
+      // chosen.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data?.props ?? {}
+        if (p.variant !== 'custom') {
+          const { bgColor: _bg, textColor: _tx, hoverBgColor: _hbg, hoverTextColor: _htx, borderWidth: _bw, borderColor: _bc, ...rest } = fields
+          return rest
+        }
+        if (!p.borderWidth || p.borderWidth === 'none') {
+          const { borderColor: _bc, ...rest } = fields
+          return rest
+        }
+        return fields
+      },
       render: ButtonLink,
     },
     CTABanner: {
@@ -2735,7 +2883,7 @@ export const puckConfig = {
       // own "Height" / "Shrunk height" so the two never read as duplicate
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, align: { type: 'custom' as const, label: 'Alignment', options: LOGO_ALIGN_OPTIONS, render: ResponsiveSelectField }, cellHeight: { type: 'custom' as const, label: 'Element height', render: ClearableNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
       // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
       // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
       // truth for the default. Puck backfills any missing prop from
@@ -2743,7 +2891,11 @@ export const puckConfig = {
       // backfilled 40 would win over a pre-rename block's logoHeight (e.g.
       // the starter header presets, which only ever set logoHeight) since 40
       // isn't nullish, silently shadowing the value the block actually has.
-      defaultProps: { homeUrl: '/', showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      // align defaults to 'left', which resolves to the flex-start the logo's <a>
+      // already used - so backfilling it into blocks saved before the field
+      // existed changes nothing (unlike cellHeight above, it has no legacy key
+      // to shadow).
+      defaultProps: { homeUrl: '/', align: 'left' as const, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
       resolveFields: (_data: any, { fields, appState }: any) => {
         if (isHeaderShrinkEnabled(appState)) return fields
         const { cellHeightShrunk: _s, ...rest } = fields

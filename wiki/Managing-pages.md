@@ -65,7 +65,7 @@ Use these to structure the page and create visual sections.
 
 | Block | What it does |
 |-------|--------------|
-| **Section** | A full-width container with a background colour, image, or gradient. Drop other blocks inside it. Great for creating distinct visual sections. When the background is a colour, a **Colour opacity** slider lets you make it see-through - handy for a soft, readable panel sitting over a background photo - and a **Dark mode colour** picker lets you choose a different colour for dark mode (so a panel can be light in light mode and dark in dark mode). Both are available on the Hero block too. |
+| **Section** | A full-width container with a background colour, image, or gradient. Drop other blocks inside it. Great for creating distinct visual sections. When the background is a colour, a **Colour opacity** slider lets you make it see-through - handy for a soft, readable panel sitting over a background photo - and a **Dark mode colour** picker lets you choose a different colour for dark mode (so a panel can be light in light mode and dark in dark mode). Both are available on the Hero block too. The **Vertical padding** setting includes a **Full view height** option that makes the section fill the whole screen - useful for a landing section a visitor sees in full before scrolling. The **Border** dropdown only reveals its colour and width settings once you actually choose a border style; set it to None and they stay out of your way. |
 | **Grid** | A two-to-four column grid. Drop content into each column independently. |
 | **Split** | A two-column layout where each side is a separate drop zone. Good for side-by-side content. |
 | **Group** | A flexible container for arranging blocks side by side or stacked. Switch on **Columns** to lay any number of blocks out in an even grid - and pick a different number of columns for desktop, tablet and phone (say three across on a computer, two on a tablet, one on a phone). Handy when a Grid's fixed two-to-four columns won't line up the way you want. |
@@ -78,14 +78,14 @@ Use these to structure the page and create visual sections.
 |-------|--------------|
 | **Heading** | A standalone heading. Choose from sizes H2 through H5. |
 | **Text** | A paragraph of body text. |
-| **Rich Text** | A full text editor with bold, italic, bullet lists, numbered lists, links, and blockquotes. |
+| **Rich Text** | A full text editor with bold, italic, bullet lists, numbered lists, links, and blockquotes. A **Text colour** setting recolours the whole block - pick one of your site colours or set a custom colour of your own. Links keep their usual link colour so they still look clickable. |
 | **Quote** | A styled pull quote with optional attribution, and an optional photo (pick one from your media library). The photo sits *inside* the quote panel, tucked between the coloured bar down the left edge and the quote itself. Choose its width, its shape (circle, rounded or square), and - if square isn't what you're after - type a height in pixels. Leave the height blank and it stays square, as before. |
 
 ### Actions
 
 | Block | What it does |
 |-------|--------------|
-| **Button** | A clickable button that links to a URL or another page. |
+| **Button** | A clickable button that links to a URL or another page. Choose where it sits with **Alignment** (left, centre or right, and you can set it differently on mobile). **Style** picks one of your three sitewide button looks, or **Custom** if this one button needs to stand apart - Custom lets you set its colour, text colour, hover colours and border on the block itself, without touching any other button on the site. |
 | **CTA Banner** | A call-to-action banner with a heading, description, and button. **Vertical padding** sets how tall the banner is - how much breathing room sits above and below the text - and can differ per screen size. Left at None, the coloured panel hugs the text, which is how it has always behaved. |
 
 ### Media
@@ -121,7 +121,7 @@ These blocks read from your site settings automatically - no manual content to e
 
 | Block | What it does |
 |-------|--------------|
-| **Site logo** | Displays your uploaded logo, or your site name if no logo is set. |
+| **Site logo** | Displays your uploaded logo, or your site name if no logo is set. **Alignment** moves it left, centre or right, and can be set separately for desktop, tablet and mobile (look for the little screen icons beside the setting) - so a logo can sit left on a wide screen and centred on a phone. In the header the logo takes its position from the column it sits in, so the setting has nothing to do there; it earns its keep on pages and in the footer. |
 | **Menu** | A navigation menu. Pick which menu to display, how to orientate it, and whether dropdowns open on hover or click. Its horizontal alignment, item spacing, font size, font weight and text transform can each be set separately for desktop, tablet and mobile (look for the little screen icons beside the setting) - so a menu can spread out across the header on desktop and sit centred on a phone, for instance. Styling options cover the font (your site's fonts appear at the top of the list, or search for any Google font), link colour, hover colour and hover background, and how the current page's item stands out - its own colour, weight, and an optional underline with its own colour, thickness, and distance from the text. The same styling options are available on the Site Header block's built-in menu. |
 | **Copyright** | Displays © current year and your site name. |
 | **Login button** | Shows log-in and register links for visitors, or account and sign-out links for logged-in users. |

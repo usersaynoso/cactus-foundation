@@ -1,7 +1,10 @@
 'use client'
 import { useState } from 'react'
+import { siteLogoAlign } from '@/lib/puck/siteLogoAlign'
+import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 
 type Props = {
+  id?: string
   logoUrl?: string | null
   logoUrlDark?: string | null
   siteName?: string
@@ -16,11 +19,13 @@ type Props = {
   showTextWithLogo?: string | boolean
   showIcon?: string | boolean
   textColor?: string
+  align?: ResponsiveValue<string> | string
   homeUrl?: string
   [key: string]: unknown
 }
 
 export default function SiteLogoClient({
+  id,
   logoUrl,
   logoUrlDark,
   siteName,
@@ -31,6 +36,7 @@ export default function SiteLogoClient({
   showTextWithLogo = 'false',
   showIcon = 'true',
   textColor,
+  align,
   homeUrl = '/',
 }: Props) {
   const [hovered, setHovered] = useState(false)
@@ -40,10 +46,14 @@ export default function SiteLogoClient({
   const href = homeUrl || '/'
   const showTextBool = showTextWithLogo === true || (showTextWithLogo as string) === 'true'
   const showIconBool = showIcon !== false && (showIcon as string) !== 'false'
+  // Alignment: see siteLogoAlign - SiteLogoRsc does exactly this, from the same
+  // helper, so the two halves cannot drift apart.
+  const { justifyContent, css: alignCss } = siteLogoAlign(id, align)
 
   const style: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
+    justifyContent,
     gap: '0.5rem',
     fontWeight: 700,
     fontSize: '1.125rem',
@@ -73,7 +83,8 @@ export default function SiteLogoClient({
       transition: 'height 0.25s ease',
     } as React.CSSProperties
     return (
-      <a href={href} style={style} {...events}>
+      <a href={href} data-sitelogo-id={id} style={style} {...events}>
+        {alignCss && <style>{alignCss}</style>}
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
@@ -89,7 +100,8 @@ export default function SiteLogoClient({
   }
 
   return (
-    <a href={href} style={style} {...events}>
+    <a href={href} data-sitelogo-id={id} style={style} {...events}>
+      {alignCss && <style>{alignCss}</style>}
       {showIconBool && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />

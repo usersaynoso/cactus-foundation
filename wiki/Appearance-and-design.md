@@ -49,6 +49,8 @@ The Button block also offers **Secondary** and **Outline** options, each with it
 
 A **live preview** sits pinned to the bottom of the tab, showing all three variants in their normal and hover states, side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page.
 
+Everything on this tab is sitewide: change it here and every button on every page follows. When you want one button to stand apart without disturbing the rest, leave this tab alone and set that block's **Style** to **Custom** in the page editor instead - it gets its own colours, hover colours and border, and ignores the settings on this tab entirely.
+
 ### Images tab
 
 Control the border radius and border style applied to images.
