@@ -1364,6 +1364,12 @@ function RestoreBackupPanel() {
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState('')
   const [restoreDone, setRestoreDone] = useState(false)
+  // Secrets the backup carried that this site's encryption key cannot read - the
+  // GitHub App connection, two-factor enrolments - which have been cleared rather
+  // than left in place pretending to work. Always the case when restoring onto a
+  // fresh install, which is exactly what this panel is for, so say so plainly.
+  const [restoreCleared, setRestoreCleared] = useState<string[]>([])
+  const [restoreLoginPath, setRestoreLoginPath] = useState('/')
 
   async function handleRestoreBackup() {
     if (!restoreFile) return
@@ -1375,13 +1381,19 @@ function RestoreBackupPanel() {
       const res = await fetch('/api/setup/import-backup', { method: 'POST', body })
       if (res.status === 404) throw new Error('Setup is already complete on this site.')
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; loginPath?: string }
+        | { ok?: boolean; error?: string; loginPath?: string; clearedSecrets?: string[] }
         | null
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? 'Restore failed')
+      const cleared = data.clearedSecrets ?? []
+      setRestoreCleared(cleared)
+      setRestoreLoginPath(data.loginPath ?? '/')
       setRestoreDone(true)
       // The backup carries its own admin account and completed-setup flag, so the
-      // wizard's work is done - send the owner to their restored login.
-      setTimeout(() => { window.location.href = data.loginPath ?? '/' }, 2500)
+      // wizard's work is done - send the owner to their restored login. Unless
+      // something had to be cleared, in which case they need to read it first.
+      if (cleared.length === 0) {
+        setTimeout(() => { window.location.href = data.loginPath ?? '/' }, 2500)
+      }
     } catch (err: unknown) {
       setRestoreError(err instanceof Error ? err.message : 'Restore failed')
     } finally {
@@ -1408,7 +1420,21 @@ function RestoreBackupPanel() {
       {restoreError && (
         <div className="alert alert-danger" style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>{restoreError}</div>
       )}
-      {restoreDone ? (
+      {restoreDone && restoreCleared.length > 0 ? (
+        <div className="alert alert-warning" style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+          <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Backup restored, with a couple of things left out.</p>
+          <p style={{ margin: '0 0 0.5rem' }}>
+            Some things in a backup are locked to the site that made it and cannot be unlocked on a new one.
+            They have been cleared, and will need setting up again here:
+          </p>
+          <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
+            {restoreCleared.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <button className="btn btn-primary" onClick={() => { window.location.href = restoreLoginPath }}>
+            Got it, take me to the login
+          </button>
+        </div>
+      ) : restoreDone ? (
         <div className="alert alert-info" style={{ marginBottom: '0.5rem' }}>
           Backup restored. Taking you to your login…
         </div>

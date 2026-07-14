@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { verifyMemberEmailChallenge } from '@/lib/members/email-challenge'
 import { verifyTotpCode } from '@/lib/auth/totp'
-import { decryptSecret } from '@/lib/crypto/secrets'
+import { tryDecryptSecret } from '@/lib/crypto/secrets'
 import { loginRejectionForStatus } from '@/lib/members/registration'
 import {
   createMemberSession,
@@ -65,10 +65,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 401 })
     }
   } else {
-    if (!twoFactor.secretEncrypted) {
+    // A secret this site's ENCRYPTION_KEY cannot read came from another install
+    // (restored backup, rotated key) and no code will ever match it. Same answer
+    // as no enrolment at all, rather than a 500 full of OpenSSL.
+    const secret = tryDecryptSecret(twoFactor.secretEncrypted)
+    if (!secret) {
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
     }
-    const secret = decryptSecret(twoFactor.secretEncrypted)
     const result = verifyTotpCode(secret, code, twoFactor.lastStep)
     if (!result.valid) {
       return NextResponse.json({ error: 'Invalid code' }, { status: 401 })

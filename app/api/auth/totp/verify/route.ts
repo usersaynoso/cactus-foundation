@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { createSession, setSessionCookie } from '@/lib/auth/session'
 import { verifyTotpCode } from '@/lib/auth/totp'
-import { decryptSecret } from '@/lib/crypto/secrets'
+import { tryDecryptSecret } from '@/lib/crypto/secrets'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { errorResponse, successResponse } from '@/lib/utils'
 
@@ -38,7 +38,15 @@ export async function POST(request: NextRequest) {
     return errorResponse(GENERIC_ERROR, 401)
   }
 
-  const secret = decryptSecret(user.totpSecretEncrypted)
+  // An enrolment this site's ENCRYPTION_KEY cannot read belongs to another install
+  // (restored backup, rotated key). No code will ever match it, so it is no more
+  // use than no enrolment at all - and gets the same generic answer, rather than a
+  // 500 carrying OpenSSL's "Unsupported state or unable to authenticate data".
+  const secret = tryDecryptSecret(user.totpSecretEncrypted)
+  if (!secret) {
+    return errorResponse(GENERIC_ERROR, 401)
+  }
+
   const result = verifyTotpCode(secret, code, user.totpLastStep)
   if (!result.valid) {
     return errorResponse(GENERIC_ERROR, 401)

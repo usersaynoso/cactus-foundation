@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { prisma } from '@/lib/db/prisma'
+import { getGithubConnectionStatus } from '@/lib/github/client'
 import { errorResponse } from '@/lib/utils'
 
 export async function GET() {
@@ -20,20 +20,21 @@ export async function GET() {
   const encryptionKeyValid = key.length === 64 && /^[0-9a-fA-F]+$/.test(key)
   const hasPat = !!process.env.GITHUB_API_TOKEN
 
-  let connected = false
+  // "Connected" means the credentials can actually be used, not merely that a row
+  // is sitting in the table. A site restored from another install's backup has the
+  // row but not the key that encrypted it, and reporting that as connected is how
+  // an owner ends up staring at "Unsupported state or unable to authenticate data"
+  // on the update button - see lib/github/client.ts.
+  let state: 'none' | 'unreadable' | 'not-installed' | 'ready' = 'none'
   let appSlug: string | null = null
   let installationAccount: string | null = null
-  let hasInstallation = false
 
   if (encryptionKeyValid) {
     try {
-      const conn = await prisma.githubAppConnection.findFirst()
-      if (conn) {
-        connected = true
-        appSlug = conn.appSlug
-        installationAccount = conn.installationAccount
-        hasInstallation = !!conn.installationId
-      }
+      const status = await getGithubConnectionStatus()
+      state = status.state
+      appSlug = status.appSlug
+      installationAccount = status.installationAccount
     } catch {
       // DB not reachable — return defaults
     }
@@ -42,10 +43,13 @@ export async function GET() {
   return NextResponse.json({
     encryptionKeySet,
     encryptionKeyValid,
-    connected,
+    connected: state === 'ready' || state === 'not-installed',
+    // A connection saved by a different install. Usable by nobody here; the owner
+    // has to connect a GitHub App of their own.
+    unreadable: state === 'unreadable',
     appSlug,
     installationAccount,
-    hasInstallation,
+    hasInstallation: state === 'ready',
     hasPat,
   })
 }

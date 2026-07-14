@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
+import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backup/secrets'
 
 // Restore a database from a Cactus SQL backup produced by
 // GET /api/admin/backup/database. That backup is a single .sql file: a schema
@@ -30,6 +31,11 @@ export type RestoreResult = {
   rowsInserted: number
   skippedTables: string[]
   sequencesRestored: string[]
+  /** Secrets the backup carried that this install's ENCRYPTION_KEY cannot read, and
+   *  which have therefore been cleared. Plain English - the owner has to act on it. */
+  clearedSecrets: string[]
+  /** False if this site has no usable ENCRYPTION_KEY, so no secret could be tested. */
+  secretsChecked: boolean
 }
 
 type TargetColumn = { name: string; required: boolean }
@@ -283,6 +289,7 @@ export async function restoreDatabaseFromSql(
   const tablesToTruncate = [...existingTables].filter((t) => !PRESERVED_TABLES.has(t))
 
   let rowsInserted = 0
+  let secrets: SecretsReconcileResult = { checked: false, cleared: [] }
   await db.$transaction(
     async (tx) => {
       if (tablesToTruncate.length > 0) {
@@ -295,12 +302,16 @@ export async function restoreDatabaseFromSql(
       for (const statement of runnableInserts) {
         rowsInserted += await tx.$executeRawUnsafe(statement)
       }
-      // Last: the sequence counters. TRUNCATE ... RESTART IDENTITY has just reset
+      // Next: the sequence counters. TRUNCATE ... RESTART IDENTITY has just reset
       // any table-owned sequence to its start, and standalone ones (the shop's
       // order numbers) were never touched by it, so both need setting either way.
       for (const statement of runnableSetvals) {
         await tx.$executeRawUnsafe(statement)
       }
+      // Last: throw out any secret that came from an install whose encryption key
+      // this site doesn't have. Restoring onto a fresh install is the ordinary
+      // case, and a fresh install always has a different key - see secrets.ts.
+      secrets = await clearUnreadableSecrets(tx)
     },
     { maxWait: 15_000, timeout: 55_000 },
   )
@@ -310,5 +321,7 @@ export async function restoreDatabaseFromSql(
     rowsInserted,
     skippedTables: [...skippedTables].sort(),
     sequencesRestored: restoredSequences.sort(),
+    clearedSecrets: secrets.cleared,
+    secretsChecked: secrets.checked,
   }
 }

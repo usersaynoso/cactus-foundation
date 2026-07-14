@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { buildBackupSql, quoteIdent } from './dump'
 import { restoreDatabaseFromSql, splitSqlStatements } from './restore'
+import { encryptSecret } from '@/lib/crypto/secrets'
 import {
   createProject,
   deleteProject,
@@ -45,6 +46,14 @@ const SCHEMA_SQL = readFileSync(
   path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql'),
   'utf8',
 )
+
+// Two keys, because that is the whole point: ENCRYPTION_KEY is minted per install,
+// so the site restoring a backup is virtually never the site that made it. Anything
+// encrypted under SOURCE_KEY is noise to a site holding OTHER_KEY - and a site that
+// keeps such noise around goes on insisting GitHub is connected while every call to
+// it fails.
+const SOURCE_KEY = 'a'.repeat(64)
+const OTHER_KEY = 'b'.repeat(64)
 
 async function firstOrgForKey(apiKey: string): Promise<string> {
   const res = await fetch('https://console.neon.tech/api/v2/users/me/organizations', {
@@ -119,9 +128,35 @@ async function seedAwkwardValues(db: PrismaClient): Promise<void> {
   // content tables and SiteConfig. Raw inserts bypass Prisma's @updatedAt, so
   // every updatedAt is supplied by hand.
   await db.$executeRawUnsafe(`INSERT INTO "Role" ("id", "name") VALUES ('role-1', 'Owner')`)
+  // The admin carries both kinds of encrypted-at-rest secret: an authenticator
+  // enrolment and a phone for sign-in codes.
   await db.$executeRawUnsafe(
-    `INSERT INTO "User" ("id", "email", "username", "roleId", "createdAt", "updatedAt")
-     VALUES ('user-1', 'owner@example.com', 'owner', 'role-1', now(), now())`,
+    `INSERT INTO "User" ("id", "email", "username", "roleId", "totpSecretEncrypted", "totpVerifiedAt",
+                         "smsOtpPhoneEncrypted", "createdAt", "updatedAt")
+     VALUES ('user-1', 'owner@example.com', 'owner', 'role-1', $1, now(), $2, now(), now())`,
+    encryptSecret('JBSWY3DPEHPK3PXP'),
+    encryptSecret('+447700900000'),
+  )
+  // The row that started all this: a GitHub App connection whose private key is
+  // useless anywhere but the site that encrypted it.
+  await db.$executeRawUnsafe(
+    `INSERT INTO "GithubAppConnection" ("id", "appId", "appSlug", "installationId", "installationAccount",
+                                        "privateKeyEncrypted", "webhookSecretEncrypted", "createdAt", "updatedAt")
+     VALUES ('gh-1', '12345', 'cactus-test', '999', 'acme', $1, $2, now(), now())`,
+    encryptSecret('-----BEGIN RSA PRIVATE KEY-----not a real key-----END RSA PRIVATE KEY-----'),
+    encryptSecret('webhook-secret'),
+  )
+  // A member enrolled in authenticator-app 2FA. Member sign-in REFUSES an account
+  // with no two-factor config at all, so an unreadable one must be demoted, never
+  // deleted - see lib/backup/secrets.ts.
+  await db.$executeRawUnsafe(
+    `INSERT INTO "Member" ("id", "email", "username", "createdAt", "updatedAt")
+     VALUES ('member-1', 'member@example.com', 'member', now(), now())`,
+  )
+  await db.$executeRawUnsafe(
+    `INSERT INTO "MemberTwoFactor" ("id", "memberId", "method", "secretEncrypted", "verified", "createdAt")
+     VALUES ('m2fa-1', 'member-1', 'AUTHENTICATOR_APP', $1, true, now())`,
+    encryptSecret('KRSXG5CTMVRXEZLU'),
   )
   await db.$executeRawUnsafe(
     `INSERT INTO "SiteConfig" ("id", "adminPath", "setupCompleted", "designTokens", "updatedAt")
@@ -159,6 +194,9 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
   beforeAll(async () => {
     if (!API_KEY) throw new Error('RUN_BACKUP_ROUNDTRIP=1 but NEON_API_KEY is not set (checked .env)')
     ORG_ID ??= await firstOrgForKey(API_KEY)
+
+    // Seed as the SOURCE site: every secret below is encrypted with its key.
+    process.env.ENCRYPTION_KEY = SOURCE_KEY
 
     const stamp = Date.now()
     project = await createProject(API_KEY, ORG_ID, `cactus-backup-roundtrip-${stamp}`)
@@ -207,10 +245,63 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
     expect(result.rowsInserted).toBeGreaterThan(0)
     expect(result.tablesRestored).toContain('InfoPage')
     expect(result.skippedTables).toEqual([])
+    // Restoring under the key that wrote them, so every secret is readable and
+    // nothing may be thrown away. The byte-identical check below covers this too,
+    // but an over-eager sweep deserves to fail by name.
+    expect(result.secretsChecked).toBe(true)
+    expect(result.clearedSecrets).toEqual([])
 
     const actualTables = await tableHashes(dstDb, tables)
     const mismatched = tables.filter((t) => actualTables.get(t) !== expectedTables.get(t))
     expect(mismatched, 'these tables did not survive the round-trip').toEqual([])
+  }, 600_000)
+
+  // The bug this was written for: restore dwoffice.furniture onto a fresh install and
+  // the site announced GitHub was connected, then failed every call to it with
+  // OpenSSL's "Unsupported state or unable to authenticate data" - because a fresh
+  // install mints its own ENCRYPTION_KEY, and the restored credentials were encrypted
+  // with the old one.
+  it('clears the secrets it cannot decrypt, so a restored site never claims a connection it has not got', async () => {
+    // A different install, therefore a different key. This is the NORMAL case for a
+    // restore, not an exotic one.
+    process.env.ENCRYPTION_KEY = OTHER_KEY
+    try {
+      const result = await restoreDatabaseFromSql(backupSql, dstDb)
+      expect(result.secretsChecked).toBe(true)
+      expect(result.clearedSecrets.join(' | ')).toMatch(/GitHub App connection/)
+
+      // The row that did the lying.
+      const gh = await dstDb.$queryRawUnsafe<{ n: bigint }[]>(
+        `SELECT count(*) AS n FROM "GithubAppConnection"`,
+      )
+      expect(Number(gh[0]!.n)).toBe(0)
+
+      // An enrolment left behind offers the owner an authenticator step at login that
+      // no code on earth can satisfy, so the flags go with the secret.
+      const [user] = await dstDb.$queryRawUnsafe<
+        { totpSecretEncrypted: string | null; totpVerifiedAt: Date | null; smsOtpPhoneEncrypted: string | null }[]
+      >(`SELECT "totpSecretEncrypted", "totpVerifiedAt", "smsOtpPhoneEncrypted" FROM "User" WHERE "id" = 'user-1'`)
+      expect(user!.totpSecretEncrypted).toBeNull()
+      expect(user!.totpVerifiedAt).toBeNull()
+      expect(user!.smsOtpPhoneEncrypted).toBeNull()
+
+      // The member keeps a second factor: demoted to an emailed code, never deleted -
+      // member sign-in refuses an account with no two-factor config at all, so deleting
+      // the row would lock them out just as thoroughly as leaving the dead secret in it.
+      const m2fa = await dstDb.$queryRawUnsafe<
+        { method: string; secretEncrypted: string | null; verified: boolean }[]
+      >(`SELECT "method"::text AS method, "secretEncrypted", "verified" FROM "MemberTwoFactor" WHERE "memberId" = 'member-1'`)
+      expect(m2fa).toHaveLength(1)
+      expect(m2fa[0]!.method).toBe('EMAIL')
+      expect(m2fa[0]!.secretEncrypted).toBeNull()
+      expect(m2fa[0]!.verified).toBe(false)
+
+      // None of which is licence to touch the actual content.
+      const pages = await dstDb.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM "InfoPage"`)
+      expect(Number(pages[0]!.n)).toBe(1)
+    } finally {
+      process.env.ENCRYPTION_KEY = SOURCE_KEY
+    }
   }, 600_000)
 
   it('refuses a backup from a newer Cactus, and changes nothing when it does', async () => {

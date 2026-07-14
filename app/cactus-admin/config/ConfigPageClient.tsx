@@ -579,6 +579,11 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState('')
   const [restoreDone, setRestoreDone] = useState(false)
+  // Secrets in the backup that this site's encryption key could not read, so they
+  // were cleared rather than left behind pretending to work. The owner has to set
+  // them up again, so this is worth stopping for rather than flashing past.
+  const [restoreCleared, setRestoreCleared] = useState<string[]>([])
+  const [restoreLoginPath, setRestoreLoginPath] = useState('/')
 
   // Reset Everything state
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -597,7 +602,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [dbResetWasHard, setDbResetWasHard] = useState(false)
 
   // GitHub App state
-  type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; hasPat: boolean }
+  type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; unreadable: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; hasPat: boolean }
   const [ghStatus, setGhStatus] = useState<GhStatus | null>(null)
   const [ghBusy, setGhBusy] = useState(false)
   const [ghError, setGhError] = useState('')
@@ -984,13 +989,19 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       body.append('file', restoreFile)
       const res = await fetch('/api/admin/backup/import', { method: 'POST', body })
       const d = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; loginPath?: string }
+        | { ok?: boolean; error?: string; loginPath?: string; clearedSecrets?: string[] }
         | null
       if (!res.ok || !d?.ok) throw new Error(d?.error ?? 'Restore failed')
+      const cleared = d.clearedSecrets ?? []
+      setRestoreCleared(cleared)
+      setRestoreLoginPath(d.loginPath ?? '/')
       setRestoreDone(true)
       // Every session row was wiped by the restore, this admin included - send
-      // them to the (possibly newly restored) login.
-      setTimeout(() => { window.location.href = d.loginPath ?? '/' }, 2500)
+      // them to the (possibly newly restored) login. Unless something had to be
+      // cleared, in which case they need to read it first.
+      if (cleared.length === 0) {
+        setTimeout(() => { window.location.href = d.loginPath ?? '/' }, 2500)
+      }
     } catch (err: unknown) {
       setRestoreError(err instanceof Error ? err.message : 'Restore failed')
     } finally {
@@ -1235,7 +1246,28 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           </p>
         )}
 
-        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.connected && (
+        {/* A connection that came across in someone else's backup. The credentials in it
+            were encrypted with that site's key, so nothing here can read them - and saying
+            "connected" would be a lie that only shows up when an update fails. */}
+        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && gh.unreadable && (
+          <div>
+            <div className="alert alert-warning" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+              A GitHub App connection was restored from a backup of another site. Its credentials cannot be
+              read here, so updates and the module directory will not work until you connect a GitHub App for
+              this site. Connecting one below replaces the old connection.
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
+                {ghBusy ? 'Opening GitHub…' : 'Connect a GitHub App'}
+              </button>
+              <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleDisconnect}>
+                {ghBusy ? 'Removing…' : 'Remove the old connection'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.connected && !gh.unreadable && (
           <div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>No GitHub App connected. Click below to create and install one in about 30 seconds.</p>
             <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
@@ -1523,7 +1555,21 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {restoreError && (
               <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{restoreError}</div>
             )}
-            {restoreDone ? (
+            {restoreDone && restoreCleared.length > 0 ? (
+              <div className="alert alert-warning" style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Backup restored, with a couple of things left out.</p>
+                <p style={{ margin: '0 0 0.5rem' }}>
+                  Some things in the backup were locked to the site that made it, and cannot be unlocked here.
+                  They have been cleared, and will need setting up again on this site:
+                </p>
+                <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
+                  {restoreCleared.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+                <button className="btn btn-primary" onClick={() => { window.location.href = restoreLoginPath }}>
+                  Got it, take me to the login
+                </button>
+              </div>
+            ) : restoreDone ? (
               <div className="alert alert-info" style={{ marginBottom: '0.5rem' }}>
                 Backup restored. Signing you out and taking you to the login…
               </div>
