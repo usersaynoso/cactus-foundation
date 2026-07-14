@@ -10,7 +10,26 @@ Cactus is stateful in two places: PostgreSQL and your media bucket. Back both up
 
 - Enable Point-in-Time Recovery (PITR) - both providers offer it on paid plans. PITR lets you restore to any second in the past within your retention window, which is far more useful than a daily snapshot when debugging a bad migration.
 - For self-hosted Postgres: use `pg_dump` scheduled via cron, ship the dump to an off-server location (another cloud storage bucket), and test restores occasionally.
-- **Manual one-off backup**: admin > Settings > General has a "Download Backup" button that generates a full SQL dump (schema + data) on demand and downloads it straight to the browser. No object storage provider needed - it's independent of whatever media provider (B2 or otherwise) you have configured, or none at all. Good for a quick copy before a risky change; PITR/cron `pg_dump` is still the right answer for ongoing, unattended backups.
+- **Manual one-off backup**: admin > Settings > General has a "Download Backup" button that generates a full SQL dump (schema + data + sequence counters) on demand and downloads it straight to the browser. No object storage provider needed - it's independent of whatever media provider (B2 or otherwise) you have configured, or none at all. Good for a quick copy before a risky change; PITR/cron `pg_dump` is still the right answer for ongoing, unattended backups.
+
+The backup covers the database only. It does **not** contain your media files - those live in your bucket, and are covered separately below. Restoring a backup onto a site whose bucket has been emptied gives you all your pages and settings back, pointing at images that no longer exist.
+
+**If the download fails with "Cactus doesn't know how to back up" a particular column**, that is deliberate. Rather than write a backup file that would silently fail months later when you actually needed it, Cactus refuses to write one it cannot guarantee. Report it - the fix is to teach the backup that column's type.
+
+## Restoring from a backup
+
+A `.sql` file from the Download Backup button can be restored in two places:
+
+- **admin > Settings > General** on a running site.
+- **The setup wizard**, on a brand-new install that hasn't been set up yet - useful for moving a site to a new host, or rebuilding after losing the database.
+
+Restoring is **destructive and complete**: every existing row is wiped and replaced with the backup's contents, so the result is a faithful point-in-time copy rather than a merge. It runs in a single transaction - if anything fails partway, nothing is changed at all.
+
+Things worth knowing:
+
+- **Modules.** If the backup came from a site with a module you don't have installed here (the shop, say), that module's data is skipped and reported rather than aborting the whole restore. Install the module first if you want its data back.
+- **Sequence counters** - such as the shop's order numbers - are restored along with the data, so the next order after a restore carries on from where the old site left off rather than re-issuing numbers that already exist.
+- **Version mismatches are refused, not fudged.** If the backup was taken on a newer version of Cactus than the site you're restoring onto, the restore stops and tells you to update the site first. It won't quietly drop the data it has nowhere to put. Nothing is changed when it refuses.
 
 **Media backups:**
 

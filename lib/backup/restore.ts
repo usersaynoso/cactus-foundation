@@ -1,20 +1,24 @@
+import type { PrismaClient } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 
 // Restore a database from a Cactus SQL backup produced by
 // GET /api/admin/backup/database. That backup is a single .sql file: a schema
-// section (the init migration, verbatim) followed by a data section of INSERT
-// statements, one topologically-sorted block per table.
+// section (the init migration, verbatim), a data section of INSERT statements -
+// one topologically-sorted block per table - and a sequence section of setval()
+// calls.
 //
 // The target database always already has the schema - core tables are applied
 // at build time by `prisma migrate deploy`, and any installed module's tables by
 // its own migrations - so restore never runs the schema section. It wipes the
-// existing rows and replays only the backup's INSERTs, inside a single
-// all-or-nothing transaction. If anything fails the whole thing rolls back and
-// the live data is left untouched.
+// existing rows and replays only the backup's INSERTs and setvals, inside a
+// single all-or-nothing transaction. If anything fails the whole thing rolls back
+// and the live data is left untouched.
 //
 // INSERTs for a table that doesn't exist on the target (a module that was
 // installed on the source site but not here) are skipped and reported rather
-// than aborting the restore.
+// than aborting the restore. A COLUMN mismatch is different - that means the two
+// sites are on different versions of Cactus - and is reported as a clear error
+// BEFORE anything is wiped, rather than dying halfway with a raw Postgres error.
 
 // Prisma's own migration ledger. Never wiped - dropping it would make the next
 // `prisma migrate deploy` try to re-apply the init migration onto tables that
@@ -25,7 +29,10 @@ export type RestoreResult = {
   tablesRestored: string[]
   rowsInserted: number
   skippedTables: string[]
+  sequencesRestored: string[]
 }
+
+type TargetColumn = { name: string; required: boolean }
 
 // Splits a Cactus backup into individual SQL statements.
 //
@@ -84,21 +91,124 @@ export function splitSqlStatements(sql: string): string[] {
   return statements
 }
 
-function insertTargetTable(statement: string): string | null {
+export function insertTargetTable(statement: string): string | null {
   const match = /^INSERT\s+INTO\s+"([^"]+)"/i.exec(statement)
   return match ? match[1]! : null
 }
 
-async function getExistingTables(): Promise<Set<string>> {
-  const rows = await prisma.$queryRawUnsafe<{ table_name: string }[]>(`
+// The column list is the first parenthesised group after the table name, and it
+// only ever contains quoted identifiers - no nested parens to worry about.
+export function insertColumns(statement: string): string[] {
+  const match = /^INSERT\s+INTO\s+"[^"]+"\s*\(([^)]*)\)/i.exec(statement)
+  if (!match?.[1]) return []
+  return match[1]
+    .split(',')
+    .map((c) => c.trim().replace(/^"|"$/g, ''))
+    .filter(Boolean)
+}
+
+export function setvalTargetSequence(statement: string): string | null {
+  const match = /^SELECT\s+setval\(\s*'"?([^'"]+)"?'/i.exec(statement)
+  return match ? match[1]! : null
+}
+
+async function getExistingTables(db: PrismaClient): Promise<Set<string>> {
+  const rows = await db.$queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
   `)
   return new Set(rows.map((r) => r.table_name))
 }
 
+async function getExistingSequences(db: PrismaClient): Promise<Set<string>> {
+  const rows = await db.$queryRawUnsafe<{ sequencename: string }[]>(
+    `SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'`,
+  )
+  return new Set(rows.map((r) => r.sequencename))
+}
+
+// `required` = the INSERT must supply it: NOT NULL, no default, and not computed
+// by Postgres. Anything else can safely be left out of a backup's column list.
+async function getTargetColumns(db: PrismaClient): Promise<Map<string, TargetColumn[]>> {
+  const rows = await db.$queryRawUnsafe<
+    {
+      table_name: string
+      column_name: string
+      is_nullable: string
+      column_default: string | null
+      is_generated: string
+      identity_generation: string | null
+    }[]
+  >(`
+    SELECT table_name, column_name, is_nullable, column_default, is_generated, identity_generation
+    FROM information_schema.columns WHERE table_schema = 'public'
+  `)
+  const map = new Map<string, TargetColumn[]>()
+  for (const row of rows) {
+    const list = map.get(row.table_name) ?? []
+    list.push({
+      name: row.column_name,
+      required:
+        row.is_nullable === 'NO' &&
+        row.column_default === null &&
+        row.is_generated === 'NEVER' &&
+        row.identity_generation === null,
+    })
+    map.set(row.table_name, list)
+  }
+  return map
+}
+
 function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`
+}
+
+function listForHumans(items: string[]): string {
+  const shown = items.slice(0, 3).map((i) => `"${i}"`)
+  const rest = items.length - shown.length
+  const joined = shown.join(', ')
+  return rest > 0 ? `${joined} and ${rest} more` : joined
+}
+
+// Catches the two ways a backup and a site can disagree about the shape of a
+// table, and says so in English BEFORE anything is truncated. Without this the
+// restore dies mid-transaction with a raw Postgres error and the owner has no
+// idea what to do about it.
+function assertSchemasMatch(
+  columnsInBackup: Map<string, Set<string>>,
+  targetColumns: Map<string, TargetColumn[]>,
+): void {
+  const backupHasExtra: string[] = []
+  const backupIsMissing: string[] = []
+
+  for (const [table, backupCols] of columnsInBackup) {
+    const target = targetColumns.get(table) ?? []
+    const targetNames = new Set(target.map((c) => c.name))
+
+    for (const col of backupCols) {
+      if (!targetNames.has(col)) backupHasExtra.push(`${table}.${col}`)
+    }
+    for (const col of target) {
+      if (col.required && !backupCols.has(col.name)) backupIsMissing.push(`${table}.${col.name}`)
+    }
+  }
+
+  if (backupHasExtra.length > 0) {
+    throw new Error(
+      `This backup was made on a NEWER version of Cactus than this site is running. ` +
+        `It carries data this site has nowhere to put (${listForHumans(backupHasExtra)}). ` +
+        `Update this site to the latest version of Cactus first, then restore the backup again. ` +
+        `Nothing has been changed.`,
+    )
+  }
+
+  if (backupIsMissing.length > 0) {
+    throw new Error(
+      `This backup was made on an OLDER version of Cactus and is missing information this site now ` +
+        `requires (${listForHumans(backupIsMissing)}). Restore it onto a site running the version it ` +
+        `was taken from, and update that site afterwards. Nothing has been changed.`,
+    )
+  }
 }
 
 /**
@@ -108,12 +218,19 @@ function quoteIdent(name: string): string {
  * and replaced with the backup's contents. Runs in one transaction, so a failure
  * anywhere leaves the database exactly as it was.
  *
+ * @param db  defaults to the app's Prisma singleton; the round-trip test passes
+ *            its own client pointed at a throwaway database.
  * @throws if the file contains no recognisable INSERT statements (guards against
- *         wiping the database on the strength of an empty or wrong file).
+ *         wiping the database on the strength of an empty or wrong file), or if
+ *         the backup and this site disagree about any table's columns.
  */
-export async function restoreDatabaseFromSql(sql: string): Promise<RestoreResult> {
+export async function restoreDatabaseFromSql(
+  sql: string,
+  db: PrismaClient = prisma,
+): Promise<RestoreResult> {
   const allStatements = splitSqlStatements(sql)
   const inserts = allStatements.filter((s) => /^INSERT\s+INTO/i.test(s))
+  const setvals = allStatements.filter((s) => /^SELECT\s+setval\s*\(/i.test(s))
 
   if (inserts.length === 0) {
     throw new Error(
@@ -121,20 +238,43 @@ export async function restoreDatabaseFromSql(sql: string): Promise<RestoreResult
     )
   }
 
-  const existingTables = await getExistingTables()
+  const [existingTables, existingSequences, targetColumns] = await Promise.all([
+    getExistingTables(db),
+    getExistingSequences(db),
+    getTargetColumns(db),
+  ])
 
   const skippedTables = new Set<string>()
   const restoredTables = new Set<string>()
+  const columnsInBackup = new Map<string, Set<string>>()
   const runnableInserts: string[] = []
   for (const statement of inserts) {
     const table = insertTargetTable(statement)
     if (!table) continue
-    if (existingTables.has(table)) {
-      runnableInserts.push(statement)
-      restoredTables.add(table)
-    } else {
+    if (!existingTables.has(table)) {
       skippedTables.add(table)
+      continue
     }
+    runnableInserts.push(statement)
+    restoredTables.add(table)
+    // Every chunk for a table repeats the same column list, so a set is enough.
+    const cols = columnsInBackup.get(table) ?? new Set<string>()
+    for (const col of insertColumns(statement)) cols.add(col)
+    columnsInBackup.set(table, cols)
+  }
+
+  // Before anything destructive happens.
+  assertSchemasMatch(columnsInBackup, targetColumns)
+
+  const restoredSequences: string[] = []
+  const runnableSetvals: string[] = []
+  for (const statement of setvals) {
+    const sequence = setvalTargetSequence(statement)
+    // A sequence belonging to a module this site hasn't installed is skipped for
+    // the same reason its tables are.
+    if (!sequence || !existingSequences.has(sequence)) continue
+    runnableSetvals.push(statement)
+    restoredSequences.push(sequence)
   }
 
   // Wipe every table the target actually has (bar the preserved ones), not just
@@ -143,7 +283,7 @@ export async function restoreDatabaseFromSql(sql: string): Promise<RestoreResult
   const tablesToTruncate = [...existingTables].filter((t) => !PRESERVED_TABLES.has(t))
 
   let rowsInserted = 0
-  await prisma.$transaction(
+  await db.$transaction(
     async (tx) => {
       if (tablesToTruncate.length > 0) {
         const list = tablesToTruncate.map(quoteIdent).join(', ')
@@ -155,6 +295,12 @@ export async function restoreDatabaseFromSql(sql: string): Promise<RestoreResult
       for (const statement of runnableInserts) {
         rowsInserted += await tx.$executeRawUnsafe(statement)
       }
+      // Last: the sequence counters. TRUNCATE ... RESTART IDENTITY has just reset
+      // any table-owned sequence to its start, and standalone ones (the shop's
+      // order numbers) were never touched by it, so both need setting either way.
+      for (const statement of runnableSetvals) {
+        await tx.$executeRawUnsafe(statement)
+      }
     },
     { maxWait: 15_000, timeout: 55_000 },
   )
@@ -163,5 +309,6 @@ export async function restoreDatabaseFromSql(sql: string): Promise<RestoreResult
     tablesRestored: [...restoredTables].sort(),
     rowsInserted,
     skippedTables: [...skippedTables].sort(),
+    sequencesRestored: restoredSequences.sort(),
   }
 }
