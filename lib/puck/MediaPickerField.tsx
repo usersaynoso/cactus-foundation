@@ -291,7 +291,7 @@ export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange,
 const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   ImageBlock:     { mediaUrl: 'Image' },
   Card:           { mediaUrl: 'Image' },
-  Quote:          { mediaUrl: 'Photo (shown left of the quote)' },
+  Quote:          { mediaUrl: 'Photo (shown inside the quote, left of the text)' },
   ImageChipPanel: { mediaUrl: 'Image' },
   Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)' },
   Section:        { bgImage: 'Background image' },

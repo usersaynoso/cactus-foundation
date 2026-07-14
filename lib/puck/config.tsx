@@ -23,20 +23,33 @@ import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
-import { linkifyEmails, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
-import { SiteColourField } from '@/lib/puck/SiteColourField'
-import { SiteFontField } from '@/lib/puck/SiteFontField'
+import { emailSafeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
-import { BorderField } from '@/lib/puck/BorderField'
-import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
-import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
-import { ResponsiveTextField, ResponsiveSelectField, ResponsiveNumberField } from '@/lib/puck/ResponsiveValueField'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCss } from '@/lib/puck/blockHeight'
-import { VisibilityField } from '@/lib/puck/VisibilityField'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
-import { MinMaxPairField, type MinMaxPair } from '@/lib/puck/MinMaxPairField'
-import { ClearableNumberField } from '@/lib/puck/ClearableNumberField'
+import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
+// Sidebar field widgets come from the registry, never from their own modules. Each one
+// is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
+// so a direct import here opens a client boundary on the RSC path and drags the whole
+// editor - and the TipTap/ProseMirror it vendors - into every public page's bundle.
+// registry.test.ts fails the build if anyone reinstates one. See fields/registry.tsx.
+import {
+  SiteColourField,
+  SiteFontField,
+  BorderField,
+  SectionBgColorField,
+  HeroBgColorField,
+  HeaderBgColorField,
+  PageBgColorField,
+  LayoutPickerField,
+  ResponsiveTextField,
+  ResponsiveSelectField,
+  ResponsiveNumberField,
+  VisibilityField,
+  MinMaxPairField,
+  ClearableNumberField,
+} from '@/lib/puck/fields/registry'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -852,10 +865,15 @@ function ContentSlot(_props: any) {
 // `needle`, wrapping the matches in an emphasised span. Non-matching runs stay
 // plain strings. Returns the original line untouched when there's no needle or
 // no hit, so the common (no-highlight) path allocates nothing extra.
-function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string, obfuscate = false): React.ReactNode {
-  if (!needle) return obfuscate ? linkifyEmails(line) : line
+// `inLink` is set when the heading itself is a link: the address then can't be
+// wrapped in an anchor of its own (nested links are invalid HTML), so it is
+// entity-masked instead and the surrounding heading link carries the address.
+function renderHighlight(line: string, needle: string, mark: string, keyPrefix: string, obfuscate = false, inLink = false): React.ReactNode {
+  const protect = (s: string, key: string): React.ReactNode =>
+    !obfuscate ? s : inLink ? maskEmailText(s, true, key) : linkifyEmails(s)
+  if (!needle) return protect(line, `${keyPrefix}-t`)
   const parts = line.split(needle)
-  if (parts.length === 1) return obfuscate ? linkifyEmails(line) : line
+  if (parts.length === 1) return protect(line, `${keyPrefix}-t`)
   const emColor = 'var(--color-primary)'
   // The "mark" is a chunky bar that sits UNDER the word (a thick underline),
   // never behind the glyphs. Drawn with text-decoration so it always tracks the
@@ -870,7 +888,7 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
   }
   const out: React.ReactNode[] = []
   parts.forEach((seg, i) => {
-    if (seg) out.push(obfuscate ? linkifyEmails(seg) : seg)
+    if (seg) out.push(protect(seg, `${keyPrefix}-t-${i}`))
     if (i < parts.length - 1) {
       out.push(
         <em key={`${keyPrefix}-em-${i}`} style={{ fontStyle: 'normal', color: emColor, ...markStyle }}>{needle}</em>,
@@ -946,10 +964,10 @@ function Heading(props: any) {
   const rawContent = revealAnimation === 'stagger-lines'
     ? text.split('\n').map((line: string, i: number) => (
         <span key={i} className="cactus-stagger-line">
-          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`, obfuscate)}</span>
+          <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`, obfuscate, Boolean(href))}</span>
         </span>
       ))
-    : renderHighlight(text, highlightText, highlightMark, 'h', obfuscate)
+    : renderHighlight(text, highlightText, highlightMark, 'h', obfuscate, Boolean(href))
   // "Keep on one line": HeadingFitText measures the text against the room the
   // heading has been given and scales it down when it would otherwise wrap. Off
   // by default, and it's the only thing here that needs client JS, so the plain
@@ -986,7 +1004,7 @@ function Heading(props: any) {
     >
       {(alignCss || linkBaseCss || hoverCss || fillCss) && <style>{`${alignCss}${linkBaseCss}${hoverCss}${fillCss}`}</style>}
       {href
-        ? <a href={href} data-heading-link={id} style={{ display: 'block', color: 'inherit' }}>{headingEl}</a>
+        ? <a {...emailSafeHref(href, obfuscate)} data-heading-link={id} style={{ display: 'block', color: 'inherit' }}>{headingEl}</a>
         : headingEl}
     </div>
   )
@@ -1060,33 +1078,38 @@ function RichTextBlock(props: any) {
 }
 
 function Quote(props: any) {
-  const { quote, attribution, padding, mediaUrl, alt, imageSize = 'md', imageShape = 'circle', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { quote, attribution, padding, mediaUrl, alt, imageSize = 'md', imageShape = 'circle', imageHeight = 0, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const editing = puck?.isEditing
   const photoSizeMap: Record<string, number> = { sm: 72, md: 112, lg: 160 }
   const photoRadiusMap: Record<string, string> = { circle: '50%', rounded: '8px', square: '0' }
   const photo = photoSizeMap[imageSize] ?? photoSizeMap.md
-  // The bottom margin belongs to the row once there's a photo beside the quote:
-  // left on the blockquote it would count towards the centring, nudging the
-  // photo up by half of it. No photo = the original markup, untouched.
-  const blockquote = (
-    <blockquote style={{ margin: mediaUrl ? 0 : '0 0 1.5rem', flex: mediaUrl ? '1 1 0%' : undefined, minWidth: mediaUrl ? 0 : undefined, padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
+  // Blank (or 0) height keeps the photo square, as it has always been. A number
+  // overrides it, so a portrait shot can stand as tall as the panel needs.
+  const heightOverride = Number(imageHeight)
+  const photoHeight = Number.isFinite(heightOverride) && heightOverride > 0 ? heightOverride : photo
+  const body = (
+    <>
       <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{editing ? quote : linkifyEmails(quote)}</p>
       {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {editing ? attribution : linkifyEmails(attribution)}</footer>}
-    </blockquote>
+    </>
   )
   return (
     <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {mediaUrl ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-          <img
-            src={mediaUrl}
-            alt={alt ?? ''}
-            style={{ flex: '0 0 auto', width: photo, height: photo, objectFit: 'cover', borderRadius: photoRadiusMap[imageShape] ?? '50%', display: 'block' }}
-          />
-          {blockquote}
-        </div>
-      ) : blockquote}
+      <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
+        {mediaUrl ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
+            <img
+              src={mediaUrl}
+              alt={alt ?? ''}
+              loading="lazy"
+              decoding="async"
+              style={{ flex: '0 0 auto', width: photo, height: photoHeight, objectFit: 'cover', borderRadius: photoRadiusMap[imageShape] ?? '50%', display: 'block' }}
+            />
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>{body}</div>
+          </div>
+        ) : body}
+      </blockquote>
     </div>
   )
 }
@@ -1126,7 +1149,11 @@ function Caption(props: any) {
 // ---------------------------------------------------------------------------
 
 function ButtonLink(props: any) {
-  const { label, href, variant, padding } = props
+  const { label, href, variant, padding, puck } = props
+  // A "mailto:" button is the most exposed address on any site - it sits in the
+  // href AND usually in the label. Both are protected on the published site;
+  // the editor keeps them plain so they stay editable (see lib/email-obfuscate).
+  const obfuscate = !puck?.isEditing
   // Shape + typography reflect the Styles → Buttons tokens (var), falling back to
   // the built-in defaults when unset so untouched sites look identical.
   const shape: React.CSSProperties = {
@@ -1156,15 +1183,16 @@ function ButtonLink(props: any) {
   }
   return (
     <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
-      <a href={href} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
-        {label}
+      <a {...emailSafeHref(href, obfuscate)} className="cactus-btn" data-variant={variant || 'primary'} style={{ ...shape, ...(variants[variant] ?? variants.primary) }}>
+        {maskEmailText(label, obfuscate)}
       </a>
     </div>
   )
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, padding, paddingY = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, padding, paddingY = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
     white: { bg: 'var(--color-bg)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     light: { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
@@ -1192,8 +1220,8 @@ function CTABanner(props: any) {
         {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
         {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
         {ctaLabel && ctaHref && (
-          <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
-            {ctaLabel}
+          <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
+            {maskEmailText(ctaLabel, obfuscate)}
           </a>
         )}
       </section>
@@ -1232,9 +1260,11 @@ function ImageBlock(props: any) {
   return (
     <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {sizeCss && <style>{sizeCss}</style>}
-      {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look. */}
+      {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look.
+          Deliberately not lazy: an Image block can be the first thing on a page, and lazy-loading the
+          LCP element is a measurable regression. decoding="async" is free either way. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
+      <img src={mediaUrl} alt={alt ?? ''} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
       {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{caption}</figcaption>}
     </figure>
   )
@@ -1295,8 +1325,9 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
-    padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
+    padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
+  const obfuscate = !puck?.isEditing
 
   const bgType = bg.mode ?? 'gradient'
   const bgColor = bg.color ?? ''
@@ -1341,17 +1372,19 @@ function Hero(props: any) {
         {(ctaLabel || cta2Label) && (
           <div data-hero-ctas style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: layoutBase === 'centered' ? 'center' : 'flex-start' }}>
             {ctaLabel && ctaHref && (
-              <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{ctaLabel}</a>
+              <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{maskEmailText(ctaLabel, obfuscate)}</a>
             )}
             {cta2Label && cta2Href && (
-              <a href={cta2Href} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: cta2Variant === 'outline' ? 'transparent' : 'var(--color-bg)', color: cta2Variant === 'outline' ? textColor : 'var(--color-fg)', border: cta2Variant === 'outline' ? `2px solid ${textColor}` : 'none', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{cta2Label}</a>
+              <a {...emailSafeHref(cta2Href, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: cta2Variant === 'outline' ? 'transparent' : 'var(--color-bg)', color: cta2Variant === 'outline' ? textColor : 'var(--color-fg)', border: cta2Variant === 'outline' ? `2px solid ${textColor}` : 'none', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>{maskEmailText(cta2Label, obfuscate)}</a>
             )}
           </div>
         )}
       </div>
       {hasSideImage && (
+        // The hero image is the LCP element on most pages, so it is fetched eagerly and at
+        // high priority - never lazy, which would push it behind the preload scanner.
         // eslint-disable-next-line @next/next/no-img-element
-        <img data-hero-img src={imageUrl} alt="" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0, display: layoutBase === 'right-image' ? 'block' : 'none' }} />
+        <img data-hero-img src={imageUrl} alt="" fetchPriority="high" decoding="async" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0, display: layoutBase === 'right-image' ? 'block' : 'none' }} />
       )}
     </>
   )
@@ -1383,7 +1416,8 @@ const SOCIAL_ICONS: Record<string, string> = {
 }
 
 function SocialLinks(props: any) {
-  const { id, items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding } = props
+  const { id, items = [], iconSize = 'md', iconColor = '', layout = 'row', gap = 'normal', padding, puck } = props
+  const obfuscate = !puck?.isEditing
   const sizes: Record<string, number> = { sm: 20, md: 28, lg: 40 }
   const gapMap: Record<string, string> = { tight: '0.5rem', normal: '1rem', wide: '1.75rem' }
   // layout/gap drive the container; icon size drives each link through a shared
@@ -1407,7 +1441,7 @@ function SocialLinks(props: any) {
       {css && <style>{css}</style>}
       <div data-social-id={id} className={getPaddingClasses(padding)} style={containerStyle}>
         {items.map((item: any, i: number) => (
-          <a key={i} href={item.url || '#'} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
+          <a key={i} {...emailSafeHref(item.url || '#', obfuscate)} target="_blank" rel="noopener noreferrer" aria-label={item.platform}
             style={{ display: 'inline-flex', color: iconColor || 'var(--color-fg-secondary)', width: 'var(--social-icon)', height: 'var(--social-icon)', flexShrink: 0 }}
             dangerouslySetInnerHTML={{ __html: (SOCIAL_ICONS[item.platform] ?? SOCIAL_ICONS['twitter-x']) as string }}
           />
@@ -1507,7 +1541,8 @@ function Chip(props: any) {
 }
 
 function Card(props: any) {
-  const { id, mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, minHeight = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, minHeight = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const obfuscate = !puck?.isEditing
   // "Fill container" stretches the card to whatever holds it - a Grid column, a
   // stretch Group - so a row of cards ends up the same height as its tallest
   // sibling instead of each one hugging its own text. Anything else is a plain
@@ -1529,11 +1564,11 @@ function Card(props: any) {
       {...getAosProps(animationType, animationDuration, animationDelay)}>
       {fillCss && <style>{fillCss}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
+      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
         {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{heading}</h3>}
         {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>}
-        {ctaLabel && ctaHref && <a href={ctaHref} style={{ display: 'inline-block', padding: '0.5rem 1.25rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem' }}>{ctaLabel}</a>}
+        {ctaLabel && ctaHref && <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.5rem 1.25rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem' }}>{maskEmailText(ctaLabel, obfuscate)}</a>}
       </div>
     </div>
   )
@@ -1579,7 +1614,7 @@ function ImageChipPanel(props: any) {
           behind), while the scan beam and chips come later in the DOM so they
           paint over the image without needing an explicit stacking order. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img src={mediaUrl} alt={alt ?? ''} style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
+      <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -1769,7 +1804,7 @@ function Logos(props: any) {
         {items.map((item: any, i: number) => {
           const inner = item.logoUrl
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={item.logoUrl} alt={item.alt ?? ''} style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
+            ? <img src={item.logoUrl} alt={item.alt ?? ''} loading="lazy" decoding="async" style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
             : <div style={{ height: 'var(--logo-h)', width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
           return item.href
             ? <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
@@ -1792,7 +1827,9 @@ function Copyright(props: any) {
     privacyPolicyUrl = '', privacyPolicyLabel = 'Privacy Policy',
     termsUrl = '', termsLabel = 'Terms of Service',
     customLink1Url = '', customLink1Label = '', customLink2Url = '', customLink2Label = '',
+    puck,
   } = props
+  const obfuscate = !puck?.isEditing
   const currentYear = new Date().getFullYear()
   const resolvedPrefix = prefix === 'custom' ? (customPrefix || '©') : prefix === 'none' ? '' : prefix
   let yearText = ''
@@ -1822,7 +1859,7 @@ function Copyright(props: any) {
         <span style={{ color: textColor, fontSize: 'var(--copy-fs)' }}>{parts.join(' ')}</span>
         {links.length > 0 && (
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-            {links.map((link) => <a key={link.url} href={link.url} style={{ color: textColor, fontSize: 'var(--copy-fs)', textDecoration: 'none' }}>{link.label}</a>)}
+            {links.map((link) => <a key={link.url} {...emailSafeHref(link.url, obfuscate)} style={{ color: textColor, fontSize: 'var(--copy-fs)', textDecoration: 'none' }}>{maskEmailText(link.label, obfuscate)}</a>)}
           </div>
         )}
       </div>
@@ -2377,16 +2414,17 @@ export const puckConfig = {
         attribution: { type: 'text' as const, label: 'Attribution' },
         mediaUrl: { type: 'text' as const, label: 'Photo URL' },
         alt: { type: 'text' as const, label: 'Photo alt text' },
-        imageSize: { type: 'select' as const, label: 'Photo size', options: [{ value: 'sm', label: 'Small (72px)' }, { value: 'md', label: 'Medium (112px)' }, { value: 'lg', label: 'Large (160px)' }] },
+        imageSize: { type: 'select' as const, label: 'Photo width', options: [{ value: 'sm', label: 'Small (72px)' }, { value: 'md', label: 'Medium (112px)' }, { value: 'lg', label: 'Large (160px)' }] },
+        imageHeight: { type: 'number' as const, label: 'Photo height (px, blank = square)' },
         imageShape: { type: 'select' as const, label: 'Photo shape', options: [{ value: 'circle', label: 'Circle' }, { value: 'rounded', label: 'Rounded' }, { value: 'square', label: 'Square' }] },
         padding: paddingField,
         ...aosFields,
       },
-      defaultProps: { quote: 'Enter a quote here…', attribution: '', mediaUrl: '', alt: '', imageSize: 'md' as const, imageShape: 'circle' as const, padding: 'default', ...aosDefaults },
+      defaultProps: { quote: 'Enter a quote here…', attribution: '', mediaUrl: '', alt: '', imageSize: 'md' as const, imageHeight: 0, imageShape: 'circle' as const, padding: 'default', ...aosDefaults },
       // Photo settings are noise until there's a photo to settle.
       resolveFields: (data: any, { fields }: any) => {
         if (data?.props?.mediaUrl) return fields
-        const { alt: _a, imageSize: _s, imageShape: _sh, ...rest } = fields
+        const { alt: _a, imageSize: _s, imageHeight: _h, imageShape: _sh, ...rest } = fields
         return rest
       },
       render: Quote,
