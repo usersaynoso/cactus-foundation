@@ -65,6 +65,17 @@ async function run() {
       return
     }
 
+    // Read the whole applied-migrations ledger once. This used to be a SELECT per
+    // (module, migration file) pair, so a site with seven modules and a handful of
+    // migrations each paid dozens of round trips to Neon just to learn that it had
+    // nothing to do — which is the outcome on all but the deploy that introduces a
+    // migration. The skip decision below is unchanged, only where it reads from.
+    const { rows: appliedRows } = await client.query(
+      `SELECT "moduleName", "migrationName" FROM "ModuleMigration"`
+    )
+    const appliedKey = (moduleName, migrationName) => `${moduleName}::${migrationName}`
+    const applied = new Set(appliedRows.map((r) => appliedKey(r.moduleName, r.migrationName)))
+
     for (const mod of modules) {
       const modulePath = resolve(process.cwd(), 'modules', mod.name)
 
@@ -83,12 +94,7 @@ async function run() {
         const migrationName = filename.replace(/\.sql$/, '')
 
         // Check if already applied
-        const { rows: existing } = await client.query(
-          `SELECT id FROM "ModuleMigration"
-           WHERE "moduleName" = $1 AND "migrationName" = $2`,
-          [mod.name, migrationName]
-        )
-        if (existing.length > 0) {
+        if (applied.has(appliedKey(mod.name, migrationName))) {
           console.log(`[module-migrations] ${mod.name}/${migrationName}: already applied, skipping`)
           continue
         }
@@ -109,6 +115,7 @@ async function run() {
             [mod.name, migrationName, checksum]
           )
           await client.query('COMMIT')
+          applied.add(appliedKey(mod.name, migrationName))
           console.log(`[module-migrations] ${mod.name}/${migrationName}: done`)
         } catch (err) {
           await client.query('ROLLBACK')

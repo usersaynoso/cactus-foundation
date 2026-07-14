@@ -55,6 +55,13 @@ const config: NextConfig = {
   experimental: {
     // typedRoutes: true, // enable once stable in Next.js 16
   },
+  typescript: {
+    // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
+    // every change already goes through (see CLAUDE.md work loop). On Vercel it
+    // was 26s of a 123s build, sat squarely on the deploy critical path. The type
+    // check is not dropped, only moved off the deploy: run `npm run typecheck`.
+    ignoreBuildErrors: true,
+  },
   // The database backup route reads this file at runtime via fs, not a static
   // import - the file tracer can't see it otherwise, so it'd be missing from
   // the deployed function bundle on Vercel despite working fine in dev.

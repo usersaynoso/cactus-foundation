@@ -21,11 +21,20 @@
  */
 
 import { spawnSync } from 'child_process'
-import { readdirSync } from 'fs'
+import { existsSync, readdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Call the locally installed Prisma CLI directly. `npx prisma` re-runs npm's package
+// resolution on every invocation, which buys nothing here (the CLI is a devDependency
+// and always present) and costs a second or so each time. Falls back to npx if the
+// binary is missing, so a non-standard node_modules layout still works.
+const localPrisma = path.join(__dirname, '..', 'node_modules', '.bin', 'prisma')
+const prismaCli = existsSync(localPrisma)
+  ? { cmd: localPrisma, args: [] }
+  : { cmd: 'npx', args: ['prisma'] }
 
 if (!process.env.DATABASE_URL) {
   console.log(
@@ -77,7 +86,7 @@ function migrationNames() {
 // there's nothing to resolve, and that error is discarded here.
 function resolveFailedMigrations() {
   for (const name of migrationNames()) {
-    spawnSync('npx', ['prisma', 'migrate', 'resolve', '--rolled-back', name], {
+    spawnSync(prismaCli.cmd, [...prismaCli.args, 'migrate', 'resolve', '--rolled-back', name], {
       stdio: 'pipe',
       env,
       shell: false,
@@ -102,11 +111,16 @@ function runWithRetry(label, cmd, args, retries = 3, backoffMs = 10_000) {
 
 function runMigrateDeployWithRetry(retries = 3, backoffMs = 10_000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
-    // Clear any failed record before every attempt, not just the first — an
-    // interrupted apply on THIS attempt must not permanently block the next one.
-    resolveFailedMigrations()
+    // Clear any failed record before every attempt EXCEPT the first — an interrupted
+    // apply (on a previous build or on this one) must not permanently block the next
+    // attempt. Running it up front too costs a full Prisma CLI boot and a database
+    // round trip on every single build, to clean up a state that is almost never
+    // there. When it is there, `migrate deploy` fails fast with P3009 on attempt 1,
+    // the resolve runs, and attempt 2 applies cleanly — same recovery, one backoff
+    // later, and the happy path stops paying for it.
+    if (attempt > 1) resolveFailedMigrations()
     console.log(`[build-migrate] Prisma migrations (attempt ${attempt}/${retries})…`)
-    const result = spawnSync('npx', ['prisma', 'migrate', 'deploy'], { stdio: 'inherit', env, shell: false })
+    const result = spawnSync(prismaCli.cmd, [...prismaCli.args, 'migrate', 'deploy'], { stdio: 'inherit', env, shell: false })
     if (result.status === 0) return
     if (attempt < retries) {
       console.log(`[build-migrate] Prisma migrations failed — retrying in ${backoffMs / 1000}s`)
