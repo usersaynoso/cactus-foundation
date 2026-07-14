@@ -4,6 +4,16 @@ import { usePathname } from 'next/navigation'
 import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
+import { emailSafeHref, maskEmailText } from '@/lib/email-obfuscate'
+
+// A menu item pointing at "mailto:hi@example.com" gets the same spam protection
+// as an address typed into page copy: the mailto never reaches the served HTML,
+// and the client deobfuscator wires the href up after load (lib/email-obfuscate).
+// Unlike the blocks in config.tsx this doesn't skip the protection in the editor -
+// it has no access to Puck's editing flag, and there is nothing to skip for: the
+// address is edited in the menu form, not by clicking the rendered link, and the
+// label reads identically either way. Editor and published markup stay identical,
+// which is the invariant we want anyway.
 
 // Which edge the collapsed menu sits against: where the hamburger button and the
 // "Dropdown (current page)" trigger sit in the slot the block was dropped into,
@@ -96,7 +106,7 @@ export function MenuVerticalLink({ item, className, style, colours }: {
     : undefined
   return (
     <a
-      href={item.href}
+      {...emailSafeHref(item.href)}
       target={item.openInNewTab ? '_blank' : undefined}
       rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
       className={className}
@@ -105,7 +115,7 @@ export function MenuVerticalLink({ item, className, style, colours }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {item.label}
+      {maskEmailText(item.label)}
     </a>
   )
 }
@@ -144,7 +154,7 @@ function DropdownLink({ item, hasChildren, colours, fontFamily, onToggle }: { it
   const active = isActiveHref(item.href, pathname)
   return (
     <a
-      href={item.href}
+      {...emailSafeHref(item.href)}
       target={item.openInNewTab ? '_blank' : undefined}
       rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
       aria-current={active ? 'page' : undefined}
@@ -166,7 +176,7 @@ function DropdownLink({ item, hasChildren, colours, fontFamily, onToggle }: { it
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {item.label}
+      {maskEmailText(item.label)}
       {hasChildren && (
         <span style={{ opacity: 0.5, fontSize: '0.7rem', marginLeft: '0.5rem' }} aria-hidden>▸</span>
       )}
@@ -210,7 +220,7 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
         onMouseLeave={() => { if (!clickMode) setOpen(false); setHovered(false) }}
       >
         <a
-          href={item.href}
+          {...emailSafeHref(item.href)}
           target={item.openInNewTab ? '_blank' : undefined}
           rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
           className="cactus-nav-link"
@@ -239,7 +249,7 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
             else setOpen(false)
           }}
         >
-          {item.label}
+          {maskEmailText(item.label)}
           {hasChildren && (
             <span style={{ fontSize: '0.625rem', opacity: 0.6 }} aria-hidden>▾</span>
           )}
@@ -308,11 +318,11 @@ function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, align = 
             color: 'var(--color-text)',
             borderBottom: '1px solid var(--color-border)',
           }}>
-            {item.label} {open ? '▴' : '▾'}
+            {maskEmailText(item.label)} {open ? '▴' : '▾'}
           </span>
         ) : (
           <a
-            href={item.href}
+            {...emailSafeHref(item.href)}
             target={item.openInNewTab ? '_blank' : undefined}
             rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
             aria-current={active ? 'page' : undefined}
@@ -332,7 +342,7 @@ function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, align = 
             onMouseLeave={() => setHovered(false)}
             onClick={onClose}
           >
-            {item.label}
+            {maskEmailText(item.label)}
           </a>
         )}
       </div>

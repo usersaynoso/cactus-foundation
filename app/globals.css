@@ -2299,3 +2299,15 @@ tbody tr:hover {
     animation-duration: 0ms !important;
   }
 }
+
+/* ============================================================
+   PROTECTED EMAIL LINKS
+   ============================================================ */
+/* A spam-protected email link is served with no href at all - the address is
+   reassembled into one after hydration (lib/email-obfuscate.tsx). No href means
+   no pointer cursor from the browser's own stylesheet, so an "Email us" button
+   would sit there looking unclickable for the moment before the JS lands. Put it
+   back. Only cosmetic: the click itself needs the href, which arrives with it. */
+a[data-eml] {
+  cursor: pointer;
+}

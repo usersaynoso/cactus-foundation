@@ -3,6 +3,7 @@ import { fullPagePuckRscConfig } from '@/lib/puck/config.rsc'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { prisma } from '@/lib/db/prisma'
+import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import type { Data } from '@puckeditor/core'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,16 @@ export default async function NotFound() {
     const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, logoDarkUrl: logoDarkMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
     const resolved = await resolveTemplateData(layout.builderData, ctx).catch(() => layout.builderData as Data)
 
-    return <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
+    // This page renders the site's own chrome (header, menu, footer) but sits
+    // outside app/(public)/layout.tsx, so it needs its own copy of the email
+    // deobfuscator - otherwise a protected mailto: link here would never get
+    // its href back (see lib/email-obfuscate).
+    return (
+      <>
+        <EmailDeobfuscator />
+        <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
+      </>
+    )
   }
 
   return (

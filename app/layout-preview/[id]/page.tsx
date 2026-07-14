@@ -11,6 +11,7 @@ import {
   getModuleLayoutPuckRscConfig,
 } from '@/lib/puck/config.rsc'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
@@ -114,6 +115,9 @@ export default async function LayoutPreviewPage({ params }: Props) {
     <>
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
+      {/* Outside app/(public)/layout.tsx, so the preview needs its own copy or a
+          protected mailto: link would render dead here (see lib/email-obfuscate). */}
+      <EmailDeobfuscator />
       {infoBar}
       <div style={{ paddingTop: '2rem' }}>
         {layout.type === 'header' && (

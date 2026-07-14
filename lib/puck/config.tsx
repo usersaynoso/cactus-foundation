@@ -865,6 +865,15 @@ function ContentSlot(_props: any) {
 // `needle`, wrapping the matches in an emphasised span. Non-matching runs stay
 // plain strings. Returns the original line untouched when there's no needle or
 // no hit, so the common (no-highlight) path allocates nothing extra.
+// Free text an owner typed straight into a block - a Card's body, a CTA's
+// subtext, a stat's label. Same rule as the five dedicated text blocks: any
+// email address in it is protected on the published site and left plain in the
+// editor. linkifyEmails returns its input untouched when there is no address in
+// it, so the common path costs nothing (see lib/email-obfuscate).
+function protectText(text: unknown, obfuscate: boolean): React.ReactNode {
+  return obfuscate ? linkifyEmails(text) : (text as React.ReactNode)
+}
+
 // `inLink` is set when the heading itself is a link: the address then can't be
 // wrapped in an anchor of its own (nested links are invalid HTML), so it is
 // entity-masked instead and the surrounding heading link carries the address.
@@ -1217,8 +1226,8 @@ function CTABanner(props: any) {
         style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop') }}
         {...getAosProps(animationType, animationDuration, animationDelay)}
       >
-        {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
-        {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
+        {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{protectText(heading, obfuscate)}</h2>}
+        {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{protectText(subtext, obfuscate)}</p>}
         {ctaLabel && ctaHref && (
           <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
             {maskEmailText(ctaLabel, obfuscate)}
@@ -1234,7 +1243,11 @@ function CTABanner(props: any) {
 // ---------------------------------------------------------------------------
 
 function ImageBlock(props: any) {
-  const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  // The caption is protected; `alt` can't be - it's an attribute, and React
+  // escapes attribute values, so an entity-encoded address would show up as the
+  // literal text "&#64;". Attributes are the hard edge of this technique.
+  const obfuscate = !puck?.isEditing
   if (!mediaUrl) {
     return <div style={{ marginBottom: '1.5rem', background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>No image selected</div>
   }
@@ -1265,7 +1278,7 @@ function ImageBlock(props: any) {
           LCP element is a measurable regression. decoding="async" is free either way. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={mediaUrl} alt={alt ?? ''} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
-      {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{caption}</figcaption>}
+      {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{protectText(caption, obfuscate)}</figcaption>}
     </figure>
   )
 }
@@ -1367,8 +1380,8 @@ function Hero(props: any) {
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
       )}
       <div data-hero-text style={{ position: 'relative', zIndex: 1, textAlign: layoutBase === 'centered' ? 'center' : 'left', maxWidth: layoutBase === 'centered' ? 700 : undefined, margin: layoutBase === 'centered' ? '0 auto' : undefined }}>
-        <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, margin: '0 0 1rem', lineHeight: 1.15, color: textColor }}>{heading}</h1>
-        {subheading && <p style={{ fontSize: '1.125rem', color: subColor, margin: '0 0 2rem', lineHeight: 1.65 }}>{subheading}</p>}
+        <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, margin: '0 0 1rem', lineHeight: 1.15, color: textColor }}>{protectText(heading, obfuscate)}</h1>
+        {subheading && <p style={{ fontSize: '1.125rem', color: subColor, margin: '0 0 2rem', lineHeight: 1.65 }}>{protectText(subheading, obfuscate)}</p>}
         {(ctaLabel || cta2Label) && (
           <div data-hero-ctas style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: layoutBase === 'centered' ? 'center' : 'flex-start' }}>
             {ctaLabel && ctaHref && (
@@ -1456,13 +1469,14 @@ function SocialLinks(props: any) {
 // ---------------------------------------------------------------------------
 
 function Eyebrow(props: any) {
-  const { text, showPulse = 'false', padding } = props
+  const { text, showPulse = 'false', padding, puck } = props
+  const obfuscate = !puck?.isEditing
   const pulse = showPulse === 'true' || showPulse === true
   return (
     <div className={getPaddingClasses(padding)} style={{ marginBottom: '1rem' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-pill, 9999px)', padding: '7px 16px' }}>
         {pulse && <span className="cactus-eyebrow-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} aria-hidden="true" />}
-        {text}
+        {protectText(text, obfuscate)}
       </span>
     </div>
   )
@@ -1492,7 +1506,8 @@ const GLYPH_ICONS: Record<string, string> = {
 }
 
 function Trustline(props: any) {
-  const { id, items = [], gap = 'normal', padding } = props
+  const { id, items = [], gap = 'normal', padding, puck } = props
+  const obfuscate = !puck?.isEditing
   const gapMap: Record<string, string> = { tight: '1rem', normal: '1.625rem', wide: '2.25rem' }
   if (!items?.length) return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>No trust items yet — add some in the panel.</div>
   const gapRv = normalizeResponsiveValue<string>(gap)
@@ -1505,7 +1520,7 @@ function Trustline(props: any) {
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ display: 'inline-flex', color: 'var(--color-primary)', flexShrink: 0 }} aria-hidden="true"
               dangerouslySetInnerHTML={{ __html: (TRUST_ICONS[item.icon] ?? TRUST_ICONS.check) as string }} />
-            {item.text}
+            {protectText(item.text, obfuscate)}
           </span>
         ))}
       </div>
@@ -1523,7 +1538,12 @@ const CHIP_POSITIONS: Record<string, React.CSSProperties> = {
 }
 
 function Chip(props: any) {
-  const { label, value, position = 'static', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { label, value, position = 'static', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck, obfuscate: obfuscateProp } = props
+  // A Chip is both a block of its own (Puck hands it `puck`) and something
+  // ImageChipPanel renders from a plain array field (no `puck` to read), so the
+  // panel passes its own answer down rather than letting this default to "not
+  // editing" and obfuscate inside the editor.
+  const obfuscate = obfuscateProp ?? !puck?.isEditing
   return (
     <div
       style={{
@@ -1534,8 +1554,8 @@ function Chip(props: any) {
       }}
       {...getAosProps(animationType, animationDuration, animationDelay)}
     >
-      {label && <b style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--color-primary)' }}>{label}</b>}
-      {value}
+      {label && <b style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--color-primary)' }}>{protectText(label, obfuscate)}</b>}
+      {protectText(value, obfuscate)}
     </div>
   )
 }
@@ -1566,8 +1586,8 @@ function Card(props: any) {
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
       {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
-        {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{heading}</h3>}
-        {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>}
+        {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{protectText(heading, obfuscate)}</h3>}
+        {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{protectText(body, obfuscate)}</p>}
         {ctaLabel && ctaHref && <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.5rem 1.25rem', background: 'var(--color-primary)', color: 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem' }}>{maskEmailText(ctaLabel, obfuscate)}</a>}
       </div>
     </div>
@@ -1578,8 +1598,9 @@ function ImageChipPanel(props: any) {
   const {
     mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none',
     borderColor = 'var(--color-border)', borderWidth = '1px', padding,
-    framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off',
+    framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off', puck,
   } = props
+  const obfuscate = !puck?.isEditing
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
   const framePadMap: Record<string, string> = { none: '0', sm: '16px', md: '30px', lg: '44px' }
@@ -1618,13 +1639,14 @@ function ImageChipPanel(props: any) {
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
-      {chips.map((chip: any, i: number) => <Chip key={i} {...chip} />)}
+      {chips.map((chip: any, i: number) => <Chip key={i} {...chip} obfuscate={obfuscate} />)}
     </div>
   )
 }
 
 function Callout(props: any) {
-  const { type, title, body, padding } = props
+  const { type, title, body, padding, puck } = props
+  const obfuscate = !puck?.isEditing
   // Colours come from the --status-{key} family (Styles → Colours → Status
   // boxes, emitted by buildTokenStyles); fallbacks are the original built-in
   // hexes so untouched/older sites look identical.
@@ -1637,14 +1659,15 @@ function Callout(props: any) {
   const t = (themes[type] ?? themes.info)!
   return (
     <div className={getPaddingClasses(padding)} style={{ background: t.bg, borderLeft: `4px solid ${t.border}`, borderRadius: '0 6px 6px 0', marginBottom: '1.5rem' }}>
-      {title && <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>{t.icon} {title}</p>}
-      <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{body}</p>
+      {title && <p style={{ margin: '0 0 0.375rem', fontWeight: 700, color: t.titleColor, fontSize: '0.9375rem' }}>{t.icon} {protectText(title, obfuscate)}</p>}
+      <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{protectText(body, obfuscate)}</p>
     </div>
   )
 }
 
 function Badge(props: any) {
-  const { label, color, padding } = props
+  const { label, color, padding, puck } = props
+  const obfuscate = !puck?.isEditing
   // blue/yellow/red/gray read the Styles → Colours → Badges tokens when the
   // admin has set them (lib/design/tokens.ts), falling back to the original
   // hardcoded pastel hexes otherwise. 'primary' already reused the theme-aware
@@ -1659,23 +1682,28 @@ function Badge(props: any) {
   const t = (colors[color] ?? colors.gray)!
   return (
     <div className={getPaddingClasses(padding)}>
-      <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius-pill, 9999px)', fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{label}</span>
+      <span style={{ display: 'inline-block', padding: '0.25rem 0.625rem', borderRadius: 'var(--radius-pill, 9999px)', fontSize: '0.75rem', fontWeight: 600, background: t.bg, color: t.text, marginBottom: '0.5rem' }}>{protectText(label, obfuscate)}</span>
     </div>
   )
 }
 
 function Accordion(props: any) {
-  const { items, padding } = props
+  const { items, padding, puck } = props
+  const obfuscate = !puck?.isEditing
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No accordion items yet — add some in the panel.</div>
   return (
     <div className={getPaddingClasses(padding)} style={{ marginBottom: '1.5rem' }}>
       {items.map((item: any, i: number) => (
         <details key={i} style={{ borderBottom: '1px solid var(--color-border)', padding: 0 }}>
           <summary style={{ padding: '0.875rem 0', fontWeight: 600, color: 'var(--color-fg)', cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
-            {item.question}
+            {/* Masked rather than linked: a click anywhere in a <summary> toggles
+                the panel, so a real mailto: link in here would open the mail app
+                AND fold the answer away. The answer below is the place for a
+                clickable address anyway. */}
+            {maskEmailText(item.question, obfuscate)}
             <span style={{ fontSize: '1.25rem', color: 'var(--color-muted)', flexShrink: 0, marginLeft: '1rem' }}>+</span>
           </summary>
-          <p style={{ margin: '0 0 0.875rem', color: 'var(--color-fg-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{item.answer}</p>
+          <p style={{ margin: '0 0 0.875rem', color: 'var(--color-fg-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{protectText(item.answer, obfuscate)}</p>
         </details>
       ))}
     </div>
@@ -1683,14 +1711,15 @@ function Accordion(props: any) {
 }
 
 function Stats(props: any) {
-  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { items, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const obfuscate = !puck?.isEditing
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No stats yet — add some in the panel.</div>
   return (
     <div className={getPaddingClasses(padding)} style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {items.map((item: any, i: number) => (
         <div key={i} style={{ flex: '1 1 120px', textAlign: 'center', padding: '1.25rem', background: 'var(--color-bg-subtle)', borderRadius: 8 }}>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{item.value}</div>
-          <div style={{ marginTop: '0.375rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontWeight: 500 }}>{item.label}</div>
+          <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{protectText(item.value, obfuscate)}</div>
+          <div style={{ marginTop: '0.375rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontWeight: 500 }}>{protectText(item.label, obfuscate)}</div>
         </div>
       ))}
     </div>
@@ -1698,7 +1727,8 @@ function Stats(props: any) {
 }
 
 function FeatureList(props: any) {
-  const { items, iconStyle = 'emoji', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { items, iconStyle = 'emoji', padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const obfuscate = !puck?.isEditing
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No features yet — add some in the panel.</div>
   // "glyph" variant: each row leads with a solid teal rounded square holding a
   // white line-icon, with larger serif titles — the concept's "beliefs" rows.
@@ -1721,9 +1751,9 @@ function FeatureList(props: any) {
             : item.emoji && <span style={{ fontSize: '1.75rem', flexShrink: 0, lineHeight: 1 }}>{item.emoji}</span>}
           <div>
             {item.title && (glyph
-              ? <h3 style={{ margin: '0 0 0.375rem', fontFamily: 'var(--display-family, Georgia, serif)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--color-fg)', lineHeight: 1.2 }}>{item.title}</h3>
-              : <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{item.title}</h4>)}
-            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: glyph ? '0.9375rem' : '0.9375rem', maxWidth: glyph ? '48ch' : undefined, whiteSpace: 'pre-wrap' }}>{item.description}</p>}
+              ? <h3 style={{ margin: '0 0 0.375rem', fontFamily: 'var(--display-family, Georgia, serif)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--color-fg)', lineHeight: 1.2 }}>{protectText(item.title, obfuscate)}</h3>
+              : <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-fg)' }}>{protectText(item.title, obfuscate)}</h4>)}
+            {item.description && <p style={{ margin: 0, color: 'var(--color-fg-secondary)', lineHeight: 1.65, fontSize: glyph ? '0.9375rem' : '0.9375rem', maxWidth: glyph ? '48ch' : undefined, whiteSpace: 'pre-wrap' }}>{protectText(item.description, obfuscate)}</p>}
           </div>
         </div>
       ))}
@@ -1734,7 +1764,8 @@ function FeatureList(props: any) {
 // ── Spec data panel (concept's ".xcard": a windowed table with a dot title-bar
 //    and an optional "same price for all" pill on a highlighted row) ──────────
 function SpecPanel(props: any) {
-  const { title = '', rows = [], boxShadow = 'md', borderRadius = 'lg', padding } = props
+  const { title = '', rows = [], boxShadow = 'md', borderRadius = 'lg', padding, puck } = props
+  const obfuscate = !puck?.isEditing
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.10)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
   return (
@@ -1744,18 +1775,18 @@ function SpecPanel(props: any) {
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-primary)', flexShrink: 0 }} />
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-border)', flexShrink: 0 }} />
           <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--color-border)', flexShrink: 0 }} />
-          {title && <b style={{ marginLeft: 6, fontSize: '0.875rem', color: 'var(--color-fg)' }}>{title}</b>}
+          {title && <b style={{ marginLeft: 6, fontSize: '0.875rem', color: 'var(--color-fg)' }}>{protectText(title, obfuscate)}</b>}
         </div>
         <div>
           {rows.map((row: any, i: number) => (
             <div key={i} style={{ display: 'flex', gap: '1rem', padding: '12px 20px', borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--color-bg-subtle)', alignItems: 'baseline' }}>
-              <span style={{ flex: '0 0 44%', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{row.label}</span>
+              <span style={{ flex: '0 0 44%', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{protectText(row.label, obfuscate)}</span>
               <span style={{ flex: '1 1 auto', color: 'var(--color-fg-secondary)', fontSize: '0.875rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
                 {row.highlight
-                  ? <b style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>{row.value}</b>
-                  : <span>{row.value}</span>}
+                  ? <b style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>{protectText(row.value, obfuscate)}</b>
+                  : <span>{protectText(row.value, obfuscate)}</span>}
                 {row.badge && (
-                  <span style={{ background: 'color-mix(in srgb, var(--color-success) 12%, transparent)', color: 'var(--color-success)', borderRadius: 9999, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{row.badge}</span>
+                  <span style={{ background: 'color-mix(in srgb, var(--color-success) 12%, transparent)', color: 'var(--color-success)', borderRadius: 9999, padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>{protectText(row.badge, obfuscate)}</span>
                 )}
               </span>
             </div>
@@ -1769,7 +1800,8 @@ function SpecPanel(props: any) {
 // ── Ticker / marquee band (concept's ".ticker-band": a teal strip of phrases
 //    scrolling seamlessly; items are duplicated so the -50% loop is invisible) ─
 function Ticker(props: any) {
-  const { items = [], speed = 'normal' } = props
+  const { items = [], speed = 'normal', puck } = props
+  const obfuscate = !puck?.isEditing
   const speedMap: Record<string, string> = { slow: '45s', normal: '30s', fast: '20s' }
   if (!items?.length) return <div style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No ticker phrases yet — add some in the panel.</div>
   const loop = [...items, ...items]
@@ -1777,7 +1809,7 @@ function Ticker(props: any) {
     <div style={{ background: 'var(--color-primary)', color: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '16px 0', overflow: 'hidden', marginBottom: '1.5rem' }}>
       <div className="cactus-ticker" style={{ animationDuration: speedMap[speed] ?? '30s' }}>
         {loop.map((it: any, i: number) => (
-          <span key={i} className="cactus-ticker-item" aria-hidden={i >= items.length ? 'true' : undefined}>{it.text}</span>
+          <span key={i} className="cactus-ticker-item" aria-hidden={i >= items.length ? 'true' : undefined}>{protectText(it.text, obfuscate)}</span>
         ))}
       </div>
     </div>
@@ -1785,7 +1817,8 @@ function Ticker(props: any) {
 }
 
 function Logos(props: any) {
-  const { id, items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, items, logoHeight, justify, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const obfuscate = !puck?.isEditing
   const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 }
   const justifyMap: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
   if (!items?.length) return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No logos added yet — add some in the panel.</div>
@@ -1807,7 +1840,7 @@ function Logos(props: any) {
             ? <img src={item.logoUrl} alt={item.alt ?? ''} loading="lazy" decoding="async" style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
             : <div style={{ height: 'var(--logo-h)', width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
           return item.href
-            ? <a key={i} href={item.href} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
+            ? <a key={i} {...emailSafeHref(item.href, obfuscate)} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>
             : <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</span>
         })}
       </div>
@@ -1856,7 +1889,7 @@ function Copyright(props: any) {
     <>
       {css && <style>{css}</style>}
       <div data-copyright-id={id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: jc(pickResponsive(alignRv, 'desktop') ?? 'left'), gap: '1.5rem', width: '100%', '--copy-fs': fsBase } as React.CSSProperties}>
-        <span style={{ color: textColor, fontSize: 'var(--copy-fs)' }}>{parts.join(' ')}</span>
+        <span style={{ color: textColor, fontSize: 'var(--copy-fs)' }}>{protectText(parts.join(' '), obfuscate)}</span>
         {links.length > 0 && (
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             {links.map((link) => <a key={link.url} {...emailSafeHref(link.url, obfuscate)} style={{ color: textColor, fontSize: 'var(--copy-fs)', textDecoration: 'none' }}>{maskEmailText(link.label, obfuscate)}</a>)}

@@ -3,6 +3,7 @@ import { fullPagePuckRscConfig } from '@/lib/puck/config.rsc'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { prisma } from '@/lib/db/prisma'
+import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import type { Data } from '@puckeditor/core'
 import type { Metadata } from 'next'
 
@@ -27,7 +28,15 @@ export default async function ComingSoonPage() {
     const ctx = { siteName: config?.siteName ?? '', logoUrl: logoMedia?.url ?? null, logoDarkUrl: logoDarkMedia?.url ?? null, isLoggedIn: false, adminPath: config?.adminPath ?? '' }
     const resolved = await resolveTemplateData(layout.builderData, ctx).catch(() => layout.builderData as Data)
 
-    return <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
+    // Renders the site's own chrome but sits outside app/(public)/layout.tsx,
+    // so it carries its own email deobfuscator - without it a protected mailto:
+    // link on this page would never get its href back (see lib/email-obfuscate).
+    return (
+      <>
+        <EmailDeobfuscator />
+        <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
+      </>
+    )
   }
 
   const config = await prisma.siteConfig.findUnique({
