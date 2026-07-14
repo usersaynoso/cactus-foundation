@@ -6,6 +6,7 @@ import AdminNav from './AdminNav'
 import NotificationBell from './NotificationBell'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
+import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
 import type { Role } from '@prisma/client'
 
 type ModuleNavGroup = {
@@ -24,9 +25,6 @@ type Props = {
   faviconUrl?: string | null
   faviconDarkUrl?: string | null
 }
-
-// Auto-collapse when a puck editor page is open to maximise canvas space
-const PUCK_EDITOR_RE = /\/pages\/[^/]+$|\/appearance\/(header|footer)$|\/layouts\/[^/]+$/
 
 export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -56,9 +54,9 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
 
   const effectiveCollapsed = collapsed && !isMobileViewport
 
-  // Auto-collapse when entering puck editor; auto-expand when leaving
+  // Auto-collapse when entering a Puck editor to maximise canvas space; auto-expand when leaving
   useEffect(() => {
-    const inEditor = PUCK_EDITOR_RE.test(pathname)
+    const inEditor = isPuckEditorRoute(pathname)
     if (inEditor && !autoCollapsedRef.current) {
       autoCollapsedRef.current = true
       setCollapsed(true)
@@ -194,7 +192,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
       </aside>
 
       <div className="admin-main">
-        <div className={`admin-content${PUCK_EDITOR_RE.test(pathname) ? ' admin-content--puck' : ''}`}>
+        <div className={`admin-content${isPuckEditorRoute(pathname) ? ' admin-content--puck' : ''}`}>
           {children}
         </div>
       </div>
