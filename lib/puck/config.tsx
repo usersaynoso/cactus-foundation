@@ -44,6 +44,7 @@ import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
+import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
 
  
@@ -880,7 +881,7 @@ function renderHighlight(line: string, needle: string, mark: string, keyPrefix: 
 }
 
 function Heading(props: any) {
-  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', href = '', hoverUnderline = 'none', hoverUnderlineColor = '', minHeight = 'none', verticalAlign = 'top', puck } = props
+  const { id, text, level, align, color, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', revealAnimation = 'none', highlightText = '', highlightMark = 'underline', href = '', hoverUnderline = 'none', hoverUnderlineColor = '', minHeight = 'none', verticalAlign = 'top', fitOneLine = 'no', puck } = props
   // Obfuscate email addresses on the published site only - the editor keeps the
   // plain address so it stays editable (see lib/email-obfuscate).
   const obfuscate = !puck?.isEditing
@@ -942,13 +943,18 @@ function Heading(props: any) {
   // Stagger-lines: each newline in `text` becomes its own clipped line that
   // rises into place, staggered by 120ms per line — a one-shot reveal on
   // mount, independent of the scroll-triggered AOS effect above.
-  const content = revealAnimation === 'stagger-lines'
+  const rawContent = revealAnimation === 'stagger-lines'
     ? text.split('\n').map((line: string, i: number) => (
         <span key={i} className="cactus-stagger-line">
           <span className="cactus-stagger-line-inner" style={{ animationDelay: `${i * 120}ms` }}>{renderHighlight(line, highlightText, highlightMark, `l${i}`, obfuscate)}</span>
         </span>
       ))
     : renderHighlight(text, highlightText, highlightMark, 'h', obfuscate)
+  // "Keep on one line": HeadingFitText measures the text against the room the
+  // heading has been given and scales it down when it would otherwise wrap. Off
+  // by default, and it's the only thing here that needs client JS, so the plain
+  // heading stays a pure server-rendered tag.
+  const content = fitOneLine === 'yes' ? <HeadingFitText>{rawContent}</HeadingFitText> : rawContent
   const alignCss = responsiveMediaCssFor(`[data-heading-id="${id}"]`, (d) => `text-align:${pickResponsive(alignRv, d) ?? 'left'};`)
   // Whole-heading link: the anchor wraps the tag and inherits its colour, so the
   // heading looks identical until hovered. The optional hover underline is
@@ -2320,6 +2326,7 @@ export const puckConfig = {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        fitOneLine: { type: 'select' as const, label: 'Keep on one line (shrink text to fit)', options: [{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }] },
         minHeight: { type: 'select' as const, label: 'Block height', options: BLOCK_HEIGHT_OPTIONS },
         verticalAlign: { type: 'select' as const, label: 'Vertical position (needs a block height)', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
@@ -2332,7 +2339,7 @@ export const puckConfig = {
         revealAnimation: { type: 'select' as const, label: 'Reveal animation (on load)', options: [{ value: 'none', label: 'None' }, { value: 'stagger-lines', label: 'Stagger lines in' }] },
         ...aosFields,
       },
-      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
+      defaultProps: { text: 'Section heading', level: 'h2' as const, align: 'left' as const, fitOneLine: 'no' as const, minHeight: 'none' as const, verticalAlign: 'top' as const, color: '' as const, highlightText: '', highlightMark: 'underline' as const, href: '', hoverUnderline: 'none' as const, hoverUnderlineColor: '', padding: 'default', revealAnimation: 'none' as const, ...aosDefaults },
       // The hover-underline colour only bites when the hover underline is on, so
       // hide it otherwise (it also needs a link to do anything, but the underline
       // toggle already gates that).

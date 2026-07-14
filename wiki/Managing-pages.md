@@ -76,7 +76,7 @@ Use these to structure the page and create visual sections.
 
 | Block | What it does |
 |-------|--------------|
-| **Heading** | A standalone heading. Choose from sizes H2 through H5. |
+| **Heading** | A standalone heading. Choose from sizes H2 through H5. Switch on **Keep on one line** and a heading that would otherwise wrap shrinks itself just enough to stay on a single line - handy in a narrow column or a header, where a long heading spilling onto a second line throws the whole row out. It only ever shrinks, never grows, so a heading that already fits is left exactly as it is, and it re-checks itself whenever the space changes, so it holds on a phone as well as it does on a desktop. |
 | **Text** | A paragraph of body text. |
 | **Rich Text** | A full text editor with bold, italic, bullet lists, numbered lists, links, and blockquotes. |
 | **Quote** | A styled pull quote with optional attribution. |
