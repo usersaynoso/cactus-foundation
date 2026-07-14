@@ -194,10 +194,14 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           },
           render: wrapResponsiveRender((props: any) => (
             <MenuBlockEditorPreview
+              blockId={props.id}
               menuId={props.menuId ?? ''}
               orientation={props.orientation ?? 'horizontal'}
               spacing={props.spacing ?? 'normal'}
               alignment={props.alignment ?? 'flex-start'}
+              scale={props.scale}
+              dropdownAlign={props.dropdownAlign}
+              fitOneLine={props.fitOneLine}
               showDropdowns={props.showDropdowns ?? 'hover'}
               navToggle={props.navToggle}
               itemFontSize={props.itemFontSize}

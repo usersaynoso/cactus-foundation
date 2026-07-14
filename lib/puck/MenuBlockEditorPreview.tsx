@@ -3,15 +3,24 @@ import { useState, useEffect } from 'react'
 import type { PublicMenuItem } from '@/lib/menu/resolve'
 import MenuBlockClient from '@/lib/puck/components/MenuBlockClient'
 import { normalizeResponsiveValue, pickResponsive, fluidClamp, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 
 type MinMaxPair = { min?: string; max?: string }
 
 type Props = {
+  // Puck's component id. Every per-breakpoint rule this block emits (alignment,
+  // spacing, font size, scale) is scoped to it, so without it the canvas
+  // silently showed the desktop values at every width while the published page
+  // honoured the tablet/mobile ones.
+  blockId?: string
   menuId: string
   orientation: 'horizontal' | 'vertical'
   spacing: ResponsiveValue<string> | 'tight' | 'normal' | 'wide'
   alignment?: ResponsiveValue<string> | 'flex-start' | 'center' | 'space-between' | 'space-around'
+  scale?: ResponsiveValue<number> | number
+  dropdownAlign?: string
+  fitOneLine?: string
   showDropdowns: string
   navToggle: ResponsiveValue<string> | string | undefined
   itemFontSize?: ResponsiveValue<string> | 'small' | 'medium' | 'large'
@@ -37,7 +46,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ menuId, orientation, spacing, alignment = 'flex-start', showDropdowns = 'hover', navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemFontFamily, hoverColor, hoverBackground, activeColor, activeFontWeight, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
+export default function MenuBlockEditorPreview({ blockId, menuId, orientation, spacing, alignment = 'flex-start', scale, dropdownAlign, fitOneLine, showDropdowns = 'hover', navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemFontFamily, hoverColor, hoverBackground, activeColor, activeFontWeight, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -86,10 +95,12 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, a
       textTransform: (transformD !== 'none' ? transformD : undefined) as React.CSSProperties['textTransform'],
     }
     const fontHref = googleFontHrefForFamily(itemFontFamily)
+    const { className: scaleClass, css: scaleCss } = menuScaleStyles(blockId, scale)
     return (
       <nav>
         {fontHref && <link rel="stylesheet" href={fontHref} precedence="default" />}
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacingD] ?? '0.5rem' }}>
+        {scaleCss && <style>{scaleCss}</style>}
+        <ul className={scaleClass || undefined} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? verticalGaps[spacingD] ?? '0.5rem' }}>
           {items.map((item) => (
             <li key={item.id}>
               <span style={linkStyle}>{item.label}</span>
@@ -117,9 +128,13 @@ export default function MenuBlockEditorPreview({ menuId, orientation, spacing, a
 
   return (
     <MenuBlockClient
+      blockId={blockId}
       resolvedItems={items}
       spacing={spacing}
       alignment={alignment}
+      scale={scale}
+      dropdownAlign={dropdownAlign}
+      fitOneLine={fitOneLine}
       showDropdowns={showDropdowns}
       itemFontSize={itemFontSize}
       itemFontWeight={itemFontWeight}

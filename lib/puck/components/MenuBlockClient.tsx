@@ -1,8 +1,17 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
+
+// Which edge the collapsed menu sits against: the hamburger drawer's item text,
+// and the side the "Dropdown (current page)" panel hangs from.
+export type MenuDropAlign = 'left' | 'center' | 'right'
+
+function toDropAlign(v: unknown): MenuDropAlign {
+  return v === 'center' || v === 'right' ? v : 'left'
+}
 
 type MenuItem = {
   id: string
@@ -243,26 +252,26 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
   )
 }
 
-function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, centered = false }: {
+function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, align = 'left' }: {
   item: MenuItem
   onClose: () => void
   colours?: MenuLinkColours
   fontFamily?: string
   depth?: number
-  centered?: boolean
+  align?: MenuDropAlign
 }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
   const pathname = usePathname()
   const hasChildren = !!item.children?.length
   const active = isActiveHref(item.href, pathname)
-  // Centered (Dropdown nav mode) skips the depth-based indent - asymmetric
-  // left padding would throw off text-align:center - and keeps every level at
-  // the same flat 1.5rem inset instead.
-  const pl = centered ? '1.5rem' : (depth > 0 ? `${depth + 1}rem` : '1.5rem')
+  // Anything but left-aligned skips the depth-based indent - asymmetric left
+  // padding would throw off a centred or right-aligned row - and keeps every
+  // level at the same flat 1.5rem inset instead.
+  const pl = align !== 'left' ? '1.5rem' : (depth > 0 ? `${depth + 1}rem` : '1.5rem')
 
   return (
-    <div style={centered ? { textAlign: 'center' } : undefined}>
+    <div style={align !== 'left' ? { textAlign: align } : undefined}>
       <div
         style={{ padding: `0 1.5rem 0 ${pl}`, cursor: hasChildren ? 'pointer' : undefined }}
         onClick={() => hasChildren && setOpen((o) => !o)}
@@ -308,7 +317,7 @@ function MobileNavItem({ item, onClose, colours, fontFamily, depth = 0, centered
       {hasChildren && open && (
         <div>
           {item.children!.map((child) => (
-            <MobileNavItem key={child.id} item={child} onClose={onClose} colours={colours} fontFamily={fontFamily} depth={depth + 1} centered={centered} />
+            <MobileNavItem key={child.id} item={child} onClose={onClose} colours={colours} fontFamily={fontFamily} depth={depth + 1} align={align} />
           ))}
         </div>
       )}
@@ -335,17 +344,28 @@ function currentPageLabel(items: MenuItem[], pathname: string | null, fallback: 
 // reveal it via the cactus-nav-dd-* classes at whichever widths chose this
 // mode. Reuses MobileNavItem for the panel so the nested accordion behaves
 // like the hamburger drawer, just centred.
-function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
+function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, panelAlign = 'left' }: {
   items: MenuItem[]
   colours?: MenuLinkColours
   fontFamily?: string
   className: string
   fallbackLabel: string
+  panelAlign?: MenuDropAlign
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const ref = useRef<HTMLDivElement>(null)
   const current = currentPageLabel(items, pathname, fallbackLabel)
+  // Which edge of the trigger the panel hangs from. It used to be pinned to
+  // `left: 0` with no way to move it, which on a right-hand trigger threw the
+  // panel out towards the middle of the page. The rows inside stay centred -
+  // that is this mode's look, and it is what every existing dropdown menu
+  // already renders.
+  const panelPos: React.CSSProperties = panelAlign === 'center'
+    ? { left: '50%', transform: 'translateX(-50%)' }
+    : panelAlign === 'right'
+      ? { right: 0 }
+      : { left: 0 }
 
   useEffect(() => {
     if (!open) return
@@ -389,7 +409,7 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
         <div style={{
           position: 'absolute',
           top: 'calc(100% + 4px)',
-          left: 0,
+          ...panelPos,
           minWidth: 220,
           width: 'max-content',
           maxWidth: 320,
@@ -402,7 +422,7 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel }: {
           zIndex: 100,
         }}>
           {items.map((item) => (
-            <MobileNavItem key={item.id} item={item} onClose={() => setOpen(false)} colours={colours} fontFamily={fontFamily} centered />
+            <MobileNavItem key={item.id} item={item} onClose={() => setOpen(false)} colours={colours} fontFamily={fontFamily} align="center" />
           ))}
         </div>
       )}
@@ -438,6 +458,9 @@ type Props = {
   showDesktopToggle?: string
   showMobileToggle?: string
   showTabletToggle?: string
+  scale?: ResponsiveValue<number> | number
+  dropdownAlign?: string
+  fitOneLine?: string
   spacingShrunk?: '' | 'tight' | 'normal' | 'wide'
   itemFontSizeShrunk?: '' | 'small' | 'medium' | 'large'
   itemFontWeightShrunk?: '' | 'normal' | 'medium' | 'semibold' | 'bold'
@@ -469,6 +492,9 @@ export default function MenuBlockClient({
   showDesktopToggle = 'show',
   showMobileToggle = 'collapse',
   showTabletToggle = 'collapse',
+  scale,
+  dropdownAlign,
+  fitOneLine,
   spacingShrunk,
   itemFontSizeShrunk,
   itemFontWeightShrunk,
@@ -477,6 +503,52 @@ export default function MenuBlockClient({
   itemFontSizeFluid,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // "Keep on one line": measure what the items need on a single line against the
+  // room the list has actually been given, and scale the difference away.
+  //
+  // Both numbers are LAYOUT metrics of the list itself - `clientWidth` is the box
+  // its parent handed it, `scrollWidth` is what its items need with no wrapping -
+  // and a CSS transform changes neither. That is the whole reason the shrink is a
+  // transform rather than the `zoom` the Scale field uses: zoom would resize the
+  // very box being measured, so each pass would feed the next one and the thing
+  // would oscillate. The items overflow the list's box in layout terms and are
+  // simply painted back inside it, so nothing beside the menu moves.
+  const listRef = useRef<HTMLUListElement>(null)
+  const [fitScale, setFitScale] = useState(1)
+  const fitEnabled = fitOneLine === 'yes'
+  const shrunkToFit = fitEnabled && fitScale < 1
+
+  const measureFit = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    const avail = el.clientWidth
+    const natural = el.scrollWidth
+    // A collapsed menu (display:none behind a hamburger) measures zero - leave
+    // the last good scale alone rather than snapping it back to full size.
+    if (avail <= 0 || natural <= 0) return
+    setFitScale(natural > avail ? avail / natural : 1)
+  }, [])
+
+  useEffect(() => {
+    if (!fitEnabled) return
+    const el = listRef.current
+    if (!el) return
+    measureFit()
+    // The list's own box is what changes when the header resizes, so observing
+    // it is enough - no window listener needed.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => measureFit()) : undefined
+    ro?.observe(el)
+    // A web font landing after first paint changes what the items need without
+    // changing the list's box, so the observer above would never hear about it.
+    document.fonts?.ready?.then(() => measureFit()).catch(() => {})
+    return () => ro?.disconnect()
+    // shrunkToFit is a dependency on purpose: the first pass measures a menu that
+    // may still be centred, and a centred flex row that overflows spills equally
+    // off both ends, so `scrollWidth` under-reports it. Going into the shrunk
+    // state pins the row to flex-start, and re-running here re-measures it
+    // honestly. It settles on the second pass and holds.
+  }, [fitEnabled, shrunkToFit, resolvedItems, measureFit])
 
   if (!resolvedItems) {
     return (
@@ -567,6 +639,24 @@ export default function MenuBlockClient({
   const toggleBtnClasses = ['cactus-nav-toggle', ...hamburgerModifiers].join(' ')
   const dropdownNavClasses = ['cactus-nav-dropdown', ...dropdownModifiers].join(' ')
 
+  // The inline list, the hamburger button and the dropdown trigger are siblings
+  // (nothing wraps them - the header's own Group/Grid lays them out), so the
+  // scale class goes on all three rather than on one box around them.
+  const { className: scaleClass, css: scaleCss } = menuScaleStyles(blockId, scale)
+  const dropAlign = toDropAlign(dropdownAlign)
+
+  // Two rules, both only while "keep on one line" is on. The links stop wrapping
+  // their own labels (a two-word link would otherwise break in half rather than
+  // let the row shrink), and a list that has actually been shrunk is pinned to
+  // flex-start. The pin needs to beat the per-breakpoint alignment rule above,
+  // which carries !important - it wins on specificity, two attribute selectors
+  // to one. It costs nothing visually: a shrunk list exactly fills its box, so
+  // there is no free space left for any alignment to distribute.
+  const fitCss = fitEnabled && blockId ? [
+    `[data-menu-id="${blockId}"] .cactus-nav-link{white-space:nowrap;}`,
+    `[data-menu-id="${blockId}"][data-menu-fit]{justify-content:flex-start !important;}`,
+  ].join('\n') : ''
+
   // Header "shrink on scroll" support - only emitted when at least one shrunk
   // value is set. Scoped under the header's own data-shrunk toggle (see
   // headerRootRender/HeaderShrinkScroll), so it's a no-op anywhere else this
@@ -576,6 +666,7 @@ export default function MenuBlockClient({
   return (
     <>
       {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
+      {scaleCss && <style>{scaleCss}</style>}
       {anyToggle && (
         // Base (non-breakpoint) display only. The breakpoint @media rules are
         // emitted by buildTokenStyles so they track the site's breakpoint settings.
@@ -591,18 +682,29 @@ export default function MenuBlockClient({
       )}
 
       {menuMediaCss && <style>{menuMediaCss}</style>}
+      {fitCss && <style>{fitCss}</style>}
       <ul
+        ref={listRef}
         data-menu-id={blockId}
-        className={['cactus-nav-list', anyToggle ? menuClasses : ''].filter(Boolean).join(' ')}
+        {...(shrunkToFit ? { 'data-menu-fit': '' } : {})}
+        className={['cactus-nav-list', anyToggle ? menuClasses : '', scaleClass].filter(Boolean).join(' ')}
         style={{
           display: anyToggle ? undefined : 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
-          justifyContent: alignBase,
+          justifyContent: shrunkToFit ? 'flex-start' : alignBase,
           listStyle: 'none',
           margin: 0,
           padding: 0,
           ...(hGap ? { gap: hGap } : {}),
+          ...(fitEnabled ? {
+            // nowrap is what makes scrollWidth mean "one line's worth"; minWidth 0
+            // lets the list shrink to the room it's given when it's a flex item,
+            // which is what clientWidth is then reporting.
+            flexWrap: 'nowrap' as const,
+            minWidth: 0,
+            ...(shrunkToFit ? { transform: `scale(${fitScale})`, transformOrigin: 'left center' } : {}),
+          } : {}),
         }}
       >
         {resolvedItems.map((item) => (
@@ -612,7 +714,7 @@ export default function MenuBlockClient({
 
       {showHamburger && (
         <button
-          className={toggleBtnClasses}
+          className={[toggleBtnClasses, scaleClass].filter(Boolean).join(' ')}
           aria-label="Toggle menu"
           aria-expanded={mobileOpen}
           onClick={() => setMobileOpen((o) => !o)}
@@ -637,11 +739,16 @@ export default function MenuBlockClient({
           items={resolvedItems}
           colours={colours}
           fontFamily={itemFontFamily || undefined}
-          className={dropdownNavClasses}
+          className={[dropdownNavClasses, scaleClass].filter(Boolean).join(' ')}
           fallbackLabel="Menu"
+          panelAlign={dropAlign}
         />
       )}
 
+      {/* The hamburger's drawer spans the header's full width, so it takes the
+          alignment as the row's text alignment rather than as a box position -
+          and it stays out of the scale class: zooming a panel pinned to both
+          edges would halve its width instead of shrinking what's in it. */}
       {showHamburger && mobileOpen && (
         <div style={{
           position: 'absolute',
@@ -660,6 +767,7 @@ export default function MenuBlockClient({
               onClose={() => setMobileOpen(false)}
               colours={colours}
               fontFamily={itemFontFamily || undefined}
+              align={dropAlign}
             />
           ))}
         </div>

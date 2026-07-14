@@ -30,7 +30,9 @@ import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { BorderField } from '@/lib/puck/BorderField'
 import { SectionBgColorField, HeroBgColorField, HeaderBgColorField, PageBgColorField } from '@/lib/puck/BgColorField'
 import { LayoutPickerField } from '@/lib/puck/LayoutPickerField'
-import { ResponsiveTextField, ResponsiveSelectField } from '@/lib/puck/ResponsiveValueField'
+import { ResponsiveTextField, ResponsiveSelectField, ResponsiveNumberField } from '@/lib/puck/ResponsiveValueField'
+import { menuScaleStyles } from '@/lib/puck/menuScale'
+import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCss } from '@/lib/puck/blockHeight'
 import { VisibilityField } from '@/lib/puck/VisibilityField'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import { MinMaxPairField, type MinMaxPair } from '@/lib/puck/MinMaxPairField'
@@ -104,6 +106,19 @@ function noGutterDefault<T extends { defaultProps?: Record<string, any> }>(compo
 
 const GAP_MAP: Record<string, string> = { none: '0', sm: '0.5rem', md: '1rem', lg: '2rem' }
 const SPACE_BELOW_MAP: Record<string, string> = { none: '0', sm: '0.75rem', md: '1.5rem', lg: '3rem' }
+// Vertical padding scale, shared by every block that has a "Vertical padding"
+// field (Section, CTA Banner), so Medium means the same height of breathing room
+// wherever it's picked. The horizontal half of the pair lives in the
+// cactus-pad-* utility classes (tokens.ts) - these are inline because they vary
+// per block instance rather than per site.
+const PADDING_Y_MAP: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem', xl: '10rem' }
+const PADDING_Y_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
+  { value: 'xl', label: 'Extra large' },
+]
 
 // AOS (Animate On Scroll) helpers — data attributes rendered server-side, AOS JS picks them up client-side
 const AOS_TYPE_MAP: Record<string, string> = {
@@ -363,7 +378,15 @@ function GridBlock(props: any) {
       {slots.map((slot, i) => {
         const jc = colAligns[i] && justifyMap[colAligns[i]]
         const scaled = colScaled[i]
-        const content = typeof slot === 'function' ? slot() : null
+        // Puck's editor stylesheet sizes every slot wrapper `height: 100%`
+        // (._DropZone), so a child set to "fill container" resolves its own
+        // 100% against the stretched column track. The published page ships no
+        // Puck stylesheet and SlotRender emits that same wrapper as a bare,
+        // auto-height <div>, so the child's 100% resolved against `auto` and
+        // collapsed to content height. Pass the height in explicitly to keep
+        // the two paths in step. Invisible for ordinary content: the wrapper
+        // paints nothing and its children still flow from the top.
+        const content = typeof slot === 'function' ? slot({ style: { height: '100%' } }) : null
         // A scaled column manages its own flex/alignment inside ScaleToFit, so
         // the track div stays a plain block (no flex/fit-content wrapper).
         // Explicit gridColumn ONLY when a column is centred (header true-
@@ -727,7 +750,7 @@ function SectionBlock(props: any) {
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
   } = props
 
-  const paddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem', xl: '10rem' }
+  const paddingYMap = PADDING_Y_MAP
   const maxWidthMap: Record<string, string> = { none: '100%', narrow: '720px', standard: '960px', wide: '1200px', full: '100%' }
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
@@ -886,14 +909,11 @@ function Heading(props: any) {
   // column so the heading can sit top / middle / bottom within that height. Auto
   // height (the default) leaves the wrapper in normal flow, unchanged.
   const vAlignMap: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }
-  const minHeightMap: Record<string, string | undefined> = { none: undefined, sm: '240px', md: '400px', lg: '600px', screen: '100vh' }
-  // "fill" stretches the block to its container's height (a stretch Split/Group
-  // column, or any parent that has a resolved height) rather than a fixed min-
-  // height, so the vertical position sits against the full section. On the
-  // frontend the drop zone renders items as bare children (no wrapper div), so
-  // height:100% + align-self:stretch resolve straight against that parent.
+  // "fill" stretches the block to its container's height (a stretch Grid/Split/
+  // Group column, or any parent that has a resolved height) rather than a fixed
+  // min-height, so the vertical position sits against the full section.
   const isFill = minHeight === 'fill'
-  const mh = minHeightMap[minHeight] ?? undefined
+  const mh = BLOCK_HEIGHT_MAP[minHeight] ?? undefined
   const hasHeight = Boolean(mh) || isFill
   const wrapStyle: React.CSSProperties | undefined = hasHeight
     ? {
@@ -942,14 +962,23 @@ function Heading(props: any) {
   const hoverCss = showHoverUnderline
     ? `a[data-heading-link="${id}"]:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:0.12em;text-decoration-color:${hoverUnderlineColor || 'currentColor'};}`
     : ''
+  // Gives the wrapper's parent a height for the `height: 100%` above to resolve
+  // against - see blockFillCss for why the published page needs this and the
+  // editor doesn't.
+  const fillCss = isFill ? blockFillCss('data-heading-fill', id) : ''
   const headingEl = (
     <Tag data-heading-id={id} style={style} className={headingClassName}>
       {content}
     </Tag>
   )
   return (
-    <div className={getPaddingClasses(padding)} style={wrapStyle} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {(alignCss || linkBaseCss || hoverCss) && <style>{`${alignCss}${linkBaseCss}${hoverCss}`}</style>}
+    <div
+      className={getPaddingClasses(padding)}
+      style={wrapStyle}
+      {...(isFill ? { 'data-heading-fill': id } : {})}
+      {...getAosProps(animationType, animationDuration, animationDelay)}
+    >
+      {(alignCss || linkBaseCss || hoverCss || fillCss) && <style>{`${alignCss}${linkBaseCss}${hoverCss}${fillCss}`}</style>}
       {href
         ? <a href={href} data-heading-link={id} style={{ display: 'block', color: 'inherit' }}>{headingEl}</a>
         : headingEl}
@@ -1025,14 +1054,33 @@ function RichTextBlock(props: any) {
 }
 
 function Quote(props: any) {
-  const { quote, attribution, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { quote, attribution, padding, mediaUrl, alt, imageSize = 'md', imageShape = 'circle', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const editing = puck?.isEditing
+  const photoSizeMap: Record<string, number> = { sm: 72, md: 112, lg: 160 }
+  const photoRadiusMap: Record<string, string> = { circle: '50%', rounded: '8px', square: '0' }
+  const photo = photoSizeMap[imageSize] ?? photoSizeMap.md
+  // The bottom margin belongs to the row once there's a photo beside the quote:
+  // left on the blockquote it would count towards the centring, nudging the
+  // photo up by half of it. No photo = the original markup, untouched.
+  const blockquote = (
+    <blockquote style={{ margin: mediaUrl ? 0 : '0 0 1.5rem', flex: mediaUrl ? '1 1 0%' : undefined, minWidth: mediaUrl ? 0 : undefined, padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
+      <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{editing ? quote : linkifyEmails(quote)}</p>
+      {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {editing ? attribution : linkifyEmails(attribution)}</footer>}
+    </blockquote>
+  )
   return (
     <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)}>
-      <blockquote style={{ margin: '0 0 1.5rem', padding: '1.25rem 1.5rem', borderLeft: '4px solid var(--color-primary)', background: 'var(--color-bg-subtle)', borderRadius: '0 6px 6px 0' }}>
-        <p style={{ margin: 0, fontSize: '1.125rem', fontStyle: 'italic', color: 'var(--color-fg-secondary)', lineHeight: 1.7 }}>{editing ? quote : linkifyEmails(quote)}</p>
-        {attribution && <footer style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--color-muted)', fontStyle: 'normal' }}>— {editing ? attribution : linkifyEmails(attribution)}</footer>}
-      </blockquote>
+      {mediaUrl ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
+          <img
+            src={mediaUrl}
+            alt={alt ?? ''}
+            style={{ flex: '0 0 auto', width: photo, height: photo, objectFit: 'cover', borderRadius: photoRadiusMap[imageShape] ?? '50%', display: 'block' }}
+          />
+          {blockquote}
+        </div>
+      ) : blockquote}
     </div>
   )
 }
@@ -1110,24 +1158,40 @@ function ButtonLink(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { heading, subtext, ctaLabel, ctaHref, background, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, padding, paddingY = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
     white: { bg: 'var(--color-bg)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     light: { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     brand: { bg: 'var(--color-primary)', text: 'var(--color-bg)', sub: 'rgba(255,255,255,0.85)' },
   }
   const t = bgs[background] ?? bgs.light!
+  // Height of the banner: the existing "Padding (left/right)" field only ever set
+  // padding-left/right (via the cactus-pad-* classes), so the coloured box had
+  // nothing holding it off the text above and below it. Per-breakpoint like every
+  // other spacing field - desktop is the inline base, tablet/mobile ride the media
+  // rules. Deliberately the padding-top/bottom LONGHANDS, not the shorthand: the
+  // shorthand would reset the horizontal padding those utility classes provide.
+  const pyRv = normalizeResponsiveValue<string>(paddingY)
+  const pyAt = (d: Device) => PADDING_Y_MAP[pickResponsive(pyRv, d) ?? 'none'] ?? '0'
+  const pyCss = responsiveMediaCssFor(`[data-cta-id="${id}"]`, (d) => `padding-top:${pyAt(d)};padding-bottom:${pyAt(d)};`)
   return (
-    <section className={getPaddingClasses(padding)} style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem' }}
-      {...getAosProps(animationType, animationDuration, animationDelay)}>
-      {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
-      {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
-      {ctaLabel && ctaHref && (
-        <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
-          {ctaLabel}
-        </a>
-      )}
-    </section>
+    <>
+      {pyCss && <style>{pyCss}</style>}
+      <section
+        data-cta-id={id}
+        className={getPaddingClasses(padding)}
+        style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop') }}
+        {...getAosProps(animationType, animationDuration, animationDelay)}
+      >
+        {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{heading}</h2>}
+        {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{subtext}</p>}
+        {ctaLabel && ctaHref && (
+          <a href={ctaHref} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
+            {ctaLabel}
+          </a>
+        )}
+      </section>
+    </>
   )
 }
 
@@ -1437,10 +1501,27 @@ function Chip(props: any) {
 }
 
 function Card(props: any) {
-  const { mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, mediaUrl, alt, heading, body, ctaLabel, ctaHref, padding, minHeight = 'none', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  // "Fill container" stretches the card to whatever holds it - a Grid column, a
+  // stretch Group - so a row of cards ends up the same height as its tallest
+  // sibling instead of each one hugging its own text. Anything else is a plain
+  // floor: the card grows past a fixed height rather than clipping its content.
+  const isFill = minHeight === 'fill'
+  const mh = BLOCK_HEIGHT_MAP[minHeight] ?? undefined
+  const fillCss = isFill ? blockFillCss('data-card-fill', id) : ''
   return (
-    <div className={getPaddingClasses(padding)} style={{ border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '1.5rem', background: 'var(--color-bg)' }}
+    <div
+      className={getPaddingClasses(padding)}
+      {...(isFill ? { 'data-card-fill': id } : {})}
+      style={{
+        border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', background: 'var(--color-bg)',
+        // A filled card owns the whole container, so the usual bottom margin has
+        // to go: 100% + 1.5rem overflows the very box it was told to fit.
+        marginBottom: isFill ? 0 : '1.5rem',
+        ...(isFill ? { height: '100%', alignSelf: 'stretch' } : mh ? { minHeight: mh } : {}),
+      }}
       {...getAosProps(animationType, animationDuration, animationDelay)}>
+      {fillCss && <style>{fillCss}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
       {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
@@ -1753,6 +1834,7 @@ function MenuBlock(props: any) {
     hoverColor, activeColor, activeUnderline = 'none', activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, activeFontWeight, itemFontFamily, showDropdowns = 'hover',
     spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
     itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid,
+    scale, dropdownAlign = 'left', fitOneLine = 'no',
   } = props
   if (!resolvedItems) {
     return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
@@ -1801,10 +1883,14 @@ function MenuBlock(props: any) {
   })
   const vListMediaCss = fluidGap ? '' : responsiveMediaCssFor(`.${shrinkListClass}`, (d) => `gap:${menuVerticalGapMap[pickResponsive(spacingRv, d) ?? 'normal'] ?? '0.5rem'};`)
   const vMediaCss = [vLinkMediaCss, vListMediaCss].filter(Boolean).join('\n')
+  // Scale rides on the list itself here - a vertical menu is a single box, so
+  // there is nothing else to carry it (no hamburger, no dropdown trigger).
+  const { className: scaleClass, css: scaleCss } = menuScaleStyles(id, scale)
   if (orientation === 'vertical') {
     return (
       <nav>
         {menuFontHref && <link rel="stylesheet" href={menuFontHref} precedence="default" />}
+        {scaleCss && <style>{scaleCss}</style>}
         {vMediaCss && <style>{vMediaCss}</style>}
         {hasVerticalShrink && (
           <style>{[
@@ -1813,7 +1899,7 @@ function MenuBlock(props: any) {
             itemFontWeightShrunk ? `${HEADER_SHRUNK_SELECTOR} .${shrinkLinkClass}{font-weight:${menuFontWeightMap[itemFontWeightShrunk]} !important;}` : '',
           ].filter(Boolean).join('\n')}</style>
         )}
-        <ul className={shrinkListClass} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacingD] ?? '0.5rem' }}>
+        <ul className={[shrinkListClass, scaleClass].filter(Boolean).join(' ')} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: fluidGap ?? menuVerticalGapMap[spacingD] ?? '0.5rem' }}>
           {resolvedItems.map((item: any) => (
             <li key={item.id}>
               <MenuVerticalLink item={item} colours={linkColours}
@@ -1839,7 +1925,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
+  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} scale={scale} dropdownAlign={dropdownAlign} fitOneLine={fitOneLine} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {
@@ -2034,7 +2120,7 @@ export const puckConfig = {
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)' },
-        paddingY: { type: 'custom' as const, label: 'Vertical padding', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }], render: ResponsiveSelectField },
+        paddingY: { type: 'custom' as const, label: 'Vertical padding', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
@@ -2234,7 +2320,7 @@ export const puckConfig = {
         text: { type: 'textarea' as const, label: 'Text (one line per row for stagger reveal)' },
         level: { type: 'select' as const, label: 'Level', options: [{ value: 'display', label: 'Display (hero, largest)' }, { value: 'h2', label: 'H2' }, { value: 'h3', label: 'H3' }, { value: 'h4', label: 'H4' }, { value: 'h5', label: 'H5' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        minHeight: { type: 'select' as const, label: 'Block height', options: [{ value: 'none', label: 'Auto' }, { value: 'sm', label: 'Small (240px)' }, { value: 'md', label: 'Medium (400px)' }, { value: 'lg', label: 'Large (600px)' }, { value: 'screen', label: 'Full screen' }, { value: 'fill', label: 'Fill container' }] },
+        minHeight: { type: 'select' as const, label: 'Block height', options: BLOCK_HEIGHT_OPTIONS },
         verticalAlign: { type: 'select' as const, label: 'Vertical position (needs a block height)', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         highlightText: { type: 'text' as const, label: 'Emphasise word/phrase (recolours it in brand)' },
@@ -2279,8 +2365,23 @@ export const puckConfig = {
     },
     Quote: {
       label: 'Quote',
-      fields: { quote: { type: 'textarea' as const, label: 'Quote' }, attribution: { type: 'text' as const, label: 'Attribution' }, padding: paddingField, ...aosFields },
-      defaultProps: { quote: 'Enter a quote here…', attribution: '', padding: 'default', ...aosDefaults },
+      fields: {
+        quote: { type: 'textarea' as const, label: 'Quote' },
+        attribution: { type: 'text' as const, label: 'Attribution' },
+        mediaUrl: { type: 'text' as const, label: 'Photo URL' },
+        alt: { type: 'text' as const, label: 'Photo alt text' },
+        imageSize: { type: 'select' as const, label: 'Photo size', options: [{ value: 'sm', label: 'Small (72px)' }, { value: 'md', label: 'Medium (112px)' }, { value: 'lg', label: 'Large (160px)' }] },
+        imageShape: { type: 'select' as const, label: 'Photo shape', options: [{ value: 'circle', label: 'Circle' }, { value: 'rounded', label: 'Rounded' }, { value: 'square', label: 'Square' }] },
+        padding: paddingField,
+        ...aosFields,
+      },
+      defaultProps: { quote: 'Enter a quote here…', attribution: '', mediaUrl: '', alt: '', imageSize: 'md' as const, imageShape: 'circle' as const, padding: 'default', ...aosDefaults },
+      // Photo settings are noise until there's a photo to settle.
+      resolveFields: (data: any, { fields }: any) => {
+        if (data?.props?.mediaUrl) return fields
+        const { alt: _a, imageSize: _s, imageShape: _sh, ...rest } = fields
+        return rest
+      },
       render: Quote,
     },
     Caption: {
@@ -2311,9 +2412,11 @@ export const puckConfig = {
         heading: { type: 'text' as const, label: 'Heading' }, subtext: { type: 'textarea' as const, label: 'Sub-text' },
         ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' },
         background: { type: 'select' as const, label: 'Background', options: [{ value: 'light', label: 'Light' }, { value: 'white', label: 'White (bordered)' }, { value: 'brand', label: 'Brand colour' }] },
-        padding: paddingField, ...aosFields,
+        padding: paddingField,
+        paddingY: { type: 'custom' as const, label: 'Vertical padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        ...aosFields,
       },
-      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, padding: 'none', ...aosDefaults },
+      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, padding: 'none', paddingY: 'none' as const, ...aosDefaults },
       render: CTABanner,
     },
 
@@ -2363,8 +2466,8 @@ export const puckConfig = {
     },
     Card: {
       label: 'Card',
-      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, padding: paddingField, ...aosFields },
-      defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', padding: 'none', ...aosDefaults },
+      fields: { mediaUrl: { type: 'text' as const, label: 'Image URL' }, mediaId: { type: 'text' as const, label: 'Media ID' }, alt: { type: 'text' as const, label: 'Alt text' }, heading: { type: 'text' as const, label: 'Heading' }, body: { type: 'textarea' as const, label: 'Body text' }, ctaLabel: { type: 'text' as const, label: 'Button label' }, ctaHref: { type: 'text' as const, label: 'Button URL' }, minHeight: { type: 'select' as const, label: 'Card height', options: BLOCK_HEIGHT_OPTIONS }, padding: paddingField, ...aosFields },
+      defaultProps: { mediaUrl: '', mediaId: '', alt: '', heading: 'Card heading', body: '', ctaLabel: '', ctaHref: '', minHeight: 'none' as const, padding: 'none', ...aosDefaults },
       render: Card,
     },
     ImageChipPanel: {
@@ -2575,6 +2678,8 @@ export const puckConfig = {
         orientation: { type: 'select' as const, label: 'Orientation', options: [{ value: 'horizontal', label: 'Horizontal' }, { value: 'vertical', label: 'Vertical' }] },
         spacing: { type: 'custom' as const, label: 'Item spacing', options: [{ value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }], render: ResponsiveSelectField },
         alignment: { type: 'custom' as const, label: 'Horizontal alignment', options: [{ value: 'flex-start', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'space-between', label: 'Space between' }, { value: 'space-around', label: 'Space around' }], render: ResponsiveSelectField },
+        scale: { type: 'custom' as const, label: 'Scale (%, 100 = normal)', render: ResponsiveNumberField },
+        fitOneLine: { type: 'select' as const, label: 'Keep on one line (shrink items to fit)', options: [{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }] },
         itemFontSize: { type: 'custom' as const, label: 'Font size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }], render: ResponsiveSelectField },
         itemFontWeight: { type: 'custom' as const, label: 'Font weight', options: [{ value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }], render: ResponsiveSelectField },
         textTransform: { type: 'custom' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }], render: ResponsiveSelectField },
@@ -2590,6 +2695,7 @@ export const puckConfig = {
         activeUnderlineOffset: { type: 'text' as const, label: 'Underline offset (px)' },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'dropdown', label: 'Dropdown (current page)' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
+        dropdownAlign: { type: 'select' as const, label: 'Dropdown alignment (hamburger + dropdown)', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }] },
         spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
         itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
         itemFontWeightShrunk: { type: 'select' as const, label: 'Shrunk font weight', options: [{ value: '', label: 'Same as font weight' }, { value: 'normal', label: 'Normal' }, { value: 'medium', label: 'Medium' }, { value: 'semibold', label: 'Semibold' }, { value: 'bold', label: 'Bold' }] },
@@ -2597,7 +2703,7 @@ export const puckConfig = {
         letterSpacingFluid: { type: 'custom' as const, label: 'Responsive character spacing (em)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
         itemFontSizeFluid: { type: 'custom' as const, label: 'Responsive font size (rem)', minLabel: 'Min size', maxLabel: 'Max size', render: MinMaxPairField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, scale: { desktop: 100 }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, dropdownAlign: 'left' as const, fitOneLine: 'no' as const, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
       resolveFields: (data: any, { fields, appState }: any) => {
         let out = fields
         if (data?.props?.activeUnderline !== 'underline') {
