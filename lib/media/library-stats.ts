@@ -18,9 +18,22 @@ export type LibraryStats = {
 }
 
 export async function computeLibraryStats(): Promise<LibraryStats> {
-  const [rows, usage] = await Promise.all([
+  // Counting is the database's job. One grouped query returns a row per
+  // (mime type, optimised) pair - a handful of rows, whatever the library's size -
+  // rather than shipping every Media row across the wire to be tallied here.
+  //
+  // "Unused" is the exception: it isn't a column but a match of a row's id, key or
+  // url against the Puck builder JSON, which no SQL predicate can express. Those
+  // two figures still need one pass over the rows, so that query selects only the
+  // four fields the check actually uses.
+  const [groups, rows, usage] = await Promise.all([
+    prisma.media.groupBy({
+      by: ['mimeType', 'optimised'],
+      _count: { _all: true },
+      _sum: { sizeBytes: true },
+    }),
     prisma.media.findMany({
-      select: { id: true, key: true, url: true, mimeType: true, sizeBytes: true, optimised: true },
+      select: { id: true, key: true, url: true, sizeBytes: true },
     }),
     loadMediaUsageIndex(),
   ])
@@ -35,14 +48,18 @@ export async function computeLibraryStats(): Promise<LibraryStats> {
     unusedSize: 0,
   }
 
+  for (const g of groups) {
+    const count = g._count._all
+    const isImage = g.mimeType.startsWith('image/')
+    const isSvg = g.mimeType === 'image/svg+xml'
+    stats.totalFiles += count
+    stats.totalSize += g._sum.sizeBytes ?? 0
+    if (isImage) stats.imageFiles += count
+    if (g.optimised) stats.optimisedFiles += count
+    if (isImage && !isSvg && !g.optimised) stats.optimisableFiles += count
+  }
+
   for (const r of rows) {
-    stats.totalFiles += 1
-    stats.totalSize += r.sizeBytes
-    const isImage = r.mimeType.startsWith('image/')
-    const isSvg = r.mimeType === 'image/svg+xml'
-    if (isImage) stats.imageFiles += 1
-    if (r.optimised) stats.optimisedFiles += 1
-    if (isImage && !isSvg && !r.optimised) stats.optimisableFiles += 1
     if (!isMediaInUse(r, usage)) {
       stats.unusedFiles += 1
       stats.unusedSize += r.sizeBytes

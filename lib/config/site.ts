@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
 import type { SiteConfig, SiteStatus } from '@prisma/client'
 
@@ -17,9 +18,13 @@ const CACHE_TTL_MS = 5_000 // 5 seconds
 // ceiling — 4 min covers both with headroom.
 const REDEPLOY_MAX_MS = 4 * 60_000
 
-export async function getSiteConfig(): Promise<SiteConfig | null> {
+// Wrapped in React cache() because module render paths call this once per block
+// that needs a design token (a product grid asks for the breakpoints for every
+// card it stamps), and it reads the whole singleton row. Per-request only, so an
+// admin saving settings still sees the change on the next request.
+export const getSiteConfig = cache(async (): Promise<SiteConfig | null> => {
   return prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
-}
+})
 
 export async function getAdminPathCached(): Promise<string | null> {
   const now = Date.now()
@@ -108,6 +113,7 @@ export function invalidateSiteConfigCache() {
   cachedStatusAt = 0
   cachedPendingRedeployId = null
   cachedPendingRedeployIdAt = 0
+  cachedFirstRunComplete = false
 }
 
 export async function isSetupComplete(): Promise<boolean> {
@@ -116,6 +122,43 @@ export async function isSetupComplete(): Promise<boolean> {
     select: { setupCompleted: true },
   })
   return config?.setupCompleted ?? false
+}
+
+// ── First-run gate ──────────────────────────────────────────────────────────
+// proxy.ts checks this on every single request - every page, every RSC
+// navigation, every API call - so a "complete" verdict is latched in memory
+// rather than re-queried. No TTL: while the gate is still closed it re-reads on
+// every call, and once open it only ever closes again through a reset, which is
+// handled below.
+//
+// The gate is "setupCompleted AND at least one user account exists": wiping the
+// users re-opens it so /api/setup/reset can run (see proxy.ts). That means the
+// verdict is NOT a one-way latch in practice - the hard reset in
+// app/api/admin/reset-database (deleteSetupData) truncates User and SiteConfig
+// and then sends the admin to /setup, and /api/setup/reset clears the flag
+// directly. Neither goes through invalidateSiteConfigCache(), so a warm instance
+// holding a stale latch would 404 the very wizard it just redirected to. proxy.ts
+// therefore calls refreshFirstRunComplete() on setup paths and never trusts the
+// latch there - free, since those paths are dead on a live site.
+let cachedFirstRunComplete = false
+
+export async function isFirstRunComplete(): Promise<boolean> {
+  if (cachedFirstRunComplete) return true
+  return refreshFirstRunComplete()
+}
+
+export async function refreshFirstRunComplete(): Promise<boolean> {
+  const [config, anyUser] = await Promise.all([
+    prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { setupCompleted: true },
+    }),
+    // Existence check, not COUNT(*) over the whole User table: the gate only
+    // ever compares the answer against zero.
+    prisma.user.findFirst({ select: { id: true } }),
+  ])
+  cachedFirstRunComplete = (config?.setupCompleted ?? false) && !!anyUser
+  return cachedFirstRunComplete
 }
 
 // Slug/path blocklist — same pattern used for admin path and usernames

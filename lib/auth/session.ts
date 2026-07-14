@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import {
@@ -44,12 +45,17 @@ export async function setSessionCookie(token: string): Promise<void> {
   })
 }
 
-export async function getSessionFromCookie(): Promise<SessionUser | null> {
+// Wrapped in React cache() so the two or three calls a single public render makes
+// (layout, page, draft check) share one session lookup. The cache is per-request,
+// and the cookie can't change mid-request, so the answer is identical either way.
+// The underlying cookies() call still runs on the first invocation, which is what
+// marks the request dynamic - see the note in app/(public)/[slug]/page.tsx.
+export const getSessionFromCookie = cache(async (): Promise<SessionUser | null> => {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
   return validateSession(token)
-}
+})
 
 export async function clearSessionCookie(): Promise<void> {
   const cookieStore = await cookies()

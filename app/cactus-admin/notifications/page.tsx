@@ -9,6 +9,10 @@ import type { NotificationType } from '@prisma/client'
 
 export const metadata: Metadata = { title: 'Notifications — Admin' }
 
+// Newest-first, capped. The header's totals come from counts, so nothing is
+// hidden and the whole table never gets read just to measure its length.
+const NOTIFICATION_LIMIT = 100
+
 type NotificationReason = { label: string; detail?: string; at: string }
 
 // Per-type presentation: leading icon, and the "View …" button label for alerts
@@ -46,18 +50,31 @@ export default async function NotificationsPage() {
 
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
 
-  const notifications = await prisma.notification.findMany({
-    orderBy: { createdAt: 'desc' },
-  })
-
-  const unread = notifications.filter((n) => !n.readAt).length
+  const [notifications, total, unread] = await Promise.all([
+    prisma.notification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: NOTIFICATION_LIMIT,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        link: true,
+        reasons: true,
+        readAt: true,
+        deployInitiatedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.notification.count(),
+    prisma.notification.count({ where: { readAt: null } }),
+  ])
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Notifications</h1>
         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
-          {notifications.length} total{unread > 0 ? `, ${unread} unread` : ''}
+          {total} total{unread > 0 ? `, ${unread} unread` : ''}
         </span>
       </div>
 
@@ -127,6 +144,12 @@ export default async function NotificationsPage() {
               </div>
             )
           })}
+
+          {total > NOTIFICATION_LIMIT && (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', textAlign: 'center', margin: 0 }}>
+              Showing the {NOTIFICATION_LIMIT} most recent of {total}.
+            </p>
+          )}
         </div>
       )}
     </div>

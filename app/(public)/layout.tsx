@@ -35,13 +35,18 @@ async function getSiteConfig() {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   // Re-seed starter templates after a core update (no-op once stamped; see
-  // ensureStarterLayoutsCurrent). Runs before layouts are resolved below so a
-  // just-updated site renders with migrated layouts, not half-refreshed ones.
-  await ensureStarterLayoutsCurrent()
+  // ensureStarterLayoutsCurrent). It re-seeds the very rows resolveThemeLayout
+  // reads, so it has to finish before the layouts below - but it needs nothing
+  // from the config or session reads, so the three run together.
+  const [, config, user] = await Promise.all([
+    ensureStarterLayoutsCurrent(),
+    getSiteConfig(),
+    getSessionFromCookie().catch(() => null),
+  ])
 
-  const config = await getSiteConfig()
-
-  const [logoMedia, logoDarkMedia, privacyPage] = await Promise.all([
+  // The media/privacy lookups need `config`; the layout reads need the starter
+  // re-seed above. Both hold by here, so all five go out together.
+  const [logoMedia, logoDarkMedia, privacyPage, headerLayout, footerLayout] = await Promise.all([
     config?.logoMediaId
       ? prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
       : Promise.resolve(null),
@@ -51,9 +56,10 @@ export default async function PublicLayout({ children }: { children: React.React
     config?.privacyPolicyPageId
       ? prisma.infoPage.findUnique({ where: { id: config.privacyPolicyPageId }, select: { slug: true } }).catch(() => null)
       : Promise.resolve(null),
+    resolveThemeLayout('header', {}),
+    resolveThemeLayout('footer', {}),
   ])
 
-  const user = await getSessionFromCookie().catch(() => null)
   const isLoggedIn = !!user
 
   const ctx = {
@@ -64,18 +70,14 @@ export default async function PublicLayout({ children }: { children: React.React
     adminPath: config?.adminPath ?? '',
   }
 
-  const [headerLayout, footerLayout] = await Promise.all([
-    resolveThemeLayout('header', {}),
-    resolveThemeLayout('footer', {}),
+  const [headerData, footerData] = await Promise.all([
+    headerLayout?.builderData
+      ? resolveTemplateData(headerLayout.builderData, ctx).catch(() => null)
+      : Promise.resolve(null),
+    footerLayout?.builderData
+      ? resolveTemplateData(footerLayout.builderData, ctx).catch(() => null)
+      : Promise.resolve(null),
   ])
-
-  const headerData = headerLayout?.builderData
-    ? await resolveTemplateData(headerLayout.builderData, ctx).catch(() => null)
-    : null
-
-  const footerData = footerLayout?.builderData
-    ? await resolveTemplateData(footerLayout.builderData, ctx).catch(() => null)
-    : null
 
   const tokens = config?.designTokens as DesignTokens | undefined
   const cssStyles = buildTokenStyles(tokens)

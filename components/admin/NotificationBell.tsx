@@ -39,6 +39,10 @@ type Notification = {
   deployInitiatedAt: string | null
 }
 
+// How often the bell asks the server for new notifications while the tab is in
+// front. Every open admin tab polls, so this is deliberately unhurried.
+const POLL_INTERVAL_MS = 60_000
+
 const ICON_BY_TYPE: Record<string, string> = {
   deployment: '🚀',
   core_update: '⬆️',
@@ -274,8 +278,13 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
 
   // Poll for new notifications so the badge updates live, not just on
   // full page reload / next server-rendered layout pass.
+  //
+  // Polling stops while the tab is hidden and catches up the moment it comes back,
+  // so a forgotten background tab isn't quietly hammering the database for hours.
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timer: ReturnType<typeof setInterval> | null = null
+
+    const poll = () => {
       fetch('/api/admin/notifications')
         .then(r => r.json())
         .then(data => {
@@ -283,8 +292,33 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
           if (open) setNotifications(data.notifications ?? [])
         })
         .catch(() => {})
-    }, 20_000)
-    return () => clearInterval(interval)
+    }
+
+    const start = () => {
+      if (timer === null) timer = setInterval(poll, POLL_INTERVAL_MS)
+    }
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer)
+        timer = null
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        poll()
+        start()
+      } else {
+        stop()
+      }
+    }
+
+    if (document.visibilityState === 'visible') start()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [open])
 
   useEffect(() => {

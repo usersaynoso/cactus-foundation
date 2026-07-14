@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -11,13 +12,26 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
+// generateMetadata and the render below both need this row. Selecting the union of
+// the two field sets once, behind React cache(), makes it a single query per request
+// instead of the same row being fetched twice. Deliberately does not swallow errors:
+// each caller keeps its own failure handling (metadata falls back to {}, the render
+// falls through to the module router), exactly as when they queried separately.
+const getPageBySlug = cache((slug: string) =>
+  prisma.infoPage.findUnique({
+    where: { slug },
+    select: {
+      id: true, title: true, body: true, bodyFormat: true,
+      builderData: true, publishedData: true, status: true,
+      metaDescription: true, ogImageId: true,
+    },
+  })
+)
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
-    const page = await prisma.infoPage.findUnique({
-      where: { slug },
-      select: { title: true, metaDescription: true, status: true, ogImageId: true },
-    })
+    const page = await getPageBySlug(slug)
     if (page) {
       if (page.status === 'draft') return {}
       const ogImageUrl = page.ogImageId
@@ -47,13 +61,7 @@ export const revalidate = false
 
 export default async function InfoPageRoute({ params, searchParams }: Props) {
   const { slug } = await params
-  const page = await prisma.infoPage.findUnique({
-    where: { slug },
-    select: {
-      id: true, title: true, body: true, bodyFormat: true,
-      builderData: true, publishedData: true, status: true,
-    },
-  }).catch(() => null)
+  const page = await getPageBySlug(slug).catch(() => null)
 
   if (!page) {
     // No InfoPage at this slug - fall through to a module's public index, if any.

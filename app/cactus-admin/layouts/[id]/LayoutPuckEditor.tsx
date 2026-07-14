@@ -7,6 +7,7 @@ import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import '@/lib/puck/tabs/gridColumnOutline.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
+import { registerEditorFields } from '@/lib/puck/fields/editor'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
@@ -23,6 +24,10 @@ import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
 import LayoutSettingsTab from '@/lib/puck/tabs/LayoutSettingsTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
 import DisplayConditionsPanel from './DisplayConditionsPanel'
+
+// Hands the real sidebar field widgets to the registry that config.tsx renders through.
+// Must run before Puck renders a field, hence module scope rather than an effect.
+registerEditorFields()
 
 type HistoryVersion = {
   index: 'live' | number

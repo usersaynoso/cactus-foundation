@@ -2,10 +2,15 @@ import React from 'react'
 
 // Email spam-protection helpers.
 //
-// Site owners type email addresses straight into ordinary text blocks (Heading,
-// Text, Rich text, Quote, Caption) and we protect them from harvesters on the
-// published site automatically - the editor sees the plain address, visitors
-// don't.
+// Site owners put email addresses in two places, and both are protected from
+// harvesters on the published site automatically - the editor sees the plain
+// address, visitors don't:
+//
+//   - typed into ordinary copy (Heading, Text, Rich text, Quote, Caption)
+//   - as the link on something they made clickable (a Button, a CTA, a Card, a
+//     menu item, a footer link, a linked heading) - which is worse, because a
+//     "mailto:" in an href is the easiest thing on the page for a harvester to
+//     grep for, easier than the address itself. See emailSafeHref below.
 //
 // Two techniques are combined, deliberately:
 //   1. HTML character encoding - the *visible* address is emitted as numeric
@@ -75,38 +80,104 @@ export function linkifyEmails(text: unknown): React.ReactNode {
 }
 
 // The HTML-string equivalent, for the Rich text block (which renders via
-// dangerouslySetInnerHTML). We only rewrite addresses sitting in *text*, never
-// inside a tag's attributes, and skip anything already inside an <a>, <code> or
-// <pre> - an author who hand-linked an address, or wrote one in a code sample,
-// is left alone. Tokenising on tags keeps this a string operation (no DOM parse
-// on the server) while still respecting element boundaries.
+// dangerouslySetInnerHTML). Tokenising on tags keeps this a string operation (no
+// DOM parse on the server) while still respecting element boundaries. Three
+// contexts, because what an address needs depends on where it is sitting:
+//
+//   - ordinary text: wrapped in a protected anchor, as everywhere else.
+//   - inside an <a>: the address is entity-encoded but NOT wrapped - an <a>
+//     inside an <a> is invalid HTML and browsers unnest it. If the link itself
+//     is a mailto:, the opening tag has already had its href swapped for
+//     data-eml (see below), so it stays clickable.
+//   - inside <code>/<pre>: left exactly as typed. An address in a code sample is
+//     a code sample, not a contact detail, and mangling it would be a bug.
 export function obfuscateEmailsInHtml(html: unknown): string {
   if (typeof html !== 'string' || html.indexOf('@') === -1) return typeof html === 'string' ? html : ''
   // Split into tag / text tokens, keeping the tags.
   const tokens = html.split(/(<[^>]+>)/)
-  let skipDepth = 0
+  const context: Array<'mask' | 'verbatim'> = []
   for (let t = 0; t < tokens.length; t++) {
     const tok = tokens[t]
     if (!tok) continue
     if (tok.startsWith('<')) {
       const tag = /^<\s*(\/?)\s*(a|code|pre)\b/i.exec(tok)
-      if (tag) {
-        const closing = tag[1] === '/'
-        const selfClosing = /\/\s*>$/.test(tok)
-        if (closing) skipDepth = Math.max(0, skipDepth - 1)
-        else if (!selfClosing) skipDepth++
+      if (!tag) continue
+      const closing = tag[1] === '/'
+      const selfClosing = /\/\s*>$/.test(tok)
+      if (closing) context.pop()
+      else if (!selfClosing) {
+        const isAnchor = tag[2]!.toLowerCase() === 'a'
+        if (isAnchor) tokens[t] = protectMailtoAttr(tok)
+        context.push(isAnchor ? 'mask' : 'verbatim')
       }
       continue
     }
-    if (skipDepth > 0 || tok.indexOf('@') === -1) continue
+    const ctx = context[context.length - 1]
+    if (ctx === 'verbatim' || tok.indexOf('@') === -1) continue
     EMAIL_RE.lastIndex = 0
-    tokens[t] = tok.replace(EMAIL_RE, (addr) => buildEmailAnchorHtml(addr))
+    tokens[t] = ctx === 'mask'
+      ? tok.replace(EMAIL_RE, (addr) => entityEncode(addr))
+      : tok.replace(EMAIL_RE, (addr) => buildEmailAnchorHtml(addr))
   }
   return tokens.join('')
+}
+
+// Hand-written <a href="mailto:…"> in a Rich text block was the last way to get
+// a literal mailto: back into the served HTML - the one block where the owner
+// writes their own markup. Same treatment as the Button block: the href goes,
+// the address rides in data-eml. Requiring whitespace before "href" keeps this
+// off attributes that merely end in it (data-href and friends).
+const HREF_MAILTO_ATTR = /\shref\s*=\s*(?:"\s*mailto:([^"]*)"|'\s*mailto:([^']*)'|mailto:([^\s>]+))/i
+
+function protectMailtoAttr(openingTag: string): string {
+  const m = HREF_MAILTO_ATTR.exec(openingTag)
+  if (!m) return openingTag
+  const tail = m[1] ?? m[2] ?? m[3] ?? ''
+  return openingTag.replace(HREF_MAILTO_ATTR, ` data-eml="${encodeEmail(tail)}"`)
 }
 
 // The string form of ObfuscatedEmail - identical class/attrs so the same
 // deobfuscator handles it.
 function buildEmailAnchorHtml(addr: string): string {
   return `<a class="${EML_CLASS}" data-eml="${encodeEmail(addr)}" rel="nofollow"><span>${entityEncode(addr)}</span></a>`
+}
+
+// ---------------------------------------------------------------------------
+// Owner-typed links (Button, CTA banner, Hero, Card, footer links, menu items,
+// linked headings, social links)
+// ---------------------------------------------------------------------------
+//
+// Encoding the address inside a text block achieves nothing if the owner then
+// drops a Button next to it whose href is "mailto:hi@example.com" - a literal
+// mailto: is the easiest thing on the page for a harvester to grep for, easier
+// than the address itself. So a "type your own link" block gets the same
+// treatment: on the published site the mailto never reaches the served HTML at
+// all. Everything after "mailto:" (the address, plus any ?subject=/?body= the
+// owner appended) rides in the same data-eml attribute, and the same client
+// deobfuscator wires up the real href after load. Links that aren't mailto:
+// pass straight through untouched, as does the editor.
+
+const MAILTO_RE = /^\s*mailto:/i
+
+// Spread onto the <a> in place of href={…}. Returns no href at all for a
+// protected address, so there is nothing in the markup to harvest and nothing
+// for a no-JS visitor to click (they still read the label, same as the text
+// blocks). Non-string hrefs give {} - React omitted an undefined href anyway.
+export function emailSafeHref(href: unknown, obfuscate = true): { href?: string; 'data-eml'?: string } {
+  if (typeof href !== 'string') return {}
+  if (!obfuscate || !MAILTO_RE.test(href)) return { href }
+  return { 'data-eml': encodeEmail(href.replace(MAILTO_RE, '')) }
+}
+
+// For label text that sits INSIDE an anchor ("Email hi@example.com" on the
+// button itself). It can't go through linkifyEmails: that builds an <a>, and an
+// <a> inside an <a> is invalid HTML that browsers silently unnest. Entity
+// encoding is enough here - the label reads identically, but there is no
+// literal "@" left in the markup for a regex to find, and the anchor wrapped
+// around it is already carrying the clickable address in data-eml.
+export function maskEmailText(text: unknown, obfuscate = true, key?: React.Key): React.ReactNode {
+  if (!obfuscate || typeof text !== 'string' || text.indexOf('@') === -1) return text as React.ReactNode
+  EMAIL_RE.lastIndex = 0
+  if (!EMAIL_RE.test(text)) return text
+  return <span key={key} dangerouslySetInnerHTML={{ __html: entityEncode(text) }} />
 }

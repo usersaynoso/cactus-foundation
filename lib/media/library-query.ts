@@ -100,6 +100,8 @@ export async function queryMediaLibrary(
   // The "in use" tabs are a computed classification, not a column, so they need
   // every matching row loaded and checked against the usage index before paging.
   // The default "all" tab pages at the database instead — the common, cheap path.
+  // The usage index itself is request-cached, so the page's library query and its
+  // stats bar build it once between them rather than once each.
   if (q.use === 'all') {
     const [rows, total, usage] = await Promise.all([
       prisma.media.findMany({ where, orderBy, skip, take: q.perPage, select: SELECT }),
@@ -110,6 +112,9 @@ export async function queryMediaLibrary(
     return { items, total, hasMore: skip + rows.length < total }
   }
 
+  // No `take` here on purpose: the in-use/unused filter runs in JavaScript after
+  // the rows come back, so a database LIMIT would chop off rows that survive the
+  // filter and give a short (or empty) page. Bounding it would change results.
   const [rows, usage] = await Promise.all([
     prisma.media.findMany({ where, orderBy, select: SELECT }),
     loadMediaUsageIndex(),

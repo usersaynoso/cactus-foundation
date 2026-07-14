@@ -45,8 +45,9 @@ model User {
   mediaItems      Media[]
   consentRecords  ConsentRecord[]
 
-  @@index([email])
-  @@index([username])
+  // email and username are already @unique, which builds a unique index that serves
+  // every lookup. A second plain index on the same column bought nothing and cost a
+  // write on every user update.
 }
 
 model Passkey {
@@ -277,7 +278,7 @@ model InfoPage {
 
   menuItems  MenuItem[]
 
-  @@index([slug])
+  // slug is already @unique - see the note on User. Only status needs a plain index.
   @@index([status])
 }
 
@@ -441,6 +442,12 @@ model Layout {
   status            PageStatus @default(draft)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+
+  // resolveThemeLayout() filters on (type, status) and orders by (priority, updatedAt),
+  // and it runs three times on every public page render - header, footer, body. Without
+  // this the planner had nothing to work with and seq-scanned the table each time.
+  @@index([type, status, priority, updatedAt])
+  @@index([isStarter])
 }
 
 // A reusable Puck block snapshot, saved from any page or layout editor and
@@ -481,6 +488,10 @@ model Module {
   updateChannel   String       @default("public")
   // Parsed cactus.module.json stored at install time for runtime access (nav entries, permissions)
   manifest        Json?
+
+  // Every request that resolves module route tiers, and every admin page load, filters
+  // modules by status.
+  @@index([status])
 }
 
 enum ModuleStatus {

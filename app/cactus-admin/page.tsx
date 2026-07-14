@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermission } from '@/lib/permissions/check'
+import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
@@ -23,35 +23,48 @@ type FeatureItem = {
 export default async function AdminDashboard() {
   const headersList = await headers()
   const adminPath = headersList.get('x-cactus-admin-path') ?? ''
-  const user = await getSessionFromCookie()
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { siteName: true, status: true, timezone: true, mediaProvider: true },
-  })
 
   // Modules can contribute their own dashboard summary widget here (e.g.
   // Boards' thread/post/queue counts) via the generic "core.admin-dashboard-widgets"
   // extension point, permission-filtered live from Module.manifest - the
   // dashboard knows the point name only, never any module name.
-  const widgetModules = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
-    select: { manifest: true },
-  })
-  const widgetIds: string[] = []
+  const [user, config, widgetModules] = await Promise.all([
+    getSessionFromCookie(),
+    prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { siteName: true, status: true, timezone: true, mediaProvider: true },
+    }),
+    prisma.module.findMany({
+      where: { status: { in: ['active', 'update_available'] } },
+      select: { manifest: true },
+    }),
+  ])
+
+  const widgetEntries: ExtensionPointEntry[] = []
   for (const mod of widgetModules) {
     const manifest = mod.manifest as { extensionPoints?: ExtensionPointEntry[] } | null
     if (!manifest?.extensionPoints) continue
     for (const entry of manifest.extensionPoints) {
-      if (entry.point !== 'core.admin-dashboard-widgets') continue
-      if (!user) continue
-      if (!entry.permission || (await hasPermission(user, entry.permission))) {
-        widgetIds.push(entry.id)
-      }
+      if (entry.point === 'core.admin-dashboard-widgets') widgetEntries.push(entry)
     }
   }
+
+  // Every permission this page needs - the members stat bar plus one per widget -
+  // resolved in a single batch query rather than a round-trip apiece.
+  const permissionKeys = [
+    ...new Set([
+      'members.list',
+      ...widgetEntries.map((e) => e.permission).filter((p): p is string => !!p),
+    ]),
+  ]
+  const permissions = user ? await hasPermissions(user, permissionKeys) : {}
+
+  const widgetIds = user
+    ? widgetEntries.filter((e) => !e.permission || permissions[e.permission]).map((e) => e.id)
+    : []
   const widgetComponents = moduleExtensionPointComponents['core.admin-dashboard-widgets'] ?? {}
 
-  const canViewMembers = user ? await hasPermission(user, 'members.list') : false
+  const canViewMembers = permissions['members.list'] === true
 
   const [pageCount, userCount, mediaCount, memberCounts] = await Promise.all([
     prisma.infoPage.count(),

@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
 import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
 
@@ -9,7 +10,12 @@ export type PublicMenuItem = {
   children?: PublicMenuItem[]
 }
 
-export async function resolveMenu(menuId: string): Promise<PublicMenuItem[]> {
+// Both resolvers are wrapped in React cache(): a single page render asks for the
+// same menu once per MenuBlock and again for the SiteHeader block, across the
+// header and footer template passes, so without this the identical menu is read
+// from the database two to four times per request. The resolved tree is only ever
+// read by the blocks it is handed to, never mutated, so sharing one instance is safe.
+export const resolveMenu = cache(async (menuId: string): Promise<PublicMenuItem[]> => {
   if (!menuId) return []
 
   const items = await prisma.menuItem.findMany({
@@ -65,9 +71,9 @@ export async function resolveMenu(menuId: string): Promise<PublicMenuItem[]> {
   }
 
   return buildTree(null)
-}
+})
 
-export async function resolveMainMenu(): Promise<PublicMenuItem[]> {
+export const resolveMainMenu = cache(async (): Promise<PublicMenuItem[]> => {
   try {
     const config = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
@@ -80,4 +86,4 @@ export async function resolveMainMenu(): Promise<PublicMenuItem[]> {
   } catch {
     return []
   }
-}
+})

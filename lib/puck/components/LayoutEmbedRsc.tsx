@@ -16,7 +16,11 @@ export async function LayoutEmbedRsc(props: LayoutEmbedProps) {
   const ref = props.layoutRef
   if (!ref?.id) return null
 
-  const layout = await prisma.layout.findUnique({ where: { id: ref.id } }).catch(() => null)
+  // Only the two columns this render reads. `history` in particular is a capped
+  // array of past published Puck payloads and must never be dragged into a page render.
+  const layout = await prisma.layout
+    .findUnique({ where: { id: ref.id }, select: { type: true, builderData: true } })
+    .catch(() => null)
   if (!layout?.builderData) return null
 
   const type = layout.type

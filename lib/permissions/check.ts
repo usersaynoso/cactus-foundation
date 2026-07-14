@@ -60,11 +60,15 @@ export async function hasPermission(
 }
 
 // Batch check — returns a map of permissionKey → boolean.
-// More efficient than calling hasPermission N times.
+// More efficient than calling hasPermission N times: one query for the lot,
+// rather than one database round-trip per key.
 export async function hasPermissions(
   user: SessionUser,
   keys: string[]
 ): Promise<Record<string, boolean>> {
+  // Nothing to check - don't spend a round-trip proving it.
+  if (keys.length === 0) return {}
+
   if (isAdmin(user)) {
     return Object.fromEntries(keys.map((k) => [k, true]))
   }

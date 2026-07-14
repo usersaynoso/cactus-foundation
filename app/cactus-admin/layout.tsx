@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermission } from '@/lib/permissions/check'
+import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
@@ -42,6 +42,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     resolveBranding(),
   ])
 
+  // Every permission guarding a module nav entry is resolved in a single batch
+  // query. Checking them one at a time inside the loop below meant one database
+  // round-trip per entry, on every admin page load.
+  const manifests = activeModules.map(
+    (mod) => mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string; navGroupOrder?: number } | null
+  )
+  const navPermissionKeys = [
+    ...new Set(
+      manifests.flatMap((m) => (m?.navEntries ?? []).map((e) => e.permission).filter((p): p is string => !!p))
+    ),
+  ]
+  const navPermissions = await hasPermissions(user, navPermissionKeys)
+
   // Most modules share one flat "Modules" bucket in the sidebar; a module can opt
   // into its own labelled section (e.g. "Gazette") by setting navGroupLabel. Sections
   // sort by navGroupOrder (lowest first, unset sorts last) so a module can request a
@@ -49,12 +62,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const ungroupedLinks: NavGroup['links'] = []
   const labelledGroups = new Map<string, NavGroup['links']>()
   const labelledGroupOrder = new Map<string, number>()
-  for (const mod of activeModules) {
-    const manifest = mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string; navGroupOrder?: number } | null
+  for (const manifest of manifests) {
     if (!manifest?.navEntries) continue
     const links: NavGroup['links'] = []
     for (const entry of manifest.navEntries) {
-      if (!entry.permission || await hasPermission(user, entry.permission)) {
+      if (!entry.permission || navPermissions[entry.permission]) {
         links.push({ label: entry.label, path: entry.path, icon: entry.icon })
       }
     }

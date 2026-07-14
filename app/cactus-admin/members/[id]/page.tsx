@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermission } from '@/lib/permissions/check'
+import { hasPermission, hasPermissions } from '@/lib/permissions/check'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import MemberDetailClient from './MemberDetailClient'
 import type { Metadata } from 'next'
@@ -19,33 +19,47 @@ export default async function MemberDetailPage({ params }: Props) {
   }
 
   const { id } = await params
-  const member = await prisma.member.findUnique({ where: { id } })
+  const [member, extensionModules] = await Promise.all([
+    prisma.member.findUnique({ where: { id } }),
+    prisma.module.findMany({
+      where: { status: { in: ['active', 'update_available'] } },
+      select: { manifest: true },
+    }),
+  ])
   if (!member) notFound()
 
-  const [canEdit, canSuspend, canApprove, canTrust, canNotes, canDelete] = await Promise.all([
-    hasPermission(user, 'members.edit'),
-    hasPermission(user, 'members.suspend'),
-    hasPermission(user, 'members.approve'),
-    hasPermission(user, 'members.trust'),
-    hasPermission(user, 'members.notes'),
-    hasPermission(user, 'members.delete'),
-  ])
-
-  const extensionModules = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
-    select: { manifest: true },
-  })
-  const sectionIds: string[] = []
+  const sectionEntries: ExtensionPointEntry[] = []
   for (const mod of extensionModules) {
     const manifest = mod.manifest as { extensionPoints?: ExtensionPointEntry[] } | null
     if (!manifest?.extensionPoints) continue
     for (const entry of manifest.extensionPoints) {
-      if (entry.point !== 'members.admin-member-detail') continue
-      if (!entry.permission || (await hasPermission(user, entry.permission))) {
-        sectionIds.push(entry.id)
-      }
+      if (entry.point === 'members.admin-member-detail') sectionEntries.push(entry)
     }
   }
+
+  // Every remaining permission - the six action gates plus one per module-contributed
+  // section - resolved in a single query rather than a round-trip apiece.
+  const granted = await hasPermissions(user, [
+    ...new Set([
+      'members.edit',
+      'members.suspend',
+      'members.approve',
+      'members.trust',
+      'members.notes',
+      'members.delete',
+      ...sectionEntries.map((e) => e.permission).filter((p): p is string => !!p),
+    ]),
+  ])
+  const canEdit = granted['members.edit'] === true
+  const canSuspend = granted['members.suspend'] === true
+  const canApprove = granted['members.approve'] === true
+  const canTrust = granted['members.trust'] === true
+  const canNotes = granted['members.notes'] === true
+  const canDelete = granted['members.delete'] === true
+
+  const sectionIds = sectionEntries
+    .filter((entry) => !entry.permission || granted[entry.permission])
+    .map((entry) => entry.id)
   const sectionComponents = moduleExtensionPointComponents['members.admin-member-detail'] ?? {}
 
   return (

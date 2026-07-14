@@ -17,7 +17,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
-import { getAdminPathCached, getSiteStatusCached } from '@/lib/config/site'
+import {
+  getAdminPathCached,
+  getSiteStatusCached,
+  isFirstRunComplete,
+  refreshFirstRunComplete,
+} from '@/lib/config/site'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
@@ -170,17 +175,21 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // ── 1. First-run gate ──────────────────────────────────────────────────────
   // Also treat the site as not-set-up when setupCompleted is true but all
   // user accounts were deleted — lets /api/setup/reset trigger a re-run.
+  //
+  // Once complete, the verdict is latched in memory (lib/config/site.ts) so this
+  // costs nothing on the hot path. A reset is the one thing that re-opens the
+  // gate, so setup paths deliberately re-read instead of trusting the latch -
+  // otherwise a warm instance would 404 the wizard an admin was just sent to.
+  const isSetupPath =
+    pathname === '/setup' ||
+    pathname.startsWith('/setup/') ||
+    pathname.startsWith('/api/setup')
+
   let setupCompleted = false
   try {
-    const { prisma } = await import('@/lib/db/prisma')
-    const [cfg, userCount] = await Promise.all([
-      prisma.siteConfig.findUnique({
-        where: { id: 'singleton' },
-        select: { setupCompleted: true },
-      }),
-      prisma.user.count(),
-    ])
-    setupCompleted = (cfg?.setupCompleted ?? false) && userCount > 0
+    setupCompleted = isSetupPath
+      ? await refreshFirstRunComplete()
+      : await isFirstRunComplete()
   } catch {
     setupCompleted = false
   }

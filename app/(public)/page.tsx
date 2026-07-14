@@ -7,27 +7,24 @@ import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
 export const dynamic = 'force-dynamic'
 
 export default async function RootPage() {
-  let setupCompleted = false
-  try {
-    const cfg = await prisma.siteConfig.findUnique({
+  // One read of the singleton row covers both the setup gate and the welcome
+  // screen below. A failed read means "not set up", same as before, and
+  // redirect() throws, so it must stay outside the catch.
+  const config = await prisma.siteConfig
+    .findUnique({
       where: { id: 'singleton' },
-      select: { setupCompleted: true },
+      select: {
+        setupCompleted: true,
+        siteName: true, tagline: true, description: true, homepageId: true,
+      },
     })
-    setupCompleted = cfg?.setupCompleted ?? false
-  } catch {
-    setupCompleted = false
-  }
+    .catch(() => null)
 
-  if (!setupCompleted) {
+  if (!config?.setupCompleted) {
     redirect('/setup')
   }
 
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { siteName: true, tagline: true, description: true, homepageId: true },
-  })
-
-  if (config?.homepageId) {
+  if (config.homepageId) {
     const page = await prisma.infoPage.findUnique({
       where: { id: config.homepageId },
       select: {

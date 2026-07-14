@@ -7,6 +7,7 @@ import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import '@/lib/puck/tabs/gridColumnOutline.css'
 import puckConfig, { wrapResponsiveRender } from '@/lib/puck/config'
+import { registerEditorFields } from '@/lib/puck/fields/editor'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { withImagePickerFields } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
@@ -20,6 +21,10 @@ import PageSettingsTab from '@/lib/puck/tabs/PageSettingsTab'
 import SeoTab from '@/lib/puck/tabs/SeoTab'
 import PageHistoryTab from '@/lib/puck/tabs/PageHistoryTab'
 import SavedBlocksTab from '@/lib/puck/tabs/SavedBlocksTab'
+
+// Hands the real sidebar field widgets to the registry that config.tsx renders through.
+// Must run before Puck renders a field, hence module scope rather than an effect.
+registerEditorFields()
 
 type Props = {
   pageId: string

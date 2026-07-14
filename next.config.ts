@@ -54,6 +54,10 @@ const config: NextConfig = {
   },
   experimental: {
     // typedRoutes: true, // enable once stable in Next.js 16
+    // Barrel-file packages: import only the modules actually used rather than the
+    // whole index. date-fns in particular is enormous on disk and only a handful of
+    // its functions are ever called.
+    optimizePackageImports: ['date-fns', 'date-fns-tz'],
   },
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate

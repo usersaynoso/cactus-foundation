@@ -406,8 +406,6 @@ CREATE TABLE "WebAuthnChallenge" (
 
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
-CREATE INDEX "User_email_idx" ON "User"("email");
-CREATE INDEX "User_username_idx" ON "User"("username");
 
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 CREATE INDEX "Passkey_userId_idx" ON "Passkey"("userId");
@@ -432,7 +430,6 @@ CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 CREATE UNIQUE INDEX "SiteConfig_adminPath_key" ON "SiteConfig"("adminPath");
 
 CREATE UNIQUE INDEX "InfoPage_slug_key" ON "InfoPage"("slug");
-CREATE INDEX "InfoPage_slug_idx" ON "InfoPage"("slug");
 CREATE INDEX "InfoPage_status_idx" ON "InfoPage"("status");
 
 CREATE UNIQUE INDEX "Media_key_key" ON "Media"("key");
@@ -457,6 +454,10 @@ CREATE INDEX "MenuItem_pageId_idx" ON "MenuItem"("pageId");
 
 CREATE UNIQUE INDEX "Module_name_key" ON "Module"("name");
 CREATE UNIQUE INDEX "Module_tablePrefix_key" ON "Module"("tablePrefix");
+CREATE INDEX "Module_status_idx" ON "Module"("status");
+
+CREATE INDEX "Layout_type_status_priority_updatedAt_idx" ON "Layout"("type", "status", "priority", "updatedAt");
+CREATE INDEX "Layout_isStarter_idx" ON "Layout"("isStarter");
 
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");

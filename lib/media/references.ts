@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
 
 // A Media row can be referenced two different ways across the site:
@@ -21,8 +22,12 @@ export type MediaUsageIndex = {
   haystack: string
 }
 
+// Wrapped in React's `cache` so the index is built at most once per request. The
+// media page alone used to build it twice (library query + stats), and it is the
+// single most expensive read in the admin: every page and layout's builder JSON.
+// The cache is per-request, so a later request always sees fresh content.
 /** Load the usage index once, then classify many Media rows against it. */
-export async function loadMediaUsageIndex(): Promise<MediaUsageIndex> {
+export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
   const [config, ogPages, avatars, exports, pages, layouts] = await Promise.all([
     prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
@@ -70,7 +75,7 @@ export async function loadMediaUsageIndex(): Promise<MediaUsageIndex> {
   const haystack = parts.join('\n').toLowerCase()
 
   return { referencedIds, haystack }
-}
+})
 
 /** Is a single Media row referenced anywhere on the site? */
 export function isMediaInUse(
