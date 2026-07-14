@@ -5,15 +5,16 @@
 // which copies the chosen template's `data` into a brand new, fully editable
 // Layout. Nothing here is ever seeded as a read-only row.
 //
-// The one exception is `publishByDefault`: a fresh install needs a working
-// header, footer, page shell and status screens out of the box, so those
-// templates get a single editable `<id>-live` Layout seeded at setup time.
-// That is the ONLY thing lib/setup/starterLayouts.ts writes.
+// The one exception is `publishByDefault`: a site needs a working header, footer,
+// page shell and status screens out of the box, so those templates get a single
+// editable `<id>-live` Layout seeded - the core ones at setup, a module's own when
+// the module is installed. That is the ONLY thing lib/setup/starterLayouts.ts writes.
 //
 // This file must stay free of server-only imports (prisma, next/headers, …):
 // the admin's new-layout picker imports it directly in the browser.
 
 import { moduleStarterLayouts } from '@/lib/setup/module-starter-layouts'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 
 export type StarterBlock = { type: string; props: Record<string, unknown> }
 
@@ -645,14 +646,35 @@ export function getStarterTemplates(type: string): StarterTemplate[] {
   return build ? build() : []
 }
 
-/** Every starter template across every type, for the seeder to walk. */
+/** Every starter template across every type, core and module, for the cleanup
+ * planner to walk. Not for seeding: see coreStarterTemplates(). */
 export function allStarterTemplates(): Array<{ type: string; template: StarterTemplate }> {
+  return [...coreStarterTemplates(), ...allModuleStarterTemplates()]
+}
+
+/** The core starter templates only. What a fresh site is seeded with: at setup no
+ * module is installed yet, so seeding a module's templates there stamps (say) Shop
+ * pages into a site that has never heard of the Shop. A module's own starters are
+ * seeded when the module is - see seedModuleDefaultLayouts(). */
+export function coreStarterTemplates(): Array<{ type: string; template: StarterTemplate }> {
   const out: Array<{ type: string; template: StarterTemplate }> = []
   for (const [type, templates] of Object.entries(CORE_STARTER_TEMPLATES)) {
     for (const template of templates) out.push({ type, template })
   }
+  return out
+}
+
+function allModuleStarterTemplates(): Array<{ type: string; template: StarterTemplate }> {
+  const out: Array<{ type: string; template: StarterTemplate }> = []
   for (const [type, build] of Object.entries(moduleTemplates)) {
     for (const template of build()) out.push({ type, template })
   }
   return out
+}
+
+/** The starter templates one module declares, across all of its layout types. */
+export function moduleStarterTemplates(moduleName: string): Array<{ type: string; template: StarterTemplate }> {
+  return allModuleStarterTemplates().filter(
+    ({ type }) => moduleLayoutTypeToGroup[type]?.moduleName === moduleName,
+  )
 }

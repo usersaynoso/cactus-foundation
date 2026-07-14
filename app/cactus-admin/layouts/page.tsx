@@ -6,8 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { LayoutPreview } from '@/components/admin/LayoutPreview'
-import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
-import { CORE_TYPE_TABS, MODULE_GROUP_TABS, TYPE_LABELS, type LayoutTypeTab } from '@/lib/layout/layout-type-tabs'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { useModuleLayoutGroups } from '@/components/admin/ModuleLayoutGroupsContext'
+import { CORE_TYPE_TABS, moduleGroupTabs, TYPE_LABELS, type LayoutTypeTab } from '@/lib/layout/layout-type-tabs'
 import { isCompleteRule, type ConditionRule } from '@/lib/layout/displayConditions'
 
 type Layout = {
@@ -22,7 +23,6 @@ type Layout = {
 }
 
 const ALL_TAB: LayoutTypeTab = { key: 'all', label: 'All', type: null }
-const TABS: LayoutTypeTab[] = [ALL_TAB, ...CORE_TYPE_TABS, ...MODULE_GROUP_TABS]
 
 /** The include rules that would actually put this layout on a page. A rule the
  * owner added and never finished (a "specific page" with no page picked) shows
@@ -57,7 +57,17 @@ export default function LayoutBuilderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const typeParam = searchParams.get('type')
-  const initialTop = TABS.some((t) => t.key === typeParam) ? typeParam! : 'all'
+
+  // Only the modules this site has installed. The generated list behind these is
+  // every module the build cloned, which is not the same thing - see
+  // components/admin/ModuleLayoutGroupsContext.
+  const moduleGroups = useModuleLayoutGroups()
+  const tabs = useMemo(
+    () => [ALL_TAB, ...CORE_TYPE_TABS, ...moduleGroupTabs(moduleGroups)],
+    [moduleGroups],
+  )
+
+  const initialTop = tabs.some((t) => t.key === typeParam) ? typeParam! : 'all'
   const [activeTop, setActiveTop] = useState<string>(initialTop)
   const [activeModuleSub, setActiveModuleSub] = useState<string | null>(null)
   const [layouts, setLayouts] = useState<Layout[]>([])
@@ -73,10 +83,10 @@ export default function LayoutBuilderPage() {
   // request is allowed to write to state.
   const requestRef = useRef(0)
 
-  const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
+  const activeGroup = moduleGroups.find((g) => g.moduleName === activeTop) ?? null
   const activeType = activeGroup
     ? (activeModuleSub ?? activeGroup.types[0]?.key ?? null)
-    : (TABS.find(t => t.key === activeTop)?.type ?? null)
+    : (tabs.find(t => t.key === activeTop)?.type ?? null)
 
   // The picker opens on whichever type is in view, so "+ New Layout" from the
   // Footer tab starts you on footers.
@@ -187,7 +197,7 @@ export default function LayoutBuilderPage() {
 
       <TabStrip
         style={{ marginBottom: activeGroup ? '0.75rem' : '1.5rem' }}
-        items={TABS.map((tab) => ({ key: tab.key, label: tab.label, active: activeTop === tab.key, onClick: () => handleTopClick(tab.key) }))}
+        items={tabs.map((tab) => ({ key: tab.key, label: tab.label, active: activeTop === tab.key, onClick: () => handleTopClick(tab.key) }))}
         trailing={!loading && layouts.length > 0
           ? <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', whiteSpace: 'nowrap' }}>
               {visible.length} of {layouts.length}

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { clearAlert } from '@/lib/notifications/alerts'
+import { seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
 
 // Reconciles modules left in 'deploying' once the Vercel build reaches a terminal
 // state. Centralised so every "deploy finished" path (the Pro-plan webhook, the
@@ -28,6 +29,25 @@ export async function markModulesDeploySucceeded(): Promise<void> {
           lastError: null,
         },
       })
+      // This deploy is the first one carrying the module's code, so it is the first
+      // moment its starter templates exist to copy - a module's default layouts can
+      // only be seeded here, never at install time. Guarded by layoutsSeededAt rather
+      // than by the create-only upsert: an *update* comes back through this same path,
+      // and would otherwise re-mint layouts the owner has since deleted.
+      if (!m.layoutsSeededAt) {
+        try {
+          await seedModuleDefaultLayouts(prisma, m.name)
+          await prisma.module.update({
+            where: { id: m.id },
+            data: { layoutsSeededAt: new Date() },
+          })
+        } catch (err) {
+          // Left unstamped, so the next deploy tries again. The module is active either
+          // way - a missing default layout is a blank page, not a broken site.
+          console.error(`[reconcile] Failed to seed default layouts for ${m.name}:`, err)
+        }
+      }
+
       // The update is live - clear the "update available" reminder for this module.
       try {
         await clearAlert(`module-update:${m.id}`)

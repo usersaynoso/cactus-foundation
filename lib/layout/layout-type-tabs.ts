@@ -1,4 +1,4 @@
-import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { moduleLayoutTypeToGroup, type ModuleLayoutTypeGroup } from '@/lib/layout/module-layout-types'
 
 // The layout types, and the tabs that present them. Shared by the Layouts list
 // and the new-layout picker so the two can never disagree about what a type is
@@ -31,12 +31,19 @@ export type LayoutTypeTab = {
   type: string | null
 }
 
-/** Module group tabs are keyed on moduleName, which is unique per manifest. */
-export const MODULE_GROUP_TABS: LayoutTypeTab[] = moduleLayoutTypeGroups.map((g) => ({
-  key: g.moduleName,
-  label: g.groupLabel,
-  type: null,
-}))
+/** Module group tabs are keyed on moduleName, which is unique per manifest.
+ *
+ * Takes the groups rather than reading the generated list, because that list is
+ * every module the *build* cloned - which is every module in modules.json, not the
+ * ones this site installed. Callers pass the installed set
+ * (useModuleLayoutGroups(), fed by getInstalledModuleLayoutGroups()). */
+export function moduleGroupTabs(groups: ModuleLayoutTypeGroup[]): LayoutTypeTab[] {
+  return groups.map((g) => ({
+    key: g.moduleName,
+    label: g.groupLabel,
+    type: null,
+  }))
+}
 
 export const CORE_TYPE_TABS: LayoutTypeTab[] = CORE_LAYOUT_TYPES.map((t) => ({
   key: t.key,
@@ -44,10 +51,14 @@ export const CORE_TYPE_TABS: LayoutTypeTab[] = CORE_LAYOUT_TYPES.map((t) => ({
   type: t.key,
 }))
 
-/** Every layout type this install can render: the five core ones, plus whatever
- * the installed modules declare. A type outside this set has no editor config,
- * no tab to appear under and nothing that resolves it, so a layout carrying one
- * would be invisible everywhere but the database. */
+/** Every layout type the code in this build can render: the five core ones, plus
+ * whatever the modules on disk declare. A type outside this set has no editor
+ * config and nothing that resolves it, so a layout carrying one would be invisible
+ * everywhere but the database.
+ *
+ * Build-time only, and deliberately so - an existing module layout still has to open
+ * in its editor. It is not the test for whether the owner may *create* one: that is
+ * isInstalledLayoutType(), which also asks whether the site has the module. */
 export function isKnownLayoutType(type: unknown): type is string {
   if (typeof type !== 'string') return false
   return type in TYPE_LABELS || type in moduleLayoutTypeToGroup

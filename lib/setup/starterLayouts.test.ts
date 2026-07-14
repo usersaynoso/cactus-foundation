@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { planStarterCleanup, stableStringify, type LayoutRow } from './starterLayouts'
-import { allStarterTemplates, CORE_STARTER_TEMPLATES, type StarterTemplate } from '@/lib/layout/starter-templates'
+import { planStarterCleanup, planOrphanLayoutTypes, stableStringify, type LayoutRow } from './starterLayouts'
+import {
+  allStarterTemplates,
+  coreStarterTemplates,
+  moduleStarterTemplates,
+  CORE_STARTER_TEMPLATES,
+  type StarterTemplate,
+} from '@/lib/layout/starter-templates'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 
 // planStarterCleanup decides which rows get deleted from a live site's database.
 // Getting it wrong deletes a layout somebody built, so the interesting cases are
@@ -178,5 +185,64 @@ describe('starter template catalogue', () => {
     for (const t of CORE_STARTER_TEMPLATES.infoPage ?? []) {
       expect(hasSlot(t.data), `${t.id} has no ContentSlot`).toBe(true)
     }
+  })
+})
+
+// The set a fresh site is seeded from. It runs at setup, when the site has no
+// modules at all, so a module template reaching it means a site with no Shop gets
+// Shop layouts stamped into its database - which is exactly what used to happen.
+describe('seeding is core-only', () => {
+  it('offers the seeder no module templates', () => {
+    for (const { type } of coreStarterTemplates()) {
+      expect(moduleLayoutTypeToGroup[type], `${type} is a module layout type`).toBeUndefined()
+      expect(CORE_STARTER_TEMPLATES[type], `${type} is not a core layout type`).toBeDefined()
+    }
+  })
+
+  it('still knows about the module templates, for the cleanup planner', () => {
+    expect(allStarterTemplates().length).toBeGreaterThanOrEqual(coreStarterTemplates().length)
+  })
+
+  it('hands a module only its own templates', () => {
+    const modules = new Set(Object.values(moduleLayoutTypeToGroup).map((g) => g.moduleName))
+    for (const moduleName of modules) {
+      for (const { type } of moduleStarterTemplates(moduleName)) {
+        expect(moduleLayoutTypeToGroup[type]?.moduleName).toBe(moduleName)
+      }
+    }
+  })
+})
+
+// Deciding which layouts get deleted from a live site, so the interesting cases are
+// again the ones where it must say NO.
+describe('planOrphanLayoutTypes', () => {
+  const types = {
+    shopIndex: { moduleName: 'shop' },
+    shopCart: { moduleName: 'shop' },
+    gazetteEntry: { moduleName: 'gazette' },
+  }
+
+  it('orphans the types of a module the site does not have', () => {
+    expect(planOrphanLayoutTypes(types, new Set(['gazette']))).toEqual(['shopIndex', 'shopCart'])
+  })
+
+  it('keeps the types of a module the site has', () => {
+    expect(planOrphanLayoutTypes(types, new Set(['shop', 'gazette']))).toEqual([])
+  })
+
+  it('keeps a module that is present only through its migration history', () => {
+    // A code_only uninstall drops the Module row but keeps ModuleMigration, so the
+    // tables (and the owner's layouts) survive for a reinstall to pick back up. The
+    // caller unions both, so "present" covers it - binning those layouts would make a
+    // liar of the mode.
+    expect(planOrphanLayoutTypes(types, new Set(['shop', 'gazette']))).toEqual([])
+  })
+
+  it('orphans everything when the site has no modules at all', () => {
+    expect(planOrphanLayoutTypes(types, new Set())).toEqual(['shopIndex', 'shopCart', 'gazetteEntry'])
+  })
+
+  it('has nothing to say about a build with no module layout types', () => {
+    expect(planOrphanLayoutTypes({}, new Set())).toEqual([])
   })
 })

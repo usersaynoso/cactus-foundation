@@ -1,24 +1,44 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { allStarterTemplates, ENTIRE_SITE_CONDITIONS, type StarterTemplate } from '@/lib/layout/starter-templates'
+import {
+  allStarterTemplates,
+  coreStarterTemplates,
+  moduleStarterTemplates,
+  ENTIRE_SITE_CONDITIONS,
+  type StarterTemplate,
+} from '@/lib/layout/starter-templates'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import pkg from '@/package.json'
 
 // Starter layouts are in-code templates (lib/layout/starter-templates.ts), not
 // database rows. The site owner picks one when creating a layout and gets a
 // plain, editable copy. Nothing in this file ever writes a read-only row.
 //
-// Two jobs live here:
+// Four jobs live here:
 //
-//   seedDefaultLayouts()  - install time only. A fresh site needs a working
-//                           header, footer, page shell, 404 and status screens
-//                           on day one, so each `publishByDefault` template is
-//                           seeded once as an ordinary editable Layout.
+//   seedDefaultLayouts()   - setup time only. A fresh site needs a working
+//                            header, footer, page shell, 404 and status screens
+//                            on day one, so each core `publishByDefault` template
+//                            is seeded once as an ordinary editable Layout.
+//                            CORE ONLY: at setup no module is installed, and this
+//                            used to walk the module templates too - which is how
+//                            sites with no Shop ended up with Shop layouts.
 //
-//   ensureLayoutsCurrent() - update time only. Clears out the rows the old
-//                           read-only-starter scheme left behind. Never creates
-//                           anything: an existing site already has its layouts,
-//                           and seeding a second site-wide header into it would
-//                           be a good way to change its design without asking.
+//   seedModuleDefaultLayouts() - install time for one module, called once its
+//                            deploy lands (lib/deploy/reconcile.ts). A module's
+//                            code only reaches the build after that deploy, so
+//                            this is the first moment its templates exist at all.
+//
+//   pruneUninstalledModuleLayouts() - removes layouts belonging to a module this
+//                            site does not have. Cleans up after the old seeder,
+//                            and after an uninstall.
+//
+//   ensureLayoutsCurrent() - update time only. Runs the prune and clears out the
+//                            rows the old read-only-starter scheme left behind.
+//                            Never creates anything: an existing site already has
+//                            its layouts, and seeding a second site-wide header
+//                            into it would be a good way to change its design
+//                            without asking.
 
 // ---------------------------------------------------------------------------
 // Cleanup planner (pure - see starterLayouts.test.ts)
@@ -118,25 +138,24 @@ export function planStarterCleanup(
 }
 
 // ---------------------------------------------------------------------------
-// seedDefaultLayouts - fresh install only
+// Seeding
 // ---------------------------------------------------------------------------
 
 /**
- * Seeds the layouts a brand new site goes live with: the default header and
- * footer, the full-width page shell, the 404, and the coming-soon/maintenance
- * screens, plus any module template flagged `publishByDefault` (Shop's pages
- * are Puck-only, with no hardcoded fallback to fall back on).
+ * Stamps each `publishByDefault` template in the given set as an ordinary editable
+ * Layout. Not a template - the site owner can rewrite or delete it like any other.
+ * Ids stay `<template-id>-live` because that is where existing installs' live
+ * layouts already live; renaming them would seed those sites a second header on
+ * their next deploy.
  *
- * Each one is an ordinary editable Layout, not a template - the site owner can
- * rewrite or delete it like any other. Ids stay `<template-id>-live` because
- * that is where existing installs' live layouts already live; renaming them
- * would seed those sites a second header on their next deploy.
- *
- * Create-only: an existing row is never overwritten, so re-running this (a
- * database reset, a re-run setup) never stamps on the owner's work.
+ * Create-only: an existing row is never overwritten, so re-running this (a database
+ * reset, a re-run setup) never stamps on the owner's work.
  */
-export async function seedDefaultLayouts(db: typeof prisma) {
-  for (const { type, template } of allStarterTemplates()) {
+async function seedTemplates(
+  db: typeof prisma,
+  templates: Array<{ type: string; template: StarterTemplate }>,
+) {
+  for (const { type, template } of templates) {
     if (!template.publishByDefault) continue
     const id = `${template.id}-live`
     await db.layout.upsert({
@@ -153,6 +172,36 @@ export async function seedDefaultLayouts(db: typeof prisma) {
       update: {},
     })
   }
+}
+
+/**
+ * Seeds the layouts a brand new site goes live with: the default header and
+ * footer, the full-width page shell, the 404, and the coming-soon/maintenance
+ * screens.
+ *
+ * Core templates only. This used to walk every module's templates as well, which
+ * made no sense at the one moment it runs: setup completes with zero modules
+ * installed, so it was writing Shop cart/checkout/product layouts into sites that
+ * had no Shop and never would. A module's own defaults are seeded when the module
+ * arrives - see seedModuleDefaultLayouts().
+ */
+export async function seedDefaultLayouts(db: typeof prisma) {
+  await seedTemplates(db, coreStarterTemplates())
+}
+
+/**
+ * Seeds one module's `publishByDefault` layouts, once, when its install deploy
+ * lands (lib/deploy/reconcile.ts). A module's pages can be Puck-only with no
+ * hardcoded fallback - the Shop's are - so it needs these rows to render anything
+ * at all, and it cannot have them any earlier: its code only reaches the build
+ * with that deploy, so until then its templates do not exist to copy.
+ *
+ * Guarded by Module.layoutsSeededAt, not by the upsert alone. A module *update*
+ * redeploys down this same path, and a create-only upsert would happily re-mint a
+ * layout the owner had deleted in the meantime.
+ */
+export async function seedModuleDefaultLayouts(db: typeof prisma, moduleName: string) {
+  await seedTemplates(db, moduleStarterTemplates(moduleName))
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +236,7 @@ export async function ensureLayoutsCurrent() {
     if (!cfg?.setupCompleted) return
     if (cfg.starterTemplatesVersion !== pkg.version) {
       await pruneLegacyStarterCopies(prisma)
+      await pruneUninstalledModuleLayouts(prisma)
       await prisma.siteConfig.update({
         where: { id: 'singleton' },
         data: { starterTemplatesVersion: pkg.version },
@@ -209,4 +259,54 @@ export async function pruneLegacyStarterCopies(db: typeof prisma) {
   if (stale.length) {
     await db.layout.deleteMany({ where: { id: { in: stale } } })
   }
+}
+
+// ---------------------------------------------------------------------------
+// pruneUninstalledModuleLayouts
+// ---------------------------------------------------------------------------
+
+/**
+ * Deletes the layouts belonging to a module this site does not have.
+ *
+ * These exist for two reasons. Mostly the old seeder: it stamped every module's
+ * `publishByDefault` template at setup, when nothing is installed, so a site that
+ * never touched the Shop still got its cart, checkout, product and confirmation
+ * layouts. And after an uninstall, the module's layouts are core Layout rows - the
+ * teardown only drops the module's own tables, so they outlive it.
+ *
+ * "Does not have" is deliberately strict: no Module row AND no ModuleMigration
+ * rows. A code_only uninstall keeps the module's tables and its migration history
+ * precisely so a reinstall picks the data back up, and quietly binning the owner's
+ * layouts would make a liar of it. A code_and_data uninstall clears both, and a
+ * module that was never installed has neither.
+ *
+ * Types that no longer map to any module in the build (the module has been gone
+ * long enough that the build no longer clones it) are left alone: there is nothing
+ * to check them against, and a module whose checkout merely failed this once must
+ * not cost the owner their layouts.
+ */
+export function planOrphanLayoutTypes(
+  typeToModule: Record<string, { moduleName: string }>,
+  presentModules: Set<string>,
+): string[] {
+  return Object.entries(typeToModule)
+    .filter(([, group]) => !presentModules.has(group.moduleName))
+    .map(([type]) => type)
+}
+
+export async function pruneUninstalledModuleLayouts(db: typeof prisma): Promise<number> {
+  const [modules, migrations] = await Promise.all([
+    db.module.findMany({ select: { name: true } }),
+    db.moduleMigration.findMany({ select: { moduleName: true }, distinct: ['moduleName'] }),
+  ])
+  const present = new Set([
+    ...modules.map((m) => m.name),
+    ...migrations.map((m) => m.moduleName),
+  ])
+
+  const orphanTypes = planOrphanLayoutTypes(moduleLayoutTypeToGroup, present)
+  if (orphanTypes.length === 0) return 0
+
+  const { count } = await db.layout.deleteMany({ where: { type: { in: orphanTypes } } })
+  return count
 }

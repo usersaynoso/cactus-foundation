@@ -12,6 +12,7 @@ import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName } from '@/lib/modules/manifest'
+import { pruneUninstalledModuleLayouts } from '@/lib/setup/starterLayouts'
 import pkg from '@/package.json'
 
 export const maxDuration = 60
@@ -271,6 +272,17 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     ])
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+
+    // The module's layouts are core Layout rows, so the teardown above never touched
+    // them - it only drops the module's own tables. Left behind, they clutter the
+    // Layouts list with pages nothing can render any more. The prune reads the mode
+    // for itself: code_only keeps the ModuleMigration history (so a reinstall picks
+    // the data back up) and its layouts are kept with it; code_and_data cleared both.
+    try {
+      await pruneUninstalledModuleLayouts(prisma)
+    } catch (err) {
+      console.error('[modules] Failed to prune layouts for uninstalled module:', err)
+    }
 
     // Module is gone - clear any lingering "update available" reminder for it.
     try {

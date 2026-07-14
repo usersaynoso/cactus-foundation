@@ -485,6 +485,11 @@ model Module {
   updateChannel   String       @default("public")
   // Parsed cactus.module.json stored at install time for runtime access (nav entries, permissions)
   manifest        Json?
+  // Set the first time this module's default layouts are seeded (its code only
+  // reaches the build after the install deploy, so seeding happens then, not at
+  // install time). Never cleared: a module *update* redeploys through the same
+  // path, and re-seeding would resurrect layouts the owner has since deleted.
+  layoutsSeededAt DateTime?
 
   // Every request that resolves module route tiers, and every admin page load, filters
   // modules by status.

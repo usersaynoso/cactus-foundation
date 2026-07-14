@@ -1,26 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { LayoutPreview } from '@/components/admin/LayoutPreview'
-import { moduleLayoutTypeGroups } from '@/lib/layout/module-layout-types'
-import { CORE_TYPE_TABS, MODULE_GROUP_TABS, CORE_LAYOUT_TYPES } from '@/lib/layout/layout-type-tabs'
+import { useModuleLayoutGroups } from '@/components/admin/ModuleLayoutGroupsContext'
+import { CORE_TYPE_TABS, moduleGroupTabs, CORE_LAYOUT_TYPES } from '@/lib/layout/layout-type-tabs'
 import { getStarterTemplates, type StarterTemplate } from '@/lib/layout/starter-templates'
-
-const ALL_TABS = [...CORE_TYPE_TABS, ...MODULE_GROUP_TABS]
 
 export default function NewLayoutPage() {
   const router = useRouter()
   const adminPath = useAdminPath()
   const searchParams = useSearchParams()
 
+  // Only the modules this site has installed - every build clones every module in
+  // modules.json, so the templates for a Shop are sitting right there whether or not
+  // the owner has ever installed one. Offering them was how a Shop-less site ended up
+  // with a Shop tab and a screenful of Shop starters.
+  const moduleGroups = useModuleLayoutGroups()
+  const allTabs = useMemo(
+    () => [...CORE_TYPE_TABS, ...moduleGroupTabs(moduleGroups)],
+    [moduleGroups],
+  )
+
   // Arriving from a tab on the Layouts list lands on the matching tab here. A
   // module's layout type (e.g. gazetteEntry) selects its group tab *and* the
   // sub-tab within it.
   const typeParam = searchParams.get('type')
-  const paramGroup = moduleLayoutTypeGroups.find((g) => g.types.some((t) => t.key === typeParam)) ?? null
+  const paramGroup = moduleGroups.find((g) => g.types.some((t) => t.key === typeParam)) ?? null
   const initialTop = paramGroup
     ? paramGroup.moduleName
     : CORE_TYPE_TABS.some((t) => t.key === typeParam) ? typeParam! : 'header'
@@ -30,7 +38,7 @@ export default function NewLayoutPage() {
   const [creatingId, setCreatingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  const activeGroup = moduleLayoutTypeGroups.find((g) => g.moduleName === activeTop) ?? null
+  const activeGroup = moduleGroups.find((g) => g.moduleName === activeTop) ?? null
   const activeType = activeGroup
     ? (activeModuleSub ?? activeGroup.types[0]?.key ?? null)
     : activeTop
@@ -93,7 +101,7 @@ export default function NewLayoutPage() {
 
       <TabStrip
         style={{ marginBottom: activeGroup ? '0.75rem' : '1.25rem' }}
-        items={ALL_TABS.map((tab) => ({
+        items={allTabs.map((tab) => ({
           key: tab.key,
           label: tab.label,
           active: activeTop === tab.key,

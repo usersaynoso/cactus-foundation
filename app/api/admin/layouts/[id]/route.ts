@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { isKnownLayoutType } from '@/lib/layout/layout-type-tabs'
+import { isInstalledLayoutType } from '@/lib/layout/installed-layout-types'
 import { isCompleteRule, type ConditionRule, type DisplayConditions } from '@/lib/layout/displayConditions'
 
 const HISTORY_CAP = 10
@@ -80,7 +80,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       data.status = body.status
     }
     if ('type' in body) {
-      if (!isKnownLayoutType(body.type)) return NextResponse.json({ error: 'Unknown layout type' }, { status: 400 })
+      // Installed, not merely known - see the POST in ../route.ts. Retyping a layout
+      // into a module this site does not have would smuggle it back in by the side door.
+      if (!await isInstalledLayoutType(body.type)) return NextResponse.json({ error: 'Unknown layout type' }, { status: 400 })
       data.type = body.type
     }
     if ('priority' in body) {

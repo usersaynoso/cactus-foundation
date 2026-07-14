@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
-import { isKnownLayoutType } from '@/lib/layout/layout-type-tabs'
+import { isInstalledLayoutType } from '@/lib/layout/installed-layout-types'
 import { defaultConditionsForLayout } from '@/lib/layout/displayConditions'
 
 // The list never needs `publishedData` or `history` - the latter is up to ten
@@ -59,8 +59,11 @@ export async function POST(req: Request) {
     const { name, description, type, builderData, displayConditions } = await req.json()
     if (typeof name !== 'string' || !name.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
 
-    const layoutType = type ?? 'infoPage'
-    if (!isKnownLayoutType(layoutType)) {
+    // Installed, not merely known: every build clones every module in modules.json,
+    // so the code for a Shop layout is present on sites that have no Shop. The tabs
+    // no longer offer those types; this is what stops one being posted anyway.
+    const layoutType: string = type ?? 'infoPage'
+    if (!await isInstalledLayoutType(layoutType)) {
       return NextResponse.json({ error: 'Unknown layout type' }, { status: 400 })
     }
 

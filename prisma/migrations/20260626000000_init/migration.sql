@@ -339,6 +339,7 @@ CREATE TABLE "Module" (
     "updateNotes" TEXT,
     "updateChannel" TEXT NOT NULL DEFAULT 'public',
     "manifest" JSONB,
+    "layoutsSeededAt" TIMESTAMP(3),
     CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
 );
 
