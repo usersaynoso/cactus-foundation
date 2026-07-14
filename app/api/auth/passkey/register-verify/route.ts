@@ -3,26 +3,29 @@ import { z } from 'zod'
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server'
 import { verifyRegistration, savePasskey, labelFromUserAgent } from '@/lib/auth/passkey'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
 
 const Body = z.object({
+  // Only honoured during the first-run setup wizard (see lib/auth/setup-window.ts).
+  // After setup the account comes from the session cookie.
   userId: z.string().optional(),
   attestation: z.unknown(),
   challenge: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
-  const parsed = Body.safeParse(await request.json())
+  const parsed = Body.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  let resolvedUserId = parsed.data.userId ?? null
-  if (!resolvedUserId) {
-    const user = await getSessionFromCookie()
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
-    resolvedUserId = user.id
+  const bootstrapOpen = await isSetupBootstrapOpen()
+  const sessionUser = await getSessionFromCookie()
+
+  // Outside the setup window a session is mandatory: this route writes a new
+  // authenticator onto an account, so it must know the account is the caller's.
+  if (!bootstrapOpen && !sessionUser) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
   try {
@@ -42,11 +45,17 @@ export async function POST(request: NextRequest) {
       throw new Error('No registration info')
     }
 
-    // Use the userId from the stored challenge so it can't be spoofed via the request body.
-    // Fall back to resolvedUserId only during setup when challenge.userId may be null.
-    const targetUserId = challengeUserId ?? resolvedUserId
+    // The stored challenge carries the user it was issued for, so it can't be
+    // swapped for another account via the request body. Outside setup, that user
+    // must also be the signed-in one - a challenge minted for someone else is
+    // refused outright rather than quietly retargeted (this mirrors the members
+    // flow's challengeMemberId check).
+    const targetUserId = challengeUserId ?? (bootstrapOpen ? parsed.data.userId ?? null : sessionUser?.id ?? null)
     if (!targetUserId) {
       throw new Error('Could not determine user for passkey registration')
+    }
+    if (!bootstrapOpen && targetUserId !== sessionUser?.id) {
+      return NextResponse.json({ error: 'Challenge does not belong to the signed-in account' }, { status: 403 })
     }
 
     const label = labelFromUserAgent(request.headers.get('user-agent') ?? '')

@@ -29,13 +29,19 @@ export type CollisionMode = 'error' | 'suffix' | 'replace' | 'skip'
 
 /** Sanitise one folder name into a url-safe path segment. */
 export function sanitizeFolderSegment(name: string): string {
-  return name
+  const cleaned = name
     .trim()
     .replace(/[^a-z0-9._-]/gi, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 60)
     .toLowerCase()
+  // Dots survive the filter above (they're wanted inside a name like "logos.v2"),
+  // but a segment that is ONLY dots is a path traversal: a folder called ".."
+  // builds the key "media/R2/../secret.jpg", which URL normalisation collapses to
+  // "media/secret.jpg" - outside the prefix the key was supposed to stay inside.
+  if (/^\.+$/.test(cleaned)) return ''
+  return cleaned
 }
 
 /** A trimmed, display-safe folder name (what the user sees, not the path slug). */

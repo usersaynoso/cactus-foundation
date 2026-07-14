@@ -40,22 +40,33 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   member_username: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
 }
 
+// The client IP a rate limit can actually be keyed on.
+//
+// x-forwarded-for is a list the caller can PREPEND to: send
+// `x-forwarded-for: 9.9.9.9` and the proxy simply appends the real address after
+// it. So the leftmost entry - what this used to read - is whatever the attacker
+// typed, and rotating it per request walked straight through every per-IP limit
+// (login OTP email-bombing, contact-form spam). What the caller cannot forge is
+// the entry the trusted proxy appended itself: the LAST hop. x-real-ip (set by
+// the platform edge) is the fallback when there's no forwarded chain at all.
+export function clientIpFromHeaders(get: (name: string) => string | null): string {
+  const hops = (get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const lastHop = hops[hops.length - 1]
+  if (lastHop) return lastHop
+  return get('x-real-ip')?.trim() || 'unknown'
+}
+
 // Accepts an optional NextRequest for use in API route handlers.
 // Without one, reads headers from the Next.js request context via next/headers.
 export async function getClientIp(request?: NextRequest): Promise<string> {
   if (request) {
-    return (
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      request.headers.get('x-real-ip') ??
-      'unknown'
-    )
+    return clientIpFromHeaders((name) => request.headers.get(name))
   }
   const headersList = await headers()
-  return (
-    headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headersList.get('x-real-ip') ??
-    'unknown'
-  )
+  return clientIpFromHeaders((name) => headersList.get(name))
 }
 
 export async function checkRateLimit(

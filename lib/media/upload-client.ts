@@ -12,7 +12,14 @@
 //     upload support yet) - falls back to the original serverless multipart
 //     upload, which is size-guarded so an oversized file fails with a clear
 //     message rather than a silent platform 413.
-import { MAX_UPLOAD_BYTES, isRasterDirectType, tooLargeReason, uploadErrorMessage } from '@/lib/media/limits'
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_DIRECT_UPLOAD_BYTES,
+  MAX_DIRECT_UPLOAD_MB,
+  isRasterDirectType,
+  tooLargeReason,
+  uploadErrorMessage,
+} from '@/lib/media/limits'
 
 type UploadUrlResponse =
   | { available: true; uploadUrl: string; key: string; token: string }
@@ -83,13 +90,16 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
   )
   if (!put.ok) return false
 
-  // Record the row. This one must succeed - the bytes are already stored.
+  // Record the row. This one must succeed - the bytes are already stored. The
+  // token goes back with it: /record re-checks the same signature the Worker did,
+  // so the row can only ever point at the key this upload was issued for. The
+  // content type isn't sent at all - the server reads it from the signed key.
   const rec = await fetch('/api/admin/media/record', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       key: info.key,
-      contentType: file.type,
+      token: info.token,
       sizeBytes: file.size,
       originalName: file.name,
       folderId,
@@ -116,6 +126,12 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
 // reports a 0..1 transfer fraction so callers can render a live progress bar.
 export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<void> {
   if (isRasterDirectType(file.type)) {
+    // The Worker caps the direct path too - say so plainly here rather than
+    // letting it 413 and then falling through to the serverless path, which
+    // would blame the (much smaller) serverless limit instead.
+    if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
+      throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
+    }
     const done = await directUpload(file, folderId, onProgress)
     if (done) { onProgress?.(1); return }
   }

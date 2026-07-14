@@ -12,6 +12,16 @@ export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 // 4 MB
 
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024
 
+// Ceiling for the direct-to-Worker path. That path skips the serverless body cap,
+// but "no platform limit" is not the same as "no limit": the Worker buffers the
+// whole body in memory to hash it, so an unbounded PUT is a cheap way to exhaust
+// it, and the media library is not meant to be free unmetered storage. Generous
+// for a photograph, nowhere near the Worker's memory ceiling. Mirrored as
+// UPLOAD_MAX_BYTES in workers/media-worker/index.ts - keep the two in step.
+export const MAX_DIRECT_UPLOAD_BYTES = 25 * 1024 * 1024 // 25 MB
+
+export const MAX_DIRECT_UPLOAD_MB = MAX_DIRECT_UPLOAD_BYTES / 1024 / 1024
+
 // Raster image types eligible for the direct-to-Worker upload path (no size
 // limit). SVG is deliberately excluded: it's text that must be sanitised
 // server-side against script injection, and it's always tiny anyway, so it
@@ -33,6 +43,22 @@ export function isAcceptedUploadType(mimeType: string): boolean {
   return ACCEPTED_UPLOAD_TYPES.has(mimeType)
 }
 
+// The content type an object key claims, from its extension. buildKey() derives
+// every extension from an already-validated MIME type, and the key is what the
+// upload token signs - so on the direct-to-Worker path this is the only type
+// claim a client cannot forge, and both the Worker and /record read the type
+// from here rather than from a request header or body field.
+const EXTENSION_TYPES: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+}
+
+export function contentTypeForKey(key: string): string | null {
+  const dot = key.lastIndexOf('.')
+  if (dot === -1) return null
+  return EXTENSION_TYPES[key.slice(dot + 1).toLowerCase()] ?? null
+}
+
 // Client-side pre-flight for a picked/dropped file. Returns a human reason if the
 // file can't be uploaded, or null if it's fine to enqueue. Mirrors the server's
 // own rules so failures surface immediately rather than after a round trip.
@@ -40,18 +66,20 @@ export function preflightUploadError(file: { name: string; type: string; size: n
   if (!isAcceptedUploadType(file.type)) {
     return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG).`
   }
-  // Only the serverless path (SVG and any non-raster-direct type) is size-capped;
-  // rasters upload straight to the Worker with no ceiling.
-  if (!isRasterDirectType(file.type) && file.size > MAX_UPLOAD_BYTES) {
-    return `“${file.name}”: ${tooLargeReason(file.size)}`
+  // Two different ceilings: rasters go straight to the Worker (25 MB), everything
+  // else takes the size-guarded serverless path (4 MB). Both are enforced
+  // server-side too - this just fails fast with a clear reason.
+  const limitMb = isRasterDirectType(file.type) ? MAX_DIRECT_UPLOAD_MB : MAX_UPLOAD_MB
+  if (file.size > limitMb * 1024 * 1024) {
+    return `“${file.name}”: ${tooLargeReason(file.size, limitMb)}`
   }
   return null
 }
 
 // Shared, human-readable reason string so the client guard, the server
 // validator, and the 413 fallback all say the same thing.
-export function tooLargeReason(sizeBytes: number): string {
-  return `File size ${(sizeBytes / 1024 / 1024).toFixed(1)} MB exceeds the ${MAX_UPLOAD_MB} MB limit.`
+export function tooLargeReason(sizeBytes: number, limitMb: number = MAX_UPLOAD_MB): string {
+  return `File size ${(sizeBytes / 1024 / 1024).toFixed(1)} MB exceeds the ${limitMb} MB limit.`
 }
 
 // Turn a failed upload Response into a message safe to show the user. A 413 from

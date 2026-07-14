@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.402",
+  "version": "0.5.403",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -51,7 +51,7 @@
     "marked": "^15.0.0",
     "nanoid": "^5.0.0",
     "next": "^16.0.0",
-    "nodemailer": "^6.9.0",
+    "nodemailer": "^9.0.3",
     "onnxruntime-web": "1.27.0",
     "otpauth": "^9.5.1",
     "pg": "^8.12.0",
@@ -87,6 +87,7 @@
     "node": "24.x"
   },
   "overrides": {
-    "uuid": "^11.0.0"
+    "uuid": "^11.0.0",
+    "postcss": "^8.5.10"
   }
 }

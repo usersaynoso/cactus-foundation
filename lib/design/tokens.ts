@@ -175,9 +175,11 @@ export function resolveBreakpoints(tokens: unknown): { tabletBp: string; mobileB
   const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
   const sp = t.themeStyle?.spacing
   const def = DEFAULT_DESIGN_TOKENS.themeStyle.spacing!
+  // Normalised to a bare "<n>px" here rather than passed through: callers bake
+  // these into literal @media rules, so an arbitrary string would be raw CSS.
   return {
-    tabletBp: sp?.tabletBreakpoint || def.tabletBreakpoint!,
-    mobileBp: sp?.mobileBreakpoint || def.mobileBreakpoint!,
+    tabletBp: cssPx(sp?.tabletBreakpoint || def.tabletBreakpoint!, 1024),
+    mobileBp: cssPx(sp?.mobileBreakpoint || def.mobileBreakpoint!, 640),
   }
 }
 
@@ -290,6 +292,42 @@ export const COLOUR_PRESETS: ColourPreset[] = [
 
 const SPACING_STEPS = [1, 2, 3, 4, 6, 8, 12, 16, 24]
 
+// --- CSS value sanitiser ---
+//
+// Token values are not data that ends up in CSS: they ARE CSS source. Everything
+// below is concatenated into a stylesheet that every public page carries inline
+// via dangerouslySetInnerHTML, so a value is interpolated straight into the
+// browser's parser. A colour of `red</style><script>…</script>` closes the style
+// element and runs script on every page of the site.
+//
+// So each value is reduced to the characters a CSS value legitimately needs.
+// That drops, in particular:
+//   <  >   - can't close the <style> element or open a tag
+//   ;  }   - can't end the declaration or the rule to start a new one
+//   {  @   - can't open a new rule or an at-rule
+//   :      - can't smuggle a second property into one value
+//   \      - can't use a CSS escape (\3c) to spell the above
+// url(…) and expression(…) are dropped wholesale: no token needs either, and
+// both are standard ways to make a stylesheet fetch or execute something.
+//
+// Writes are admin-only today, but a token value also arrives from a restored
+// backup or an imported theme, neither of which is a trusted author.
+const CSS_VALUE_DISALLOWED = /[^a-zA-Z0-9\s#%(),.\-+_/'"]/g
+
+export function cssValue(raw: string | undefined): string {
+  if (!raw) return ''
+  const cleaned = raw.replace(CSS_VALUE_DISALLOWED, '').trim()
+  if (/(?:url|expression|image-set)\s*\(/i.test(cleaned)) return ''
+  return cleaned
+}
+
+// A breakpoint is baked into a literal @media rule, where the same breakout
+// applies - and `640px` is a number and a unit, nothing else. Reduce it to one.
+function cssPx(raw: string | undefined, fallback: number): string {
+  const n = parseInt(raw ?? '', 10)
+  return `${Number.isFinite(n) && n > 0 ? n : fallback}px`
+}
+
 // --- Colour helpers: derive a coherent primary palette from a single hex ---
 
 function parseHex(hex: string): [number, number, number] | null {
@@ -333,7 +371,9 @@ function onColour(hex: string): string {
 // from the primary design colour. Light mode darkens for hover/active; dark
 // mode lightens. Falls back to just --color-primary if the value isn't hex.
 function primaryVars(hex: string, mode: 'light' | 'dark'): string {
-  const parts = [`--color-primary: ${hex};`]
+  // Non-hex values fall through to being emitted verbatim, so they're sanitised;
+  // a parsed hex is rebuilt from its own digits by toHex() and is safe by then.
+  const parts = [`--color-primary: ${cssValue(hex)};`]
   const rgb = parseHex(hex)
   if (!rgb) return parts.join(' ')
   if (mode === 'light') {
@@ -362,7 +402,7 @@ function primaryVars(hex: string, mode: 'light' | 'dark'): string {
 // Non-hex values emit the accent alone; the Callout's var() fallbacks cover
 // the derived pair.
 function statusVars(key: string, hex: string, mode: 'light' | 'dark'): string {
-  const parts = [`--status-${key}: ${hex};`]
+  const parts = [`--status-${key}: ${cssValue(hex)};`]
   if (!parseHex(hex)) return parts.join(' ')
   if (mode === 'light') {
     parts.push(`--status-${key}-bg: ${lighten(hex, 0.92)};`)
@@ -390,7 +430,7 @@ export function buildAdminThemeStyles(tokens: unknown): string {
   const fonts = t.designSystem?.fonts ?? []
   const primaryFont = fonts.find(f => f.id === 'primary') ?? fonts[0]
   // --font-sans lives on :root, so it applies in both light and dark.
-  const fontVar = primaryFont?.family ? `--font-sans: ${primaryFont.family};` : ''
+  const fontVar = primaryFont?.family ? `--font-sans: ${cssValue(primaryFont.family)};` : ''
   if (!primary && !fontVar) return ''
   const light = (primary ? primaryVars(primary.light, 'light') : '') + fontVar
   const blocks = [`:root,[data-theme="light"]{${light}}`]
@@ -409,8 +449,8 @@ export function buildTokenStyles(tokens: unknown): string {
   const ts = t.themeStyle
 
   const colours = ds.colours ?? []
-  const lightColours = colours.map((c, i) => `--color-${i + 1}: ${c.light};`).join(' ')
-  const darkColours = colours.map((c, i) => `--color-${i + 1}: ${c.dark};`).join(' ')
+  const lightColours = colours.map((c, i) => `--color-${i + 1}: ${cssValue(c.light)};`).join(' ')
+  const darkColours = colours.map((c, i) => `--color-${i + 1}: ${cssValue(c.dark)};`).join(' ')
 
   // Map the primary design colour onto the semantic --color-primary family that
   // buttons, links, richtext and Puck components consume. Without this, changing
@@ -423,7 +463,7 @@ export function buildTokenStyles(tokens: unknown): string {
   // Pill/full radius (Badge, Eyebrow) - the one radius step that's owner-
   // configurable, since it's the only one with a real per-site styling need
   // seen so far; the fixed sm/md/lg steps below are shared internal defaults.
-  const pillRadius = ts?.pillRadius || '9999px'
+  const pillRadius = cssValue(ts?.pillRadius) || '9999px'
   const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --radius-pill: ${pillRadius}; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
 
   const vars: string[] = []
@@ -434,8 +474,8 @@ export function buildTokenStyles(tokens: unknown): string {
   // otherwise the var keeps its light value and dark mode inherits it unchanged.
   const darkVars: string[] = []
   function colourVar(name: string, light?: string, dark?: string) {
-    if (light) vars.push(`${name}: ${light};`)
-    if (dark) darkVars.push(`${name}: ${dark};`)
+    if (light) vars.push(`${name}: ${cssValue(light)};`)
+    if (dark) darkVars.push(`${name}: ${cssValue(dark)};`)
   }
 
   // The "primary" global font (or the first defined font) is the site default
@@ -447,11 +487,12 @@ export function buildTokenStyles(tokens: unknown): string {
   const bodyFamily = body.family || primaryFont?.family
   const bodyWeight = body.weight || primaryFont?.weight
   if (bodyFamily) {
-    vars.push(`--font-body: ${bodyFamily};`)
-    vars.push(`--font-heading: ${bodyFamily};`)
+    const family = cssValue(bodyFamily)
+    vars.push(`--font-body: ${family};`)
+    vars.push(`--font-heading: ${family};`)
     // Override the base UI typeface too, so text outside <main> (header, footer)
     // and native form controls (which don't inherit font-family) use the site font.
-    vars.push(`--font-sans: ${bodyFamily};`)
+    vars.push(`--font-sans: ${family};`)
   }
   colourVar('--color-link', ts?.links?.colour, ts?.links?.colourDark)
   colourVar('--color-link-hover', ts?.links?.hoverColour, ts?.links?.hoverColourDark)
@@ -472,14 +513,14 @@ export function buildTokenStyles(tokens: unknown): string {
   // inline styles (Puck blocks) can read them with `var(--prefix-x, fallback)`
   // and reflect the theme without a scoped rule being able to reach them.
   function typoVars(prefix: string, v: Typo) {
-    if (v.family)        vars.push(`--${prefix}-family: ${v.family};`)
-    if (v.weight)        vars.push(`--${prefix}-weight: ${v.weight};`)
-    if (v.size)          vars.push(`--${prefix}-size: ${v.size};`)
-    if (v.lineHeight)    vars.push(`--${prefix}-line-height: ${v.lineHeight};`)
-    if (v.letterSpacing) vars.push(`--${prefix}-letter-spacing: ${v.letterSpacing};`)
-    if (v.transform)     vars.push(`--${prefix}-transform: ${v.transform};`)
-    if (v.style)         vars.push(`--${prefix}-style: ${v.style};`)
-    if (v.decoration)    vars.push(`--${prefix}-decoration: ${v.decoration};`)
+    if (v.family)        vars.push(`--${prefix}-family: ${cssValue(v.family)};`)
+    if (v.weight)        vars.push(`--${prefix}-weight: ${cssValue(v.weight)};`)
+    if (v.size)          vars.push(`--${prefix}-size: ${cssValue(v.size)};`)
+    if (v.lineHeight)    vars.push(`--${prefix}-line-height: ${cssValue(v.lineHeight)};`)
+    if (v.letterSpacing) vars.push(`--${prefix}-letter-spacing: ${cssValue(v.letterSpacing)};`)
+    if (v.transform)     vars.push(`--${prefix}-transform: ${cssValue(v.transform)};`)
+    if (v.style)         vars.push(`--${prefix}-style: ${cssValue(v.style)};`)
+    if (v.decoration)    vars.push(`--${prefix}-decoration: ${cssValue(v.decoration)};`)
   }
 
   // Site-wide headings font: every level (and Display) falls back to it when
@@ -509,9 +550,9 @@ export function buildTokenStyles(tokens: unknown): string {
   colourVar('--btn-text-color', btns?.textColour, btns?.textColourDark)
   colourVar('--btn-bg', btns?.bgColour, btns?.bgColourDark)
   colourVar('--btn-border', btns?.borderColour, btns?.borderColourDark)
-  if (btns?.borderWidth)        vars.push(`--btn-border-width: ${btns.borderWidth};`)
-  if (btns?.borderRadius)       vars.push(`--btn-radius: ${btns.borderRadius};`)
-  if (btns?.padding)            vars.push(`--btn-padding: ${btns.padding};`)
+  if (btns?.borderWidth)        vars.push(`--btn-border-width: ${cssValue(btns.borderWidth)};`)
+  if (btns?.borderRadius)       vars.push(`--btn-radius: ${cssValue(btns.borderRadius)};`)
+  if (btns?.padding)            vars.push(`--btn-padding: ${cssValue(btns.padding)};`)
   colourVar('--btn-hover-text', btns?.hover?.textColour, btns?.hover?.textColourDark)
   colourVar('--btn-hover-bg', btns?.hover?.bgColour, btns?.hover?.bgColourDark)
 
@@ -544,21 +585,21 @@ export function buildTokenStyles(tokens: unknown): string {
   }
 
   const imgs = ts?.images
-  if (imgs?.borderRadius) vars.push(`--img-radius: ${imgs.borderRadius};`)
+  if (imgs?.borderRadius) vars.push(`--img-radius: ${cssValue(imgs.borderRadius)};`)
   colourVar('--img-border-color', imgs?.borderColour, imgs?.borderColourDark)
-  if (imgs?.borderWidth)  vars.push(`--img-border-width: ${imgs.borderWidth};`)
+  if (imgs?.borderWidth)  vars.push(`--img-border-width: ${cssValue(imgs.borderWidth)};`)
 
   const fields = ts?.formFields
   if (fields?.typo)         typoVars('field', fields.typo)
   colourVar('--field-text', fields?.textColour, fields?.textColourDark)
   colourVar('--field-bg', fields?.bgColour, fields?.bgColourDark)
   colourVar('--field-border', fields?.borderColour, fields?.borderColourDark)
-  if (fields?.borderRadius) vars.push(`--field-radius: ${fields.borderRadius};`)
+  if (fields?.borderRadius) vars.push(`--field-radius: ${cssValue(fields.borderRadius)};`)
   if (fields?.labelTypo)    typoVars('field-label', fields.labelTypo)
   colourVar('--field-label-color', fields?.labelColour, fields?.labelColourDark)
 
   // Default block gutter consumed by Puck blocks via var(--block-padding, 1.5rem).
-  if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${ts.spacing.blockPadding};`)
+  if (ts?.spacing?.blockPadding) vars.push(`--block-padding: ${cssValue(ts.spacing.blockPadding)};`)
 
   // Responsive breakpoints for every core surface (Grid/Split, nav collapse,
   // visibility utilities). Resolved from the site's Styles setting via the single
@@ -593,14 +634,14 @@ export function buildTokenStyles(tokens: unknown): string {
 
   function typoProps(v: Typo): string[] {
     const p: string[] = []
-    if (v.family)        p.push(`font-family: ${v.family};`)
-    if (v.weight)        p.push(`font-weight: ${v.weight};`)
-    if (v.size)          p.push(`font-size: ${v.size};`)
-    if (v.lineHeight)    p.push(`line-height: ${v.lineHeight};`)
-    if (v.letterSpacing) p.push(`letter-spacing: ${v.letterSpacing};`)
-    if (v.transform)     p.push(`text-transform: ${v.transform};`)
-    if (v.style)         p.push(`font-style: ${v.style};`)
-    if (v.decoration)    p.push(`text-decoration: ${v.decoration};`)
+    if (v.family)        p.push(`font-family: ${cssValue(v.family)};`)
+    if (v.weight)        p.push(`font-weight: ${cssValue(v.weight)};`)
+    if (v.size)          p.push(`font-size: ${cssValue(v.size)};`)
+    if (v.lineHeight)    p.push(`line-height: ${cssValue(v.lineHeight)};`)
+    if (v.letterSpacing) p.push(`letter-spacing: ${cssValue(v.letterSpacing)};`)
+    if (v.transform)     p.push(`text-transform: ${cssValue(v.transform)};`)
+    if (v.style)         p.push(`font-style: ${cssValue(v.style)};`)
+    if (v.decoration)    p.push(`text-decoration: ${cssValue(v.decoration)};`)
     return p
   }
 
@@ -639,9 +680,9 @@ export function buildTokenStyles(tokens: unknown): string {
     if (btns.textColour)   btnProps.push(`color: var(--btn-text-color);`)
     if (btns.bgColour)     btnProps.push(`background: var(--btn-bg);`)
     if (btns.borderColour) btnProps.push(`border-color: var(--btn-border);`)
-    if (btns.borderWidth)  btnProps.push(`border-width: ${btns.borderWidth};`)
-    if (btns.borderRadius) btnProps.push(`border-radius: ${btns.borderRadius};`)
-    if (btns.padding)      btnProps.push(`padding: ${btns.padding};`)
+    if (btns.borderWidth)  btnProps.push(`border-width: ${cssValue(btns.borderWidth)};`)
+    if (btns.borderRadius) btnProps.push(`border-radius: ${cssValue(btns.borderRadius)};`)
+    if (btns.padding)      btnProps.push(`padding: ${cssValue(btns.padding)};`)
     if (btnProps.length) scoped.push(`main button{${btnProps.join('')}}`)
 
     // Hover: also target the Button block's <a class="cactus-btn">, scoped by
@@ -666,9 +707,9 @@ export function buildTokenStyles(tokens: unknown): string {
 
   if (imgs) {
     const imgProps: string[] = []
-    if (imgs.borderRadius) imgProps.push(`border-radius: ${imgs.borderRadius};`)
+    if (imgs.borderRadius) imgProps.push(`border-radius: ${cssValue(imgs.borderRadius)};`)
     if (imgs.borderColour) imgProps.push(`border-color: var(--img-border-color); border-style: solid;`)
-    if (imgs.borderWidth)  imgProps.push(`border-width: ${imgs.borderWidth};`)
+    if (imgs.borderWidth)  imgProps.push(`border-width: ${cssValue(imgs.borderWidth)};`)
     if (imgProps.length) scoped.push(`main img{${imgProps.join('')}}`)
   }
 
@@ -677,7 +718,7 @@ export function buildTokenStyles(tokens: unknown): string {
     if (fields.textColour)   fieldProps.push(`color: var(--field-text);`)
     if (fields.bgColour)     fieldProps.push(`background: var(--field-bg);`)
     if (fields.borderColour) fieldProps.push(`border-color: var(--field-border);`)
-    if (fields.borderRadius) fieldProps.push(`border-radius: ${fields.borderRadius};`)
+    if (fields.borderRadius) fieldProps.push(`border-radius: ${cssValue(fields.borderRadius)};`)
     if (fieldProps.length) scoped.push(`main input,main textarea,main select{${fieldProps.join('')}}`)
 
     const labelProps: string[] = [...typoProps(fields.labelTypo ?? {})]

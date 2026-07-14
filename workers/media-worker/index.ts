@@ -45,6 +45,32 @@ const KNOWN_PROVIDERS = new Set([
   'B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE',
 ])
 
+// Ceiling for a direct-to-Worker PUT. The body is buffered whole to hash it, so
+// this is what stops one request eating the isolate's memory. Mirrors
+// MAX_DIRECT_UPLOAD_BYTES in lib/media/limits.ts - keep the two in step.
+const UPLOAD_MAX_BYTES = 25 * 1024 * 1024 // 25 MB
+
+// The only content types this Worker will ever put on the wire inline. Anything
+// else it holds is served as an attachment instead (see the GET path).
+const SERVABLE_IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
+])
+
+// Content type for a key, from its extension. The app builds every key's
+// extension from a MIME type it has already validated (lib/media/upload.ts
+// buildKey), and the key is covered by the upload signature - so on the write
+// path this is the only type claim the client cannot forge.
+const EXTENSION_TYPES: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
+}
+
+function contentTypeForKey(key: string): string | null {
+  const dot = key.lastIndexOf('.')
+  if (dot === -1) return null
+  return EXTENSION_TYPES[key.slice(dot + 1).toLowerCase()] ?? null
+}
+
 export interface Env {
   ALLOWED_ORIGIN: string
 
@@ -141,6 +167,10 @@ const worker = {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Vary': 'Accept',
       'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN ?? '*',
+      // Never let the browser second-guess the type we declare below. Without
+      // this, a stored object whose bytes look like markup can be sniffed into
+      // being treated as HTML and run script on the media origin.
+      'X-Content-Type-Options': 'nosniff',
     })
 
     try {
@@ -150,7 +180,20 @@ const worker = {
           status: upstream.status === 404 ? 404 : 502,
         })
       }
-      responseHeaders.set('Content-Type', upstream.headers.get('Content-Type') ?? 'application/octet-stream')
+
+      // The stored Content-Type is attacker-influenced on any object written
+      // before uploads were type-checked, so it is not trusted on the way out:
+      // an image type is echoed (Cloudflare image resizing legitimately converts
+      // jpeg → webp/avif here, so the upstream value is the accurate one), and
+      // anything else is served as an inert download rather than rendered.
+      const upstreamType = (upstream.headers.get('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase()
+      if (SERVABLE_IMAGE_TYPES.has(upstreamType)) {
+        responseHeaders.set('Content-Type', upstreamType)
+      } else {
+        responseHeaders.set('Content-Type', 'application/octet-stream')
+        responseHeaders.set('Content-Disposition', 'attachment')
+      }
+
       return new Response(upstream.body, { status: 200, headers: responseHeaders })
     } catch {
       return new Response('Upstream error', { status: 502 })
@@ -216,13 +259,40 @@ async function handleUpload(request: Request, env: Env, url: URL): Promise<Respo
     return uploadError(`Uploads to ${provider} are not supported here.`, 400, env)
   }
 
-  const contentType = request.headers.get('content-type') || 'application/octet-stream'
+  // The stored Content-Type comes from the KEY, never from the client's header.
+  // The key is covered by the signature and the app derives its extension from a
+  // validated image type, so the extension is the one type claim here that can't
+  // be tampered with. Trusting the header instead let a holder of media.upload
+  // PUT `Content-Type: text/html` with a script body and have it served back as
+  // executable HTML from the media origin.
+  const contentType = contentTypeForKey(fullKey)
+  if (!contentType || contentType === 'image/svg+xml') {
+    // SVG is deliberately excluded: it's markup, and only the app's serverless
+    // path sanitises it. The Worker never stores one.
+    return uploadError('Only raster image uploads are accepted here.', 415, env)
+  }
+
+  // Bound the body before reading it. The Worker buffers the whole payload into
+  // memory to hash it, so an unbounded PUT is a cheap way to exhaust the isolate.
+  const declared = Number(request.headers.get('content-length') ?? NaN)
+  if (!Number.isFinite(declared) || declared <= 0) {
+    return uploadError('A Content-Length header is required.', 411, env)
+  }
+  if (declared > UPLOAD_MAX_BYTES) {
+    return uploadError(`File is larger than the ${UPLOAD_MAX_BYTES / 1024 / 1024} MB limit.`, 413, env)
+  }
+
   try {
-    // Buffer the body: images are small enough for the Worker's memory, it gives
-    // storage a definite Content-Length (some S3 providers reject chunked PUTs),
-    // lets us sign the real payload hash below, and sidesteps request-stream
-    // duplex quirks.
+    // Buffer the body: it gives storage a definite Content-Length (some S3
+    // providers reject chunked PUTs), lets us sign the real payload hash below,
+    // and sidesteps request-stream duplex quirks.
     const bytes = await request.arrayBuffer()
+    // A lying Content-Length gets nothing: the real length has to match what was
+    // declared and bounds-checked above.
+    if (bytes.byteLength !== declared) {
+      return uploadError('Body size did not match Content-Length.', 400, env)
+    }
+
     const put = await putS3Compatible(params, fullKey, bytes, contentType)
     if (!put.ok) {
       return uploadError(`Storage rejected the upload (${put.status}).`, 502, env)

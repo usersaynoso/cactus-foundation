@@ -50,7 +50,9 @@ In the media library the Upload button spells out where files will land (**+ Upl
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG.
 
-**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, so there's no practical size limit - drop in the full-fat shot from a phone or camera and it'll go up. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a large photo, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy, and big uploads will flow. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 25 MB ceiling - roomy enough for the full-fat shot from a phone or camera. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 25 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+
+> **Worth doing once:** if you set your Worker up before this release, go to **Settings → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
 
 ---
 

@@ -1,6 +1,7 @@
-import { createHash, randomInt } from 'crypto'
+import { createHmac, randomInt } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { safeCompare } from '@/lib/auth/session'
+import { getSessionSecret } from '@/lib/config/env'
 
 const CODE_LENGTH = 6
 const CODE_TTL_MS = 10 * 60 * 1000 // 10 minutes
@@ -12,8 +13,16 @@ function generateCode(): string {
   return String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0')
 }
 
+// Keyed with the session secret rather than a bare digest.
+//
+// A six-digit code is a keyspace of one million: a plain sha256 of it is
+// reversible by anyone who can read the table, in about a second, on a laptop.
+// Anyone with read access to the database could therefore turn a live login
+// challenge back into the code it was minted from. An HMAC can't be brute-forced
+// without the secret, which lives in the environment and not in the database.
+// (Session tokens are already hashed this way - this brings OTP into line.)
 function hashCode(code: string): string {
-  return createHash('sha256').update(code).digest('hex')
+  return createHmac('sha256', getSessionSecret()).update(code).digest('hex')
 }
 
 export async function createEmailChallenge(

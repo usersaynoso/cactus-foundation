@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermission, isAdmin, assertProtectedUserWouldRemain } from '@/lib/permissions/check'
+import { hasPermission, isAdmin, canActOnUser, assertProtectedUserWouldRemain } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 
 const Patch = z.object({
@@ -32,6 +32,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
   const { roleId, suspend } = parsed.data
+
+  // Vet the DESTINATION role, not just the current one. The isProtected check
+  // above only asks "who is the target now?" - it says nothing about where
+  // they're headed. Without this, a non-admin holding users.manage could promote
+  // any account (a colleague's, or a sock puppet they control) straight into the
+  // protected Admin role, and Admin short-circuits every permission check from
+  // then on. Promotion is an admin-only act.
+  if (roleId && roleId !== target.roleId) {
+    const destRole = await prisma.role.findUnique({
+      where: { id: roleId },
+      select: { isProtected: true },
+    })
+    if (!destRole) return errorResponse('Role not found', 404)
+    if (!canActOnUser(actor, destRole)) {
+      return errorResponse('Only Admin users can grant the Admin role', 403)
+    }
+  }
 
   // If changing role away from admin, ensure at least one admin remains
   if (roleId && roleId !== target.roleId && target.role.isProtected) {

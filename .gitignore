@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+dist/
+build/
+
+# Environment variables — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Modules — installed locally for development, managed via their own git repos.
+# Never committed to the main Cactus repo; the template ships without modules.
+/modules/
+
+# Generated from the installed modules at build/dev time (scripts/generate-all.mjs).
+# Regenerated on every build; committing one would bake one install's module list
+# into the template. Never commit these.
+/lib/modules/router.ts
+/lib/modules/settings-tabs.ts
+/lib/modules/extension-points.ts
+/lib/modules/sms-providers.ts
+/lib/puck/module-components.ts
+/lib/puck/module-rsc-components.ts
+/lib/puck/module-embed-options.ts
+/lib/puck/module-embed-inject.ts
+/lib/layout/module-layout-types.ts
+/lib/setup/module-starter-layouts.ts
+/lib/media/worker-source.generated.ts
+/vercel.json

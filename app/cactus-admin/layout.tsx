@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
+import { sanitizeSvg } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
@@ -67,7 +68,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     const links: NavGroup['links'] = []
     for (const entry of manifest.navEntries) {
       if (!entry.permission || navPermissions[entry.permission]) {
-        links.push({ label: entry.label, path: entry.path, icon: entry.icon })
+        // A manifest icon is inline SVG markup, and AdminNav injects it with
+        // dangerouslySetInnerHTML - so a module author (or a tampered module
+        // repo) could otherwise ship a <script> that runs on every admin page.
+        // Scrubbed here, in the server component, because AdminNav is a client
+        // component and can't reach the jsdom-backed sanitiser.
+        links.push({
+          label: entry.label,
+          path: entry.path,
+          icon: entry.icon ? sanitizeSvg(entry.icon) : undefined,
+        })
       }
     }
     if (links.length === 0) continue

@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
 
 type LoginStep = 'passkey' | 'password' | 'otp' | 'totp'
-type NoPasskeyMode = 'register' | 'email' | null
+// An account with no passkey can't enrol one from the sign-in page: proving you
+// own the account has to come first. The panel just points at the ways in.
+type NoPasskeyMode = 'none-found' | null
 
 type LoginFormProps = {
   siteName: string
@@ -14,7 +17,9 @@ type LoginFormProps = {
 
 export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: LoginFormProps) {
   const searchParams = useSearchParams()
-  const nextUrl = searchParams.get('next') ?? ''
+  // Same-origin paths only - a ?next=https://evil.com would otherwise bounce the
+  // admin straight off the site the moment they signed in.
+  const nextUrl = sanitizeRedirect(searchParams.get('next'), '')
   const recoveryToken = searchParams.get('recovery_token') ?? ''
 
   const [step, setStep] = useState<LoginStep>('passkey')
@@ -34,7 +39,6 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   const [lostAccessEmail, setLostAccessEmail] = useState('')
   const [lostAccessSent, setLostAccessSent] = useState(false)
   const [noPasskeyMode, setNoPasskeyMode] = useState<NoPasskeyMode>(null)
-  const [noPasskeyUserId, setNoPasskeyUserId] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [tokenRecoveryMode] = useState(!!recoveryToken)
   const [showFallback, setShowFallback] = useState(!!recoveryToken)
@@ -73,11 +77,10 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
         const d = await optRes.json().catch(() => ({}))
         throw new Error((d as { error?: string }).error ?? 'Failed to get authentication options')
       }
-      const opts = await optRes.json() as { noPasskeys?: boolean; userId?: string; allowCredentials?: unknown[] }
+      const opts = await optRes.json() as { noPasskeys?: boolean; allowCredentials?: unknown[] }
 
       if (opts.noPasskeys) {
-        setNoPasskeyUserId(opts.userId ?? '')
-        setNoPasskeyMode(emailAvailable ? 'email' : 'register')
+        setNoPasskeyMode('none-found')
         setShowFallback(true)
         return
       }
@@ -199,44 +202,6 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
     }
   }
 
-  async function handleRegisterNewPasskey() {
-    setError('')
-    setLoading(true)
-    try {
-      const { startRegistration } = await import('@simplewebauthn/browser')
-
-      const optRes = await fetch('/api/auth/passkey/register-options', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: noPasskeyUserId }),
-      })
-      if (!optRes.ok) {
-        const d = await optRes.json().catch(() => ({}))
-        throw new Error((d as { error?: string }).error ?? 'Failed to get registration options')
-      }
-      const opts = await optRes.json()
-      const attestation = await startRegistration({ optionsJSON: opts })
-
-      const verifyRes = await fetch('/api/auth/passkey/register-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: noPasskeyUserId, attestation }),
-      })
-      if (!verifyRes.ok) {
-        const d = await verifyRes.json()
-        throw new Error(d.error ?? 'Passkey registration failed')
-      }
-
-      const parts = window.location.pathname.split('/')
-      const ap = parts[1] ?? ''
-      redirect(nextUrl || `/${ap}`)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Passkey registration failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   async function handleSendRecoveryEmail(emailAddress: string) {
     setError('')
     setLoading(true)
@@ -306,24 +271,23 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
           <div>
             <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>Lost your passkey?</h2>
             <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-4)' }}>
-              Remove your passkey record directly from your Neon database, then return here to register a new one.
+              You&apos;ll need to prove the account is yours before a new passkey can be added. Any of these will do it:
             </p>
             <ol style={{ fontSize: 'var(--text-base)', paddingLeft: 'var(--space-5)', margin: '0 0 var(--space-4)', lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
-              <li>
-                Open your{' '}
-                <a
-                  href={neonProjectId ? `https://console.neon.tech/app/projects/${neonProjectId}` : 'https://console.neon.tech'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Neon database
-                </a>
-                {' '}and go to <strong>Tables</strong> in the left sidebar.
-              </li>
-              <li>Select the <strong>Passkey</strong> table.</li>
-              <li>Click the checkbox next to your passkey entry to select it, then click <strong>Delete 1 record</strong> and confirm.</li>
-              <li>Return here and sign in with your email address and you&apos;ll be prompted to register a new passkey.</li>
+              <li>Request a recovery link below, if this site sends email.</li>
+              <li>Sign in with your password, or your authenticator app, if you set either up.</li>
             </ol>
+            <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-4)' }}>
+              Once you&apos;re in, add a fresh passkey from <strong>Account → Security</strong>. Deleting the old passkey row from your{' '}
+              <a
+                href={neonProjectId ? `https://console.neon.tech/app/projects/${neonProjectId}` : 'https://console.neon.tech'}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                database
+              </a>
+              {' '}on its own won&apos;t let you register a new one at sign-in - that door is shut deliberately, since anyone who knew your email address could otherwise walk through it.
+            </p>
             {emailAvailable && !lostAccessSent && (
               <>
                 <div style={{ borderTop: '1px solid var(--color-border)', margin: 'var(--space-5) 0', paddingTop: 'var(--space-5)' }}>
@@ -361,38 +325,34 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
           </div>
         )}
 
-        {/* ── No passkey found — register new one ── */}
-        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'register' && (
+        {/* ── No passkey found — prove who you are first, then add one ──
+             A passkey is never handed out here. Enrolling one is a change to the
+             account, so it happens from Account settings once you're signed in -
+             otherwise anyone who knew the email address could attach their own
+             authenticator to it and walk in. */}
+        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'none-found' && (
           <div>
             <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-3)', color: 'var(--color-text)' }}>No passkey found</h2>
             <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-6)' }}>
-              No passkey is registered for <strong>{email}</strong>. Register a new one now to sign in.
+              No passkey is registered for <strong>{email}</strong>. Sign in another way, then add one from Account → Security.
             </p>
-            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={handleRegisterNewPasskey}>
-              {loading ? 'Registering…' : '🔑 Register new passkey →'}
-            </button>
-            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setNoPasskeyMode(null); setError('') }}>
-              Back to sign in
-            </button>
-          </div>
-        )}
-
-        {/* ── No passkey found — send recovery email ── */}
-        {!tokenRecoveryMode && !lostAccessMode && noPasskeyMode === 'email' && (
-          <div>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-3)', color: 'var(--color-text)' }}>No passkey found</h2>
-            {!lostAccessSent ? (
-              <>
-                <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-6)' }}>
-                  No passkey is registered for <strong>{email}</strong>. We can send a recovery link to your email address.
-                </p>
+            {emailAvailable && (
+              lostAccessSent ? (
+                <div className="alert alert-success" style={{ marginBottom: 'var(--space-3)' }}>Recovery link sent. Check your inbox.</div>
+              ) : (
                 <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading} onClick={() => handleSendRecoveryEmail(email)}>
                   {loading ? 'Sending…' : 'Send recovery link'}
                 </button>
-              </>
-            ) : (
-              <div className="alert alert-success">Recovery link sent. Check your inbox.</div>
+              )
             )}
+            {emailAvailable && (
+              <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-3)' }} onClick={() => { setNoPasskeyMode(null); setStep('password'); setError('') }}>
+                Use password instead
+              </button>
+            )}
+            <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setNoPasskeyMode(null); setStep('totp'); setError('') }}>
+              Use authenticator app instead
+            </button>
             <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setNoPasskeyMode(null); setLostAccessSent(false); setError('') }}>
               Back to sign in
             </button>

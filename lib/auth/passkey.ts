@@ -48,7 +48,10 @@ export async function createRegistrationChallenge(
     excludeCredentials,
     authenticatorSelection: {
       residentKey: 'preferred',
-      userVerification: 'preferred',
+      // The staff surface is the whole site's front door, so the authenticator
+      // has to check it is really the owner holding it (biometric or PIN), not
+      // merely that someone is present. 'preferred' let a bare touch through.
+      userVerification: 'required',
     },
   } satisfies GenerateRegistrationOptionsOpts)
 
@@ -84,7 +87,7 @@ export async function verifyRegistration(
     expectedChallenge: challenge,
     expectedOrigin: getWebAuthnOrigin(),
     expectedRPID: getWebAuthnRpId(),
-    requireUserVerification: false,
+    requireUserVerification: true,
   } satisfies VerifyRegistrationResponseOpts)
 
   if (!verification.verified || !verification.registrationInfo) {
@@ -155,7 +158,7 @@ export async function createAuthenticationChallenge(userId?: string) {
   const opts = await generateAuthenticationOptions({
     rpID: rpId,
     allowCredentials: allowCredentials ?? [],
-    userVerification: 'preferred',
+    userVerification: 'required',
   })
 
   const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS)
@@ -207,7 +210,7 @@ export async function verifyAuthentication(
       counter: Number(passkey.counter),
       transports: passkey.transports as AuthenticatorTransportFuture[],
     },
-    requireUserVerification: false,
+    requireUserVerification: true,
   } satisfies VerifyAuthenticationResponseOpts)
 
   if (!verification.verified || !verification.authenticationInfo) {

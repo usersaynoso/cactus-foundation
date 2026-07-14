@@ -360,12 +360,15 @@ export default function SetupPage() {
     async function poll() {
       if (cancelled) return
       try {
-        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ''
         const projectParam = selectedProjectId ? `&projectId=${encodeURIComponent(selectedProjectId)}` : ''
         const url = lastSeen
-          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${tokenParam}${projectParam}`
-          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${tokenParam}${projectParam}`
-        const res = await fetch(url)
+          ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${projectParam}`
+          : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${projectParam}`
+        // The Vercel token goes in a header, not the query string - a URL ends up
+        // in access logs and browser history, and this is a live API credential.
+        const res = await fetch(url, {
+          headers: token ? { 'x-vercel-token': token } : undefined,
+        })
         if (res.ok) {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
           if (!cancelled) {

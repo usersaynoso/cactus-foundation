@@ -1,6 +1,11 @@
 import { marked } from 'marked'
 import createDOMPurify from 'dompurify'
-import { ALLOWED_TAGS, ALLOWED_ATTR } from '@/lib/sanitize-config'
+import {
+  ALLOWED_TAGS,
+  ALLOWED_ATTR,
+  RICHTEXT_ALLOWED_TAGS,
+  RICHTEXT_ALLOWED_ATTR,
+} from '@/lib/sanitize-config'
 
 // DOMPurify needs a DOM environment.
 // Browser: use the native window. Node.js: lazy-require jsdom so it never
@@ -48,6 +53,24 @@ export function markdownToHtml(markdown: string, opts?: { breaks?: boolean }): s
 export function markdownToPlainText(markdown: string, opts?: { breaks?: boolean }): string {
   const html = markdownToHtml(markdown, opts)
   return html.replace(/<[^>]+>/g, '').trim()
+}
+
+// Cleans the HTML a RichText block renders on a published page.
+//
+// The markdown path above is safe because raw HTML is escaped before parsing.
+// The Puck RichText block has no such step: its content is either TipTap JSON
+// (converted back to HTML for the RSC render) or a raw HTML string, and both go
+// straight into dangerouslySetInnerHTML. TipTap's Link extension carries no
+// protocol allow-list on that path either, so a stored `javascript:` href
+// survived the round trip. Run it through the same allow-list as everything else.
+export function sanitizeRichText(html: string): string {
+  if (!html) return ''
+  return getPurifier().sanitize(html, {
+    ALLOWED_TAGS: RICHTEXT_ALLOWED_TAGS,
+    ALLOWED_ATTR: RICHTEXT_ALLOWED_ATTR,
+    ADD_ATTR: ['target'],
+    FORCE_BODY: true,
+  })
 }
 
 // Strips <script>, event handlers, and other executable content from an

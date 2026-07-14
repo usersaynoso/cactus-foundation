@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { randomInt } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import type { SiteConfig, SiteStatus } from '@prisma/client'
 
@@ -220,12 +221,18 @@ export function isBlocklisted(value: string): boolean {
   return BLOCKLIST.has(value.toLowerCase())
 }
 
+// The admin URL is meant to be unguessable - that obscurity is the whole point
+// of suggesting a random one. Math.random() is a predictable PRNG: sample a few
+// outputs (or just know roughly when the site was set up) and the sequence can be
+// reproduced, which would hand out the admin path. Use the CSPRNG.
 export function generateSuggestedAdminPath(): string {
   const words = [
     'lemon', 'cactus', 'prickly', 'desert', 'oasis', 'bloom',
     'grove', 'canyon', 'mesa', 'ridge', 'valley', 'creek',
   ]
-  const word = words[Math.floor(Math.random() * words.length)] ?? 'lemon'
-  const suffix = Math.random().toString(36).slice(2, 8)
+  const word = words[randomInt(0, words.length)] ?? 'lemon'
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let suffix = ''
+  for (let i = 0; i < 6; i++) suffix += alphabet[randomInt(0, alphabet.length)]
   return `${word}-${suffix}`
 }

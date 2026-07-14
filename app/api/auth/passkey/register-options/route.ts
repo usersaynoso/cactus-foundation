@@ -3,10 +3,13 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { createRegistrationChallenge } from '@/lib/auth/passkey'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
 import { getWebAuthnOrigin } from '@/lib/config/env'
 
 const Body = z.object({
-  // During setup: userId provided directly. After setup: read from session.
+  // Only honoured during the first-run setup wizard, where no session exists yet.
+  // After setup the target account always comes from the session cookie - a body
+  // userId is ignored, never trusted. See lib/auth/setup-window.ts.
   userId: z.string().optional(),
 })
 
@@ -30,15 +33,30 @@ export async function POST(request: NextRequest) {
     // handle the missing env var gracefully.
   }
 
-  const parsed = Body.safeParse(await request.json())
+  // The account page adds a passkey with no request body at all.
+  const parsed = Body.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  let userId = parsed.data.userId ?? null
-
-  if (!userId) {
-    // Must be an authenticated user adding a new passkey
+  // Resolve WHO this challenge is for. A body userId is only an identity claim
+  // during first-run setup; at any other time the session cookie is the only
+  // acceptable proof, so we derive the user from it and discard the body value.
+  // Without this, an unauthenticated caller could name any account, enrol their
+  // own authenticator against it and take it over.
+  let userId: string
+  if (await isSetupBootstrapOpen()) {
+    const claimed = parsed.data.userId
+    if (claimed) {
+      userId = claimed
+    } else {
+      const user = await getSessionFromCookie()
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
+      userId = user.id
+    }
+  } else {
     const user = await getSessionFromCookie()
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

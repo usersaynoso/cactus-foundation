@@ -172,15 +172,19 @@ Enabling or disabling a module refreshes the admin sidebar immediately - nav lin
 
 ### Lost passkey - email not configured
 
-Access requires a direct database intervention:
+> **Changed:** deleting the `Passkey` row no longer lets you register a replacement from the sign-in page. That shortcut trusted nothing but the email address you typed, so anyone who knew an admin's address could attach their own authenticator to that account and sign in as them. Enrolling a passkey now always requires an authenticated session first.
 
-1. Open the **SQL editor** in your [Neon console](https://console.neon.tech) and run:
-   ```sql
-   DELETE FROM "Passkey" WHERE "userId" = (SELECT id FROM "User" WHERE email = 'your@email.com');
-   ```
-2. Go to `/<adminPath>/login`, enter your email address, and click **Sign in with passkey**.
-3. Because no passkey is on record, you will be prompted to register a new one immediately.
-4. Complete passkey registration - you are signed in.
+**If the account has an authenticator app (TOTP):**
+
+1. Go to `/<adminPath>/login` and choose **Use authenticator app instead**.
+2. Enter your email address and the 6-digit code. TOTP sign-in does not send email, so it works on a site with no email configured.
+3. Once in, add a new passkey from **Account settings → Security**, and remove the old one.
+
+**If it does not**, you need a second factor to exist before you can prove the account is yours - which means configuring email:
+
+1. Add email credentials to your environment variables and redeploy.
+2. Go to `/<adminPath>/login`, click **Lost access?**, and request a recovery link (expires in 30 minutes, single use).
+3. Complete recovery - you are signed in and can register a new passkey from **Account settings → Security**.
 
 ### Completely locked out (no passkey, email not configured or inbox compromised)
 
@@ -193,8 +197,8 @@ Access requires a direct database intervention:
    ```sql
    UPDATE "User" SET "passwordHash" = '<hash>' WHERE email = 'you@example.com';
    ```
-4. Add email credentials to your environment variables (if not already set).
-5. Sign in via the password fallback and register a new passkey.
+4. Add email credentials to your environment variables (if not already set). This is required, not optional: the password fallback issues a one-time code by email or SMS, so it cannot complete on a site with no email configured.
+5. Sign in via the password fallback and register a new passkey from **Account settings → Security**.
 6. Once your passkey is registered, change the temporary password to a strong one from **Account settings → Password** (passkeys remain your primary sign-in).
 
 ### Adding or changing your password

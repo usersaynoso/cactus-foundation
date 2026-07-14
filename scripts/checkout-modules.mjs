@@ -59,9 +59,13 @@ function git(args) {
 async function cloneModule(log, name, repoUrl, moduleDir, version) {
   try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
 
+  // The `--` before the positionals matters: repoUrl comes out of modules.json,
+  // and one beginning with a dash would otherwise be read by git as an option
+  // rather than a URL (`--upload-pack=…` runs a command). Args are already passed
+  // as an array, so there's no shell to inject into - this closes the other half.
   if (version) {
     log(`${name}: cloning ${repoUrl} at ${version}…`)
-    const pinned = await git(['clone', '--depth=1', '--branch', version, repoUrl, moduleDir])
+    const pinned = await git(['clone', '--depth=1', '--branch', version, '--', repoUrl, moduleDir])
     if (pinned.status === 0) return true
     log(`${name}: pinned clone at ${version} failed — falling back to HEAD`)
     try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
@@ -69,7 +73,7 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
     log(`${name}: no version recorded — cloning ${repoUrl} at HEAD…`)
   }
 
-  const fallback = await git(['clone', '--depth=1', repoUrl, moduleDir])
+  const fallback = await git(['clone', '--depth=1', '--', repoUrl, moduleDir])
   return fallback.status === 0
 }
 

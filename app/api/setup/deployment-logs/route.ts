@@ -40,7 +40,14 @@ export async function GET(req: NextRequest) {
     // Pre-auth wizard flow: no admin account exists yet, so the "Connect Vercel"
     // step passes the user-pasted token directly since VERCEL_API_TOKEN isn't
     // saved to the environment until later in the wizard.
-    token = process.env.VERCEL_API_TOKEN ?? req.nextUrl.searchParams.get('token') ?? ''
+    //
+    // It arrives in a header, never a query string. A live API token in a URL is
+    // written to the platform's access logs, the browser's history and any
+    // Referer sent onward - none of which the operator can clear afterwards.
+    token =
+      process.env.VERCEL_API_TOKEN ??
+      req.headers.get('x-vercel-token')?.trim() ??
+      ''
   }
   if (!token) {
     return NextResponse.json({ error: 'VERCEL_API_TOKEN not configured' }, { status: 500 })

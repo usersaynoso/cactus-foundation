@@ -24,3 +24,13 @@ export const ALLOWED_ATTR = [
   'src', 'alt', 'width', 'height',
   'id', 'class',
 ]
+
+// Allow-list for the Puck RichText block, which is TipTap output rather than
+// markdown. Same base, plus what the editor's own extension set legitimately
+// emits: <u> (Underline), <s> (Strike), and a style attribute (TextAlign renders
+// `style="text-align: center"`). DOMPurify drops a javascript: href regardless
+// of this list, which is the one that mattered - TipTap's Link extension has no
+// protocol allow-list of its own on the render path.
+export const RICHTEXT_ALLOWED_TAGS = [...ALLOWED_TAGS, 'u', 'span', 'div']
+
+export const RICHTEXT_ALLOWED_ATTR = [...ALLOWED_ATTR, 'style', 'colspan', 'rowspan']

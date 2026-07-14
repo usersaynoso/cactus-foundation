@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
     if (userId) {
       const count = await prisma.passkey.count({ where: { userId } })
       if (count === 0) {
-        return NextResponse.json({ noPasskeys: true, userId })
+        // Deliberately does NOT return the userId. Handing an unauthenticated
+        // caller the internal id of an account with no passkey is the first step
+        // of a takeover: it names the victim for a registration challenge. The
+        // client only needs to know it should offer another way in.
+        return NextResponse.json({ noPasskeys: true })
       }
     }
   }

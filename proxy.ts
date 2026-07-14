@@ -63,7 +63,16 @@ function buildCsp(): string {
   return [
     `default-src 'self'`,
     // https://js.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com`,
+    //
+    // No 'unsafe-eval': a production Next build doesn't eval() anything, and these
+    // headers are skipped entirely in development (see withSecurity below), which
+    // is the only place the dev bundler's eval-based source maps would need it.
+    //
+    // 'unsafe-inline' stays for now - Next injects its own inline bootstrap and
+    // flight-data scripts, so removing it means moving to a per-request nonce
+    // threaded through the document. Worth doing, but it can't ship unverified:
+    // get it wrong and every page renders blank.
+    `script-src 'self' 'unsafe-inline' https://js.stripe.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
     `font-src 'self' https://fonts.gstatic.com`,

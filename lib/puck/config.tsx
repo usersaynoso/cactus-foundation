@@ -67,9 +67,33 @@ import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/header
 const richtextExtensions = [
   Document, Paragraph, Text, Bold, Italic, Strike, Underline,
   TiptapHeading, Blockquote, Code, CodeBlock, HardBreak, HorizontalRule,
-  Link, BulletList, OrderedList, ListItem,
+  // Without an explicit protocol list, TipTap will happily accept a
+  // `javascript:` href, which then rides the stored content all the way to the
+  // published page. (The published render also sanitises - see config.rsc.tsx -
+  // since this only governs what the editor lets in, not what's already stored.)
+  Link.configure({ protocols: ['http', 'https', 'mailto', 'tel'] }),
+  BulletList, OrderedList, ListItem,
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
 ]
+
+// The HTML a RichText block's stored content resolves to. Content is either a
+// raw HTML string or TipTap JSON (what the builder stores); both end up as an
+// HTML string here. Exported so the RSC config can produce byte-identical markup
+// and then sanitise it - see sanitizeRichText in lib/sanitize.ts, which can't be
+// imported here because config.tsx is reachable from the client Puck editors and
+// would drag jsdom into the browser bundle.
+export function richTextContentToHtml(content: unknown, obfuscate: boolean): string {
+  if (typeof content === 'string') {
+    return obfuscate ? obfuscateEmailsInHtml(content) : content
+  }
+  let html = ''
+  try {
+    html = generateHTML(content as JSONContent, richtextExtensions)
+  } catch {
+    html = ''
+  }
+  return obfuscate ? obfuscateEmailsInHtml(html) : html
+}
 
 // ---------------------------------------------------------------------------
 // Shared utilities
@@ -89,7 +113,7 @@ const PAD_KEYS = new Set(['default', 'none', 'sm', 'md', 'lg', 'xl'])
 // breakpoint and tablet/mobile always inherit from the next-wider device.
 // 'default' (and unset) pulls the site-wide gutter set in Styles → Spacing
 // via var(--block-padding, 1.5rem), same as the old inline getPadding did.
-function getPaddingClasses(padding?: ResponsiveValue<string> | string): string {
+export function getPaddingClasses(padding?: ResponsiveValue<string> | string): string {
   const rv = normalizeResponsiveValue<string>(padding as ResponsiveValue<string> | string | undefined)
   const norm = (v: string | undefined, fallback: string) => (v && PAD_KEYS.has(v) ? v : fallback)
   const d = norm(rv.desktop, 'default')
@@ -1064,26 +1088,21 @@ function RichTextBlock(props: any) {
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
-  if (typeof content !== 'string') {
-    // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
-    // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
-    // Render it directly rather than passing to dangerouslySetInnerHTML.
-    if (React.isValidElement(content)) {
-      return <div className={`puck-richtext ${getPaddingClasses(padding)}`}>{content}</div>
-    }
-    // In the RSC render path, publishedData may contain TipTap JSON if the user edited
-    // in the builder (Puck stores richtext content as TipTap JSON internally).
-    // Convert it back to HTML so dangerouslySetInnerHTML receives a string.
-    let html = ''
-    try {
-      html = generateHTML(content as JSONContent, richtextExtensions)
-    } catch {
-      html = ''
-    }
-    if (obfuscate) html = obfuscateEmailsInHtml(html)
-    return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: html }} />
+  // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
+  // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
+  // Render it directly rather than passing to dangerouslySetInnerHTML.
+  if (React.isValidElement(content)) {
+    return <div className={`puck-richtext ${getPaddingClasses(padding)}`}>{content}</div>
   }
-  return <div className={`puck-richtext ${getPaddingClasses(padding)}`} dangerouslySetInnerHTML={{ __html: obfuscate ? obfuscateEmailsInHtml(content) : content }} />
+  // Editor-canvas fallback for a raw string / TipTap JSON value. The published
+  // page never renders through here: config.rsc.tsx swaps in a version that runs
+  // this same HTML through DOMPurify first.
+  return (
+    <div
+      className={`puck-richtext ${getPaddingClasses(padding)}`}
+      dangerouslySetInnerHTML={{ __html: richTextContentToHtml(content, obfuscate) }}
+    />
+  )
 }
 
 function Quote(props: any) {
