@@ -12,6 +12,13 @@ type MediaItem = {
   mimeType: string
 }
 
+type Folder = {
+  id: string
+  name: string
+  parentId: string | null
+  mediaCount: number
+}
+
 function MediaPickerModal({ onSelect, onClose }: {
   onSelect: (item: MediaItem) => void
   onClose: () => void
@@ -21,14 +28,54 @@ function MediaPickerModal({ onSelect, onClose }: {
   const [query, setQuery] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [folders, setFolders] = useState<Folder[]>([])
+  // null = library root. When searching we ignore this and span every folder.
+  const [folderId, setFolderId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Folder tree, once. The picker assembles the current level from parentId.
   useEffect(() => {
-    fetch('/api/admin/media?perPage=50')
-      .then((r) => r.json())
-      .then((d) => { setItems(d.items ?? []); setLoading(false) })
-      .catch(() => setLoading(false))
+    fetch('/api/admin/media/folders')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d?.folders && setFolders(d.folders))
+      .catch(() => null)
   }, [])
+
+  // Media scoped to the current folder, or spanning every folder while searching.
+  // Debounced so typing doesn't hammer the endpoint on each keystroke.
+  const trimmed = query.trim()
+  useEffect(() => {
+    let cancelled = false
+    const params = new URLSearchParams({ perPage: '50', type: 'image' })
+    if (trimmed) {
+      params.set('folder', 'all')
+      params.set('q', trimmed)
+    } else {
+      params.set('folder', folderId ?? 'root')
+    }
+    const timer = setTimeout(() => {
+      if (!cancelled) setLoading(true)
+      fetch(`/api/admin/media?${params.toString()}`)
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled) { setItems(d.items ?? []); setLoading(false) } })
+        .catch(() => { if (!cancelled) setLoading(false) })
+    }, trimmed ? 250 : 0)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [folderId, trimmed])
+
+  // Subfolders of the current level, hidden while searching (search spans all).
+  const subfolders = trimmed ? [] : folders.filter((f) => f.parentId === folderId)
+
+  // Breadcrumb trail from root down to the current folder.
+  const breadcrumb: Folder[] = []
+  if (!trimmed) {
+    const byId = new Map(folders.map((f) => [f.id, f]))
+    let cur = folderId ? byId.get(folderId) : undefined
+    while (cur) {
+      breadcrumb.unshift(cur)
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined
+    }
+  }
 
   async function handleUpload(files: FileList | null) {
     const file = files?.[0]
@@ -55,13 +102,7 @@ function MediaPickerModal({ onSelect, onClose }: {
     }
   }
 
-  const filtered = query
-    ? items.filter((i) =>
-        i.key.toLowerCase().includes(query.toLowerCase()) ||
-        (i.originalName ?? '').toLowerCase().includes(query.toLowerCase()) ||
-        (i.altText ?? '').toLowerCase().includes(query.toLowerCase())
-      )
-    : items
+  const images = items.filter((i) => i.mimeType.startsWith('image/'))
 
   return (
     <div
@@ -110,14 +151,55 @@ function MediaPickerModal({ onSelect, onClose }: {
             ×
           </button>
         </div>
+        {!trimmed && (
+          <div style={{ padding: '0.625rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexWrap: 'wrap', gap: '0.25rem', alignItems: 'center', fontSize: '0.8125rem' }}>
+            <button
+              type="button"
+              onClick={() => setFolderId(null)}
+              style={{ background: 'none', border: 'none', padding: '0.125rem 0.25rem', cursor: folderId === null ? 'default' : 'pointer', color: folderId === null ? 'var(--color-text)' : 'var(--color-link)', fontFamily: 'inherit', fontSize: 'inherit' }}
+            >
+              Media
+            </button>
+            {breadcrumb.map((f, idx) => (
+              <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>/</span>
+                <button
+                  type="button"
+                  onClick={() => setFolderId(f.id)}
+                  style={{ background: 'none', border: 'none', padding: '0.125rem 0.25rem', cursor: idx === breadcrumb.length - 1 ? 'default' : 'pointer', color: idx === breadcrumb.length - 1 ? 'var(--color-text)' : 'var(--color-link)', fontFamily: 'inherit', fontSize: 'inherit' }}
+                >
+                  {f.name}
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
           {uploadError && <p style={{ color: 'var(--color-destructive)', textAlign: 'center', fontSize: '0.8125rem', marginTop: 0 }}>{uploadError}</p>}
           {loading && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>Loading…</p>}
-          {!loading && filtered.filter((i) => i.mimeType.startsWith('image/')).length === 0 && (
-            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>No images found</p>
+          {!loading && subfolders.length === 0 && images.length === 0 && (
+            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{trimmed ? 'No images found' : 'This folder is empty'}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-            {filtered.filter((i) => i.mimeType.startsWith('image/')).map((item) => (
+            {subfolders.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFolderId(f.id)}
+                style={{
+                  border: '2px solid var(--color-border)', borderRadius: 6, background: 'var(--color-bg-subtle)',
+                  cursor: 'pointer', padding: 0, overflow: 'hidden', textAlign: 'left',
+                }}
+              >
+                <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', color: 'var(--color-text-muted)' }}>
+                  📁
+                </div>
+                <div style={{ padding: '0.375rem 0.5rem', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
+                  {f.name}{f.mediaCount ? ` (${f.mediaCount})` : ''}
+                </div>
+              </button>
+            ))}
+            {images.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onSelect(item)}
