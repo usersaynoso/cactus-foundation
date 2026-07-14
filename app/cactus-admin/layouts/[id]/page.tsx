@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { Data } from '@puckeditor/core'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
+import { isCompleteRule, type ConditionRule, type DisplayConditions } from '@/lib/layout/displayConditions'
 
 type HistoryVersion = {
   index: 'live' | number
@@ -18,8 +19,6 @@ const LayoutPuckEditor = dynamic(() => import('./LayoutPuckEditor'), {
   ssr: false,
   loading: () => <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--color-text-muted)' }}>Loading layout editor…</div>,
 })
-
-type DisplayConditions = { include: unknown[]; exclude: unknown[] }
 
 type Layout = {
   id: string
@@ -45,6 +44,14 @@ export default function LayoutEditorPage() {
   const [deleting, setDeleting] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const latestDataRef = useRef<Data | null>(null)
+  // beforeunload has to read the flag at the moment the browser asks, not the
+  // value React had when the listener last re-registered - see markUnsaved.
+  const unsavedRef = useRef(false)
+
+  const markUnsaved = useCallback((next: boolean) => {
+    unsavedRef.current = next
+    setHasUnsavedChanges(next)
+  }, [])
 
   const [historyVersions, setHistoryVersions] = useState<HistoryVersion[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -81,17 +88,28 @@ export default function LayoutEditorPage() {
   // Content only saves to the DB on an explicit Update click - warn on a real
   // browser navigation/reload/close so in-progress edits aren't silently lost
   // (the in-app "Back to Layouts" link is a client-side nav, which this can't
-  // catch - see its own confirm() in headerBackLinkOverride.tsx).
+  // catch - see its own confirm() in headerBackLinkOverride.tsx). It reads the
+  // ref so that a restore, which clears the flag and reloads in the same tick,
+  // doesn't race the listener into warning about changes it just discarded.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = '' }
+      if (unsavedRef.current) { e.preventDefault(); e.returnValue = '' }
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [hasUnsavedChanges])
+  }, [])
 
   const handleRestore = useCallback(async (index: 'live' | number) => {
+    // Ask before spending the round-trip, not after it: the old order fetched
+    // the whole version blob and only then popped the "are you sure".
+    const live = layout?.status === 'published'
+    const warning = live
+      ? 'Restore this version? It goes live immediately, and the version it replaces is kept in this list.'
+      : 'Load this version into the editor? Your current unsaved changes will be replaced.'
+    if (!confirm(warning)) return
+
     setRestoringIndex(index)
+    setHistoryError('')
     try {
       const res = await fetch(`/api/admin/layouts/${id}/history?index=${index}`)
       const d = await res.json()
@@ -100,32 +118,35 @@ export default function LayoutEditorPage() {
         setRestoringIndex(null)
         return
       }
-      if (!confirm('Load this version into the editor? Your current unsaved changes will be replaced.')) {
-        setRestoringIndex(null)
-        return
-      }
+      // A layout has one content blob, and the site renders it - so restoring a
+      // published layout IS publishing. Route it through the publish path or the
+      // restored content goes live while the History tab still swears the old
+      // version is the live one, and the version just replaced is lost for good.
       const patchRes = await fetch(`/api/admin/layouts/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ builderData: d.data }),
+        body: JSON.stringify({ builderData: d.data, ...(live ? { status: 'published' } : {}) }),
       })
       if (!patchRes.ok) {
-        const pd = await patchRes.json()
+        const pd = await patchRes.json().catch(() => ({}))
         setHistoryError(pd.error ?? 'Failed to restore version')
         setRestoringIndex(null)
         return
       }
+      // The reload is what gets the restored content into Puck. Drop the dirty
+      // flag first or beforeunload greets the owner with a browser "leave site?"
+      // box for changes they just chose to discard.
+      markUnsaved(false)
       window.location.reload()
     } catch {
       setHistoryError('Failed to restore version')
-    } finally {
       setRestoringIndex(null)
     }
-  }, [id])
+  }, [id, layout?.status, markUnsaved])
 
   const handleChange = useCallback((data: Data) => {
     latestDataRef.current = data
-    setHasUnsavedChanges(true)
-  }, [])
+    markUnsaved(true)
+  }, [markUnsaved])
 
   const handlePublish = useCallback(async (data: Data) => {
     // Settings tab status is set to Draft — honour it: save content only, don't force live.
@@ -137,15 +158,18 @@ export default function LayoutEditorPage() {
           body: JSON.stringify({ builderData: data }),
         })
         if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed') }
-        else { setSaved(true); setHasUnsavedChanges(false) }
+        else { setSaved(true); markUnsaved(false) }
       } catch { setError('Save failed') }
       finally { setSaving(false) }
       return
     }
 
+    // Same bar the API sets: a half-filled rule shows the layout on nothing, so
+    // it is not something to publish onto.
     const conditions = layout?.displayConditions as DisplayConditions | null
-    if (!conditions?.include?.length) {
-      setError('Set at least one include rule in Display Conditions before publishing.')
+    const usable = (conditions?.include ?? []).filter((r): r is ConditionRule => !!r && typeof r === 'object').some(isCompleteRule)
+    if (!usable) {
+      setError('Set at least one complete include rule in Display Conditions before publishing.')
       return
     }
     setSaving(true); setSaved(false); setError('')
@@ -155,10 +179,10 @@ export default function LayoutEditorPage() {
         body: JSON.stringify({ builderData: data, status: 'published' }),
       })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Publish failed') }
-      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true); setHasUnsavedChanges(false); loadHistory() }
+      else { setLayout((l) => l ? { ...l, status: 'published' } : l); setSaved(true); markUnsaved(false); loadHistory() }
     } catch { setError('Publish failed') }
     finally { setSaving(false) }
-  }, [id, layout?.status, layout?.displayConditions, loadHistory])
+  }, [id, layout?.status, layout?.displayConditions, loadHistory, markUnsaved])
 
   const handleConditionsSave = useCallback(async (conditions: DisplayConditions) => {
     setSaving(true); setSaved(false); setError('')

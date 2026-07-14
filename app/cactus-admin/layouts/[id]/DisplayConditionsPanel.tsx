@@ -1,36 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-
-type ConditionType =
-  | 'entire_site' | 'homepage' | 'page_id' | 'page_slug'
-  | 'module' | 'not_found' | 'coming_soon' | 'maintenance' | 'path_prefix'
-
-type ConditionRule = { type: ConditionType; value?: string }
-
-type DisplayConditions = { include: ConditionRule[]; exclude: ConditionRule[] }
-
-const TYPE_LABELS: Record<ConditionType, string> = {
-  entire_site: 'Entire site',
-  homepage: 'Homepage',
-  page_id: 'Specific page (by ID)',
-  page_slug: 'Specific page (by slug)',
-  module: 'Module',
-  not_found: '404 page',
-  coming_soon: 'Coming soon page',
-  maintenance: 'Maintenance page',
-  path_prefix: 'URL path prefix',
-}
-
-const DEFAULT_TYPES: ConditionType[] = ['entire_site', 'homepage', 'page_id', 'page_slug', 'module', 'path_prefix']
-
-const TYPES_BY_LAYOUT: Record<string, ConditionType[]> = {
-  infoPage:   DEFAULT_TYPES,
-  header:     ['entire_site', 'homepage', 'path_prefix'],
-  footer:     ['entire_site', 'homepage', 'path_prefix'],
-  notFound:   ['not_found', 'entire_site'],
-  statusPage: ['coming_soon', 'maintenance', 'entire_site'],
-}
+import { useState, useEffect, useMemo } from 'react'
+import {
+  CONDITION_TYPE_LABELS as TYPE_LABELS,
+  conditionTypesForLayout,
+  isCompleteRule,
+  type ConditionType,
+  type ConditionRule,
+  type DisplayConditions,
+} from '@/lib/layout/displayConditions'
 
 type PageOption = { id: string; title: string; slug: string }
 
@@ -38,10 +16,15 @@ type Props = {
   layoutType: string
   existing: unknown
   onSave: (conditions: DisplayConditions) => void
+  saving?: boolean
+  saved?: boolean
 }
 
-export default function DisplayConditionsPanel({ layoutType, existing, onSave }: Props) {
-  const availableTypes: ConditionType[] = TYPES_BY_LAYOUT[layoutType] ?? ['entire_site']
+export default function DisplayConditionsPanel({ layoutType, existing, onSave, saving, saved }: Props) {
+  // Which rules this layout type is allowed to be shown by, and what each one is
+  // called, both come from lib/layout/displayConditions - the same module the
+  // renderer scores against, so the panel cannot offer a rule the site ignores.
+  const availableTypes = useMemo(() => conditionTypesForLayout(layoutType), [layoutType])
 
   const parseExisting = (): DisplayConditions => {
     const c = existing as DisplayConditions | null
@@ -66,7 +49,7 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave }:
   }, [needsPagePicker])
 
   function addRule(side: 'include' | 'exclude') {
-    const defaultType = availableTypes[0] ?? DEFAULT_TYPES[0] ?? 'entire_site'
+    const defaultType = availableTypes[0] ?? 'entire_site'
     setConditions(c => ({ ...c, [side]: [...c[side], { type: defaultType }] }))
   }
 
@@ -81,10 +64,17 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave }:
     }))
   }
 
+  // A rule with its value still blank shows the layout on nothing. Saying so here
+  // beats letting it through and having Update bounce with a 400 that names no rule.
+  const unfinished = [...conditions.include, ...conditions.exclude].filter(r => !isCompleteRule(r)).length
+
   function summarise(): string {
-    if (!conditions.include.length) return 'No include rules - this layout will not be used.'
-    return conditions.include
-      .map(r => r.type === 'page_slug' || r.type === 'path_prefix' ? `${TYPE_LABELS[r.type]}: ${r.value ?? '…'}` : TYPE_LABELS[r.type])
+    const usable = conditions.include.filter(isCompleteRule)
+    if (!usable.length) return 'No usable include rules - this layout will not be shown anywhere.'
+    return usable
+      .map(r => r.type === 'page_slug' || r.type === 'path_prefix' || r.type === 'module'
+        ? `${TYPE_LABELS[r.type]}: ${r.value}`
+        : TYPE_LABELS[r.type])
       .join(', ')
   }
 
@@ -120,12 +110,19 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave }:
         {summarise()}
       </div>
 
+      {unfinished > 0 && (
+        <div style={{ color: 'var(--color-warning)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>
+          {unfinished === 1 ? 'One rule still needs' : `${unfinished} rules still need`} a value filling in.
+        </div>
+      )}
+
       <button
         className="btn btn-primary"
         style={{ width: '100%', fontSize: '0.8125rem' }}
+        disabled={saving || unfinished > 0}
         onClick={() => onSave(conditions)}
       >
-        Save Conditions
+        {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Conditions'}
       </button>
     </div>
   )
@@ -143,6 +140,13 @@ type RuleListProps = {
 }
 
 function RuleList({ title, rules, availableTypes, pages, onAdd, onRemove, onUpdate }: RuleListProps) {
+  const fieldStyle = (incomplete: boolean): React.CSSProperties => ({
+    width: '100%', padding: '0.25rem 0.375rem',
+    border: `1px solid ${incomplete ? 'var(--color-warning)' : 'var(--color-border)'}`,
+    borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
+    background: 'var(--color-surface)', color: 'var(--color-text)', boxSizing: 'border-box',
+  })
+
   return (
     <div style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
@@ -153,41 +157,47 @@ function RuleList({ title, rules, availableTypes, pages, onAdd, onRemove, onUpda
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: '0 0 0.375rem' }}>None</p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-        {rules.map((rule, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-              <select
-                value={rule.type}
-                onChange={(e) => onUpdate(i, { type: e.target.value as ConditionType, value: undefined })}
-                style={{ flex: 1, padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
-              >
-                {availableTypes.map(t => (
-                  <option key={t} value={t}>{TYPE_LABELS[t]}</option>
-                ))}
-              </select>
-              <button onClick={() => onRemove(i)} style={{ padding: 'var(--space-1)', background: 'none', border: 'none', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: 'var(--text-sm)', lineHeight: 1, flexShrink: 0 }} title="Remove">✕</button>
+        {rules.map((rule, i) => {
+          const incomplete = !isCompleteRule(rule)
+          return (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                <select
+                  aria-label={`${title} rule ${i + 1}`}
+                  value={rule.type}
+                  onChange={(e) => onUpdate(i, { type: e.target.value as ConditionType, value: undefined })}
+                  style={{ ...fieldStyle(false), flex: 1 }}
+                >
+                  {availableTypes.map(t => (
+                    <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+                  ))}
+                </select>
+                <button onClick={() => onRemove(i)} style={{ padding: 'var(--space-1)', background: 'none', border: 'none', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: 'var(--text-sm)', lineHeight: 1, flexShrink: 0 }} title="Remove" aria-label={`Remove ${title.toLowerCase()} rule ${i + 1}`}>✕</button>
+              </div>
+              {rule.type === 'page_id' && (
+                <select
+                  aria-label="Page"
+                  value={rule.value ?? ''}
+                  onChange={(e) => onUpdate(i, { value: e.target.value })}
+                  style={fieldStyle(incomplete)}
+                >
+                  <option value="">Select page…</option>
+                  {pages.map(p => <option key={p.id} value={p.id}>{p.title} (/{p.slug})</option>)}
+                </select>
+              )}
+              {(rule.type === 'page_slug' || rule.type === 'path_prefix' || rule.type === 'module') && (
+                <input
+                  type="text"
+                  aria-label={TYPE_LABELS[rule.type]}
+                  value={rule.value ?? ''}
+                  onChange={(e) => onUpdate(i, { value: e.target.value })}
+                  placeholder={rule.type === 'page_slug' ? 'e.g. about' : rule.type === 'module' ? 'e.g. shop' : 'e.g. /blog'}
+                  style={fieldStyle(incomplete)}
+                />
+              )}
             </div>
-            {rule.type === 'page_id' && (
-              <select
-                value={rule.value ?? ''}
-                onChange={(e) => onUpdate(i, { value: e.target.value })}
-                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)' }}
-              >
-                <option value="">Select page…</option>
-                {pages.map(p => <option key={p.id} value={p.id}>{p.title} (/{p.slug})</option>)}
-              </select>
-            )}
-            {(rule.type === 'page_slug' || rule.type === 'path_prefix') && (
-              <input
-                type="text"
-                value={rule.value ?? ''}
-                onChange={(e) => onUpdate(i, { value: e.target.value })}
-                placeholder={rule.type === 'page_slug' ? 'e.g. about' : 'e.g. /blog'}
-                style={{ width: '100%', padding: '0.25rem 0.375rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)', boxSizing: 'border-box' }}
-              />
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

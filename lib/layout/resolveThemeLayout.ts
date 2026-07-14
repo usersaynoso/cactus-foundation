@@ -2,15 +2,16 @@ import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
 import { scoreConditions, RenderContext, DisplayConditions } from './displayConditions'
 
-// `history` is never selected: it holds up to ten past published Puck payloads
-// per layout (see the Layout model in prisma/schema.prisma), which would dwarf
-// every other column on a query that runs three times or more per page render.
+// Neither `history` nor `publishedData` is selected. Both hold whole Puck
+// payloads (history up to ten of them per layout - see the Layout model in
+// prisma/schema.prisma), which would dwarf every other column on a query that
+// runs three times or more per page render, and no caller reads either: a
+// layout keeps one content blob, and every consumer renders `builderData`.
 const LAYOUT_SELECT = {
   id: true,
   name: true,
   type: true,
   builderData: true,
-  publishedData: true,
   displayConditions: true,
   priority: true,
   updatedAt: true,

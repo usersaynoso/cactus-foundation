@@ -95,7 +95,7 @@ export default function LayoutSettingsTab({ name, description, priority, status,
           onChange={(e) => setLocal((l) => ({ ...l, priority: Number(e.target.value) || 0 }))}
         />
         <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
-          Manual tiebreaker when two layouts have the same specificity score.
+          When two layouts both claim the same page, the higher number wins. Leave it at 0 unless you are settling an argument between two of them.
         </p>
       </div>
 

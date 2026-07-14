@@ -1,4 +1,4 @@
-import { moduleLayoutTypeGroups } from '@/lib/layout/module-layout-types'
+import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 
 // The layout types, and the tabs that present them. Shared by the Layouts list
 // and the new-layout picker so the two can never disagree about what a type is
@@ -43,3 +43,12 @@ export const CORE_TYPE_TABS: LayoutTypeTab[] = CORE_LAYOUT_TYPES.map((t) => ({
   label: t.label,
   type: t.key,
 }))
+
+/** Every layout type this install can render: the five core ones, plus whatever
+ * the installed modules declare. A type outside this set has no editor config,
+ * no tab to appear under and nothing that resolves it, so a layout carrying one
+ * would be invisible everywhere but the database. */
+export function isKnownLayoutType(type: unknown): type is string {
+  if (typeof type !== 'string') return false
+  return type in TYPE_LABELS || type in moduleLayoutTypeToGroup
+}

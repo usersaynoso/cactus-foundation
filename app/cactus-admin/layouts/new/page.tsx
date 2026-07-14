@@ -152,20 +152,25 @@ function StarterCard({
   creating: boolean
   onChoose: () => void
 }) {
-  const [hover, setHover] = useState(false)
+  // Highlighted on keyboard focus as well as hover: these cards are the only way
+  // to create a layout, and tabbing through fourteen identical-looking outlines
+  // with no idea which one Enter would pick is not a way to pick one.
+  const [active, setActive] = useState(false)
 
   return (
     <button
       type="button"
       onClick={onChoose}
       disabled={busy}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
       style={{
         textAlign: 'left',
         padding: 0,
         background: 'var(--color-surface)',
-        border: `1px solid ${hover && !busy ? 'var(--color-primary)' : 'var(--color-border)'}`,
+        border: `1px solid ${active && !busy ? 'var(--color-primary)' : 'var(--color-border)'}`,
         borderRadius: 'var(--radius)',
         overflow: 'hidden',
         cursor: busy ? 'default' : 'pointer',
@@ -175,6 +180,7 @@ function StarterCard({
         opacity: busy && !creating ? 0.55 : 1,
         transition: 'border-color var(--dur-base), opacity var(--dur-base)',
       }}
+      aria-label={`${template.name} - ${template.description}`}
     >
       <div style={{ padding: '0.75rem', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }}>
         <LayoutPreview type={type} data={template.data} />

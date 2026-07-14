@@ -5,6 +5,22 @@ import { hasPermission } from '@/lib/permissions/check'
 
 type Ctx = { params: Promise<{ id: string }> }
 
+/** Duplicating the same layout twice used to leave two of them called
+ * "Header (Copy)", which is no help at all when you are trying to pick the one
+ * you just made. Count up instead. */
+async function nextCopyName(sourceName: string): Promise<string> {
+  const taken = new Set(
+    (await prisma.layout.findMany({
+      where: { name: { startsWith: `${sourceName} (Copy` } },
+      select: { name: true },
+    })).map((l) => l.name),
+  )
+
+  let name = `${sourceName} (Copy)`
+  for (let n = 2; taken.has(name); n++) name = `${sourceName} (Copy ${n})`
+  return name
+}
+
 // Creates a copy of a layout, so an owner can fork a design they already like
 // rather than rebuild it. The copy always starts as a draft with no display
 // conditions so it can never displace a live layout by accident.
@@ -21,7 +37,7 @@ export async function POST(_req: Request, { params }: Ctx) {
 
     const copy = await prisma.layout.create({
       data: {
-        name: `${source.name} (Copy)`,
+        name: await nextCopyName(source.name),
         description: source.description,
         type: source.type,
         builderData: source.builderData ?? undefined,

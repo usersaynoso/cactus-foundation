@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { isAdmin } from '@/lib/permissions/check'
+import { hasPermission } from '@/lib/permissions/check'
 import { Render } from '@puckeditor/core/rsc'
 import {
   headerPuckRscConfig,
@@ -11,6 +11,7 @@ import {
   getModuleLayoutPuckRscConfig,
 } from '@/lib/puck/config.rsc'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import type { Data } from '@puckeditor/core'
@@ -19,15 +20,6 @@ import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
-
-const TYPE_LABELS: Record<string, string> = {
-  header: 'Header',
-  footer: 'Footer',
-  infoPage: 'Page Layout',
-  notFound: '404 Page',
-  statusPage: 'Status Page',
-}
-
 
 function getConfig(type: string): any {
   switch (type) {
@@ -47,8 +39,11 @@ type Props = { params: Promise<{ id: string }> }
 export default async function LayoutPreviewPage({ params }: Props) {
   const { id } = await params
 
+  // Whoever is allowed to edit layouts is allowed to look at one. isAdmin() here
+  // meant the Preview button 404'd for anyone holding layouts.manage on a role
+  // that isn't the protected Admin role - which is every role that grants it.
   const user = await getSessionFromCookie().catch(() => null)
-  if (!user || !isAdmin(user)) notFound()
+  if (!user || !await hasPermission(user, 'layouts.manage')) notFound()
 
   const layout = await prisma.layout.findUnique({
     where: { id },
@@ -85,7 +80,7 @@ export default async function LayoutPreviewPage({ params }: Props) {
   try { builderData = await resolveTemplateData(layout.builderData, ctx) } catch {}
 
   const config = getConfig(layout.type)
-  const typeLabel = TYPE_LABELS[layout.type] ?? moduleLayoutTypeToGroup[layout.type]?.label ?? layout.type
+  const typeLabel = getLayoutTypeLabel(layout.type)
 
   const infoBar = (
     <div style={{

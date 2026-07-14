@@ -11,6 +11,7 @@ import { registerEditorFields } from '@/lib/puck/fields/editor'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
+import type { DisplayConditions } from '@/lib/layout/displayConditions'
 import { withImagePickerFields } from '@/lib/puck/MediaPickerField'
 import { MenuSelectField } from '@/lib/puck/MenuSelectField'
 import MenuBlockEditorPreview from '@/lib/puck/MenuBlockEditorPreview'
@@ -37,8 +38,6 @@ type HistoryVersion = {
   byName: string | null
   isLive: boolean
 }
-
-type DisplayConditions = { include: unknown[]; exclude: unknown[] }
 
 type Props = {
   initialData: Data
@@ -273,6 +272,8 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           layoutType={layoutType ?? ''}
           existing={displayConditions}
           onSave={onConditionsSave}
+          saving={saving}
+          saved={saved}
         />
       ),
     }),
