@@ -35,16 +35,35 @@ function readManifest(moduleName) {
   }
 }
 
-// Sorts pattern keys literal-first (fewest dynamic [param] segments first, then
-// lexicographic) so pattern matching against a request path is deterministic —
-// a literal route always wins over a same-length dynamic one.
+// Orders route patterns literal-first so first-match dispatch is deterministic:
+// at the first segment where two same-length patterns differ, a literal segment
+// beats a dynamic [param] one (Next.js precedence, static > dynamic). Without
+// this, an alphabetical file sort puts `[id]` (which starts with '[', 0x5B)
+// ahead of a sibling literal like `reorder`, and because matchPattern treats
+// `[id]` as a wildcard the literal route is never reached - the request lands on
+// `categories/[id]` with id="reorder" instead of `categories/reorder`.
+function isDynamicSegment(seg) {
+  return seg.startsWith('[') && seg.endsWith(']')
+}
+function comparePatternSegments(a, b) {
+  const min = Math.min(a.length, b.length)
+  for (let i = 0; i < min; i++) {
+    const aDynamic = isDynamicSegment(a[i])
+    const bDynamic = isDynamicSegment(b[i])
+    if (aDynamic !== bDynamic) return aDynamic ? 1 : -1 // literal segment first
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1
+  }
+  return a.length - b.length
+}
+// Sorts `{ pattern: string[], ... }` route entries literal-first.
+function sortRoutesBySpecificity(routes) {
+  return [...routes].sort((x, y) => comparePatternSegments(x.pattern, y.pattern))
+}
+// Sorts slash-joined pattern keys literal-first (splits into segments first).
 function sortPatternKeys(keys) {
-  return [...keys].sort((a, b) => {
-    const aDynamic = (a.match(/\[[^\]]+\]/g) || []).length
-    const bDynamic = (b.match(/\[[^\]]+\]/g) || []).length
-    if (aDynamic !== bDynamic) return aDynamic - bDynamic
-    return a.localeCompare(b)
-  })
+  return [...keys].sort((a, b) =>
+    comparePatternSegments(a ? a.split('/') : [], b ? b.split('/') : [])
+  )
 }
 
 const moduleNames = getModuleNames()
@@ -170,7 +189,7 @@ out.push(``)
 out.push(`const API_ROUTES: Record<string, Array<{ pattern: string[]; load: ApiRouteLoader }>> = {`)
 for (const [mod, routes] of Object.entries(apiRoutes)) {
   out.push(`  '${mod}': [`)
-  for (const { pattern, importPath } of routes) {
+  for (const { pattern, importPath } of sortRoutesBySpecificity(routes)) {
     out.push(`    { pattern: ${JSON.stringify(pattern)}, load: () => import('${importPath}') },`)
   }
   out.push(`  ],`)
@@ -181,8 +200,8 @@ out.push(``)
 out.push(`const PAGE_LOADERS: Record<string, Record<string, PageModule>> = {`)
 for (const [mod, loaders] of Object.entries(pageLoaders)) {
   out.push(`  '${mod}': {`)
-  for (const [key, importPath] of Object.entries(loaders)) {
-    out.push(`    '${key}': () => import('${importPath}'),`)
+  for (const key of sortPatternKeys(Object.keys(loaders))) {
+    out.push(`    '${key}': () => import('${loaders[key]}'),`)
   }
   out.push(`  },`)
 }
@@ -203,7 +222,7 @@ out.push(``)
 out.push(`const PUBLIC_ROUTE_HANDLERS: Record<string, Array<{ pattern: string[]; load: ApiRouteLoader }>> = {`)
 for (const [base, routes] of Object.entries(publicRoutes)) {
   out.push(`  '${base}': [`)
-  for (const { pattern, importPath } of routes) {
+  for (const { pattern, importPath } of sortRoutesBySpecificity(routes)) {
     out.push(`    { pattern: ${JSON.stringify(pattern)}, load: () => import('${importPath}') },`)
   }
   out.push(`  ],`)
