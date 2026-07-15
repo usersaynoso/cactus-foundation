@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Role } from '@prisma/client'
@@ -108,6 +109,31 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
   // empty (i.e. everything maximised) when there's no saved state.
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const [aboutOpen, setAboutOpen] = useState(false)
+  // Collapsed sidebar tooltip. The scroll container clips horizontally
+  // (overflow-x: hidden forced by overflow-y: auto), so a pure-CSS tooltip
+  // anchored inside it can't escape to the right. Render it fixed-positioned
+  // via a portal to <body> instead, matching the global .theme-toggle-tip look.
+  const [tip, setTip] = useState<{ text: string; top: number; left: number } | null>(null)
+
+  const showTip = useCallback((el: HTMLElement, text: string) => {
+    const r = el.getBoundingClientRect()
+    setTip({ text, top: r.top + r.height / 2, left: r.right + 8 })
+  }, [])
+  const hideTip = useCallback(() => setTip(null), [])
+
+  // Icon-only collapsed links need both an accessible name (aria-label, since the
+  // visible text is hidden) and the hover/focus tooltip. Expanded links show their
+  // text, so they get neither.
+  const tipProps = (label: string) =>
+    collapsed
+      ? {
+          'aria-label': label,
+          onMouseEnter: (e: React.MouseEvent<HTMLElement>) => showTip(e.currentTarget, label),
+          onMouseLeave: hideTip,
+          onFocus: (e: React.FocusEvent<HTMLElement>) => showTip(e.currentTarget, label),
+          onBlur: hideTip,
+        }
+      : {}
 
   // Read the saved preference after mount — reading localStorage synchronously in a
   // useState initializer makes the client's first render diverge from the
@@ -171,7 +197,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
               key={href}
               href={href}
               className={isActive(href) ? 'active' : ''}
-              title={collapsed ? entry.label : undefined}
+              {...tipProps(entry.label)}
               onClick={onNavClick}
             >
               <span className="admin-nav-icon">
@@ -214,7 +240,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
                 key={href}
                 href={href}
                 className={isActive(href) ? 'active' : ''}
-                title={collapsed ? link.label : undefined}
+                {...tipProps(link.label)}
                 onClick={onNavClick}
               >
                 <span className="admin-nav-icon">{NAV_ICONS[link.icon]}</span>
@@ -229,7 +255,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
                 key={href}
                 href={href}
                 className={isActive(href) ? 'active' : ''}
-                title={collapsed ? entry.label : undefined}
+                {...tipProps(entry.label)}
                 onClick={onNavClick}
               >
                 <span className="admin-nav-icon">
@@ -253,7 +279,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
                   key={href}
                   href={href}
                   className={isActive(href) ? 'active' : ''}
-                  title={collapsed ? entry.label : undefined}
+                  {...tipProps(entry.label)}
                   onClick={onNavClick}
                 >
                   <span className="admin-nav-icon">
@@ -277,7 +303,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         <Link
           href={`${base}/account`}
           className={`admin-nav-account${collapsed ? ' admin-nav-account--collapsed' : ''}`}
-          title={collapsed ? 'My Account' : undefined}
+          {...tipProps('My Account')}
           onClick={onNavClick}
         >
           <span className="admin-nav-icon">{NAV_ICONS.account}</span>
@@ -287,7 +313,7 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
           <button
             type="submit"
             className={`admin-nav-logout${collapsed ? ' admin-nav-logout--collapsed' : ''}`}
-            title={collapsed ? 'Sign out' : undefined}
+            {...tipProps('Sign out')}
           >
             <span className="admin-nav-icon">{NAV_ICONS.logout}</span>
             {!collapsed && 'Sign out'}
@@ -305,6 +331,12 @@ export default function AdminNav({ adminPath, version, collapsed, onNavClick, mo
         )}
       </div>
       {aboutOpen && <AboutModal version={version} onClose={() => setAboutOpen(false)} />}
+      {tip && typeof document !== 'undefined' && createPortal(
+        <div className="admin-nav-tip" role="tooltip" style={{ top: tip.top, left: tip.left }}>
+          {tip.text}
+        </div>,
+        document.body
+      )}
     </nav>
   )
 }

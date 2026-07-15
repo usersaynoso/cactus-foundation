@@ -1237,6 +1237,29 @@ a:hover {
 }
 
 /* ============================================================
+   COLLAPSED SIDEBAR NAV TOOLTIP
+   Fixed-positioned (portal to <body>) so it escapes the nav
+   scroll container's overflow clipping and sits to the RIGHT of
+   the hovered icon. Visuals match .theme-toggle-tip; shown
+   immediately on hover/focus (no native title delay).
+   ============================================================ */
+.admin-nav-tip {
+  position: fixed;
+  transform: translateY(-50%);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 300;
+}
+
+/* ============================================================
    ROW ACTION ICON BUTTON — used in table rows (e.g. inbox list)
    Tooltip visuals match .theme-toggle-tip above.
    ============================================================ */
