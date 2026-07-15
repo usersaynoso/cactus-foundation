@@ -3589,7 +3589,7 @@ export type PuckConfig = typeof puckConfig
 
 export const footerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'CookieSettingsLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
@@ -3621,6 +3621,7 @@ export const footerPuckConfig = {
     // extra padding here (otherwise they'd double up against the site default).
     SocialLinks:         noGutterDefault(puckConfig.components.SocialLinks),
     ButtonLink:          noGutterDefault(puckConfig.components.ButtonLink),
+    Phone:               noGutterDefault(puckConfig.components.Phone),
     CookieSettingsLink:  puckConfig.components.CookieSettingsLink,
     // Grid stays mapped (but unlisted in any category above) purely so
     // pre-split data - saved-block entries or history snapshots a migration
@@ -3799,7 +3800,7 @@ export const headerPuckConfig = {
     site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
     layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
-    actions:    { title: 'Actions',    components: ['ButtonLink'], defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
     ...(Object.keys(headerModuleBlocks).length > 0
       ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
@@ -3840,6 +3841,7 @@ export const headerPuckConfig = {
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,
     ButtonLink:   puckConfig.components.ButtonLink,
+    Phone:        puckConfig.components.Phone,
     ImageBlock:   puckConfig.components.ImageBlock,
     ...headerModuleBlocks,
   },
