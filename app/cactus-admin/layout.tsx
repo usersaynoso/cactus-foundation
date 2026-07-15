@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermissions } from '@/lib/permissions/check'
+import { hasPermissions, isAdmin } from '@/lib/permissions/check'
+import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, type ModuleManifestNav } from '@/lib/nav/admin-menu'
 import { prisma } from '@/lib/db/prisma'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
@@ -10,9 +11,6 @@ import { sanitizeSvg } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
-
-type NavEntry = { label: string; path: string; icon?: string; permission?: string }
-type NavGroup = { label: string | null; links: Array<{ label: string; path: string; icon?: string }> }
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -37,63 +35,42 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const [config, activeModules, unreadCount, branding] = await Promise.all([
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true } }),
+    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true, adminMenuConfig: true } }),
     prisma.module.findMany({ where: { status: { in: ['active', 'update_available'] } }, select: { manifest: true } }),
     getUnreadCount(),
     resolveBranding(),
   ])
 
-  // Every permission guarding a module nav entry is resolved in a single batch
-  // query. Checking them one at a time inside the loop below meant one database
-  // round-trip per entry, on every admin page load.
-  const manifests = activeModules.map(
-    (mod) => mod.manifest as { navEntries?: NavEntry[]; navGroupLabel?: string; navGroupOrder?: number } | null
-  )
+  const manifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
+  // Module nav-entry permissions AND the core items' default-visibility keys are
+  // resolved together in one batch: the same map gates module links and drives the
+  // core sidebar resolution below. One query instead of one round-trip per entry.
   const navPermissionKeys = [
-    ...new Set(
-      manifests.flatMap((m) => (m?.navEntries ?? []).map((e) => e.permission).filter((p): p is string => !!p))
-    ),
+    ...new Set([
+      ...manifests.flatMap((m) => (m?.navEntries ?? []).map((e) => e.permission).filter((p): p is string => !!p)),
+      ...CORE_NAV_PERMISSION_KEYS,
+    ]),
   ]
   const navPermissions = await hasPermissions(user, navPermissionKeys)
 
-  // Most modules share one flat "Modules" bucket in the sidebar; a module can opt
-  // into its own labelled section (e.g. "Gazette") by setting navGroupLabel. Sections
-  // sort by navGroupOrder (lowest first, unset sorts last) so a module can request a
-  // spot near the top of the module list without core hardcoding any module's name.
-  const ungroupedLinks: NavGroup['links'] = []
-  const labelledGroups = new Map<string, NavGroup['links']>()
-  const labelledGroupOrder = new Map<string, number>()
-  for (const manifest of manifests) {
-    if (!manifest?.navEntries) continue
-    const links: NavGroup['links'] = []
-    for (const entry of manifest.navEntries) {
-      if (!entry.permission || navPermissions[entry.permission]) {
-        // A manifest icon is inline SVG markup, and AdminNav injects it with
-        // dangerouslySetInnerHTML - so a module author (or a tampered module
-        // repo) could otherwise ship a <script> that runs on every admin page.
-        // Scrubbed here, in the server component, because AdminNav is a client
-        // component and can't reach the jsdom-backed sanitiser.
-        links.push({
-          label: entry.label,
-          path: entry.path,
-          icon: entry.icon ? sanitizeSvg(entry.icon) : undefined,
-        })
-      }
-    }
-    if (links.length === 0) continue
-    if (manifest.navGroupLabel) {
-      labelledGroups.set(manifest.navGroupLabel, [...(labelledGroups.get(manifest.navGroupLabel) ?? []), ...links])
-      const order = manifest.navGroupOrder ?? Infinity
-      const existingOrder = labelledGroupOrder.get(manifest.navGroupLabel)
-      if (existingOrder === undefined || order < existingOrder) labelledGroupOrder.set(manifest.navGroupLabel, order)
-    } else {
-      ungroupedLinks.push(...links)
-    }
-  }
-  const moduleNavGroups: NavGroup[] = []
-  if (ungroupedLinks.length > 0) moduleNavGroups.push({ label: null, links: ungroupedLinks })
-  const sortedLabels = [...labelledGroups.keys()].sort((a, b) => (labelledGroupOrder.get(a) ?? Infinity) - (labelledGroupOrder.get(b) ?? Infinity))
-  for (const label of sortedLabels) moduleNavGroups.push({ label, links: labelledGroups.get(label)! })
+  // Group module links exactly as the sidebar always has (see buildModuleNavGroups).
+  // Icons are inline SVG markup injected with dangerouslySetInnerHTML, so each is
+  // scrubbed here in the server component - AdminNav is a client component with no
+  // access to the jsdom-backed sanitiser.
+  const moduleNavGroups = buildModuleNavGroups(manifests, {
+    canSee: (permission) => !permission || navPermissions[permission] === true,
+    sanitizeIcon: sanitizeSvg,
+  })
+
+  // Resolve the sidebar for this user: apply the site owner's saved customisation
+  // (order/rename/visibility from Settings > Navigation) and filter to what this
+  // role may see. isProtected admins see every item so they can never hide the
+  // screen that edits these rules from themselves.
+  const menuSections = resolveAdminMenu(moduleNavGroups, parseAdminMenuConfig(config?.adminMenuConfig), {
+    roleId: user.role.id,
+    isAdmin: isAdmin(user),
+    can: (key) => navPermissions[key] === true,
+  })
 
   // White-label the admin chrome to the site's primary colour and font. Only the
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)
@@ -108,10 +85,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {adminThemeStyles && <style dangerouslySetInnerHTML={{ __html: adminThemeStyles }} />}
       <AdminShell
         adminPath={adminPath}
-        userRole={user.role}
         siteName={config?.siteName ?? 'Cactus Foundation'}
         version={pkg.version}
-        moduleNavGroups={moduleNavGroups}
+        sections={menuSections}
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}
         faviconDarkUrl={branding.faviconDarkUrl}

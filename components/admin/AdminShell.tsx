@@ -3,30 +3,25 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
+import CommandPalette from './CommandPalette'
 import NotificationBell from './NotificationBell'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
-import type { Role } from '@prisma/client'
-
-type ModuleNavGroup = {
-  label: string | null
-  links: Array<{ label: string; path: string; icon?: string }>
-}
+import type { ResolvedNavSection } from '@/lib/nav/admin-menu'
 
 type Props = {
   adminPath: string
-  userRole: Role
   siteName: string
   version: string
   children: React.ReactNode
-  moduleNavGroups?: ModuleNavGroup[]
+  sections: ResolvedNavSection[]
   unreadCount?: number
   faviconUrl?: string | null
   faviconDarkUrl?: string | null
 }
 
-export default function AdminShell({ adminPath, userRole, siteName, version, children, moduleNavGroups, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -174,6 +169,14 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
             >
               <span className="admin-sidebar-toggle-icon">{effectiveCollapsed ? '›' : '‹'}</span>
             </button>
+            <button
+              className="admin-sidebar-toggle admin-sidebar-search"
+              onClick={() => window.dispatchEvent(new Event('cactus:open-command-palette'))}
+              title="Search the menu (⌘K / Ctrl+K)"
+              aria-label="Search the menu"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+            </button>
             <ThemeToggle compact collapsed={effectiveCollapsed} />
             <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={effectiveCollapsed} />
           </div>
@@ -182,11 +185,10 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
         <div className="admin-sidebar-nav-scroll">
           <AdminNav
             adminPath={adminPath}
-            userRole={userRole}
             version={version}
+            sections={sections}
             collapsed={effectiveCollapsed}
             onNavClick={() => setMobileOpen(false)}
-            moduleNavGroups={moduleNavGroups}
           />
         </div>
       </aside>
@@ -196,6 +198,7 @@ export default function AdminShell({ adminPath, userRole, siteName, version, chi
           {children}
         </div>
       </div>
+      <CommandPalette adminPath={adminPath} sections={sections} />
     </div>
     </AdminPathProvider>
   )

@@ -13,6 +13,8 @@ import MembersGdprClient from './MembersGdprClient'
 import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
 import RolesClient from './RolesClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
+import NavBuilder from './NavBuilder'
+import type { EditorNavSection } from '@/lib/nav/admin-menu'
 import {
   PROVIDER_KIND,
   PROVIDER_LABELS,
@@ -515,6 +517,7 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 
 type ModuleTab = { id: string; label: string }
 type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
+type NavEditorData = { sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
 
 type ConfigPageInnerProps = {
   moduleTabs: ModuleTab[]
@@ -522,12 +525,14 @@ type ConfigPageInnerProps = {
   canManageRoles: boolean
   canManageEmailTemplates: boolean
   canViewMembersGdpr: boolean
+  canManageNav: boolean
+  navEditorData: NavEditorData | null
   rolesData: RolesData | null
   roleExtensions: ReactNode
   membersGdprExtensions: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -537,7 +542,8 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const savedAdminPath = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
   const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') ? (tabParam as string) : 'general'
+  const showNavTab = canManageNav && !!navEditorData
+  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') || (showNavTab && tabParam === 'navigation') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
   const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles' | 'email-templates'>(
     canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
@@ -1427,9 +1433,14 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
         items={[
           ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => setTab(t) })),
           ...(showUsersTab ? [{ key: 'users', label: 'Users', active: tab === 'users', onClick: () => setTab('users') }] : []),
+          ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => setTab('navigation') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => setTab(t.id) })),
         ]}
       />
+
+      {tab === 'navigation' && showNavTab && navEditorData && (
+        <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} />
+      )}
 
       {tab === 'general' && (
         <div>

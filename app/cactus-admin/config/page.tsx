@@ -3,6 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, type ModuleManifestNav, type EditorNavSection } from '@/lib/nav/admin-menu'
 import ConfigPageClient from './ConfigPageClient'
 
 type ModuleSettingsTab = { id: string; label: string; permission?: string }
@@ -31,6 +32,7 @@ export default async function ConfigPage() {
         'roles.manage',
         'members.email-templates',
         'members.gdpr',
+        'config.manage',
         ...manifests.flatMap((m) => (m?.settingsTabs ?? []).map((t) => t.permission)),
         ...manifests.flatMap((m) => (m?.extensionPoints ?? []).map((e) => e.permission)),
       ].filter((k): k is string => !!k)
@@ -55,6 +57,7 @@ export default async function ConfigPage() {
   const canManageRoles = granted['roles.manage'] === true
   const canManageEmailTemplates = granted['members.email-templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
+  const canManageNav = granted['config.manage'] === true
 
   let rolesData: { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] } | null = null
   let roleExtensions: ReactNode = null
@@ -140,6 +143,26 @@ export default async function ConfigPage() {
     )
   }
 
+  // Settings > Navigation editor data. Gated by config.manage (same key that guards
+  // the rest of System settings). The editor lists every menu item - core and every
+  // module link, unfiltered by permission - so an admin can set rules on all of them.
+  let navEditorData: {
+    sections: EditorNavSection[]
+    roles: Array<{ id: string; name: string; isProtected: boolean }>
+  } | null = null
+  if (canManageNav && user) {
+    const [siteConfigRow, navRoles] = await Promise.all([
+      prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { adminMenuConfig: true } }),
+      prisma.role.findMany({ select: { id: true, name: true, isProtected: true }, orderBy: { name: 'asc' } }),
+    ])
+    const navManifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
+    const moduleGroups = buildModuleNavGroups(navManifests, { canSee: () => true })
+    navEditorData = {
+      sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig)),
+      roles: navRoles,
+    }
+  }
+
   return (
     <Suspense fallback={<div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}>
       <ConfigPageClient
@@ -148,6 +171,8 @@ export default async function ConfigPage() {
         canManageRoles={canManageRoles}
         canManageEmailTemplates={canManageEmailTemplates}
         canViewMembersGdpr={canViewMembersGdpr}
+        canManageNav={canManageNav}
+        navEditorData={navEditorData}
         rolesData={rolesData}
         roleExtensions={roleExtensions}
         membersGdprExtensions={membersGdprExtensions}

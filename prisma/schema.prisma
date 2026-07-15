@@ -222,6 +222,9 @@ model SiteConfig {
   coreUpdateChannel      String     @default("public")
   // Members system settings (null = defaults; see lib/members/config.ts)
   membersConfig          Json?
+  // Admin sidebar customisation: per-item order, rename and visibility rules set
+  // in Settings > Navigation (null = built-in defaults; see lib/nav/admin-menu.ts)
+  adminMenuConfig        Json?
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 }

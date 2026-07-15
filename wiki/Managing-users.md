@@ -110,6 +110,27 @@ If email is set up on your site, you can also sign in with a password and a one-
 
 ---
 
+## The admin menu
+
+The list of links down the left of your admin area is yours to arrange. Go to **Settings → Navigation**.
+
+For each item you can:
+
+- **Reorder** it with the up and down arrows, and move whole sections too.
+- **Rename** it - type a new label, or leave it blank to keep the original.
+- **Decide who sees it:**
+  - **Default** - anyone whose role already lets them use that screen.
+  - **Everyone** - all admin users, even without the usual permission.
+  - **Administrators only** - hidden from every other role.
+  - **Only chosen roles** - tick the roles that may see it.
+  - **Hidden** - taken off the menu for everyone.
+
+Click **Save menu** and the change appears straight away. **Reset to defaults** puts everything back.
+
+Administrators always see every item, hidden ones included (marked with a small padlock), so you can never lock yourself out of your own settings.
+
+A few handy touches in the menu itself: a filter box to find a link quickly, a star to pin favourites to the top, a list of your recently visited pages, and a search box (or press **Cmd/Ctrl + K**) to jump straight to any screen.
+
 ## Access settings
 
 Go to **Settings → General** to control:
