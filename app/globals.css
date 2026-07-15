@@ -381,6 +381,18 @@ img[data-logo-variant="dark"] { display: none; }
 /* ============================================================
    BASE RESET
    ============================================================ */
+/* In-page anchor links (e.g. a hero CTA pointing at a section further down)
+   glide rather than jump. Honour reduced-motion so it stays an instant jump
+   for anyone who's asked the OS to cut animation. */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);

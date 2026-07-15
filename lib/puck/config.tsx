@@ -909,6 +909,10 @@ function SectionBlock(props: any) {
     boxShadow: shadowMap[boxShadow] ?? 'none',
     border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
     borderRadius: radiusMap[borderRadius] ?? '0',
+    // The section id doubles as an in-page anchor target (see `id` on the div
+    // below). Keep the scrolled-to top clear of a sticky header so a `#section`
+    // link lands with the heading visible rather than tucked under the nav.
+    scrollMarginTop: '5rem',
     // Only clip when the section actually paints something to a rounded/edged
     // box (radius, background image, overlay scrim, shadow, scan beam). A plain
     // section leaves overflow visible so a `position: sticky` descendant - e.g.
@@ -962,7 +966,7 @@ function SectionBlock(props: any) {
   })
 
   return (
-    <div style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
+    <div id={id || undefined} style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
       {bgType === 'grid-scan' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
       {overlayColor && overlayOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
