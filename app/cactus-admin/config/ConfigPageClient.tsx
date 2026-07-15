@@ -524,7 +524,9 @@ type ConfigPageInnerProps = {
   moduleTabs: ModuleTab[]
   // Panels contributed by other modules to a named slot (e.g. 'shop.payments'),
   // pre-rendered server-side and handed to the hosting module's settings tab.
-  hostedSettingsSlots: Record<string, ReactNode>
+  // Optional: a page with no hosted panels is valid, so the config page never
+  // has to supply it.
+  hostedSettingsSlots?: Record<string, ReactNode>
   canManageMembersSettings: boolean
   canManageRoles: boolean
   canManageEmailTemplates: boolean

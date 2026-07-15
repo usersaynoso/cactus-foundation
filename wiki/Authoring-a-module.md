@@ -380,12 +380,43 @@ A module can add a tab to the core admin's **Settings** (`/config`) page instead
 | `id` | yes | Unique tab id, used as the `?tab=` query value and as the key modules key off (e.g. in OAuth-callback redirects back to `/config?tab=<id>`). |
 | `label` | yes | Tab label shown in the settings tab bar. |
 | `permission` | no | Permission key required to see the tab. Omit for a tab visible to anyone who can reach `/config`. |
+| `host` | no | Name of another module's settings **slot** to render this panel inside, instead of as a top-level Settings tab. See [Hosted settings panels](#hosted-settings-panels) below. When set, the panel does not appear as its own tab and is not a `/config?tab=` destination. |
 | `import` | yes | Module-relative path to the file exporting the tab component (no `.ts` / `.tsx` extension). |
 | `component` | yes | Named export for the tab's React component. Must be a client component (`'use client'`) - it's rendered directly inside the client-side settings page. It receives no props and manages its own state/fetching, exactly like a standalone admin page would. |
 
 `scripts/generate-module-settings-tabs.mjs` runs on every `npm run build` and `npm run dev`. It rewrites `lib/modules/settings-tabs.ts` (gitignored, same pattern as `lib/puck/module-components.ts`) with a `moduleSettingsTabComponents` record keyed by `id`. The core settings page (`app/cactus-admin/config/page.tsx`, a server component) reads every active module's `settingsTabs` live from `Module.manifest`, permission-filters them the same way `navEntries` are filtered for the sidebar, and passes the visible list into the client page - which looks up each visible tab's component from the generated record.
 
 Your tab's content renders with no extra chrome - no page title, no wrapping card - since it sits directly under the shared tab bar. Add your own heading only if the tab label alone wouldn't be enough context.
+
+### Hosted settings panels
+
+Sometimes a settings panel belongs *inside another module's* settings, not as its own top-level tab. A GoCardless payment provider, for example, should sit on the Shop's **Payments** tab next to Stripe and PayPal, not float as a separate "Instant Bank Pay" tab. Set `host` on the `settingsTabs` entry to the name of the slot to render into:
+
+```json
+"settingsTabs": [
+  {
+    "id": "gocardless-ibp",
+    "label": "Instant Bank Pay",
+    "permission": "shop.manage",
+    "host": "shop.payments",
+    "import": "./components/admin/SettingsTab",
+    "component": "GoCardlessSettingsTab"
+  }
+]
+```
+
+The core settings page (`app/cactus-admin/config/page.tsx`) renders every hosted panel server-side and groups them by `host` into a `hostedSettingsSlots: Record<slotName, ReactNode>` map, permission-filtered exactly like top-level tabs. That map is threaded through `ConfigPageClient` to **every** module settings tab as an optional `hostedSettingsSlots` prop. The panel component itself is unchanged - it still receives no props of its own and manages its own fetching.
+
+**To expose a slot from your own settings tab** (i.e. become a *host*), accept the prop and drop the node in wherever it belongs:
+
+```tsx
+export function ShopSettingsTab({ hostedSettingsSlots }: { hostedSettingsSlots?: Record<string, ReactNode> } = {}) {
+  // ...inside the Payments sub-tab, after the built-in provider cards:
+  {hostedSettingsSlots?.['shop.payments'] && <>{hostedSettingsSlots['shop.payments']}</>}
+}
+```
+
+The slot name (`shop.payments`) is a free string owned by the hosting module - core never knows or checks it, so a contributing module and a hosting module simply have to agree on the name (document your slot names in the host module's README). A hosted panel that targets a slot no host renders is silently invisible, so keep the contributing module's `requiresModules` / `requiresCoreVersion` in step with the version that introduced the slot.
 
 ## Module extension points
 
