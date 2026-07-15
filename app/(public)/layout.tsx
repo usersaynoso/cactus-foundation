@@ -7,6 +7,7 @@ import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { getMemberFromCookie } from '@/lib/members/session'
 import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
@@ -39,10 +40,15 @@ export default async function PublicLayout({ children }: { children: React.React
   // resolveThemeLayout reads, so it has to finish before the layouts below -
   // but it needs nothing from the config or session reads, so the three run
   // together.
-  const [, config, user] = await Promise.all([
+  const [, config, user, member] = await Promise.all([
     ensureLayoutsCurrent(),
     getSiteConfig(),
     getSessionFromCookie().catch(() => null),
+    // Cheap for the common anonymous case - no member cookie means this returns
+    // null after a single cookie read, no database round trip. Only a present
+    // member cookie costs a session lookup. Needed so menu items restricted to
+    // signed-in / signed-out audiences resolve correctly for members too.
+    getMemberFromCookie().catch(() => null),
   ])
 
   // The media/privacy lookups need `config`; the layout reads need the prune
@@ -69,6 +75,9 @@ export default async function PublicLayout({ children }: { children: React.React
     logoDarkUrl: logoDarkMedia?.url ?? null,
     isLoggedIn,
     adminPath: config?.adminPath ?? '',
+    // Admin session and member session both count as "signed in"; only the admin
+    // session counts as staff. Drives per-item menu visibility in resolveMenu.
+    viewer: { isAuthenticated: !!user || !!member, isAdmin: !!user },
   }
 
   const [headerData, footerData] = await Promise.all([

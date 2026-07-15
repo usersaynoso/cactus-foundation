@@ -50,6 +50,10 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 const PatchBody = z.object({
   name: z.string().min(1).max(100).optional(),
+  // Set this menu as the site's main menu (true) or, when it currently is the
+  // main menu, unset it (false). Lets an admin promote a menu from the menus
+  // list itself instead of hunting through Settings > General.
+  isMainMenu: z.boolean().optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -64,8 +68,32 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const parsed = PatchBody.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const updated = await prisma.menu.update({ where: { id }, data: parsed.data })
-  return NextResponse.json(updated)
+  const { name, isMainMenu } = parsed.data
+
+  if (name !== undefined) {
+    await prisma.menu.update({ where: { id }, data: { name } })
+  }
+
+  if (isMainMenu !== undefined) {
+    const config = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { mainMenuId: true },
+    })
+    if (isMainMenu) {
+      await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { mainMenuId: id } })
+    } else if (config?.mainMenuId === id) {
+      // Only clear it if this menu is the one currently assigned - never yank a
+      // different menu out of the header by accident.
+      await prisma.siteConfig.update({ where: { id: 'singleton' }, data: { mainMenuId: null } })
+    }
+  }
+
+  const config = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { mainMenuId: true },
+  })
+  const refreshed = await prisma.menu.findUnique({ where: { id } })
+  return NextResponse.json({ ...refreshed, isMainMenu: config?.mainMenuId === id })
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {

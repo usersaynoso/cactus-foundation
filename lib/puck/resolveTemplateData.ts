@@ -1,5 +1,5 @@
 import type { Data } from '@puckeditor/core'
-import { resolveMenu, resolveMainMenu } from '@/lib/menu/resolve'
+import { resolveMenu, resolveMainMenu, type MenuViewer } from '@/lib/menu/resolve'
 
 type Context = {
   siteName: string
@@ -7,6 +7,9 @@ type Context = {
   logoDarkUrl: string | null
   isLoggedIn: boolean
   adminPath: string
+  // Who's viewing, for per-item menu visibility. Optional so the status/preview
+  // callers that don't compute it fall back to an anonymous public reader.
+  viewer?: MenuViewer
 }
 
 async function resolveBlock(block: any, ctx: Context): Promise<void> {
@@ -15,8 +18,8 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
   if (block.type === 'MenuBlock') {
     try {
       block.props.resolvedItems = block.props.menuId
-        ? await resolveMenu(block.props.menuId)
-        : await resolveMainMenu()
+        ? await resolveMenu(block.props.menuId, ctx.viewer)
+        : await resolveMainMenu(ctx.viewer)
     } catch { block.props.resolvedItems = [] }
   }
 
@@ -41,7 +44,7 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
     block.props.logoUrlDark = ctx.logoDarkUrl
     block.props.siteName = ctx.siteName
     try {
-      block.props.resolvedItems = await resolveMainMenu()
+      block.props.resolvedItems = await resolveMainMenu(ctx.viewer)
     } catch { block.props.resolvedItems = [] }
   }
 }

@@ -596,6 +596,20 @@ enum MenuItemType {
   MODULE_ENTITY
 }
 
+// Per-item audience targeting for site navigation menus. Applied at resolve time
+// (lib/menu/resolve.ts) against the current viewer, so a restricted item never
+// reaches the served HTML. Hiding an item hides its whole subtree.
+//   PUBLIC        - everyone (default; unchanged legacy behaviour)
+//   AUTHENTICATED - any signed-in visitor (member or admin)
+//   GUEST         - signed-out visitors only (e.g. a "Log in" link)
+//   ADMIN         - admin staff only (an admin User session)
+enum MenuItemVisibility {
+  PUBLIC
+  AUTHENTICATED
+  GUEST
+  ADMIN
+}
+
 model Menu {
   id        String     @id @default(cuid())
   name      String
@@ -623,6 +637,7 @@ model MenuItem {
   entityKind   String?
   entityId     String?
   openInNewTab Boolean      @default(false)
+  visibility   MenuItemVisibility @default(PUBLIC)
   order        Int
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

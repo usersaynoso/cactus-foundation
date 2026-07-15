@@ -8,12 +8,15 @@ import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
 
 type Params = { params: Promise<{ id: string }> }
 
+const Visibility = z.enum(['PUBLIC', 'AUTHENTICATED', 'GUEST', 'ADMIN']).default('PUBLIC')
+
 const AddItemBody = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('PAGE'),
     pageId: z.string().min(1),
     label: z.string().max(100).optional().nullable(),
     parentId: z.string().optional().nullable(),
+    visibility: Visibility,
   }),
   z.object({
     type: z.literal('EXTERNAL'),
@@ -21,6 +24,7 @@ const AddItemBody = z.discriminatedUnion('type', [
     url: z.string().url(),
     openInNewTab: z.boolean().default(false),
     parentId: z.string().optional().nullable(),
+    visibility: Visibility,
   }),
   z.object({
     type: z.literal('MODULE_ENTITY'),
@@ -30,6 +34,7 @@ const AddItemBody = z.discriminatedUnion('type', [
     label: z.string().max(100).optional().nullable(),
     openInNewTab: z.boolean().default(false),
     parentId: z.string().optional().nullable(),
+    visibility: Visibility,
   }),
 ])
 
@@ -86,6 +91,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   })
   const order = (maxOrder._max.order ?? -1) + 1
 
+  const visibility = parsed.data.visibility
   const data =
     parsed.data.type === 'PAGE'
       ? {
@@ -94,6 +100,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           pageId: parsed.data.pageId,
           label: parsed.data.label ?? null,
           parentId: parentId ?? null,
+          visibility,
           order,
         }
       : parsed.data.type === 'EXTERNAL'
@@ -104,6 +111,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           url: parsed.data.url,
           openInNewTab: parsed.data.openInNewTab,
           parentId: parentId ?? null,
+          visibility,
           order,
         }
       : {
@@ -115,6 +123,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           label: parsed.data.label ?? moduleEntityLabel,
           openInNewTab: parsed.data.openInNewTab,
           parentId: parentId ?? null,
+          visibility,
           order,
         }
 

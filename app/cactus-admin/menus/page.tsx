@@ -26,6 +26,8 @@ export default function MenusPage() {
   const [renameValue, setRenameValue] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteWarning, setDeleteWarning] = useState('')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -42,14 +44,19 @@ export default function MenusPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async load on mount; setLoading(false) only fires after awaits
   useEffect(() => { load() }, [load])
 
+  // A name that already exists (case-insensitive) - blocked client-side so the
+  // admin gets an instant nudge rather than a round-trip and a server error.
+  const trimmedNew = newName.trim()
+  const nameTaken = menus.some((m) => m.name.toLowerCase() === trimmedNew.toLowerCase())
+
   async function handleCreate() {
-    if (!newName.trim()) return
+    if (!trimmedNew || nameTaken) return
     setCreateError('')
     try {
       const res = await fetch('/api/admin/menus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ name: trimmedNew }),
       })
       if (!res.ok) {
         const d = await res.json()
@@ -62,6 +69,12 @@ export default function MenusPage() {
     } catch {
       setCreateError('Failed to create menu')
     }
+  }
+
+  function cancelCreate() {
+    setCreating(false)
+    setNewName('')
+    setCreateError('')
   }
 
   async function handleRename(id: string) {
@@ -81,6 +94,44 @@ export default function MenusPage() {
       await load()
     } catch {
       setError('Failed to rename menu')
+    }
+  }
+
+  async function handleSetMain(id: string) {
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/admin/menus/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isMainMenu: true }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        setError(d.error ?? 'Failed to set main menu')
+        return
+      }
+      await load()
+    } catch {
+      setError('Failed to set main menu')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleDuplicate(id: string) {
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/admin/menus/${id}/duplicate`, { method: 'POST' })
+      if (!res.ok) {
+        const d = await res.json()
+        setError(d.error ?? 'Failed to duplicate menu')
+        return
+      }
+      await load()
+    } catch {
+      setError('Failed to duplicate menu')
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -105,6 +156,9 @@ export default function MenusPage() {
   }
 
   if (loading) return <p>Loading…</p>
+
+  const q = filter.trim().toLowerCase()
+  const shown = q ? menus.filter((m) => m.name.toLowerCase().includes(q)) : menus
 
   return (
     <div>
@@ -133,13 +187,14 @@ export default function MenusPage() {
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Menu name (e.g. Main Navigation)"
               autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') cancelCreate() }}
               style={{ width: '100%' }}
             />
+            {nameTaken && <p style={{ color: 'var(--color-warning)', fontSize: 'var(--text-base)', marginTop: 'var(--space-1)' }}>A menu called “{trimmedNew}” already exists.</p>}
             {createError && <p style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-base)', marginTop: 'var(--space-1)' }}>{createError}</p>}
           </div>
-          <button className="btn btn-primary" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
-          <button className="btn btn-secondary" onClick={() => { setCreating(false); setNewName(''); setCreateError('') }}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleCreate} disabled={!trimmedNew || nameTaken}>Create</button>
+          <button className="btn btn-secondary" onClick={cancelCreate}>Cancel</button>
         </div>
       )}
 
@@ -150,6 +205,18 @@ export default function MenusPage() {
         </div>
       )}
 
+      {menus.length > 1 && (
+        <div style={{ marginBottom: '0.75rem' }}>
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter menus by name…"
+            aria-label="Filter menus"
+            style={{ width: '100%', maxWidth: 360 }}
+          />
+        </div>
+      )}
+
       {menus.length > 0 && (
         <div className="table-wrapper">
           <table>
@@ -157,11 +224,12 @@ export default function MenusPage() {
               <tr>
                 <th>Name</th>
                 <th>Items</th>
+                <th>Created</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {menus.map((menu) => (
+              {shown.map((menu) => (
                 <tr key={menu.id}>
                   <td>
                     {renaming === menu.id ? (
@@ -170,7 +238,7 @@ export default function MenusPage() {
                           value={renameValue}
                           onChange={(e) => setRenameValue(e.target.value)}
                           autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleRename(menu.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRename(menu.id); if (e.key === 'Escape') setRenaming(null) }}
                           style={{ flex: 1 }}
                         />
                         <button className="btn btn-primary btn-sm" onClick={() => handleRename(menu.id)}>Save</button>
@@ -180,22 +248,49 @@ export default function MenusPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <strong>{menu.name}</strong>
                         {menu.isMainMenu && (
-                          <span className="badge badge-success">Main menu</span>
+                          <span className="badge badge-success">★ Main menu</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td style={{ color: 'var(--color-text-muted)' }}>{menu.itemCount}</td>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
+                    {menu.itemCount === 0 ? (
+                      <span className="badge badge-gray" title="This menu has no items yet">empty</span>
+                    ) : (
+                      menu.itemCount
+                    )}
+                  </td>
+                  <td style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', whiteSpace: 'nowrap' }}>
+                    {new Date(menu.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                       <Link href={`/${adminPath}/menus/${menu.id}`} className="btn btn-secondary btn-sm">
                         Edit items
                       </Link>
+                      {!menu.isMainMenu && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={busyId === menu.id}
+                          title="Show this menu in the site header"
+                          onClick={() => handleSetMain(menu.id)}
+                        >
+                          Set as main
+                        </button>
+                      )}
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => { setRenaming(menu.id); setRenameValue(menu.name) }}
                       >
                         Rename
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled={busyId === menu.id}
+                        title="Create a copy of this menu and all its items"
+                        onClick={() => handleDuplicate(menu.id)}
+                      >
+                        Duplicate
                       </button>
                       {deleteId === menu.id ? (
                         <>
@@ -222,13 +317,16 @@ export default function MenusPage() {
                   </td>
                 </tr>
               ))}
+              {q && shown.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '1.5rem' }}>No menus match &quot;{filter}&quot;.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       )}
 
       <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', marginTop: 'var(--space-6)' }}>
-        To set the main menu shown in the site header, go to{' '}
+        The main menu is the one shown in your site header. Use <strong>Set as main</strong> above, or change it any time from{' '}
         <Link href={`/${adminPath}/config`} style={{ color: 'var(--color-primary)' }}>
           Settings → General
         </Link>.

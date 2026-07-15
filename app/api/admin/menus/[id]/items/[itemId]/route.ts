@@ -11,6 +11,7 @@ const PatchBody = z.object({
   label: z.string().max(100).optional().nullable(),
   url: z.string().url().optional().nullable(),
   openInNewTab: z.boolean().optional(),
+  visibility: z.enum(['PUBLIC', 'AUTHENTICATED', 'GUEST', 'ADMIN']).optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -36,6 +37,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       ...(parsed.data.label !== undefined ? { label: parsed.data.label } : {}),
       ...(parsed.data.url !== undefined ? { url: parsed.data.url } : {}),
       ...(parsed.data.openInNewTab !== undefined ? { openInNewTab: parsed.data.openInNewTab } : {}),
+      ...(parsed.data.visibility !== undefined ? { visibility: parsed.data.visibility } : {}),
     },
   })
   return NextResponse.json(updated)
