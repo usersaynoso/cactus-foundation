@@ -361,6 +361,7 @@ A module can optionally own a top-level public URL segment by declaring `publicB
 - `dispatchModulePublicRoute(base, path, method, req)` - resolves and invokes a module's `route.ts` handler.
 - `getModulePublicBases()` - the list of all installed bases.
 - `collectModuleSitemapEntries(siteUrl)` - calls `getPublicSitemapEntries(siteUrl)` from each module's `lib/sitemap.ts` (if present), swallowing per-module errors.
+- `collectModuleRobotsDisallow()` - calls `getPublicRobotsDisallow()` from each module's `lib/robots.ts` (if present), swallowing per-module errors. `app/robots.ts` merges the returned paths into its `disallow` list. Shop uses this to pull every shop URL out of both `sitemap.xml` and `robots.txt` while `shopStatus` is set to Closed in Settings - no redeploy needed, both routes are `force-dynamic`.
 
 Core resolves requests to a module's public base through three routes, in order:
 

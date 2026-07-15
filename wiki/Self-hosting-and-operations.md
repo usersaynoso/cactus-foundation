@@ -27,7 +27,8 @@ Restoring is **destructive and complete**: every existing row is wiped and repla
 
 Things worth knowing:
 
-- **Modules.** If the backup came from a site with a module you don't have installed here (the shop, say), that module's data is skipped and reported rather than aborting the whole restore. Install the module first if you want its data back.
+- **Modules.** If the backup came from a site with a module you don't have installed here (the shop, say), that module's data is skipped and reported rather than aborting the whole restore. Install the module first if you want its data back. A module you *do* have gets its tables rebuilt automatically by the next deploy if they're ever missing (for example after a restore), so a module never ends up registered-but-broken.
+- **Media files.** A backup carries the media *catalogue* - which files exist, their names, folders and alt text - but not the file bytes, which live in your storage bucket (see below). If the restore lands on a site that isn't connected to the storage those files use, it says so plainly on the finish screen: reconnect that bucket, or migrate your media across, and the images come straight back. Restoring onto the same bucket needs nothing - the files never moved.
 - **Sequence counters** - such as the shop's order numbers - are restored along with the data, so the next order after a restore carries on from where the old site left off rather than re-issuing numbers that already exist.
 - **Version mismatches are refused, not fudged.** If the backup was taken on a newer version of Cactus than the site you're restoring onto, the restore stops and tells you to update the site first. It won't quietly drop the data it has nowhere to put. Nothing is changed when it refuses.
 - **Some things cannot travel between sites, and are cleared rather than faked.** See below.
