@@ -33,6 +33,8 @@ Shop supports four ways to take payment, each switched on independently from **S
 
 You can offer as many or as few of these as you like.
 
+**Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it's set up on its own **Settings → Instant Bank Pay** tab (add your GoCardless access token and webhook secret, choose sandbox or live, then switch it on) rather than the Shop → Payments tab. Refunds and confirmation work the same as any other method.
+
 ---
 
 ## Adding products
@@ -58,12 +60,14 @@ From **Shop → Products → New product**, fill in a name and price to get star
 
 ### Sub-categories
 
-**Shop → Categories** lets you nest categories as deeply as you like - Homeware → Kitchenware → Mugs → Travel Mugs, and on as far as makes sense for your shop. Each category shows as a row in a tidy indented tree:
+**Shop → Categories** lets you nest categories as deeply as you like - Homeware → Kitchenware → Mugs → Travel Mugs, and on as far as makes sense for your shop. Each category shows as a row in a tidy indented tree, with a little number next to its name telling you how many products are filed directly in it:
 
+- **Search** at the top filters the list as you type - handy once you've a lot of categories. Matches are highlighted, and their parents stay in view so you never lose the trail.
+- Any category with sub-categories has a small arrow you can click to fold it away or open it up, and **Collapse all / Expand all** does the lot in one go - so a big catalogue stays manageable.
 - **Add sub** tucks a new category underneath an existing one. **New category** (top right) starts a fresh top-level one.
-- **Edit** lets you move a category somewhere else (pick its new parent, or "Top level" to promote it) and choose what its page lists (see below). You can't move a category inside itself or one of its own sub-categories - the shop won't let you tie a knot.
+- **Edit** opens a single panel to rename the category, move it somewhere else (pick its new parent, or "Top level" to promote it) and choose what its page lists (see below). You can't move a category inside itself or one of its own sub-categories - the shop won't let you tie a knot.
 - The **↑ / ↓** arrows shuffle a category up or down among its siblings, which is the order shoppers see.
-- **Rename** and **Delete** do what they say. Deleting a category also deletes everything nested under it - a warning tells you how many sub-categories will go. Products filed in them aren't deleted; they simply lose that filing and stay in your catalogue.
+- **Delete** does what it says. Deleting a category also deletes everything nested under it - a warning tells you how many sub-categories will go. Products filed in them aren't deleted; they simply lose that filing and stay in your catalogue.
 
 On the shop front, a category page shows a breadcrumb trail back up to the top, and links to its sub-categories so shoppers can drill down.
 
