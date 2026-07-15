@@ -1627,7 +1627,7 @@ function PhoneBlock(props: any) {
   const css = `${wrapCss}${linkResetCss}${baseUnderlineCss}${hoverTextCss}${hoverColorCss}${iconCss}${mobileTextCss}${fillCss}`
 
   const inner = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45em', verticalAlign: 'top' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45em', verticalAlign: 'middle' }}>
       {showIcon !== 'none' && (
         <span data-phone-icon aria-hidden="true" style={{ alignItems: 'center' }}>
           <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
