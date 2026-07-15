@@ -3451,6 +3451,7 @@ export const footerPuckConfig = {
     site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
+    media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
   },
   root: {
     fields: {
@@ -3494,6 +3495,7 @@ export const footerPuckConfig = {
     Heading:             noGutterDefault(puckConfig.components.Heading),
     TextBlock:           noGutterDefault(puckConfig.components.TextBlock),
     RichTextBlock:       noGutterDefault(puckConfig.components.RichTextBlock),
+    ImageBlock:          noGutterDefault(puckConfig.components.ImageBlock),
   },
 }
 
@@ -3656,6 +3658,7 @@ export const headerPuckConfig = {
     layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink'], defaultExpanded: false },
+    media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
     ...(Object.keys(headerModuleBlocks).length > 0
       ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
       : {}),
@@ -3695,6 +3698,7 @@ export const headerPuckConfig = {
     TextBlock:    puckConfig.components.TextBlock,
     RichTextBlock: puckConfig.components.RichTextBlock,
     ButtonLink:   puckConfig.components.ButtonLink,
+    ImageBlock:   puckConfig.components.ImageBlock,
     ...headerModuleBlocks,
   },
 }
