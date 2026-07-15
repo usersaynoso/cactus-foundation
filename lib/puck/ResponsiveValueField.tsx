@@ -59,16 +59,6 @@ const DEVICES: { key: Device; Icon: () => React.ReactNode; title: string }[] = [
   { key: 'mobile', Icon: SmartphoneIcon, title: 'Mobile' },
 ]
 
-// Falls back to the next-wider breakpoint's value, same rule GridBlock uses
-// to compute the effective grid-template-columns per breakpoint - keeps the
-// field's placeholder text ("Same as desktop") honest.
-function inherited<T>(value: ResponsiveValue<T> | undefined, device: Device): T | undefined {
-  if (!value) return undefined
-  if (device === 'desktop') return value.desktop
-  if (device === 'tablet') return value.tablet ?? value.desktop
-  return value.mobile ?? value.tablet ?? value.desktop
-}
-
 // Elementor-style device switcher: one input, three tiny icon toggles above it
 // that swap which breakpoint's value the input reads/writes. Reused for both
 // text and select inputs via the `renderInput` render-prop, so every
@@ -107,8 +97,14 @@ export function ResponsiveFieldShell<T>({
   // Honest inheritance label: mobile only inherits from tablet when tablet
   // actually has a value of its own, otherwise both fall back to desktop.
   const placeholder = device === 'desktop' ? '' : device === 'tablet' || !hasOverride('tablet') ? 'Same as desktop' : 'Same as tablet'
+  // Show only THIS breakpoint's own value, not the inherited one. An inheriting
+  // breakpoint shows an empty input carrying the "Same as desktop/tablet"
+  // placeholder (and the little override dot stays off), so clearing the box on
+  // the breakpoint that owns the value actually removes it - previously the
+  // input was pre-filled with the inherited value, so deleting it just fell
+  // straight back to the wider breakpoint and looked like it couldn't be
+  // cleared.
   const current = value?.[device]
-  const effective = current !== undefined && current !== '' ? current : inherited(value, device)
 
   return (
     <div>
@@ -120,9 +116,17 @@ export function ResponsiveFieldShell<T>({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {renderInput({
-            value: effective,
+            value: current,
             placeholder,
-            setValue: (v) => onChange({ ...value, [device]: v }),
+            // Clearing a breakpoint drops its key entirely so it inherits again
+            // (and the override dot goes off), rather than leaving an empty
+            // override pinned on it.
+            setValue: (v) => {
+              const next = { ...value }
+              if (v === undefined || v === '') delete next[device]
+              else next[device] = v
+              onChange(next)
+            },
           })}
         </div>
         <div style={{ display: 'flex', flexShrink: 0, gap: '0.25rem' }}>

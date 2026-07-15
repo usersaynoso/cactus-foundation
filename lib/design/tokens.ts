@@ -736,16 +736,21 @@ export function buildTokenStyles(tokens: unknown): string {
   // shunting the actions column onto its own row breaks the header. Instead
   // the outer (logo/actions) columns shrink to content and the nav column
   // takes the remaining space, so nothing overflows into a neighbour.
-  // Any grid with its own per-breakpoint column widths set (data-responsive-set,
-  // from the Grid block's tablet/mobile column overrides) opts out of all of
-  // this entirely - its own scoped <style> tag takes over instead.
-  scoped.push(`@media(max-width:${mobileBp}){.puck-grid:not([data-responsive-set]),.puck-split{grid-template-columns:1fr !important;}}`)
-  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.puck-grid[data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
-  // Grids with "Stack on tablet" (config.tsx stackAtTablet) collapse to a single
-  // column across the whole tablet band too, not just mobile - one rule up to
-  // the tablet breakpoint covers both. Wins over the 3/4-col tablet rule above
-  // for a grid that opts in.
-  scoped.push(`@media(max-width:${tabletBp}){.puck-grid[data-stack-tablet]:not(header *){grid-template-columns:1fr !important;}}`)
+  // Grid stacking is driven by the Grid block's "Stack columns" control, which
+  // emits data-stack="mobile|tablet|never" (config.tsx GridBlock) on every grid:
+  //  - "mobile": one column from the mobile breakpoint down, with an
+  //    intermediate 3/4-col -> 2-col step through the tablet band.
+  //  - "tablet": one column across the whole tablet band and below.
+  //  - "never": columns hold at every width (a grid managing its own
+  //    per-breakpoint widths, whose scoped <style> tag takes over instead).
+  // The stack rules carry higher specificity than a grid's own scoped
+  // [data-grid-id] override, so an explicit stack choice wins even for a grid
+  // with manual per-breakpoint widths (data-responsive-set). Split always
+  // stacks on mobile; header grids keep their own logo/nav/actions behaviour
+  // and are excluded from the generic drop via :not(header *).
+  scoped.push(`@media(max-width:${mobileBp}){.puck-grid[data-stack="mobile"]:not(header *),.puck-grid[data-stack="tablet"]:not(header *),.puck-split{grid-template-columns:1fr !important;}}`)
+  scoped.push(`@media(min-width:${aboveMobileBp}) and (max-width:${tabletBp}){.puck-grid[data-stack="mobile"][data-cols="3"]:not(header *):not([data-responsive-set]),.puck-grid[data-stack="mobile"][data-cols="4"]:not(header *):not([data-responsive-set]){grid-template-columns:repeat(2,1fr) !important;}header .puck-grid[data-cols="3"]:not([data-responsive-set]){grid-template-columns:auto 1fr auto !important;}}`)
+  scoped.push(`@media(max-width:${tabletBp}){.puck-grid[data-stack="tablet"]:not(header *){grid-template-columns:1fr !important;}}`)
 
   // Per-device horizontal padding utilities for the Puck blocks' shared
   // "Padding (left/right)" field (config.tsx getPaddingClasses). Three class

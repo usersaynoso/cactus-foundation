@@ -377,8 +377,14 @@ function GridBlock(props: any) {
   const widths = [col1Width, col2Width, col3Width, col4Width].map((w) => normalizeResponsiveValue<string>(w))
   const pick = (rv: ResponsiveValue<string>, device: 'desktop' | 'tablet' | 'mobile'): string | undefined =>
     device === 'desktop' ? rv.desktop : device === 'tablet' ? (rv.tablet ?? rv.desktop) : (rv.mobile ?? rv.tablet ?? rv.desktop)
+  // Per-column widths only apply in Manual mode - the same gate the sidebar
+  // uses to show/hide the width fields (resolveFields). Honouring them only in
+  // Manual mode means switching the preset back to Equal (or any preset) drops
+  // the custom widths immediately, rather than a stale width silently winning
+  // over the preset because getGridTemplateColumns still saw it.
+  const isManualAt = (device: 'desktop' | 'tablet' | 'mobile') => pick(sizes, device) === 'manual'
   const effectiveAt = (device: 'desktop' | 'tablet' | 'mobile') =>
-    getGridTemplateColumns(pick(sizes, device), colCount, widths.map((w) => pick(w, device)))
+    getGridTemplateColumns(pick(sizes, device), colCount, isManualAt(device) ? widths.map((w) => pick(w, device)) : undefined)
   const desktopCols = effectiveAt('desktop')
   const tabletCols = effectiveAt('tablet')
   const mobileCols = effectiveAt('mobile')
@@ -391,8 +397,22 @@ function GridBlock(props: any) {
   // a header with desktop-only manual widths silently loses them at tablet
   // width (incl. the narrower Puck editor canvas). A grid wanting to stack on
   // small screens can still set per-breakpoint widths (which also marks it).
-  const hasManualColumns = widths.slice(0, colCount).some((w) => !!(w.desktop?.trim() || w.tablet?.trim() || w.mobile?.trim()))
+  const hasManualColumns = (['desktop', 'tablet', 'mobile'] as const).some((d) => isManualAt(d) && widths.slice(0, colCount).some((w) => !!pick(w, d)?.trim()))
   const selfManagedColumns = hasResponsiveOverride || hasManualColumns
+
+  // Stacking control. "Stack columns" (stackColumns) drives a data-stack
+  // attribute the tokens.ts media rules key off: 'mobile' collapses to one
+  // column on phones, 'tablet' from the tablet band down, 'never' holds the
+  // columns at every width. Older data predates the field: fall back to the
+  // legacy stackAtTablet toggle ('on' meant tablet+mobile), then to 'mobile'
+  // for a normal grid or 'never' for one already managing its own per-
+  // breakpoint columns (so it keeps rendering exactly as it did before).
+  const stackMode: 'mobile' | 'tablet' | 'never' =
+    stackColumns === 'mobile' || stackColumns === 'tablet' || stackColumns === 'never'
+      ? stackColumns
+      : stackAtTablet === 'on'
+        ? 'tablet'
+        : selfManagedColumns ? 'never' : 'mobile'
 
   // Shrunk-state overrides (header "shrink on scroll" only) - fall back to the
   // normal width/gap per column (at the same breakpoint) when no shrunk value
@@ -451,8 +471,8 @@ function GridBlock(props: any) {
       {gapVAlignCss && <style>{gapVAlignCss}</style>}
       {anyColSticky && (
         <style>{[
-          `${mobileMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
-          stackAtTablet === 'on' && `${tabletMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
+          stackMode !== 'never' && `${mobileMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
+          stackMode === 'tablet' && `${tabletMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
         ].filter(Boolean).join('')}</style>
       )}
       <div
@@ -460,7 +480,7 @@ function GridBlock(props: any) {
         data-cols={colCount}
         data-grid-id={id}
         {...getAosProps(animationType, animationDuration, animationDelay)}
-        {...(stackAtTablet === 'on' ? { 'data-stack-tablet': '' } : {})}
+        data-stack={stackMode}
         {...(selfManagedColumns ? { 'data-responsive-set': '' } : {})}
         style={{
       display: 'grid',
@@ -555,17 +575,19 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
     gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
     padding: paddingField,
     spaceBelow: { type: 'custom' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
-    // Force a single stacked column from the tablet breakpoint down (not just
-    // mobile). Default 'off' keeps the standard behaviour where a 2-column grid
-    // stays side-by-side through the tablet band and only stacks on mobile.
-    stackAtTablet: { type: 'select' as const, label: 'Stack on tablet', options: [{ value: 'off', label: 'Off (stack on mobile only)' }, { value: 'on', label: 'On (stack from tablet down)' }] },
+    // When the grid collapses its columns into a single stacked column on
+    // narrow screens. 'mobile' (default) stacks on phones only; 'tablet' stacks
+    // from the tablet band down; 'never' keeps the columns side by side at
+    // every width (e.g. a deliberately manual layout). Works whatever the
+    // column widths - a Manual-width grid stacks too once you pick a breakpoint.
+    stackColumns: { type: 'select' as const, label: 'Stack columns', options: [{ value: 'mobile', label: 'On mobile' }, { value: 'tablet', label: 'On tablet and mobile' }, { value: 'never', label: 'Never (keep side by side)' }] },
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width`, units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField }
   // Pin a column in place while the taller column scrolls past (e.g. an image
   // that stays beside a long text column). Auto-releases once the grid stacks
-  // to one column (mobile, or the tablet band when "Stack on tablet" is on) so
-  // the pinned block just sits in normal flow there instead of floating.
+  // to one column (per "Stack columns") so the pinned block just sits in normal
+  // flow there instead of floating.
   for (const n of cols) fields[`col${n}Sticky`] = { type: 'select' as const, label: `Col ${n} sticky`, options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick while scrolling' }] }
   for (const n of cols) fields[`col${n}StickyOffset`] = { type: 'custom' as const, label: `Col ${n} sticky offset`, units: ['px', 'rem'], render: UnitValueField }
   // Shrunk-state fields - only shown when this Grid sits in a header with
@@ -579,7 +601,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   Object.assign(fields, aosFields)
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
 
-  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackAtTablet: 'off', gapShrunk: '', ...aosDefaults }
+  const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', gapShrunk: '', ...aosDefaults }
   for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
 
   return {
@@ -2575,6 +2597,9 @@ export const puckConfig = {
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
         spaceBelow: { type: 'custom' as const, label: 'Space below', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
+        // When the columns collapse into one stacked column on narrow screens
+        // (see GridBlock's stackMode / tokens.ts data-stack rules).
+        stackColumns: { type: 'select' as const, label: 'Stack columns', options: [{ value: 'mobile', label: 'On mobile' }, { value: 'tablet', label: 'On tablet and mobile' }, { value: 'never', label: 'Never (keep side by side)' }] },
         col1Align: { type: 'select' as const, label: 'Col 1 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
@@ -2595,7 +2620,7 @@ export const puckConfig = {
         ...aosFields,
         col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
       resolveFields: (data: any, { fields, appState }: any) => {
         let result = fields
         if (!isHeaderShrinkEnabled(appState)) {
