@@ -2161,9 +2161,16 @@ tbody tr:hover {
   font-weight: 700;
   color: var(--color-fg);
 }
-.puck-richtext h1 { font-size: 2rem; }
-.puck-richtext h2 { font-size: 1.5rem; }
-.puck-richtext h3 { font-size: 1.25rem; }
+/* Headings pull the site's per-level heading font (Styles → Headings → Font),
+   matching the Heading block's `var(--hN-family)`. Without this they inherited
+   the body font. Fallback --font-heading mirrors the Heading block's behaviour
+   when no headings font is set (it resolves to the body/default face). */
+.puck-richtext h1 { font-size: 2rem;    font-family: var(--h1-family, var(--font-heading)); }
+.puck-richtext h2 { font-size: 1.5rem;  font-family: var(--h2-family, var(--font-heading)); }
+.puck-richtext h3 { font-size: 1.25rem; font-family: var(--h3-family, var(--font-heading)); }
+.puck-richtext h4 { font-family: var(--h4-family, var(--font-heading)); }
+.puck-richtext h5 { font-family: var(--h5-family, var(--font-heading)); }
+.puck-richtext h6 { font-family: var(--h6-family, var(--font-heading)); }
 .puck-richtext p  { margin: 0 0 1em; line-height: 1.75; color: var(--color-fg-secondary); }
 .puck-richtext ul,
 .puck-richtext ol { margin: 0 0 1em 1.5em; padding: 0; color: var(--color-fg-secondary); line-height: 1.75; }
