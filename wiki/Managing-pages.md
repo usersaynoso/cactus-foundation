@@ -49,6 +49,8 @@ Lots of block settings - alignment, spacing, sizes, gaps, widths, side padding a
 
 The screen icons and the preview are linked both ways: click a screen icon and the canvas switches to that width so you can see what you're changing; pick a width from the viewport menu above the canvas and every setting's icons follow along. Whatever size the preview shows is the size you're editing - no guesswork.
 
+Next to the zoom box above the canvas there's a **sun/moon button** that flips the preview between light and dark mode. It only changes how the preview looks so you can check your page reads well either way - it changes nothing about your actual site and saves nothing. The same button is in the layout editor too.
+
 You only set the ones you want to change. Leave tablet or mobile blank and they simply follow the size above - mobile falls back to tablet, tablet falls back to desktop - so you can nudge the odd setting on smaller screens without redoing the lot. A small dot on a screen icon shows where you've set something specific.
 
 A few settings that used to be one-size-only now join in: the shared left/right padding on most blocks, an image's maximum width and alignment, a video's aspect ratio, an embed's height, the Hero's layout (so a text-and-image hero on desktop can become a centred text hero on phones), the column counts on the shop's product and category grids and the Gazette feed, and the number of columns in a Group. Also per screen size now: a grid's space below, a Heading's block height, vertical position and font size, a Card's height, a button's alignment (including full width), the Site Logo's height (a smaller logo on phones, at last), and the header menu's font size, weight and alignment.
