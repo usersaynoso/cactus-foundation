@@ -2,6 +2,11 @@ import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
 import { collectModuleSitemapEntries } from '@/lib/modules/router'
 
+// Reads live published pages + module entries, so it must render per request.
+// Left static, the sitemap freezes at whatever existed at build time and never
+// picks up newly published pages.
+export const dynamic = 'force-dynamic'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.SITE_URL
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)

@@ -1,6 +1,13 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
 
+// Metadata routes are statically cached at build time by default. This one
+// reads the live SiteConfig, so it must render per request — otherwise
+// toggling "Hide from search engines" in admin never reaches robots.txt until
+// the next deploy (fresh installs default hideFromCrawlers=true, so the site
+// stays blocked from crawlers no matter what the owner unticks).
+export const dynamic = 'force-dynamic'
+
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const siteUrl = process.env.SITE_URL
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
