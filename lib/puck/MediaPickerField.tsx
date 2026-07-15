@@ -85,6 +85,7 @@ function MediaPickerModal({ onSelect, onClose }: {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('altText', '')
+    if (folderId) fd.append('folderId', folderId)
     try {
       const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
       const record = await res.json()
