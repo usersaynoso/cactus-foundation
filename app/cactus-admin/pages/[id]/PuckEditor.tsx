@@ -63,9 +63,13 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   // Current editor data — kept in a ref so restore can read it without stale closure
   const currentDataRef = useRef<Data>(initialData)
-  // Puck fires onChange once on mount with the unmodified initial data - ignore that
-  // first call so the unsaved-changes warning doesn't fire before any real edit.
-  const hasChangedRef = useRef(false)
+  // Puck fires onChange on mount with the (normalised) initial data, and we must not
+  // treat that as a real edit. Counting calls to swallow "the first one" was fragile:
+  // Puck doesn't reliably emit that mount call, so when it skipped it the user's first
+  // real edit got swallowed instead and Update stayed disabled. Compare content against
+  // this baseline instead — a change only counts once the data actually differs from
+  // what loaded. Serialised once so each onChange is a cheap string compare.
+  const initialSnapshotRef = useRef(JSON.stringify(initialData))
   const canvasWrapRef = useRef<HTMLDivElement>(null)
   const [canvasReady, setCanvasReady] = useState(false)
 
@@ -261,7 +265,10 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
 
   const handleChange = useCallback((data: Data) => {
     currentDataRef.current = data
-    if (!hasChangedRef.current) { hasChangedRef.current = true; return }
+    // Only a genuine divergence from the loaded content is an unsaved change. Guards
+    // against Puck's mount onChange (identical data) without the fragile call-counting
+    // that used to eat the first real edit.
+    if (JSON.stringify(data) === initialSnapshotRef.current) return
     setHasUnsavedChanges(true)
   }, [])
 
