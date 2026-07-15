@@ -53,8 +53,8 @@ function wrapModuleRsc(components: Record<string, any>): Record<string, any> {
 // and nothing upstream escapes them. config.tsx is imported by the client Puck
 // editors, so it cannot import the sanitiser (jsdom would follow it into the
 // browser bundle) - but every published render path goes through this file.
-function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
-  const { id, content, padding, textColor, sticky, stickyOffset, animationType, animationDuration, animationDelay, puck } = props
+function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
+  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon, bulletColor, sticky, stickyOffset, animationType, animationDuration, animationDelay, puck } = props
   if (!content) {
     return (
       <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>
@@ -68,7 +68,7 @@ function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any
   // globals.css `.puck-richtext …` rules set explicit colours a wrapper style
   // couldn't cascade past. Same helper, so editor and published markup agree.
   // Sticky and scroll-animation attrs come from the same shared helpers too.
-  const colourCss = richTextColourCss(id, textColor ?? '')
+  const colourCss = richTextColourCss(id, { textColor, linkColor, linkHoverColor, bulletIcon, bulletColor })
   return (
     <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id} {...getAosProps(animationType ?? 'none', animationDuration ?? 'normal', animationDelay ?? 'none')} style={getStickyStyle(sticky, stickyOffset)}>
       {colourCss && <style>{colourCss}</style>}

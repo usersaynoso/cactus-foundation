@@ -1209,31 +1209,77 @@ function TextBlock(props: any) {
   )
 }
 
-// A RichText block's "Text colour" recolours the text-carrying elements the
+// Bullet glyph options for a RichText block's unordered lists. The value maps to
+// the right-hand side of `list-style-type`: bare keywords for the browser's own
+// markers, quoted strings (with trailing spaces for breathing room) for custom
+// glyphs. Every glyph is hardcoded here, so nothing user-typed reaches the CSS -
+// only ordered lists are left alone. 'default' emits no override (keeps the
+// globals.css disc).
+export const RICH_TEXT_BULLET_ICONS: Record<string, string> = {
+  default: '',
+  disc: 'disc',
+  circle: 'circle',
+  square: 'square',
+  dash: '"–  "',
+  arrow: '"→  "',
+  chevron: '"›  "',
+  check: '"✓  "',
+  star: '"★  "',
+  diamond: '"◆  "',
+  dot: '"•  "',
+}
+
+export const RICH_TEXT_BULLET_OPTIONS = [
+  { value: 'default', label: 'Default (disc)' },
+  { value: 'circle', label: 'Circle (○)' },
+  { value: 'square', label: 'Square (▪)' },
+  { value: 'dash', label: 'Dash (–)' },
+  { value: 'arrow', label: 'Arrow (→)' },
+  { value: 'chevron', label: 'Chevron (›)' },
+  { value: 'check', label: 'Check (✓)' },
+  { value: 'star', label: 'Star (★)' },
+  { value: 'diamond', label: 'Diamond (◆)' },
+  { value: 'dot', label: 'Dot (•)' },
+]
+
+// A RichText block's per-block styling recolours the text-carrying elements the
 // globals.css `.puck-richtext …` rules paint with `--color-fg`/`-fg-secondary`
 // (p, lists, headings, blockquote). Those rules set an explicit colour on the
 // descendants, so a plain inline `color` on the wrapper can't cascade past them
 // - it takes a scoped stylesheet rule, keyed on the block's id, at the same
-// element depth. Links are deliberately left on `--color-primary`: a
-// recoloured link that no longer looks like a link is a usability regression,
-// not a feature. Exported so config.rsc.tsx's published render emits the exact
-// same CSS. `cssColourValue` strips the characters that could break out of the
-// declaration (the colour field accepts free text via allowManual).
-export function richTextColourCss(id: string | undefined, colour: string): string {
-  if (!id || !colour) return ''
-  const c = cssColourValue(colour)
+// element depth. Text colour deliberately leaves links alone; link colour /
+// hover colour and the bullet glyph + colour are their own opt-in fields.
+// Exported so config.rsc.tsx's published render emits the exact same CSS.
+// `cssColourValue` strips the characters that could break out of the
+// declaration (the colour fields accept free text via allowManual).
+export function richTextColourCss(
+  id: string | undefined,
+  opts: { textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string },
+): string {
+  if (!id) return ''
   const sel = `.puck-richtext[data-richtext-id="${id}"]`
-  const targets = ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']
-  return `${targets.map((t) => `${sel} ${t}`).join(',')}{color:${c};}`
+  const rules: string[] = []
+  const { textColor, linkColor, linkHoverColor, bulletIcon, bulletColor } = opts
+  if (textColor) {
+    const c = cssColourValue(textColor)
+    const targets = ['p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']
+    rules.push(`${targets.map((t) => `${sel} ${t}`).join(',')}{color:${c};}`)
+  }
+  if (linkColor) rules.push(`${sel} a{color:${cssColourValue(linkColor)};}`)
+  if (linkHoverColor) rules.push(`${sel} a:hover{color:${cssColourValue(linkHoverColor)};}`)
+  const listType = bulletIcon ? RICH_TEXT_BULLET_ICONS[bulletIcon] : ''
+  if (listType) rules.push(`${sel} ul{list-style-type:${listType};}`)
+  if (bulletColor) rules.push(`${sel} ul li::marker{color:${cssColourValue(bulletColor)};}`)
+  return rules.join('')
 }
 
 function RichTextBlock(props: any) {
-  const { id, content, padding, textColor, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon = 'default', bulletColor, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
-  const colourCss = richTextColourCss(id, textColor)
+  const colourCss = richTextColourCss(id, { textColor, linkColor, linkHoverColor, bulletIcon, bulletColor })
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
   const stickyStyle = getStickyStyle(sticky, stickyOffset)
   // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
@@ -2762,11 +2808,15 @@ export const puckConfig = {
       fields: {
         content: { type: 'richtext' as const, label: 'Content' },
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        linkColor: { type: 'custom' as const, label: 'Link colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        linkHoverColor: { type: 'custom' as const, label: 'Link hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        bulletIcon: { type: 'select' as const, label: 'Bullet icon', options: RICH_TEXT_BULLET_OPTIONS },
+        bulletColor: { type: 'custom' as const, label: 'Bullet colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { content: '', textColor: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       render: RichTextBlock,
     },
     Quote: {
