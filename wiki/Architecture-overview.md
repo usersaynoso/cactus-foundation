@@ -470,6 +470,18 @@ Each labelled section (Content, People, System, and any labelled module nav grou
 
 The logo + site name at the top of the sidebar (and the site name in the mobile topbar) is a link to `/` with `target="_blank"`, so clicking it opens the live frontend in a new tab without losing the admin session.
 
+#### Admin search (command palette)
+
+The magnifying-glass button in the sidebar toolbar - and the **Cmd/Ctrl+K** shortcut from anywhere in the admin - opens a search box that jumps straight to any part of the admin. It searches three kinds of destination:
+
+1. **Pages** - every item in the sidebar the current role can see (Dashboard, Pages, Media, Modules, and so on), plus their "New…" shortcuts.
+2. **Settings sections** - every tab on the Settings and Appearance screens (General, Email, Media, GDPR & Legal, Integrations, Users, Navigation; Styles' Branding/Colours/Typography/Headings/Buttons/Images/Form fields/Spacing), including the Settings tabs added by installed modules (e.g. Shop, Gazette).
+3. **Individual settings** - the specific controls a site owner actually goes looking for: backup, restore, reset database, email provider (Brevo/SMTP), send a test email, storage provider, cookie consent banner, GitHub App, Turnstile, Sentry, roles & permissions, email templates, and more.
+
+Results match on plain-English synonyms as well as the exact wording, so "captcha" finds Turnstile, "color" finds Colours, and "sign up" finds Registration. Choosing a result doesn't just open the page - it switches to the right tab and scrolls the exact section into view, giving it a brief highlight so it's easy to spot. Search only ever offers destinations the signed-in role is allowed to open, so it never links someone to a screen they can't reach.
+
+The set of searchable settings is defined centrally, so adding a new setting to the list is a one-line change and the whole thing is covered by an automated test that checks every "jump straight to it" link actually lands on a real section.
+
 ### Page lifecycle - draft vs live split
 
 Every `InfoPage` row separates the **working draft** from the **live content**:

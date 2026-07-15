@@ -4,10 +4,13 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import type { ResolvedNavSection } from '@/lib/nav/admin-menu'
+import { ADMIN_SEARCH_ENTRIES } from '@/lib/admin/search-index'
 
 type Props = {
   adminPath: string
   sections: ResolvedNavSection[]
+  /** Module-provided Settings tabs the user may open, permission-filtered server-side. */
+  moduleSettingsTabs?: Array<{ id: string; label: string }>
 }
 
 type Command = {
@@ -15,6 +18,8 @@ type Command = {
   label: string
   hint: string | null
   href: string
+  /** Extra terms that should match this command beyond its label. */
+  keywords: string[]
 }
 
 const SHORTCUTS: Array<{ keys: string; description: string }> = [
@@ -40,7 +45,25 @@ function score(query: string, target: string): number {
   return qi === query.length ? 100 - (t.length - query.length) : -1
 }
 
-export default function CommandPalette({ adminPath, sections }: Props) {
+// Best match for a command across its label, its keywords, and its breadcrumb hint.
+// A label hit always outranks a keyword hit, which outranks a hint-only hit, so
+// "backup" surfaces the Backup control before a page that merely mentions it.
+function scoreCommand(query: string, c: Command): number {
+  if (!query) return 0
+  let best = score(query, c.label)
+  if (best >= 0) best += 1000 // label matches float to the top
+  for (const kw of c.keywords) {
+    const s = score(query, kw)
+    if (s > best) best = s
+  }
+  if (c.hint) {
+    const s = score(query, c.hint) - 200 // context match, but weaker than a real target
+    if (s > best) best = s
+  }
+  return best
+}
+
+export default function CommandPalette({ adminPath, sections, moduleSettingsTabs }: Props) {
   const router = useRouter()
   const base = `/${adminPath}`
   const [open, setOpen] = useState(false)
@@ -53,28 +76,52 @@ export default function CommandPalette({ adminPath, sections }: Props) {
   const commands = useMemo<Command[]>(() => {
     const out: Command[] = []
     const seen = new Set<string>()
+    // The set of nav destinations this user can actually open - used to gate the
+    // deeper settings entries so search never links someone to a screen their role
+    // hides. A settings sub-entry is only offered when its parent page is visible.
+    const visiblePaths = new Set<string>()
+
     for (const section of sections) {
       for (const item of section.items) {
+        visiblePaths.add(item.path)
         if (!seen.has(item.id)) {
           seen.add(item.id)
-          out.push({ id: item.id, label: item.label, hint: section.label, href: `${base}${item.path}` })
+          out.push({ id: item.id, label: item.label, hint: section.label, href: `${base}${item.path}`, keywords: [] })
         }
         if (item.createAction) {
           const cid = `create:${item.createAction.path}`
           if (!seen.has(cid)) {
             seen.add(cid)
-            out.push({ id: cid, label: item.createAction.label, hint: 'Create', href: `${base}${item.createAction.path}` })
+            out.push({ id: cid, label: item.createAction.label, hint: 'Create', href: `${base}${item.createAction.path}`, keywords: [] })
           }
         }
       }
     }
+
+    // Deep settings / section entries, hidden when their parent page isn't visible.
+    for (const entry of ADMIN_SEARCH_ENTRIES) {
+      if (entry.requires && !visiblePaths.has(entry.requires)) continue
+      if (seen.has(entry.id)) continue
+      seen.add(entry.id)
+      out.push({ id: entry.id, label: entry.label, hint: entry.section, href: `${base}${entry.path}`, keywords: entry.keywords ?? [] })
+    }
+
+    // Module-provided Settings tabs (Shop, Gazette, …). Already permission-filtered
+    // server-side, and they render inside Settings, so a tab deep-link is enough.
+    for (const t of moduleSettingsTabs ?? []) {
+      const id = `modtab:${t.id}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push({ id, label: `${t.label} settings`, hint: 'Settings', href: `${base}/config?tab=${encodeURIComponent(t.id)}`, keywords: [t.label, 'module', 'settings'] })
+    }
+
     return out
-  }, [sections, base])
+  }, [sections, base, moduleSettingsTabs])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
     return commands
-      .map((c) => ({ c, s: score(q, c.label) }))
+      .map((c) => ({ c, s: scoreCommand(q, c) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s)
       .map((r) => r.c)
@@ -142,6 +189,12 @@ export default function CommandPalette({ adminPath, sections }: Props) {
     if (!cmd) return
     close()
     router.push(cmd.href)
+    // A hash-only jump within the page you're already on won't change the destination
+    // page's deps, and Next's pushState doesn't emit hashchange - so nudge the target
+    // page (once the URL has been applied) to scroll its anchor into view.
+    if (cmd.href.includes('#')) {
+      setTimeout(() => window.dispatchEvent(new Event('cactus:scroll-hash')), 0)
+    }
   }
 
   function onInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -192,7 +245,7 @@ export default function CommandPalette({ adminPath, sections }: Props) {
               ref={inputRef}
               type="text"
               className="cmdk-input"
-              placeholder="Jump to…  (type a page name)"
+              placeholder="Search settings, sections, pages…"
               value={query}
               onChange={(e) => { setQuery(e.target.value); setActive(0) }}
               onKeyDown={onInputKeyDown}

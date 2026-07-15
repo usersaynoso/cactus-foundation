@@ -16,12 +16,13 @@ type Props = {
   version: string
   children: React.ReactNode
   sections: ResolvedNavSection[]
+  moduleSettingsTabs?: Array<{ id: string; label: string }>
   unreadCount?: number
   faviconUrl?: string | null
   faviconDarkUrl?: string | null
 }
 
-export default function AdminShell({ adminPath, siteName, version, children, sections, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -198,7 +199,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
           {children}
         </div>
       </div>
-      <CommandPalette adminPath={adminPath} sections={sections} />
+      <CommandPalette adminPath={adminPath} sections={sections} moduleSettingsTabs={moduleSettingsTabs} />
     </div>
     </AdminPathProvider>
   )

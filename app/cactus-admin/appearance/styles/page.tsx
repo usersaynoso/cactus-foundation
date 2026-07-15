@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { DesignTokens, GlobalColour, GlobalFont, Typo, ColourPreset, StatusKey, StatusColour, ButtonVariantStyle, BadgeColourKey, BadgeStyle } from '@/lib/design/tokens'
 import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS, STATUS_KEYS, BADGE_COLOUR_KEYS, buildFontHref } from '@/lib/design/tokens'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
@@ -44,6 +44,11 @@ const TEXT_DECORATION_OPTIONS = [
   { value: 'line-through', label: 'Line-through' },
 ]
 
+// The Styles page tabs, as one list so the command palette can deep-link to any of
+// them (/appearance/styles?tab=colours) and the page can validate the incoming param.
+const STYLE_TABS = ['branding', 'colours', 'typography', 'headings', 'buttons', 'images', 'formFields', 'spacing'] as const
+type StyleTab = (typeof STYLE_TABS)[number]
+
 function matchesColourSnapshot(
   p: Omit<ColourPreset, 'id' | 'name'>,
   snap: { primary: { light: string; dark: string }; linkColour: string; linkHoverColour: string; linkColourDark: string; linkHoverColourDark: string }
@@ -55,8 +60,19 @@ function matchesColourSnapshot(
 
 export default function StylesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tokens, setTokens] = useState<DesignTokens>(DEFAULT_DESIGN_TOKENS)
-  const [activeTab, setActiveTab] = useState<'branding' | 'colours' | 'typography' | 'headings' | 'buttons' | 'images' | 'formFields' | 'spacing'>('branding')
+  const [activeTab, setActiveTab] = useState<StyleTab>(
+    STYLE_TABS.includes(searchParams.get('tab') as StyleTab) ? (searchParams.get('tab') as StyleTab) : 'branding'
+  )
+
+  // Follow the ?tab= param so a command-palette deep link opens the right styles
+  // section. UI clicks don't touch the URL, so this only reacts to real navigations.
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab to the URL param for deep links
+    if (t && STYLE_TABS.includes(t as StyleTab)) setActiveTab(t as StyleTab)
+  }, [searchParams])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

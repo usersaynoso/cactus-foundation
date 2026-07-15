@@ -1230,6 +1230,23 @@ a:hover {
 .cmdk-help-list li { display: flex; align-items: center; gap: var(--space-3); font-size: 13px; color: var(--color-text); }
 .cmdk-help-list li kbd { flex-shrink: 0; min-width: 96px; }
 
+/* ── Command-palette deep-link targets ──
+   Sections the search can jump to. scroll-margin keeps the landing spot clear of
+   any sticky chrome; the flash briefly rings the target so the eye finds it. */
+.admin-anchor { scroll-margin-top: 5rem; }
+@keyframes admin-search-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  15%  { box-shadow: 0 0 0 3px var(--color-primary); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+.admin-search-target-flash {
+  animation: admin-search-flash 1.5s ease-out;
+  border-radius: var(--radius-md, 8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-search-target-flash { animation: none; }
+}
+
 /* ── Navigation builder (Settings > Navigation) ── */
 .navb-intro { color: var(--color-text-muted); font-size: 14px; margin-bottom: var(--space-4); max-width: 62ch; }
 .navb-actionbar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); flex-wrap: wrap; }

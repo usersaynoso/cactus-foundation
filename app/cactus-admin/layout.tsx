@@ -42,16 +42,35 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ])
 
   const manifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
-  // Module nav-entry permissions AND the core items' default-visibility keys are
-  // resolved together in one batch: the same map gates module links and drives the
-  // core sidebar resolution below. One query instead of one round-trip per entry.
+  // Module settings tabs (shown inside Settings, not the sidebar) so the command
+  // palette can search them - resolved from the same manifests, gated by each tab's
+  // own permission in the same batch query below.
+  // `host` marks a settings panel rendered inside another module's slot rather than
+  // as its own top-level Settings tab, so it isn't a /config?tab= destination.
+  type ModuleSettingsTabMeta = { id: string; label: string; permission?: string; host?: string }
+  const settingsTabManifests = activeModules.map((mod) => mod.manifest as { settingsTabs?: ModuleSettingsTabMeta[] } | null)
+  // Module nav-entry permissions, each module settings tab's permission, AND the core
+  // items' default-visibility keys are resolved together in one batch: the same map
+  // gates module links, module settings tabs, and the core sidebar resolution below.
   const navPermissionKeys = [
     ...new Set([
       ...manifests.flatMap((m) => (m?.navEntries ?? []).map((e) => e.permission).filter((p): p is string => !!p)),
+      ...settingsTabManifests.flatMap((m) => (m?.settingsTabs ?? []).map((t) => t.permission).filter((p): p is string => !!p)),
       ...CORE_NAV_PERMISSION_KEYS,
     ]),
   ]
   const navPermissions = await hasPermissions(user, navPermissionKeys)
+
+  // The module settings tabs this user may open, as command-palette search targets.
+  const moduleSettingsTabs: Array<{ id: string; label: string }> = []
+  for (const m of settingsTabManifests) {
+    for (const t of m?.settingsTabs ?? []) {
+      if (t.host) continue // hosted panel, not a top-level tab - nothing to deep-link to
+      if (!t.permission || navPermissions[t.permission] === true) {
+        moduleSettingsTabs.push({ id: t.id, label: t.label })
+      }
+    }
+  }
 
   // Group module links exactly as the sidebar always has (see buildModuleNavGroups).
   // Icons are inline SVG markup injected with dangerouslySetInnerHTML, so each is
@@ -88,6 +107,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         siteName={config?.siteName ?? 'Cactus Foundation'}
         version={pkg.version}
         sections={menuSections}
+        moduleSettingsTabs={moduleSettingsTabs}
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}
         faviconDarkUrl={branding.faviconDarkUrl}

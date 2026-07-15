@@ -8,6 +8,7 @@ import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { useScrollToHash } from '@/components/admin/useScrollToHash'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import MembersGdprClient from './MembersGdprClient'
 import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
@@ -521,6 +522,9 @@ type NavEditorData = { sections: EditorNavSection[]; roles: Array<{ id: string; 
 
 type ConfigPageInnerProps = {
   moduleTabs: ModuleTab[]
+  // Panels contributed by other modules to a named slot (e.g. 'shop.payments'),
+  // pre-rendered server-side and handed to the hosting module's settings tab.
+  hostedSettingsSlots: Record<string, ReactNode>
   canManageMembersSettings: boolean
   canManageRoles: boolean
   canManageEmailTemplates: boolean
@@ -532,7 +536,7 @@ type ConfigPageInnerProps = {
   membersGdprExtensions: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -548,6 +552,37 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles' | 'email-templates'>(
     canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
   )
+
+  // Follow the ?tab= / ?sub= query params so command-palette deep links (and the
+  // browser back button) land on the right tab, not just the one chosen at mount.
+  // Clicking a tab in the UI doesn't touch the URL, so this only fires on a real
+  // navigation; setting the tab it's already on is a no-op.
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t) {
+      const valid =
+        TABS.includes(t as Tab) ||
+        moduleTabs.some((mt) => mt.id === t) ||
+        (showUsersTab && t === 'users') ||
+        (showNavTab && t === 'navigation')
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
+      if (valid) setTab(t)
+    }
+    const sub = searchParams.get('sub')
+    if (sub && showUsersTab) {
+      const validSub =
+        ((sub === 'registration' || sub === 'avatars' || sub === 'usernames' || sub === 'sections' || sub === 'access') && canManageMembersSettings) ||
+        (sub === 'roles' && canManageRoles) ||
+        (sub === 'email-templates' && canManageEmailTemplates)
+      if (validSub) {
+        setTab('users')
+        setUsersSubTab(sub as MembersSettingsTabKey | 'roles' | 'email-templates')
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- react only to URL changes; the permission flags/tab lists are stable for a session
+  }, [searchParams])
+
+  // Deep links carry a #section hash; pull that section into view once its tab has
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
@@ -555,6 +590,11 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+
+  // Deep links carry a #section hash; pull that section into view once its tab (and
+  // the initial data load) have rendered. Re-attempt when the active tab, the users
+  // sub-tab, or the loading flag changes so a cross-tab or fetch-gated jump still lands.
+  useScrollToHash([tab, usersSubTab, loading])
 
   // Env var state
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({})
@@ -1226,7 +1266,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
     const gh = ghStatus
 
     return (
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div id="integrations-github" className="card admin-anchor" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>GitHub App</h3>
@@ -1352,7 +1392,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
     ))
 
     return (
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div id={`section-${section.id}`} className="card admin-anchor" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{section.label}</h3>
@@ -1444,13 +1484,13 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
 
       {tab === 'general' && (
         <div>
-          <UpdatesPanel />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-updates" className="admin-anchor"><UpdatesPanel /></div>
+          <div id="general-identity" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           </div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-homepage" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Homepage</label>
               <select
@@ -1492,7 +1532,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           <div className="field">
             <span className="field-hint">Header and footer are designed in <strong>Appearance</strong>. Layouts are managed under <strong>Layouts</strong>.</span>
           </div>
-          <div className="field">
+          <div id="general-status" className="field admin-anchor">
             <label>Site status</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <select style={{ flex: 1 }} value={config.status ?? 'comingSoon'} onChange={(e) => set('status', e.target.value)}>
@@ -1503,11 +1543,11 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
               <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>Manage status page layouts →</a>
             </div>
           </div>
-          <label style={{ display: 'flex', gap: '0.5rem', marginBottom: 'var(--form-gap)', cursor: 'pointer' }}>
+          <label id="general-seo" className="admin-anchor" style={{ display: 'flex', gap: '0.5rem', marginBottom: 'var(--form-gap)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
             Hide from search engines (noindex)
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>
               <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>
@@ -1519,7 +1559,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-admin-path" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Admin path</label>
               <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
@@ -1533,7 +1573,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div>
+          <div id="general-backup" className="admin-anchor">
             <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Backup</h2>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.
@@ -1554,7 +1594,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div>
+          <div id="general-restore" className="admin-anchor">
             <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Restore from a backup</h2>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Upload a backup file to put your site back exactly as it was. This <strong>replaces everything</strong> currently in the database - every page, user, layout, and setting - with the contents of the file, so everyone (you included) will be signed out afterwards.
@@ -1638,7 +1678,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div>
+          <div id="general-danger" className="admin-anchor">
             <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--color-destructive)' }}>Danger zone</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
@@ -1816,7 +1856,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
-          <div style={{ marginBottom: '1rem' }}>
+          <div id="email-provider" className="admin-anchor" style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Email provider credentials</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
               Stored in your Vercel project environment variables — never in the database.
@@ -1840,7 +1880,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
           {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
-          <div>
+          <div id="email-test" className="admin-anchor">
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send a test email</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
               Sends using the settings above. Leave blank to send to your own admin address.
@@ -1887,7 +1927,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
 
         return (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div id="gdpr-legal" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Privacy policy page</label>
                 <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
@@ -1913,7 +1953,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                 </p>
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div id="gdpr-retention" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Purge expired sessions after (days)</label>
                 <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
@@ -1928,7 +1968,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
                 Cookie Consent Banner
             ---------------------------------------------------------------- */}
             <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
-            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>Cookie consent banner</h3>
+            <h3 id="gdpr-banner" className="admin-anchor" style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>Cookie consent banner</h3>
 
             <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer', alignItems: 'center' }}>
               <input
@@ -2113,7 +2153,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {envError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>{envError}</div>}
 
             {/* Provider dropdown, grouped by kind */}
-            <div className="field">
+            <div id="media-provider" className="field admin-anchor">
               <label>Media provider</label>
               <select
                 value={selected ?? ''}
@@ -2424,7 +2464,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       {moduleTabs.map((t) => {
         if (tab !== t.id) return null
         const ModuleTab = moduleSettingsTabComponents[t.id]
-        return ModuleTab ? <ModuleTab key={t.id} /> : null
+        return ModuleTab ? <ModuleTab key={t.id} hostedSettingsSlots={hostedSettingsSlots} /> : null
       })}
     </div>
   )
