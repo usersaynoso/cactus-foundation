@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backup/secrets'
+import { checkRestoredMediaStorage } from '@/lib/backup/media-check'
 
 // Restore a database from a Cactus SQL backup produced by
 // GET /api/admin/backup/database. That backup is a single .sql file: a schema
@@ -52,6 +53,10 @@ export type RestoreResult = {
   clearedSecrets: string[]
   /** False if this site has no usable ENCRYPTION_KEY, so no secret could be tested. */
   secretsChecked: boolean
+  /** Plain-English notices that restored media points at storage this install isn't
+   *  connected to, so the files (which a backup never carries) will show as broken.
+   *  Empty on a same-site restore that kept its bucket. */
+  mediaWarnings: string[]
 }
 
 type TargetColumn = { name: string; required: boolean }
@@ -335,6 +340,17 @@ export async function restoreDatabaseFromSql(
     { maxWait: 15_000, timeout: 55_000 },
   )
 
+  // After the data is back: the Media rows now exist, but their files live in an
+  // external bucket a backup never carries. Warn if this install isn't connected to
+  // the storage the restored media uses. Read-only, no network (see media-check.ts);
+  // best-effort, since a hiccup here must never fail a restore that already committed.
+  let mediaWarnings: string[] = []
+  try {
+    mediaWarnings = await checkRestoredMediaStorage(db)
+  } catch {
+    // Reporting is a courtesy; a failure to produce it is not worth alarming over.
+  }
+
   return {
     tablesRestored: [...restoredTables].sort(),
     rowsInserted,
@@ -342,5 +358,6 @@ export async function restoreDatabaseFromSql(
     sequencesRestored: restoredSequences.sort(),
     clearedSecrets: secrets.cleared,
     secretsChecked: secrets.checked,
+    mediaWarnings,
   }
 }

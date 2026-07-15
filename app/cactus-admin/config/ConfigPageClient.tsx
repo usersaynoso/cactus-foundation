@@ -583,6 +583,7 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
   // were cleared rather than left behind pretending to work. The owner has to set
   // them up again, so this is worth stopping for rather than flashing past.
   const [restoreCleared, setRestoreCleared] = useState<string[]>([])
+  const [restoreMediaWarnings, setRestoreMediaWarnings] = useState<string[]>([])
   const [restoreLoginPath, setRestoreLoginPath] = useState('/')
 
   // Reset Everything state
@@ -989,17 +990,19 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
       body.append('file', restoreFile)
       const res = await fetch('/api/admin/backup/import', { method: 'POST', body })
       const d = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; loginPath?: string; clearedSecrets?: string[] }
+        | { ok?: boolean; error?: string; loginPath?: string; clearedSecrets?: string[]; mediaWarnings?: string[] }
         | null
       if (!res.ok || !d?.ok) throw new Error(d?.error ?? 'Restore failed')
       const cleared = d.clearedSecrets ?? []
+      const mediaWarnings = d.mediaWarnings ?? []
       setRestoreCleared(cleared)
+      setRestoreMediaWarnings(mediaWarnings)
       setRestoreLoginPath(d.loginPath ?? '/')
       setRestoreDone(true)
       // Every session row was wiped by the restore, this admin included - send
       // them to the (possibly newly restored) login. Unless something had to be
-      // cleared, in which case they need to read it first.
-      if (cleared.length === 0) {
+      // cleared or a media warning needs reading, in which case they see it first.
+      if (cleared.length === 0 && mediaWarnings.length === 0) {
         setTimeout(() => { window.location.href = d.loginPath ?? '/' }, 2500)
       }
     } catch (err: unknown) {
@@ -1524,6 +1527,9 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.
             </p>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+              This saves your database, not your uploaded files. Images and documents live in your connected storage, so keep that storage in place - a restored site reads its files straight from there.
+            </p>
             {backupError && (
               <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{backupError}</div>
             )}
@@ -1555,16 +1561,31 @@ function ConfigPageInner({ moduleTabs, canManageMembersSettings, canManageRoles,
             {restoreError && (
               <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{restoreError}</div>
             )}
-            {restoreDone && restoreCleared.length > 0 ? (
+            {restoreDone && (restoreCleared.length > 0 || restoreMediaWarnings.length > 0) ? (
               <div className="alert alert-warning" style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Backup restored, with a couple of things left out.</p>
-                <p style={{ margin: '0 0 0.5rem' }}>
-                  Some things in the backup were locked to the site that made it, and cannot be unlocked here.
-                  They have been cleared, and will need setting up again on this site:
-                </p>
-                <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
-                  {restoreCleared.map((item) => <li key={item}>{item}</li>)}
-                </ul>
+                <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Backup restored, with a couple of things to sort out.</p>
+                {restoreCleared.length > 0 && (
+                  <>
+                    <p style={{ margin: '0 0 0.5rem' }}>
+                      Some things in the backup were locked to the site that made it, and cannot be unlocked here.
+                      They have been cleared, and will need setting up again on this site:
+                    </p>
+                    <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
+                      {restoreCleared.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </>
+                )}
+                {restoreMediaWarnings.length > 0 && (
+                  <>
+                    <p style={{ margin: '0 0 0.5rem' }}>
+                      A backup saves your database, not your uploaded files - those live in your storage.
+                      This site isn&apos;t connected to the storage the restored files use:
+                    </p>
+                    <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem' }}>
+                      {restoreMediaWarnings.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </>
+                )}
                 <button className="btn btn-primary" onClick={() => { window.location.href = restoreLoginPath }}>
                   Got it, take me to the login
                 </button>
