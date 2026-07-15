@@ -115,6 +115,26 @@
   color: var(--puck-color-text);
   padding: 0 var(--puck-space-1, 4px);
 }
+.cactus-theme-preview-mount {
+  display: flex;
+  align-items: center;
+  margin-right: var(--puck-space-2, 8px);
+}
+.cactus-theme-preview-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--puck-color-text);
+  border-radius: var(--puck-border-radius-medium, 6px);
+  padding: var(--puck-space-1, 4px);
+}
+.cactus-theme-preview-toggle[data-active] {
+  color: var(--puck-color-azure-5, var(--color-primary));
+  background: var(--puck-color-azure-1, var(--color-primary-subtle));
+}
 .cactus-shrink-preview-mount {
   display: flex;
   align-items: center;

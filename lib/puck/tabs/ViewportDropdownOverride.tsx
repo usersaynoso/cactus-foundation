@@ -117,6 +117,59 @@ function ViewportDropdown({ viewports }: { viewports: Viewports }) {
   )
 }
 
+function SunIcon() {
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  )
+}
+
+// A toolbar toggle that flips only the preview canvas between light and dark mode - it
+// sets `data-theme` on the canvas iframe's <html>, the same attribute the live site reads
+// (see lib/design/tokens.ts). Nothing is persisted and the admin chrome is untouched; the
+// initial state is seeded from the OS scheme so it matches what the iframe already shows
+// (the iframe carries no data-theme of its own, so it follows prefers-color-scheme).
+function ThemePreviewToggle() {
+  const [dark, setDark] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
+  )
+
+  useEffect(() => {
+    const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null
+    if (!frame) return
+    const apply = () => {
+      const html = frame.contentDocument?.documentElement
+      if (html) html.setAttribute('data-theme', dark ? 'dark' : 'light')
+    }
+    apply()
+    // Safety net for the rare case the iframe reloads after mount.
+    frame.addEventListener('load', apply)
+    return () => frame.removeEventListener('load', apply)
+  }, [dark])
+
+  return (
+    <button
+      type="button"
+      className="cactus-theme-preview-toggle"
+      data-active={dark || undefined}
+      title={dark ? 'Previewing dark mode - click for light' : 'Preview in dark mode'}
+      onClick={() => setDark(d => !d)}
+    >
+      {dark ? <MoonIcon /> : <SunIcon />}
+    </button>
+  )
+}
+
 function ShrinkPreviewIcon() {
   return (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -168,6 +221,7 @@ export function createViewportDropdownOverride(viewports: Viewports, options: { 
   return function ViewportDropdownOverride({ children }: { children: ReactNode }) {
     const ref = useRef<HTMLDivElement>(null)
     const [mount, setMount] = useState<HTMLElement | null>(null)
+    const [themeMount, setThemeMount] = useState<HTMLElement | null>(null)
     const [shrinkMount, setShrinkMount] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
@@ -183,6 +237,16 @@ export function createViewportDropdownOverride(viewports: Viewports, options: { 
           el.className = 'cactus-viewport-dropdown-mount'
           track.insertBefore(el, track.firstChild)
           setMount(el)
+        }
+        // Light/dark preview toggle - sits just before Puck's zoom select. Anchoring to the
+        // zoom select (not track order) keeps it "next to" the zoom box wherever Puck puts it.
+        if (!track.querySelector('.cactus-theme-preview-mount')) {
+          const el = document.createElement('div')
+          el.className = 'cactus-theme-preview-mount'
+          const zoom = track.querySelector('[class*="_ViewportControls-zoomSelect_"]')
+          if (zoom) track.insertBefore(el, zoom)
+          else track.appendChild(el)
+          setThemeMount(el)
         }
         if (options.shrinkPreview && !track.querySelector('.cactus-shrink-preview-mount')) {
           const el = document.createElement('div')
@@ -207,6 +271,7 @@ export function createViewportDropdownOverride(viewports: Viewports, options: { 
       <div ref={ref} style={{ display: 'contents' }}>
         {children}
         {mount && createPortal(<ViewportDropdown viewports={viewports} />, mount)}
+        {themeMount && createPortal(<ThemePreviewToggle />, themeMount)}
         {shrinkMount && createPortal(<ShrinkPreviewToggle />, shrinkMount)}
       </div>
     )
