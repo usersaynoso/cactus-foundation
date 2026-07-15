@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
+import { collectModuleRobotsDisallow } from '@/lib/modules/router'
 
 // Metadata routes are statically cached at build time by default. This one
 // reads the live SiteConfig, so it must render per request — otherwise
@@ -29,11 +30,18 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       return { rules: { userAgent: '*', disallow: '/' } }
     }
 
+    const disallow = ['/cactus-admin/', '/setup/', '/cactus-status/', '/api/']
+    try {
+      disallow.push(...await collectModuleRobotsDisallow())
+    } catch {
+      // Module robots entries are best-effort.
+    }
+
     return {
       rules: {
         userAgent: '*',
         allow: '/',
-        disallow: ['/cactus-admin/', '/setup/', '/cactus-status/', '/api/'],
+        disallow,
       },
       sitemap: `${siteUrl}/sitemap.xml`,
     }

@@ -67,6 +67,7 @@ const publicBases = new Map() // base → moduleName
 const publicPageLoaders = {}  // base → { key → importPath }
 const publicRoutes = {}       // base → [{ pattern, importPath }]
 const sitemapModules = []     // [{ moduleName, importPath }]
+const robotsModules = []      // [{ moduleName, importPath }]
 
 for (const moduleName of moduleNames) {
   // PAGE_LOADERS — scan modules/[name]/app/cactus-admin/[name]/**/page.tsx
@@ -142,6 +143,11 @@ for (const moduleName of moduleNames) {
   const sitemapPath = join(rootDir, 'modules', moduleName, 'lib', 'sitemap.ts')
   if (existsSync(sitemapPath)) {
     sitemapModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/sitemap` })
+  }
+
+  const robotsPath = join(rootDir, 'modules', moduleName, 'lib', 'robots.ts')
+  if (existsSync(robotsPath)) {
+    robotsModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/robots` })
   }
 }
 
@@ -319,6 +325,20 @@ for (const { moduleName, importPath } of sitemapModules) {
   out.push(`  }`)
 }
 out.push(`  return entries`)
+out.push(`}`)
+out.push(``)
+
+out.push(`export async function collectModuleRobotsDisallow(): Promise<string[]> {`)
+out.push(`  const paths: string[] = []`)
+for (const { moduleName, importPath } of robotsModules) {
+  out.push(`  try {`)
+  out.push(`    const mod = await import('${importPath}')`)
+  out.push(`    paths.push(...await mod.getPublicRobotsDisallow())`)
+  out.push(`  } catch (err) {`)
+  out.push(`    console.error('[collectModuleRobotsDisallow] ${moduleName} failed:', err)`)
+  out.push(`  }`)
+}
+out.push(`  return paths`)
 out.push(`}`)
 
 writeFileSync(routerPath, out.join('\n') + '\n')
