@@ -90,6 +90,39 @@ async function run() {
         continue
       }
 
+      // Self-heal a stale ledger. A restored or branched database can carry the
+      // ModuleMigration ledger (it is an ordinary table) without the module's
+      // actual tables - those are created by the migrations below and are NOT part
+      // of any backup's schema section. The ledger then insists every migration is
+      // applied, the skip check further down honours it, and the module's tables
+      // never come back. (Backups no longer carry the ledger - see lib/backup - but
+      // databases already in this state, and any future path that desyncs the two,
+      // still need recovering.) Detect the exact contradiction - this module has
+      // recorded migrations yet not one table with its prefix exists - and purge
+      // its ledger rows so its migrations re-apply from scratch, just as on a fresh
+      // install. Restricted to the zero-tables case so a healthy install is never
+      // touched and a plain (non-idempotent) CREATE TABLE can't collide.
+      const prefix = (mod.tablePrefix ?? '').trim()
+      const hasLedgerRows = appliedRows.some((r) => r.moduleName === mod.name)
+      if (prefix && hasLedgerRows) {
+        const { rows: tableCount } = await client.query(
+          `SELECT count(*)::int AS count FROM information_schema.tables
+           WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+             AND left(table_name, $1) = $2`,
+          [prefix.length, prefix],
+        )
+        if (tableCount[0].count === 0) {
+          console.warn(
+            `[module-migrations] ${mod.name}: ledger records migrations but no "${prefix}" tables exist - ` +
+              `stale ledger (likely a restored database). Purging ledger and re-applying from scratch.`,
+          )
+          await client.query(`DELETE FROM "ModuleMigration" WHERE "moduleName" = $1`, [mod.name])
+          for (const key of [...applied]) {
+            if (key.startsWith(`${mod.name}::`)) applied.delete(key)
+          }
+        }
+      }
+
       for (const filename of migrationFiles) {
         const migrationName = filename.replace(/\.sql$/, '')
 

@@ -9,6 +9,14 @@ import { serializeValue, type ColumnType } from '@/lib/backup/serialize'
 // rather than hardcoded, so module-added tables (shop, boards, gazette, etc.) are
 // included without this file needing edits.
 //
+// Two tables are deliberately excluded (see getTables): `_prisma_migrations` and
+// `ModuleMigration`. Both are build-time bookkeeping about the PHYSICAL schema of
+// the database they live in, not portable content. A module's actual tables are
+// created by its own migrations at build time and are NOT part of this backup's
+// schema section - so carrying its ModuleMigration ledger into a restore would
+// leave the target claiming those tables were applied while they don't exist,
+// after which the migration runner skips them forever. The ledger stays home.
+//
 // Lives here rather than in the route so the round-trip test can drive it against
 // a throwaway database (see roundtrip.test.ts).
 
@@ -36,7 +44,8 @@ function chunk<T>(items: T[], size: number): T[][] {
 async function getTables(db: BackupDb): Promise<string[]> {
   const rows = await db.$queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name != '_prisma_migrations'
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      AND table_name NOT IN ('_prisma_migrations', 'ModuleMigration')
     ORDER BY table_name
   `)
   return rows.map((r) => r.table_name)

@@ -8,12 +8,17 @@ import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backu
 // one topologically-sorted block per table - and a sequence section of setval()
 // calls.
 //
-// The target database always already has the schema - core tables are applied
-// at build time by `prisma migrate deploy`, and any installed module's tables by
-// its own migrations - so restore never runs the schema section. It wipes the
-// existing rows and replays only the backup's INSERTs and setvals, inside a
-// single all-or-nothing transaction. If anything fails the whole thing rolls back
-// and the live data is left untouched.
+// Restore never runs the schema section: the target's core tables were applied at
+// build time by `prisma migrate deploy`, and any installed module's tables by its
+// own migrations. It wipes the existing rows and replays only the backup's INSERTs
+// and setvals, inside a single all-or-nothing transaction. If anything fails the
+// whole thing rolls back and the live data is left untouched.
+//
+// A restore does NOT bring a module's tables into existence - only its data, and
+// only into tables the target already has. A module present in the backup but not
+// installed on the target has its INSERTs skipped and reported. Its ledger is left
+// alone either way (see PRESERVED_TABLES), so a later deploy of that module creates
+// its tables normally rather than being told they already exist.
 //
 // INSERTs for a table that doesn't exist on the target (a module that was
 // installed on the source site but not here) are skipped and reported rather
@@ -21,10 +26,21 @@ import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backu
 // sites are on different versions of Cactus - and is reported as a clear error
 // BEFORE anything is wiped, rather than dying halfway with a raw Postgres error.
 
-// Prisma's own migration ledger. Never wiped - dropping it would make the next
-// `prisma migrate deploy` try to re-apply the init migration onto tables that
-// already exist, and fail the build.
-const PRESERVED_TABLES = new Set(['_prisma_migrations'])
+// Migration ledgers describe the PHYSICAL schema of the database they sit in, not
+// portable content, so neither is ever wiped or overwritten by a restore.
+//
+// `_prisma_migrations`: dropping it would make the next `prisma migrate deploy`
+// re-apply the init migration onto tables that already exist, failing the build.
+//
+// `ModuleMigration`: records which module migrations THIS database has actually
+// run. A module's tables are created by those migrations at build time and are
+// NOT in a backup's schema section, so a fresh restore target won't have them.
+// Restoring the source's ledger on top would make the target claim they were
+// applied - and the module migration runner would then skip re-creating them
+// forever, leaving the tables permanently missing (this is exactly how a restored
+// dwoffice.furniture lost its contact-form and twilio tables). Keeping the target's
+// own ledger means the runner recreates whatever this database is actually missing.
+const PRESERVED_TABLES = new Set(['_prisma_migrations', 'ModuleMigration'])
 
 export type RestoreResult = {
   tablesRestored: string[]
@@ -257,6 +273,9 @@ export async function restoreDatabaseFromSql(
   for (const statement of inserts) {
     const table = insertTargetTable(statement)
     if (!table) continue
+    // An older backup, made before dump.ts stopped emitting them, may still carry
+    // ledger rows. Ignore them rather than overwriting the target's own ledger.
+    if (PRESERVED_TABLES.has(table)) continue
     if (!existingTables.has(table)) {
       skippedTables.add(table)
       continue
