@@ -3,6 +3,7 @@
 import type { CustomFieldRender } from '@puckeditor/core'
 import { useSiteColours } from '@/lib/puck/useSiteColours'
 import { ColourSwatchButton, CustomColourSwatch } from '@/lib/puck/ColourSwatchButton'
+import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
 
 export type BgColorValue = { mode: string; color: string }
 type Option = { value: string; label: string }
@@ -27,35 +28,8 @@ function composeBgColour(base: string, alpha: number): string {
   return `color-mix(in srgb, ${base} ${alpha}%, transparent)`
 }
 
-// A per-block dark-mode override is encoded straight into the colour value as
-// CSS `light-dark(<light>, <dark>)`. The site sets `color-scheme: light|dark`
-// alongside its theme (globals.css), so the browser resolves the right arm with
-// no render-side change - blocks that already paint `backgroundColor: color`
-// adapt for free. When there's no dark override the value stays the plain light
-// colour, so legacy data and every other consumer are untouched.
-function splitLightDark(color: string): { light: string; dark: string } {
-  const m = color.match(/^light-dark\(\s*([\s\S]*)\)\s*$/)
-  if (!m || !m[1]) return { light: color, dark: '' }
-  const inner = m[1]
-  // Split on the top-level comma only - each arm may itself be a color-mix()
-  // that contains commas, so track parenthesis depth.
-  let depth = 0
-  for (let i = 0; i < inner.length; i++) {
-    const ch = inner[i]
-    if (ch === '(') depth++
-    else if (ch === ')') depth--
-    else if (ch === ',' && depth === 0) {
-      return { light: inner.slice(0, i).trim(), dark: inner.slice(i + 1).trim() }
-    }
-  }
-  return { light: inner.trim(), dark: '' }
-}
-
-function composeLightDark(light: string, dark: string): string {
-  if (!dark) return light
-  if (!light) return ''
-  return `light-dark(${light}, ${dark})`
-}
+// Per-block dark-mode overrides ride the shared `light-dark()` encoding - see
+// lib/puck/lightDark.ts for how it resolves site-wide with no render change.
 
 type BgFieldOpts = { allowOpacity?: boolean; allowDark?: boolean }
 
@@ -188,9 +162,9 @@ export const HeaderBgColorField: CustomFieldRender<BgColorValue> = (props) => us
   { value: 'color', label: 'Solid colour' },
   { value: 'transparent', label: 'Always transparent' },
   { value: 'transparent-scroll', label: 'Transparent → solid on scroll' },
-], props)
+], props, { allowDark: true })
 
 export const PageBgColorField: CustomFieldRender<BgColorValue> = (props) => useBgColorFieldBody([
   { value: 'none', label: 'None (site background)' },
   { value: 'color', label: 'Colour' },
-], props)
+], props, { allowDark: true })
