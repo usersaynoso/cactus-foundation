@@ -255,11 +255,20 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
           )}
         </a>
         {hasChildren && open && (
-          <ul style={DROPDOWN_PANEL}>
-            {item.children!.map((child) => (
-              <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={1} />
-            ))}
-          </ul>
+          <>
+            {/* The panel hangs 4px below the trigger (DROPDOWN_PANEL.top). In hover
+                mode the pointer has to cross that gap to reach the menu, and for
+                those 4px it is over neither the trigger nor the panel - so the
+                li's onMouseLeave fires and the menu shuts before anything can be
+                clicked. This transparent strip fills the gap as a child of the
+                li, keeping the li "hovered" the whole way down. */}
+            <span aria-hidden style={{ position: 'absolute', top: '100%', left: 0, width: '100%', height: 6 }} />
+            <ul style={DROPDOWN_PANEL}>
+              {item.children!.map((child) => (
+                <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={1} />
+              ))}
+            </ul>
+          </>
         )}
       </li>
     )
