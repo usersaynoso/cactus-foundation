@@ -21,7 +21,7 @@ import {
   getStickyStyle,
   SiteLogoRsc,
 } from '@/lib/puck/config'
-import { sanitizeRichText } from '@/lib/sanitize'
+import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import {
@@ -62,7 +62,12 @@ function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any
       </div>
     )
   }
-  const html = sanitizeRichText(richTextContentToHtml(content, !puck?.isEditing))
+  // Sanitise first, obfuscate after (sanitizeAndObfuscateRichText). Passing
+  // obfuscate=true into richTextContentToHtml here was the bug: DOMPurify's
+  // re-serialisation decoded the obfuscator's entity-encoded addresses, so the
+  // plain address was served in view-source on every published RichText.
+  const raw = richTextContentToHtml(content, false)
+  const html = puck?.isEditing ? sanitizeRichText(raw) : sanitizeAndObfuscateRichText(raw)
   // Mirrors the editor render in config.tsx: the block's "Text colour" is a
   // scoped stylesheet rule (richTextColourCss), not an inline style, because the
   // globals.css `.puck-richtext …` rules set explicit colours a wrapper style

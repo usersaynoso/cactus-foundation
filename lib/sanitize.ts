@@ -1,5 +1,6 @@
 import { marked } from 'marked'
 import createDOMPurify from 'dompurify'
+import { obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import {
   ALLOWED_TAGS,
   ALLOWED_ATTR,
@@ -71,6 +72,16 @@ export function sanitizeRichText(html: string): string {
     ADD_ATTR: ['target'],
     FORCE_BODY: true,
   })
+}
+
+// Published RichText: sanitise FIRST, obfuscate emails AFTER. The order is the
+// whole point - DOMPurify parses and re-serialises the markup, which decodes
+// the numeric entities the obfuscator emits, putting the plain address straight
+// back into the served HTML (this is exactly what happened when the RSC render
+// obfuscated before sanitising). The obfuscator's own output (data-eml + entity
+// text) is generated markup, not owner input, so it needs no second pass.
+export function sanitizeAndObfuscateRichText(html: string): string {
+  return obfuscateEmailsInHtml(sanitizeRichText(html))
 }
 
 // Strips <script>, event handlers, and other executable content from an

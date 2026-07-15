@@ -3,6 +3,7 @@ import { puckRscConfig } from '@/lib/puck/config.rsc'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { markdownToHtml } from '@/lib/sanitize'
+import { obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import type { Data } from '@puckeditor/core'
 
 type PageShape = {
@@ -63,7 +64,12 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
     )
   }
 
-  const html = markdownToHtml(page.body)
+  // Obfuscate AFTER the markdown render: markdownToHtml sanitises internally,
+  // and DOMPurify's re-serialisation would decode the obfuscator's entities
+  // (same order invariant as sanitizeAndObfuscateRichText in lib/sanitize.ts).
+  // These are public pages and the deobfuscator is mounted on every route that
+  // renders them, so a typed address gets the same protection as builder copy.
+  const html = obfuscateEmailsInHtml(markdownToHtml(page.body))
   const markdownContent = (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
       <article>
