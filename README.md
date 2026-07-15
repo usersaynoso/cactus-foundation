@@ -66,6 +66,7 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 
 - [Shop](https://github.com/cactus-foundation-modules/shop) - a full e-commerce foundation: products, categories, collections, cart, checkout, payments, orders, refunds, customers, discounts, tax and shipping, all run from your own admin. No third-party shop platform required.
 - [Shop Variations](https://github.com/cactus-foundation-modules/shop-variations) - adds product options to the shop: size/colour variant matrices with their own price, stock, SKU and image, plus personalisation add-ons (engraving text, gift messages, dropdowns, dates and artwork uploads). Requires the Shop module.
+- [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) - adds Instant Bank Pay at checkout: a one-off, open-banking (pay-by-bank) payment the shopper authorises straight from their banking app, with refunds and automatic confirmation. Requires the Shop module.
 - [Directory](https://github.com/cactus-foundation-modules/directory) - map-based listings with categories, featured entries, and a public directory page.
 - [Contact Form](https://github.com/cactus-foundation-modules/contact-form) - a contact form for any page, with an admin inbox and reply composer.
 - [Contact Form Reply Catcher](https://github.com/cactus-foundation-modules/reply-catcher) - threads real mailbox replies back into the Contact Form inbox.

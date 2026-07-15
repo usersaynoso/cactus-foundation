@@ -206,6 +206,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `CRON_SECRET` | No | Enables Vercel Cron jobs declared by installed modules (e.g. the Reply Catcher contact-form add-on). When set, Vercel automatically sends it as a bearer token on its own cron requests, and each module's cron route checks it before running. Not required unless an installed module ships a `cronJobs` entry. |
 | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | No | Shop module - enables card payments via Stripe (see [Shop](Shop)). All three must be set before Stripe is offered at checkout, even if switched on in Settings → Shop. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE` | No | Shop module - enables PayPal payments. `PAYPAL_MODE` is `sandbox` for testing or `live` for real payments. |
+| `GOCARDLESS_ACCESS_TOKEN`, `GOCARDLESS_WEBHOOK_SECRET`, `GOCARDLESS_ENVIRONMENT` | No | GoCardless Instant Bank Pay module - enables pay-by-bank (open banking) payments (see [Shop](Shop)). `GOCARDLESS_ENVIRONMENT` is `sandbox` for testing or `live` for real payments; sandbox and live use different access tokens. Set them on Settings → Instant Bank Pay (or in `.env.local` locally), then switch the method on there. Both the token and webhook secret must be set before it is offered at checkout. |
 
 ---
 
