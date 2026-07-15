@@ -54,7 +54,20 @@ From **Shop → Products → New product**, fill in a name and price to get star
 
 ## Categories, tags and collections
 
-**Categories** are the usual hierarchical grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+**Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+
+### Sub-categories
+
+**Shop → Categories** lets you nest categories as deeply as you like - Homeware → Kitchenware → Mugs → Travel Mugs, and on as far as makes sense for your shop. Each category shows as a row in a tidy indented tree:
+
+- **Add sub** tucks a new category underneath an existing one. **New category** (top right) starts a fresh top-level one.
+- **Edit** lets you move a category somewhere else (pick its new parent, or "Top level" to promote it) and choose what its page lists (see below). You can't move a category inside itself or one of its own sub-categories - the shop won't let you tie a knot.
+- The **↑ / ↓** arrows shuffle a category up or down among its siblings, which is the order shoppers see.
+- **Rename** and **Delete** do what they say. Deleting a category also deletes everything nested under it - a warning tells you how many sub-categories will go. Products filed in them aren't deleted; they simply lose that filing and stay in your catalogue.
+
+On the shop front, a category page shows a breadcrumb trail back up to the top, and links to its sub-categories so shoppers can drill down.
+
+**What a category page lists.** By default a category shows every product from itself *and* all its sub-categories - so "Kitchenware" includes the mugs filed under "Mugs". If you'd rather a category showed only the products filed directly on it, you can change that. The shop-wide default is in **Shop → Settings → General** ("Products shown on a category page"), and any single category can override it from its **Edit** panel.
 
 ---
 
