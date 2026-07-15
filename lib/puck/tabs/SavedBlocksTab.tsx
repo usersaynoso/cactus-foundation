@@ -12,7 +12,10 @@ type SavedBlock = {
   data: { type: string; props: Record<string, unknown> }
 }
 
-const ROOT_ZONE = 'default-zone'
+// Puck keys the root content zone as `${rootAreaId}:${rootZone}` = 'root:default-zone'.
+// The bare 'default-zone' never matches that compound key, so both the insert and the
+// follow-up replace silently no-op (insert finds no zone; replace reads an undefined index).
+const ROOT_ZONE = 'root:default-zone'
 
 export default function SavedBlocksTab() {
   const appState = usePuck(s => s.appState)

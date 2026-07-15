@@ -352,7 +352,7 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset, animationType, animationDuration, animationDelay } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackColumns, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset, animationType, animationDuration, animationDelay } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
@@ -857,7 +857,7 @@ function SectionBlock(props: any) {
   } = props
 
   const paddingYMap = PADDING_Y_MAP
-  const maxWidthMap: Record<string, string> = { none: '100%', narrow: '720px', standard: '960px', wide: '1200px', full: '100%' }
+  const maxWidthMap: Record<string, string> = { none: '100%', narrow: '720px', standard: '960px', wide: '1200px', full: '100%', edge: '100%' }
   const shadowMap: Record<string, string> = { none: 'none', sm: '0 1px 3px rgba(0,0,0,0.1)', md: '0 4px 12px rgba(0,0,0,0.12)', lg: '0 8px 30px rgba(0,0,0,0.15)' }
   const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px' }
 
@@ -914,6 +914,11 @@ function SectionBlock(props: any) {
     if (v === 'custom') return (pickResponsive(mwCustomRv, d) ?? '').trim() || '960px'
     return maxWidthMap[v] ?? '960px'
   }
+  // Horizontal gutter. Every width keeps the 1.5rem side padding that stops text
+  // kissing the viewport edge - except 'edge' (edge-to-edge), which drops it to 0
+  // so heroes/maps/full-width media reach the screen edge. Resolved per breakpoint
+  // like the width itself, so a section can be edge-to-edge on desktop only.
+  const pxAt = (d: Device) => (pickResponsive(mwRv, d) ?? 'standard') === 'edge' ? '0' : '1.5rem'
   const isScreen = (v: string | undefined) => v === 'screen'
   const pyPad = (v: string | undefined) => paddingYMap[isScreen(v) ? 'lg' : (v ?? 'lg')] ?? '6rem'
   const desktopPy = pickResponsive(pyRv, 'desktop')
@@ -931,7 +936,7 @@ function SectionBlock(props: any) {
   const desktopCa = pickResponsive(caRv, 'desktop') ?? 'top'
   const innerCss = responsiveMediaCssFor(`[data-section-id="${id}"]`, (d) => {
     const v = pickResponsive(pyRv, d)
-    return `max-width:${mwAt(d)};padding:${pyPad(v)} 1.5rem;min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
+    return `max-width:${mwAt(d)};padding:${pyPad(v)} ${pxAt(d)};min-height:${isScreen(v) ? '100vh' : 'auto'};${alignDecl(pickResponsive(caRv, d))}`
   })
 
   return (
@@ -944,7 +949,7 @@ function SectionBlock(props: any) {
       <div data-section-id={id} style={{
         maxWidth: mwAt('desktop'),
         margin: '0 auto',
-        padding: `${pyPad(desktopPy)} 1.5rem`,
+        padding: `${pyPad(desktopPy)} ${pxAt('desktop')}`,
         minHeight: isScreen(desktopPy) ? '100vh' : undefined,
         display: desktopCa === 'top' ? undefined : 'flex',
         flexDirection: desktopCa === 'top' ? undefined : 'column',
@@ -2521,7 +2526,7 @@ export const puckConfig = {
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
-        maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
+        maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'edge', label: 'Edge to edge (no padding)' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
         maxWidthCustom: { type: 'custom' as const, label: 'Custom max-width', units: ['px', '%', 'rem', 'vw', 'ch'], render: ResponsiveUnitValueField },
         contentAlign: { type: 'custom' as const, label: 'Content vertical alignment', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },

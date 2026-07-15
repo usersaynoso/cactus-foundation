@@ -69,6 +69,8 @@ Three things hold across every block's settings panel:
 
 A couple of blocks gained proper custom sizes along the way: the Section's **Content max-width** and the Spacer's **Height** both have a **Custom…** option that reveals a size field with the unit picker - per screen size, like everything else.
 
+The Section's **Content max-width** also has an **Edge to edge (no padding)** option. **Full bleed** stretches the content to full width but still keeps a small breathing gap down each side so text never quite touches the screen edge; **Edge to edge** removes that gap entirely, so a hero image, map or full-width band runs clean to both edges. Pick it per screen size if you like - edge to edge on desktop, tidy gaps on phones.
+
 **Scroll animations and sticking are everywhere they make sense.** Nearly every block now has a **Scroll animation** setting (fade, slide, zoom) - pick one and the speed and delay options appear; leave it on None and they stay hidden. Content blocks that might sit beside something taller - images, cards, text, buttons, spec panels, videos and the like - also have **Stick while scrolling**, which pins the block in place while its neighbour scrolls past (an offset field appears once it's on, for clearing a sticky header). Sticking only has room to work when the block's column is taller than the block itself.
 
 ---
