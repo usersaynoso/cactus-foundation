@@ -23,7 +23,7 @@ import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
-import { emailSafeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
+import { emailSafeHref, sanitizeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '@/lib/puck/blockHeight'
@@ -2438,7 +2438,7 @@ export function SiteLogoRsc(props: any) {
       transition: 'height 0.25s ease',
     } as React.CSSProperties
     return (
-      <a href={homeUrl || '/'} data-sitelogo-id={id} style={style}>
+      <a href={sanitizeHref(homeUrl) || '/'} data-sitelogo-id={id} style={style}>
         {alignCss && <style>{alignCss}</style>}
         {cellHCss && <style>{cellHCss}</style>}
         {cellHShrunk && (
@@ -2455,7 +2455,7 @@ export function SiteLogoRsc(props: any) {
     )
   }
   return (
-    <a href={homeUrl || '/'} data-sitelogo-id={id} style={style}>
+    <a href={sanitizeHref(homeUrl) || '/'} data-sitelogo-id={id} style={style}>
       {alignCss && <style>{alignCss}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- SVG logo asset with known static path; no CDN optimisation needed */}
       {showIconBool && <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />}

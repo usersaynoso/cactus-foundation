@@ -14,6 +14,7 @@ import {
   revokeAllMemberTrustedBrowsers,
   listMemberTrustedBrowsers,
   revokeMemberTrustedBrowserById,
+  getMemberSessionCreatedAt,
 } from '@/lib/members/session-core'
 import type { Member } from '@prisma/client'
 
@@ -67,6 +68,19 @@ export async function getMemberFromCookie(): Promise<Member | null> {
   const token = await getMemberSessionTokenFromCookie()
   if (!token) return null
   return validateMemberSession(token)
+}
+
+// Step-up window: enrolling a new authenticator (passkey / TOTP) must not ride
+// a stale session, or a borrowed unlocked browser could plant its own sign-in
+// method. Require the current session to have authenticated within this window.
+export const MEMBER_STEP_UP_MAX_AGE_MS = 10 * 60 * 1000 // 10 minutes
+
+export async function isCurrentMemberSessionFresh(maxAgeMs = MEMBER_STEP_UP_MAX_AGE_MS): Promise<boolean> {
+  const token = await getMemberSessionTokenFromCookie()
+  if (!token) return false
+  const createdAt = await getMemberSessionCreatedAt(token)
+  if (!createdAt) return false
+  return Date.now() - createdAt.getTime() <= maxAgeMs
 }
 
 // Lets a route mark which entry in listMemberSessions() is "this browser"

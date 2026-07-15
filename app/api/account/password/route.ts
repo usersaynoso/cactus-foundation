@@ -3,7 +3,7 @@ import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie, deleteAllUserSessions } from '@/lib/auth/session'
+import { getSessionFromCookie, deleteAllUserSessions, revokeAllTrustedDevices } from '@/lib/auth/session'
 import {
   hashPassword,
   verifyPassword,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return errorResponse('Invalid input', 400)
   }
-  const { currentPassword, newPassword, signOutOtherSessions } = parsed.data
+  const { currentPassword, newPassword } = parsed.data
 
   // Re-read the current hash from the DB; the session object may be stale.
   const dbUser = await prisma.user.findUnique({
@@ -75,12 +75,17 @@ export async function POST(request: NextRequest) {
   const passwordHash = await hashPassword(newPassword)
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } })
 
-  if (signOutOtherSessions) {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('cactus_session')?.value ?? ''
-    const currentHash = createHash('sha256').update(token + getSessionSecret()).digest('hex')
-    await deleteAllUserSessions(user.id, currentHash)
-  }
+  // A password change always evicts everyone else: revoke every other session
+  // and every trusted device, keeping only the session making this request.
+  // Otherwise an attacker who established a trusted device before the change
+  // keeps a foothold that bypasses OTP - the whole point of changing it is to
+  // lock them out. (signOutOtherSessions is no longer a choice; the field is
+  // still accepted for client compatibility but ignored.)
+  const cookieStore = await cookies()
+  const token = cookieStore.get('cactus_session')?.value ?? ''
+  const currentHash = createHash('sha256').update(token + getSessionSecret()).digest('hex')
+  await deleteAllUserSessions(user.id, currentHash)
+  await revokeAllTrustedDevices(user.id)
 
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },

@@ -52,6 +52,19 @@ export async function validateSession(token: string): Promise<SessionUser | null
   return session.user as SessionUser
 }
 
+// Authentication time of the session behind this token, for step-up checks. A
+// fresh login always creates a new session row, so createdAt is when the caller
+// last proved who they are. Returns null when the token maps to no live session.
+export async function getSessionCreatedAt(token: string): Promise<Date | null> {
+  const tokenHash = hashToken(token)
+  const session = await prisma.session.findUnique({
+    where: { tokenHash },
+    select: { createdAt: true, expiresAt: true },
+  })
+  if (!session || session.expiresAt < new Date()) return null
+  return session.createdAt
+}
+
 export async function deleteSession(token: string): Promise<void> {
   const tokenHash = hashToken(token)
   await prisma.session.deleteMany({ where: { tokenHash } })

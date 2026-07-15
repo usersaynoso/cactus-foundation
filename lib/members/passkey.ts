@@ -50,7 +50,11 @@ export async function createMemberRegistrationChallenge(
     excludeCredentials,
     authenticatorSelection: {
       residentKey: 'preferred',
-      userVerification: 'preferred',
+      // Require the authenticator to verify the human (biometric or PIN), not
+      // merely that someone is present. 'preferred' let a bare touch through, so
+      // a briefly-borrowed unlocked device could enrol/sign in with no prompt.
+      // Matches the admin flow (lib/auth/passkey.ts).
+      userVerification: 'required',
     },
   } satisfies GenerateRegistrationOptionsOpts)
 
@@ -84,7 +88,7 @@ export async function verifyMemberRegistration(
     expectedChallenge: challenge,
     expectedOrigin: getWebAuthnOrigin(),
     expectedRPID: getWebAuthnRpId(),
-    requireUserVerification: false,
+    requireUserVerification: true,
   } satisfies VerifyRegistrationResponseOpts)
 
   if (!verification.verified || !verification.registrationInfo) {
@@ -133,7 +137,9 @@ export async function createMemberAuthenticationChallenge(memberId?: string) {
   const opts = await generateAuthenticationOptions({
     rpID: rpId,
     allowCredentials: allowCredentials ?? [],
-    userVerification: 'preferred',
+    // A member passkey guards a real account; require user verification so mere
+    // possession of an unlocked device can't sign in. Matches the admin flow.
+    userVerification: 'required',
   })
 
   const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS)
@@ -182,7 +188,7 @@ export async function verifyMemberAuthentication(
       counter: Number(passkey.counter),
       transports: passkey.transports as AuthenticatorTransportFuture[],
     },
-    requireUserVerification: false,
+    requireUserVerification: true,
   } satisfies VerifyAuthenticationResponseOpts)
 
   if (!verification.verified || !verification.authenticationInfo) {

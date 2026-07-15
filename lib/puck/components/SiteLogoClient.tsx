@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
+import { sanitizeHref } from '@/lib/email-obfuscate'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 
 type Props = {
@@ -45,7 +46,7 @@ export default function SiteLogoClient({
   // plain-number shape and the pre-rename logoHeight fallback.
   const { base: cellH, css: cellHCss } = siteLogoCellHeight(id, cellHeight, logoHeight)
   const cellHShrunk = cellHeightShrunk ?? logoHeightShrunk
-  const href = homeUrl || '/'
+  const href = sanitizeHref(homeUrl) || '/'
   const showTextBool = showTextWithLogo === true || (showTextWithLogo as string) === 'true'
   const showIconBool = showIcon !== false && (showIcon as string) !== 'false'
   // Alignment: see siteLogoAlign - SiteLogoRsc does exactly this, from the same

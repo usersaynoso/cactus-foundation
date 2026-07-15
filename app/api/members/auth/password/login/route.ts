@@ -87,7 +87,10 @@ export async function POST(request: NextRequest) {
   // EMAIL share the same challenge store, so the verify route stays in step.
   const configs = member.twoFactorConfigs
   const smsConfig = configs.find((c) => c.method === 'SMS' && c.verified && c.phoneEncrypted)
-  const twoFactor = smsConfig ?? configs.find((c) => c.method !== 'SMS') ?? configs[0]
+  // Only ever gate on a *verified* factor. An unverified row (secret generated
+  // but never confirmed) is not a real second factor; selecting it would let
+  // login proceed against a factor the member never proved they hold.
+  const twoFactor = smsConfig ?? configs.find((c) => c.method !== 'SMS' && c.verified)
   if (!twoFactor) {
     return NextResponse.json(
       { error: 'Two-factor authentication is required but not yet configured for this account.' },

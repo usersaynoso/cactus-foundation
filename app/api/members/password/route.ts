@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie, deleteAllMemberSessions, getCurrentMemberSessionTokenHash } from '@/lib/members/session'
+import { getMemberFromCookie, deleteAllMemberSessions, getCurrentMemberSessionTokenHash, revokeAllMemberTrustedBrowsers } from '@/lib/members/session'
 import { hashPassword, verifyPassword, validateNewPassword } from '@/lib/auth/password'
 import { getMembersConfig } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
-  const { currentPassword, newPassword, signOutOtherSessions } = parsed.data
+  const { currentPassword, newPassword } = parsed.data
 
   const existing = await prisma.memberPassword.findUnique({ where: { memberId: member.id } })
   if (existing) {
@@ -67,10 +67,13 @@ export async function POST(request: NextRequest) {
     update: { hash },
   })
 
-  if (signOutOtherSessions) {
-    const currentHash = await getCurrentMemberSessionTokenHash()
-    await deleteAllMemberSessions(member.id, currentHash ?? undefined)
-  }
+  // Always evict everyone else on a password change: revoke every other session
+  // and every trusted browser, keeping only the current one. A trusted browser
+  // otherwise bypasses OTP/2FA, so leaving one alive would defeat the change.
+  // (signOutOtherSessions is still accepted for client compatibility but ignored.)
+  const currentHash = await getCurrentMemberSessionTokenHash()
+  await deleteAllMemberSessions(member.id, currentHash ?? undefined)
+  await revokeAllMemberTrustedBrowsers(member.id)
 
   await notifyMemberSecurityAlert(member, existing ? 'Your password was changed.' : 'A password was added to your account.')
 

@@ -159,14 +159,44 @@ function buildEmailAnchorHtml(addr: string): string {
 
 const MAILTO_RE = /^\s*mailto:/i
 
+// Owner-typed "Link URL" fields are plain text: a content editor with only
+// pages/appearance rights types whatever they like, and it lands in an href on
+// the published site. A "javascript:" (or "data:"/"vbscript:") URL there runs
+// in the site origin for every visitor who clicks it - stored XSS. The Rich
+// text block is already protected (TipTap protocol lock + DOMPurify); these
+// plain fields were not. Everything routes through sanitizeHref before an href
+// is emitted.
+//
+// Only ever-safe schemes are allowed through. A URL with no scheme (relative
+// path, "#fragment", "?query", protocol-relative "//host") has no protocol to
+// abuse and passes untouched. Anything with a disallowed scheme has its href
+// dropped entirely, so there is nothing to click.
+const SAFE_SCHEME_RE = /^(?:https?|mailto|tel):/i
+const HAS_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i
+
+// Returns the href when safe to render, or undefined when it carries a
+// disallowed (script-bearing) scheme. Control characters and whitespace are
+// stripped before the scheme is read, because browsers ignore them inside a
+// scheme - "java\tscript:" and " javascript:" both still execute.
+export function sanitizeHref(href: unknown): string | undefined {
+  if (typeof href !== 'string') return undefined
+  const probe = href.replace(/[\u0000-\u0020]+/g, '').toLowerCase()
+  if (!HAS_SCHEME_RE.test(probe)) return href // relative / fragment / query / protocol-relative
+  return SAFE_SCHEME_RE.test(probe) ? href : undefined
+}
+
 // Spread onto the <a> in place of href={…}. Returns no href at all for a
 // protected address, so there is nothing in the markup to harvest and nothing
 // for a no-JS visitor to click (they still read the label, same as the text
-// blocks). Non-string hrefs give {} - React omitted an undefined href anyway.
+// blocks). Non-string or unsafe-scheme hrefs give {} - React omitted an
+// undefined href anyway.
 export function emailSafeHref(href: unknown, obfuscate = true): { href?: string; 'data-eml'?: string } {
   if (typeof href !== 'string') return {}
-  if (!obfuscate || !MAILTO_RE.test(href)) return { href }
-  return { 'data-eml': encodeEmail(href.replace(MAILTO_RE, '')) }
+  if (obfuscate && MAILTO_RE.test(href)) {
+    return { 'data-eml': encodeEmail(href.replace(MAILTO_RE, '')) }
+  }
+  const safe = sanitizeHref(href)
+  return safe === undefined ? {} : { href: safe }
 }
 
 // For label text that sits INSIDE an anchor ("Email hi@example.com" on the

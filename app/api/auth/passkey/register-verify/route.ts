@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server'
 import { verifyRegistration, savePasskey, labelFromUserAgent } from '@/lib/auth/passkey'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
 
 const Body = z.object({
@@ -26,6 +26,17 @@ export async function POST(request: NextRequest) {
   // authenticator onto an account, so it must know the account is the caller's.
   if (!bootstrapOpen && !sessionUser) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  // Step-up: adding a new sign-in method is durable persistence, so it can't
+  // ride a stale session. Require a recent authentication (the setup window is
+  // its own gate and is exempt). A borrowed unlocked browser whose session is
+  // older than the window is turned away until the real owner re-authenticates.
+  if (!bootstrapOpen && !(await isCurrentSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before adding a new passkey.', reauthRequired: true },
+      { status: 403 }
+    )
   }
 
   try {

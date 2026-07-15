@@ -20,7 +20,11 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   // Same-origin paths only - a ?next=https://evil.com would otherwise bounce the
   // admin straight off the site the moment they signed in.
   const nextUrl = sanitizeRedirect(searchParams.get('next'), '')
-  const recoveryToken = searchParams.get('recovery_token') ?? ''
+  // Recovery mode is signalled by ?recovery=1 (the token itself now rides in an
+  // HttpOnly cookie set by the recovery route, so it never touches the URL).
+  // recovery_token is still read for older emailed links already in flight.
+  const legacyRecoveryToken = searchParams.get('recovery_token') ?? ''
+  const inRecoveryMode = searchParams.get('recovery') === '1' || !!legacyRecoveryToken
 
   const [step, setStep] = useState<LoginStep>('passkey')
   const [email, setEmail] = useState('')
@@ -40,8 +44,8 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   const [lostAccessSent, setLostAccessSent] = useState(false)
   const [noPasskeyMode, setNoPasskeyMode] = useState<NoPasskeyMode>(null)
   const [newPassword, setNewPassword] = useState('')
-  const [tokenRecoveryMode] = useState(!!recoveryToken)
-  const [showFallback, setShowFallback] = useState(!!recoveryToken)
+  const [tokenRecoveryMode] = useState(inRecoveryMode)
+  const [showFallback, setShowFallback] = useState(inRecoveryMode)
   const autoPasskeyAttempted = useRef(false)
 
   useEffect(() => {
@@ -182,7 +186,10 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
     setError('')
     setLoading(true)
     try {
-      const body: Record<string, string> = { token: recoveryToken }
+      // The token comes from the HttpOnly recovery cookie server-side; only pass
+      // it in the body for an older link that still carried it in the URL.
+      const body: Record<string, string> = {}
+      if (legacyRecoveryToken) body['token'] = legacyRecoveryToken
       if (newPassword) body['newPassword'] = newPassword
 
       const res = await fetch('/api/auth/recovery/complete', {

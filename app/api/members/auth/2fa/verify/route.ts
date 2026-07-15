@@ -47,10 +47,11 @@ export async function POST(request: NextRequest) {
   // delivery differs), so both verify through verifyMemberEmailChallenge -
   // which also covers the login route's silent SMS→email fallback.
   const configs = member?.twoFactorConfigs ?? []
+  // Only a *verified* factor counts - mirror password/login exactly. An
+  // unverified row must never gate login (no unverified fallback).
   const twoFactor =
     configs.find((c) => c.method === 'SMS' && c.verified && c.phoneEncrypted) ??
-    configs.find((c) => c.method !== 'SMS') ??
-    configs[0]
+    configs.find((c) => c.method !== 'SMS' && c.verified)
   if (!member || !twoFactor) {
     return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
   }

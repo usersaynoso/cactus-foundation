@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server'
 import { verifyMemberRegistration, saveMemberPasskey } from '@/lib/members/passkey'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromCookie, isCurrentMemberSessionFresh } from '@/lib/members/session'
 import { labelFromUserAgent } from '@/lib/auth/passkey'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 
@@ -9,6 +9,15 @@ export async function POST(request: NextRequest) {
   const member = await getMemberFromCookie()
   if (!member) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  // Step-up: adding a new sign-in method is durable persistence, so it can't
+  // ride a stale session. Require a recent authentication.
+  if (!(await isCurrentMemberSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before adding a new passkey.', reauthRequired: true },
+      { status: 403 }
+    )
   }
 
   try {

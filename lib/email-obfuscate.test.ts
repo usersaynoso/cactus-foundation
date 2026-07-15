@@ -4,6 +4,7 @@ import React from 'react'
 import {
   encodeEmail,
   emailSafeHref,
+  sanitizeHref,
   maskEmailText,
   linkifyEmails,
   obfuscateEmailsInHtml,
@@ -69,6 +70,42 @@ describe('emailSafeHref', () => {
   it('yields no href at all for a missing link', () => {
     expect(emailSafeHref(undefined)).toEqual({})
     expect(emailSafeHref(null)).toEqual({})
+  })
+
+  it('drops the href for a script-bearing scheme (stored XSS guard)', () => {
+    // A content editor with only pages/appearance rights could otherwise plant
+    // a javascript: URL that runs in the site origin for every visitor.
+    expect(emailSafeHref('javascript:alert(1)')).toEqual({})
+    expect(emailSafeHref('JavaScript:alert(1)')).toEqual({})
+    expect(emailSafeHref('  javascript:alert(1)')).toEqual({})
+    // Browsers ignore control chars/whitespace inside the scheme, so we must too.
+    expect(emailSafeHref('java\tscript:alert(1)')).toEqual({})
+    expect(emailSafeHref('java\nscript:alert(1)')).toEqual({})
+    expect(emailSafeHref('data:text/html,<script>alert(1)</script>')).toEqual({})
+    expect(emailSafeHref('vbscript:msgbox(1)')).toEqual({})
+  })
+})
+
+describe('sanitizeHref', () => {
+  it('passes safe schemes and scheme-less URLs through unchanged', () => {
+    expect(sanitizeHref('https://example.com')).toBe('https://example.com')
+    expect(sanitizeHref('http://example.com')).toBe('http://example.com')
+    expect(sanitizeHref('mailto:hi@example.com')).toBe('mailto:hi@example.com')
+    expect(sanitizeHref('tel:+441234567890')).toBe('tel:+441234567890')
+    expect(sanitizeHref('/contact')).toBe('/contact')
+    expect(sanitizeHref('#section')).toBe('#section')
+    expect(sanitizeHref('?q=1')).toBe('?q=1')
+    expect(sanitizeHref('//cdn.example.com/x')).toBe('//cdn.example.com/x')
+  })
+
+  it('returns undefined for dangerous schemes, however disguised', () => {
+    expect(sanitizeHref('javascript:alert(1)')).toBeUndefined()
+    expect(sanitizeHref('  JAVASCRIPT:alert(1)')).toBeUndefined()
+    expect(sanitizeHref('java\tscript:alert(1)')).toBeUndefined()
+    expect(sanitizeHref('data:text/html;base64,PHNjcmlwdD4=')).toBeUndefined()
+    expect(sanitizeHref('vbscript:x')).toBeUndefined()
+    expect(sanitizeHref(undefined)).toBeUndefined()
+    expect(sanitizeHref(null)).toBeUndefined()
   })
 })
 

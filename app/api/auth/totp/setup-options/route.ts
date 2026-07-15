@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { generateTotpSecret, buildOtpauthUri, generateQrDataUrl } from '@/lib/auth/totp'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import { errorResponse, successResponse } from '@/lib/utils'
@@ -31,6 +31,12 @@ export async function POST(request: NextRequest) {
     const sessionUser = await getSessionFromCookie()
     if (!sessionUser) {
       return errorResponse('Not authenticated', 401)
+    }
+    // Step-up: enrolling an authenticator app is durable persistence and must
+    // not ride a stale session. Require a recent authentication (the setup
+    // wizard path above, keyed on client-supplied userId, is its own gate).
+    if (!(await isCurrentSessionFresh())) {
+      return errorResponse('For your security, please sign in again before adding an authenticator app.', 403)
     }
     userId = sessionUser.id
   }

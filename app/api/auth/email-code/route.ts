@@ -13,18 +13,21 @@ const Body = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const ip = await getClientIp(request)
-  const rl = await checkAndRecord('email_code', [`ip:${ip}`])
-  if (!rl.allowed) {
-    return NextResponse.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
-  }
-
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
   const { userId, code, trustDevice } = parsed.data
+
+  // Rate-limit on both the caller's IP and the target account, matching the
+  // sibling flows (member_login, member_2fa). IP-only lets an attacker spread
+  // guesses against one account across many IPs.
+  const ip = await getClientIp(request)
+  const rl = await checkAndRecord('email_code', [`ip:${ip}`, `account:${userId}`])
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many attempts. Please wait.' }, { status: 429 })
+  }
 
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

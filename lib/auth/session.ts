@@ -13,6 +13,7 @@ import {
   listUserSessions,
   revokeSessionById,
   safeCompare,
+  getSessionCreatedAt,
 } from '@/lib/auth/session-core'
 import type { SessionUser } from '@/lib/auth/session-core'
 
@@ -28,6 +29,21 @@ export {
   listUserSessions,
   revokeSessionById,
   safeCompare,
+}
+
+// Step-up window: enrolling a new authenticator (passkey / TOTP) is a durable
+// change that must not ride a stale session - a borrowed unlocked browser could
+// otherwise plant its own sign-in method. Require the current session to have
+// authenticated within this window; otherwise the caller must sign in again.
+export const STEP_UP_MAX_AGE_MS = 10 * 60 * 1000 // 10 minutes
+
+export async function isCurrentSessionFresh(maxAgeMs = STEP_UP_MAX_AGE_MS): Promise<boolean> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE)?.value
+  if (!token) return false
+  const createdAt = await getSessionCreatedAt(token)
+  if (!createdAt) return false
+  return Date.now() - createdAt.getTime() <= maxAgeMs
 }
 
 const SESSION_COOKIE = 'cactus_session'

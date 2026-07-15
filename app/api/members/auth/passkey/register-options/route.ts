@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { createMemberRegistrationChallenge } from '@/lib/members/passkey'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromCookie, isCurrentMemberSessionFresh } from '@/lib/members/session'
 
 // Adds an additional passkey to the signed-in member's account. Unlike the
 // admin flow, there is no "zero-passkey bootstrap" for members: a member's
@@ -14,6 +14,15 @@ export async function POST() {
   const member = await getMemberFromCookie()
   if (!member) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  // Step-up: adding a passkey is durable persistence, so fail early if the
+  // session isn't freshly authenticated. register-verify re-checks this.
+  if (!(await isCurrentMemberSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before adding a new passkey.', reauthRequired: true },
+      { status: 403 }
+    )
   }
 
   const passkeys = await prisma.memberPasskey.findMany({

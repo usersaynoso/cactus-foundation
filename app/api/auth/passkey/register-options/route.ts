@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { createRegistrationChallenge } from '@/lib/auth/passkey'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
 import { getWebAuthnOrigin } from '@/lib/config/env'
 
@@ -60,6 +60,15 @@ export async function POST(request: NextRequest) {
     const user = await getSessionFromCookie()
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+    // Step-up: adding a passkey is durable persistence, so fail early (before the
+    // WebAuthn ceremony) if the session isn't freshly authenticated. register-verify
+    // re-checks this as the authoritative gate.
+    if (!(await isCurrentSessionFresh())) {
+      return NextResponse.json(
+        { error: 'For your security, please sign in again before adding a new passkey.', reauthRequired: true },
+        { status: 403 }
+      )
     }
     userId = user.id
   }

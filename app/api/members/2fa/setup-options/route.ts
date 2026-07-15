@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromCookie, isCurrentMemberSessionFresh } from '@/lib/members/session'
 import { generateTotpSecret, buildOtpauthUri, generateQrDataUrl } from '@/lib/auth/totp'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import { createMemberEmailChallenge } from '@/lib/members/email-challenge'
@@ -12,6 +12,15 @@ const Body = z.object({ method: z.enum(['EMAIL', 'AUTHENTICATOR_APP']) })
 export async function POST(request: NextRequest) {
   const member = await getMemberFromCookie()
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  // Step-up: enrolling a second factor is durable persistence and must not ride
+  // a stale session. Require a recent authentication.
+  if (!(await isCurrentMemberSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before setting up two-factor authentication.', reauthRequired: true },
+      { status: 403 }
+    )
+  }
 
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) {

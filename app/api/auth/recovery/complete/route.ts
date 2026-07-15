@@ -26,14 +26,31 @@ export async function GET(request: NextRequest) {
     select: { adminPath: true },
   })
   const adminPath = config?.adminPath ?? ''
-  return NextResponse.redirect(
-    new URL(`/${adminPath}/login?recovery_token=${encodeURIComponent(token)}`, request.url)
-  )
+  // Hand the token to the login page via a short-lived HttpOnly cookie rather
+  // than the query string: a token in ?recovery_token= lands in browser history,
+  // server logs and any Referer header. The cookie is invisible to page JS
+  // (HttpOnly) and to the address bar; the login page only flips into recovery
+  // mode from the ?recovery=1 flag, and the POST below reads the token back out
+  // of the cookie. SameSite=Lax so it survives the top-level navigation from the
+  // emailed link.
+  const res = NextResponse.redirect(new URL(`/${adminPath}/login?recovery=1`, request.url))
+  res.cookies.set(RECOVERY_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 60, // matches the token's own 30-minute TTL
+  })
+  return res
 }
 
-// POST: complete recovery via email token
+const RECOVERY_COOKIE = 'cactus_recovery_token'
+
+// POST: complete recovery via email token. The token normally rides in the
+// HttpOnly cookie set by GET; a token in the body is still accepted for older
+// links already in flight.
 const Body = z.object({
-  token: z.string(),
+  token: z.string().optional(),
   newPassword: z.string().optional(),
 })
 
@@ -43,7 +60,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
 
-  const { token, newPassword } = parsed.data
+  const { newPassword } = parsed.data
+  const token = parsed.data.token || request.cookies.get(RECOVERY_COOKIE)?.value || ''
+  if (!token) {
+    return NextResponse.json({ error: 'Recovery link is invalid or expired' }, { status: 400 })
+  }
 
   if (!isEmailConfigured()) {
     return NextResponse.json({ error: 'Email recovery is not available' }, { status: 503 })
@@ -80,5 +101,7 @@ export async function POST(request: NextRequest) {
     await sendRecoveryNotification(user.email, config?.siteName ?? 'Cactus').catch(() => {})
   }
 
-  return NextResponse.json({ ok: true, userId })
+  const done = NextResponse.json({ ok: true, userId })
+  done.cookies.set(RECOVERY_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 })
+  return done
 }
