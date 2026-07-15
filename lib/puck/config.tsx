@@ -1519,13 +1519,14 @@ function ButtonLink(props: any) {
 // spacing kept for legibility); the tel: target is the same string stripped to
 // digits and a leading + so a dialler accepts it. An optional label lets an
 // owner show "Call us" instead of the raw number while still dialling it.
-const PHONE_SIZE_MAP: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
+const PHONE_SIZE_MAP: Record<string, string> = { sm: '0.875rem', base: '1rem', md: '1.125rem', lg: '1.25rem', xl: '1.5rem', xxl: '2rem' }
+const PHONE_WEIGHT_MAP: Record<string, string> = { normal: '400', medium: '500', semibold: '600', bold: '700' }
 function PhoneBlock(props: any) {
   const {
-    id, number = '', label = '', align, fontFamily = '', size = 'base',
+    id, number = '', label = '', align, fontFamily = '', size = 'base', weight = '', transform = 'none', letterSpacing = '',
     color = '', hoverColor = '',
-    underline = 'none', underlineColor = '', underlineThickness = '',
-    hoverUnderline = '', showIcon = 'none', padding,
+    underline = 'none', underlineColor = '', underlineThickness = '', underlineOffset = '',
+    hoverUnderline = '', showIcon = 'none', mobileIconOnly = 'no', padding,
     sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
   } = props
 
@@ -1542,19 +1543,24 @@ function PhoneBlock(props: any) {
     textDecorationLine: hasUnderline ? 'underline' : 'none',
     ...(hasUnderline && underlineColor ? { textDecorationColor: underlineColor } : {}),
     ...(hasUnderline && underlineThickness ? { textDecorationThickness: underlineThickness } : {}),
+    ...((hasUnderline || hoverUnderline === 'underline') && underlineOffset ? { textUnderlineOffset: underlineOffset } : {}),
     color: color || 'inherit',
     fontFamily: fontFamily || undefined,
     fontSize,
+    ...(PHONE_WEIGHT_MAP[weight] ? { fontWeight: PHONE_WEIGHT_MAP[weight] } : {}),
+    ...(transform && transform !== 'none' ? { textTransform: transform as React.CSSProperties['textTransform'] } : {}),
+    ...(letterSpacing ? { letterSpacing } : {}),
   }
 
   // Hover state can't live in an inline style, so it's emitted as a stylesheet
   // rule scoped to this block's link. !important because the base state is an
   // inline style, which otherwise beats any plain selector. Hover underline is a
   // three-way: leave alone, force on, or force off - and when forced on it reuses
-  // the same underline colour/thickness the base underline uses.
+  // the same underline colour/thickness/offset the base underline uses (so a
+  // link with no base underline can still gain a fully-styled one on hover).
   const hoverUnderlineDecls =
     hoverUnderline === 'underline'
-      ? `text-decoration-line:underline !important;${underlineColor ? `text-decoration-color:${cssColourValue(underlineColor)} !important;` : ''}${underlineThickness ? `text-decoration-thickness:${cssColourValue(underlineThickness)} !important;` : ''}`
+      ? `text-decoration-line:underline !important;${underlineColor ? `text-decoration-color:${cssColourValue(underlineColor)} !important;` : ''}${underlineThickness ? `text-decoration-thickness:${cssColourValue(underlineThickness)} !important;` : ''}${underlineOffset ? `text-underline-offset:${cssColourValue(underlineOffset)} !important;` : ''}`
       : hoverUnderline === 'none' ? 'text-decoration-line:none !important;' : ''
   const hoverDecls = `${hoverColor ? `color:${cssColourValue(hoverColor)} !important;` : ''}${hoverUnderlineDecls}`
   const hoverCss = hoverDecls ? `a[data-phone-link="${id}"]:hover{${hoverDecls}}` : ''
@@ -1565,13 +1571,20 @@ function PhoneBlock(props: any) {
   const iconCss = showIcon === 'mobile'
     ? `[data-phone-id="${id}"] [data-phone-icon]{display:none;}${mobileMediaQuery()}{[data-phone-id="${id}"] [data-phone-icon]{display:inline-flex;}}`
     : ''
+  // "Icon only on mobile": once the icon is showing on phones, drop the number
+  // text under the mobile breakpoint so just the dial glyph remains (the tel:
+  // link and its aria-label still carry the number for taps and screen readers).
+  const iconShowsOnMobile = showIcon === 'always' || showIcon === 'mobile'
+  const mobileTextCss = mobileIconOnly === 'yes' && iconShowsOnMobile
+    ? `${mobileMediaQuery()}{[data-phone-id="${id}"] [data-phone-text]{display:none;}}`
+    : ''
 
   const alignRv = normalizeResponsiveValue<string>(align)
   const alignAt = (d: Device) => pickResponsive(alignRv, d) || 'left'
   const alignCss = responsiveMediaCssFor(`[data-phone-id="${id}"]`, (d) => `text-align:${alignAt(d)};`)
 
   const fontHref = googleFontHrefForFamily(fontFamily)
-  const css = `${alignCss}${hoverCss}${iconCss}`
+  const css = `${alignCss}${hoverCss}${iconCss}${mobileTextCss}`
 
   return (
     <div
@@ -1582,7 +1595,7 @@ function PhoneBlock(props: any) {
     >
       {fontHref && <link rel="stylesheet" href={fontHref} precedence="default" />}
       {css && <style>{css}</style>}
-      <a href={telHref} data-phone-link={id} style={linkStyle}>
+      <a href={telHref} data-phone-link={id} aria-label={display} style={linkStyle}>
         {showIcon !== 'none' && (
           <span data-phone-icon aria-hidden="true" style={{ display: showIcon === 'always' ? 'inline-flex' : 'none', alignItems: 'center' }}>
             <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1590,7 +1603,7 @@ function PhoneBlock(props: any) {
             </svg>
           </span>
         )}
-        {display}
+        <span data-phone-text>{display}</span>
       </a>
     </div>
   )
@@ -3006,29 +3019,40 @@ export const puckConfig = {
     Phone: {
       label: 'Phone',
       fields: {
-        number: { type: 'text' as const, label: 'Phone number' },
+        number: { type: 'text' as const, label: 'Phone number (dialled - use the full +44… form)' },
         label: { type: 'text' as const, label: 'Display text (blank = show the number)' },
         showIcon: { type: 'select' as const, label: 'Phone icon', options: [{ value: 'none', label: 'No icon' }, { value: 'mobile', label: 'On mobile only' }, { value: 'always', label: 'Always show' }] },
+        mobileIconOnly: { type: 'select' as const, label: 'On mobile, show the icon only (hide the number)', options: [{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }] },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        size: { type: 'select' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }] },
+        size: { type: 'select' as const, label: 'Text size', options: [{ value: 'sm', label: 'Small (0.875rem)' }, { value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }, { value: 'xl', label: 'XL (1.5rem)' }, { value: 'xxl', label: 'XXL (2rem)' }] },
+        weight: { type: 'select' as const, label: 'Font weight', options: [{ value: '', label: 'Default' }, { value: 'normal', label: 'Normal (400)' }, { value: 'medium', label: 'Medium (500)' }, { value: 'semibold', label: 'Semibold (600)' }, { value: 'bold', label: 'Bold (700)' }] },
+        transform: { type: 'select' as const, label: 'Text transform', options: [{ value: 'none', label: 'None' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }] },
+        letterSpacing: { type: 'custom' as const, label: 'Letter spacing', units: ['em', 'px'], render: UnitValueField },
         fontFamily: { type: 'custom' as const, label: 'Font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         hoverColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         underline: { type: 'select' as const, label: 'Underline number', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
+        hoverUnderline: { type: 'select' as const, label: 'Underline on hover', options: [{ value: '', label: 'No change' }, { value: 'underline', label: 'Underline' }, { value: 'none', label: 'No underline' }] },
         underlineColor: { type: 'custom' as const, label: 'Underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         underlineThickness: { type: 'custom' as const, label: 'Underline thickness', units: ['px', 'em'], render: UnitValueField },
-        hoverUnderline: { type: 'select' as const, label: 'Underline on hover', options: [{ value: '', label: 'No change' }, { value: 'underline', label: 'Underline' }, { value: 'none', label: 'No underline' }] },
+        underlineOffset: { type: 'custom' as const, label: 'Underline offset', units: ['em', 'px'], render: UnitValueField },
         padding: paddingField,
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { number: '', label: '', showIcon: 'none' as const, align: '' as const, size: 'base' as const, fontFamily: '', color: '', hoverColor: '', underline: 'none' as const, underlineColor: '', underlineThickness: '', hoverUnderline: '' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
-      // The underline colour and thickness only describe an underline that
-      // exists, so they stay hidden until "Underline number" is switched on.
+      defaultProps: { number: '', label: '', showIcon: 'none' as const, mobileIconOnly: 'no' as const, align: '' as const, size: 'base' as const, weight: '' as const, transform: 'none' as const, letterSpacing: '', fontFamily: '', color: '', hoverColor: '', underline: 'none' as const, hoverUnderline: '' as const, underlineColor: '', underlineThickness: '', underlineOffset: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Keep the panel to what applies: the underline colour/thickness/offset
+      // describe an underline, so they show when there's one either at rest OR
+      // on hover (a link with no base underline can still gain one on hover).
+      // "Icon only on mobile" needs an icon that's actually on screen on phones.
       resolveFields: (data: any, { fields }: any) => {
-        if (data?.props?.underline === 'underline') return fields
-        const { underlineColor: _uc, underlineThickness: _ut, ...rest } = fields
-        return rest
+        const p = data?.props ?? {}
+        const out: Record<string, any> = { ...fields }
+        if (p.underline !== 'underline' && p.hoverUnderline !== 'underline') {
+          delete out.underlineColor; delete out.underlineThickness; delete out.underlineOffset
+        }
+        if (p.showIcon !== 'always' && p.showIcon !== 'mobile') delete out.mobileIconOnly
+        return out
       },
       render: PhoneBlock,
     },
