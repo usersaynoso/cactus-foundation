@@ -51,6 +51,7 @@ import {
   ClearableNumberField,
   UnitValueField,
   ResponsiveUnitValueField,
+  RichTextMenuWithLink,
 } from '@/lib/puck/fields/registry'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
@@ -2806,7 +2807,7 @@ export const puckConfig = {
     RichTextBlock: {
       label: 'Rich Text',
       fields: {
-        content: { type: 'richtext' as const, label: 'Content' },
+        content: { type: 'richtext' as const, label: 'Content', renderMenu: RichTextMenuWithLink },
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         linkColor: { type: 'custom' as const, label: 'Link colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         linkHoverColor: { type: 'custom' as const, label: 'Link hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },

@@ -41,6 +41,7 @@ import type {
   UnitValueField as UnitValueFieldImpl,
   ResponsiveUnitValueField as ResponsiveUnitValueFieldImpl,
 } from '@/lib/puck/UnitValueField'
+import type { RichTextMenuWithLink as RichTextMenuWithLinkImpl } from '@/lib/puck/RichTextLinkMenu'
 
 // Every widget config.tsx can name. The editor must register all of them - see the
 // guard test in lib/puck/fields/registry.test.ts, which fails if the two lists drift
@@ -62,6 +63,7 @@ export const FIELD_WIDGET_NAMES = [
   'ClearableNumberField',
   'UnitValueField',
   'ResponsiveUnitValueField',
+  'RichTextMenuWithLink',
 ] as const
 
 export type FieldWidgetName = (typeof FIELD_WIDGET_NAMES)[number]
@@ -109,3 +111,4 @@ export const MinMaxPairField = fieldProxy('MinMaxPairField') as typeof MinMaxPai
 export const ClearableNumberField = fieldProxy('ClearableNumberField') as typeof ClearableNumberFieldImpl
 export const UnitValueField = fieldProxy('UnitValueField') as typeof UnitValueFieldImpl
 export const ResponsiveUnitValueField = fieldProxy('ResponsiveUnitValueField') as typeof ResponsiveUnitValueFieldImpl
+export const RichTextMenuWithLink = fieldProxy('RichTextMenuWithLink') as typeof RichTextMenuWithLinkImpl
