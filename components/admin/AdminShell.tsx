@@ -169,6 +169,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
             >
               <span className="admin-sidebar-toggle-icon">{effectiveCollapsed ? '›' : '‹'}</span>
             </button>
+            <ThemeToggle compact collapsed={effectiveCollapsed} />
             <button
               className="admin-sidebar-toggle admin-sidebar-search"
               onClick={() => window.dispatchEvent(new Event('cactus:open-command-palette'))}
@@ -177,7 +178,6 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
             </button>
-            <ThemeToggle compact collapsed={effectiveCollapsed} />
             <NotificationBell adminPath={adminPath} unreadCount={unreadCount} collapsed={effectiveCollapsed} />
           </div>
         </div>

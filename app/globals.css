@@ -1339,8 +1339,14 @@ a:hover {
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm) inset;
 }
+/* The sidebar toolbar now carries four controls in a 200px rail, so the
+   three-way switcher shrinks to earn the bell its place back on the row. */
 .theme-toggle--compact {
-  --tt-btn: 28px;
+  --tt-btn: 22px;
+}
+.theme-toggle--compact .theme-toggle-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .theme-toggle-btn {
@@ -1713,24 +1719,22 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
-/* Header toolbar: collapse toggle, theme switcher, notification bell as one
-   row of icon controls instead of separate bordered rows. Grid (not flex
-   space-between) so the theme switcher sits on the true centre line
-   regardless of how wide the toggle/bell icons either side are. */
+/* Header toolbar: collapse toggle pinned hard left, then the theme switcher,
+   menu search and notification bell grouped on the right as one row of icon
+   controls. Flex (not grid) so a fourth control could join without the bell
+   wrapping onto a second line - a fixed three-column grid had no slot for it. */
 .admin-sidebar-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) var(--space-3);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
-.admin-sidebar-toolbar > .admin-sidebar-toggle {
-  justify-self: start;
-}
-.admin-sidebar-toolbar > .admin-sidebar-bell {
-  justify-self: end;
+/* Auto margin on the collapse toggle shoves the remaining controls to the
+   right edge; the theme switcher, search and bell then sit as a tight cluster. */
+.admin-sidebar-toolbar:not(.admin-sidebar-toolbar--collapsed) > .admin-sidebar-toggle:first-child {
+  margin-right: auto;
 }
 .admin-sidebar-toolbar--collapsed {
   display: flex;
