@@ -1515,6 +1515,87 @@ function ButtonLink(props: any) {
   )
 }
 
+// Click-to-call number. The link text is the number as typed (punctuation and
+// spacing kept for legibility); the tel: target is the same string stripped to
+// digits and a leading + so a dialler accepts it. An optional label lets an
+// owner show "Call us" instead of the raw number while still dialling it.
+const PHONE_SIZE_MAP: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
+function PhoneBlock(props: any) {
+  const {
+    id, number = '', label = '', align, fontFamily = '', size = 'base',
+    color = '', hoverColor = '',
+    underline = 'none', underlineColor = '', underlineThickness = '',
+    hoverUnderline = '', showIcon = 'none', padding,
+    sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
+  } = props
+
+  // Keep a single leading + and the digits; drop everything a dialler chokes on
+  // (spaces, brackets, dashes). Empty stays a no-op '#' rather than 'tel:'.
+  const dialable = String(number).replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '')
+  const telHref = dialable ? `tel:${dialable}` : '#'
+  const display = String(label || number || 'Your phone number')
+
+  const fontSize = PHONE_SIZE_MAP[size] ?? PHONE_SIZE_MAP.base
+  const hasUnderline = underline === 'underline'
+  const linkStyle: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', gap: '0.45em',
+    textDecorationLine: hasUnderline ? 'underline' : 'none',
+    ...(hasUnderline && underlineColor ? { textDecorationColor: underlineColor } : {}),
+    ...(hasUnderline && underlineThickness ? { textDecorationThickness: underlineThickness } : {}),
+    color: color || 'inherit',
+    fontFamily: fontFamily || undefined,
+    fontSize,
+  }
+
+  // Hover state can't live in an inline style, so it's emitted as a stylesheet
+  // rule scoped to this block's link. !important because the base state is an
+  // inline style, which otherwise beats any plain selector. Hover underline is a
+  // three-way: leave alone, force on, or force off - and when forced on it reuses
+  // the same underline colour/thickness the base underline uses.
+  const hoverUnderlineDecls =
+    hoverUnderline === 'underline'
+      ? `text-decoration-line:underline !important;${underlineColor ? `text-decoration-color:${cssColourValue(underlineColor)} !important;` : ''}${underlineThickness ? `text-decoration-thickness:${cssColourValue(underlineThickness)} !important;` : ''}`
+      : hoverUnderline === 'none' ? 'text-decoration-line:none !important;' : ''
+  const hoverDecls = `${hoverColor ? `color:${cssColourValue(hoverColor)} !important;` : ''}${hoverUnderlineDecls}`
+  const hoverCss = hoverDecls ? `a[data-phone-link="${id}"]:hover{${hoverDecls}}` : ''
+
+  // The icon is optional and can be pinned to mobile only - the classic "show the
+  // dial affordance where tapping actually calls" treatment. Mobile-only hides it
+  // by default and un-hides it under the mobile breakpoint.
+  const iconCss = showIcon === 'mobile'
+    ? `[data-phone-id="${id}"] [data-phone-icon]{display:none;}${mobileMediaQuery()}{[data-phone-id="${id}"] [data-phone-icon]{display:inline-flex;}}`
+    : ''
+
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const alignAt = (d: Device) => pickResponsive(alignRv, d) || 'left'
+  const alignCss = responsiveMediaCssFor(`[data-phone-id="${id}"]`, (d) => `text-align:${alignAt(d)};`)
+
+  const fontHref = googleFontHrefForFamily(fontFamily)
+  const css = `${alignCss}${hoverCss}${iconCss}`
+
+  return (
+    <div
+      className={getPaddingClasses(padding)}
+      data-phone-id={id}
+      {...getAosProps(animationType, animationDuration, animationDelay)}
+      style={{ marginBottom: '1rem', textAlign: alignAt('desktop') as React.CSSProperties['textAlign'], ...getStickyStyle(sticky, stickyOffset) }}
+    >
+      {fontHref && <link rel="stylesheet" href={fontHref} precedence="default" />}
+      {css && <style>{css}</style>}
+      <a href={telHref} data-phone-link={id} style={linkStyle}>
+        {showIcon !== 'none' && (
+          <span data-phone-icon aria-hidden="true" style={{ display: showIcon === 'always' ? 'inline-flex' : 'none', alignItems: 'center' }}>
+            <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+          </span>
+        )}
+        {display}
+      </a>
+    </div>
+  )
+}
+
 function CTABanner(props: any) {
   const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', padding, paddingY = 'none', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
@@ -2519,7 +2600,7 @@ export const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
-    actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                 defaultExpanded: true },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                        defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
@@ -2921,6 +3002,35 @@ export const puckConfig = {
         return fields
       },
       render: ButtonLink,
+    },
+    Phone: {
+      label: 'Phone',
+      fields: {
+        number: { type: 'text' as const, label: 'Phone number' },
+        label: { type: 'text' as const, label: 'Display text (blank = show the number)' },
+        showIcon: { type: 'select' as const, label: 'Phone icon', options: [{ value: 'none', label: 'No icon' }, { value: 'mobile', label: 'On mobile only' }, { value: 'always', label: 'Always show' }] },
+        align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
+        size: { type: 'select' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }] },
+        fontFamily: { type: 'custom' as const, label: 'Font', render: ({ value, onChange }: any) => <SiteFontField value={value} onChange={onChange} /> },
+        color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverColor: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        underline: { type: 'select' as const, label: 'Underline number', options: [{ value: 'none', label: 'No' }, { value: 'underline', label: 'Yes' }] },
+        underlineColor: { type: 'custom' as const, label: 'Underline colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        underlineThickness: { type: 'custom' as const, label: 'Underline thickness', units: ['px', 'em'], render: UnitValueField },
+        hoverUnderline: { type: 'select' as const, label: 'Underline on hover', options: [{ value: '', label: 'No change' }, { value: 'underline', label: 'Underline' }, { value: 'none', label: 'No underline' }] },
+        padding: paddingField,
+        ...STICKY_FIELDS,
+        ...aosFields,
+      },
+      defaultProps: { number: '', label: '', showIcon: 'none' as const, align: '' as const, size: 'base' as const, fontFamily: '', color: '', hoverColor: '', underline: 'none' as const, underlineColor: '', underlineThickness: '', hoverUnderline: '' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // The underline colour and thickness only describe an underline that
+      // exists, so they stay hidden until "Underline number" is switched on.
+      resolveFields: (data: any, { fields }: any) => {
+        if (data?.props?.underline === 'underline') return fields
+        const { underlineColor: _uc, underlineThickness: _ut, ...rest } = fields
+        return rest
+      },
+      render: PhoneBlock,
     },
     CTABanner: {
       label: 'CTA Banner',
@@ -3538,7 +3648,7 @@ export const layoutPuckConfig = {
   categories: {
     layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
-    actions:    { title: 'Actions',    components: ['ButtonLink', 'CTABanner'],                                                defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                                       defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
@@ -3570,6 +3680,7 @@ export const layoutPuckConfig = {
     Quote:        puckConfig.components.Quote,
     Caption:      puckConfig.components.Caption,
     ButtonLink:   puckConfig.components.ButtonLink,
+    Phone:        puckConfig.components.Phone,
     CTABanner:    puckConfig.components.CTABanner,
     ImageBlock:   puckConfig.components.ImageBlock,
     VideoEmbed:   puckConfig.components.VideoEmbed,
