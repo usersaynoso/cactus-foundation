@@ -17,6 +17,8 @@ It needs the **Shop** module installed and up to date. Once both are in, you'll 
 
 You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use **Set all** to fill them in one go. Untick a row to hide that combination from the shop without deleting it.
 
+Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again.
+
 Change your options later and hit **Generate variants** again - Cactus keeps the combinations you've already priced and only adds or removes the ones that changed.
 
 ### Renaming an option or a value
@@ -37,9 +39,11 @@ Uploaded files are kept safely and linked from the order. Abandoned uploads (one
 
 ## On the shop page
 
-Drop the **Variant Purchase** block onto your product layout and you're done - it shows the option choosers, the personalisation fields, a live price and stock message, a photo that swaps as the customer chooses, and an add-to-cart button that stays put until they've made a valid, in-stock choice and filled in anything required. Combinations that are sold out or don't exist are greyed out with a note, so nobody adds something you can't send.
+Nothing to do. As soon as a product has options or personalisation, its page picks them up on its own: the option choosers and personalisation fields appear above the basket button, the price keeps up with what the customer has chosen, and the photo swaps when their choice has one of its own. The add-to-cart button stays put until they've made a valid, in-stock choice and filled in anything required, and combinations that are sold out or don't exist are greyed out with a note, so nobody adds something you can't send.
 
-Prefer to arrange things yourself? There are five smaller blocks - options, personalisation, price, add-to-cart and gallery - that you can place independently and they'll stay in step.
+This happens on the standard product page layout you already have, and only on products that actually use options - everything else in your shop carries on exactly as before. You don't need to edit a layout or drag anything in.
+
+If you'd rather build the page yourself, you still can. The **Variant Purchase** block does the lot in one, and there are five smaller blocks - options, personalisation, price, add-to-cart and gallery - that you can place independently and they'll stay in step.
 
 ## Reports and spreadsheets
 
