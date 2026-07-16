@@ -48,10 +48,16 @@ const KNOWN_PROVIDERS = new Set([
 // Ceiling for a direct-to-Worker PUT. The body is buffered whole to hash it, so
 // this is what stops one request eating the isolate's memory. Mirrors
 // MAX_DIRECT_UPLOAD_BYTES in lib/media/limits.ts - keep the two in step.
-const UPLOAD_MAX_BYTES = 25 * 1024 * 1024 // 25 MB
+const UPLOAD_MAX_BYTES = 50 * 1024 * 1024 // 50 MB
 
 // The only content types this Worker will ever put on the wire inline. Anything
 // else it holds is served as an attachment instead (see the GET path).
+//
+// 3D models are deliberately absent, and that is not an oversight: a model is
+// fetched by XHR from inside a WebGL canvas, which reads the bytes and ignores
+// both the type and the Content-Disposition. Serving one as an inert attachment
+// costs the viewer nothing and keeps the rule here simple - only pictures are
+// ever rendered from the media origin.
 const SERVABLE_IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
 ])
@@ -60,9 +66,17 @@ const SERVABLE_IMAGE_TYPES = new Set([
 // extension from a MIME type it has already validated (lib/media/upload.ts
 // buildKey), and the key is covered by the upload signature - so on the write
 // path this is the only type claim the client cannot forge.
+//
+// The model entries mirror MODEL_EXTENSION_TYPES in lib/media/limits.ts - keep
+// the two in step. A Worker deployed before they were added rejects a model PUT
+// with the 415 below; the app turns that into a "redeploy your Worker" message
+// rather than a mystery, because the Worker only picks up new source when an
+// admin redeploys it from Settings → Media.
 const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
+  glb: 'model/gltf-binary', gltf: 'model/gltf+json', obj: 'model/obj',
+  fbx: 'model/x-fbx', '3ds': 'model/x-3ds',
 }
 
 function contentTypeForKey(key: string): string | null {
@@ -261,15 +275,15 @@ async function handleUpload(request: Request, env: Env, url: URL): Promise<Respo
 
   // The stored Content-Type comes from the KEY, never from the client's header.
   // The key is covered by the signature and the app derives its extension from a
-  // validated image type, so the extension is the one type claim here that can't
-  // be tampered with. Trusting the header instead let a holder of media.upload
-  // PUT `Content-Type: text/html` with a script body and have it served back as
+  // validated type, so the extension is the one type claim here that can't be
+  // tampered with. Trusting the header instead let a holder of media.upload PUT
+  // `Content-Type: text/html` with a script body and have it served back as
   // executable HTML from the media origin.
   const contentType = contentTypeForKey(fullKey)
   if (!contentType || contentType === 'image/svg+xml') {
     // SVG is deliberately excluded: it's markup, and only the app's serverless
     // path sanitises it. The Worker never stores one.
-    return uploadError('Only raster image uploads are accepted here.', 415, env)
+    return uploadError('Only raster image and 3D model uploads are accepted here.', 415, env)
   }
 
   // Bound the body before reading it. The Worker buffers the whole payload into

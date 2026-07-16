@@ -558,6 +558,18 @@ The answer was a second, **additive** point beside the claim-and-replace one, no
 
 The general lesson: when a point is winner-takes-all and you find yourself wanting a second winner, the answer is usually a second point with different semantics, not a bigger claim.
 
+### A column in a host's table
+
+`shop-variations.variant-columns` (`modules/shop-variations/components/admin/ProductVariationsSection.tsx`) hangs an extra column on the variants table, one cell per variant. Its live consumer is `product-3d-views-for-shop`, whose **3D** column sits beside the Image column and takes a dropped model file for that variation.
+
+It exists because the alternative was worse in a way worth spelling out. Setting a variation's picture and setting its 3D model are the same errand, but the picture lives in shop-variations' table and the model belongs to a module shop-variations has never heard of and does not depend on. Teaching the table about 3D would have put one module's UI inside another's - the exact thing module isolation is for - so the table learned about *columns* instead, and knows nothing about what any of them are for.
+
+- **The host leaves a gap; it does not describe the contents.** A cell gets `productId`, `variantId`, `childProductId` and `label`, and owns everything after that: its own storage, its own fetching, its own saving. shop-variations has no 3D code in it, and a site without the 3D module installed has no such column.
+- **`childProductId` is the knowledge only the host has.** A variation is a hidden child product, and its id is what a contributor needs to attach anything to it. Passing it is the whole point of the contract - the same lesson as `shop.gallery-media` above.
+- **A contributed cell must be a client component.** The table is a client island that fetches its own variants, so the cell renders in the browser once per row; only client references cross that boundary. `ProductVariationsSection` is a server component and resolves the manifests, the permissions and the registry, because none of that can happen in the browser.
+- **Contributed cells save themselves.** The rest of the table registers its edits with the product editor's single Save button, and this deliberately does not. The columns this point exists for carry uploads, and holding a 40 MB file in memory as a pending edit - lost on a tab change, applied later - would be a lie that costs the admin their upload. Weigh it the other way for a column of typed-in text.
+- **`label` and `order` ride along on the manifest entry.** Same trick as `shop.product-editor-sections`, with the same fallback rule: a manifest written before the field existed will not have it.
+
 ## Module cron jobs
 
 A module can register Vercel Cron jobs by declaring `cronJobs` in `cactus.module.json`:

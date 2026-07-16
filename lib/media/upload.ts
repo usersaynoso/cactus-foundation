@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 
@@ -123,7 +123,15 @@ export async function validateNonImageUpload(
 // is not a valid object-key extension — a raw split produced keys like
 // "…-favicon.svg+xml", and the literal "+" broke the Worker's B2 signing/fetch
 // (confirmed 502 in production while plain-extension icons served fine).
+//
+// Model types are looked up rather than derived, because their subtype is not
+// their extension: "model/gltf-binary" has to land as ".glb". The key's extension
+// is what the Worker and contentTypeForKey() read the type back out of, so a key
+// ending ".gltf-binary" would be one nothing could type — and the octet-stream
+// these files used to be stored under produced exactly that, a ".octet-stream".
 function extensionForMimeType(mimeType: string): string {
+  const model = extensionForModelType(mimeType)
+  if (model) return model
   const subtype = mimeType.split('/')[1] ?? 'bin'
   return subtype.split('+')[0] || 'bin'
 }

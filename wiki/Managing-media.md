@@ -50,9 +50,13 @@ In the media library the Upload button spells out where files will land (**+ Upl
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG.
 
-**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 25 MB ceiling - roomy enough for the full-fat shot from a phone or camera. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 25 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 50 MB ceiling - roomy enough for the full-fat shot from a phone or camera several times over. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 50 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+
+The same 50 MB ceiling covers 3D model files, if you have [Product 3D views](Product-3D-views) installed. They go the same way photos do - browser straight to storage - and are filed with the product's pictures rather than off in a corner of their own.
 
 > **Worth doing once:** if you set your Worker up before this release, go to **Settings → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
+>
+> **Necessary, not merely worth doing, if you want 3D models.** A Worker deployed before this release will turn every 3D file away, because accepting them is new and your Worker only learns new things when you send it a fresh copy. Redeploy and they upload as normal. Photos are unaffected either way.
 
 ---
 

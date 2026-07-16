@@ -19,6 +19,14 @@ That is the whole job. The model appears on the product page straight away - the
 
 To remove one, click **Remove** next to it in the list. The file is deleted properly rather than merely hidden, so it stops costing you storage.
 
+### Straight onto a variation
+
+If you have **Shop Variations**, there is a quicker route for models that belong to one particular variation. The **Variations** tab now has a **3D** column sitting next to the Image column, and it behaves the way the picture beside it does: drop a file onto a row, or click the **+**, and that variation has its model. No dropdown, no leaving the table.
+
+Both routes do exactly the same thing, so use whichever suits. The **3D views** tab is still the only place to put a model against the **whole product** rather than one variation.
+
+One difference worth knowing: a model uploads the moment you drop it, rather than waiting for **Save** like the prices and stock counts in the same table. A file has either arrived or it hasn't, and pretending otherwise is a good way to lose one.
+
 ---
 
 ## Which file to use
@@ -48,6 +56,8 @@ Two formats people reasonably expect are turned away at the door, and it is bett
 ## Products with variations
 
 If you have **Shop Variations** installed, each variation can carry its own model - the oak version and the walnut version of the same chair, say.
+
+The quickest way to set one is the **3D** column on the product's **Variations** tab - drop a file onto the row, exactly as you would a photograph. The **3D views** tab's **Attach to** dropdown does the same job and is the only way to reach the whole product.
 
 The rules are meant to match what a shopper expects:
 
@@ -79,6 +89,10 @@ So everything belonging to a product sits together in one place, rather than mod
 **It does not turn on its own.** If you have "reduce motion" switched on in your computer's or phone's accessibility settings, the thumbnails hold still on purpose. Clicking through to the viewer still works normally.
 
 **Nothing at all shows, on any product.** Check that a media provider is set up under **Settings → Media**. Models are stored the same way images are, so without one there is nowhere to put them.
+
+**"Your media service needs updating before it will accept 3D files."** Exactly what it says, and the fix takes a minute. Go to **Settings → Media** and deploy the Worker again. Your media service is a small program that runs on Cloudflare and handles your files; it only learns new tricks when you send it a new copy, and accepting 3D models is a new trick. Once redeployed, upload as normal. Your existing images are untouched by this.
+
+**Uploads fail on a model over 4 MB, and mention passing through the site.** Some storage providers - Cloudinary, ImageKit, Vercel Blob and Supabase - cannot take a file straight from your browser, so it has to travel through the site itself, and there is a hard 4 MB ceiling on that journey that we do not control. Most real models are bigger. Switching to **Cloudflare R2**, **Backblaze B2** or **S3** under **Settings → Media** lifts the limit to the full 50 MB.
 
 ---
 
