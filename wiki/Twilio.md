@@ -80,6 +80,8 @@ Voicemail also catches calls where your phone is engaged or the forward fails, n
 
 **How you find out about it:** each new message rings the notification bell in the admin bar, with the caller's number in the notice and a link straight to the Twilio page. Withheld numbers say so rather than pretending to be one. Read the notice and it clears itself; the next message raises its own, so a quiet week doesn't bury a busy one. Only messages left from now on are marked and announced - anything recorded before this update stays in the log as an ordinary recording, because Twilio never knew the difference and neither, retrospectively, do we.
 
+**Callers who don't say anything:** plenty of people hear the greeting, think better of it and hang up at the beep. Twilio still files a recording of the silence, but a message under two seconds long isn't a message, so it gets no badge and no notification. The recording stays in the call log if you're curious about what nobody said.
+
 ---
 
 ## Opening hours
