@@ -329,6 +329,22 @@ A module with its own public "listing" and "single item" pages (Directory's cate
 | `types[].key` | yes | camelCase layout type string, convention `<moduleName><Kind>` (e.g. `directoryCategory`). Becomes the value stored in `Layout.type`. |
 | `types[].label` | yes | Sub-tab label (e.g. "Category"). |
 | `types[].starterImport`/`starterExport` | no | Module-relative path (no extension) and named export of a `() => Array<{id, name, description, data}>` function providing starter templates for this type. Omit if you don't want to ship any starters. |
+| `types[].editorPreview` | no | `{ "className"?: string, "maxWidth"?: number }`. Only for a **block-internal** layout type - one your own surface stamps into a container of its own rather than rendering as a whole page. Describes that container so the standalone editor and the preview page can reproduce it. See below. |
+
+### Block-internal layout types and `editorPreview`
+
+Most layout types render as a page: whatever the author builds is the whole output. A **block-internal** type is different - the layout is a flat list of parts, and one of your surfaces stamps it into a container of its own, once per item. Shop's Product Card is the worked example: `renderCards` wraps each stamped card in `<a class="shop-card">`, and that anchor is what arranges the parts - image on top, image beside the text, or image filling the card, chosen by a class on the parts and applied by the container with `:has()` and child selectors.
+
+The catch is that the container only exists on your surface. Open the same layout in **Appearance → Layouts** and there is nothing around the parts, so every template of the type renders identically and any part positioned against the container escapes across the canvas. `editorPreview` closes that gap: name the class (and optionally a width, so a card previews at card size rather than full-bleed) and the editor and preview page draw the same container your surface does.
+
+```json
+{ "key": "shopProductCard", "label": "Product Card", "editorPreview": { "className": "shop-card", "maxWidth": 340 } }
+```
+
+Two rules make this work, and both matter if your CSS uses child combinators (`.shop-card > :not(.shop-card-img)`):
+
+- **Emit the container's stylesheet from the parts themselves** when there's no context to say a surface already did. The core knows the class name, never the CSS.
+- **Declare each part `inline: true` and attach `puck.dragRef` to its own root element.** Otherwise the editor wraps every part in a `<div>` of its own, which lands between the container and the part: the part stops being a grid item, `~` stops seeing siblings, and the wrapper (which Puck gives `position: relative`) becomes the containing block an absolutely-positioned part stretches to. Your live page has no such wrapper, so this is also what keeps editor and storefront markup identical. Note Puck also sets `position: relative` inline on that element, which outranks a stylesheet rule - a part that must position against the container needs `!important`.
 
 Then tag any `puckBlocks[]` entries this layout type should offer, in addition to the usual page-builder palette:
 
@@ -504,8 +520,9 @@ The pattern, in `modules/shop/lib/detail-slot.ts`:
 - **The host keeps owning the look.** It hands its own CSS class names down as props and the provider renders into them, so a replaced part still looks like the layout it sits in. Otherwise the swap is visible to the shopper as a style change, and the host stops being the single owner of its own chrome.
 - **The host hands over its server-loaded data.** Shop passes the product's images and price along, so the provider paints immediately from server data rather than flashing empty while it fetches its own.
 - **Whoever renders the part owns all of it.** Shop deliberately does *not* apply its own out-of-stock gate to a claimed product: stock lives on the chosen combination, not the parent row. Splitting the decision between host and provider is how you get a button that disagrees with the price above it.
+- **Stand down where the author has already done the job by hand.** A take-over point assumes the host's part is the only thing doing that job. It often isn't: a layout written before the point existed does the same job with the provider's own granular blocks, dropped in by hand. Take the slot over *as well* and the page shows the answer twice. So the contract's `coveredSlots(blockTypes)` hands the provider the block types present in the layout and asks which slots are already covered; the host renders **nothing** for those. Note it renders nothing rather than falling back to its own part - a layout holding both shop's Price and the provider's price block would otherwise show the parent's static price next to the chosen combination's, and the shopper reads two different prices for one product. The author placed the provider's block deliberately; it wins outright. For pieces the host has no part for at all (an options picker), there's nothing to stand down, so the host instead passes `layoutBlockTypes` to every slot component and the provider drops those pieces itself.
 
-This is what lets a module change a host's default layout without either one hard-coding the other: shop's starter layout never mentions variations, and shop-variations never edits shop's starter layout.
+This is what lets a module change a host's default layout without either one hard-coding the other: shop's starter layout never mentions variations, and shop-variations never edits shop's starter layout. Note which way the knowledge runs - the host passes block-type *strings* it attaches no meaning to, and the provider is the only side that knows `ShopVariantPrice` means "price".
 
 ## Module cron jobs
 
