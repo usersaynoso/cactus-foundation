@@ -255,18 +255,29 @@ export async function moveOrRenameMedia(
   // then remove that item — deleting it last keeps the operation failure-safe.
   if ('victim' in resolved && resolved.victim) {
     await takeOverMediaReferences(resolved.victim, updated)
-    try {
-      await deleteMedia(resolved.victim.provider, resolved.victim.key)
-    } catch {
-      /* orphaned victim blob; harmless, still deletable later */
+    // Only if the victim's blob isn't the one just written. An orphaned blob is
+    // harmless; deleting a blob a live Media row still points at is not, and it
+    // is not hypothetical — a key clash between two rows made exactly this
+    // delete take out the image that had just replaced it.
+    if (resolved.victim.key !== relocated.key) {
+      try {
+        await deleteMedia(resolved.victim.provider, resolved.victim.key)
+      } catch {
+        /* orphaned victim blob; harmless, still deletable later */
+      }
     }
     await prisma.media.delete({ where: { id: resolved.victim.id } })
   }
 
-  try {
-    await deleteMedia(media.provider, media.key)
-  } catch {
-    /* orphaned original; harmless, still deletable later */
+  // Same rule for the original: a relocate that resolves to the key it started
+  // on has already written the bytes there, so deleting "the old one" would
+  // delete the item itself.
+  if (relocated.key !== media.key) {
+    try {
+      await deleteMedia(media.provider, media.key)
+    } catch {
+      /* orphaned original; harmless, still deletable later */
+    }
   }
 
   return updated

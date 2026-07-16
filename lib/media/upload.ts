@@ -7,6 +7,7 @@ import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason } from '@/lib/media/limits'
+import { exactBaseName, nanoidLabel } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -127,24 +128,15 @@ function extensionForMimeType(mimeType: string): string {
   return subtype.split('+')[0] || 'bin'
 }
 
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[^a-z0-9._-]/gi, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 40)
-    .toLowerCase()
-}
-
 // The human-readable label appended to a generated key, e.g. "-logo". The real
 // extension is derived from the validated MIME type and appended separately, so
 // the original filename's extension is stripped first — keeping it produced a
 // double extension ("logo.png" -> "<id>-logo.png.png").
-function filenameLabel(originalFilename?: string): string {
-  if (!originalFilename) return ''
-  const base = originalFilename.replace(/\.[^./\\]+$/, '')
-  const safe = sanitizeFilename(base)
-  return safe ? `-${safe}` : ''
-}
+//
+// Clipping rules for both key forms live in lib/media/keys.ts, where they are
+// unit-tested: a label may be clipped freely (the nanoid beside it carries
+// uniqueness), an exact name may not.
+const filenameLabel = nanoidLabel
 
 export function workerUrl(): string {
   return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
@@ -299,12 +291,13 @@ export function buildKey(
   // When true, the sanitised original filename becomes the key basename verbatim,
   // with no nanoid prefix — the caller guarantees uniqueness within the folder
   // (the shop names product images <product-slug><n>). Two exact-named uploads to
-  // the same folder deliberately overwrite in storage. Falls back to the nanoid
-  // form when no usable filename is given.
+  // the same folder deliberately overwrite in storage, so the basename must
+  // preserve whatever made the caller's names distinct (see lib/media/keys.ts).
+  // Falls back to the nanoid form when no usable filename is given.
   exactName?: boolean,
 ): string {
   const ext = extensionForMimeType(mimeType)
-  const exactBase = exactName ? sanitizeFilename((originalFilename ?? '').replace(/\.[^./\\]+$/, '')) : ''
+  const exactBase = exactName ? exactBaseName(originalFilename) : ''
   const id = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
   const prefix = provider === 'B2' ? 'media' : `media/${provider}`
   const dir = folderPath ? `${prefix}/${folderPath}` : prefix
@@ -396,7 +389,7 @@ export async function uploadMedia(
     const { default: ImageKit, toFile } = await import('@imagekit/nodejs')
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
     const ext = extensionForMimeType(mimeType)
-    const exactBase = exactName ? sanitizeFilename((originalFilename ?? '').replace(/\.[^./\\]+$/, '')) : ''
+    const exactBase = exactName ? exactBaseName(originalFilename) : ''
     const fileName = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
     const result = await ik.files.upload({ file: uploadable, fileName, ...(folderPath ? { folder: `/${folderPath}` } : {}) })
