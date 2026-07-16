@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { triggerVercelRedeploy, ensureVercelRedeploy } from '@/lib/vercel/deploy'
 import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
@@ -15,8 +15,8 @@ import { isLocalMode } from '@/lib/config/env'
 //
 // Pass `committedSince` when the caller has ALREADY pushed a commit (e.g. a core
 // update via syncCoreFromUpstream) that triggered a Vercel build. In that mode the
-// helper skips the module sync and the triggerVercelRedeploy fallback - it just arms
-// the gate and polls for the build the existing push created, avoiding a double-deploy.
+// helper skips the module sync and just arms the gate and adopts the build the
+// existing push created, avoiding a double-deploy.
 export async function startDeferredRedeploy(
   opts: { committedSince?: number } = {}
 ): Promise<{ triggered: boolean }> {
@@ -80,10 +80,40 @@ export async function startDeferredRedeploy(
       return undefined
     }
 
+    // Adopt the build our git push created, and if it never created one, start it
+    // ourselves.
+    //
+    // A push is *supposed* to build on its own, and normally does, so polling first
+    // is what keeps this from double-deploying. But when the push produces no build -
+    // a missed webhook, a GitHub delivery that never lands - nothing else in the
+    // system ever retries. The commit sits in the repo unbuilt while the admin is
+    // told the update landed, the module row is promoted to a version whose code was
+    // never deployed, and the site quietly runs the previous build until someone
+    // pushes again by chance. That is not hypothetical: it stranded a core update
+    // carrying two module bumps, and the only clue was a manifest one version behind.
+    //
+    // ensureVercelRedeploy rather than triggerVercelRedeploy: if a build did start,
+    // just late, this adopts it instead of stacking a second one on top.
+    const captureOrTrigger = async () => {
+      const pushed = await pollForDeploymentId()
+      if (pushed) {
+        await persistDeploymentId(pushed)
+        return
+      }
+      console.warn('[redeploy] Push produced no deployment - triggering one explicitly')
+      const result = await ensureVercelRedeploy(token, projectId)
+      if (result.triggered && result.deploymentId) {
+        await persistDeploymentId(result.deploymentId)
+        return
+      }
+      console.error('[redeploy] Fallback deploy failed to start:', result.error ?? 'unknown error')
+      await persistDeploymentId(await pollForDeploymentId())
+    }
+
     if (opts.committedSince !== undefined) {
       // The caller already pushed a commit (e.g. a core update) that triggered a
-      // Vercel build. Just capture it - do NOT sync modules or trigger another deploy.
-      await persistDeploymentId(await pollForDeploymentId())
+      // Vercel build. Adopt it - do NOT sync modules.
+      await captureOrTrigger()
       return
     }
 
@@ -105,9 +135,9 @@ export async function startDeferredRedeploy(
     }
 
     if (committed) {
-      // The git push already triggered a Vercel build — do NOT trigger another, or we
-      // double-deploy. Just capture the build the push created.
-      await persistDeploymentId(await pollForDeploymentId())
+      // The git push should have triggered a Vercel build - adopt that one rather
+      // than double-deploying, and only start one ourselves if it never appeared.
+      await captureOrTrigger()
       return
     }
 

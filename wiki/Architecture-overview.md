@@ -182,6 +182,10 @@ Env-var changes accumulate into a single **deployment notification** instead of 
 - Applying a Cactus core update - `syncCoreFromUpstream` pushes a fresh commit to `main` (the git push auto-deploys) and the admin watches live deploy status in the notification bell.
 - Factory reset (`DELETE /api/admin/env`) - keeps its immediate redeploy to ensure a clean wipe.
 
+**When a push doesn't build.** Both commit-driven paths above rely on the git push producing a Vercel build on its own, which is why `startDeferredRedeploy` polls for that build rather than starting a second one. If no build ever appears - a missed webhook, a GitHub delivery that never lands - it starts one itself instead of giving up. This matters because nothing else in the system retries: the commit would sit in the repo unbuilt, the module rows would still be promoted to versions whose code never shipped, and the site would quietly keep serving the previous build while the admin was told the update had landed. The one clue is a module's stored manifest sitting a version behind its recorded version, since the manifest is only ever rewritten by a build.
+
+Related: a Vercel "redeploy" inherits the source deployment's commit unless told otherwise, so every redeploy Cactus triggers passes `withLatestCommit` - otherwise the recovery path above would faithfully rebuild the *old* commit and report success.
+
 ### Notification data model
 
 `Notification` table, `NotificationType` enum: `deployment`, `core_update`, `module_update`, `message`. The nav bell badge counts **any** unread notification (`getUnreadCount` = `count({ readAt: null })`), so new types light the bell automatically.

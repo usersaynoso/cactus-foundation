@@ -123,6 +123,16 @@ export async function ensureVercelRedeploy(
 
 // Creates a new deployment based on an existing one. Vercel picks up the
 // latest project env vars for the new deployment.
+//
+// `withLatestCommit` is what makes this a rebuild of the site as it stands rather
+// than a rollback. Passing `deploymentId` alone inherits the source deployment's
+// gitSource *including its commit sha*, so the build would replay whatever commit
+// happened to be last deployed. That is indistinguishable from correct while the
+// last deployment is also the newest commit, which is the normal case - and
+// silently wrong in the one case that matters, where a push has landed in the repo
+// without producing a build. Setting the flag drops the inherited sha so the
+// branch's current HEAD is used instead. No caller of this file wants a rollback:
+// every one of them means "rebuild the site as it is now, with current settings".
 async function createRedeploy(
   token: string,
   source: { uid: string; name: string },
@@ -138,6 +148,7 @@ async function createRedeploy(
       deploymentId: source.uid,
       name: source.name,
       target: 'production',
+      withLatestCommit: true,
     }),
     signal: AbortSignal.timeout(20_000),
   })
