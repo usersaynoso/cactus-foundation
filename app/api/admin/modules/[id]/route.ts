@@ -11,7 +11,8 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
-import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName } from '@/lib/modules/manifest'
+import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
+import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
 import { pruneUninstalledModuleLayouts } from '@/lib/setup/starterLayouts'
 import pkg from '@/package.json'
 
@@ -96,18 +97,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
 
-    // A newer module version may need a newer core (requiresCoreVersion in its
-    // manifest) - updating anyway would break the site's next build on a
-    // missing core import. Skipped silently if the manifest can't be fetched,
-    // so a transient GitHub hiccup never blocks an otherwise-fine update.
-    let requiresCoreVersion: string | undefined
+    // A newer module version may need a newer core (requiresCoreVersion) or a
+    // newer sibling module (requiresModules) - updating anyway would break the
+    // site's next build on a missing import. Skipped silently if the manifest
+    // can't be fetched, so a transient GitHub hiccup never blocks an
+    // otherwise-fine update.
+    let incoming: ModuleManifest | undefined
     try {
-      requiresCoreVersion = parseModuleManifest(
-        await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json')
-      ).requiresCoreVersion
+      incoming = parseModuleManifest(await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json'))
     } catch (err) {
-      console.warn(`[modules] Could not pre-check requiresCoreVersion for ${mod.name}:`, err)
+      console.warn(`[modules] Could not pre-check requirements for ${mod.name}:`, err)
     }
+
+    const requiresCoreVersion = incoming?.requiresCoreVersion
     if (requiresCoreVersion && compareVersions(pkg.version, requiresCoreVersion) < 0) {
       const displayName = formatModuleDisplayName(mod.repoUrl)
       return NextResponse.json(
@@ -120,6 +122,32 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         },
         { status: 409 }
       )
+    }
+
+    if (incoming) {
+      const installed = await prisma.module.findMany({
+        select: { name: true, version: true, status: true, repoUrl: true },
+      })
+      const [unmet] = findUnmetModuleDependencies(incoming.requiresModules, installed)
+      if (unmet) {
+        const displayName = formatModuleDisplayName(mod.repoUrl)
+        const depRepoUrl = installed.find((m) => m.name === unmet.name)?.repoUrl
+        const depName = depRepoUrl ? formatModuleDisplayName(depRepoUrl) : unmet.name
+        const currentVersion = unmet.reason === 'outdated' ? unmet.installedVersion.replace(/^v/i, '') : null
+        return NextResponse.json(
+          {
+            error: unmet.reason === 'outdated'
+              ? `The new version of "${displayName}" needs "${depName}" v${unmet.minVersion} or newer - this site is on v${currentVersion}. Update "${depName}" first, then update "${displayName}".`
+              : `The new version of "${displayName}" needs the "${depName}" module (v${unmet.minVersion} or newer) installed and active. Sort that out first, then update "${displayName}".`,
+            code: 'module_version_required',
+            moduleName: displayName,
+            dependencyName: depName,
+            requiredVersion: unmet.minVersion,
+            currentVersion,
+          },
+          { status: 409 }
+        )
+      }
     }
 
     await prisma.deployLock.create({

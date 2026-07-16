@@ -12,6 +12,7 @@ import {
   validateTablePrefixUnique,
   validatePublicBasePathUnique,
 } from '@/lib/modules/manifest'
+import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
@@ -127,18 +128,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Check declared module dependencies are installed, active, and at minVersion+
-  for (const dep of manifest.requiresModules) {
-    const found = existing.find((m) => m.name === dep.name)
-    if (!found || found.status !== 'active') {
-      return errorResponse(
-        `"${manifest.name}" requires the "${dep.name}" module (v${dep.minVersion}+) to be installed and active first.`
-      )
-    }
-    if (compareVersions(found.version, dep.minVersion) < 0) {
-      return errorResponse(
-        `"${manifest.name}" requires "${dep.name}" v${dep.minVersion}+, but v${found.version.replace(/^v/i, '')} is installed. Update it first.`
-      )
-    }
+  const [unmet] = findUnmetModuleDependencies(manifest.requiresModules, existing)
+  if (unmet) {
+    return errorResponse(
+      unmet.reason === 'missing'
+        ? `"${manifest.name}" requires the "${unmet.name}" module (v${unmet.minVersion}+) to be installed and active first.`
+        : `"${manifest.name}" requires "${unmet.name}" v${unmet.minVersion}+, but v${unmet.installedVersion.replace(/^v/i, '')} is installed. Update it first.`
+    )
   }
 
   // Channel chosen at install time; can be switched per-module afterwards.
