@@ -18,11 +18,20 @@ Once connected, the settings tab shows the account it's talking to, so you can t
 
 ---
 
-## Routing country
+## Countries other than the United States
 
-Twilio can process and store your calls, texts and recordings in one of three places: **United States** (the default), **Ireland** or **Australia**. This lives right below the credentials on **Settings → Twilio** as a dropdown.
+Twilio can handle a number's calls and texts in the **United States** (the default), **Ireland** or **Australia**. That choice is made **per phone number**, down in the Phone numbers section - so one number can run through Ireland while another stays in the States.
 
-Pick whichever is closest to you or matches your data-residency requirements, then Save - like the credentials above, it takes effect after the next deployment. If your Twilio account isn't set up to use a particular region, Twilio will simply reject requests until you switch back or contact Twilio support to enable it.
+If you only ever use the United States, skip this bit entirely and carry on.
+
+To use Ireland or Australia, there's one wrinkle worth knowing about: **Twilio issues a separate auth token for each country, and your main one won't work there.** Nothing to be done about that, it's how Twilio is built. So **Settings → Twilio** has an "Other countries" bit under the main credentials with a box for each:
+
+- **Ireland auth token**
+- **Australia auth token**
+
+You'll find them in the Twilio console under **API keys & tokens**, with the country picked in the Region dropdown - the same page as your main token, just a different setting on it. Fill in only the ones you actually use and leave the rest blank. Like the credentials above, they take effect after the next deployment.
+
+Without the right token, a number routed to that country still works perfectly well for callers - it just won't show you any of its calls or texts, because those records live in that country and the site can't reach in to read them. The settings page says so plainly next to any number in that state, rather than leaving you staring at an empty table wondering.
 
 ---
 
@@ -31,10 +40,11 @@ Pick whichever is closest to you or matches your data-residency requirements, th
 Once connected, a **Phone numbers** section appears on the same settings tab, listing every number on your Twilio account. No typing numbers in by hand - the site fetches them for you, along with whether each one can send text messages.
 
 - **Add to site** - puts a number to work on this site. Add as many as you like; remove them just as easily.
+- **Country** - where Twilio handles and stores that number's calls, texts and recordings: United States, Ireland or Australia. Each number gets its own, so you can mix and match. See the section above before you pick anything other than the United States, because each country needs its own token. Twilio takes up to five minutes to apply the change, and it only affects things from that point on - whatever's already been logged stays in the country it happened in.
 - **Send texts from this number** - each text-capable number you've added offers this choice, and exactly one holds it at a time. Sign-in codes go out from whichever number you've picked. The first text-capable number you add is chosen automatically, so most people never need to think about it.
 - Numbers that can't send texts are labelled **No texts** and can still be added for call forwarding - they just aren't offered for texting. The site will never try to send a text from a number that can't, which saves a certain amount of head-scratching.
 
-Until a text-capable number is added, sign-in codes carry on arriving by email as usual. Number changes apply immediately - no redeploy needed.
+Until a text-capable number is added, sign-in codes carry on arriving by email as usual. Number changes apply immediately - no redeploy needed, apart from the country tokens above.
 
 ---
 
