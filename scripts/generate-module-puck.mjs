@@ -22,6 +22,23 @@ function getModuleNames() {
     .sort()
 }
 
+// Resolves a manifest import spec (e.g. "./components/puck/StructuredDataBlock")
+// to a real file on disk, the way a bundler would: an exact file with a known
+// extension, or a directory index. A module still under construction (or a bad
+// manifest) can declare a block whose component file doesn't exist yet; emitting
+// an import to it would fail the whole build and take every other module's blocks
+// - and both Puck editors and the public frontend - down with it. So we resolve
+// first and skip anything missing, loudly, rather than poison the generated file.
+const IMPORT_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+function moduleImportExists(moduleName, importSpec) {
+  const base = join(modulesDir, moduleName, importSpec.replace(/^\.\//, ''))
+  for (const ext of IMPORT_EXTS) {
+    if (existsSync(base + ext)) return true
+    if (existsSync(join(base, `index${ext}`))) return true
+  }
+  return false
+}
+
 const moduleNames = getModuleNames()
 const clientImports = []
 const rscImports = []
@@ -48,6 +65,16 @@ for (const moduleName of moduleNames) {
   for (const block of puckBlocks) {
     if (!block.type || !block.import || !block.component) {
       console.warn(`[generate-module-puck] Invalid puckBlock entry in ${moduleName} — skipping`)
+      continue
+    }
+
+    // Skip a block whose component file (client or, if separate, RSC) isn't on
+    // disk - see moduleImportExists. Better one missing block than a build that
+    // won't compile at all.
+    const rscImportSpec = block.rscImport ?? block.import
+    if (!moduleImportExists(moduleName, block.import) ||
+        (rscImportSpec !== block.import && !moduleImportExists(moduleName, rscImportSpec))) {
+      console.warn(`[generate-module-puck] ${moduleName} block "${block.type}" imports a file that doesn't exist (${block.import}) — skipping`)
       continue
     }
 

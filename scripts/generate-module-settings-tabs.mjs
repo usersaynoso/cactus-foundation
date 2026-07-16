@@ -16,6 +16,21 @@ function getModuleNames() {
     .sort()
 }
 
+// Resolves a manifest import spec to a real file on disk, the way a bundler
+// would. A module still under construction can declare a settings tab whose
+// component file doesn't exist yet; emitting an import to it would fail the whole
+// build, so we resolve first and skip anything missing rather than poison the
+// generated file. Mirrors the guard in generate-module-puck.mjs.
+const IMPORT_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+function moduleImportExists(moduleName, importSpec) {
+  const base = join(modulesDir, moduleName, importSpec.replace(/^\.\//, ''))
+  for (const ext of IMPORT_EXTS) {
+    if (existsSync(base + ext)) return true
+    if (existsSync(join(base, `index${ext}`))) return true
+  }
+  return false
+}
+
 const moduleNames = getModuleNames()
 const imports = []
 const entries = []
@@ -38,6 +53,12 @@ for (const moduleName of moduleNames) {
   for (const tab of settingsTabs) {
     if (!tab.id || !tab.import || !tab.component) {
       console.warn(`[generate-module-settings-tabs] Invalid settingsTabs entry in ${moduleName} — skipping`)
+      continue
+    }
+
+    // Skip a tab whose component file isn't on disk - see moduleImportExists.
+    if (!moduleImportExists(moduleName, tab.import)) {
+      console.warn(`[generate-module-settings-tabs] ${moduleName} tab "${tab.id}" imports a file that doesn't exist (${tab.import}) — skipping`)
       continue
     }
 
