@@ -98,6 +98,15 @@ A few things worth knowing:
 
 Opening hours only decide whether the phone rings. Everything else - your greeting, recording, caller ID - carries on as configured.
 
+### A different greeting when you're closed
+
+"Sorry, nobody is available to take your call" is fair enough at half past four on a Tuesday. At three in the morning it's rather stating the obvious. So with voicemail and opening hours both switched on, you get a second box: **What callers hear when you're closed**. Fill it in and out-of-hours callers hear that instead - your opening times, when you'll ring back, whatever suits.
+
+- Leave it empty and closed callers simply hear your usual voicemail greeting. Nothing changes.
+- Only the words change. The voice, the two-minute limit and where the messages land are all the same as any other voicemail.
+- **Call me to hear it** rings you and reads it out, same as the others, so you can check it before anybody else does.
+- Calls that come in while you're open and simply ring out still get your usual greeting - the caller heard the phone ring, so telling them you're closed would be a bit rich.
+
 ---
 
 ## Call and message logs
