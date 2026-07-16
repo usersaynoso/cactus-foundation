@@ -29,7 +29,9 @@ function getConfig(type: string): any {
     case 'notFound':
     case 'statusPage': return fullPagePuckRscConfig
     default:
-      if (moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckRscConfig(type)
+      // standalone: nothing here is stamping this layout into a surface of its
+      // own, so the preview has to draw the container the type declares itself.
+      if (moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckRscConfig(type, { standalone: true })
       return fullPagePuckRscConfig
   }
 }

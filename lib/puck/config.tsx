@@ -56,6 +56,7 @@ import {
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
+import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
@@ -3957,6 +3958,51 @@ export function getModuleLayoutSharedParts() {
   return { sharedCategories, sharedComponents }
 }
 
+// A "block-internal" layout type - one whose blocks are a flat list of parts
+// that a host surface stamps into a container of its own (shop's Product Card
+// into `<a class="shop-card">`) - declares that container in its manifest as
+// `editorPreview`. Editing such a layout standalone has to reproduce it, or the
+// parts have nothing to arrange them: the templates carry no variant class of
+// their own, so all three card looks render identically (image on top), and the
+// overlay look's absolutely-positioned image escapes across the whole canvas.
+// Layout types nothing stamps declare nothing and keep the bare fragment.
+export function getModuleLayoutEditorPreview(layoutType: string) {
+  return moduleLayoutTypeToGroup[layoutType]?.editorPreview
+}
+
+// The container class has to land on the element that is the DIRECT PARENT of
+// the parts, because the arrangement leans on child combinators (`.shop-card >
+// :not(.shop-card-img)` puts every non-image part in column two). That element
+// differs by render path, which is why this is not one shared wrapper:
+//
+//   editor - root children is a live <DropZone> element that renders a div of
+//            its own around the parts, so the class goes ON it via its public
+//            `className` prop. Wrapping instead would leave that zone div
+//            between the container and the parts, and the child rules would
+//            match the zone rather than the parts.
+//   RSC    - root children is a Fragment (see ServerRender), so a plain wrapper
+//            already is the parts' direct parent. That path lives in config.rsc.
+//
+// Both end up with `.shop-card` as the parts' parent, which is exactly what the
+// storefront's `<a class="shop-card">` gives them.
+function BareLayoutRoot({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
+function moduleLayoutEditorRoot(layoutType: string) {
+  const preview = getModuleLayoutEditorPreview(layoutType)
+  if (!preview) return BareLayoutRoot
+  return function ModuleLayoutEditorRoot({ children }: { children: React.ReactNode }) {
+    return (
+      <div style={preview.maxWidth ? { maxWidth: preview.maxWidth } : undefined}>
+        {React.isValidElement(children)
+          ? React.cloneElement(children as React.ReactElement<{ className?: string }>, { className: preview.className })
+          : children}
+      </div>
+    )
+  }
+}
+
 export function getModuleLayoutPuckConfig(layoutType: string) {
   const modBlocks = moduleComponentsByLayoutType[layoutType] ?? {}
   const { sharedCategories, sharedComponents } = getModuleLayoutSharedParts()
@@ -3966,7 +4012,7 @@ export function getModuleLayoutPuckConfig(layoutType: string) {
       ...sharedCategories,
     },
     root: {
-      render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+      render: moduleLayoutEditorRoot(layoutType),
     },
     components: { ...sharedComponents, ...modBlocks },
   }

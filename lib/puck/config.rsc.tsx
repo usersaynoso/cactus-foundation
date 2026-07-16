@@ -13,6 +13,7 @@ import {
   layoutPuckConfig,
   headerPuckConfig,
   getModuleLayoutSharedParts,
+  getModuleLayoutEditorPreview,
   wrapResponsiveRender,
   richTextContentToHtml,
   richTextColourCss,
@@ -156,7 +157,35 @@ export const headerPuckRscConfig = {
 
 export const fullPagePuckRscConfig = puckRscConfig
 
-export function getModuleLayoutPuckRscConfig(layoutType: string) {
+// Here root children is a Fragment of the parts (ServerRender's DropZoneRender
+// builds no element of its own), so this wrapper IS their direct parent - no
+// cloning needed, unlike the editor's live DropZone. See config.tsx.
+function BareLayoutRoot({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
+function moduleLayoutStandaloneRoot(layoutType: string) {
+  const preview = getModuleLayoutEditorPreview(layoutType)
+  if (!preview) return BareLayoutRoot
+  return function ModuleLayoutStandaloneRoot({ children }: { children: React.ReactNode }) {
+    return (
+      <div className={preview.className} style={preview.maxWidth ? { maxWidth: preview.maxWidth } : undefined}>
+        {children}
+      </div>
+    )
+  }
+}
+
+// `standalone: true` means this layout is being rendered on its own rather than
+// stamped into a host surface's container - the layout preview page is the only
+// such caller. It then draws the container the layout type declares, so the
+// preview matches the storefront.
+//
+// Every other caller here IS the host surface and supplies its own container:
+// shop's renderCards wraps each stamped card in `<a class="shop-card">`, and
+// product-attributes' filter grid mirrors it. Wrapping by default would nest a
+// second `.shop-card` inside each of those, so it stays opt-in.
+export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standalone?: boolean }) {
   const modBlocks = moduleRscByLayoutTypeWrapped[layoutType] ?? {}
   const { sharedCategories, sharedComponents } = getModuleLayoutSharedParts()
   return {
@@ -165,7 +194,7 @@ export function getModuleLayoutPuckRscConfig(layoutType: string) {
       ...sharedCategories,
     },
     root: {
-      render: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+      render: opts?.standalone ? moduleLayoutStandaloneRoot(layoutType) : BareLayoutRoot,
     },
     components: withSafeRichText({ ...sharedComponents, ...modBlocks }),
   }
