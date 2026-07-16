@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { clearAlert } from '@/lib/notifications/alerts'
-import { seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
+import { isModuleInBuild, seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
 
 // Reconciles modules left in 'deploying' once the Vercel build reaches a terminal
 // state. Centralised so every "deploy finished" path (the Pro-plan webhook, the
@@ -29,12 +29,21 @@ export async function markModulesDeploySucceeded(): Promise<void> {
           lastError: null,
         },
       })
-      // This deploy is the first one carrying the module's code, so it is the first
-      // moment its starter templates exist to copy - a module's default layouts can
-      // only be seeded here, never at install time. Guarded by layoutsSeededAt rather
-      // than by the create-only upsert: an *update* comes back through this same path,
-      // and would otherwise re-mint layouts the owner has since deleted.
-      if (!m.layoutsSeededAt) {
+      // Seed the module's default layouts, now that a deploy carrying its code has
+      // landed - its starter templates do not exist to copy any earlier. Guarded by
+      // layoutsSeededAt rather than by the create-only upsert: an *update* comes back
+      // through this same path, and would otherwise re-mint layouts the owner has
+      // since deleted.
+      //
+      // isModuleInBuild is the second guard, and the load-bearing one. This reconcile
+      // is not necessarily running on the deploy it is reconciling: the webhook or
+      // status poll is served by whichever instance is live, routinely the previous
+      // build, which has no copy of the module's templates. Seeding there writes
+      // nothing, and stamping it would turn "seed once" into "never" - which is
+      // exactly how a live Shop ended up 404ing every product URL. Left unstamped,
+      // seedPendingModuleLayouts() picks it up on the next request served by a build
+      // that does have the code.
+      if (!m.layoutsSeededAt && isModuleInBuild(m.name)) {
         try {
           await seedModuleDefaultLayouts(prisma, m.name)
           await prisma.module.update({

@@ -7,7 +7,7 @@ import {
   ENTIRE_SITE_CONDITIONS,
   type StarterTemplate,
 } from '@/lib/layout/starter-templates'
-import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { moduleLayoutTypeToGroup, modulesInBuild } from '@/lib/layout/module-layout-types'
 import pkg from '@/package.json'
 
 // Starter layouts are in-code templates (lib/layout/starter-templates.ts), not
@@ -33,12 +33,13 @@ import pkg from '@/package.json'
 //                            site does not have. Cleans up after the old seeder,
 //                            and after an uninstall.
 //
-//   ensureLayoutsCurrent() - update time only. Runs the prune and clears out the
-//                            rows the old read-only-starter scheme left behind.
-//                            Never creates anything: an existing site already has
-//                            its layouts, and seeding a second site-wide header
-//                            into it would be a good way to change its design
-//                            without asking.
+//   ensureLayoutsCurrent() - request time. Runs the prune, clears out the rows the
+//                            old read-only-starter scheme left behind, and seeds
+//                            any module still carrying a NULL layoutsSeededAt.
+//                            It never re-creates a layout a *seeded* module once
+//                            had: seeding a second site-wide header into a live
+//                            site would be a good way to change its design without
+//                            asking. A NULL stamp means the seed never happened.
 
 // ---------------------------------------------------------------------------
 // Cleanup planner (pure - see starterLayouts.test.ts)
@@ -204,8 +205,86 @@ export async function seedModuleDefaultLayouts(db: typeof prisma, moduleName: st
   await seedTemplates(db, moduleStarterTemplates(moduleName))
 }
 
+/**
+ * Whether this build actually contains the module's code.
+ *
+ * The reconcile that marks a module's deploy succeeded does not necessarily run
+ * *on* that deploy: whichever instance is serving when the webhook fires or the
+ * status poll lands handles it, and that is routinely the previous build - the one
+ * without the module in it. On dwoffice.furniture the Shop was stamped seeded 17
+ * seconds before its own migrations first ran, i.e. before its code had ever been
+ * in a build.
+ *
+ * On such a build `moduleStarterTemplates(name)` is empty, because the generated
+ * map is built from the modules cloned into *this* build. Seeding then writes
+ * nothing while the caller stamps layoutsSeededAt, and the guard that exists to
+ * seed exactly once instead guarantees never: the Shop's product, index, checkout
+ * and confirmation layouts were never created, so every product URL 404ed.
+ *
+ * Hence the check. "No templates" cannot distinguish a module that has none from
+ * one whose code is absent, so ask about the code directly.
+ */
+export function isModuleInBuild(moduleName: string): boolean {
+  return modulesInBuild.includes(moduleName)
+}
+
+/**
+ * Which never-seeded modules this build is in a position to seed (pure - see
+ * starterLayouts.test.ts).
+ *
+ * Skipping the rest rather than stamping them is the whole point: a module absent
+ * from this build gets another go on the deploy that carries its code, where there
+ * are actually templates to copy.
+ */
+export function planPendingModuleSeeds<T extends { name: string }>(
+  pending: T[],
+  inBuild: string[],
+): T[] {
+  const present = new Set(inBuild)
+  return pending.filter((m) => present.has(m.name))
+}
+
+/**
+ * Seeds any module that is installed and active but has never had its layouts
+ * stamped, for the case where the install-time seed could not run - either it was
+ * reconciled by a build without the module's code (see isModuleInBuild), or the
+ * stamp was cleared by prisma/core-reconcile/009 because it was written before the
+ * module's code first reached a build.
+ *
+ * Recovery has to live on a request path rather than in reconcile.ts, because
+ * reconcile only runs when a module deploy finishes: a site whose Shop was already
+ * mis-stamped would otherwise stay broken until the owner happened to install or
+ * update another module.
+ *
+ * Only ever seeds where layoutsSeededAt is NULL, so it cannot re-mint a layout an
+ * owner has deleted - a seeded module keeps its stamp regardless of what happens
+ * to the rows afterwards. Modules absent from this build are skipped unstamped, so
+ * the deploy that brings their code seeds them properly.
+ */
+export async function seedPendingModuleLayouts(db: typeof prisma): Promise<number> {
+  const pending = await db.module.findMany({
+    where: { layoutsSeededAt: null, status: { in: ['active', 'inactive', 'update_available'] } },
+    select: { id: true, name: true },
+  })
+
+  const seedable = planPendingModuleSeeds(pending, modulesInBuild)
+
+  let seeded = 0
+  for (const mod of seedable) {
+    try {
+      await seedModuleDefaultLayouts(db, mod.name)
+      await db.module.update({ where: { id: mod.id }, data: { layoutsSeededAt: new Date() } })
+      seeded++
+    } catch (err) {
+      // Left unstamped so a later request retries. Every write here is idempotent.
+      console.error(`[starterLayouts] Failed to seed default layouts for ${mod.name}:`, err)
+    }
+  }
+  return seeded
+}
+
 // ---------------------------------------------------------------------------
-// ensureLayoutsCurrent - update time only
+// ensureLayoutsCurrent - request time
 // ---------------------------------------------------------------------------
 
 /**
@@ -242,6 +321,11 @@ export async function ensureLayoutsCurrent() {
         data: { starterTemplatesVersion: pkg.version },
       })
     }
+    // After the prune, so a module's freshly seeded layouts are never binned by the
+    // same pass that created them. Not inside the version gate: a module whose
+    // install-time seed was lost to the wrong build (see seedPendingModuleLayouts)
+    // must recover on the next request, not wait for the next core update.
+    await seedPendingModuleLayouts(prisma)
     layoutsEnsured = true
   } catch {
     // Never let this break a page render; retried on a later request.

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { planStarterCleanup, planOrphanLayoutTypes, stableStringify, type LayoutRow } from './starterLayouts'
+import {
+  planStarterCleanup,
+  planOrphanLayoutTypes,
+  planPendingModuleSeeds,
+  stableStringify,
+  type LayoutRow,
+} from './starterLayouts'
 import {
   allStarterTemplates,
   coreStarterTemplates,
@@ -244,5 +250,40 @@ describe('planOrphanLayoutTypes', () => {
 
   it('has nothing to say about a build with no module layout types', () => {
     expect(planOrphanLayoutTypes({}, new Set())).toEqual([])
+  })
+})
+
+// The bug this guards: a module's deploy is reconciled by whichever instance is
+// serving, which is routinely the *previous* build - the one with no copy of the
+// module's code. Seeding there finds no templates and writes nothing, and stamping
+// layoutsSeededAt on top of that turns "seed once" into "never". A live Shop lost
+// its product, index, checkout and confirmation layouts exactly that way, and 404ed
+// every product URL, because those pages are Puck-only with no hardcoded fallback.
+describe('planPendingModuleSeeds', () => {
+  const pending = [{ name: 'shop' }, { name: 'gazette' }]
+
+  it('seeds a never-seeded module whose code is in this build', () => {
+    expect(planPendingModuleSeeds(pending, ['shop', 'gazette'])).toEqual(pending)
+  })
+
+  it('skips a module whose code this build does not have', () => {
+    // Left unstamped on purpose: the deploy that brings the code seeds it properly.
+    expect(planPendingModuleSeeds(pending, ['gazette'])).toEqual([{ name: 'gazette' }])
+  })
+
+  it('skips everything when the build has no modules at all', () => {
+    expect(planPendingModuleSeeds(pending, [])).toEqual([])
+  })
+
+  it('has nothing to do when no module is awaiting a seed', () => {
+    expect(planPendingModuleSeeds([], ['shop'])).toEqual([])
+  })
+
+  it('ignores modules in the build that are not awaiting a seed', () => {
+    // An already-stamped module never reaches here - re-minting layouts the owner
+    // has since deleted is the thing the stamp exists to prevent.
+    expect(planPendingModuleSeeds([{ name: 'shop' }], ['shop', 'contact-form'])).toEqual([
+      { name: 'shop' },
+    ])
   })
 })

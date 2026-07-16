@@ -20,6 +20,7 @@ function getModuleNames() {
 }
 
 const moduleNames = getModuleNames()
+const modulesInBuild = []
 const groups = []
 const starterImports = []
 const starterEntries = []
@@ -38,6 +39,14 @@ for (const moduleName of moduleNames) {
     console.warn(`[generate-module-layout-types] Could not parse ${manifestPath} — skipping`)
     continue
   }
+
+  // Recorded before the layoutTypes check: this list answers "was this module's
+  // code in this build?", which is a different question from "does it declare
+  // layout types". A module absent from it has nothing to seed *yet*; a module
+  // present but with no layout types has nothing to seed *ever*. Telling those
+  // two apart is what keeps seedPendingModuleLayouts() from stamping a module
+  // whose code has not landed - see lib/setup/starterLayouts.ts.
+  modulesInBuild.push(moduleName)
 
   const layoutTypes = manifest.layoutTypes
   if (!layoutTypes || !Array.isArray(layoutTypes.types) || layoutTypes.types.length === 0) continue
@@ -99,6 +108,9 @@ typesOut.push(`  moduleName: string`)
 typesOut.push(`  groupLabel: string`)
 typesOut.push(`  types: { key: string; label: string }[]`)
 typesOut.push(`}`)
+typesOut.push(``)
+typesOut.push(`/** Every module whose code was cloned into this build, layout types or not. */`)
+typesOut.push(`export const modulesInBuild: string[] = ${JSON.stringify(modulesInBuild, null, 2)}`)
 typesOut.push(``)
 typesOut.push(`export const moduleLayoutTypeGroups: ModuleLayoutTypeGroup[] = ${JSON.stringify(groups, null, 2)}`)
 typesOut.push(``)
