@@ -1453,9 +1453,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
     <div>
       <div className="page-header">
         <h1 className="page-title">Settings</h1>
-        <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
-        </button>
+        {TABS.includes(tab as Tab) && (
+          <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
+          </button>
+        )}
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
