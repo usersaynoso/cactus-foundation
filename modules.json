@@ -3,22 +3,22 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.28"
+      "version": "v0.1.39"
     },
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.0"
+      "version": "v0.1.7"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.1"
+      "version": "v0.1.2"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop",
-      "version": "v0.1.0"
+      "version": "v0.1.2"
     },
     {
       "name": "directory",
@@ -38,17 +38,17 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.26"
+      "version": "v0.1.28"
     },
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.1"
+      "version": "v0.1.12"
     },
     {
       "name": "gemini-watermark-remover",
       "repoUrl": "https://github.com/cactus-foundation-modules/gemini-watermark-remover",
-      "version": "v0.1.7"
+      "version": "v0.1.8"
     },
     {
       "name": "ultimate-seo",
