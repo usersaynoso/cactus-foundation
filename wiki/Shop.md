@@ -167,6 +167,8 @@ Want size/colour choices, or let customers add engraving, a gift message or an u
 
 **Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, and the shop's open/browse-only/closed status. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
 
+When the shop status is set to closed, visitors see your closed message instead of the shop page. Anyone signed in with Shop access still sees the shop itself, with a note at the top reminding them it is closed to everyone else, so you can check the place over before you reopen.
+
 ---
 
 **Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
