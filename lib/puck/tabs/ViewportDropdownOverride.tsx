@@ -249,12 +249,18 @@ export function createViewportDropdownOverride(viewports: Viewports, options: { 
         track.insertBefore(el, track.firstChild)
         setMount(el)
 
-        // Light/dark preview toggle - sits just before Puck's zoom select. Anchoring to the
-        // zoom select (not track order) keeps it "next to" the zoom box wherever Puck puts it.
+        // Light/dark preview toggle - sits just before Puck's zoom controls. Anchoring to the
+        // zoom wrapper (not track order) keeps it "next to" the zoom box wherever Puck puts it.
+        // Must be `_ViewportControls-zoom_` (the wrapper div - a direct child of `track`), not
+        // `_ViewportControls-zoomSelect_` (the <select> itself, nested one level deeper inside
+        // that wrapper) - `track.insertBefore` requires its reference node to be a direct child,
+        // and throws NotFoundError otherwise. That mismatch is what crashed every page/layout/
+        // info-page editor on load: this ran unconditionally on the first render, not on some
+        // rare race, so it failed every single time.
         const themeEl = document.createElement('div')
         themeEl.className = 'cactus-theme-preview-mount'
-        const zoom = track.querySelector('[class*="_ViewportControls-zoomSelect_"]')
-        if (zoom) track.insertBefore(themeEl, zoom)
+        const zoomWrap = track.querySelector('[class*="_ViewportControls-zoom_"]')
+        if (zoomWrap) track.insertBefore(themeEl, zoomWrap)
         else track.appendChild(themeEl)
         setThemeMount(themeEl)
 
