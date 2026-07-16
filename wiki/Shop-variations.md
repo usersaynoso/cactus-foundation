@@ -17,7 +17,7 @@ It needs the **Shop** module installed and up to date. Once both are in, you'll 
 
 You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use **Set all** to fill them in one go. Untick a row to hide that combination from the shop without deleting it.
 
-Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again.
+Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again. Whichever photo you pick gets filed into the product's own folder in your media library, alongside the product's main photos, so all of one product's pictures live together rather than scattered about.
 
 Change your options later and hit **Generate variants** again - Cactus keeps the combinations you've already priced and only adds or removes the ones that changed.
 
