@@ -25,14 +25,14 @@ Untick **Show in filters** to keep an attribute for your own reference without o
 ## Putting attributes on a product
 
 1. Open any product (**Shop → Products →** the product).
-2. Scroll to the **Attributes** panel.
-3. Tick whatever applies and click **Save attributes**.
+2. Go to its **Attributes** tab.
+3. Tick whatever applies, then hit the product's **Save changes** button.
 
-That's the whole job for a straightforward product.
+That's the whole job for a straightforward product. There's no separate save for attributes any more: they go with the rest of the product, so one button does everything and the tab keeps an amber dot until it's done.
 
 ## Products with variants
 
-If you have the **Shop Variations** module, the same panel gains a **Per-variant attributes** section.
+If you have the **Shop Variations** module, the same tab gains a **Per-variant attributes** section.
 
 This matters because a product's variants often differ in exactly the thing people filter by. A shirt that comes in red, blue and green isn't really "a red shirt" - but someone filtering for red should still find it. So attributes can sit on an individual variant, and the product turns up whenever **any** of its variants match.
 
@@ -42,7 +42,7 @@ Click **Show variants** to expand the list and tick values onto each one.
 
 You've likely already set up Size and Colour as variation options. No need to type them twice.
 
-Click **Import from variations** and Cactus will:
+Click **Copy from variations** and Cactus will:
 
 - turn each of the product's variation options into an attribute (so "Colour" becomes a Colour filter),
 - create the values it finds, carrying over any colours you picked for swatches,

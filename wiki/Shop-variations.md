@@ -5,21 +5,23 @@
 - **Variants** - fixed choices like Size and Colour, where each combination can have its own price, stock level, SKU, barcode, weight and photo. A "Red / XL" jumper and a "Blue / S" jumper are the same product to your customer, but you can price and count them separately behind the scenes.
 - **Personalisation** - free-form extras the customer fills in: engraving text, a gift message, a paid gift-wrap tick-box, a dropdown of finishes, a date, or an uploaded file (artwork, a photo, a logo). You decide which are optional, which are required, and what each one adds to the price.
 
-It needs the **Shop** module installed and up to date. Once both are in, you'll find a **Product options** entry in the Shop section of your admin sidebar.
+It needs the **Shop** module installed and up to date. Once both are in, every product in your shop grows a **Variations** tab, and you'll find a **Product options** entry in the Shop section of your admin sidebar for the shop-wide overview, reports and spreadsheet import.
 
 ## Adding options to a product
 
 1. Open any product in your shop (Shop → Products → the product).
-2. Scroll to the **Variations & personalisation** panel and click **Add options** (or **Manage variations** if it already has some).
+2. Go to its **Variations** tab. It sits right there on the product, alongside Details, Pricing and the rest - there's no separate screen to go off to any more, so you won't lose half-finished edits getting there.
 3. Add an option - give it a name like "Size", pick how it should look on the page (a dropdown, a row of pills, or colour swatches), and type in the values (`S, M, L, XL`).
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
 5. Click **Generate variants**. Cactus creates one behind-the-scenes product for each combination, so the cart, checkout, stock and refunds all just work.
 
-You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use **Set all** to fill them in one go. Untick a row to hide that combination from the shop without deleting it.
+You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use the **Fill every row** boxes above the grid to do the lot in one go. Untick a row to take that combination off sale without deleting it.
+
+Edits to the grid are saved by the product's own **Save changes** button, along with everything else on the product - one button, one save, no wondering which bits went and which didn't. Rows you've touched are highlighted until they're saved, and the tab keeps an amber dot while anything is outstanding. Adding an option or generating the variants happens there and then, since those are jobs rather than typed-in details.
+
+If you change your options and the combinations no longer add up, the tab says so and offers **Rebuild from options** - which keeps the combinations you've already priced and only adds or removes the ones that changed.
 
 Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again. Whichever photo you pick gets filed into the product's own folder in your media library, alongside the product's main photos, so all of one product's pictures live together rather than scattered about.
-
-Change your options later and hit **Generate variants** again - Cactus keeps the combinations you've already priced and only adds or removes the ones that changed.
 
 ### Renaming an option or a value
 
@@ -47,6 +49,9 @@ If you'd rather build the page yourself, you still can. The **Variant Purchase**
 
 ## Reports and spreadsheets
 
+The **Product options** entry in your sidebar is where the shop-wide views live. Editing still happens on each product's own Variations tab.
+
+- **Product options** lists every product that has options or personalisation, with its counts, and **Manage** drops you straight onto that product's Variations tab.
 - **Reports** (Product options → Reports) rolls your variant sales up under each parent product, with the best and slowest sellers, so you can see whether it's the small blue ones flying off the shelf.
 - **Import / export** (Product options → Import) downloads every variant as a spreadsheet and lets you upload one back - one row per variant, with its options and price, stock, SKU, barcode and weight. Handy for a big price change or setting up lots of variants at once. Create the parent products in the shop first; the spreadsheet fills in their options and variants.
 

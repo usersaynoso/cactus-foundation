@@ -39,18 +39,24 @@ You can offer as many or as few of these as you like.
 
 ## Adding products
 
-From **Shop → Products → New product**, fill in a name and price to get started, then come back to fill in the rest:
+From **Shop → Products → New product**, fill in a name and price to get started, then come back to fill in the rest.
 
-- **Type** - Physical, Digital, or Service.
-- **Pricing** - price, an optional "was" price to show a discount, and a cost price (for your own records, never shown to customers).
-- **Inventory** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder).
-- **Pre-order** - flag a product as a pre-order with an expected dispatch date and an optional note. Customers can buy it straight away; stock only comes off the shelf once you actually mark the order as shipped.
-- **Digital files** - for digital products, attach the file customers download after paying, with an optional download limit and expiry.
-- **Images** - add one or more, first one becomes the main photo. When you save, your product photos are tidied away into a folder of the product's own, inside a folder named after its master category, and renamed after the product (so "Blue Mug" ends up in Shop → Kitchenware → Blue Mug as blue-mug1, blue-mug2 and so on). If the product has variations, their photos are filed in that same folder, so everything for one product sits in one place. Housekeeping you never have to think about.
-- **Categories, tags and collections** - organise your catalogue however suits. A product can sit in as many categories as you like, but one of them is its **master category** - the lead one, chosen from a dropdown of the categories you've ticked. It's the category the product's photos get filed under.
-- **SEO** - a custom page title and description for search engines.
+The product page is split into tabs, with a panel down the right that stays put as you work: whether the product is on sale, its main photo, its price and stock at a glance, and the **Save changes** button.
 
-**Save** as a draft to keep working on it privately, or set it **Active** to put it in front of customers straight away.
+- **Details** - the name, the descriptions, and your own SKU and barcode. The web address is set when you first save; if the name has changed a lot and nothing links to it yet, you can ask for it to be rebuilt.
+- **Images** - add one or more. The first one is the main photo, so drag them into the order you want (or use the arrows) and the first is what shows on listing cards and in the cart. Each one can have a short description for screen readers and search engines. When you save, your product photos are tidied away into a folder of the product's own, inside a folder named after its lead category, and renamed after the product (so "Blue Mug" ends up in Shop → Kitchenware → Blue Mug as blue-mug1, blue-mug2 and so on). If the product has variations, their photos are filed in that same folder, so everything for one product sits in one place. Housekeeping you never have to think about.
+- **Pricing** - price, an optional "was" price to show a discount, a cost price (for your own records, never shown to customers), and the tax class. Fill in the cost price and Cactus works out your profit and margin as you type, and says so plainly if you're selling at a loss.
+- **Stock & delivery** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder). Pre-order lives here too: flag a product as a pre-order with an expected dispatch date and an optional note, and customers can buy it straight away while stock only comes off the shelf once you actually mark the order as shipped. So does the weight and size of the thing, which is what postage priced by weight is worked out from.
+- **Download** - for digital products only, the file customers download after paying, with an optional download limit and expiry.
+- **Organisation** - categories, tags and collections, however suits. A product can sit in as many categories as you like, but one of them is its **lead category**, chosen from a dropdown of the ones you've ticked. It's the category the product's photos get filed under.
+- **Recommendations** - what to show as "you might also like", and what to nudge at the cart. Pick them yourself or let the shop choose.
+- **Search** - a custom page title and description for search engines, with a preview of roughly what Google will show. Leave them empty and the product's own name and short description are used.
+
+Install the Shop Variations or Product Attributes modules and they add their own tabs here too, so options, personalisation and filters are all on the product rather than off on some other screen.
+
+**One button saves the lot.** Any tab holding changes you haven't saved gets an amber dot, and they're listed next to the Save button so nothing hides from you. Anything that needs fixing first goes red and Cactus takes you to it. Try to wander off with unsaved work and you'll be asked first, rather than finding out later.
+
+Leave it as a draft to keep working on it privately, or set it **Active** to put it in front of customers straight away.
 
 ---
 

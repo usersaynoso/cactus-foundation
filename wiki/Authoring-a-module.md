@@ -504,11 +504,29 @@ The props your point passes (`submissionId` above) are your own contract - docum
 | `import` | yes | Module-relative path to the file exporting the component (no `.ts` / `.tsx` extension). |
 | `component` | yes | Named export for the contributed React component. |
 
+A point may define **extra fields of its own** on top of these. The generator only ever reads `point`/`id`/`import`/`component`, and the host page reads the manifest out of the database itself, so anything else a point documents rides along for free with no generator change. `shop.product-editor-sections` uses this for `label` (the tab's name) and `order` (where it sits among the editor's own tabs) - see below. Always give such a field a sensible fallback in the host: a manifest written before the field existed simply will not have it.
+
 `scripts/generate-module-extension-points.mjs` runs on every `npm run build` and `npm run dev`. It collects `extensionPoints` from every installed module's manifest, groups them by `point`, and writes the gitignored `lib/modules/extension-points.ts` (`moduleExtensionPointComponents: Record<point, Record<id, Component>>`) - same generated-file pattern as `lib/puck/module-components.ts` and `lib/modules/settings-tabs.ts`.
 
 ### Points that aren't components
 
 A contribution doesn't have to be a React component. `component` just names an exported binding, so a point can equally collect a plain function (`contact-form.thread-messages`, `shop.cart-line-resolver`) or an object of several exports (`core.menu-entity-provider`, `shop.product-detail-parts`). The host module declares the contract as a TypeScript type in its own `lib/`, and the contributing module imports that type and satisfies it - `modules/shop/lib/line-meta.ts` and `modules/shop-variations/lib/line-resolver.ts` are the shortest example of the pair.
+
+### Contributing a tab that saves with the host's form
+
+`shop.product-editor-sections` is the worked example of a point whose contributions are not a panel bolted underneath, but a **tab inside the host's own form**, saved by the host's own Save button. It is worth copying whenever a host page is a form and a contributor needs to add fields to it, because the obvious alternative - every contributor growing its own save button - gives the user three buttons and no idea which one did what.
+
+Two halves make it work:
+
+- **Server components, rendered by the host page, handed to the client shell.** The page renders each contributed server component and passes it as a `ReactNode` prop into the client shell (`ProductEditor`), which renders it inside a client context provider. Context flows into server-rendered children perfectly well - they are just elements by the time the provider renders them - so a *client* component nested inside a contributed *server* component can still call the host's hooks. That is what lets a contribution stay a server component (and do its own data loading) while still taking part in a client-side form.
+- **The contributor registers, the host orchestrates.** `modules/shop/components/admin/product-editor/context.tsx` exports the contract: `useProductEditorSave({ dirty, save })` hands a tab's unsaved edits to the single Save button (throw an `Error` from `save` to fail it - the message is shown against the tab's name); `useProductEditorTabBadge(text)` puts a count on the tab; `useProductEditorCurrency()` shares state the host has already loaded so the contributor need not fetch it again. Registration keys off `useId()` plus the scope's tab id, so a contribution never has to name itself or know where it was mounted.
+
+Rules worth keeping if you build one of these:
+
+- **Make the hooks inert outside the host.** They read a context that is simply absent elsewhere, so the same component can be used on a standalone page without branching.
+- **Only form fields belong on the Save button.** Structural actions (shop-variations' "add an option", "generate variants") still apply immediately, because they are jobs rather than typed-in details. Holding an action back behind Save reads as broken.
+- **Contributions save independently, so report per-tab.** They are separate endpoints; one failing cannot roll the others back. Say which tab failed rather than a blanket "could not save", and leave the failed tab dirty so nothing is silently lost.
+- **Bump `requiresModules` when you use one of these APIs.** A contributor importing `@/modules/shop/components/admin/product-editor/context` depends on a specific shop version, exactly as `requiresCoreVersion` works for core APIs. `shop-variations` and `product-attributes-for-shop` both pin `shop >= 0.1.38` for this reason.
 
 ### Replacing a part rather than adding to one
 
