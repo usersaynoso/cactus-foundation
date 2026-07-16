@@ -792,12 +792,19 @@ function SplitBlock(props: any) {
   const { puck, id, ratio, align = 'stretch', gap = 'md', padding, animationType, animationDuration, animationDelay } = props
   const alignMap: Record<string, string> = { stretch: 'stretch', start: 'flex-start', center: 'center', end: 'flex-end' }
 
+  // `auto` sizes the left track to whatever width its content actually asks for
+  // and hands the slack to the right, rather than splitting on a fixed fraction.
+  // fit-content caps it at 60% so a greedy left column can't starve the right
+  // one, and floors it at the content's min-content so it can't be crushed.
+  // Only content with a definite width has anything to hug: a left column of
+  // ordinary prose has no natural width and will simply take the 60%.
   const gridCols: Record<string, string> = {
     '50/50': '1fr 1fr',
     '60/40': '3fr 2fr',
     '40/60': '2fr 3fr',
     '70/30': '7fr 3fr',
     '30/70': '3fr 7fr',
+    auto: 'fit-content(60%) 1fr',
   }
   const cols = gridCols[ratio] ?? '1fr 1fr'
 
@@ -2855,7 +2862,7 @@ export const puckConfig = {
     Split: {
       label: 'Split',
       fields: {
-        ratio:   { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }] },
+        ratio:   { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }, { value: 'auto', label: 'Auto - left fits its content' }] },
         align:   { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
         gap:     { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
