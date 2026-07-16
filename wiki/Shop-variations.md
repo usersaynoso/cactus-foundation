@@ -19,6 +19,14 @@ You'll then get a grid with one row per combination. Set each one's price, stock
 
 Change your options later and hit **Generate variants** again - Cactus keeps the combinations you've already priced and only adds or removes the ones that changed.
 
+### Renaming an option or a value
+
+Settled on "Colour" and then decided it should say "Finish"? Click the name of any option, or any of its values, type the new one and press Enter. Escape backs out if you thought better of it.
+
+Renaming a value tidies up after itself: the variants it appears in are relabelled to match, so nothing is left calling itself Red when it's now Crimson. Your prices, stock, SKUs and photos all stay exactly where they were - there's no need to generate the variants again. Orders already placed keep the name they were bought under, which is rather the point of an order.
+
+Two options on the same product can't share a name, and neither can two values in the same option - Cactus will say so rather than let you build a product with two identical-looking choices.
+
 ## Adding personalisation
 
 In the same editor, scroll to **Personalisation** and add a field. Pick the kind (short text, long text, number, dropdown, tick-box, date, or file upload), give it a label, and say whether it's required.
