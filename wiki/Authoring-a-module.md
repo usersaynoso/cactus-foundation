@@ -490,6 +490,23 @@ The props your point passes (`submissionId` above) are your own contract - docum
 
 `scripts/generate-module-extension-points.mjs` runs on every `npm run build` and `npm run dev`. It collects `extensionPoints` from every installed module's manifest, groups them by `point`, and writes the gitignored `lib/modules/extension-points.ts` (`moduleExtensionPointComponents: Record<point, Record<id, Component>>`) - same generated-file pattern as `lib/puck/module-components.ts` and `lib/modules/settings-tabs.ts`.
 
+### Points that aren't components
+
+A contribution doesn't have to be a React component. `component` just names an exported binding, so a point can equally collect a plain function (`contact-form.thread-messages`, `shop.cart-line-resolver`) or an object of several exports (`core.menu-entity-provider`, `shop.product-detail-parts`). The host module declares the contract as a TypeScript type in its own `lib/`, and the contributing module imports that type and satisfies it - `modules/shop/lib/line-meta.ts` and `modules/shop-variations/lib/line-resolver.ts` are the shortest example of the pair.
+
+### Replacing a part rather than adding to one
+
+Most points are additive: the host renders its own page and contributions land alongside. Sometimes a contributor instead needs to *take over* a part the host already renders, because the host's version would be wrong. Shop's `shop.product-detail-parts` point is the worked example - a product with options has no single price or stock level of its own, so shop's static price and add-to-cart would contradict what the shopper actually chose. Rendering both is not an option; the shopper would see two prices.
+
+The pattern, in `modules/shop/lib/detail-slot.ts`:
+
+- **The provider claims, the host decides.** The contract's `claimsProduct(product)` runs server-side, once per page, and answers "do you own this one?". The host resolves it once and passes the result down, so a claimed product renders the provider's components and an unclaimed one renders the host's own, untouched. On a site without the contributing module the point is empty and nothing changes at all - which is what keeps the host's defaults honest for everyone who doesn't have the module.
+- **The host keeps owning the look.** It hands its own CSS class names down as props and the provider renders into them, so a replaced part still looks like the layout it sits in. Otherwise the swap is visible to the shopper as a style change, and the host stops being the single owner of its own chrome.
+- **The host hands over its server-loaded data.** Shop passes the product's images and price along, so the provider paints immediately from server data rather than flashing empty while it fetches its own.
+- **Whoever renders the part owns all of it.** Shop deliberately does *not* apply its own out-of-stock gate to a claimed product: stock lives on the chosen combination, not the parent row. Splitting the decision between host and provider is how you get a button that disagrees with the price above it.
+
+This is what lets a module change a host's default layout without either one hard-coding the other: shop's starter layout never mentions variations, and shop-variations never edits shop's starter layout.
+
 ## Module cron jobs
 
 A module can register Vercel Cron jobs by declaring `cronJobs` in `cactus.module.json`:
