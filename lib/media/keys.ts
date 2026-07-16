@@ -62,6 +62,24 @@ export function exactBaseName(originalFilename?: string): string {
   return `${prefix}-${digest}`
 }
 
+/**
+ * Is `key` already in the exact form for `originalName`? True when the key's
+ * basename is precisely the name the caller filed it under, which is the promise
+ * the exact form makes and the nanoid form deliberately breaks.
+ *
+ * Anything that rewrites an existing item's bytes asks this before choosing a
+ * key, because the two forms want opposite things. A nanoid key is an opaque
+ * handle and is happily reminted. An exact key is a name its owner chose, files
+ * by, and stores in its own tables - reminting that one renames the file and
+ * strands every reference to it.
+ */
+export function isExactNameKey(key: string, originalName: string | null): boolean {
+  const exact = exactBaseName(originalName ?? undefined)
+  if (!exact) return false
+  const basename = key.slice(key.lastIndexOf('/') + 1)
+  return stripExtension(basename) === exact
+}
+
 /** The decorative label on a nanoid-form key, e.g. "-logo". Clipped short. */
 export function nanoidLabel(originalFilename?: string): string {
   if (!originalFilename) return ''

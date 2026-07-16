@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { exactBaseName, nanoidLabel, stripExtension, MAX_EXACT_BASENAME } from './keys'
+import { exactBaseName, nanoidLabel, stripExtension, isExactNameKey, MAX_EXACT_BASENAME } from './keys'
 
 // The promise the exact form makes is "names the caller made unique stay unique
 // as keys". That is the whole reason the form exists, and breaking it does not
@@ -67,6 +67,41 @@ describe('nanoidLabel', () => {
   it('prefixes a dash only when something survives sanitising', () => {
     expect(nanoidLabel('logo.png')).toBe('-logo')
     expect(nanoidLabel(undefined)).toBe('')
+  })
+})
+
+// Telling the forms apart is what lets a crop or a reshape land back on the key
+// it came from. Get it wrong for an exact-named image and the derive renames the
+// file, strands every reference held outside Puck content, and then deletes the
+// blob under them - which is exactly how a live product's images disappeared.
+describe('isExactNameKey', () => {
+  const FOLDER = 'media/shop/ergonomic-chairs/chiro-plus-high-back-ergonomic-posture-office-chair'
+
+  it('recognises the key the shop filed a product image under', () => {
+    expect(isExactNameKey(`${FOLDER}/${PRODUCT}1.jpeg`, `${PRODUCT}1`)).toBe(true)
+  })
+
+  it('recognises an exact key whose name was long enough to be hashed', () => {
+    const name = 'x'.repeat(MAX_EXACT_BASENAME + 40)
+    expect(isExactNameKey(`media/B2/${exactBaseName(name)}.png`, name)).toBe(true)
+  })
+
+  it('rejects the nanoid form, where the basename is not the name at all', () => {
+    expect(isExactNameKey(`${FOLDER}/B0lqdWcxQZ5VPeo8AHgqN-chiro-plus-high-back-ergonomic-posture-o.jpeg`, `${PRODUCT}1`)).toBe(false)
+  })
+
+  it('rejects a key that merely contains the name', () => {
+    expect(isExactNameKey(`media/B2/${PRODUCT}1/other.jpeg`, `${PRODUCT}1`)).toBe(false)
+    expect(isExactNameKey(`media/B2/${PRODUCT}1-2.jpeg`, `${PRODUCT}1`)).toBe(false)
+  })
+
+  it('holds for a name the sanitiser rewrites, so a display name still matches', () => {
+    expect(isExactNameKey('media/B2/blue-mug-1.png', 'Blue Mug 1.png')).toBe(true)
+  })
+
+  it('has no name to compare against, so cannot be the exact form', () => {
+    expect(isExactNameKey('media/B2/anything.png', null)).toBe(false)
+    expect(isExactNameKey('media/B2/anything.png', '')).toBe(false)
   })
 })
 

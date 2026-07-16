@@ -7,7 +7,7 @@ import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason } from '@/lib/media/limits'
-import { exactBaseName, nanoidLabel } from '@/lib/media/keys'
+import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -824,7 +824,17 @@ async function persistDerivedImage(
   // delete the superseded blob. optimised is reset because the bytes changed.
   const oldKey = media.key
   const oldUrl = media.url
-  const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined)
+  // Keep the key in whichever form it is already in. Reshaping or cropping an
+  // exact-named image used to hand it a nanoid key, which renamed the file and
+  // moved its url — and rewriting references only reaches Puck content, so a url
+  // held anywhere else (a module's own table: the shop keeps its product images'
+  // urls in shp_product_media) was left pointing at the old key, which the
+  // delete below then removed. The image vanished from the storefront while
+  // sitting perfectly intact in the library under a name nothing referenced.
+  // An exact name is deterministic, so the derived blob lands back on the very
+  // key it came from and no reference has to move at all.
+  const exactName = isExactNameKey(media.key, media.originalName)
+  const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined, exactName)
 
   const updated = await prisma.media.update({
     where: { id: media.id },
@@ -837,12 +847,21 @@ async function persistDerivedImage(
     },
   })
 
-  await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
+  // Nothing to rewrite when the blob stayed put: every url, key and id reference
+  // to it still resolves, wherever it is held.
+  if (result.key !== oldKey || result.url !== oldUrl) {
+    await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
+  }
 
-  try {
-    await deleteMedia(provider, oldKey)
-  } catch {
-    // Orphaned superseded blob left in storage; harmless, still deletable later.
+  // The same rule moveOrRenameMedia learnt: a write that resolves to the key it
+  // started on has just put the new bytes there, so "deleting the old blob"
+  // would delete the image itself.
+  if (result.key !== oldKey) {
+    try {
+      await deleteMedia(provider, oldKey)
+    } catch {
+      // Orphaned superseded blob left in storage; harmless, still deletable later.
+    }
   }
 
   return updated

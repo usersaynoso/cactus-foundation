@@ -144,7 +144,7 @@ Drag the corners or edges of the box to choose the part you want to keep; drag f
 
 When you're happy, you've two ways to save:
 
-- **Save (replaces original)** swaps the cropped version in for the old one *everywhere it's used on your site* - pages, logos, everywhere. It's a genuine replacement with no undo, so Cactus asks you to confirm first.
+- **Save (replaces original)** swaps the cropped version in for the old one *everywhere it's used on your site* - pages, logos, everywhere. The file keeps its name and its place in your folders, so anything pointing at it carries on pointing at it. It's a genuine replacement with no undo, so Cactus asks you to confirm first.
 - **Save as new…** keeps the original exactly as it was and tucks a fresh, cropped copy into the same folder. It'll suggest a name (the original plus "(edited)"), which you're free to change.
 
 ---
@@ -163,7 +163,9 @@ Then choose what fills the new space:
 - **Colour** - a flat colour of your choosing, with **White** and **Black** a click away. Best when your page background is a known colour and you want the padding to vanish into it.
 - **Transparent** - no fill at all, so whatever's behind it on the page shows through. Only offered when the picture can actually hold transparency; JPEGs can't, so for those it's greyed out (a "transparent" JPEG would just come out black, which helps nobody).
 
-A preview shows you exactly what you'll get before you commit. Then save the same two ways as the crop tool: **a new image**, which leaves your original alone, or **replace the original**, which swaps it in everywhere it's used on your site - no undo, so you'll be asked to confirm.
+A preview shows you exactly what you'll get before you commit. Then save the same two ways as the crop tool: **a new image**, which leaves your original alone, or **replace the original**, which swaps it in everywhere it's used on your site - no undo, so you'll be asked to confirm. Replacing keeps the file's name exactly as it was, which matters more than it sounds: a reshaped product shot is still the same file your shop is pointing at, so it stays on the page.
+
+> **One thing worth knowing.** Because the file keeps its name, browsers that have already downloaded it may hang on to the copy they've got for a while. If you've reshaped a picture and still see the old shape, give the page a hard refresh - your visitors will pick up the new one as their own copy expires.
 
 ### Doing a whole batch at once
 
