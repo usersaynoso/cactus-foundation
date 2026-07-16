@@ -25,6 +25,18 @@ type UploadUrlResponse =
   | { available: true; uploadUrl: string; key: string; token: string }
   | { available: false }
 
+// The Media row both upload paths end up creating. Callers that only want the
+// bytes stored can ignore it; callers that need to point something at the new
+// file (a product image, a variant image) need the url without re-querying the
+// library and guessing which row is theirs.
+export type UploadedMedia = {
+  id: string
+  url: string
+  key: string
+  altText: string | null
+  mimeType: string
+}
+
 // Fraction of a file's journey spent transferring bytes. The signing and
 // recording round-trips are near-instant, so the progress bar is driven almost
 // entirely by the byte transfer - we just leave a sliver at each end for them.
@@ -62,7 +74,9 @@ function asResponse(r: { ok: boolean; status: number; text: string }): Response 
   } as unknown as Response
 }
 
-async function directUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<boolean> {
+// Returns the recorded row, or null to mean "this path isn't available - fall
+// back". A thrown error is a hard failure and must not be retried.
+async function directUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia | null> {
   // Ask for a signed target. A non-OK response or { available: false } means the
   // direct route isn't on for this provider/file - caller falls back.
   let info: UploadUrlResponse
@@ -72,12 +86,12 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType: file.type, folderId }),
     })
-    if (!res.ok) return false
+    if (!res.ok) return null
     info = await res.json()
   } catch {
-    return false
+    return null
   }
-  if (!info.available) return false
+  if (!info.available) return null
 
   // PUT the bytes straight to the Worker. If the Worker is old (no PUT support)
   // or rejects the token, fall back rather than hard-failing.
@@ -88,7 +102,7 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
     { 'content-type': file.type, authorization: `Bearer ${info.token}` },
     onProgress,
   )
-  if (!put.ok) return false
+  if (!put.ok) return null
 
   // Record the row. This one must succeed - the bytes are already stored. The
   // token goes back with it: /record re-checks the same signature the Worker did,
@@ -106,10 +120,10 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
     }),
   })
   if (!rec.ok) throw new Error(await uploadErrorMessage(rec, file))
-  return true
+  return await rec.json() as UploadedMedia
 }
 
-async function serverlessUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<void> {
+async function serverlessUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
   // Guard before the request: the platform 413s bodies over its cap before our
   // route runs, returning a non-JSON body that would otherwise surface as a
   // cryptic parse error.
@@ -120,11 +134,19 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
   if (folderId) fd.append('folderId', folderId)
   const res = await xhrSend('POST', '/api/admin/media', fd, {}, onProgress)
   if (!res.ok) throw new Error(await uploadErrorMessage(asResponse(res), file))
+  try {
+    return JSON.parse(res.text) as UploadedMedia
+  } catch {
+    // A 2xx with an unreadable body means the bytes are stored but we cannot say
+    // where. Callers that need the url must not be handed a half-built record.
+    throw new Error(`${file.name}: upload finished but the server's reply could not be read.`)
+  }
 }
 
-// Upload a single file. Throws with a user-ready message on failure. onProgress
-// reports a 0..1 transfer fraction so callers can render a live progress bar.
-export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<void> {
+// Upload a single file and return the Media row it created. Throws with a
+// user-ready message on failure. onProgress reports a 0..1 transfer fraction so
+// callers can render a live progress bar.
+export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
   if (isRasterDirectType(file.type)) {
     // The Worker caps the direct path too - say so plainly here rather than
     // letting it 413 and then falling through to the serverless path, which
@@ -133,8 +155,9 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
       throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
     }
     const done = await directUpload(file, folderId, onProgress)
-    if (done) { onProgress?.(1); return }
+    if (done) { onProgress?.(1); return done }
   }
-  await serverlessUpload(file, folderId, onProgress)
+  const record = await serverlessUpload(file, folderId, onProgress)
   onProgress?.(1)
+  return record
 }
