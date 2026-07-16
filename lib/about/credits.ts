@@ -101,6 +101,7 @@ export const CREDITS: CreditGroup[] = [
     entries: [
       { name: 'Leaflet', description: 'The interactive maps you can drop onto a page.', url: 'https://leafletjs.com' },
       { name: 'Stripe', description: 'Handles card payments securely.', url: 'https://stripe.com' },
+      { name: 'three.js', description: 'Turns and lights the 3D models on a product page.', url: 'https://threejs.org' },
     ],
   },
   {

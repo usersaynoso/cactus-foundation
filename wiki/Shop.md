@@ -171,6 +171,8 @@ Editing layouts is covered by the core **Appearance → Layouts** permission, sa
 
 Want size/colour choices, or let customers add engraving, a gift message or an uploaded file? Install the **[Shop Variations](Shop-variations)** module. It adds size/colour variant matrices (each combination with its own price, stock, SKU and photo) and personalisation add-ons, right inside the product editor, with no changes to how your cart or checkout work.
 
+Selling something a photograph struggles with - furniture, a lamp, anything with a back to it? Install the **[Product 3D views](Product-3D-views)** module. It puts a slowly turning 3D model in the product gallery alongside your photographs, which shoppers can click to turn, pan and zoom. Models can be attached to a product or to individual variations.
+
 ## Settings
 
 **Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
@@ -185,4 +187,4 @@ When the shop status is set to closed, visitors see your closed message instead 
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Gazette](Gazette) · [Boards](Boards) · [Directory](Directory) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Product 3D views](Product-3D-views) · [Reply Catcher](Reply-catcher) · [Configuration reference](Configuration-reference)
