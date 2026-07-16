@@ -1318,7 +1318,7 @@ v0.1.1 fixed five review findings from the original v0.1.0 build: Stripe/PayPal 
 
 ### Shop Variations
 
-- Slug: `shop-variations` (table prefix `svr_`), repo `github.com/cactus-foundation-modules/shop-variations`, manifest version 0.1.12 (registry pin v0.1.11 - **bump to v0.1.12 when tagged**). `requiresModules: shop >= 0.1.43` (`shop.gallery-media`; `product-editor/context` needed only 0.1.38 and `shop.product-detail-parts` only 0.1.35), `requiresCoreVersion 0.5.426`. Reuses shop's `shop.products`/`shop.reports` permissions (declares none of its own) and joins the existing **Shop** admin nav group with one entry ("Product options").
+- Slug: `shop-variations` (table prefix `svr_`), repo `github.com/cactus-foundation-modules/shop-variations`, manifest version 0.1.12 (registry pin v0.1.12). `requiresModules: shop >= 0.1.43` (`shop.gallery-media`; `product-editor/context` needed only 0.1.38 and `shop.product-detail-parts` only 0.1.35), `requiresCoreVersion 0.5.426`. Reuses shop's `shop.products`/`shop.reports` permissions (declares none of its own) and joins the existing **Shop** admin nav group with one entry ("Product options").
 - Adds product options to the shop: fixed **variant matrices** (e.g. Size × Colour, each combination its own price/SKU/barcode/stock/weight/image) and free-form **personalisation add-ons** (text, long text, number, priced dropdown, checkbox, date, file upload). A variant is a real but `catalogue_hidden` child `shp_products` row created through shop's own `createProduct`, so basket, checkout, inventory, orders and refunds work unchanged; the storefront selector resolves the chosen combination to that child id and calls shop's `addToCart(childId, qty, {meta})`. Personalisation rides in the generic `line_meta` carrier, priced server-side by the registered resolver.
 
 **Database**
@@ -1397,7 +1397,7 @@ Admin pages (`/cactus-admin/m/product-attributes-for-shop/…`): `attributes` (d
 
 ### Product 3D Views for Shop
 
-- Slug: `product-3d-views-for-shop` (table prefix `p3d_`), repo `github.com/cactus-foundation-modules/product-3d-views-for-shop`, manifest version 0.1.2 (registry pin v0.1.1 - **bump to v0.1.2 when tagged**).
+- Slug: `product-3d-views-for-shop` (table prefix `p3d_`), repo `github.com/cactus-foundation-modules/product-3d-views-for-shop`, manifest version 0.1.2 (registry pin v0.1.2).
 - `requiresCoreVersion` **0.5.468** (the release adding `MODEL_EXTENSION_TYPES` and the Worker's 3D write path), `requiresModules` **shop >= 0.1.43** (the release adding `shop.gallery-media`).
 - A 3D model on a product or one of its variations, shown as an extra auto-rotating gallery thumbnail badged "3D"; picking it replaces the gallery's main image with an orbit/pan/zoom viewer.
 
