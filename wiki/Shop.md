@@ -171,7 +171,13 @@ Want size/colour choices, or let customers add engraving, a gift message or an u
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, and the shop's open/browse-only/closed status. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+
+### Zooming in on your product photos
+
+**Zoom the image on hover** on the General tab magnifies whichever part of the main product photo a shopper points at, so they can inspect the grain, the stitching or the small print without you having to upload a set of close-ups. On a phone or tablet a tap magnifies the spot they touched, a drag moves the magnified area about, and a second tap zooms back out. It's off to begin with, and switching it on changes nothing about the photos themselves - the same picture simply gets a closer look.
+
+Worth knowing: the zoom works on the shopper's biggest copy of the photo, so a small, low-resolution upload will magnify into a blurry mess. If you're turning this on, upload your product photos at a decent size.
 
 When the shop status is set to closed, visitors see your closed message instead of the shop page. Anyone signed in with Shop access still sees the shop itself, with a note at the top reminding them it is closed to everyone else, so you can check the place over before you reopen.
 
