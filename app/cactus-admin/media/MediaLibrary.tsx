@@ -5,6 +5,7 @@ import MediaCard from './MediaCard'
 import MediaList from './MediaList'
 import MediaDetailPanel from './MediaDetailPanel'
 import MediaImageEditor from './MediaImageEditor'
+import MediaAspectDialog, { type AspectOutcome } from './MediaAspectDialog'
 import MediaUpload from './MediaUpload'
 import MediaStatsBar, { type LibraryStats } from './MediaStatsBar'
 import MediaToolbar from './MediaToolbar'
@@ -25,6 +26,12 @@ type Menu = { x: number; y: number; id: string | null } | null
 // True when an image can still be optimised: raster, not SVG, not already done.
 function isOptimisable(item: { mimeType: string; optimised: boolean }): boolean {
   return item.mimeType.startsWith('image/') && item.mimeType !== 'image/svg+xml' && !item.optimised
+}
+
+// True when an image has pixels to reshape - SVG is vector, so there's nothing
+// to pad, and non-images obviously don't have a ratio at all.
+function isReshapable(item: { mimeType: string }): boolean {
+  return item.mimeType.startsWith('image/') && item.mimeType !== 'image/svg+xml'
 }
 type CollisionState =
   | { kind: 'rename'; id: string; newName: string; name: string }
@@ -101,6 +108,9 @@ export default function MediaLibrary({
   const [deleteFolderNode, setDeleteFolderNode] = useState<FolderNode | null>(null)
   const [moveIds, setMoveIds] = useState<string[] | null>(null)
   const [editItem, setEditItem] = useState<LibraryItem | null>(null)
+  // The images the ratio dialog is currently aimed at - one from the panel or
+  // context menu, many from the selection bar. Null when the dialog is closed.
+  const [aspectItems, setAspectItems] = useState<LibraryItem[] | null>(null)
   const [collision, setCollision] = useState<CollisionState>(null)
 
   // --- toasts ---
@@ -262,7 +272,7 @@ export default function MediaLibrary({
   // Library-wide keyboard shortcuts. Suppressed while typing or while any dialog,
   // menu or the detail panel is open (each of those owns its own keys).
   useEffect(() => {
-    const anyOverlayOpen = !!(openId || editItem || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || menu)
+    const anyOverlayOpen = !!(openId || editItem || aspectItems || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || menu)
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
@@ -285,7 +295,7 @@ export default function MediaLibrary({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- paste closes over current state; re-bind on the inputs that gate the shortcuts
-  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, menu])
+  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, aspectItems, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, menu])
 
   // --- navigation ---
   const navigateFolder = useCallback((id: string | null) => {
@@ -480,6 +490,30 @@ export default function MediaLibrary({
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') } finally { setBusy('') }
   }
 
+  // Report a ratio change the way the user experienced it: how many actually
+  // changed shape, and why any were left alone (already that shape, or a JPEG
+  // asked for transparency). Skips aren't failures, so they read as info.
+  async function onAspectDone(outcome: AspectOutcome) {
+    setAspectItems(null)
+    const { changed, skipped, failed, mode } = outcome
+    const extra = failed > 0 ? `, ${failed} failed` : ''
+    if (changed > 0) {
+      const noun = `${changed} image${changed === 1 ? '' : 's'}`
+      const skippedNote = skipped.length > 0 ? `, ${skipped.length} left alone` : ''
+      pushToast('success', mode === 'new' ? `Saved ${noun} at the new ratio${skippedNote}${extra}` : `Reshaped ${noun}${skippedNote}${extra}`)
+    } else if (skipped.length > 0) {
+      // One skip gets its actual reason; several would just be a wall of text.
+      const only = skipped.length === 1 ? skipped[0]?.reason : undefined
+      pushToast('info', only ?? `Nothing to change - ${skipped.length} images already that shape${extra}`)
+    } else {
+      pushToast(failed > 0 ? 'error' : 'info', failed > 0 ? `Ratio change failed for ${failed} image${failed === 1 ? '' : 's'}` : 'Nothing to change')
+    }
+    if (changed > 0) {
+      setSelected(new Set())
+      await Promise.all([fetchItems(), refetchFolders()])
+    }
+  }
+
   // Copy an item's public URL to the clipboard - the quickest way to reuse an
   // image in a link, an email, or content elsewhere.
   async function copyLink(item: MediaCardItem) {
@@ -598,6 +632,7 @@ export default function MediaLibrary({
 
   const selectionActive = selected.size > 0
   const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
+  const reshapableSelected = useMemo(() => items.filter((i) => selected.has(i.id) && isReshapable(i)), [items, selected])
   const anyFilterActive = !!search || type !== 'all' || use !== 'all' || !!tagFilter
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
@@ -707,6 +742,15 @@ export default function MediaLibrary({
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'copy', ids: Array.from(selected) })}>Copy</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveIds(Array.from(selected))}>Move to…</button>
                   <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy || !optimisableSelected} title={optimisableSelected ? 'Optimise selected images' : 'Nothing selected can be optimised'} onClick={optimiseBulk}>Optimise</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={!!busy || reshapableSelected.length === 0}
+                    title={reshapableSelected.length > 0 ? 'Change the aspect ratio of the selected images' : 'Nothing selected can be reshaped'}
+                    onClick={() => setAspectItems(reshapableSelected)}
+                  >
+                    Change ratio…
+                  </button>
                 </>
               )}
               {selectionActive && canDelete && (
@@ -807,6 +851,7 @@ export default function MediaLibrary({
           onPrev={() => { const p = items[openIndex - 1]; if (p) setOpenId(p.id) }}
           onNext={openNext}
           onEdit={() => { setEditItem(openItem); setOpenId(null) }}
+          onChangeRatio={() => { setAspectItems([openItem]); setOpenId(null) }}
           onRename={() => setRenameItem(openItem)}
           onMove={() => setMoveIds([openItem.id])}
           onCut={() => { setClipboard({ mode: 'cut', ids: [openItem.id] }); setOpenId(null) }}
@@ -832,6 +877,15 @@ export default function MediaLibrary({
         />
       )}
 
+      {aspectItems && aspectItems.length > 0 && (
+        <MediaAspectDialog
+          items={aspectItems}
+          onCancel={() => setAspectItems(null)}
+          onDone={onAspectDone}
+          onError={(msg) => pushToast('error', msg)}
+        />
+      )}
+
       {menu && menu.id !== null && (() => {
         const id = menu.id
         const it = items.find((i) => i.id === id)
@@ -854,6 +908,12 @@ export default function MediaLibrary({
             onMove={() => setMoveIds(selected.has(id) ? Array.from(selected) : [id])}
             onTags={() => setOpenId(id)}
             onEdit={() => { if (it) setEditItem(it) }}
+            onChangeRatio={() => {
+              // Right-clicking inside a selection acts on the whole selection,
+              // matching how Cut/Copy/Move already behave here.
+              const target = selected.has(id) ? reshapableSelected : (it && isReshapable(it) ? [it] : [])
+              if (target.length > 0) setAspectItems(target)
+            }}
             onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: selected.has(id) ? Array.from(selected) : [id] }) }}
           />
         )
@@ -1093,10 +1153,10 @@ function menuItem(label: string, fn: () => void, danger = false, disabled = fals
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onDelete }: {
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onChangeRatio, onDelete }: {
   menu: { x: number; y: number }
   canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean
-  onOpen: () => void; onOptimise: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onDelete: () => void
+  onOpen: () => void; onOptimise: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onChangeRatio: () => void; onDelete: () => void
 }) {
   return (
     <MenuShell menu={menu}>
@@ -1105,6 +1165,7 @@ function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOpt
       {menuItem('Download', onDownload)}
       {canUpload && canOptimise && menuItem('Optimise', onOptimise)}
       {canUpload && canEdit && menuItem('Edit image…', onEdit)}
+      {canUpload && canEdit && menuItem('Change ratio…', onChangeRatio)}
       {canUpload && menuItem('Cut', onCut)}
       {canUpload && menuItem('Copy', onCopy)}
       {canUpload && menuItem('Paste here', onPaste, false, !hasClipboard)}

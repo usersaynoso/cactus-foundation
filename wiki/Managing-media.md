@@ -90,7 +90,7 @@ Got a big library? Just keep scrolling - more files load in automatically as you
 
 Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
 
-**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
+**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Change ratio…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
 
 **Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
@@ -146,6 +146,35 @@ When you're happy, you've two ways to save:
 
 - **Save (replaces original)** swaps the cropped version in for the old one *everywhere it's used on your site* - pages, logos, everywhere. It's a genuine replacement with no undo, so Cactus asks you to confirm first.
 - **Save as new…** keeps the original exactly as it was and tucks a fresh, cropped copy into the same folder. It'll suggest a name (the original plus "(edited)"), which you're free to change.
+
+---
+
+## Changing an image's shape
+
+Sometimes you don't want to lose any of the picture - you just want it to *fit*. A gallery that wants neat squares, a banner slot that wants widescreen, a set of product shots that arrived in six different shapes. That's **Change ratio…**, and you'll find it in the same two places as the crop tool: right-click any picture, or open its preview and use the button in the action row.
+
+Here's the honest bit, because it explains everything about how this works. A picture can't change shape without one of three things happening: you cut bits off, you squash it, or you add space around it. The crop tool above is the "cut bits off" option, and squashing is nobody's friend. So **Change ratio adds space**. Your picture arrives at the new shape completely untouched - nothing trimmed, nothing stretched - sitting in the middle of a little more room than it had before.
+
+Pick your shape - **1:1** for a square, **16:9** for a widescreen banner, or any of **3:2**, **4:3**, **2:3**, **3:4** and **9:16**. Fancy something else entirely? Put your own numbers in the two boxes.
+
+Then choose what fills the new space:
+
+- **Blurred image** - a soft, out-of-focus blow-up of the picture itself, sitting behind it. It's the one to reach for nine times out of ten: it fills the gap without announcing that there was a gap.
+- **Colour** - a flat colour of your choosing, with **White** and **Black** a click away. Best when your page background is a known colour and you want the padding to vanish into it.
+- **Transparent** - no fill at all, so whatever's behind it on the page shows through. Only offered when the picture can actually hold transparency; JPEGs can't, so for those it's greyed out (a "transparent" JPEG would just come out black, which helps nobody).
+
+A preview shows you exactly what you'll get before you commit. Then save the same two ways as the crop tool: **a new image**, which leaves your original alone, or **replace the original**, which swaps it in everywhere it's used on your site - no undo, so you'll be asked to confirm.
+
+### Doing a whole batch at once
+
+Tick as many pictures as you like - or use the select-all box - and **Change ratio…** appears in the bar along the top. Choose the shape and the fill once, and every selected picture gets the same treatment.
+
+A few sensible things happen without you asking:
+
+- **Anything already the right shape is left well alone** rather than needlessly re-saved.
+- **One awkward file won't spoil the batch.** If a picture can't be reshaped, the rest still go through and the toast tells you how many were done and how many weren't.
+- **Saving as new copies** gives each one a name based on the original plus the ratio, so forty files don't all fight over the same name.
+- **Very extreme shapes** - a long thin panorama forced into a tall portrait, say - would technically need an enormous canvas of mostly empty space, so Cactus quietly scales the whole thing to something sensible. The picture keeps its proportions; it just doesn't become a 60-megapixel monument to padding.
 
 ---
 

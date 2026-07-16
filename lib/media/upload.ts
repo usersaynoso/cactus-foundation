@@ -7,6 +7,7 @@ import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason } from '@/lib/media/limits'
+import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 
@@ -761,12 +762,11 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
 
 export type CropRect = { left: number; top: number; width: number; height: number }
 
-// Re-encode a cropped buffer in the source's own format, so a JPEG stays a JPEG
+// Re-encode a derived image in the source's own format, so a JPEG stays a JPEG
 // (etc.) and the stored extension keeps matching the bytes. Anything sharp can't
-// write back in kind falls to WebP. Cropping reads the first frame only, so an
-// animated source becomes a still — acceptable for a crop tool.
-function encodeCrop(input: Buffer, mimeType: string, rect: CropRect): Promise<Buffer> {
-  const s = sharp(input).extract(rect)
+// write back in kind falls to WebP. These paths read the first frame only, so an
+// animated source becomes a still — acceptable for a crop or a reshape.
+function encodeToMime(s: sharp.Sharp, mimeType: string): Promise<Buffer> {
   switch (mimeType) {
     case 'image/jpeg':
       return s.jpeg({ quality: 90 }).toBuffer()
@@ -791,41 +791,25 @@ function withExtensionForMime(name: string, mimeType: string): string {
   return new RegExp(`\\.${ext}$`, 'i').test(trimmed) ? trimmed : `${trimmed.replace(/\.[^./\\]+$/, '')}.${ext}`
 }
 
-export async function editMediaImage(
-  mediaId: string,
-  crop: CropRect,
-  opts: { mode: 'replace' | 'new'; newName?: string },
+// Store a freshly derived blob for an existing item, as either a replacement of
+// the original (same Media.id, so every id-based reference survives) or a new
+// library row alongside it. Shared by the crop editor and the ratio changer so
+// the two can't drift apart on the fiddly bits: folder retention, reference
+// rewriting, and deleting the superseded blob only after the row has moved on.
+async function persistDerivedImage(
+  media: Media,
+  encoded: Buffer,
+  opts: { mode: 'replace' | 'new'; newName?: string; fallbackSuffix: string },
   userId?: string,
 ): Promise<Media> {
-  const media = await prisma.media.findUnique({ where: { id: mediaId } })
-  if (!media) throw new Error('Media item not found')
-  if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
-    throw new Error('Only raster images can be edited')
-  }
-
-  const original = await downloadMedia(media.provider, media.key, media.url)
-  const meta = await sharp(original).metadata()
-  const iw = meta.width ?? 0
-  const ih = meta.height ?? 0
-  if (!iw || !ih) throw new Error('Could not read image dimensions')
-
-  // Clamp the requested rect to the image so a rounding error or a stale client
-  // rect can't push extract() past an edge.
-  const left = Math.max(0, Math.min(Math.round(crop.left), iw - 1))
-  const top = Math.max(0, Math.min(Math.round(crop.top), ih - 1))
-  const width = Math.max(1, Math.min(Math.round(crop.width), iw - left))
-  const height = Math.max(1, Math.min(Math.round(crop.height), ih - top))
-
-  const encoded = await encodeCrop(original, media.mimeType, { left, top, width, height })
-
   const provider = media.provider
-  // Keep the edited blob in the source's folder (lazy import breaks the
+  // Keep the derived blob in the source's folder (lazy import breaks the
   // upload↔organise module cycle, as in optimiseMediaInPlace).
   const { resolveFolderPath } = await import('@/lib/media/organise')
   const folderPath = await resolveFolderPath(media.folderId)
 
   if (opts.mode === 'new') {
-    const base = opts.newName?.trim() || `${(media.originalName ?? 'image').replace(/\.[^./\\]+$/, '')} (edited)`
+    const base = opts.newName?.trim() || `${(media.originalName ?? 'image').replace(/\.[^./\\]+$/, '')} ${opts.fallbackSuffix}`
     const finalName = withExtensionForMime(base, media.mimeType)
     const result = await uploadMedia(encoded, media.mimeType, provider, finalName, folderPath || undefined)
     return saveMediaRecord({
@@ -844,7 +828,7 @@ export async function editMediaImage(
 
   // Replace in place — mirror optimiseMediaInPlace: store the new blob, repoint
   // the existing row (id untouched), rewrite embedded url/key references, then
-  // delete the pre-edit blob. optimised is reset because the bytes changed.
+  // delete the superseded blob. optimised is reset because the bytes changed.
   const oldKey = media.key
   const oldUrl = media.url
   const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined)
@@ -865,10 +849,164 @@ export async function editMediaImage(
   try {
     await deleteMedia(provider, oldKey)
   } catch {
-    // Orphaned pre-edit blob left in storage; harmless, still deletable later.
+    // Orphaned superseded blob left in storage; harmless, still deletable later.
   }
 
   return updated
+}
+
+// Guard shared by every derive path: the row exists and its bytes are something
+// sharp can actually rasterise. SVG is vector (nothing to pad or crop in pixels)
+// and is excluded deliberately.
+async function loadEditableImage(mediaId: string, verb: string): Promise<Media> {
+  const media = await prisma.media.findUnique({ where: { id: mediaId } })
+  if (!media) throw new Error('Media item not found')
+  if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
+    throw new Error(`Only raster images can be ${verb}`)
+  }
+  return media
+}
+
+export async function editMediaImage(
+  mediaId: string,
+  crop: CropRect,
+  opts: { mode: 'replace' | 'new'; newName?: string },
+  userId?: string,
+): Promise<Media> {
+  const media = await loadEditableImage(mediaId, 'edited')
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+  const meta = await sharp(original).metadata()
+  const iw = meta.width ?? 0
+  const ih = meta.height ?? 0
+  if (!iw || !ih) throw new Error('Could not read image dimensions')
+
+  // Clamp the requested rect to the image so a rounding error or a stale client
+  // rect can't push extract() past an edge.
+  const left = Math.max(0, Math.min(Math.round(crop.left), iw - 1))
+  const top = Math.max(0, Math.min(Math.round(crop.top), ih - 1))
+  const width = Math.max(1, Math.min(Math.round(crop.width), iw - left))
+  const height = Math.max(1, Math.min(Math.round(crop.height), ih - top))
+
+  const encoded = await encodeToMime(sharp(original).extract({ left, top, width, height }), media.mimeType)
+
+  return persistDerivedImage(media, encoded, { ...opts, fallbackSuffix: '(edited)' }, userId)
+}
+
+// ---------------------------------------------------------------------------
+// Change aspect ratio — reshape an image to a target ratio by padding it out,
+// never by trimming or stretching it. The source is drawn whole and centred on
+// a canvas of the requested shape; the two short sides gain padding, which is
+// either a colour, transparency, or a blurred blow-up of the image itself.
+// Geometry lives in lib/media/aspect-plan.ts (pure, unit-tested); this half is
+// the pixels and the persistence.
+// ---------------------------------------------------------------------------
+
+export type AspectFill =
+  | { kind: 'blur' }
+  | { kind: 'transparent' }
+  | { kind: 'colour'; colour: string }
+
+export type AspectResult =
+  | { changed: true; item: Media; width: number; height: number; downscaled: boolean }
+  | { changed: false; reason: string }
+
+// Formats whose bytes can carry an alpha channel. A transparent pad on a JPEG
+// would silently come out black, so it's refused rather than fudged.
+const ALPHA_CAPABLE = new Set(['image/png', 'image/webp', 'image/avif', 'image/gif'])
+
+export function supportsTransparentFill(mimeType: string): boolean {
+  return ALPHA_CAPABLE.has(mimeType)
+}
+
+// Blur radius scaled to the canvas, so the backdrop reads as an out-of-focus
+// wash at any size instead of a recognisable stretched copy.
+function blurSigma(canvasWidth: number, canvasHeight: number): number {
+  return Math.min(60, Math.max(6, Math.round(Math.max(canvasWidth, canvasHeight) / 45)))
+}
+
+export async function changeMediaAspectRatio(
+  mediaId: string,
+  opts: { ratioW: number; ratioH: number; fill: AspectFill; mode: 'replace' | 'new'; newName?: string },
+  userId?: string,
+): Promise<AspectResult> {
+  const media = await loadEditableImage(mediaId, 'reshaped')
+  const label = ratioLabel(opts.ratioW, opts.ratioH)
+
+  if (opts.fill.kind === 'transparent' && !supportsTransparentFill(media.mimeType)) {
+    return { changed: false, reason: `${fileKindLabel(media.mimeType)} images can't have a transparent background - pick a colour or blur instead` }
+  }
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+  const meta = await sharp(original).metadata()
+  const srcW = meta.width ?? 0
+  const srcH = meta.height ?? 0
+  if (!srcW || !srcH) throw new Error('Could not read image dimensions')
+
+  const plan = planAspectChange(srcW, srcH, opts.ratioW, opts.ratioH)
+  if (!plan) return { changed: false, reason: `Already ${label}` }
+
+  // Resize first when the plan capped the canvas. fit 'inside' keeps the source
+  // ratio itself, so the actual output can land a pixel under the planned box —
+  // the offsets are therefore measured from the real bytes, not the plan.
+  let drawn = original
+  if (plan.imageWidth !== srcW || plan.imageHeight !== srcH) {
+    drawn = await sharp(original).resize(plan.imageWidth, plan.imageHeight, { fit: 'inside' }).toBuffer()
+  }
+  const drawnMeta = await sharp(drawn).metadata()
+  const dw = drawnMeta.width ?? plan.imageWidth
+  const dh = drawnMeta.height ?? plan.imageHeight
+  const left = Math.max(0, Math.floor((plan.canvasWidth - dw) / 2))
+  const top = Math.max(0, Math.floor((plan.canvasHeight - dh) / 2))
+
+  let pipeline: sharp.Sharp
+  if (opts.fill.kind === 'blur') {
+    // Cover-crop a copy of the image to fill the canvas, blur it hard, and lay
+    // the untouched original over the top. The *backdrop* gets cropped; the
+    // image the user actually sees is whole.
+    const backdrop = await sharp(drawn)
+      .resize(plan.canvasWidth, plan.canvasHeight, { fit: 'cover', position: 'centre' })
+      .blur(blurSigma(plan.canvasWidth, plan.canvasHeight))
+      .toBuffer()
+    pipeline = sharp(backdrop).composite([{ input: drawn, left, top }])
+  } else {
+    const background = opts.fill.kind === 'transparent'
+      ? { r: 0, g: 0, b: 0, alpha: 0 }
+      : parseHexColour(opts.fill.colour)
+    pipeline = sharp(drawn).extend({
+      left,
+      top,
+      right: Math.max(0, plan.canvasWidth - dw - left),
+      bottom: Math.max(0, plan.canvasHeight - dh - top),
+      background,
+    })
+  }
+
+  const encoded = await encodeToMime(pipeline, media.mimeType)
+  const item = await persistDerivedImage(media, encoded, { mode: opts.mode, newName: opts.newName, fallbackSuffix: `(${label.replace(':', '-')})` }, userId)
+
+  return { changed: true, item, width: plan.canvasWidth, height: plan.canvasHeight, downscaled: plan.downscaled }
+}
+
+// Strict #rgb / #rrggbb parse. An unparseable colour throws rather than quietly
+// defaulting to black and baking a wrong border into someone's image.
+export function parseHexColour(hex: string): { r: number; g: number; b: number; alpha: number } {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  const digits = m?.[1]
+  if (!digits) throw new Error(`Not a valid colour: ${hex}`)
+  const h = digits.length === 3 ? digits.split('').map((c) => c + c).join('') : digits
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+    alpha: 1,
+  }
+}
+
+// "JPEG" / "GIF" etc. for a message aimed at someone who doesn't think in MIME types.
+function fileKindLabel(mimeType: string): string {
+  const sub = mimeType.split('/')[1] ?? 'image'
+  return sub === 'jpeg' ? 'JPEG' : sub.toUpperCase()
 }
 
 // Rewrite every occurrence of a media item's old url/key to its new url/key
