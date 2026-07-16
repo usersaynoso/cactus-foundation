@@ -1,6 +1,6 @@
 # Twilio
 
-The Twilio module connects your site to your [Twilio](https://www.twilio.com) account. It forwards calls made to your Twilio phone numbers wherever you like, shows each number's call and text message history (with playback of any recordings), lets you make outbound calls that show your Twilio number as caller ID, and sends sign-in codes by text message instead of email.
+The Twilio module connects your site to your [Twilio](https://www.twilio.com) account. It forwards calls made to your Twilio phone numbers wherever you like, takes a voicemail when nobody answers (with opening hours per number, if you'd rather your phone didn't ring at midnight), shows each number's call and text message history (with playback of any recordings), lets you make outbound calls that show your Twilio number as caller ID, and sends sign-in codes by text message instead of email.
 
 If you don't have a Twilio account, none of this page applies - carry on happily without it.
 
@@ -60,9 +60,41 @@ Go to **Settings → Twilio** and scroll past the credentials - the **Call forwa
 - **Show this number as caller ID** - normally a forwarded call shows the original caller's number on your phone. Tick this and it shows your Twilio number instead, so you know at a glance the call came through this line - useful if calls to several numbers all land on the same mobile. The trade-off is that you won't see who's actually calling until you answer; the caller's real number is still in your Twilio call logs.
 - **Call me to preview** - appears once you've written a greeting. Enter your own number, press the button, and Twilio rings you and reads the greeting in your chosen voice - exactly what callers will hear, because it is what callers will hear. Works before you save, so you can audition voices to your heart's content. Each preview is a normal (short) outbound call at Twilio's usual rates.
 
-Turn forwarding on and calls to that Twilio number are put straight through to your chosen number. Turn it off and the number goes back to doing whatever it did before. Changes apply as soon as you press Save - no redeploy needed.
+Turn forwarding on and calls to that Twilio number are put straight through to your chosen number. Turn it off and, unless voicemail is on, the number goes back to doing whatever it did before. Changes apply as soon as you press Save - no redeploy needed.
 
 **A word on recording law:** many places require you to tell callers they're being recorded, and some require consent. The greeting is the natural place to say so, but what it needs to say is between you and your local regulations - Cactus merely holds the microphone.
+
+---
+
+## Voicemail
+
+Underneath each number's forwarding settings is **Take a voicemail when nobody answers**. Tick it and callers who don't get through can leave a message instead of hearing the engaged tone.
+
+- **Ring for (seconds) before voicemail** - how long your phone rings before voicemail steps in. Twenty seconds is about five rings, which is the usual sort of thing. Anything from 5 to 120 seconds is allowed, though a caller listening to two minutes of ringing has long since given up. If forwarding is off there's nothing to ring, so this box greys out and callers go straight to voicemail.
+- **What callers hear before the beep** - your voicemail message. Leave it blank and callers get a stock apology, which does the job but won't win any awards.
+- **Voicemail voice** - same choice of readers as the forwarding greeting, and you can pick a different one. **Call me to hear it** rings you and reads it out before you commit.
+
+Voicemail also catches calls where your phone is engaged or the forward fails, not just the ones you don't reach in time. Messages can run to two minutes, then Twilio wraps things up.
+
+**Where the messages go:** nowhere new. A voicemail turns up in the call log on the **Twilio** page with a **Listen** button, same place and same player as a recorded call, but marked **Voicemail** so you can tell a message somebody left from a conversation somebody had. Twilio's usual recording storage charges apply.
+
+**How you find out about it:** each new message rings the notification bell in the admin bar, with the caller's number in the notice and a link straight to the Twilio page. Withheld numbers say so rather than pretending to be one. Read the notice and it clears itself; the next message raises its own, so a quiet week doesn't bury a busy one. Only messages left from now on are marked and announced - anything recorded before this update stays in the log as an ordinary recording, because Twilio never knew the difference and neither, retrospectively, do we.
+
+---
+
+## Opening hours
+
+Tick **Only ring during opening hours** on a number and you get a row per day: an **Open** switch and a from/to time. Outside those hours the phone doesn't ring at all - callers go straight to voicemail if you've switched it on, and are politely turned away if you haven't. Which is worth a moment's thought before you tick the box.
+
+A few things worth knowing:
+
+- Times follow your site's timezone, the one on **Settings → General**. Change that and your opening hours move with it.
+- Closing time is the moment the phone stops ringing. Set 09:00 to 17:00 and a call at 17:00 exactly goes to voicemail.
+- A closing time earlier than the opening one runs through midnight, so 18:00 to 02:00 covers the evening and the small hours after it. Handy for anyone whose phone rings when the pubs shut.
+- Untick **Open** for a day off. Don't set a day's hours to 09:00 to 09:00 and expect anything to happen - that's a window with no time in it.
+- Leave the box unticked and the number behaves as it always has: available at any hour.
+
+Opening hours only decide whether the phone rings. Everything else - your greeting, recording, caller ID - carries on as configured.
 
 ---
 
@@ -70,7 +102,7 @@ Turn forwarding on and calls to that Twilio number are put straight through to y
 
 Go to **Twilio** in the admin sidebar. Each phone number on your Twilio account gets its own tab, and each tab shows:
 
-- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio.
+- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Voicemail messages sit in the same list, next to a **Voicemail** tag so they don't get mistaken for a recorded conversation. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio.
 - **Message log** - the number's recent text messages, both directions, with the full message text.
 
 A **Refresh** button sits at the end of the tab bar for when you're waiting on something. Logs show the most recent 50 entries in each direction - for ancient history, the Twilio console remains the archive.
