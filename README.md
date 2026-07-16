@@ -74,6 +74,7 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 - [Gazette](https://github.com/cactus-foundation-modules/gazette) - a writing-first blog/news module, with tags, series, comments, reactions, an RSS feed, and a WordPress/Medium/Substack importer.
 - [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers with call and message logs, recording playback, click-to-dial, plus sign-in codes by text message for admins and members.
 - [Gemini Watermark Remover](https://github.com/cactus-foundation-modules/gemini-watermark-remover) - drop in an image from Google Gemini and it comes back watermark-free, straight into your media library.
+- [Ultimate SEO](https://github.com/cactus-foundation-modules/ultimate-seo) - the SEO command centre: site-wide scoring, page-by-page analysis with one-click fixes, a full site crawl audit, sitemap and robots controls, and structured-data blocks for the page builder.
 
 ### 👥 Members (visitor accounts, kept well away from the controls)
 
