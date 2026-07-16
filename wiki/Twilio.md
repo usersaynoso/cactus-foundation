@@ -18,6 +18,14 @@ Once connected, the settings tab shows the account it's talking to, so you can t
 
 ---
 
+## Routing country
+
+Twilio can process and store your calls, texts and recordings in one of three places: **United States** (the default), **Ireland** or **Australia**. This lives right below the credentials on **Settings → Twilio** as a dropdown.
+
+Pick whichever is closest to you or matches your data-residency requirements, then Save - like the credentials above, it takes effect after the next deployment. If your Twilio account isn't set up to use a particular region, Twilio will simply reject requests until you switch back or contact Twilio support to enable it.
+
+---
+
 ## Phone numbers
 
 Once connected, a **Phone numbers** section appears on the same settings tab, listing every number on your Twilio account. No typing numbers in by hand - the site fetches them for you, along with whether each one can send text messages.
