@@ -227,34 +227,43 @@ export function createViewportDropdownOverride(viewports: Viewports, options: { 
     useEffect(() => {
       if (!ref.current) return
       let frame = 0
+      // Puck's own Canvas conditionally mounts/unmounts the whole ViewportControls tree
+      // (`viewports.controlsVisible && iframe.enabled`, e.g. while the preview iframe is
+      // still loading) - so `track` gets destroyed and recreated as a fresh DOM node during
+      // the editor's own load sequence, not just once. Track identity so a remount rewires
+      // fresh mount points instead of leaving state pointed at nodes React already tore down
+      // - the previous one-shot version (disconnecting after its first successful find) left
+      // portals targeting orphaned containers after a remount, which is what threw the
+      // commit-phase "NotFoundError" on load.
+      let activeTrack: HTMLElement | null = null
 
       const tryFind = () => {
         if (!ref.current) return
         const track = ref.current.querySelector('[class*="_ViewportControls-actionsInner_"]') as HTMLElement | null
         if (!track) { frame = requestAnimationFrame(tryFind); return }
-        if (!track.querySelector('.cactus-viewport-dropdown-mount')) {
-          const el = document.createElement('div')
-          el.className = 'cactus-viewport-dropdown-mount'
-          track.insertBefore(el, track.firstChild)
-          setMount(el)
-        }
+        if (track === activeTrack) return
+        activeTrack = track
+
+        const el = document.createElement('div')
+        el.className = 'cactus-viewport-dropdown-mount'
+        track.insertBefore(el, track.firstChild)
+        setMount(el)
+
         // Light/dark preview toggle - sits just before Puck's zoom select. Anchoring to the
         // zoom select (not track order) keeps it "next to" the zoom box wherever Puck puts it.
-        if (!track.querySelector('.cactus-theme-preview-mount')) {
-          const el = document.createElement('div')
-          el.className = 'cactus-theme-preview-mount'
-          const zoom = track.querySelector('[class*="_ViewportControls-zoomSelect_"]')
-          if (zoom) track.insertBefore(el, zoom)
-          else track.appendChild(el)
-          setThemeMount(el)
+        const themeEl = document.createElement('div')
+        themeEl.className = 'cactus-theme-preview-mount'
+        const zoom = track.querySelector('[class*="_ViewportControls-zoomSelect_"]')
+        if (zoom) track.insertBefore(themeEl, zoom)
+        else track.appendChild(themeEl)
+        setThemeMount(themeEl)
+
+        if (options.shrinkPreview) {
+          const shrinkEl = document.createElement('div')
+          shrinkEl.className = 'cactus-shrink-preview-mount'
+          track.appendChild(shrinkEl)
+          setShrinkMount(shrinkEl)
         }
-        if (options.shrinkPreview && !track.querySelector('.cactus-shrink-preview-mount')) {
-          const el = document.createElement('div')
-          el.className = 'cactus-shrink-preview-mount'
-          track.appendChild(el)
-          setShrinkMount(el)
-        }
-        observer.disconnect()
       }
 
       const observer = new MutationObserver(tryFind)
