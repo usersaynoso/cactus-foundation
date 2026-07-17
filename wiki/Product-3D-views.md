@@ -13,7 +13,7 @@ Requires the **Shop** module. It works alongside **Shop Variations** if you have
 1. Open a product under **Shop → Products**.
 2. Go to the **3D views** tab.
 3. If the product has variations, pick what the model is for: **the whole product**, or one particular variation.
-4. Click **Add a 3D model** and choose your file.
+4. Click **Add a 3D model**, then either pick a file you have uploaded before or upload a new one.
 
 That is the whole job. The model appears on the product page straight away - there is no layout to edit and no block to drag in. Your photographs stay exactly where they are, just behind the 3D view, which now leads the strip and opens the gallery.
 
@@ -21,7 +21,7 @@ To remove one, click **Remove** next to it in the list. The file is deleted prop
 
 ### Straight onto a variation
 
-If you have **Shop Variations**, there is a quicker route for models that belong to one particular variation. The **Variations** tab now has a **3D** column sitting next to the Image column, and it behaves the way the picture beside it does: drop a file onto a row, or click the **+**, and that variation has its model. No dropdown, no leaving the table.
+If you have **Shop Variations**, there is a quicker route for models that belong to one particular variation. The **Variations** tab now has a **3D** column sitting next to the Image column, and it behaves the way the picture beside it does. Click the **+** and you can either pick a 3D file you have uploaded before - the same idea as choosing an existing picture - or upload a new one; dropping a file straight onto the row still uploads it in one go. Either way that variation ends up with its model, with no dropdown and no leaving the table.
 
 Both routes do exactly the same thing, so use whichever suits. The **3D views** tab is still the only place to put a model against the **whole product** rather than one variation.
 
