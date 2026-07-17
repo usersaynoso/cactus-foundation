@@ -1,5 +1,6 @@
 import { Render } from '@puckeditor/core/rsc'
 import { puckRscConfig } from '@/lib/puck/config.rsc'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { markdownToHtml } from '@/lib/sanitize'
@@ -34,6 +35,11 @@ type RenderOptions = {
 export async function renderInfoPageContent(page: PageShape, options: RenderOptions = {}) {
   const { draftBanner = null, isHomepage = false } = options
   const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug: page.slug, isHomepage })
+  // Site-wide render settings (currently the lazy-load switch) reach blocks only
+  // through Puck's metadata - config.tsx can't read them itself. Resolved once
+  // here and handed to every Render this page makes; getSiteConfig is cache()d,
+  // so the layout's own header/footer renders share the same query.
+  const metadata = await getPuckRenderMetadata()
 
   if (page.bodyFormat === 'builder') {
     const pageData = resolveContentData(page) as Data | null
@@ -47,11 +53,11 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
     }
 
     if (layout?.builderData) {
-      const pageContent = <Render config={puckRscConfig as any} data={pageData} />
+      const pageContent = <Render config={puckRscConfig as any} data={pageData} metadata={metadata} />
       return (
         <>
           {draftBanner}
-          {renderLayoutWithContent(layout.builderData as Data, pageContent)}
+          {renderLayoutWithContent(layout.builderData as Data, pageContent, metadata)}
         </>
       )
     }
@@ -59,7 +65,7 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
     return (
       <>
         {draftBanner}
-        <Render config={puckRscConfig as any} data={pageData} />
+        <Render config={puckRscConfig as any} data={pageData} metadata={metadata} />
       </>
     )
   }
@@ -83,7 +89,7 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
     return (
       <>
         {draftBanner}
-        {renderLayoutWithContent(layout.builderData as Data, markdownContent)}
+        {renderLayoutWithContent(layout.builderData as Data, markdownContent, metadata)}
       </>
     )
   }

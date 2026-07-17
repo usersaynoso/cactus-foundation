@@ -1,5 +1,6 @@
 import { Render } from '@puckeditor/core/rsc'
 import { fullPagePuckRscConfig } from '@/lib/puck/config.rsc'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
 import { prisma } from '@/lib/db/prisma'
@@ -33,7 +34,7 @@ export default async function NotFound() {
     return (
       <>
         <EmailDeobfuscator />
-        <Render config={fullPagePuckRscConfig as any} data={resolved as Data} />
+        <Render config={fullPagePuckRscConfig as any} data={resolved as Data} metadata={await getPuckRenderMetadata()} />
       </>
     )
   }

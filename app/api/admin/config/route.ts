@@ -144,6 +144,7 @@ const Patch = z.object({
     .enum(['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT'])
     .optional()
     .nullable(),
+  lazyLoadImages: z.boolean().optional(),
   logoMediaId: z.string().optional().nullable(),
   logoDarkMediaId: z.string().optional().nullable(),
   faviconMediaId: z.string().optional().nullable(),

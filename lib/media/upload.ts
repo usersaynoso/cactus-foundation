@@ -9,6 +9,7 @@ import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
+import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
 
@@ -1006,6 +1007,59 @@ export async function changeMediaAspectRatio(
   const item = await persistDerivedImage(media, encoded, { mode: opts.mode, newName: opts.newName, fallbackSuffix: `(${label.replace(':', '-')})` }, userId)
 
   return { changed: true, item, width: plan.canvasWidth, height: plan.canvasHeight, downscaled: plan.downscaled }
+}
+
+// ---------------------------------------------------------------------------
+// Resize — scale an image down to fit inside a box, keeping its own ratio. The
+// sibling of the ratio changer: that one changes an image's shape by padding it,
+// this one keeps the shape and changes the size. Nothing is cropped and nothing
+// is stretched here either, and the box is a ceiling rather than a target — an
+// image already inside it is left alone rather than blown up, because upscaling
+// invents no detail and only costs bytes. Geometry lives in
+// lib/media/resize-plan.ts (pure, unit-tested); this half is pixels and storage.
+// ---------------------------------------------------------------------------
+
+export type ResizeResult =
+  | { changed: true; item: Media; width: number; height: number; capped: boolean; before: number; after: number }
+  | { changed: false; reason: string }
+
+export async function resizeMediaImage(
+  mediaId: string,
+  opts: { box: ResizeBox; mode: 'replace' | 'new'; newName?: string },
+  userId?: string,
+): Promise<ResizeResult> {
+  const media = await loadEditableImage(mediaId, 'resized')
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+  const meta = await sharp(original).metadata()
+  const srcW = meta.width ?? 0
+  const srcH = meta.height ?? 0
+  if (!srcW || !srcH) throw new Error('Could not read image dimensions')
+
+  const plan = planResize(srcW, srcH, opts.box)
+  if (!plan) return { changed: false, reason: `Already ${sizeLabel(srcW, srcH)} - smaller than that box` }
+
+  // withoutEnlargement belts-and-braces the plan's own never-upscale rule: if the
+  // two ever disagreed, sharp would decline to invent pixels rather than obey.
+  const pipeline = sharp(original).resize(plan.width, plan.height, { fit: 'inside', withoutEnlargement: true })
+  const encoded = await encodeToMime(pipeline, media.mimeType)
+
+  // fit 'inside' keeps the source's own ratio, so the real output can land a
+  // pixel under the planned box. Report what the bytes actually are, not what
+  // the plan hoped for (the same rule changeMediaAspectRatio learnt).
+  const outMeta = await sharp(encoded).metadata()
+  const outW = outMeta.width ?? plan.width
+  const outH = outMeta.height ?? plan.height
+
+  const before = media.sizeBytes
+  const item = await persistDerivedImage(
+    media,
+    encoded,
+    { mode: opts.mode, newName: opts.newName, fallbackSuffix: `(${sizeLabel(outW, outH)})` },
+    userId,
+  )
+
+  return { changed: true, item, width: outW, height: outH, capped: plan.capped, before, after: item.sizeBytes }
 }
 
 // Strict #rgb / #rrggbb parse. An unparseable colour throws rather than quietly

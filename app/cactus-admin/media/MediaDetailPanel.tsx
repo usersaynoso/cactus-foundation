@@ -25,6 +25,7 @@ export default function MediaDetailPanel({
   onNext,
   onEdit,
   onChangeRatio,
+  onResize,
   onRename,
   onMove,
   onCut,
@@ -52,6 +53,7 @@ export default function MediaDetailPanel({
   onNext: () => void
   onEdit: () => void
   onChangeRatio: () => void
+  onResize: () => void
   onRename: () => void
   onMove: () => void
   onCut: () => void
@@ -260,6 +262,7 @@ export default function MediaDetailPanel({
           {canManage && canOptimise && <button type="button" className="btn btn-secondary btn-sm" disabled={optimising} onClick={onOptimise}>{optimising ? 'Optimising…' : 'Optimise'}</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onChangeRatio}>Change ratio…</button>}
+          {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onResize}>Resize…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onMove}>Move…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onCut}>Cut</button>}

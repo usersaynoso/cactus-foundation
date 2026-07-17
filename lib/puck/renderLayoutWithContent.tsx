@@ -1,11 +1,13 @@
 import React from 'react'
 import { Render } from '@puckeditor/core/rsc'
 import { layoutPuckRscConfig } from './config.rsc'
+import type { PuckRenderMetadata } from './renderMetadata'
 import type { Data, Config } from '@puckeditor/core'
 
 export function renderLayoutWithContent(
   layoutData: Data,
   pageContent: React.ReactNode,
+  metadata?: PuckRenderMetadata,
 ): React.ReactNode {
   // Members blocks' RSC render functions are async Server Components (see
   // MEMBERS_SPEC.md Phase 7) - Puck's Config type models render() as
@@ -22,5 +24,5 @@ export function renderLayoutWithContent(
     },
   }
    
-  return <Render config={config as any} data={layoutData} />
+  return <Render config={config as any} data={layoutData} metadata={metadata} />
 }

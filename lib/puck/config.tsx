@@ -26,6 +26,7 @@ import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { emailSafeHref, sanitizeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
+import { imgLoading } from '@/lib/puck/imgLoading'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '@/lib/puck/blockHeight'
 import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
@@ -1377,7 +1378,7 @@ function Quote(props: any) {
             <img
               src={mediaUrl}
               alt={alt ?? ''}
-              loading="lazy"
+              loading={imgLoading(puck)}
               decoding="async"
               style={{ flex: '0 0 auto', width: photo, height: photoHeight, objectFit: 'cover', borderRadius: photoRadiusMap[imageShape] ?? '50%', display: 'block' }}
             />
@@ -1759,8 +1760,12 @@ function ImageBlock(props: any) {
     <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined, ...getStickyStyle(sticky, stickyOffset) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {sizeCss && <style>{sizeCss}</style>}
       {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look.
-          Deliberately not lazy: an Image block can be the first thing on a page, and lazy-loading the
-          LCP element is a measurable regression. decoding="async" is free either way. */}
+          Deliberately not lazy, and deliberately NOT wired to Settings > Media's lazy-load switch: an
+          Image block can be the first thing on a page, and lazy-loading the LCP element is a measurable
+          regression. The switch governs the blocks that sit further down a page (Quote photos, Card
+          covers, Panel images, logo strips), where lazy is a straight win; this one would pay for it in
+          the number the site is actually judged on. The setting's help text says so in as many words.
+          decoding="async" is free either way. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={mediaUrl} alt={alt ?? ''} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
       {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{protectText(caption, obfuscate)}</figcaption>}
@@ -2083,7 +2088,7 @@ function Card(props: any) {
       {...getAosProps(animationType, animationDuration, animationDelay)}>
       {(wrapCss || fillCss) && <style>{`${wrapCss}${fillCss}`}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
+      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
         {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{protectText(heading, obfuscate)}</h3>}
         {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{protectText(body, obfuscate)}</p>}
@@ -2139,7 +2144,7 @@ function ImageChipPanel(props: any) {
           behind), while the scan beam and chips come later in the DOM so they
           paint over the image without needing an explicit stacking order. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img src={mediaUrl} alt={alt ?? ''} loading="lazy" decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
+      <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -2341,7 +2346,7 @@ function Logos(props: any) {
         {items.map((item: any, i: number) => {
           const inner = item.logoUrl
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={item.logoUrl} alt={item.alt ?? ''} loading="lazy" decoding="async" style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
+            ? <img src={item.logoUrl} alt={item.alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ height: 'var(--logo-h)', width: 'auto', objectFit: 'contain' }} />
             : <div style={{ height: 'var(--logo-h)', width: 120, background: 'var(--color-bg-subtle)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.75rem' }}>Logo</div>
           return item.href
             ? <a key={i} {...emailSafeHref(item.href, obfuscate)} style={{ display: 'inline-flex', alignItems: 'center' }}>{inner}</a>

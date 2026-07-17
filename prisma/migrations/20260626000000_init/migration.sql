@@ -140,6 +140,7 @@ CREATE TABLE "SiteConfig" (
     "emailFromAddress" TEXT,
     "emailProvider" TEXT,
     "mediaProvider" "MediaProviderType",
+    "lazyLoadImages" BOOLEAN NOT NULL DEFAULT true,
     "privacyPolicyPageId" TEXT,
     "termsPageId" TEXT,
     "logoMediaId" TEXT,

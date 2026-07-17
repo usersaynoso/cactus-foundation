@@ -38,7 +38,7 @@ type SiteConfig = {
   adminPath: string; status: string; hideFromCrawlers: boolean;
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
-  mediaProvider: MediaProviderType | null;
+  mediaProvider: MediaProviderType | null; lazyLoadImages: boolean;
   logoMediaId: string | null; logoDarkMediaId: string | null; faviconMediaId: string | null; faviconDarkMediaId: string | null;
   appIconMediaId: string | null; appleTouchIconMediaId: string | null; webManifest192MediaId: string | null; webManifest512MediaId: string | null;
   appName: string | null; appShortName: string | null; themeColor: string | null; backgroundColor: string | null;
@@ -2444,6 +2444,24 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                 <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={retryMigration}>Retry failed items</button>
               </div>
             )}
+
+            {/* Delivery — how images behave on the public site, as opposed to
+                where they are stored. Saved with the page's own Save button. */}
+            <div id="media-lazy-load" className="field admin-anchor" style={{ marginTop: '1.5rem' }}>
+              <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={config.lazyLoadImages ?? true}
+                  onChange={(e) => set('lazyLoadImages', e.target.checked)}
+                />
+                Load images only as visitors scroll to them
+              </label>
+              <span className="field-hint">
+                Images further down a page wait until they are nearly in view, so the top of the page appears sooner and
+                nobody downloads pictures they never scroll to. The main image on a page always loads straight away either
+                way, so your headline picture is never held up. Turn this off only if you want every image fetched at once.
+              </span>
+            </div>
           </div>
         )
       })()}

@@ -179,6 +179,10 @@ model SiteConfig {
   // Active media provider for new uploads. Null until an admin selects one.
   // MediaProviderKind (PROXIED/DIRECT) is a static app-code lookup, not a column.
   mediaProvider          MediaProviderType?
+  // Lazy-load images below the fold on the public site (Settings > Media).
+  // Defaults on: it's the right answer for almost every site. The Image block is
+  // deliberately exempt either way - see ImageBlock in lib/puck/config.tsx.
+  lazyLoadImages         Boolean    @default(true)
   privacyPolicyPageId    String?
   termsPageId            String?
   logoMediaId            String?

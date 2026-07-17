@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { Render } from '@puckeditor/core/rsc'
 import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config.rsc'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import type { Data } from '@puckeditor/core'
 import AosInit from '@/lib/puck/components/AosInit'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
@@ -89,6 +90,11 @@ export default async function PublicLayout({ children }: { children: React.React
       : Promise.resolve(null),
   ])
 
+  // Read through the shared cache()d helper rather than the narrow select above,
+  // so the default for a missing config row is decided in exactly one place and
+  // the page's own render (renderInfoPage) reuses the same query.
+  const puckMetadata = await getPuckRenderMetadata()
+
   const tokens = config?.designTokens as DesignTokens | undefined
   const cssStyles = buildTokenStyles(tokens)
   const fontHref = buildFontHref(tokens)
@@ -103,13 +109,13 @@ export default async function PublicLayout({ children }: { children: React.React
       <EmailDeobfuscator />
       {headerData
 
-        ? <Render config={headerPuckRscConfig as any} data={headerData as Data} />
+        ? <Render config={headerPuckRscConfig as any} data={headerData as Data} metadata={puckMetadata} />
         : null
       }
       <main>{children}</main>
       {footerData
 
-        ? <Render config={footerPuckRscConfig as any} data={footerData as Data} />
+        ? <Render config={footerPuckRscConfig as any} data={footerData as Data} metadata={puckMetadata} />
         : null
       }
       {consentBannerConfig?.enabled && (

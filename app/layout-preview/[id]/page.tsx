@@ -10,6 +10,7 @@ import {
   fullPagePuckRscConfig,
   getModuleLayoutPuckRscConfig,
 } from '@/lib/puck/config.rsc'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
@@ -77,6 +78,8 @@ export default async function LayoutPreviewPage({ params }: Props) {
   const previewTokens = siteConfig?.designTokens as DesignTokens | undefined
   const cssStyles = buildTokenStyles(previewTokens)
   const fontHref = buildFontHref(previewTokens)
+  // The preview is meant to look like the published page, lazy-loading included.
+  const puckMetadata = await getPuckRenderMetadata()
 
   let builderData: unknown = layout.builderData
   try { builderData = await resolveTemplateData(layout.builderData, ctx) } catch {}
@@ -119,18 +122,18 @@ export default async function LayoutPreviewPage({ params }: Props) {
       <div style={{ paddingTop: '2rem' }}>
         {layout.type === 'header' && (
           <>
-            <Render config={config} data={builderData as Data} />
+            <Render config={config} data={builderData as Data} metadata={puckMetadata} />
             {placeholder('Page content would appear here')}
           </>
         )}
         {layout.type === 'footer' && (
           <>
             {placeholder('Page content would appear here')}
-            <Render config={config} data={builderData as Data} />
+            <Render config={config} data={builderData as Data} metadata={puckMetadata} />
           </>
         )}
         {layout.type !== 'header' && layout.type !== 'footer' && (
-          <Render config={config} data={builderData as Data} />
+          <Render config={config} data={builderData as Data} metadata={puckMetadata} />
         )}
       </div>
     </>
