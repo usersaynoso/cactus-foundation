@@ -169,6 +169,24 @@ The active provider is `SiteConfig.mediaProvider`. Changing it in Settings → M
 
 **Why not proxy through Vercel?** Vercel bills GB-hours of serverless execution. A 10 MB image served through a Next.js route handler on every page view burns real money at scale. The Cloudflare Worker sits outside Vercel's billing, caches resized variants at Cloudflare's edge, and never touches Vercel's function runtime for image bytes.
 
+### Derived images (crop, reshape, resize)
+
+Three admin actions derive a new set of bytes from an existing `Media` row, and all three share one persistence path:
+
+| Action | Route (single / bulk) | Geometry | What it does to the pixels |
+|---|---|---|---|
+| Crop | `/api/admin/media/[id]/edit` | inline, clamped to bounds | extracts a rectangle |
+| Change ratio | `/api/admin/media/[id]/aspect` / `bulk-aspect` | `lib/media/aspect-plan.ts` | pads to a target ratio; never trims or stretches |
+| Resize | `/api/admin/media/[id]/resize` / `bulk-resize` | `lib/media/resize-plan.ts` | uniform downscale to fit a box; never enlarges |
+
+All three gate on `media.upload`, take `mode: 'replace' | 'new'`, and funnel into `persistDerivedImage` in `lib/media/upload.ts`. `'new'` mints a fresh row; `'replace'` rewrites the blob under the existing row, keeping the id (and, where the key is already exact-named, the key and url too) so every reference to the image survives - including references held outside Puck content, which the reference rewriter cannot reach.
+
+The geometry for reshape and resize lives in its own pure, unit-tested module with no sharp or prisma import: the arithmetic is the part that silently ruins images, and it is cheap to pin down. Both cap their output (`MAX_ASPECT_PIXELS` / `MAX_RESIZE_PIXELS`, 40 MP) by scaling the whole plan uniformly rather than by trimming.
+
+Both bulk routes run **sequentially** - each re-encode is CPU-heavy - and report a three-bucket tally (`changed` / `skipped` / `failed`). A skip is a 200 with a plain-English `reason`, not an error: "already that shape", "already smaller than that box". One awkward item never aborts the batch.
+
+`Media` carries no `width`/`height` columns; dimensions are read on demand via `sharp(...).metadata()`. The resize dialog therefore reads `naturalWidth`/`naturalHeight` off the loaded preview purely to tell the user what they're getting - the server measures the real bytes itself and is the one that decides.
+
 ## Notifications and deferred deployment
 
 Env-var changes accumulate into a single **deployment notification** instead of redeploying on every save. The admin can keep working and click "Redeploy now" when ready, avoiding repeated build cycles. Module install / update / uninstall and core updates do **not** use this notification: pushing a commit (`modules.json` for modules, the upstream sync for core) is what ships their code, so they redeploy immediately and surface live deploy status in the admin (see below).
@@ -635,6 +653,24 @@ Following from that: `PATCH /api/admin/layouts/[id]` refuses `status: 'published
 | `layoutPuckConfig` / `layoutPuckRscConfig` | infoPage layout editor / public layout render |
 
 RSC variants replace `richtext` fields with `textarea` (prevents `React.lazy` in RSC) and replace `SiteLogoClient` with `SiteLogoRsc`. The layout editor selects which config to use via a `getConfig(type)` switch in `LayoutPuckEditor.tsx`.
+
+### Getting site-wide values into a block
+
+`lib/puck/config.tsx` is shared by the client editor and the RSC render, so it is deliberately hook-free and cannot reach the database or `next/headers`. A block that needs a site-wide value therefore has to be handed it. There are three established channels, in order of preference:
+
+1. **A CSS variable**, when the value is expressible in CSS. `lib/design/tokens.ts` emits `--img-radius` and friends; blocks just consume `var(--img-radius, 6px)`. Costs nothing and needs no plumbing.
+2. **Puck's `metadata`**, when it isn't. `<Render metadata={...}>` puts an object on every block's `puck.metadata`, per render rather than per module, so there is no cross-request state to leak - it arrives through the same door as `puck.isEditing`. `lib/puck/renderMetadata.ts` resolves it server-side (`getPuckRenderMetadata()`, backed by the `cache()`d `getSiteConfig`, so the header/content/footer renders of one page share a query); the pure helper blocks actually call lives in `lib/puck/imgLoading.ts`, importing nothing, because anything reaching prisma from there would follow `config.tsx` into the browser bundle.
+3. **A prop threaded from the render root**, for values that are per-block rather than per-site.
+
+The lazy-load switch (below) is the current example of (2). Every RSC `Render` call site passes the metadata: `app/(public)/layout.tsx` (header, footer), `lib/puck/renderInfoPage.tsx` and `renderLayoutWithContent.tsx` (page content and its layout), `app/not-found.tsx`, `app/cactus-status/{maintenance,coming-soon}/page.tsx`, and `app/layout-preview/[id]/page.tsx`. A render that somehow arrives without metadata falls back to lazy, i.e. to how the blocks behaved before the setting existed.
+
+### Lazy-loading images
+
+`SiteConfig.lazyLoadImages` (Settings → Media, default `true`) sets `loading="lazy"` vs `"eager"` on core content images: Quote photos, Card covers, Panel images and logo strips.
+
+**The Image block is deliberately exempt** and always renders eager. It can be the first thing on a page, and lazy-loading the LCP element is a measurable regression - the switch governs the blocks that sit further down a page, where lazy is a straight win, and leaves alone the one that would pay for it in the number the site is judged on. The setting's help text says so plainly rather than leaving it as a surprise.
+
+Module blocks render their own `<img>` tags in their own repos and do not consult this setting.
 
 ### Starter templates
 

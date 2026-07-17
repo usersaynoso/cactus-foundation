@@ -94,7 +94,7 @@ Got a big library? Just keep scrolling - more files load in automatically as you
 
 Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
 
-**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Change ratio…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
+**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Change ratio…**, **Resize…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
 
 **Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
@@ -184,6 +184,33 @@ A few sensible things happen without you asking:
 
 ---
 
+## Resizing images
+
+Modern phones and cameras produce enormous pictures. A photo straight off a decent phone can be 4000 pixels wide, which is roughly four times more than any website will ever show and rather more than your visitors want to download. **Resize…** makes the picture smaller - the actual picture, not just how it's displayed. You'll find it in the same places as everything else: right-click any picture, or open its preview and use the button in the action row.
+
+Where **Change ratio** above changes an image's *shape*, resizing keeps the shape exactly as it is and changes the *size*. Nothing is cropped and nothing is squashed - the whole picture is simply scaled down.
+
+Pick how big you want it: **Extra large** (2400px), **Large** (1600px), **Medium** (1000px) or **Small** (600px). Those numbers are the longest edge, so a landscape photo and a portrait one both come out sensibly sized without you having to think about which way round it is. Want something specific? Type a width, a height, or both into the boxes. Leave one blank and it simply follows along, keeping the proportions.
+
+For a single picture, Cactus tells you what you're getting before you commit - the size it is now, and the size it's about to become.
+
+> **Resizing only ever makes pictures smaller.** Ask for a 2400px version of a 900px picture and Cactus will tell you it already fits and leave it alone. Blowing an image up doesn't add detail that was never there; it just makes a bigger file that looks worse. If you need a genuinely larger version, you need the original.
+
+Save it the same two ways as everything else: **a new image**, which leaves your original untouched, or **replace the original**, which swaps it in everywhere it's used - no undo, so you'll be asked to confirm first. Replacing keeps the filename exactly as it was, so anything already pointing at that picture carries on working. The same cache note from the ratio tool applies: if you've replaced a picture and still see the old one, give the page a hard refresh.
+
+### Doing a whole batch at once
+
+Tick as many pictures as you like and **Resize…** appears in the bar along the top. Set the size once and every selected picture gets it, each measured on its own merits:
+
+- **Anything already smaller than the size you picked is left alone**, not needlessly re-saved.
+- **One awkward file won't spoil the batch.** The rest still go through, and the toast tells you how many were done and how many weren't.
+- **Saving as new copies** names each one after the original plus its new size, so nothing fights over the same name.
+- **The toast tells you how much space you saved**, which on a folder of holiday photos is usually the most satisfying number in this entire admin area.
+
+This pairs nicely with **Optimise** further down: resizing throws away pixels nobody was looking at, optimising squeezes what's left. Doing both to a stack of camera photos routinely takes a page from unpleasant to instant.
+
+---
+
 ## Cut, copy and paste
 
 Right-click any file for a familiar **Cut**, **Copy** and **Paste** menu - handy for shuffling things between folders.
@@ -221,6 +248,20 @@ When you switch:
 - **Existing images** stay where they are and continue to display correctly.
 
 To move existing images to the new provider, click **Migrate now** on the Media settings page. Cactus moves everything across in batches while you wait. You can see a breakdown of how many images are on each provider before you decide.
+
+---
+
+## Loading images only when they're needed
+
+At the bottom of **Settings → Media** there's a switch: **Load images only as visitors scroll to them**. It's on to begin with, and for almost every site that's where it should stay.
+
+With it on, pictures further down a page wait until a visitor is nearly scrolled to them before they're fetched. The top of the page appears sooner, and nobody downloads the eight photos at the bottom of a page they abandoned after the first paragraph - which is most people, most of the time.
+
+The main image on a page is the exception, and always loads straight away regardless of this switch. That's deliberate. Holding back the big picture at the top is the one place this trick backfires: it's the thing visitors are waiting to see, and delaying it makes the page feel slower rather than faster. So Cactus leaves it alone and applies the switch to everything below it - the photos in quotes, the pictures on cards and panels, and logo strips.
+
+Turn it off if you want every image on a page fetched immediately, whether anyone scrolls that far or not. Slower for your visitors and more expensive for your storage bill, but it's your site.
+
+> Images added by modules - a shop's product pictures, say - follow their own module's rules rather than this switch.
 
 ---
 
