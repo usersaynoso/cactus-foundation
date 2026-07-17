@@ -60,7 +60,7 @@ Overwrites the sheet with whatever is currently on your website. This is how you
 
 ### Pull from sheet (the sheet → your site)
 
-This is the one to take a breath over, so it makes you look first. Click **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, any rows it can't make sense of, and - importantly - a list headed **"In the shop but not in your sheet."**
+This is the one to take a breath over, so it makes you look first. Click **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, how many it will delete, any rows it can't make sense of, and - importantly - a named list of everything that is **"In the shop but not in your sheet."**
 
 Nothing has changed at this point. When you are happy, press the button in the preview to actually do it.
 
@@ -72,9 +72,13 @@ A few things the preview will tell you:
 
 ### Rows you deleted from the sheet
 
-If you delete a product's row from the sheet, Cactus does **not** delete the product - deleting something with order history on the strength of a spreadsheet edit is not a risk worth taking. Instead, those products appear in the preview under "In the shop but not in your sheet", and are **left completely alone by default.**
+The sheet is treated as the say-so on what should exist. **Delete a product's row, Pull, and that product is deleted from your site** - along with any of its size/colour variations. Delete just some of a product's variation rows and only those variations go; clear out all of a product's variation rows and it loses the lot.
 
-If you genuinely want to retire one, tick it in the preview and Cactus will **archive** it - which is reversible, keeps all its order history, and simply takes it off sale. It is never permanently deleted.
+Because this cannot be undone, the preview never hides it from you. Every product about to be deleted is listed by name under **"In the shop but not in your sheet"**, and the number of variations about to be removed is spelled out too. Nothing happens until you press the button, and if you change your mind you just put the row back in the sheet before you do.
+
+One quiet safeguard worth knowing: Pull will only ever delete something that was in the sheet as of your **last Push**. So if you add a brand-new product in the admin and then Pull before you have Pushed it out to the sheet, Cactus won't mistake "not pushed yet" for "deleted" and bin it. (And on a sheet you have never Pushed to at all, Pull deletes nothing - it has no idea what was meant to be there.)
+
+Past orders are never harmed by a deletion: an order keeps its own record of what was bought, even once the product itself is gone.
 
 ---
 
