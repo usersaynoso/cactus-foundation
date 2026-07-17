@@ -666,9 +666,9 @@ The lazy-load switch (below) is the current example of (2). Every RSC `Render` c
 
 ### Lazy-loading images
 
-`SiteConfig.lazyLoadImages` (Settings → Media, default `true`) sets `loading="lazy"` vs `"eager"` on core content images: Quote photos, Card covers, Panel images and logo strips.
+`SiteConfig.lazyLoadImages` (Settings → Media, default `true`) sets `loading="lazy"` vs `"eager"` on **every** core content image: the Image block, Quote photos, Card covers, Panel images and logo strips.
 
-**The Image block is deliberately exempt** and always renders eager. It can be the first thing on a page, and lazy-loading the LCP element is a measurable regression - the switch governs the blocks that sit further down a page, where lazy is a straight win, and leaves alone the one that would pay for it in the number the site is judged on. The setting's help text says so plainly rather than leaving it as a surprise.
+**The Image block included, deliberately.** It carried an exemption when the setting first landed, on the grounds that an Image block can be the first thing on a page and lazy-loading the LCP element measurably delays it. That reasoning is still true, and the trade is real - with the switch on (the default) a hero Image block is lazy. It is exposed rather than decided in code because it is the site owner's call: the help text names the cost and points at the switch as the first thing to try if the top of a page feels slow. A blanket exemption also made the switch quietly untrue to its own label.
 
 Module blocks render their own `<img>` tags in their own repos and do not consult this setting.
 

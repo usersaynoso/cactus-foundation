@@ -2457,9 +2457,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                 Load images only as visitors scroll to them
               </label>
               <span className="field-hint">
-                Images further down a page wait until they are nearly in view, so the top of the page appears sooner and
-                nobody downloads pictures they never scroll to. The main image on a page always loads straight away either
-                way, so your headline picture is never held up. Turn this off only if you want every image fetched at once.
+                Images wait until they are nearly in view, so nobody downloads pictures they never scroll to. This applies
+                to every image on your pages, including the big one at the top - if the first thing a visitor sees feels
+                slow to appear, that is the setting to turn off. Off means every image on a page is fetched at once,
+                whether anyone scrolls that far or not.
               </span>
             </div>
           </div>

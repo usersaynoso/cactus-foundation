@@ -1760,14 +1760,14 @@ function ImageBlock(props: any) {
     <figure data-image-id={id} className={getPaddingClasses(padding)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined, ...getStickyStyle(sticky, stickyOffset) }} {...getAosProps(animationType, animationDuration, animationDelay)}>
       {sizeCss && <style>{sizeCss}</style>}
       {/* Border radius/colour/width reflect the Styles → Images tokens, defaulting to the original look.
-          Deliberately not lazy, and deliberately NOT wired to Settings > Media's lazy-load switch: an
-          Image block can be the first thing on a page, and lazy-loading the LCP element is a measurable
-          regression. The switch governs the blocks that sit further down a page (Quote photos, Card
-          covers, Panel images, logo strips), where lazy is a straight win; this one would pay for it in
-          the number the site is actually judged on. The setting's help text says so in as many words.
-          decoding="async" is free either way. */}
+          Follows Settings > Media's lazy-load switch like every other image block. Worth knowing what
+          that costs: an Image block can be the first thing on a page, so with the switch on (the
+          default) a hero image is lazy, and lazy-loading the LCP element measurably delays it. That is
+          the owner's call to make rather than ours to make for them - the setting's help text spells out
+          the trade and says to turn it off if the top of the page feels slow. decoding="async" is free
+          either way. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={mediaUrl} alt={alt ?? ''} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
+      <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
       {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{protectText(caption, obfuscate)}</figcaption>}
     </figure>
   )

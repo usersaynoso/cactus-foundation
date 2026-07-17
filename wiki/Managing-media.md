@@ -255,11 +255,13 @@ To move existing images to the new provider, click **Migrate now** on the Media 
 
 At the bottom of **Settings → Media** there's a switch: **Load images only as visitors scroll to them**. It's on to begin with, and for almost every site that's where it should stay.
 
-With it on, pictures further down a page wait until a visitor is nearly scrolled to them before they're fetched. The top of the page appears sooner, and nobody downloads the eight photos at the bottom of a page they abandoned after the first paragraph - which is most people, most of the time.
+With it on, pictures wait until a visitor is nearly scrolled to them before they're fetched. Nobody downloads the eight photos at the bottom of a page they abandoned after the first paragraph - which is most people, most of the time.
 
-The main image on a page is the exception, and always loads straight away regardless of this switch. That's deliberate. Holding back the big picture at the top is the one place this trick backfires: it's the thing visitors are waiting to see, and delaying it makes the page feel slower rather than faster. So Cactus leaves it alone and applies the switch to everything below it - the photos in quotes, the pictures on cards and panels, and logo strips.
+This applies to **every** picture on your pages: the images in your content, the photos in quotes, the pictures on cards and panels, and logo strips.
 
-Turn it off if you want every image on a page fetched immediately, whether anyone scrolls that far or not. Slower for your visitors and more expensive for your storage bill, but it's your site.
+That includes the big picture at the top, and it's worth knowing what that means. The image at the top of a page is the one visitors are actually waiting to see, and asking the browser to hold off on it can make the page *feel* slower to arrive even though it's doing less work overall. If the top of your pages feels sluggish, this switch is the first thing to try turning off.
+
+Turn it off and every image on a page is fetched immediately, whether anyone scrolls that far or not. More work for your visitors' connection and more traffic on your storage bill, but the top of the page appears without hesitation. It's your site, and this is the trade.
 
 > Images added by modules - a shop's product pictures, say - follow their own module's rules rather than this switch.
 
