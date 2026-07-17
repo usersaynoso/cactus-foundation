@@ -99,6 +99,17 @@ export default function MediaResizeDialog({
   const alreadySmaller = !bulk && natural !== null && box !== null && projected === null
   const sizeSuffix = projected ? `${projected.w}x${projected.h}` : 'resized'
 
+  // Why the button won't go, in the words the user needs. Said out loud next to
+  // it rather than hung on its title: a disabled button takes no pointer events,
+  // so a tooltip on one is a reason nobody ever reads. Leaving a side blank is
+  // not a reason - that side is meant to follow along - but typing a number
+  // bigger than the image is, and that's what this usually turns out to be.
+  const blockedReason = !box
+    ? 'Pick a size first.'
+    : alreadySmaller
+      ? 'This image already fits inside that size, so there is nothing to resize.'
+      : null
+
   async function run() {
     const first = items[0]
     if (!box || !first) return
@@ -265,13 +276,17 @@ export default function MediaResizeDialog({
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
+            {blockedReason && (
+              <span role="status" style={{ marginRight: 'auto', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', maxWidth: '26rem' }}>
+                {blockedReason}
+              </span>
+            )}
             <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={onCancel}>Cancel</button>
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              disabled={saving || !box || alreadySmaller}
-              title={!box ? 'Pick a size first' : alreadySmaller ? 'This image already fits inside that size' : undefined}
+              disabled={saving || blockedReason !== null}
               onClick={() => { if (mode === 'replace') setConfirming(true); else run() }}
             >
               {saving ? 'Working…' : bulk ? `Resize ${items.length} images` : 'Resize'}

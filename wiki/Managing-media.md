@@ -211,6 +211,8 @@ Tick as many pictures as you like and **Resize…** appears in the bar along the
 
 This pairs nicely with **Optimise** further down: resizing throws away pixels nobody was looking at, optimising squeezes what's left. Doing both to a stack of camera photos routinely takes a page from unpleasant to instant.
 
+Order doesn't matter. Resize a picture you've already optimised and it keeps its green **✓ Optimised** badge, because the smaller copy comes out of the same wash and is smaller still. You won't be nagged to do a job that's already done.
+
 ---
 
 ## Cut, copy and paste

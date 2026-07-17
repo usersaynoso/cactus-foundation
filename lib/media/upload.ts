@@ -600,6 +600,10 @@ export async function saveMediaRecord(data: {
   originalName?: string
   // The folder the item was uploaded into. Null/omitted = the library root.
   folderId?: string | null
+  // Whether these bytes have already been through the optimiser. Only derived
+  // images (a resize or reshape of an optimised source) pass this; a fresh
+  // upload has not been optimised and leaves it alone.
+  optimised?: boolean
 }): Promise<Media> {
   // For proxied providers the canonical serving url is always the Worker url.
   const url = isProxied(data.provider) ? `${workerUrl()}/${data.key}` : data.url
@@ -615,6 +619,7 @@ export async function saveMediaRecord(data: {
       isDecorative: data.isDecorative ?? false,
       originalName: data.originalName ?? null,
       folderId: data.folderId ?? null,
+      optimised: data.optimised ?? false,
     },
   })
 }
@@ -825,12 +830,20 @@ async function persistDerivedImage(
       isDecorative: media.isDecorative,
       originalName: finalName,
       folderId: media.folderId,
+      // A derived copy of an optimised image is still optimised: it comes off
+      // the same encoder, at fewer pixels, so it is smaller than the source it
+      // was cut from. Dropping the badge here sent people back to optimise an
+      // image that was already WebP and already smaller.
+      optimised: media.optimised,
     })
   }
 
   // Replace in place — mirror optimiseMediaInPlace: store the new blob, repoint
   // the existing row (id untouched), rewrite embedded url/key references, then
-  // delete the superseded blob. optimised is reset because the bytes changed.
+  // delete the superseded blob. optimised rides along with the source: the new
+  // bytes are the same encoder's output at fewer pixels, so an optimised image
+  // stays optimised through a resize rather than being offered up for a second,
+  // pointless pass.
   const oldKey = media.key
   const oldUrl = media.url
   // Keep the key in whichever form it is already in. Reshaping or cropping an
@@ -852,7 +865,7 @@ async function persistDerivedImage(
       url: result.url,
       mimeType: result.mimeType,
       sizeBytes: result.sizeBytes,
-      optimised: false,
+      optimised: media.optimised,
     },
   })
 
