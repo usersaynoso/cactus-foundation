@@ -878,7 +878,7 @@ function SectionBlock(props: any) {
   const {
     id, content, bg = { mode: 'none', color: '' }, bgImage = '', bgSize = 'cover',
     overlayColor = '', overlayOpacity = 0,
-    paddingY = 'lg', maxWidth = 'standard', maxWidthCustom = '', textColor = '',
+    paddingY = 'lg', maxWidth = 'standard', maxWidthCustom = '', paddingX = '', textColor = '',
     contentAlign = 'top',
     sticky = 'off', stickyOffset = '0px',
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
@@ -948,11 +948,19 @@ function SectionBlock(props: any) {
     if (v === 'custom') return (pickResponsive(mwCustomRv, d) ?? '').trim() || '960px'
     return maxWidthMap[v] ?? '960px'
   }
-  // Horizontal gutter. Every width keeps the 1.5rem side padding that stops text
-  // kissing the viewport edge - except 'edge' (edge-to-edge), which drops it to 0
-  // so heroes/maps/full-width media reach the screen edge. Resolved per breakpoint
-  // like the width itself, so a section can be edge-to-edge on desktop only.
-  const pxAt = (d: Device) => (pickResponsive(mwRv, d) ?? 'standard') === 'edge' ? '0' : '1.5rem'
+  // Horizontal gutter. Blank ('Auto') keeps the long-standing default: 1.5rem of
+  // side padding that stops text kissing the viewport edge, dropped to 0 for
+  // 'edge' (edge-to-edge) so heroes/maps/full-width media reach the screen edge.
+  // An explicit value wins, which is the only way to get a chosen max-width used
+  // in full - the box is border-box, so the gutter eats into it (a custom 1920px
+  // otherwise leaves 1872px of usable width). Resolved per breakpoint like the
+  // width itself, so a section can be edge-to-edge on desktop and padded on mobile.
+  const pxRv = normalizeResponsiveValue<string>(paddingX)
+  const pxAt = (d: Device) => {
+    const explicit = (pickResponsive(pxRv, d) ?? '').trim()
+    if (explicit) return explicit
+    return (pickResponsive(mwRv, d) ?? 'standard') === 'edge' ? '0' : '1.5rem'
+  }
   const isScreen = (v: string | undefined) => v === 'screen'
   const pyPad = (v: string | undefined) => paddingYMap[isScreen(v) ? 'lg' : (v ?? 'lg')] ?? '6rem'
   const desktopPy = pickResponsive(pyRv, 'desktop')
@@ -2702,6 +2710,7 @@ export const puckConfig = {
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full bleed' }, { value: 'edge', label: 'Edge to edge (no padding)' }, { value: 'narrow', label: 'Narrow (720px)' }, { value: 'standard', label: 'Standard (960px)' }, { value: 'wide', label: 'Wide (1200px)' }, { value: 'custom', label: 'Custom…' }], render: ResponsiveSelectField },
         maxWidthCustom: { type: 'custom' as const, label: 'Custom max-width', units: ['px', '%', 'rem', 'vw', 'ch'], render: ResponsiveUnitValueField },
+        paddingX: { type: 'custom' as const, label: 'Side padding (blank = automatic)', units: ['px', 'rem', '%', 'vw'], render: ResponsiveUnitValueField },
         contentAlign: { type: 'custom' as const, label: 'Content vertical alignment', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }], render: ResponsiveSelectField },
         textColor: { type: 'custom' as const, label: 'Text colour override', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         sticky: { type: 'select' as const, label: 'Sticky', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'Stick to top' }] },
@@ -2714,7 +2723,7 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', paddingX: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
       // Only applicable fields survive: the image picker/size belong to the
       // 'image' background (though they stay visible while a legacy block still
       // carries an image under another mode, so a painting value is never
