@@ -1236,4 +1236,17 @@ export async function rewriteMediaReferencesInContent(
       })
     }
   }
+
+  // Puck content is core's own. A module may also hold this media's url in its own
+  // table - the shop keeps every product image's url in shp_product_media,
+  // shop-variations an image-swatch url in svr_option_values - and core has no
+  // knowledge of those tables. Each such module registers a rewriter through the
+  // core.media-reference-rewriters extension point; run them so an
+  // optimise/resize/rename/replace reaches module data too, not just the page
+  // builder. A rewriter may throw: this runs before the caller deletes the old
+  // blob, so a failure aborts with the old url still serving rather than 404ing.
+  const { getMediaReferenceRewriters } = await import('@/lib/media/reference-rewriters')
+  for (const rewrite of getMediaReferenceRewriters()) {
+    await rewrite({ oldUrl, newUrl, oldKey, newKey })
+  }
 }
