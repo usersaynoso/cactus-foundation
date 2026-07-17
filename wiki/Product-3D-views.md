@@ -68,6 +68,31 @@ The rules are meant to match what a shopper expects:
 
 ---
 
+## The fabric configurator
+
+Some products are the same shape in a great many fabrics - a chair offered in two dozen seat colours and two dozen back colours is nine hundred-odd combinations, and uploading a model for each is a day nobody wants. The fabric configurator does it the other way round: **one model, re-coloured live** as the shopper picks. Change the seat colour and the seat fabric changes on the model in front of them; change the back and the back changes. No reload, no second file.
+
+It sits below the model list on the **3D views** tab, and appears only on a product that has variations. To set it up you need three things in place first:
+
+1. **The model has named fabric parts.** When your 3D file was made, each fabric area needs a name - "Fabric seat" and "Fabric back", say. Click **Detect from model** and the configurator lists the names it finds. If it finds none, the file's fabric areas were not named, and your supplier will need to name them.
+2. **A colour option per part.** Your product's variations supply the colours - a **Seat Colour** option and a **Back Colour** option, each with its swatches. In the configurator you simply point each fabric part at the option that changes it.
+3. **A size for the swatches.** Fabric swatches come at real-world sizes - a 10×10 cm sample and a 20×20 cm sample tile differently on the same seat - so the weave is drawn at true scale. You set this up with a **Product Attribute** (for example "Seat Material Size") holding the sizes, and point each fabric part at it. The **Scale** slider lets you nudge the weave until it matches a real swatch, with a live preview to check against; you only do this once per model.
+
+If a part of the shape changes rather than just its colour - a headrest that is there on one option and not on another - add a **model rule** for it, pointing each option value at the file that has it. The configurator shows one file or the other; the colours are still painted on whichever is showing.
+
+Shoppers see a single **3D configurator** in the gallery that updates as they choose, rather than a separate thumbnail per colour.
+
+**One thing to finish off:** for the weave to be true-scale everywhere, each variation needs its material size filled in on the **Attributes** tab. Until that is done the configurator falls back to a sensible default size, so the product works from day one - it simply won't be pin-sharp on scale until the sizes are in.
+
+The configurator only appears to shoppers once you have set a **default model** in it and saved. Leave it untouched and your product behaves exactly as any other 3D product does.
+
+### Not yet, but on the list
+
+- **Leather as well as fabric.** Swapping between fabric and leather is more than a colour change - leather catches the light differently - so for now keep those as separate whole-model choices rather than a live swap.
+- **Rectangular swatches.** A 10×20 cm swatch is read as 10 for now; square swatches are exact.
+
+---
+
 ## Where the files live
 
 Models are filed in your media library alongside the product's photographs, under:
