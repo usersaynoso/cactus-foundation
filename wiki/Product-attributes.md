@@ -26,17 +26,23 @@ Untick **Show in filters** to keep an attribute for your own reference without o
 
 1. Open any product (**Shop → Products →** the product).
 2. Go to its **Attributes** tab.
-3. Tick whatever applies, then hit the product's **Save changes** button.
+3. Pick the attributes this product uses from the **Add an attribute** list.
+4. For an ordinary attribute, tick its value ("Material: Oak"). Then hit the product's **Save changes** button.
 
-That's the whole job for a straightforward product. There's no separate save for attributes any more: they go with the rest of the product, so one button does everything and the tab keeps an amber dot until it's done.
+There's no separate save for attributes: they go with the rest of the product, so one button does everything and the tab keeps an amber dot until it's done. **Remove** takes an attribute back off the product (and forgets its values for it).
+
+Each attribute you add carries two tick-boxes:
+
+- **Use for variations** - the value changes from one variant to the next (a jumper in red, blue and green). See below.
+- **Show in shop filters** - untick to keep an attribute on the product for your own reference without offering it to shoppers here. Useful when you only added it to organise the variants. This is per product; the shop-wide **Show in filters** on the attribute itself still applies on top, so an attribute switched off there is hidden everywhere regardless.
 
 ## Products with variants
 
-If you have the **Shop Variations** module, the same tab gains a **Per-variant attributes** section.
+If you have the **Shop Variations** module, a product's variants often differ in exactly the thing people filter by. A shirt that comes in red, blue and green isn't really "a red shirt" - but someone filtering for red should still find it.
 
-This matters because a product's variants often differ in exactly the thing people filter by. A shirt that comes in red, blue and green isn't really "a red shirt" - but someone filtering for red should still find it. So attributes can sit on an individual variant, and the product turns up whenever **any** of its variants match.
+Tick **Use for variations** on an attribute and it turns up as its own column on that product's **Variations** tab. Each variant row gets a dropdown, so a red/small and a blue/large can each carry their own Colour. The product then turns up whenever **any** of its variants match. The values save themselves as you pick them, alongside each variant's price and stock - there's no separate save for that column.
 
-Click **Show variants** to expand the list and tick values onto each one.
+An attribute set to Use for variations is no longer ticked here on the product as a whole; its value lives per variant instead.
 
 ### Importing what you've already typed
 
@@ -45,10 +51,15 @@ You've likely already set up Size and Colour as variation options. No need to ty
 Click **Copy from variations** and Cactus will:
 
 - turn each of the product's variation options into an attribute (so "Colour" becomes a Colour filter),
+- mark it **Use for variations** and put it as a column on the Variations tab,
 - create the values it finds, carrying over any colours you picked for swatches,
-- and tick each value onto exactly the variants that use it.
+- and set each variant's value to match.
 
 It matches on the option's name, so if three products all have a "Colour" option they all feed the same shop-wide Colour filter rather than making three of them. Run it again whenever you change a product's variants - it tidies up after itself rather than piling duplicates on top.
+
+### Bulk-editing in the Google Sheet
+
+If you have the **Google Sheet** module, each **Use for variations** attribute becomes an extra column on the sheet's Variations tab, named after the attribute. Type or change a variant's value there and it comes back in on the next Pull, the same as price or stock. A value you type that didn't exist yet is created for you.
 
 ## Putting the filter on your shop
 

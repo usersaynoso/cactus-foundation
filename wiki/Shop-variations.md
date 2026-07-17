@@ -27,7 +27,7 @@ Click the little square in a row's Photo column to pick that combination's photo
 
 ### Other modules can add columns here
 
-Some modules add a column of their own beside Photo, for things that belong to one combination rather than to the product as a whole. If you have [Product 3D views](Product-3D-views) installed, that is where its **3D** column turns up: drop a model file onto a row and that combination has one.
+Some modules add a column of their own beside Photo, for things that belong to one combination rather than to the product as a whole. If you have [Product 3D views](Product-3D-views) installed, that is where its **3D** column turns up: drop a model file onto a row and that combination has one. If you have [Product Attributes](Product-attributes) installed and tick **Use for variations** on an attribute, it adds a column here too, so each combination can carry its own Colour, Material or the like.
 
 Columns like these save as soon as you use them, rather than waiting for **Save changes** with the rest of the grid. They deal in uploaded files, and a file has either arrived or it hasn't. If you have no such modules, you simply won't see any extra columns.
 
