@@ -77,12 +77,22 @@ export const ModuleManifestSchema = z.object({
   }).optional(),
   // Settings tabs this module contributes to the core admin's /config page.
   // Rendered generically, permission-filtered the same way as navEntries.
+  //
+  // `host` moves the panel out of the top-level Settings tab strip and into a
+  // named slot another module publishes in its own settings UI. The slot name is
+  // an arbitrary string the publishing module documents and reads live from
+  // Module.manifest; core has no knowledge of any specific slot name. Core
+  // resolves the panel and hands both a merged node and the id/label to the host
+  // (see app/cactus-admin/config/page.tsx and lib/modules/hosted-settings.ts). A
+  // panel whose host slot no module publishes simply doesn't render, so a `host`
+  // pointing at an uninstalled module is inert rather than an error.
   settingsTabs: z.array(z.object({
     id: z.string().min(1),
     label: z.string().min(1),
     permission: z.string().optional(),
     import: z.string().min(1),
     component: z.string().min(1),
+    host: z.string().optional(),
   })).default([]),
   // Other modules (by name + minimum version) that must be installed and active
   // before this module can be installed. Enforced by the install/uninstall routes.

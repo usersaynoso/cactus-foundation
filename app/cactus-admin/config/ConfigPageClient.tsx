@@ -10,6 +10,7 @@ import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
+import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
 import MembersGdprClient from './MembersGdprClient'
 import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
 import RolesClient from './RolesClient'
@@ -526,8 +527,13 @@ type ConfigPageInnerProps = {
   // Panels contributed by other modules to a named slot (e.g. 'shop.payments'),
   // pre-rendered server-side and handed to the hosting module's settings tab.
   // Optional: a page with no hosted panels is valid, so the config page never
-  // has to supply it.
-  hostedSettingsSlots?: Record<string, ReactNode>
+  // has to supply either.
+  //
+  // Same panels, two shapes: merged per slot, or separate and still carrying the
+  // manifest's id/label. A host that gives each panel its own tab needs the
+  // labels. See lib/modules/hosted-settings.ts.
+  hostedSettingsSlots?: HostedSettingsSlots
+  hostedSettingsPanels?: HostedSettingsPanels
   canManageMembersSettings: boolean
   canManageRoles: boolean
   canManageEmailTemplates: boolean
@@ -539,7 +545,7 @@ type ConfigPageInnerProps = {
   membersGdprExtensions: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -2519,7 +2525,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
       {moduleTabs.map((t) => {
         if (tab !== t.id) return null
         const ModuleTab = moduleSettingsTabComponents[t.id]
-        return ModuleTab ? <ModuleTab key={t.id} hostedSettingsSlots={hostedSettingsSlots} /> : null
+        return ModuleTab ? <ModuleTab key={t.id} hostedSettingsSlots={hostedSettingsSlots} hostedSettingsPanels={hostedSettingsPanels} /> : null
       })}
     </div>
   )

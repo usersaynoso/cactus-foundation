@@ -78,6 +78,22 @@ So everything belonging to a product sits together in one place, rather than mod
 
 ---
 
+## Fine-tuning the viewer
+
+Everything above works out of the box, and most shops will never need to touch a single setting. If you do want to change how your models are lit or handled, the controls live under **Settings → Shop → 3D Viewer**. They apply to every model on the site, not one product at a time, and they arrive set to the same sensible defaults the viewer has always used - so opening the tab changes nothing until you actually move something. There is a **Reset to defaults** button for when you have fiddled yourself into a corner.
+
+The settings come in four groups.
+
+**Lighting.** The studio your models stand in. The most useful control here is the one for shiny surfaces: chrome, steel and glass have no colour of their own and show you nothing but a reflection of the room, so if a polished product looks dull or too dark, turn the studio up. You can also switch on a **shadow** under the model to ground it rather than leave it floating - worth a look at your own products first, mind, because a model whose photograph already has a shadow baked in will end up wearing two. There is a colour-handling choice for the odd model that looks washed out here but perfect in whatever built it.
+
+**Stage.** What sits behind the model. Transparent is the default and suits most shops, since it quietly follows your light and dark modes without being asked. You can swap it for a solid colour of your choosing, or show the studio itself behind the model.
+
+**Handling.** How the model behaves when a shopper takes hold of it - whether it turns slowly on its own, how fast, whether they can slide it about, and how near or far they can zoom. Anyone who has asked their device for less movement still gets a still model whatever you set here; that is their call to make, not yours to override.
+
+**Speed.** Only worth touching if shoppers on older phones tell you the viewer is struggling. On anything reasonably modern the defaults cost nothing.
+
+---
+
 ## If something looks wrong
 
 **The thumbnail is there but the model never appears.** The file may be too complex, or damaged. Try re-exporting it as GLB.

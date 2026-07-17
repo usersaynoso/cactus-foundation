@@ -4,6 +4,7 @@ import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
+import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
 import { buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, type ModuleManifestNav, type EditorNavSection } from '@/lib/nav/admin-menu'
 import ConfigPageClient from './ConfigPageClient'
 
@@ -45,27 +46,34 @@ export default async function ConfigPage() {
   const granted = user ? await hasPermissions(user, permissionKeys) : {}
 
   // Two destinations for a module's settings tab: the top-level Settings tab
-  // strip (`moduleTabs`), or another module's slot (`hostedSlotNodes`, keyed by
+  // strip (`moduleTabs`), or another module's slot (`hostedSlotPanels`, keyed by
   // the tab's `host`). Hosted panels are resolved and rendered here so the slot
   // host (a client component nested deep in this page) receives ready-made nodes
   // and never has to import the module registry itself.
+  //
+  // Each panel keeps the `id` and `label` from its manifest entry alongside the
+  // rendered node. A host that only drops panels into a section of its own UI has
+  // no use for either, but one that gives each panel its own tab cannot work
+  // without the label - a tab strip needs it before it renders anything, and
+  // there is no getting it back out of a merged node. Both shapes go down; see
+  // lib/modules/hosted-settings.ts.
   const moduleTabs: Array<{ id: string; label: string }> = []
-  const hostedSlotNodes: Record<string, ReactNode[]> = {}
+  const hostedSlotPanels: HostedSettingsPanels = {}
   for (const manifest of manifests) {
     if (!manifest?.settingsTabs) continue
     for (const t of manifest.settingsTabs) {
       if (t.permission && !granted[t.permission]) continue
       if (t.host) {
         const Panel = moduleSettingsTabComponents[t.id]
-        if (Panel) (hostedSlotNodes[t.host] ??= []).push(<Panel key={t.id} />)
+        if (Panel) (hostedSlotPanels[t.host] ??= []).push({ id: t.id, label: t.label, node: <Panel key={t.id} /> })
       } else {
         moduleTabs.push({ id: t.id, label: t.label })
       }
     }
   }
-  const hostedSettingsSlots: Record<string, ReactNode> = {}
-  for (const [host, nodes] of Object.entries(hostedSlotNodes)) {
-    hostedSettingsSlots[host] = <>{nodes}</>
+  const hostedSettingsSlots: HostedSettingsSlots = {}
+  for (const [host, panels] of Object.entries(hostedSlotPanels)) {
+    hostedSettingsSlots[host] = <>{panels.map((p) => p.node)}</>
   }
 
   // "Users" tab (Members settings / Roles / Email templates) - a merge of what
@@ -186,6 +194,7 @@ export default async function ConfigPage() {
       <ConfigPageClient
         moduleTabs={moduleTabs}
         hostedSettingsSlots={hostedSettingsSlots}
+        hostedSettingsPanels={hostedSlotPanels}
         canManageMembersSettings={canManageMembersSettings}
         canManageRoles={canManageRoles}
         canManageEmailTemplates={canManageEmailTemplates}
