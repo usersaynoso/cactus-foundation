@@ -15,11 +15,13 @@ It needs the **Shop** module installed and up to date. Once both are in, every p
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
 5. Click **Generate variants**. Cactus creates one behind-the-scenes product for each combination, so the cart, checkout, stock and refunds all just work.
 
-You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use the **Fill every row** boxes above the grid to do the lot in one go. Untick a row to take that combination off sale without deleting it.
+You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use the **Fill every row** boxes above the grid to do the lot in one go. Untick a row to take that combination off sale without deleting it, or use the **Delete** button at the end of the row to be rid of it for good - handy when a big pile of options throws up combinations you'll never actually sell. When there are more columns than fit, the grid scrolls sideways and the first column, the one naming each combination, stays put so you never lose track of which row you're on.
 
 Edits to the grid are saved by the product's own **Save changes** button, along with everything else on the product - one button, one save, no wondering which bits went and which didn't. Rows you've touched are highlighted until they're saved, and the tab keeps an amber dot while anything is outstanding. Adding an option or generating the variants happens there and then, since those are jobs rather than typed-in details.
 
-If you change your options and the combinations no longer add up, the tab says so and offers **Rebuild from options** - which keeps the combinations you've already priced and only adds or removes the ones that changed.
+A really big set of options - hundreds of combinations - is built a batch at a time rather than all in one click, so it might not finish on the first go. When that happens the tab tells you how many are built so far and gives you a **Continue building options** button: keep pressing it until the two numbers meet. Nothing you've already priced is disturbed, it only adds the combinations still missing.
+
+If instead you change your options so there are now more combinations on the grid than your options call for, that same button becomes **Rebuild from options** - which keeps the combinations you've already priced and only adds or removes the ones that changed.
 
 Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again. Whichever photo you pick gets filed into the product's own folder in your media library, alongside the product's main photos, so all of one product's pictures live together rather than scattered about.
 
@@ -38,6 +40,12 @@ Settled on "Colour" and then decided it should say "Finish"? Click the name of a
 The order your options and their values appear in is the order the customer meets them on the product page, so it's worth getting right - Size before Colour, or your sizes running S, M, L rather than however they happened to be typed in.
 
 Each option and each value now carries a little grip handle (the dots to its left). Drag an option by its handle to slot it above or below another, and drag a value by its handle to move it along its own row. Values stay within their own option - you can't accidentally fling "Large" into your list of colours. The new order is saved as you drop, and the storefront follows suit; there's nothing to press afterwards. A handle only appears once there's more than one thing to shuffle, since a single option has nowhere to go.
+
+### Revealing options in order
+
+Sometimes a later choice only makes sense once an earlier one is made - pick the frame before the glass, the model before the trim. From the second option down, each one carries a tickbox: **Only show once "[the option above]" is chosen**. Tick it and that option stays out of sight on the product page until the customer has picked the one before it, so they meet the choices one at a time instead of all at once.
+
+The first option never gets the tickbox, since there's nothing before it to wait on. The tick only hides the option until its turn comes - it doesn't change the combinations, the prices or anything a customer can eventually buy; it just keeps the page from showing every choice at once when they'd rather be led through them. Drag an option that had the tick set up to the top and it quietly stops hiding, on the same "nothing before it" logic.
 
 ### Changing a swatch colour
 
