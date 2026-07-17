@@ -19,7 +19,7 @@ You'll then get a grid with one row per combination. Set each one's price, stock
 
 Edits to the grid are saved by the product's own **Save changes** button, along with everything else on the product - one button, one save, no wondering which bits went and which didn't. Rows you've touched are highlighted until they're saved, and the tab keeps an amber dot while anything is outstanding. Adding an option or generating the variants happens there and then, since those are jobs rather than typed-in details.
 
-A really big set of options - hundreds of combinations - is built a batch at a time rather than all in one click, so it might not finish on the first go. When that happens the tab tells you how many are built so far and gives you a **Continue building options** button: keep pressing it until the two numbers meet. Nothing you've already priced is disturbed, it only adds the combinations still missing.
+A really big set of options - hundreds of combinations - is built a batch at a time rather than all in one click, because each combination is a genuine behind-the-scenes product and there's a limit to how many can be made in one go. You still only press the button once: the count climbs as it works through the batches and stops when it's done. If you close the tab halfway, nothing is lost - the **Continue building options** button picks up exactly where it left off, and it only ever adds the combinations still missing, so anything you've already priced is left well alone.
 
 If instead you change your options so there are now more combinations on the grid than your options call for, that same button becomes **Rebuild from options** - which keeps the combinations you've already priced and only adds or removes the ones that changed.
 
