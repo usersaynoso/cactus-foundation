@@ -151,6 +151,8 @@ The photo and its thumbnails are sized to fit the screen as one piece, with room
 
 Thumbnails sit on a single line that scrolls sideways if there are more than fit. A product with a dozen photos gets one tidy strip rather than three rows of them quietly eating the space the photo was meant to have.
 
+When there are more thumbnails than the line can show, the strip says so rather than leaving the shopper to guess: the last one fades out at the edge with a small arrow to walk the strip along, and once they've moved it, a matching arrow and fade appear at the start to go back. It works the same way as the tabs across the top of your admin pages, and it's the same strip a finger or a trackpad could always scroll - the arrows just mean nobody has to discover that for themselves. Thumbnails set to sit beside the photo rather than below it stack in a column and are left as they were.
+
 If the buy details on the right run longer than the photo - a wordy description, a long list of options - the photo and thumbnails stay with the shopper as they scroll down, rather than sliding away and leaving them reading about a product they can no longer see. On a phone the page stacks and the photo scrolls along with everything else, which is rather the point of a small screen.
 
 ### Rearranging the product page and the cards
