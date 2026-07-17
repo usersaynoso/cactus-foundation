@@ -78,7 +78,18 @@ function buildCsp(): string {
     `font-src 'self' https://fonts.gstatic.com`,
     // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
     // workerHost - direct-to-Worker PUT upload (admin > Media) fetches the Worker directly from the browser
-    `connect-src 'self' https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
+    //
+    // blob: - a 3D model (product-3d-views-for-shop) carries its textures inside the
+    // .glb, and three's GLTFLoader unpacks each one to a Blob and fetches it back
+    // through its own object URL. That fetch is connect-src's business, not
+    // img-src's, however image-shaped the thing on the other end is. Without it
+    // every embedded texture failed and the model rendered in bare white plastic -
+    // which on Deskwell's Chiro Plus meant a black fabric chair shown snow white,
+    // because the fabric was the only material whose colour came from a texture
+    // rather than a factor. A blob: URL is same-origin, unguessable and readable
+    // only by the document that made it, so this grants no reach the page hasn't
+    // already got.
+    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
     `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
     `frame-ancestors 'none'`,

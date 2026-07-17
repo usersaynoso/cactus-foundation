@@ -82,7 +82,9 @@ So everything belonging to a product sits together in one place, rather than mod
 
 **The thumbnail is there but the model never appears.** The file may be too complex, or damaged. Try re-exporting it as GLB.
 
-**The model is plain white.** It is almost certainly an OBJ, which does not carry its colours with it. Export as GLB instead.
+**The model is plain white.** If it is an OBJ, that is simply what an OBJ looks like - the file does not carry its colours with it, so export it as GLB instead.
+
+If it is a GLB and it looks right when you open it on your own computer, the site was failing to unpack the textures packed inside it, and anything coloured by a texture rather than by a flat colour came out white. A chair could lose its fabric to this while its arms and base looked perfectly normal, which made it look for all the world like a bad export. It was ours, not yours, and it is fixed - update to the latest version and give the page a refresh.
 
 **The model shows but looks tiny, or enormous.** It shouldn't - models are sized to fit automatically, whatever units they were built in. If one genuinely looks wrong, the model most likely has stray geometry far away from the object itself, dragging the sizing out; clean that up in whatever built it.
 

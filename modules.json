@@ -8,12 +8,12 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.14"
+      "version": "v0.1.15"
     },
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.2"
+      "version": "v0.1.3"
     },
     {
       "name": "product-downloads-for-shop",
