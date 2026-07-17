@@ -28,6 +28,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Directory](Directory) | Map-based listings with categories, featured entries, geocoding and a CSV importer |
 | [Product Attributes](Product-attributes) | Letting shoppers filter your shop by material, colour, room or anything else you choose |
 | [Product 3D views](Product-3D-views) | Letting shoppers turn a product round in 3D instead of squinting at one photograph |
+| [Product downloads](Product-downloads) | Putting the manual, the spec sheet and the drawing on the product page for anyone to take |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |
 | [Gemini Watermark Remover](Gemini-Watermark-Remover) | Stripping the watermark from Google Gemini images, straight into your media library |

@@ -558,6 +558,18 @@ The answer was a second, **additive** point beside the claim-and-replace one, no
 
 The general lesson: when a point is winner-takes-all and you find yourself wanting a second winner, the answer is usually a second point with different semantics, not a bigger claim.
 
+### A tab in a host's tab strip
+
+`shop.product-detail-tabs` (`modules/shop/lib/detail-tabs.ts`, shop v0.1.47) lets a module add a tab to the product page's own strip, beside Description and Specification. Its live consumer is `product-downloads-for-shop`, whose **Downloads** tab lists a product's manuals and spec sheets.
+
+It is `shop.gallery-media` copied almost line for line, and that is the point of mentioning it: once a host has one additive point, the next one is a known shape rather than a design problem. The same rules apply - every provider resolves, a throwing `load` is dropped and logged, the `Panel` is a client component, and it is resolved in `ShopProductDetail.rsc.tsx` onto `DetailPartContext` rather than inside the part. Three things it does differently are worth stealing:
+
+- **Returning null means "no tab".** A contributor with nothing for this product says so, and the strip renders exactly as it did before. Without that, installing a module would put an empty tab on every product in the catalogue - the additive point's version of the two-prices failure.
+- **`label` and `order` live on the provider object, not the manifest entry.** This is the opposite of `shop.product-editor-sections`, and deliberately. The manifest's `label` is stripped by the install-time zod schema (`lib/modules/manifest.ts` declares only `point`/`id`/`permission`/`import`/`component`, and zod drops the rest) and is only restored when `scripts/sync-module-manifests.mjs` writes the raw JSON back on the next deploy. So a manifest-labelled tab spends its first week named after its own id, behind a `fallbackLabel()` that exists solely to make that survivable. A provider *object* is always fully present, so its label always is too. Put metadata on the manifest when the contribution is a bare component that cannot describe itself; put it on the provider when the contribution is an object that can.
+- **Number the host's own items when you open them to contributions.** Shop's tabs had no order at all until this point existed; they were an array in source order. `TAB_ORDER` in `detail-parts.tsx` gives them 10/20/30/40 so a contributor can land *among* them rather than only after them, and an unordered contribution defaults to 50. Spacing by tens is the cheap part; the expensive part is remembering that "after everything" is a poor default when the host's own items have a meaningful order.
+
+One trap this point had to design around, which any host with a dual-compiled file will hit: `detail-parts.tsx` is imported by both the RSC config *and* the client Puck editor bundle, so it cannot import `lib/modules/extension-points` at all - that module's static imports reach prisma, and dragging prisma into the editor bundle breaks the build. The registry is therefore only ever touched from `ShopProductDetail.rsc.tsx`, which is server-only by construction, and the resolved contributions ride to the part as data. If a host part renders in the editor as well as on the page, resolve elsewhere.
+
 ### A column in a host's table
 
 `shop-variations.variant-columns` (`modules/shop-variations/components/admin/ProductVariationsSection.tsx`) hangs an extra column on the variants table, one cell per variant. Its live consumer is `product-3d-views-for-shop`, whose **3D** column sits beside the Image column and takes a dropped model file for that variation.
