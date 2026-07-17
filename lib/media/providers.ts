@@ -172,8 +172,12 @@ export const CLOUDFLARE_API_TOKENS_URL = 'https://dash.cloudflare.com/profile/ap
 // lets Cactus find the zone that owns your site domain and serve media from a
 // tidy media.<your-domain> address instead of the raw workers.dev one; without
 // it the deploy still works and falls back to the workers.dev URL.
+// Named on its own because it's the one the Worker upload itself needs: listing
+// accounts succeeds on far less, so this is what a 10000 on upload points at.
+export const CLOUDFLARE_WORKERS_EDIT_PERMISSION = 'Account · Workers Scripts · Edit'
+
 export const CLOUDFLARE_TOKEN_PERMISSIONS = [
-  'Account · Workers Scripts · Edit',
+  CLOUDFLARE_WORKERS_EDIT_PERMISSION,
   'Account · Account Settings · Read',
   'Zone · Zone · Read',
 ]

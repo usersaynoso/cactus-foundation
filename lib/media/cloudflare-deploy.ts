@@ -6,6 +6,7 @@
 // as MEDIA_WORKER_SOURCE (see scripts/generate-media-worker.mjs).
 
 import { MEDIA_WORKER_SOURCE } from './worker-source.generated'
+import { CLOUDFLARE_WORKERS_EDIT_PERMISSION } from './providers'
 
 const CF_API = 'https://api.cloudflare.com/client/v4'
 const WORKER_SCRIPT_NAME = 'cactus-media-worker'
@@ -93,7 +94,19 @@ export async function uploadWorker(
     { method: 'PUT', headers: authHeaders(auth), body: form, signal: AbortSignal.timeout(30_000) }
   )
   const body = (await res.json()) as CfResponse<unknown>
-  if (!res.ok || !body.success) throw cfError('Worker upload', body, res.status)
+  if (!res.ok || !body.success) {
+    // Cloudflare's 10000 here means the credential itself was accepted but isn't
+    // allowed to write Workers on this account. Listing accounts needs far less
+    // permission than uploading a script, so a token that got this far can still
+    // land on 10000 - say which permission is missing rather than parroting
+    // "Authentication error" at someone with no way to act on it.
+    if (body.errors?.some((e) => e.code === 10000)) {
+      throw new Error(
+        `Cloudflare wouldn't let this credential create the Worker on account ${accountId} (10000 Authentication error). Check the API token grants ${CLOUDFLARE_WORKERS_EDIT_PERMISSION} for that account, and that the Account ID is the right one.`
+      )
+    }
+    throw cfError('Worker upload', body, res.status)
+  }
 }
 
 // Ensure the account's workers.dev subdomain is claimed, enable it for this

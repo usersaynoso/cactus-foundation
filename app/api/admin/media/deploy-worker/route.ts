@@ -9,11 +9,12 @@ import {
   WORKER_SECRET_KEYS,
   CLOUDFLARE_WORKER_VAR,
   CLOUDFLARE_CREDENTIAL_KEYS,
+  ALL_CLOUDFLARE_CREDENTIAL_KEYS,
 } from '@/lib/media/providers'
 import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib/media/cloudflare-deploy'
 import { rebaseProxiedMediaUrls } from '@/lib/media/upload'
 import { deriveUploadSigningKey } from '@/lib/media/upload-token'
-import { upsertVercelEnvVars } from '@/lib/vercel/env'
+import { upsertVercelEnvVars, getVercelEnvValues } from '@/lib/vercel/env'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
 // Account lookup + Worker upload + subdomain enable can chain several Cloudflare
@@ -64,31 +65,63 @@ export async function POST(req: NextRequest) {
     return errorResponse(`${provider} is served directly and does not use a Cloudflare Worker.`, 400)
   }
 
-  // Build the Cloudflare auth from whichever credential the admin supplied.
+  // Everything the deploy needs is already stored on the Vercel project once the
+  // admin has set it up once, so nothing here should have to be retyped. Read the
+  // saved values back: the Vercel API is the freshest source (it sees values saved
+  // since this deployment was built), but it only returns `plain` vars - sensitive
+  // ones decrypt to nothing and are only reachable via process.env, i.e. after a
+  // redeploy. A Vercel hiccup is non-fatal: process.env alone still covers a site
+  // that has redeployed since its credentials were saved.
+  let stored: Record<string, string | null> = {}
+  try {
+    stored = await getVercelEnvValues(vercelToken, projectId, [
+      ...WORKER_SECRET_KEYS[provider],
+      ...ALL_CLOUDFLARE_CREDENTIAL_KEYS,
+    ])
+  } catch {
+    // Fall through to process.env only.
+  }
+
+  const savedValue = (key: string): string | undefined =>
+    stored[key] || process.env[key]?.trim() || undefined
+  // Saved on the project, but write-only and absent from this deployment: the
+  // admin can't be told to "enter it above" - they need a redeploy.
+  const isWriteOnly = (key: string): boolean => stored[key] === null && !process.env[key]?.trim()
+
+  // Build the Cloudflare auth from whichever credential the admin supplied,
+  // falling back to the one saved by an earlier deploy.
   let auth: CloudflareAuth
   if (body.authMode === 'global') {
-    const email = body.email?.trim()
-    const globalKey = body.globalKey?.trim()
+    const email = body.email?.trim() || savedValue(CLOUDFLARE_CREDENTIAL_KEYS.email)
+    const globalKey = body.globalKey?.trim() || savedValue(CLOUDFLARE_CREDENTIAL_KEYS.globalKey)
     if (!email || !globalKey) {
-      return errorResponse('Global API Key mode needs both the account email and the key.', 400)
+      return errorResponse(
+        'Global API Key mode needs both the account email and the key, and there is no saved pair to fall back on.',
+        400
+      )
     }
     auth = { kind: 'global', email, globalKey }
   } else {
-    const apiToken = body.apiToken?.trim()
-    if (!apiToken) return errorResponse('An API token is required.', 400)
+    const apiToken = body.apiToken?.trim() || savedValue(CLOUDFLARE_CREDENTIAL_KEYS.apiToken)
+    if (!apiToken) {
+      return errorResponse('An API token is required - none is saved on this site yet.', 400)
+    }
     auth = { kind: 'token', apiToken }
   }
 
+  const accountId = body.accountId?.trim() || savedValue(CLOUDFLARE_CREDENTIAL_KEYS.accountId)
+
   // Assemble the Worker secrets: each provider credential + ALLOWED_ORIGIN.
-  // Prefer a freshly-typed value from the request, else the already-deployed
-  // process.env value.
+  // Prefer a freshly-typed value from the request, else the saved one.
   const provided = body.secrets ?? {}
   const secrets: WorkerSecret[] = []
   const missing: string[] = []
+  const notLive: string[] = []
   for (const key of WORKER_SECRET_KEYS[provider]) {
-    const value = provided[key]?.trim() || process.env[key]
+    const value = provided[key]?.trim() || savedValue(key)
     if (!value) {
-      missing.push(key)
+      if (isWriteOnly(key)) notLive.push(key)
+      else missing.push(key)
       continue
     }
     secrets.push({ name: key, text: value })
@@ -122,21 +155,28 @@ export async function POST(req: NextRequest) {
     // SESSION_SECRET absent - leave uploads disabled on the Worker.
   }
 
-  if (missing.length > 0) {
-    return errorResponse(
-      `Missing credential values for: ${missing.join(', ')}. Enter and save them above first.`,
-      400
-    )
+  if (missing.length > 0 || notLive.length > 0) {
+    const parts: string[] = []
+    if (missing.length > 0) {
+      parts.push(`Missing credential values for: ${missing.join(', ')}. Enter and save them above first.`)
+    }
+    if (notLive.length > 0) {
+      const single = notLive.length === 1
+      parts.push(
+        `${notLive.join(', ')} ${single ? 'is' : 'are'} saved on your project but stored write-only, and this site hasn't redeployed since. Redeploy from the Status tab and try again, or paste the ${single ? 'value' : 'values'} above.`
+      )
+    }
+    return errorResponse(parts.join(' '), 400)
   }
 
   let url: string
-  let accountId: string
+  let resolvedAccountId: string
   let customDomain: string | null = null
   let note: string | undefined
   try {
-    const result = await deployMediaWorker({ auth, accountId: body.accountId, secrets, siteHostname })
+    const result = await deployMediaWorker({ auth, accountId, secrets, siteHostname })
     url = result.url
-    accountId = result.accountId
+    resolvedAccountId = result.accountId
     customDomain = result.customDomain
     note = result.note
   } catch (err: unknown) {
@@ -148,7 +188,7 @@ export async function POST(req: NextRequest) {
   // without re-entering anything.
   const toWrite: Array<{ key: string; value: string }> = [
     { key: CLOUDFLARE_WORKER_VAR.key, value: url },
-    { key: CLOUDFLARE_CREDENTIAL_KEYS.accountId, value: accountId },
+    { key: CLOUDFLARE_CREDENTIAL_KEYS.accountId, value: resolvedAccountId },
   ]
   if (auth.kind === 'token') {
     toWrite.push({ key: CLOUDFLARE_CREDENTIAL_KEYS.apiToken, value: auth.apiToken })

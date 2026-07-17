@@ -86,6 +86,43 @@ export async function getVercelEnvVarKeys(token: string, projectId: string): Pro
   return vars.map((v) => v.key)
 }
 
+// Reads the current values of the given keys back off the Vercel project. Use
+// this when code needs a value that was saved after the running deployment was
+// built, so process.env doesn't have it yet.
+//
+// Vercel only hands back the values of `plain` vars. Anything stored `sensitive`
+// (see SENSITIVE_KEYS) is write-only and decrypts to an empty string, so it maps
+// to null here: "this key is set, but its value cannot be recovered". Keys absent
+// from the result are not set on the project at all. Only process.env - i.e. a
+// redeploy - can supply a sensitive value.
+export async function getVercelEnvValues(
+  token: string,
+  projectId: string,
+  keys: string[],
+  target: VercelEnvTarget = 'production'
+): Promise<Record<string, string | null>> {
+  const res = await fetch(
+    `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env?decrypt=true`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
+    }
+  )
+  if (!res.ok) {
+    throw new Error(`Vercel API read env values failed (${res.status})`)
+  }
+  const data = (await res.json()) as { envs?: Array<VercelEnvVar & { value?: string }> }
+  const wanted = new Set(keys)
+  const out: Record<string, string | null> = {}
+  for (const env of data.envs ?? []) {
+    if (!wanted.has(env.key)) continue
+    if (!env.target?.includes(target)) continue
+    const value = env.value?.trim()
+    out[env.key] = value ? value : null
+  }
+  return out
+}
+
 // Upserts a single env var: PATCHes if the key already exists, POSTs to create otherwise.
 export async function upsertVercelEnvVar(
   token: string,

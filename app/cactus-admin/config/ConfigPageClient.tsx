@@ -25,6 +25,7 @@ import {
   CLOUDFLARE_DASH_URL,
   CLOUDFLARE_API_TOKENS_URL,
   CLOUDFLARE_TOKEN_PERMISSIONS,
+  CLOUDFLARE_CREDENTIAL_KEYS,
   WORKER_SECRET_KEYS,
   ALL_PROVIDERS,
   envKeysForProvider,
@@ -751,6 +752,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
   const [cfDeploying, setCfDeploying] = useState(false)
   const [cfResult, setCfResult] = useState<{ ok: boolean; url?: string; message: string } | null>(null)
 
+  // A credential saved by an earlier deploy stands in for a blank field, so
+  // re-running the setup needs nothing retyped. The values themselves are
+  // write-only in Vercel and never come back to the browser - only their
+  // set/not-set status does.
+  const cfSavedToken = !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.apiToken]
+  const cfSavedGlobal = !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.globalKey] && !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.email]
+  const cfCredentialReady = cfAuthMode === 'token'
+    ? !!cfToken.trim() || cfSavedToken
+    : (!!cfEmail.trim() && !!cfGlobalKey.trim()) || cfSavedGlobal
+
   const handleDeployWorker = useCallback(async (provider: MediaProviderType) => {
     setCfDeploying(true)
     setCfResult(null)
@@ -783,8 +794,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
         setCfResult({ ok: false, message: data?.error ?? 'Worker deployment failed.' })
         return
       }
-      // Success: the Worker URL is now saved server-side, so reflect it as set.
-      setEnvStatus((s) => ({ ...s, [CLOUDFLARE_WORKER_VAR.key]: true }))
+      // Success: the Worker URL and the credential that deployed it are now saved
+      // server-side, so reflect them as set - that's what lets a later re-run go
+      // ahead with the fields left blank.
+      setEnvStatus((s) => ({
+        ...s,
+        [CLOUDFLARE_WORKER_VAR.key]: true,
+        [CLOUDFLARE_CREDENTIAL_KEYS.accountId]: true,
+        ...(cfAuthMode === 'token'
+          ? { [CLOUDFLARE_CREDENTIAL_KEYS.apiToken]: true }
+          : { [CLOUDFLARE_CREDENTIAL_KEYS.globalKey]: true, [CLOUDFLARE_CREDENTIAL_KEYS.email]: true }),
+      }))
       // Drop the pasted credentials from component memory now they're stored.
       setCfToken('')
       setCfGlobalKey('')
@@ -2269,6 +2289,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                         <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically</h4>
                         <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
                           Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine.
+                          {' '}Your {PROVIDER_LABELS[selected]} credentials are picked up from your saved settings, so there&apos;s nothing to re-enter here.
                         </p>
                         {localMode ? (
                           <div className="alert alert-info" style={{ fontSize: '0.8125rem', margin: 0 }}>
@@ -2288,9 +2309,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                         </div>
                         {cfAuthMode === 'token' ? (
                           <div className="field">
-                            <label style={{ fontSize: '0.8125rem' }}>Cloudflare API token</label>
-                            <input type="password" autoComplete="off" value={cfToken} onChange={(e) => setCfToken(e.target.value)} placeholder="Paste your API token" style={{ fontSize: '0.875rem' }} />
+                            <label style={{ fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Cloudflare API token {cfSavedToken && <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span>}</span>
+                              {cfSavedToken && <StatusBadge set />}
+                            </label>
+                            <input type="password" autoComplete="off" value={cfToken} onChange={(e) => setCfToken(e.target.value)} placeholder={cfSavedToken ? 'Leave blank to reuse your saved token' : 'Paste your API token'} style={{ fontSize: '0.875rem' }} />
                             <span className="field-hint">
+                              {cfSavedToken && <>Your saved token is used unless you paste a new one here. </>}
                               <a href={CLOUDFLARE_API_TOKENS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Create a token ↗</a>
                               {' '}- click <strong>Create Custom Token</strong> and grant: {CLOUDFLARE_TOKEN_PERMISSIONS.join('; ')}.
                             </span>
@@ -2298,13 +2323,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                         ) : (
                           <>
                             <div className="field">
-                              <label style={{ fontSize: '0.8125rem' }}>Cloudflare account email</label>
-                              <input type="email" autoComplete="off" value={cfEmail} onChange={(e) => setCfEmail(e.target.value)} placeholder="you@example.com" style={{ fontSize: '0.875rem' }} />
+                              <label style={{ fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Cloudflare account email {cfSavedGlobal && <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span>}</span>
+                                {cfSavedGlobal && <StatusBadge set />}
+                              </label>
+                              <input type="email" autoComplete="off" value={cfEmail} onChange={(e) => setCfEmail(e.target.value)} placeholder={cfSavedGlobal ? 'Leave blank to reuse your saved details' : 'you@example.com'} style={{ fontSize: '0.875rem' }} />
                             </div>
                             <div className="field">
-                              <label style={{ fontSize: '0.8125rem' }}>Global API Key</label>
-                              <input type="password" autoComplete="off" value={cfGlobalKey} onChange={(e) => setCfGlobalKey(e.target.value)} placeholder="Paste your Global API Key" style={{ fontSize: '0.875rem' }} />
+                              <label style={{ fontSize: '0.8125rem' }}>Global API Key {cfSavedGlobal && <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span>}</label>
+                              <input type="password" autoComplete="off" value={cfGlobalKey} onChange={(e) => setCfGlobalKey(e.target.value)} placeholder={cfSavedGlobal ? 'Leave blank to reuse your saved key' : 'Paste your Global API Key'} style={{ fontSize: '0.875rem' }} />
                               <span className="field-hint">
+                                {cfSavedGlobal && <>Your saved details are used unless you enter new ones. </>}
                                 <a href={CLOUDFLARE_API_TOKENS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Find your Global API Key ↗</a>
                                 {' '}- same page, under <strong>API Keys</strong>. It has full account access, so a scoped token is safer.
                               </span>
@@ -2312,8 +2341,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                           </>
                         )}
                         <div className="field">
-                          <label style={{ fontSize: '0.8125rem' }}>Account ID <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span></label>
-                          <input type="text" autoComplete="off" value={cfAccountId} onChange={(e) => setCfAccountId(e.target.value)} placeholder="Auto-detected - only needed if you have several Cloudflare accounts" style={{ fontSize: '0.875rem' }} />
+                          <label style={{ fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Account ID <span style={{ color: 'var(--color-text-muted)' }}>(optional)</span></span>
+                            {envStatus[CLOUDFLARE_CREDENTIAL_KEYS.accountId] && <StatusBadge set />}
+                          </label>
+                          <input type="text" autoComplete="off" value={cfAccountId} onChange={(e) => setCfAccountId(e.target.value)} placeholder={envStatus[CLOUDFLARE_CREDENTIAL_KEYS.accountId] ? 'Leave blank to reuse the account this site already deploys to' : 'Auto-detected - only needed if you have several Cloudflare accounts'} style={{ fontSize: '0.875rem' }} />
                         </div>
                         {cfResult && (
                           <div className={cfResult.ok ? 'alert alert-success' : 'alert alert-danger'} style={{ fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>
@@ -2323,7 +2355,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, canManageMembersSett
                         <button
                           className="btn btn-primary"
                           style={{ fontSize: '0.875rem', marginTop: '0.6rem' }}
-                          disabled={cfDeploying || (cfAuthMode === 'token' ? !cfToken.trim() : !(cfEmail.trim() && cfGlobalKey.trim()))}
+                          disabled={cfDeploying || !cfCredentialReady}
                           onClick={() => handleDeployWorker(selected)}
                         >
                           {cfDeploying ? 'Deploying…' : 'Deploy Worker'}
