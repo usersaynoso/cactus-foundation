@@ -19,7 +19,7 @@ You will also need a Google account you are happy to keep the sheet in.
 
 ## Setting it up
 
-Everything lives under **Settings → Google Sheet** (a tab alongside your other site settings).
+The one-off setup lives under **Settings → Google Sheet** (a tab alongside your other site settings). Once you are set up, the everyday **Push** and **Pull** buttons move to your Products page - see below.
 
 ### 1. Register your own Google project
 
@@ -40,7 +40,8 @@ If you leave it in Testing, Google quietly cuts off access after **seven days** 
 
 1. Click **Connect Google** and sign in when prompted. The settings tab will then show "Connected as ..." with your account.
 2. Click **Create the sheet**. Cactus makes a fresh Google Sheet - always its own, never one you picked - with three tabs: **Products**, **Variations**, and a **Read me** with the short version of this page.
-3. Use the link on the settings tab to open it whenever you like.
+
+Once the sheet exists, the settings tab is done with its job. The day-to-day buttons - **Push**, **Pull**, **Open sheet** and the sync log - live on your **Products** page from now on, under a **Google Sheet** button next to New product. Settings stays as the one-off setup.
 
 ---
 
@@ -54,15 +55,27 @@ There is an **Include cost price** switch on the settings tab. It is on by defau
 
 ## Pushing and pulling
 
+You do both from your **Products** page: look for the **Google Sheet** button up by New product, and everything is on the little menu it drops down - Open sheet, Push, Pull, and Sheet logs. The button only appears once your sheet is set up, so a shop that isn't using this feature never sees it.
+
 ### Push to sheet (your site → the sheet)
 
 Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations.
 
 ### Pull from sheet (the sheet → your site)
 
-This is the one to take a breath over, so it makes you look first. Click **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, how many it will delete, any rows it can't make sense of, and - importantly - a named list of everything that is **"In the shop but not in your sheet."**
+This is the one to take a breath over, so it makes you look first. Choose **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, how many it will delete, any rows it can't make sense of, and - importantly - a named list of everything that is **"In the shop but not in your sheet."**
 
 Nothing has changed at this point. When you are happy, press the button in the preview to actually do it.
+
+### Watching it work, and picking up where it left off
+
+Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
+
+If something interrupts it - you close the tab, your connection drops, a stubborn row trips it up - it doesn't lose its place. It stops exactly where it got to, and a **Continue** appears (on that same Google Sheet menu, and in the Pull window) to carry on from there rather than starting the whole thing over. Everything it does is safe to repeat, so continuing never doubles anything up. You can also just cancel and leave things as they are.
+
+### Sheet logs
+
+**Sheet logs** on the menu opens a window listing your recent Pushes and Pulls, with what each one changed - handy for a quick "did that last Pull actually land?" without leaving the Products page.
 
 A few things the preview will tell you:
 
