@@ -191,7 +191,11 @@ Selling something a photograph struggles with - furniture, a lamp, anything with
 
 Worth knowing: the zoom works on the shopper's biggest copy of the photo, so a small, low-resolution upload will magnify into a blurry mess. If you're turning this on, upload your product photos at a decent size.
 
-When the shop status is set to closed, visitors see your closed message instead of the shop page. Anyone signed in with Shop access still sees the shop itself, with a note at the top reminding them it is closed to everyone else, so you can check the place over before you reopen.
+When the shop status is set to closed, visitors see your closed message instead of the shop. That covers every shop page, not just the front one: product pages, categories, collections, the cart, the checkout, order lookups and download links all show the closed message too. Closed means closed, including to somebody who kept a link to a particular product and tried it directly.
+
+Anyone signed in with Shop access still sees the whole shop as normal, with a note at the top of each page reminding them it's closed to everyone else, so you can walk the place over before you reopen.
+
+One deliberate exception: the unsubscribe link at the bottom of a back-in-stock email keeps working while you're closed. Someone who wants off your list should never have to wait for you to open the doors again.
 
 ---
 
