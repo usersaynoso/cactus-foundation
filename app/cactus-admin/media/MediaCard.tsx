@@ -20,8 +20,8 @@ export type MediaCardItem = {
 
 // A single grid tile. The thumbnail opens the detail panel, the checkbox selects,
 // right-click gives the full action menu - and on hover a small toolbar surfaces
-// the two most-wanted quick actions (Optimise, Copy link) so they aren't hidden
-// behind a right-click.
+// the most-wanted quick actions (Optimise, Replace, Copy link) so they aren't
+// hidden behind a right-click.
 export default function MediaCard({
   item,
   selected = false,
@@ -33,9 +33,12 @@ export default function MediaCard({
   onDragEnd,
   onContextMenu,
   onOptimise,
+  onReplace,
   onCopyLink,
   optimisable = false,
   optimising = false,
+  replaceable = false,
+  replacing = false,
   tags,
   dimmed = false,
 }: {
@@ -51,12 +54,18 @@ export default function MediaCard({
   onContextMenu?: (e: MouseEvent, id: string) => void
   /** Quick-optimise this item. Absent when the viewer can't upload. */
   onOptimise?: (id: string) => void
+  /** Pick a fresh file to take this item's place. Absent when the viewer can't upload. */
+  onReplace?: (id: string) => void
   /** Copy the item's URL to the clipboard. */
   onCopyLink?: (item: MediaCardItem) => void
   /** True when this item can still be optimised (raster, not SVG, not already done). */
   optimisable?: boolean
   /** True while this item's optimise is in flight. */
   optimising?: boolean
+  /** True when this item's file is a type the library can accept a replacement for. */
+  replaceable?: boolean
+  /** True while this item's replacement is uploading. */
+  replacing?: boolean
   tags?: string[]
   /** Faded appearance - used while the item sits on the cut clipboard. */
   dimmed?: boolean
@@ -64,6 +73,7 @@ export default function MediaCard({
   const isImage = item.mimeType.startsWith('image/')
   const filename = filenameOf(item)
   const showOptimise = !!onOptimise && optimisable
+  const showReplace = !!onReplace && replaceable
   const showCopy = !!onCopyLink
   const [broken, setBroken] = useState(false)
   // An image that isn't flagged decorative and carries no alt text is an
@@ -111,7 +121,7 @@ export default function MediaCard({
           <span title="No alt text - add some for accessibility and SEO" aria-label="Missing alt text" style={altBadge}>Alt?</span>
         )}
 
-        {(showOptimise || showCopy) && (
+        {(showOptimise || showReplace || showCopy) && (
           <div className="media-card__actions" style={hoverActions}>
             {showOptimise && (
               <button
@@ -123,6 +133,18 @@ export default function MediaCard({
                 style={actionBtn}
               >
                 {optimising ? '…' : '⚡'}
+              </button>
+            )}
+            {showReplace && (
+              <button
+                type="button"
+                title="Replace with another file"
+                aria-label={`Replace ${filename}`}
+                disabled={replacing}
+                onClick={(e) => { e.stopPropagation(); onReplace?.(item.id) }}
+                style={actionBtn}
+              >
+                {replacing ? '…' : '🔄'}
               </button>
             )}
             {showCopy && (

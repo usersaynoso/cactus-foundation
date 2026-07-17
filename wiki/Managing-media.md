@@ -138,6 +138,30 @@ If a file you're moving or renaming would end up with the same name as one alrea
 
 ---
 
+## Replacing a file
+
+New photo of the same product? Logo redrawn? A typo spotted in a graphic after it went up in nine places? **Replace** swaps the file for a fresh one while keeping the item itself, so everything already pointing at it carries on pointing at it and simply shows the new picture.
+
+You'll find it three ways:
+
+- Hover any tile in the grid and click the **🔄** button.
+- Right-click a file and choose **Replace file…**.
+- Open a file's preview and use **Replace file…** in the action row.
+
+Pick your new file and that's it. The item keeps its name, its folder, its alt text and its tags - only the picture changes. Every page, product and setting using it updates in one go, with nothing to go round and re-point by hand.
+
+This is the bit worth knowing: it's *not* the same as uploading the new file and deleting the old one. That way round, every page still holding the old file goes blank, and you get to find each one yourself. Replacing keeps them all working.
+
+A couple of things to expect:
+
+- **There's no undo.** The old file is gone from your storage once the new one is in. If you might want it back, download it first.
+- **Big files are fine** - the same generous limit as a normal upload, with a progress bar in the notification bell while it goes up.
+- **Occasionally Cactus will say no**, and it'll tell you why. Some pictures are filed under a fixed name by another part of your site - product photos, most often - and for those the replacement has to be the same type of file as the original: a JPEG for a JPEG, a PNG for a PNG. Swapping the type would move the file to a new address that the shop wouldn't know to follow, and your product photo would quietly vanish from the storefront while sitting perfectly safe in your library. Easier to say no up front. Save the new picture in the matching format and it'll go straight through.
+
+If what you actually want is a *changed* version of the picture you've already got - trimmed, reshaped, or scaled down - the next three sections do that without you leaving Cactus at all.
+
+---
+
 ## Cropping and editing images
 
 Need to trim an image down or reframe it? **Edit image…** opens a built-in crop tool - no need to fire up Photoshop for a quick tidy-up. You'll find it two ways: right-click any picture, or open its preview and use the button in the action row. (It only shows for photos - the sort of vector logo that scales to any size has nothing to crop.)

@@ -161,3 +161,78 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
   onProgress?.(1)
   return record
 }
+
+// ---------------------------------------------------------------------------
+// Replace — the same two paths, aimed at an item that already exists. The bytes
+// take over that row instead of starting a new one, so the app picks the key
+// (from the item's own folder and name) rather than the client, and the finishing
+// call is /[id]/replace rather than /record.
+// ---------------------------------------------------------------------------
+
+// True when the direct path carried it; false to mean "fall back". A thrown error
+// is a hard failure and must not be retried on the other path.
+async function directReplace(mediaId: string, file: File, onProgress?: ProgressFn): Promise<boolean> {
+  let res: Response
+  try {
+    res = await fetch('/api/admin/media/upload-url', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, contentType: file.type, replaceId: mediaId }),
+    })
+  } catch {
+    return false
+  }
+  // 409 is the app refusing this replacement outright (it would have to rename the
+  // file, stranding whatever points at it). The serverless path refuses it for the
+  // same reason, so surface it now rather than after pushing the whole file up.
+  if (res.status === 409) throw new Error(await uploadErrorMessage(res, file))
+  if (!res.ok) return false
+
+  let info: UploadUrlResponse
+  try {
+    info = await res.json()
+  } catch {
+    return false
+  }
+  if (!info.available) return false
+
+  const put = await xhrSend(
+    'PUT',
+    info.uploadUrl,
+    file,
+    { 'content-type': file.type, authorization: `Bearer ${info.token}` },
+    onProgress,
+  )
+  if (!put.ok) return false
+
+  // The bytes are stored; this one must succeed or the item is left pointing at
+  // its old file with no sign anything happened.
+  const done = await fetch(`/api/admin/media/${mediaId}/replace`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ key: info.key, token: info.token, sizeBytes: file.size }),
+  })
+  if (!done.ok) throw new Error(await uploadErrorMessage(done, file))
+  return true
+}
+
+async function serverlessReplace(mediaId: string, file: File, onProgress?: ProgressFn): Promise<void> {
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`${file.name}: ${tooLargeReason(file.size)}`)
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await xhrSend('POST', `/api/admin/media/${mediaId}/replace`, fd, {}, onProgress)
+  if (!res.ok) throw new Error(await uploadErrorMessage(asResponse(res), file))
+}
+
+// Swap one existing item's file for `file`, keeping the item and every reference
+// to it. Throws with a user-ready message on failure.
+export async function replaceOneFile(mediaId: string, file: File, onProgress?: ProgressFn): Promise<void> {
+  if (isRasterDirectType(file.type)) {
+    if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
+      throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
+    }
+    if (await directReplace(mediaId, file, onProgress)) { onProgress?.(1); return }
+  }
+  await serverlessReplace(mediaId, file, onProgress)
+  onProgress?.(1)
+}

@@ -720,39 +720,15 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
     return { optimised: false, reason: 'Already as small as it gets', before, after }
   }
 
-  const oldKey = media.key
-  const oldUrl = media.url
-
-  // Store the WebP under a new key, then point the existing row at it. Id is
-  // untouched, so id-based references need no change. Keep the item under its
-  // current folder path so optimising doesn't quietly shunt it back to the root
-  // (lazy import breaks the upload↔organise module cycle).
+  // Store the WebP under a new key, then point the existing row at it. Keep the
+  // item under its current folder path so optimising doesn't quietly shunt it
+  // back to the root (lazy import breaks the upload↔organise module cycle).
+  // repointMediaToBlob owns the rest: the row swap, the reference rewrite, and
+  // dropping the pre-optimise blob last.
   const { resolveFolderPath } = await import('@/lib/media/organise')
   const folderPath = await resolveFolderPath(media.folderId)
   const result = await uploadMedia(encoded, 'image/webp', media.provider, media.originalName ?? undefined, folderPath || undefined)
-
-  await prisma.media.update({
-    where: { id: media.id },
-    data: {
-      key: result.key,
-      url: result.url,
-      mimeType: result.mimeType,
-      sizeBytes: result.sizeBytes,
-      optimised: true,
-    },
-  })
-
-  // Rewrite url/key references embedded in Puck content before deleting the old
-  // blob, so a failure here leaves the old blob still serving the old url.
-  await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
-
-  // Delete the pre-optimise blob. Best-effort: a storage hiccup shouldn't undo
-  // an otherwise-successful optimise (the row already points at the new blob).
-  try {
-    await deleteMedia(media.provider, oldKey)
-  } catch {
-    // Orphaned original left in storage; harmless, still deletable later.
-  }
+  await repointMediaToBlob(media, result, { optimised: true })
 
   return { optimised: true, before, after }
 }
@@ -838,25 +814,44 @@ async function persistDerivedImage(
     })
   }
 
-  // Replace in place — mirror optimiseMediaInPlace: store the new blob, repoint
-  // the existing row (id untouched), rewrite embedded url/key references, then
-  // delete the superseded blob. optimised rides along with the source: the new
-  // bytes are the same encoder's output at fewer pixels, so an optimised image
-  // stays optimised through a resize rather than being offered up for a second,
+  // Replace in place. optimised rides along with the source: the new bytes are
+  // the same encoder's output at fewer pixels, so an optimised image stays
+  // optimised through a resize rather than being offered up for a second,
   // pointless pass.
-  const oldKey = media.key
-  const oldUrl = media.url
+  //
   // Keep the key in whichever form it is already in. Reshaping or cropping an
   // exact-named image used to hand it a nanoid key, which renamed the file and
-  // moved its url — and rewriting references only reaches Puck content, so a url
-  // held anywhere else (a module's own table: the shop keeps its product images'
-  // urls in shp_product_media) was left pointing at the old key, which the
-  // delete below then removed. The image vanished from the storefront while
-  // sitting perfectly intact in the library under a name nothing referenced.
-  // An exact name is deterministic, so the derived blob lands back on the very
-  // key it came from and no reference has to move at all.
+  // moved its url — see repointMediaToBlob for what that cost. An exact name is
+  // deterministic, so the derived blob lands back on the very key it came from
+  // and no reference has to move at all.
   const exactName = isExactNameKey(media.key, media.originalName)
   const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined, exactName)
+  return repointMediaToBlob(media, result, { optimised: media.optimised })
+}
+
+// ---------------------------------------------------------------------------
+// The tail every in-place rewrite shares — optimise, crop, reshape, resize, and
+// swapping the file outright. Point the existing row at the new blob (id
+// untouched, so every id-based reference survives), move any embedded url/key
+// references on to it, and only then let go of the blob it superseded.
+//
+// The order is the whole point: a failure at any step leaves the old blob still
+// serving the old url, rather than a row pointing at bytes that were never
+// written. Its owner is this one function so the five callers can't drift apart
+// on the fiddly bits.
+// ---------------------------------------------------------------------------
+async function repointMediaToBlob(
+  media: Media,
+  result: UploadResult,
+  data: {
+    optimised: boolean
+    // Only passed when the swap changes the display name (a replacement file of a
+    // different type re-extensions it). Omitted leaves the name alone.
+    originalName?: string | null
+  },
+): Promise<Media> {
+  const oldKey = media.key
+  const oldUrl = media.url
 
   const updated = await prisma.media.update({
     where: { id: media.id },
@@ -865,12 +860,19 @@ async function persistDerivedImage(
       url: result.url,
       mimeType: result.mimeType,
       sizeBytes: result.sizeBytes,
-      optimised: media.optimised,
+      optimised: data.optimised,
+      ...(data.originalName !== undefined ? { originalName: data.originalName } : {}),
     },
   })
 
   // Nothing to rewrite when the blob stayed put: every url, key and id reference
   // to it still resolves, wherever it is held.
+  //
+  // When it hasn't stayed put, this reaches Puck content and nothing else — a url
+  // held in a module's own table (the shop keeps its product images' urls in
+  // shp_product_media) is left behind. That is why callers keep an exact-named
+  // key exactly where it was: it is the only form whose new key is guaranteed to
+  // equal its old one.
   if (result.key !== oldKey || result.url !== oldUrl) {
     await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
   }
@@ -880,13 +882,101 @@ async function persistDerivedImage(
   // would delete the image itself.
   if (result.key !== oldKey) {
     try {
-      await deleteMedia(provider, oldKey)
+      await deleteMedia(media.provider, oldKey)
     } catch {
       // Orphaned superseded blob left in storage; harmless, still deletable later.
     }
   }
 
   return updated
+}
+
+// ---------------------------------------------------------------------------
+// Replace the file — swap an item's bytes for a freshly uploaded file, keeping
+// the item itself. Same Media.id, same folder, same name, same alt text, same
+// tags, and every reference to it still resolves; only the pixels change. That
+// is the entire difference between this and uploading a new file and deleting
+// the old one, which is what people did instead and which broke every page the
+// old file was on.
+// ---------------------------------------------------------------------------
+
+// A replacement that would have to rename the file to go ahead. Its own type so
+// the route can answer 409 with a reason a person can act on, rather than a 500.
+export class MediaReplaceTypeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MediaReplaceTypeError'
+  }
+}
+
+// Where a replacement blob for `media` has to land.
+//
+// The item keeps its identity through a replace, so the key is rebuilt from what
+// the row already says — its provider, its folder, its name — and only the
+// extension follows the new bytes' type.
+//
+// Which is why an exact-named item (see lib/media/keys.ts) can only be replaced
+// by a file of its own type. Its name IS its key, so a new extension means a new
+// key; reference rewriting reaches Puck content and nothing else, so the url the
+// shop holds for that product image in its own table would be left pointing at
+// the blob this then deletes. The image would vanish from the storefront while
+// sitting perfectly intact in the library. Refuse, and say so, instead.
+export async function planMediaReplacement(
+  media: Media,
+  mimeType: string,
+): Promise<{ key: string; originalName: string | null; folderPath: string; exactName: boolean }> {
+  const exactName = isExactNameKey(media.key, media.originalName)
+  if (exactName && mimeType !== media.mimeType) {
+    throw new MediaReplaceTypeError(
+      `“${media.originalName ?? media.key}” is filed under a fixed name by another part of the site, so its replacement has to be a ${fileKindLabel(media.mimeType)} as well.`
+    )
+  }
+
+  // Lazy import breaks the upload↔organise module cycle, as in optimiseMediaInPlace.
+  const { resolveFolderPath } = await import('@/lib/media/organise')
+  const folderPath = await resolveFolderPath(media.folderId)
+  // Keep the name the item is known by; only correct its extension so it can't
+  // claim to be a PNG while holding JPEG bytes. A row with no name (a generated
+  // file) stays nameless and takes the nanoid form.
+  const originalName = media.originalName ? withExtensionForMime(media.originalName, mimeType) : null
+  const key = buildKey(media.provider, mimeType, originalName ?? undefined, folderPath || undefined, exactName)
+  return { key, originalName, folderPath, exactName }
+}
+
+// Replace an item's bytes with `buffer`. The serverless path: the bytes came
+// through a route, so they have been validated by validateUpload (real image,
+// SVG sanitised) before reaching here.
+export async function replaceMediaFile(
+  media: Media,
+  buffer: Buffer,
+  mimeType: string,
+): Promise<Media> {
+  const plan = await planMediaReplacement(media, mimeType)
+  // The blob goes to the provider the ROW lives on, not the active selection —
+  // an item uploaded before a provider switch still has to be replaced where it
+  // actually is.
+  const result = await uploadMedia(buffer, mimeType, media.provider, plan.originalName ?? undefined, plan.folderPath || undefined, plan.exactName)
+  // A file someone just picked has not been through the optimiser, whatever the
+  // item it replaces had been — so the badge clears and the item is offered for
+  // optimising again, exactly as a fresh upload of the same file would be.
+  return repointMediaToBlob(media, result, { optimised: false, originalName: plan.originalName })
+}
+
+// Replace an item's bytes with a blob the client already PUT straight to the
+// Worker (the direct path — see /upload-url's replaceId and /[id]/replace). The
+// bytes are in storage; this only moves the row and the references on to them.
+export async function adoptReplacementBlob(
+  media: Media,
+  key: string,
+  mimeType: string,
+  sizeBytes: number,
+  originalName: string | null,
+): Promise<Media> {
+  // The direct path is only ever signed for the S3-compatible family, whose
+  // canonical serving url is the Worker's.
+  if (!isS3Provider(media.provider)) throw new Error('This item is not stored on a provider the direct upload path can write to.')
+  const result: UploadResult = { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes }
+  return repointMediaToBlob(media, result, { optimised: false, originalName })
 }
 
 // Guard shared by every derive path: the row exists and its bytes are something

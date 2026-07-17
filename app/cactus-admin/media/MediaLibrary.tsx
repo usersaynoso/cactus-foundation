@@ -14,9 +14,9 @@ import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
 import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-client'
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
-import { uploadOneFile } from '@/lib/media/upload-client'
-import { preflightUploadError } from '@/lib/media/limits'
-import { formatBytes } from './format'
+import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
+import { preflightUploadError, isAcceptedUploadType } from '@/lib/media/limits'
+import { formatBytes, filenameOf } from './format'
 import type { MediaCardItem } from './MediaCard'
 import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
@@ -35,6 +35,15 @@ function isOptimisable(item: { mimeType: string; optimised: boolean }): boolean 
 // answer for the same reason.
 function isRasterImage(item: { mimeType: string }): boolean {
   return item.mimeType.startsWith('image/') && item.mimeType !== 'image/svg+xml'
+}
+
+// True when an item's file can be swapped for a fresh one. Gated on what the
+// library itself accepts, which keeps Replace off the rows it can't produce a
+// sane replacement for: a module's 3D model records its own rows here, and the
+// file picker only offers images, so the only "replacement" on offer for a model
+// would be one that breaks it.
+function isReplaceable(item: { mimeType: string }): boolean {
+  return isAcceptedUploadType(item.mimeType)
 }
 type CollisionState =
   | { kind: 'rename'; id: string; newName: string; name: string }
@@ -101,6 +110,7 @@ export default function MediaLibrary({
   const [fileDragOver, setFileDragOver] = useState(false)
   const uploadSeq = useRef(0)
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
+  const [replacingIds, setReplacingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
   const [skippedInUse, setSkippedInUse] = useState<{ id: string; references: string[] }[]>([])
 
@@ -132,6 +142,11 @@ export default function MediaLibrary({
   const sentinelRef = useRef<HTMLDivElement>(null)
   // Hidden file input driven by the empty-state and whitespace-menu "upload" actions.
   const whitespaceUploadRef = useRef<HTMLInputElement>(null)
+  // And its counterpart for Replace, plus the item the next pick is aimed at. A
+  // ref, not state: the picker is opened and read within one user gesture, so
+  // nothing needs to re-render because a target was chosen.
+  const replaceInputRef = useRef<HTMLInputElement>(null)
+  const replaceTargetId = useRef<string | null>(null)
 
   // Restore the saved grid/list preference once, on the client. Must run in an
   // effect, not a lazy initializer: reading localStorage during render would
@@ -495,6 +510,50 @@ export default function MediaLibrary({
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') } finally { setBusy('') }
   }
 
+  // Open the file picker for a replacement. Which item it's aimed at rides on a
+  // ref through the browser's own dialog and comes back in the input's change.
+  function chooseReplacement(id: string) {
+    replaceTargetId.current = id
+    replaceInputRef.current?.click()
+  }
+
+  // Swap one item's file for a freshly picked one. The item survives - same id,
+  // name, folder, alt text, tags - so every page and product pointing at it keeps
+  // working and just shows the new picture. That's the whole reason this exists
+  // rather than "upload the new one, delete the old one".
+  //
+  // Goes through the upload queue like any other upload, so a big file replacing
+  // an image shows a live progress bar in the bell rather than a silent spinner.
+  async function replaceItem(id: string, file: File) {
+    const target = items.find((i) => i.id === id)
+    const reason = preflightUploadError(file)
+    const taskId = `u${++uploadSeq.current}`
+    addUploads([{
+      id: taskId,
+      name: file.name,
+      size: file.size,
+      destination: folderName(target?.folderId ?? null),
+      status: reason ? 'error' : 'uploading',
+      progress: 0,
+      error: reason ?? undefined,
+    }])
+    if (reason) { pushToast('error', reason); return }
+
+    setReplacingIds((prev) => new Set(prev).add(id))
+    try {
+      await replaceOneFile(id, file, (fraction) => updateUpload(taskId, { progress: fraction }))
+      updateUpload(taskId, { status: 'done', progress: 1 })
+      pushToast('success', target ? `Replaced ${filenameOf(target)}` : 'File replaced')
+      await fetchItems()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Replace failed'
+      updateUpload(taskId, { status: 'error', error: msg })
+      pushToast('error', msg)
+    } finally {
+      setReplacingIds((prev) => { const n = new Set(prev); n.delete(id); return n })
+    }
+  }
+
   // Report a ratio change the way the user experienced it: how many actually
   // changed shape, and why any were left alone (already that shape, or a JPEG
   // asked for transparency). Skips aren't failures, so they read as info.
@@ -836,9 +895,12 @@ export default function MediaLibrary({
                   onDragEnd={onDragEnd}
                   onContextMenu={(e, id) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, id }) }}
                   onOptimise={canUpload ? optimiseSingle : undefined}
+                  onReplace={canUpload ? chooseReplacement : undefined}
                   onCopyLink={copyLink}
                   optimisable={isOptimisable(item)}
                   optimising={optimisingIds.has(item.id)}
+                  replaceable={isReplaceable(item)}
+                  replacing={replacingIds.has(item.id)}
                   tags={item.tags}
                   dimmed={clipboardIdSet.has(item.id)}
                 />
@@ -886,6 +948,8 @@ export default function MediaLibrary({
           savingTags={savingTags}
           savingMeta={savingMeta}
           optimising={optimisingIds.has(openItem.id)}
+          replacing={replacingIds.has(openItem.id)}
+          replaceable={isReplaceable(openItem)}
           onClose={() => setOpenId(null)}
           onPrev={() => { const p = items[openIndex - 1]; if (p) setOpenId(p.id) }}
           onNext={openNext}
@@ -898,6 +962,7 @@ export default function MediaLibrary({
           onCopy={() => { setClipboard({ mode: 'copy', ids: [openItem.id] }); setOpenId(null) }}
           onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: [openItem.id] }) }}
           onOptimise={() => optimiseSingle(openItem.id)}
+          onReplace={() => chooseReplacement(openItem.id)}
           onCopyLink={() => copyLink(openItem)}
           onDownload={() => downloadItem(openItem)}
           onSaveTags={(names) => saveTags(openItem, names)}
@@ -946,8 +1011,10 @@ export default function MediaLibrary({
             hasClipboard={!!clipboard}
             canEdit={!!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml'}
             canOptimise={!!it && isOptimisable(it)}
+            canReplace={!!it && isReplaceable(it)}
             onOpen={() => setOpenId(id)}
             onOptimise={() => optimiseSingle(id)}
+            onReplace={() => chooseReplacement(id)}
             onCopyLink={() => { if (it) copyLink(it) }}
             onDownload={() => { if (it) downloadItem(it) }}
             onCut={() => setClipboard({ mode: 'cut', ids: selected.has(id) ? Array.from(selected) : [id] })}
@@ -1111,6 +1178,24 @@ export default function MediaLibrary({
           onChange={(e) => { if (e.target.files && e.target.files.length > 0) enqueueFiles(e.target.files); e.target.value = '' }}
         />
       )}
+
+      {/* And the one behind every Replace action. Single-file: a replacement is one
+          file taking one item's place, so there is nothing to do with a second. */}
+      {canUpload && (
+        <input
+          ref={replaceInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            const id = replaceTargetId.current
+            replaceTargetId.current = null
+            e.target.value = ''
+            if (file && id) replaceItem(id, file)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1206,17 +1291,18 @@ function menuItem(label: string, fn: () => void, danger = false, disabled = fals
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, onOpen, onOptimise, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onChangeRatio, onResize, onDelete }: {
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, canReplace, onOpen, onOptimise, onReplace, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onChangeRatio, onResize, onDelete }: {
   menu: { x: number; y: number }
-  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean
-  onOpen: () => void; onOptimise: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onChangeRatio: () => void; onResize: () => void; onDelete: () => void
+  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean; canReplace: boolean
+  onOpen: () => void; onOptimise: () => void; onReplace: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onChangeRatio: () => void; onResize: () => void; onDelete: () => void
 }) {
   return (
-    <MenuShell menu={menu}>
+    <MenuShell menu={menu} height={390}>
       {menuItem('Open details', onOpen)}
       {menuItem('Copy link', onCopyLink)}
       {menuItem('Download', onDownload)}
       {canUpload && canOptimise && menuItem('Optimise', onOptimise)}
+      {canUpload && canReplace && menuItem('Replace file…', onReplace)}
       {canUpload && canEdit && menuItem('Edit image…', onEdit)}
       {canUpload && canEdit && menuItem('Change ratio…', onChangeRatio)}
       {canUpload && canEdit && menuItem('Resize…', onResize)}

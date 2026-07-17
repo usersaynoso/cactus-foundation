@@ -20,6 +20,8 @@ export default function MediaDetailPanel({
   savingTags,
   savingMeta,
   optimising,
+  replacing,
+  replaceable,
   onClose,
   onPrev,
   onNext,
@@ -32,6 +34,7 @@ export default function MediaDetailPanel({
   onCopy,
   onDelete,
   onOptimise,
+  onReplace,
   onCopyLink,
   onDownload,
   onSaveTags,
@@ -48,6 +51,9 @@ export default function MediaDetailPanel({
   savingTags: boolean
   savingMeta: boolean
   optimising: boolean
+  replacing: boolean
+  /** True when this item's file is a type the library can accept a replacement for. */
+  replaceable: boolean
   onClose: () => void
   onPrev: () => void
   onNext: () => void
@@ -60,6 +66,7 @@ export default function MediaDetailPanel({
   onCopy: () => void
   onDelete: () => void
   onOptimise: () => void
+  onReplace: () => void
   onCopyLink: () => void
   onDownload: () => void
   onSaveTags: (names: string[]) => void
@@ -260,6 +267,7 @@ export default function MediaDetailPanel({
           <button type="button" className="btn btn-secondary btn-sm" onClick={onCopyLink}>Copy link</button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onDownload}>Download</button>
           {canManage && canOptimise && <button type="button" className="btn btn-secondary btn-sm" disabled={optimising} onClick={onOptimise}>{optimising ? 'Optimising…' : 'Optimise'}</button>}
+          {canManage && replaceable && <button type="button" className="btn btn-secondary btn-sm" disabled={replacing} title="Swap the file for a fresh one, keeping this item and everything pointing at it" onClick={onReplace}>{replacing ? 'Replacing…' : 'Replace file…'}</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onChangeRatio}>Change ratio…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onResize}>Resize…</button>}
