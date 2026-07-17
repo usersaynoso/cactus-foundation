@@ -560,7 +560,7 @@ The general lesson: when a point is winner-takes-all and you find yourself wanti
 
 ### A tab in a host's tab strip
 
-`shop.product-detail-tabs` (`modules/shop/lib/detail-tabs.ts`, shop v0.1.47) lets a module add a tab to the product page's own strip, beside Description and Specification. Its live consumer is `product-downloads-for-shop`, whose **Downloads** tab lists a product's manuals and spec sheets.
+`shop.product-detail-tabs` (`modules/shop/lib/detail-tabs.ts`, shop v0.1.50) lets a module add a tab to the product page's own strip, beside Description and Specification. Its live consumer is `product-downloads-for-shop`, whose **Downloads** tab lists a product's manuals and spec sheets.
 
 It is `shop.gallery-media` copied almost line for line, and that is the point of mentioning it: once a host has one additive point, the next one is a known shape rather than a design problem. The same rules apply - every provider resolves, a throwing `load` is dropped and logged, the `Panel` is a client component, and it is resolved in `ShopProductDetail.rsc.tsx` onto `DetailPartContext` rather than inside the part. Three things it does differently are worth stealing:
 
