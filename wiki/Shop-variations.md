@@ -11,7 +11,7 @@ It needs the **Shop** module installed and up to date. Once both are in, every p
 
 1. Open any product in your shop (Shop → Products → the product).
 2. Go to its **Variations** tab. It sits right there on the product, alongside Details, Pricing and the rest - there's no separate screen to go off to any more, so you won't lose half-finished edits getting there.
-3. Add an option - give it a name like "Size", pick how it should look on the page (a dropdown, a row of pills, or colour swatches), and type in the values (`S, M, L, XL`). Choose colour swatches and each value gets a colour of its own: use the picker, or type the hex code straight into the box beside it if your brand guide has already made the decision for you.
+3. Add an option - give it a name like "Size", pick how it should look on the page (a dropdown, a row of pills, colour swatches, or image swatches), and type in the values (`S, M, L, XL`). Choose colour swatches and each value gets a colour of its own: use the picker, or type the hex code straight into the box beside it if your brand guide has already made the decision for you. Choose image swatches and each value gets a little picture instead - see [Image swatches](#image-swatches) below.
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
 5. Click **Generate variants**. Cactus creates one behind-the-scenes product for each combination, so the cart, checkout, stock and refunds all just work.
 
@@ -36,6 +36,16 @@ Settled on "Colour" and then decided it should say "Finish"? Click the name of a
 ### Changing a swatch colour
 
 Picked a red, then found out the actual red? Click the coloured dot next to any swatch value. The picker and the hex box both open, so you can nudge it by eye or paste in the code you were given. The tick saves it, Enter does the same, and Escape leaves it as it was. A value that never got a colour shows a dotted outline instead of a dot - click that to give it one.
+
+### Image swatches
+
+Some choices simply aren't a colour. An oak worktop, a herringbone weave, a marble finish - describing any of those with a single hex code is a losing battle, and "Walnut" in a dropdown asks the customer to already know what walnut looks like.
+
+So pick **Image swatch** as the option's type and each value carries a picture instead of a dot. Add your values as usual (`Oak, Walnut, Ash`), then click the dotted square beside each one to give it its picture: choose one you've already got in your media library, or upload it there and then. Click the picture again later if you'd rather use a different one.
+
+On the product page each value shows as a thumbnail with its name beside it. The name stays put on purpose - a picture answers "which one is that?" but only the name answers "what's it called?", and a customer who can't see the picture is left with nothing at all otherwise.
+
+A value you haven't given a picture to yet just shows its name, so an option half-way through being set up looks unfinished rather than broken.
 
 Renaming a value tidies up after itself: the variants it appears in are relabelled to match, so nothing is left calling itself Red when it's now Crimson. Your prices, stock, SKUs and photos all stay exactly where they were - there's no need to generate the variants again. Orders already placed keep the name they were bought under, which is rather the point of an order.
 
