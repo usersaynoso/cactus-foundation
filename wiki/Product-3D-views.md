@@ -2,7 +2,7 @@
 
 Some things are hard to sell from a photograph. A chair has a back, a lamp has a shape that a single angle flatters or ruins, and a shopper who cannot see round the thing tends to go and look somewhere they can.
 
-This module lets you upload a 3D model to a product - or to one of its variations - and shows it in the product gallery as an extra thumbnail with a small **3D** badge, turning slowly on its own so nobody has to be told it does something. Click it and the model takes the place of the main photograph, where a shopper can turn it, slide it about and zoom in as close as they like.
+This module lets you upload a 3D model to a product - or to one of its variations - and leads the product gallery with it. On a product that has a model the big view opens on the model rather than a photograph, and its thumbnail sits at the front of the strip with a small **3D** badge, turning slowly on its own so nobody has to be told it does something. A shopper can turn it, slide it about and zoom in as close as they like from the off; the photographs are right there in the strip for anyone who would rather see one.
 
 Requires the **Shop** module. It works alongside **Shop Variations** if you have it, and perfectly well without.
 
@@ -15,7 +15,7 @@ Requires the **Shop** module. It works alongside **Shop Variations** if you have
 3. If the product has variations, pick what the model is for: **the whole product**, or one particular variation.
 4. Click **Add a 3D model** and choose your file.
 
-That is the whole job. The model appears on the product page straight away - there is no layout to edit and no block to drag in. Your photographs stay exactly where they are; the 3D thumbnail simply joins them in the strip.
+That is the whole job. The model appears on the product page straight away - there is no layout to edit and no block to drag in. Your photographs stay exactly where they are, just behind the 3D view, which now leads the strip and opens the gallery.
 
 To remove one, click **Remove** next to it in the list. The file is deleted properly rather than merely hidden, so it stops costing you storage.
 

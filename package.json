@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.490",
+  "version": "0.5.491",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
