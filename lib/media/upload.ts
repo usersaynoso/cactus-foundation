@@ -557,23 +557,36 @@ export async function relocateMediaBlob(
   if (isS3Provider(provider)) {
     const { client, bucket } = getS3Config(provider)
     const key = buildKey(provider, media.mimeType, name, folderPath, exactName)
-    await client.send(
-      new CopyObjectCommand({
-        Bucket: bucket,
-        // Keys only contain [a-z0-9._-/]; encodeURI keeps the slashes intact.
-        CopySource: encodeURI(`${bucket}/${media.key}`),
-        Key: key,
-        ContentType: media.mimeType,
-        MetadataDirective: 'COPY',
-        ACL: 'private',
-      })
-    )
-    return { key, url: `${workerUrl()}/${key}`, mimeType: media.mimeType, sizeBytes: media.sizeBytes }
+    try {
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: bucket,
+          // Keys only contain [a-z0-9._-/]; encodeURI keeps the slashes intact.
+          CopySource: encodeURI(`${bucket}/${media.key}`),
+          Key: key,
+          ContentType: media.mimeType,
+          MetadataDirective: 'COPY',
+          ACL: 'private',
+        })
+      )
+      return { key, url: `${workerUrl()}/${key}`, mimeType: media.mimeType, sizeBytes: media.sizeBytes }
+    } catch (err) {
+      // Server-side copy is the fast path, but it can fail for a single object
+      // where a plain re-upload of the same bytes still succeeds (a provider-side
+      // copy hiccup, a transient 5xx). Left to throw, it strands the item at its
+      // old key - and for product-image filing that surfaces as a picture stuck
+      // in the library root, because reorganiseProductMedia swallows the failure.
+      // So fall through to downloading the bytes and writing them to the very key
+      // the copy was aiming for: buildKey is deterministic, so uploadMedia below
+      // lands on that same key.
+      console.warn(`[media] server-side copy failed for ${media.key}, falling back to re-upload:`, err)
+    }
   }
 
-  // Vercel Blob, Supabase, Cloudinary, ImageKit: download the original bytes and
-  // re-upload into the new location. uploadMedia handles each provider's folder
-  // convention and returns the new key + serving url.
+  // Non-S3 providers (Vercel Blob, Supabase, Cloudinary, ImageKit), and the S3
+  // fallback above: download the original bytes and re-upload into the new
+  // location. uploadMedia handles each provider's folder convention and returns
+  // the new key + serving url.
   const buffer = await downloadMedia(provider, media.key, media.url)
   return uploadMedia(buffer, media.mimeType, provider, name, folderPath, exactName)
 }
