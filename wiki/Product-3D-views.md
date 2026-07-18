@@ -13,7 +13,7 @@ Requires the **Shop** module. It works alongside **Shop Variations** if you have
 1. Open a product under **Shop → Products**.
 2. Go to the **3D views** tab.
 3. If the product has variations, pick what the model is for: **the whole product**, or one particular variation.
-4. Click **Add a 3D model**, then either pick a file you have uploaded before or upload a new one.
+4. Click **Add a 3D model**, then either pick a file you have uploaded before or upload a new one. The picker opens in the product's own 3d folder (see [Where the files live](#where-the-files-live)), so this product's models are what you see first - you can still browse into any other folder, and the search box covers the whole library.
 
 That is the whole job. The model appears on the product page straight away - there is no layout to edit and no block to drag in. Your photographs stay exactly where they are, just behind the 3D view, which now leads the strip and opens the gallery.
 
@@ -42,6 +42,18 @@ One difference worth knowing: a model uploads the moment you drop it, rather tha
 | 3DS | Works. It is an old format and it looks it. |
 
 Models can be up to **50 MB**. Bear in mind every shopper who opens that product downloads it, so smaller is kinder - and usually looks no worse.
+
+### Models that move
+
+If your GLB has an animation saved inside it, the viewer plays it, on a loop, as soon as the shopper opens the model. A desk with a pop-up power socket rising out of the top, a drawer sliding open, a chair arm folding down - if the file does it, the viewer does it.
+
+There is nothing to switch on and nothing to configure. The movement is part of the file, so it is your 3D person's decision rather than a setting here, and a product that should move differently needs a new file rather than a new tick box.
+
+Three things worth knowing:
+
+- **Only the full viewer plays it.** Thumbnails stay still, which is rather the point of a thumbnail.
+- **A shopper who has asked their device for less on-screen movement gets a still model.** That is their setting to make, not yours to override, and it is the same rule the gentle turning motion already follows.
+- **Turning the model with your finger does not stop the animation.** The turning motion stops when touched, because it fights someone trying to look at one corner. An animation is usually the thing they opened the model to watch, so it keeps going.
 
 ### DWG and USDZ are not accepted
 
@@ -144,6 +156,8 @@ Ticking the box also brings up a preview underneath the slider, showing the prod
 If it is a GLB and it looks right when you open it on your own computer, the site was failing to unpack the textures packed inside it, and anything coloured by a texture rather than by a flat colour came out white. A chair could lose its fabric to this while its arms and base looked perfectly normal, which made it look for all the world like a bad export. It was ours, not yours, and it is fixed - update to the latest version and give the page a refresh.
 
 **Chrome, steel or aluminium looks black.** Also ours, also fixed, same advice: update and refresh. Polished metal has no colour of its own - everything you see in it is a reflection of the room it is standing in. We were not giving it a room, so it had nothing to reflect and turned black, while everything else on the same product looked perfectly fine. Your chair now stands in a plain, well-lit studio that we build for it, which is what every other 3D viewer has been quietly doing all along.
+
+**The same finish looks darker on a variation than on the product's own model.** Ours, and fixed - update and refresh. A file that arrives without its colours is given a plain grey to stand in until something paints it, and that grey was being left underneath the swatch, dimming it. So a product whose own model was a GLB and whose variation was an OBJ showed the same beech twice, a shade apart, which is precisely what the configurator exists to avoid. A part you have set to a fixed colour is untouched by this - there, the colour is the finish.
 
 **A fine fabric looks grainy or choppy when zoomed out, but fine once you zoom in.** The weave is finer than the screen can draw at that size, so it breaks up. Open the 3D viewer settings, find **Fine-detail sharpening** under Speed, and nudge it up until the surface holds together at a normal viewing distance. It costs some speed, so raise it only as far as it needs to go rather than straight to the top.
 
