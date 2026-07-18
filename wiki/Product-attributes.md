@@ -14,11 +14,22 @@ Attributes belong to the whole shop rather than to one product, which is the poi
 2. Type a name ("Material"), choose how shoppers should pick it, and click **Add**.
 3. Add its values underneath ("Oak", "Walnut", "Brass").
 
-There are three ways a shopper can pick:
+There are four ways a shopper can pick:
 
 - **Tick list** - the everyday choice. A column of tick-boxes.
 - **Colour swatches** - little coloured dots. You choose the colour for each value as you add it.
+- **Picture swatches** - small pictures instead of dots, for the things a colour can't honestly describe: an oak grain, a fabric weave, a brushed brass finish. You choose the picture for each value as you add it.
 - **Dropdown** - a single-choice menu, handy when there are a lot of values and not much room.
+
+### Picture swatches
+
+Choose **Picture swatches** when you add the attribute and each value gets a small square beside it. Click the square to pick a picture from your media library - the library has its own upload button, so a photo still on your desktop and one you filed last month are the same two clicks away. You can also drag an image file straight onto the square, which uploads it and uses it in one go.
+
+Click the square on a value that already has a picture to swap it for a different one.
+
+Pictures are filed in your media library under **Shop → Attributes → (the attribute's name)**, not under a product. That's deliberate: a value belongs to the whole shop, so the same oak picture serves every product that carries it, and it doesn't go missing the day you delete whichever product you happened to have open. Rename, crop or optimise the picture later in the library and the filter follows it - no broken squares.
+
+A value with no picture yet shows an empty dotted square, and on the shop it simply shows its label. Nothing breaks while you're still getting round to the photos.
 
 Untick **Show in filters** to keep an attribute for your own reference without offering it on the shop. Deleting an attribute takes its values with it, and removes it from every product - so it asks first.
 
@@ -33,7 +44,7 @@ There's no separate save for attributes: they go with the rest of the product, s
 
 ### Adding a value without leaving the product
 
-If the value you want isn't there yet, there's an **Add a value** box under each attribute on the tab. Type it, click **Add value**, and it's ticked on this product straight away - no trip back to the Product attributes screen halfway through writing a product. For a swatch attribute you get a colour picker alongside, same as on the main screen.
+If the value you want isn't there yet, there's an **Add a value** box under each attribute on the tab. Type it, click **Add value**, and it's ticked on this product straight away - no trip back to the Product attributes screen halfway through writing a product. For a colour attribute you get a colour picker alongside, and for a picture attribute a thumbnail to click or drop an image onto, same as on the main screen.
 
 Two things worth knowing:
 
@@ -65,7 +76,7 @@ Click **Copy from variations** and Cactus will:
 
 - turn each of the product's variation options into an attribute (so "Colour" becomes a Colour filter),
 - mark it **Use for variations** and put it as a column on the Variations tab,
-- create the values it finds, carrying over any colours you picked for swatches,
+- create the values it finds, carrying over any colours or pictures you picked for swatches (an option with pictures on it comes across as a picture attribute),
 - and set each variant's value to match.
 
 It matches on the option's name, so if three products all have a "Colour" option they all feed the same shop-wide Colour filter rather than making three of them. Run it again whenever you change a product's variants - it tidies up after itself rather than piling duplicates on top.
