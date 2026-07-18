@@ -31,6 +31,17 @@ Untick **Show in filters** to keep an attribute for your own reference without o
 
 There's no separate save for attributes: they go with the rest of the product, so one button does everything and the tab keeps an amber dot until it's done. **Remove** takes an attribute back off the product (and forgets its values for it).
 
+### Adding a value without leaving the product
+
+If the value you want isn't there yet, there's an **Add a value** box under each attribute on the tab. Type it, click **Add value**, and it's ticked on this product straight away - no trip back to the Product attributes screen halfway through writing a product. For a swatch attribute you get a colour picker alongside, same as on the main screen.
+
+Two things worth knowing:
+
+- The value joins that attribute's shop-wide list, so the next product that needs "Oak" ticks it rather than typing it again. That's rather the point: one Oak on the filter, not one per product.
+- Because it's a change to the shop's vocabulary rather than to this product, it saves the moment you click **Add value** - it doesn't wait for **Save changes**. Typing a value and then abandoning the product leaves the value behind; delete it from **Shop → Product attributes** if you don't want it.
+
+Type the same label as an existing value and Cactus quietly uses that one instead of making a near-identical twin.
+
 Each attribute you add carries two tick-boxes:
 
 - **Use for variations** - the value changes from one variant to the next (a jumper in red, blue and green). See below.
@@ -41,6 +52,8 @@ Each attribute you add carries two tick-boxes:
 If you have the **Shop Variations** module, a product's variants often differ in exactly the thing people filter by. A shirt that comes in red, blue and green isn't really "a red shirt" - but someone filtering for red should still find it.
 
 Tick **Use for variations** on an attribute and it turns up as its own column on that product's **Variations** tab. Each variant row gets a dropdown, so a red/small and a blue/large can each carry their own Colour. The product then turns up whenever **any** of its variants match. The values save themselves as you pick them, alongside each variant's price and stock - there's no separate save for that column.
+
+The dropdown ends with **+ New value…**. Pick it, type the label, press Enter, and the value is created and put on that variant in one go. It appears in every other variant's dropdown immediately, so a colour typed on row one is a click away on row twelve. Escape backs out if you change your mind. Values for a variation attribute can also be set up in advance from the product's **Attributes** tab, using the same **Add a value** box - handy if you'd rather line up the choices before working down the grid.
 
 An attribute set to Use for variations is no longer ticked here on the product as a whole; its value lives per variant instead.
 
