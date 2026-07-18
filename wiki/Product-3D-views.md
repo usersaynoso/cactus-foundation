@@ -117,7 +117,7 @@ The settings come in four groups.
 
 **Handling.** How the model behaves when a shopper takes hold of it - whether it turns slowly on its own, how fast, whether they can slide it about, and how near or far they can zoom. Anyone who has asked their device for less movement still gets a still model whatever you set here; that is their call to make, not yours to override.
 
-**Speed.** Only worth touching if shoppers on older phones tell you the viewer is struggling. On anything reasonably modern the defaults cost nothing.
+**Speed.** Mostly only worth touching if shoppers on older phones tell you the viewer is struggling - on anything reasonably modern the defaults cost nothing. The one dial here you might reach for on purpose is **Fine-detail sharpening**: turn it up if a fine fabric or other fine detail looks grainy or choppy when the whole model is on screen and tidies itself up only once a shopper zooms in. It draws the model at higher detail and smooths it back down, which does cost real speed - the top setting draws four times the work - so nudge it up only as far as it needs to go.
 
 ---
 
@@ -130,6 +130,8 @@ The settings come in four groups.
 If it is a GLB and it looks right when you open it on your own computer, the site was failing to unpack the textures packed inside it, and anything coloured by a texture rather than by a flat colour came out white. A chair could lose its fabric to this while its arms and base looked perfectly normal, which made it look for all the world like a bad export. It was ours, not yours, and it is fixed - update to the latest version and give the page a refresh.
 
 **Chrome, steel or aluminium looks black.** Also ours, also fixed, same advice: update and refresh. Polished metal has no colour of its own - everything you see in it is a reflection of the room it is standing in. We were not giving it a room, so it had nothing to reflect and turned black, while everything else on the same product looked perfectly fine. Your chair now stands in a plain, well-lit studio that we build for it, which is what every other 3D viewer has been quietly doing all along.
+
+**A fine fabric looks grainy or choppy when zoomed out, but fine once you zoom in.** The weave is finer than the screen can draw at that size, so it breaks up. Open the 3D viewer settings, find **Fine-detail sharpening** under Speed, and nudge it up until the surface holds together at a normal viewing distance. It costs some speed, so raise it only as far as it needs to go rather than straight to the top.
 
 **The fabric shows as a flat colour with no visible weave.** Your file is probably asking for the weave to be shrunk to something smaller than a human hair, which averages out to a flat colour on any screen. Models exported from pCon/EasternGraphics have this - the weave is described correctly and then shrunk by a second instruction that should not be there. Ask your supplier for a corrected export, and mention that their exporter is writing a texture transform on top of texture coordinates that already carry the scale. Do note that even a correct weave is very fine: at the size the whole chair fits on screen you will barely see it, and it only really shows once a shopper zooms in - which is rather what the 3D viewer is for.
 
