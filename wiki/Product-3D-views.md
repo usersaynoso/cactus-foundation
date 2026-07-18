@@ -61,9 +61,10 @@ The quickest way to set one is the **3D** column on the product's **Variations**
 
 The rules are meant to match what a shopper expects:
 
-- A model on **the whole product** always shows.
+- A model on **the whole product** shows while nothing more specific is on offer.
 - Models on **variations** stay tucked away until the shopper actually picks that variation - the same way the photographs behave, where a variation's own picture only turns up once it is chosen. Nobody is shown oak, walnut and ash all at once before they have decided anything.
-- Once a shopper **picks a variation**, that one's model shows alongside the product's own. Leaving the oak one on screen after somebody picked walnut is worse than showing nothing.
+- Once a shopper **picks a variation that carries its own model**, that model takes over and the whole product's own drops out of the strip. The shopper is looking at the exact thing they have configured, so a second, near-identical thumbnail of the generic one is only there to be clicked by mistake. Other variations' models go too - leaving the oak one on screen after somebody picked walnut is worse than showing nothing.
+- If the variation they pick has **no model of its own**, the product's own model stays put rather than the strip emptying.
 - If several variations share the same model file - a run of sizes in one shape, typically - upload it against each of them. The gallery works out they are the same file and shows it **once**, not once per size.
 - Changing one option away from a fully picked variation doesn't blank the model - it stays put until a new full combination is chosen (or nothing is picked at all), rather than flicking back to a photo mid-choice.
 - Once the page has settled, the shop quietly fetches the product's other models and fabric colours in the background, so switching to a different option shows the new model or colour near-instantly rather than after a short wait. It only ever runs after the page is ready, so it never holds up the first view a shopper sees.
@@ -83,7 +84,7 @@ It sits below the model list on the **3D views** tab, and appears only on a prod
 
 **Which model gets coloured.** Whatever model the chosen variation carries. Attach a model to each variation from the **3D** column on the **Variations** tab, exactly as you would its picture; if a shape changes rather than just its colour - a headrest that is there on one option and not on another - that is simply a different file on that variation, no special rule to set. Variations that are the same shape can share one file, uploaded against each. If a variation has no model of its own, the product's own model stands in. (This is also why the height is set per variation: a taller model is genuinely taller.)
 
-Shoppers see your 3D models in the gallery as normal - the product's own always, and a variation's own once they pick that variation. Once they have settled on a full combination, that variation's model leads the view, painted with the colours they chose, updating as they change their mind. There is no separate thumbnail per colour to wade through.
+Shoppers see your 3D models in the gallery as normal - the product's own to begin with, replaced by the variation's own once they pick a variation that has one. Once they have settled on a full combination, that variation's model leads the view, painted with the colours they chose, updating as they change their mind. There is no separate thumbnail per colour to wade through.
 
 **One thing to finish off:** for the weave to be true-scale everywhere, each variation needs its **swatch size** and **overall height** filled in on the **Attributes** tab. Where either is missing, that fabric still shows in the right colour - only its weave scale sits neutral until you fill the values in, so the product works from day one.
 
