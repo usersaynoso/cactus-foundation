@@ -66,6 +66,7 @@ The rules are meant to match what a shopper expects:
 - Once a shopper **picks a variation**, that one's model shows alongside the product's own. Leaving the oak one on screen after somebody picked walnut is worse than showing nothing.
 - If several variations share the same model file - a run of sizes in one shape, typically - upload it against each of them. The gallery works out they are the same file and shows it **once**, not once per size.
 - Changing one option away from a fully picked variation doesn't blank the model - it stays put until a new full combination is chosen (or nothing is picked at all), rather than flicking back to a photo mid-choice.
+- Once the page has settled, the shop quietly fetches the product's other models and fabric colours in the background, so switching to a different option shows the new model or colour near-instantly rather than after a short wait. It only ever runs after the page is ready, so it never holds up the first view a shopper sees.
 
 ---
 
