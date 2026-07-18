@@ -37,7 +37,7 @@ One difference worth knowing: a model uploads the moment you drop it, rather tha
 | --- | --- |
 | **GLB** | The one to use. Everything in one file. |
 | glTF | Fine, but if your model came as a `.gltf` with separate files beside it, only the shape will arrive. Export it as GLB instead. |
-| OBJ | Works, but carries no colours of its own, so it shows plain. |
+| OBJ | Works, but carries no colours of its own, so it shows in plain grey. |
 | FBX | Works. Tends to make big files. |
 | 3DS | Works. It is an old format and it looks it. |
 
@@ -118,6 +118,8 @@ Everything above works out of the box, and most shops will never need to touch a
 The settings come in four groups.
 
 **Lighting.** The studio your models stand in. The most useful control here is the one for shiny surfaces: chrome, steel and glass have no colour of their own and show you nothing but a reflection of the room, so if a polished product looks dull or too dark, turn the studio up. You can also switch on a **shadow** under the model to ground it rather than leave it floating - worth a look at your own products first, mind, because a model whose photograph already has a shadow baked in will end up wearing two. There is a colour-handling choice for the odd model that looks washed out here but perfect in whatever built it; picking one wakes a **Brightness** slider beside it, which sets how bright the whole catalogue renders.
+
+These controls mean the same thing whatever format your models arrived in. That was not always true: an OBJ, FBX or 3DS used to be lit by an older, simpler set of rules than a GLB, which in practice meant it turned up noticeably brighter than the GLB standing next to it and shrugged off half the lighting settings you gave it. Every model is now treated the same way, so a shop with a mix of formats looks like one shop rather than several. If you had wound a particular product's brightness down to rescue an OBJ that was blowing out, it may now be too dark - have a look at it and put the slider back where it belongs, or untick the override entirely.
 
 ### Brightness for one product
 
