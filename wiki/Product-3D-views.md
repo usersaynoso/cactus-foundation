@@ -62,8 +62,8 @@ The quickest way to set one is the **3D** column on the product's **Variations**
 The rules are meant to match what a shopper expects:
 
 - A model on **the whole product** always shows.
-- Models on **variations** show all together while the shopper has not chosen yet, so they can look through the options.
-- Once a shopper **picks a variation**, only that one's model shows. Leaving the oak one on screen after somebody picked walnut is worse than showing nothing.
+- Models on **variations** stay tucked away until the shopper actually picks that variation - the same way the photographs behave, where a variation's own picture only turns up once it is chosen. Nobody is shown oak, walnut and ash all at once before they have decided anything.
+- Once a shopper **picks a variation**, that one's model shows alongside the product's own. Leaving the oak one on screen after somebody picked walnut is worse than showing nothing.
 - If several variations share the same model file - a run of sizes in one shape, typically - upload it against each of them. The gallery works out they are the same file and shows it **once**, not once per size.
 
 ---
@@ -81,7 +81,7 @@ It sits below the model list on the **3D views** tab, and appears only on a prod
 
 If a part of the shape changes rather than just its colour - a headrest that is there on one option and not on another - add a **model rule** for it, pointing each option value at the file that has it. The configurator shows one file or the other; the colours are still painted on whichever is showing. (This is also why the height is set per variation: the with-headrest model is genuinely taller.)
 
-Shoppers see a single **3D configurator** in the gallery that updates as they choose, rather than a separate thumbnail per colour.
+Shoppers see a single **3D configurator** in the gallery that updates as they choose, rather than a separate thumbnail per colour - though not until they have picked a variation. Before that there is nothing to re-colour yet, so the gallery leads with the product's own model or photographs as normal, the same as any other 3D product.
 
 **One thing to finish off:** for the weave to be true-scale everywhere, each variation needs its **swatch size** and **overall height** filled in on the **Attributes** tab. Where either is missing, that fabric still shows in the right colour - only its weave scale sits neutral until you fill the values in, so the product works from day one.
 
