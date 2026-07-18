@@ -23,7 +23,11 @@ A really big set of options - hundreds of combinations - is built a batch at a t
 
 If instead you change your options so there are now more combinations on the grid than your options call for, that same button becomes **Rebuild from options** - which keeps the combinations you've already priced and only adds or removes the ones that changed.
 
-Click the little square in a row's Photo column to pick that combination's photo from your media library, or upload a new one on the spot - the same picker you get on the product itself. The × beside it takes the photo off again. Whichever photo you pick gets filed into the product's own folder in your media library, alongside the product's main photos, so all of one product's pictures live together rather than scattered about. The picker opens in that same folder too, so the product's own pictures greet you first - though you can browse up and into any other folder, and the search box covers the whole library.
+Click the little square in a row's Photo column to pick that combination's photos from your media library, or upload new ones on the spot - the same picker you get on the product itself. A combination can have as many photos as it deserves: the walnut version shot from the front, the side, and the back all belong to the walnut row. Pick several at once, or come back and add more later - clicking the square again adds to what's there rather than replacing it, and the same picture chosen twice only counts once.
+
+The column has one row's worth of space, so it shows the first photo with a small **+2** (or +3, or however many) tucked in the corner to account for the rest. The × beside it clears the whole set for that row. Whichever photos you pick get filed into the product's own folder in your media library, alongside the product's main photos, so all of one product's pictures live together rather than scattered about. The picker opens in that same folder too, so the product's own pictures greet you first - though you can browse up and into any other folder, and the search box covers the whole library.
+
+On the product page, choosing that combination puts all of its photos at the front of the thumbnail strip, in the order you added them, with the product's own pictures following on behind. The first one takes the main stage. So a customer who picks walnut gets the walnut photos to browse, not one walnut photo and then the oak ones.
 
 ### Other modules can add columns here
 
