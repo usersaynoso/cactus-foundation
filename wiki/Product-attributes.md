@@ -154,9 +154,11 @@ It matches on the option's name, so if three products all have a "Colour" option
 
 ### Going the other way
 
-That's the road in. There's one out, too: over on a product's **Variations** tab, **Add from attributes** builds a variation option straight from an attribute you've already set up - pick the attribute, tick which of its values this product actually comes in, and give the option a different name if this product wants one. It's the answer to typing the same eight finishes out on every product in the range.
+That's the road in. There's one out, too, and it's now the only way variation options get made at all: over on a product's **Variations** tab, **Add from attributes** builds a variation option straight from an attribute you've already set up - pick the attribute, tick which of its values this product actually comes in, and give the option a different name if this product wants one. It's the answer to typing the same eight finishes out on every product in the range.
 
-Those options keep a link back, so a **Refresh** button on each one picks up new values and renames from the attribute later. It only ever adds and updates - nothing gets deleted behind your back, since every value has real variants and real stock hanging off it. The full account is on the [Shop Variations](Shop-variations) page.
+Those options keep a link back, so a **Refresh** button on each one picks up new values and renames from the attribute later. It only ever adds and updates - nothing gets deleted behind your back, since every value has real variants and real stock hanging off it.
+
+The link works in both directions where new values are concerned. Add a value to one of those options on a product - a finish you've only just started offering - and it's added to the attribute here as well, so it appears on this screen and is there to pick on every other product without you making a second trip. A name the attribute already has is reused rather than duplicated. The full account is on the [Shop Variations](Shop-variations) page.
 
 ### Bulk-editing in the Google Sheet
 

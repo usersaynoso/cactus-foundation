@@ -11,7 +11,7 @@ It needs the **Shop** module installed and up to date. Once both are in, every p
 
 1. Open any product in your shop (Shop → Products → the product).
 2. Go to its **Variations** tab. It sits right there on the product, alongside Details, Pricing and the rest - there's no separate screen to go off to any more, so you won't lose half-finished edits getting there.
-3. Add an option - give it a name like "Size", pick how it should look on the page (a dropdown, a row of pills, colour swatches, or image swatches), and type in the values (`S, M, L, XL`). Choose colour swatches and each value gets a colour of its own: use the picker, or type the hex code straight into the box beside it if your brand guide has already made the decision for you. Choose image swatches and each value gets a little picture instead - see [Image swatches](#image-swatches) below.
+3. Add an option with **Add from attributes**, and pick the attribute it should be built from - Size, Colour, Finish, whatever you've set up over on [Product Attributes](Product-attributes). Options always come from an attribute now, rather than being typed out product by product, so the same twelve finishes are one list everybody draws on instead of forty near-identical lists that drift apart the first time somebody spells "Grey" the other way. You still choose how it looks on the page (a dropdown, a row of pills, colour swatches, or image swatches), and tick only the values this product actually comes in - see [Building an option from a list you already have](#building-an-option-from-a-list-you-already-have) just below.
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
 5. Click **Generate variants**. Cactus creates one behind-the-scenes product for each combination, so the cart, checkout, stock and refunds all just work.
 
@@ -35,7 +35,9 @@ On the product page, choosing that combination puts all of its photos at the fro
 
 ### Building an option from a list you already have
 
-Typing "Black, Walnut, Oak, Ash, Beech" out again on the fortieth product is nobody's idea of a good afternoon. If you have [Product Attributes](Product-attributes) installed, the Variations tab offers a shortcut: under the box where you add an option you'll see **Add from attributes**.
+Typing "Black, Walnut, Oak, Ash, Beech" out again on the fortieth product is nobody's idea of a good afternoon. So the Variations tab doesn't ask you to: options are built from your [Product Attributes](Product-attributes), using the **Add from attributes** button.
+
+You'll need Product Attributes installed for this, since it's what supplies the lists. Without it the Variations tab says as much and points you at setting your attributes up first, rather than offering a button with nothing behind it.
 
 Click it and you get your attributes, in their groups, with a count of how many values each one holds. Pick one and you can:
 
@@ -43,7 +45,9 @@ Click it and you get your attributes, in their groups, with a count of how many 
 - **Choose how it looks** - dropdown, pills, colour swatches or image swatches. Cactus has a guess ready: values with colours on them suggest colour swatches, values with pictures suggest image swatches.
 - **Tick only the values you want.** Everything starts ticked, so bringing the whole lot across is one click, but a chair that only comes in three of your twelve finishes takes only those three.
 
-The values are copied onto the product and are yours from that moment - rename them, reorder them, add one that exists nowhere else. Nothing you do here changes the attribute itself.
+The values are copied onto the product and are yours from that moment - rename them and reorder them as this product needs. Renaming a copy here changes only this product's copy; the attribute carries on as it was.
+
+Adding a *new* value is the one thing that does travel back the other way. Type "Sage green" into an option's **Add value** box and it's added to the attribute behind it as well, so it's waiting on the list the next time any product wants it. That's rather the point: the value you met on this product is exactly the sort that turns up on the next one, and having to go and type it out a second time on the Attributes screen to make it reusable was a small daily tax nobody signed up for. If the attribute already has a value by that name, yours is quietly pointed at the existing one rather than making a second copy of it.
 
 ### Using the same attribute twice on one product
 
@@ -62,7 +66,7 @@ An option built this way remembers where it came from, so it gets a **Refresh** 
 - Values you've since added to the attribute are brought across.
 - Values renamed on the attribute, or given a new colour or picture, are updated here to match.
 - **Nothing is ever deleted.** Remove a value from the attribute and the copy on this product stays exactly where it is - Cactus just tells you it's no longer in the attribute and leaves the decision to you. That's deliberate: each value has real combinations hanging off it, with their own prices, stock and photos, and quietly binning those because someone tidied up an attribute would be a rotten surprise.
-- Values you typed in by hand are left alone, always.
+- Values you typed in here are treated like any other, since they're on the attribute too - rename one on the Attributes screen and this copy follows. Values typed in before this became the way of things have no attribute behind them, and those are left alone, always.
 - **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus stops mentioning the attribute's own name altogether - an override you have to keep re-applying isn't much of an override, and one you're reminded about every single refresh is barely better.
 
 If you uninstall Product Attributes, the options themselves carry on working perfectly well. They're your own copies. The Refresh button simply goes away, having nothing left to refresh against.
@@ -79,7 +83,7 @@ Refresh brings across *everything* the attribute has. Often that's not what you 
 
 Open it, tick the ones you want, add them. The rest stay out of it. If the attribute has nothing left to offer, the button isn't there at all, which is its own small answer to "am I missing anything?".
 
-One thing it won't do is add a value whose name you've already typed in by hand on that option - two values with the same name make the combination names ambiguous. It skips those and tells you which.
+One thing it won't do is add a value whose name that option already carries - two values with the same name make the combination names ambiguous. It skips those and tells you which.
 
 ### Renaming the attribute, or one of its values
 
@@ -87,7 +91,7 @@ Rename an attribute over on the Attributes screen and every option built from it
 
 Edit one of its *values* - a new label, a new colour, a new picture - and the same thing happens a level down. Every copy of that value updates, and the combinations built on it are re-named to match, so you aren't left with a "Small / Oak" that nobody calls oak any more. A copy is skipped only where this option already has a value by that name, since two of those would make the combination names ambiguous; Cactus says which product that was.
 
-Values you typed in by hand here are not copies of anything, so they're never touched. See [Product Attributes](Product-attributes) for the full account.
+Values typed in here go onto the attribute as well, so they follow along with the rest. Only the older hand-typed ones, from before that was the case, are copies of nothing and are never touched. See [Product Attributes](Product-attributes) for the full account.
 
 ### Other modules can add columns here
 
