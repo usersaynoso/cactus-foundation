@@ -144,3 +144,9 @@ runMigrateDeployWithRetry()
 // core migration). Idempotent — a no-op on fresh or up-to-date installs.
 runWithRetry('Core schema reconcile', 'node', ['scripts/reconcile-core-schema.mjs'])
 runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
+// Every step above changes the schema on the direct endpoint, which leaves the
+// pooler's own long-lived connections holding query plans built against the old
+// table shapes ("cached plan must not change result type"). Clear them now rather
+// than waiting for pgBouncer to recycle. Best-effort by design: the script never
+// exits non-zero, so it can't fail a deploy.
+runWithRetry('Flush pooled query plans', 'node', ['scripts/flush-pooled-plans.mjs'])
