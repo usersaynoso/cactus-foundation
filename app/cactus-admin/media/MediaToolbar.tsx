@@ -16,6 +16,8 @@ export default function MediaToolbar({
   onType,
   use,
   onUse,
+  optimisableOnly,
+  onOptimisableOnly,
   tagFilter,
   onTagFilter,
   tags,
@@ -34,6 +36,9 @@ export default function MediaToolbar({
   onType: (v: TypeFilter) => void
   use: UseFilter
   onUse: (v: UseFilter) => void
+  /** Set by the "Optimisable" stat tile rather than by a dropdown, so it only ever appears as a chip. */
+  optimisableOnly: boolean
+  onOptimisableOnly: (v: boolean) => void
   tagFilter: string
   onTagFilter: (v: string) => void
   tags: TagInfo[]
@@ -47,6 +52,7 @@ export default function MediaToolbar({
   if (activeSearch) chips.push({ key: 'q', label: `Search: “${activeSearch}”`, onRemove: () => { onSearchInput(''); onSearchSubmit('') } })
   if (type !== 'all') chips.push({ key: 'type', label: type === 'image' ? 'Images only' : 'Other files', onRemove: () => onType('all') })
   if (use !== 'all') chips.push({ key: 'use', label: use === 'in-use' ? 'In use' : 'Not in use', onRemove: () => onUse('all') })
+  if (optimisableOnly) chips.push({ key: 'optimisable', label: 'Still to optimise', onRemove: () => onOptimisableOnly(false) })
   if (tagFilter) chips.push({ key: 'tag', label: `Tag: ${tagFilter}`, onRemove: () => onTagFilter('') })
 
   return (

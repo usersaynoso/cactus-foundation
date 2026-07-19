@@ -3,12 +3,12 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.69"
+      "version": "v0.1.70"
     },
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.56"
+      "version": "v0.1.57"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -18,17 +18,17 @@
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.50"
+      "version": "v0.1.51"
     },
     {
       "name": "product-downloads-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-downloads-for-shop",
-      "version": "v0.1.3"
+      "version": "v0.1.4"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.15"
+      "version": "v0.1.16"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
@@ -38,17 +38,17 @@
     {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "contact-form",

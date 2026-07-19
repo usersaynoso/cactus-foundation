@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
+import { getMediaUsageProviders } from '@/lib/media/usage-providers'
 
 // A Media row can be referenced two different ways across the site:
 //
@@ -9,6 +10,10 @@ import { prisma } from '@/lib/db/prisma'
 //  2. By url or id embedded inside Puck builder JSON — background images, card
 //     thumbnails, image blocks, etc. These live inside InfoPage.builderData /
 //     publishedData and Layout.builderData rather than in a real relation.
+//  3. By url, key or id held in a MODULE's own tables — a shop product image, an
+//     option or attribute swatch, a 3D model, a board icon, a gazette hero. Core
+//     cannot see any of it, so each module contributes its own references through
+//     the core.media-usage-providers extension point.
 //
 // Deciding "is this item in use?" therefore needs both a set of referenced ids
 // and a scan of every builder blob. `loadMediaUsageIndex` gathers both once so a
@@ -18,8 +23,18 @@ import { prisma } from '@/lib/db/prisma'
 export type MediaUsageIndex = {
   /** Media.id values held in foreign-key columns. */
   referencedIds: Set<string>
-  /** Lowercased concatenation of every Puck builder blob (pages + layouts). */
+  /**
+   * Lowercased concatenation of every Puck builder blob (pages + layouts) plus
+   * every reference string the installed modules contributed.
+   */
   haystack: string
+  /**
+   * True when at least one module's usage provider failed, so the index is known
+   * to be incomplete. Everything is then treated as in use: an over-cautious
+   * "nothing to reclaim" is a wasted click, whereas an under-cautious "unused"
+   * is a bulk-delete button aimed at live product photography.
+   */
+  degraded: boolean
 }
 
 // Wrapped in React's `cache` so the index is built at most once per request. The
@@ -72,9 +87,30 @@ export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
     if (p.publishedData) parts.push(JSON.stringify(p.publishedData))
   }
   for (const l of layouts) if (l.builderData) parts.push(JSON.stringify(l.builderData))
+
+  // Modules run in parallel with each other, and one failing must not take the
+  // media page down with it — but it must not quietly pass off half an index as
+  // the whole truth either, so the failure is recorded and the caller stops
+  // trusting the "unused" verdict.
+  let degraded = false
+  const contributed = await Promise.all(
+    getMediaUsageProviders().map(async (provider) => {
+      try {
+        return await provider()
+      } catch (err) {
+        degraded = true
+        console.error('[media] usage provider failed; treating library as fully in use', err)
+        return []
+      }
+    }),
+  )
+  for (const refs of contributed) {
+    for (const ref of refs) if (ref) parts.push(ref)
+  }
+
   const haystack = parts.join('\n').toLowerCase()
 
-  return { referencedIds, haystack }
+  return { referencedIds, haystack, degraded }
 })
 
 /** Is a single Media row referenced anywhere on the site? */
@@ -82,6 +118,7 @@ export function isMediaInUse(
   media: { id: string; key: string; url: string },
   index: MediaUsageIndex,
 ): boolean {
+  if (index.degraded) return true
   if (index.referencedIds.has(media.id)) return true
   // Puck blocks embed media by url (bgImage/imageUrl/mediaUrl), by storage key,
   // or by id (ImageBlock/Card mediaId). Any occurrence means it is in use.

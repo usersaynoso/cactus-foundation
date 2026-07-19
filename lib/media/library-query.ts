@@ -20,6 +20,14 @@ export type LibraryQuery = {
   tag?: string
   type: LibraryTypeFilter
   use: LibraryUseFilter
+  /**
+   * Narrow to the images the bulk-optimise button would actually act on: raster
+   * (not SVG) and not yet re-encoded. The "Optimisable" stat tile counts exactly
+   * this set, so clicking it has to filter by it too — it used to fall back to
+   * "all images", which listed every already-optimised file alongside them and
+   * made a correct count of 12 look like a count of the whole library.
+   */
+  optimisable: boolean
   sort: LibrarySort
   page: number
   perPage: number
@@ -74,6 +82,15 @@ function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
 
   if (q.type === 'image') and.push({ mimeType: { startsWith: 'image/' } })
   else if (q.type === 'other') and.push({ NOT: { mimeType: { startsWith: 'image/' } } })
+
+  // Same predicate as computeLibraryStats' optimisableFiles tally, expressed in
+  // SQL. Keep the two in step: the tile's number and the tile's list are the same
+  // set or the page contradicts itself.
+  if (q.optimisable) {
+    and.push({ mimeType: { startsWith: 'image/' } })
+    and.push({ NOT: { mimeType: 'image/svg+xml' } })
+    and.push({ optimised: false })
+  }
 
   return and.length ? { AND: and } : {}
 }
@@ -149,6 +166,7 @@ export function parseLibraryQuery(params: URLSearchParams, perPage: number, page
     tag: params.get('tag') || undefined,
     type,
     use,
+    optimisable: params.get('optimisable') === '1',
     sort,
     page,
     perPage,

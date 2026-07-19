@@ -94,6 +94,10 @@ export default function MediaLibrary({
   const [sort, setSort] = useState<Sort>('newest')
   const [type, setType] = useState<TypeFilter>('all')
   const [use, setUse] = useState<UseFilter>('all')
+  // Not part of the File type dropdown: this is the "Optimisable" stat tile's own
+  // drill-down, showing exactly the images that tile counted rather than every
+  // image in the library.
+  const [optimisableOnly, setOptimisableOnly] = useState(false)
   const [tagFilter, setTagFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -183,17 +187,19 @@ export default function MediaLibrary({
   // folder browsing scopes to one folder.
   const folderScope = search || tagFilter || browseAll ? 'all' : currentFolderId ?? 'root'
 
+
   const buildQuery = useCallback(
     (pageNum: number) => {
       const qs = new URLSearchParams({ page: String(pageNum), perPage: String(perPage), sort })
       qs.set('folder', folderScope)
       if (type !== 'all') qs.set('type', type)
       if (use !== 'all') qs.set('filter', use)
+      if (optimisableOnly) qs.set('optimisable', '1')
       if (tagFilter) qs.set('tag', tagFilter)
       if (search) qs.set('q', search)
       return qs.toString()
     },
-    [perPage, sort, folderScope, type, use, tagFilter, search],
+    [perPage, sort, folderScope, type, use, optimisableOnly, tagFilter, search],
   )
 
   const fetchItems = useCallback(async () => {
@@ -710,19 +716,19 @@ export default function MediaLibrary({
   const folderName = useCallback((id: string | null) => (id ? folderNameById.get(id) ?? '—' : 'Media'), [folderNameById])
 
   const activeFilter: 'all' | 'unused' | 'optimisable' | 'other' =
-    use === 'unused' ? 'unused'
-    : browseAll && type === 'image' ? 'optimisable'
+    optimisableOnly ? 'optimisable'
+    : use === 'unused' ? 'unused'
     : browseAll && type === 'all' && use === 'all' && !tagFilter && !search ? 'all'
     : 'other'
 
   function clearAllFilters() {
-    setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('all')
+    setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('all'); setOptimisableOnly(false)
   }
 
   const selectionActive = selected.size > 0
   const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
   const rasterSelected = useMemo(() => items.filter((i) => selected.has(i.id) && isRasterImage(i)), [items, selected])
-  const anyFilterActive = !!search || type !== 'all' || use !== 'all' || !!tagFilter
+  const anyFilterActive = !!search || type !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
   return (
@@ -756,8 +762,8 @@ export default function MediaLibrary({
         folderCount={folders.length}
         activeFilter={activeFilter}
         onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
-        onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setBrowseAll(true) }}
-        onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('image'); setBrowseAll(true) }}
+        onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
+        onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setOptimisableOnly(true); setBrowseAll(true) }}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
@@ -828,6 +834,8 @@ export default function MediaLibrary({
             onType={setType}
             use={use}
             onUse={setUse}
+            optimisableOnly={optimisableOnly}
+            onOptimisableOnly={setOptimisableOnly}
             tagFilter={tagFilter}
             onTagFilter={(v) => { setTagFilter(v); if (v) { setSearch(''); setSearchInput('') } }}
             tags={tags}

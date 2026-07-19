@@ -76,10 +76,12 @@ Across the top sits a row of summary tiles, so you can see the state of your lib
 
 - **Files** - how many you've got, and how many folders you've sorted them into.
 - **Storage used** - the total space everything is taking up.
-- **Unused** - how many files nothing on your site points to, and how much space you'd get back by clearing them out. Click the tile to jump straight to those files.
-- **Optimisable** - how many photos could still be slimmed down (and how many you've already done). Click it to line them all up ready for a tidy-up.
+- **Unused** - how many files nothing on your site points to, and how much space you'd get back by clearing them out. Click the tile to jump straight to those files. "Nothing points to it" covers the whole site, not just your pages: a product photo, an option or attribute swatch, a 3D model, a downloadable file, a board icon or an article's headline picture all count as in use.
+- **Optimisable** - how many photos could still be slimmed down (and how many you've already done). Click it to line up exactly those photos, ready for a tidy-up - the ones you've already done stay out of the way.
 
-The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place.
+The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place. The Optimisable list arrives with a **Still to optimise** chip above it, which you can lift at any time to see everything again.
+
+If part of your site can't be checked for some reason, the library errs on the side of caution and reports nothing as unused at all, rather than pointing you at files that may well be in use.
 
 ### Finding things
 

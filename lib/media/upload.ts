@@ -722,13 +722,16 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
   if (exports > 0) refs.push('a data export')
 
   // Media embedded inside Puck page/layout content is stored by url/key/id, not
-  // by a foreign key, so scan the builder JSON for any occurrence.
+  // by a foreign key, so scan the builder JSON for any occurrence. The same
+  // haystack carries every reference the installed modules contributed (a product
+  // image, an option swatch, a 3D model), which is why the warning names modules
+  // as well as pages - core cannot tell from a substring hit which one matched.
   const { haystack } = await loadMediaUsageIndex()
   const inContent =
     (media.url && haystack.includes(media.url.toLowerCase())) ||
     (media.key && haystack.includes(media.key.toLowerCase())) ||
     haystack.includes(media.id.toLowerCase())
-  if (inContent) refs.push('page or layout content')
+  if (inContent) refs.push('page, layout or module content')
 
   return refs
 }
