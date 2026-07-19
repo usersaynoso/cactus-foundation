@@ -72,7 +72,12 @@ function buildCsp(): string {
     // flight-data scripts, so removing it means moving to a per-request nonce
     // threaded through the document. Worth doing, but it can't ship unverified:
     // get it wrong and every page renders blank.
-    `script-src 'self' 'unsafe-inline' https://js.stripe.com`,
+    //
+    // 'wasm-unsafe-eval' - product-3d-views-for-shop compiles a WebAssembly mesh
+    // decoder (Draco/Meshopt) when reading a .glb, e.g. the admin "Detect from
+    // model" button. It permits ONLY WebAssembly.compile/instantiate, not JS
+    // eval() - strictly narrower than 'unsafe-eval', which stays banned.
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
     `font-src 'self' https://fonts.gstatic.com`,
