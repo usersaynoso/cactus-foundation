@@ -79,6 +79,12 @@ The attribute order is not just for your benefit - it is the order the filters a
 
 Picture swatches come along for the ride. Move an attribute into a group, out of one, or between two, and its pictures move to match in your media library. Same when you rename or delete the group, and same when you rename the attribute itself. You will never be left hunting through a folder named after something that no longer exists.
 
+Values order differently: drag one by the handle beside it and drop it where you want. A colour or material list usually runs much longer than the attribute list itself, so dragging beats a pair of arrows for getting "Oak" back above "Ash" after the tenth new finish. This is the order shoppers see the choices in wherever the attribute is shown - the filter, the product page, the variation picker.
+
+The new order follows the value everywhere it has been used. Products that filter by it pick it up, and so does any product that turned this attribute into a variation choice - the dropdown on the Variations tab reshuffles, and so do the variations you have already generated, so a list that ran Ash, Oak, Walnut now runs in whatever order you just put them in. Nothing is rebuilt to do it: every variation keeps its own stock figure, price, photographs and code, and anything already ordered is untouched. Only the order changes.
+
+One exception worth knowing. If you typed a choice straight into a product's Variations tab rather than adding it as a value here, that one isn't this screen's to place, so it settles below the ones that came from here rather than being shuffled into the middle of them. Reordering values here also doesn't rename anything - "Dining chair - Oak / Small" is still called that, it has just moved up or down the list.
+
 ## Putting attributes on a product
 
 1. Open any product (**Shop → Products →** the product).
