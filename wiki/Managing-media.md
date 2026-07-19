@@ -319,7 +319,7 @@ If any of your selection turns out to be in use somewhere, Cactus holds those ba
 
 Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you.
 
-Open any un-optimised photo and its details panel has an **Optimise** button (it's on the right-click menu too). Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
+Open any un-optimised photo and its details panel has an **Optimise** button (it's on the right-click menu too). Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Your file keeps the name you gave it, too; only the bit after the dot changes, because the picture genuinely is a WebP now. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
 
 Not sure where to start? The **Optimisable** tile at the top of the library tells you how many photos are still worth doing and, with a click, rounds them all up for you.
 

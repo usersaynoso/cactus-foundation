@@ -749,6 +749,22 @@ export type OptimiseResult =
   | { optimised: false; reason: string; before?: number; after?: number }
   | { optimised: true; before: number; after: number }
 
+// The key an exact-named item should keep through an optimise: its own basename,
+// re-extensioned to .webp. Undefined — meaning "build a key the usual way" — when
+// the item isn't exact-named to begin with, or when the .webp key it wants is
+// already held by a different library item. Overwriting that one's blob would
+// leave two rows serving the same bytes, which is exactly the collision the
+// nanoid form exists to prevent, so it takes the nanoid form instead.
+async function exactOptimisedKey(media: Media, folderPath: string): Promise<string | undefined> {
+  if (!isExactNameKey(media.key, media.originalName)) return undefined
+
+  const key = buildKey(media.provider, 'image/webp', media.originalName ?? undefined, folderPath || undefined, true)
+  if (key === media.key) return key
+
+  const taken = await prisma.media.findUnique({ where: { key }, select: { id: true } })
+  return taken ? undefined : key
+}
+
 export async function optimiseMediaInPlace(mediaId: string, userId?: string): Promise<OptimiseResult> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) return { optimised: false, reason: 'Media item not found' }
@@ -784,7 +800,22 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
   // dropping the pre-optimise blob last.
   const { resolveFolderPath } = await import('@/lib/media/organise')
   const folderPath = await resolveFolderPath(media.folderId)
-  const result = await uploadMedia(encoded, 'image/webp', media.provider, media.originalName ?? undefined, folderPath || undefined)
+  // Keep the name the file is stored under. Every library upload is filed by the
+  // name the person chose ("beach-hut.jpg"), and optimising used to mint the
+  // opaque nanoid form instead — so a file came back from a single click called
+  // "V1StGXR8-beach-hut.webp". Only the extension is allowed to move, because
+  // the bytes really are WebP now. Anything already on a nanoid key stays on one:
+  // that form exists precisely because its name can't be trusted to be unique.
+  const keepName = await exactOptimisedKey(media, folderPath)
+  const result = await uploadMedia(
+    encoded,
+    'image/webp',
+    media.provider,
+    media.originalName ?? undefined,
+    folderPath || undefined,
+    undefined,
+    keepName,
+  )
   await repointMediaToBlob(media, result, { optimised: true })
 
   return { optimised: true, before, after }
