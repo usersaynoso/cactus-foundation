@@ -96,6 +96,21 @@ Each attribute you add carries two tick-boxes:
 - **Use for variations** - the value changes from one variant to the next (a jumper in red, blue and green). See below.
 - **Show in shop filters** - untick to keep an attribute on the product for your own reference without offering it to shoppers here. Useful when you only added it to organise the variants. This is per product; the shop-wide **Show in filters** on the attribute itself still applies on top, so an attribute switched off there is hidden everywhere regardless.
 
+### Using the same attribute twice
+
+Some products need the same attribute more than once. A desk has a material on top and a different one underneath, and setting up "Top material" and "Frame material" as two separate attributes means two filters where shoppers only wanted one.
+
+So you can add the same attribute to a product as many times as it needs. Pick it from the **Add an attribute** list again - it stays on the list even once it's on the product, marked as already being there - and you get a second block of the same values, with its own ticks and its own tick-boxes.
+
+The one rule: **all but one of them needs a name of its own.** Each block has its name at the top. Leave it blank and it goes by whatever the attribute is called; type something and this product calls it that. Two blocks going by the same name would tell you nothing about which is which, so Cactus won't save it until you've named them apart - it says which ones clash and waits.
+
+Two things it doesn't change:
+
+- Shoppers still get **one** Material filter, not one per block. The blocks are how you record what this product is made of; the filter is how shoppers find it. A desk that's oak on top and steel underneath turns up under both.
+- The name you give a block is for your benefit on this product. The attribute itself keeps its shop-wide name.
+
+An attribute used more than once on a product can't also be set per variant - the Variations tab gives an attribute one column, and two blocks can't share it. Use one block for it, or turn **Use for variations** off.
+
 ## Products with variants
 
 If you have the **Shop Variations** module, a product's variants often differ in exactly the thing people filter by. A shirt that comes in red, blue and green isn't really "a red shirt" - but someone filtering for red should still find it.
