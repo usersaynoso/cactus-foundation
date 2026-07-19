@@ -47,6 +47,14 @@ Because groups keep things apart, a name only has to be unique inside its own gr
 
 Two conveniences worth knowing. **Rename** on a group heading changes the name everywhere it appears. **Delete group** removes only the folder - the attributes inside it drop back to **Not in a group** with all their values and every product still attached, so it is a tidying-up decision rather than one you need to sleep on.
 
+### Renaming an attribute
+
+Each attribute has its own **Rename** button, and it does rather more than change the heading. Decide six months in that "Seat Colour" was always really "Upholstery Colour", rename it once here, and every product that builds a variation option from it picks up the new name too. No going round forty products changing them by hand.
+
+Two sensible exceptions. If you deliberately gave the option a different name on a particular product - the same colour list added twice as "Seat colour" and "Back colour", say - that product keeps the name you chose. Overriding it was the whole point, so a rename here doesn't barge in and undo it. And if a product already has some other option by the new name, that one is left as it was and Cactus tells you which product, rather than leaving you with two identically named dropdowns and a customer who can't tell them apart.
+
+Whatever happened, you get a line underneath saying how many options followed the rename and which, if any, didn't.
+
 ### Putting them in order
 
 Every attribute and every group has a pair of arrows. Use them to shuffle things up and down until the screen reads the way you think about your stock.
@@ -102,6 +110,12 @@ Click **Copy from variations** and Cactus will:
 - and set each variant's value to match.
 
 It matches on the option's name, so if three products all have a "Colour" option they all feed the same shop-wide Colour filter rather than making three of them. Run it again whenever you change a product's variants - it tidies up after itself rather than piling duplicates on top.
+
+### Going the other way
+
+That's the road in. There's one out, too: over on a product's **Variations** tab, **Add from attributes** builds a variation option straight from an attribute you've already set up - pick the attribute, tick which of its values this product actually comes in, and give the option a different name if this product wants one. It's the answer to typing the same eight finishes out on every product in the range.
+
+Those options keep a link back, so a **Refresh** button on each one picks up new values and renames from the attribute later. It only ever adds and updates - nothing gets deleted behind your back, since every value has real variants and real stock hanging off it. The full account is on the [Shop Variations](Shop-variations) page.
 
 ### Bulk-editing in the Google Sheet
 

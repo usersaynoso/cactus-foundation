@@ -59,9 +59,27 @@ An option built this way remembers where it came from, so it gets a **Refresh** 
 - Values renamed on the attribute, or given a new colour or picture, are updated here to match.
 - **Nothing is ever deleted.** Remove a value from the attribute and the copy on this product stays exactly where it is - Cactus just tells you it's no longer in the attribute and leaves the decision to you. That's deliberate: each value has real combinations hanging off it, with their own prices, stock and photos, and quietly binning those because someone tidied up an attribute would be a rotten surprise.
 - Values you typed in by hand are left alone, always.
-- **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus stops mentioning the attribute's own name altogether - an override you have to keep re-applying isn't much of an override, and one you're reminded about every single refresh is barely better. An option still carrying the attribute's original name is told once if the attribute has since been renamed, since that one you probably do want to know about.
+- **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus stops mentioning the attribute's own name altogether - an override you have to keep re-applying isn't much of an override, and one you're reminded about every single refresh is barely better.
 
 If you uninstall Product Attributes, the options themselves carry on working perfectly well. They're your own copies. The Refresh button simply goes away, having nothing left to refresh against.
+
+### Where an option came from
+
+Under the name of any option built from an attribute you'll see a quiet line saying so - **From attributes: Upholstery Colour**. Handy when the option is called something else on this product, which is exactly when you'd otherwise have no way of telling what it's tied to.
+
+If the attribute behind it has since been deleted, the line says that instead. Better to read it there than to find out by pressing Refresh and getting an error.
+
+### Adding a few more values later
+
+Refresh brings across *everything* the attribute has. Often that's not what you want - the attribute lists twenty-two colours and this chair comes in four of them. So next to the box where you type a value, a sourced option also offers **Add from source**, with the number of values the attribute has that this option hasn't taken yet.
+
+Open it, tick the ones you want, add them. The rest stay out of it. If the attribute has nothing left to offer, the button isn't there at all, which is its own small answer to "am I missing anything?".
+
+One thing it won't do is add a value whose name you've already typed in by hand on that option - two values with the same name make the combination names ambiguous. It skips those and tells you which.
+
+### Renaming the attribute
+
+Rename an attribute over on the Attributes screen and every option built from it follows suit, on every product, without you visiting any of them. The exception is an option you deliberately renamed here: that one keeps your name, because that's what overriding it was for. See [Product Attributes](Product-attributes) for the full account.
 
 ### Other modules can add columns here
 
