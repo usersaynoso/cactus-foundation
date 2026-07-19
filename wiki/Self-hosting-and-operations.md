@@ -117,7 +117,17 @@ wrangler secret put SUPABASE_STORAGE_BUCKET_NAME
 
 # Required for all proxied providers
 wrangler secret put ALLOWED_ORIGIN   # e.g. https://example.com
+
+# Signing keys. Only needed if you deploy the Worker by hand - the
+# "Deploy Worker" button in Settings > Media pushes both for you.
+# Each is an HMAC-SHA256 of a fixed label under your SESSION_SECRET:
+#   UPLOAD_SIGNING_SECRET = HMAC(SESSION_SECRET, "cactus-media-upload-v1")
+#   ASSET_SIGNING_SECRET  = HMAC(SESSION_SECRET, "cactus-media-asset-v1")
+wrangler secret put UPLOAD_SIGNING_SECRET
+wrangler secret put ASSET_SIGNING_SECRET
 ```
+
+`UPLOAD_SIGNING_SECRET` enables direct browser-to-Worker uploads; without it uploads fall back to the slower serverless route. `ASSET_SIGNING_SECRET` turns on protected reads for 3D models: the Worker will then refuse a model file unless the request carries a valid, unexpired token that Cactus stamped onto the URL. Without it the Worker serves models to anyone holding the address, which is how it behaved before this existed. Images are never gated either way.
 
 Configure only the secrets for the providers you actually have items on - unused secrets have no effect. When you switch providers and choose "Switch without migrating", keep the old provider's secrets in place until migration is complete so that existing items continue to serve correctly.
 

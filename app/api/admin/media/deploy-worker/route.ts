@@ -14,6 +14,7 @@ import {
 import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib/media/cloudflare-deploy'
 import { rebaseProxiedMediaUrls } from '@/lib/media/upload'
 import { deriveUploadSigningKey } from '@/lib/media/upload-token'
+import { deriveAssetSigningKey } from '@/lib/media/asset-token'
 import { upsertVercelEnvVars, getVercelEnvValues } from '@/lib/vercel/env'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
@@ -153,6 +154,17 @@ export async function POST(req: NextRequest) {
     secrets.push({ name: 'UPLOAD_SIGNING_SECRET', text: deriveUploadSigningKey() })
   } catch {
     // SESSION_SECRET absent - leave uploads disabled on the Worker.
+  }
+
+  // Signing key for protected reads (3D models). Derived from the same
+  // SESSION_SECRET under a different label, so a token minted for one path cannot
+  // be replayed against the other. Pushing it here is what turns read enforcement
+  // on; without it the Worker serves models to anyone holding the url, which is
+  // also what every Worker deployed before this existed does.
+  try {
+    secrets.push({ name: 'ASSET_SIGNING_SECRET', text: deriveAssetSigningKey() })
+  } catch {
+    // SESSION_SECRET absent - models stay readable without a token.
   }
 
   if (missing.length > 0 || notLive.length > 0) {

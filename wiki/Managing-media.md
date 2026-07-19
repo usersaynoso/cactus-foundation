@@ -59,6 +59,8 @@ The same 50 MB ceiling covers 3D model files, if you have [Product 3D views](Pro
 > **Worth doing once:** if you set your Worker up before this release, go to **Settings → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
 >
 > **Necessary, not merely worth doing, if you want 3D models.** A Worker deployed before this release will turn every 3D file away, because accepting them is new and your Worker only learns new things when you send it a fresh copy. Redeploy and they upload as normal. Photos are unaffected either way.
+>
+> **And once more, if you would rather people didn't help themselves to your 3D models.** A redeployed Worker will only hand out a model file to someone whose link carries a valid pass, and Cactus expires those passes after a day or so. Copied links go stale, and other websites can't point at your models at all. Photographs are deliberately left alone, so nothing else on your site changes. Until you redeploy, models are served to anyone who has the address - which is what every Worker did before now.
 
 ---
 

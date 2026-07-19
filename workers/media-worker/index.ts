@@ -85,6 +85,21 @@ function contentTypeForKey(key: string): string | null {
   return EXTENSION_TYPES[key.slice(dot + 1).toLowerCase()] ?? null
 }
 
+// Object types that may only be read with a valid signed token. Only 3D models:
+// they are the asset with real production cost behind them, and unlike an image
+// one is never referenced from rich text, a stored page prop, an email, or an
+// <img> url the browser assembled itself - so requiring a token here cannot
+// silently break a picture somewhere nobody thought to look.
+//
+// Mirrors PROTECTED_EXTENSIONS in lib/media/asset-token.ts - keep the two in step.
+const PROTECTED_EXTENSIONS = new Set(['glb', 'gltf', 'obj', 'fbx', '3ds'])
+
+function isProtectedKey(key: string): boolean {
+  const dot = key.lastIndexOf('.')
+  if (dot === -1) return false
+  return PROTECTED_EXTENSIONS.has(key.slice(dot + 1).toLowerCase())
+}
+
 export interface Env {
   ALLOWED_ORIGIN: string
 
@@ -93,6 +108,15 @@ export interface Env {
   // the Worker verifies it here before writing. Absent = uploads disabled (the
   // Worker only serves), so the client falls back to the serverless path.
   UPLOAD_SIGNING_SECRET?: string
+
+  // Shared HMAC key (a different derivation of the same SESSION_SECRET) that
+  // authorises READS of protected objects - today, 3D models. The app stamps a
+  // token onto every model url it puts on the wire; the Worker verifies it below.
+  //
+  // Absent = no read enforcement, and that default matters: a site whose Worker
+  // predates this still serves its models rather than showing empty frames on
+  // every product page until someone notices and redeploys.
+  ASSET_SIGNING_SECRET?: string
 
   // B2
   B2_APPLICATION_KEY_ID?: string
@@ -176,6 +200,14 @@ const worker = {
     const maybeProvider = slashIdx !== -1 ? afterMedia.slice(0, slashIdx) : ''
     const provider: string = KNOWN_PROVIDERS.has(maybeProvider) ? maybeProvider : 'B2'
 
+    // Protected objects (3D models) need a valid, unexpired token bound to this
+    // exact key before any work is done - no storage round-trip for a request
+    // that was never going to be answered.
+    if (isProtectedKey(fullKey)) {
+      const refusal = await refuseUnauthorisedRead(request, url, fullKey, env)
+      if (refusal) return refusal
+    }
+
     const cfOptions = buildImageResizingOptions(url)
     const responseHeaders = new Headers({
       'Cache-Control': 'public, max-age=31536000, immutable',
@@ -215,6 +247,65 @@ const worker = {
   },
 }
 export default worker
+
+// ---------------------------------------------------------------------------
+// Protected reads — signed access to 3D models
+// ---------------------------------------------------------------------------
+
+// The reason a model needs this at all: a WebGL canvas fetches the file itself,
+// so the bytes must reach the visitor's machine and the url must reach their
+// browser. What a token changes is the SHELF LIFE of that url. Copy one out of
+// view-source and it stops working within a day or two; embed one on another
+// shop's product page and it breaks by itself without anyone policing it.
+//
+// It is not a claim that the model cannot be taken. Anything on screen in a 3D
+// viewer can be captured by someone determined enough. This raises the floor from
+// "right-click, save" to "build and maintain a scraper", which is where the
+// casual copying actually stops.
+//
+// Returns a Response to refuse with, or null to let the read proceed.
+async function refuseUnauthorisedRead(
+  request: Request,
+  url: URL,
+  fullKey: string,
+  env: Env,
+): Promise<Response | null> {
+  // No secret pushed = this Worker has not been told to enforce. Serve as before.
+  // Keeps an un-redeployed Worker working instead of blanking every model on the
+  // site the moment the app starts signing urls.
+  if (!env.ASSET_SIGNING_SECRET) return null
+
+  // A mismatched Origin is somebody else's page embedding our model, which is
+  // never legitimate, so it is refused before the signature is even checked. An
+  // ABSENT Origin is deliberately allowed through to the signature check: not
+  // every fetch that reaches here carries one, and a false refusal here means a
+  // blank viewer on a real shopper's product page. The token is the control that
+  // does the work; this is a cheap extra that costs no round-trip.
+  const origin = request.headers.get('origin')
+  if (origin && env.ALLOWED_ORIGIN && origin !== env.ALLOWED_ORIGIN) {
+    return new Response('Not authorised', { status: 403 })
+  }
+
+  const token = url.searchParams.get('t') ?? ''
+  if (!(await verifyAssetToken(env.ASSET_SIGNING_SECRET, fullKey, token, Date.now()))) {
+    return new Response('Not authorised', { status: 403 })
+  }
+
+  return null
+}
+
+// Verify a `<exp>.<sig>` read token: signature over "<key>\n<exp>", not expired.
+// Same shape as the upload token, verified under a different derived key so a
+// token minted for one path can never be replayed against the other.
+async function verifyAssetToken(secret: string, key: string, token: string, nowMs: number): Promise<boolean> {
+  const dot = token.indexOf('.')
+  if (dot === -1) return false
+  const exp = Number(token.slice(0, dot))
+  const sig = token.slice(dot + 1)
+  if (!Number.isFinite(exp) || exp < nowMs) return false
+  const expected = base64url(await hmac(new TextEncoder().encode(secret), `${key}\n${exp}`))
+  return constantTimeEqual(sig, expected)
+}
 
 // ---------------------------------------------------------------------------
 // Upload (PUT) — authorised direct writes from the browser

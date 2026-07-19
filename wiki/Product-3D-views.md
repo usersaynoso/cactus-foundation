@@ -126,6 +126,20 @@ So everything belonging to a product sits together in one place, rather than mod
 
 ---
 
+## How well protected are your models?
+
+Reasonably, with one honest caveat.
+
+Your model files are not left sitting at a permanent public address any more. Each link a shopper's browser is given is stamped with a pass that stops working after a day or two. So if somebody digs through the page code, copies the link and saves it for later, it will be dead by the time they get round to using it. And if a rival tries to point their own website at your model, it simply will not load for them.
+
+The caveat: anything a browser can display, a determined person with the right tools can eventually capture. That is true of every 3D viewer on the web, ours included, because the shopper's own machine has to be handed the shape in order to draw it. What this does is move the effort from "right-click and save" to "write and maintain a scraper", which is where the great majority of casual copying gives up.
+
+Your fabric swatch pictures are not covered by this, on purpose. They are photographs the shopper is already looking at in the colour picker, and they live in your media library alongside everything else, so locking them away would cause more bother than it saves.
+
+**One thing you need to do.** This only takes effect once your media Worker has been redeployed. Go to **Settings → Media** and press **Deploy Worker**. Until you do, everything carries on working exactly as before - nothing breaks, you simply do not have the protection yet.
+
+---
+
 ## Fine-tuning the viewer
 
 Everything above works out of the box, and most shops will never need to touch a single setting. If you do want to change how your models are lit or handled, the controls live under **Settings → Shop → 3D Viewer**. They apply to every model on the site, not one product at a time, and they arrive set to the same sensible defaults the viewer has always used - so opening the tab changes nothing until you actually move something. There is a **Reset to defaults** button for when you have fiddled yourself into a corner.

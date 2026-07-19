@@ -12,6 +12,7 @@ import {
 } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
+import { signAssetUrl } from '@/lib/media/asset-token'
 import { resolveFolderPath } from '@/lib/media/organise'
 
 export async function GET(request: NextRequest) {
@@ -24,7 +25,13 @@ export async function GET(request: NextRequest) {
   const query = parseLibraryQuery(request.nextUrl.searchParams, perPage, page)
   const { items, total, hasMore } = await queryMediaLibrary(query)
 
-  return NextResponse.json({ items, total, page, perPage, hasMore })
+  // Protected types (3D models) need a read token or the Worker refuses them, and
+  // the library's own picker previews a model in a viewer just as the storefront
+  // does. Every other item is handed back with its url untouched - signAssetUrl
+  // only acts on the types the Worker actually gates.
+  const signed = items.map((item) => ({ ...item, url: signAssetUrl(item.url) }))
+
+  return NextResponse.json({ items: signed, total, page, perPage, hasMore })
 }
 
 export async function POST(request: NextRequest) {
