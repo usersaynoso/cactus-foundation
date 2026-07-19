@@ -43,10 +43,10 @@ From **Shop → Products → New product**, fill in a name and price to get star
 
 The product page is split into tabs, with a panel down the right that stays put as you work: whether the product is on sale, its main photo, its price and stock at a glance, and the **Save changes** button.
 
-- **Details** - the name, the descriptions, and your own SKU and barcode. The web address is set when you first save; if the name has changed a lot and nothing links to it yet, you can ask for it to be rebuilt.
+- **Details** - the name, the descriptions, and your own SKU and barcode. If you've switched on the supplier field (see below), the box for it lives here too. The web address is set when you first save; if the name has changed a lot and nothing links to it yet, you can ask for it to be rebuilt.
 - **Images** - add one or more. The first one is the main photo, so drag them into the order you want (or use the arrows) and the first is what shows on listing cards and in the cart. Each one can have a short description for screen readers and search engines. When you save, your product photos are tidied away into a folder of the product's own, inside a folder named after its lead category, and renamed after the product (so "Blue Mug" ends up in Shop → Kitchenware → Blue Mug as blue-mug1, blue-mug2 and so on). If the product has variations, their photos are filed in that same folder, so everything for one product sits in one place. Housekeeping you never have to think about. The picker plays along too: choosing an existing image opens in that product's own folder rather than the whole library at once, with a breadcrumb to wander back up and folders to click into if the picture you want lives elsewhere - and the search box looks across every folder regardless. A folder with more pictures than fit on one screenful gets a **Load more** button at the bottom, so nothing is stranded out of reach, and a sort menu lets you order them newest or oldest first, or by name A-Z or Z-A.
 - **Pricing** - the price, and the tax class. Every product needs a price and that one is not optional. Beyond it you can switch on any of four extra prices under **Shop → Settings → General → Prices**, and only the ones you switch on show up here: a **sale price** (what the item drops to during an offer - shoppers are charged this, with the normal price struck through beside it), a **retail price** (the RRP, kept as a reference or, if you like, shown to shoppers), a **trade price** (what a trade customer would pay, kept in the admin only), and a **cost price** (your own supplier cost). Fill in the cost price and Cactus works out your profit and margin as you type - against the sale price when there's an offer on - and says so plainly if you're selling at a loss. Switch a price off and whatever you'd typed in it is kept, ready for when you switch it back on.
-- **Stock & delivery** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder). Pre-order lives here too: flag a product as a pre-order with an expected dispatch date and an optional note, and customers can buy it straight away while stock only comes off the shelf once you actually mark the order as shipped. So does the weight and size of the thing, which is what postage priced by weight is worked out from.
+- **Stock & delivery** - turn on stock tracking to set a stock count and a low-stock warning threshold, and choose what happens when it hits zero: block further sales, or let people order anyway (backorder). Pre-order lives here too: flag a product as a pre-order with an expected dispatch date and an optional note, and customers can buy it straight away while stock only comes off the shelf once you actually mark the order as shipped. So does the weight and size of the thing, which is what postage priced by weight is worked out from - though the weight box only appears while **Charge postage by weight** is switched on under Tax & shipping.
 - **Download** - for digital products only, the file customers download after paying, with an optional download limit and expiry. The limit only counts downloads that actually finished, so a transfer that gives up halfway through doesn't quietly cost your customer one of their goes. The file arrives named as you uploaded it, tidied up where it has to be: the odd character that would confuse a browser is swapped for a space, and accents and other alphabets survive intact.
 - **Organisation** - categories, tags and collections, however suits. A product can sit in as many categories as you like, but one of them is its **lead category**, chosen from a dropdown of the ones you've ticked. It's the category the product's photos get filed under.
 - **Recommendations** - what to show as "you might also like", and what to nudge at the cart. Pick them yourself or let the shop choose.
@@ -127,6 +127,16 @@ For each zone you set:
 
 Tax is always worked out on the server at checkout, never left to the customer's browser.
 
+### Charging postage by weight
+
+At the top of **Shop → Tax & shipping** there's a single switch, **Charge postage by weight**, which is on to begin with. Plenty of shops post everything for the same money and have no use for weights at all, so turning it off tidies them away:
+
+- The weight-based option disappears from the Type dropdown when you add a shipping rate, leaving flat rate and free shipping.
+- The weight box disappears from the Stock & delivery tab of the product editor. Length, width and height stay put, since they're often worth recording for their own sake.
+- The weight column disappears from the variants grid, if you have the product options module installed.
+
+Nothing is deleted. Weights you've already recorded stay on your products and come straight back if you switch it on again, and an existing weight-based shipping rate keeps working and keeps showing its own type when you open it for editing.
+
 ---
 
 ## Customer accounts
@@ -185,7 +195,21 @@ Selling something a photograph struggles with - furniture, a lamp, anything with
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier field described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+
+### Recording who supplied something
+
+**Add supplier name to product** on the General tab gives every product a box for the name of whoever you got it from. It's off to begin with, on the reasonable assumption that plenty of shops make their own things and have nobody to name.
+
+Switch it on and three choices follow. First, what to call it: **Supplier**, **Manufacturer**, **Retailer**, **Importer**, or your own wording if none of those is quite right. Whatever you pick is the wording used everywhere the field turns up, so a shop that thinks in makers never has to read the word "supplier" again.
+
+Second, whether shoppers see it. Leave that off and the name is yours alone, sitting in the admin as a buying reference. Switch it on and it appears as a line on the product page's Specification tab, alongside the SKU and the weight.
+
+Third, where the box appears: **Products only**, or **Products and variations**. The second option adds a column to the variations grid, which is what you want when the red ones come from one place and the blue ones from another. Products and variations both carry their own name, so a variation only shows one if you've actually filled it in - and if shoppers can see it, the line on the product page follows whichever one they've picked, falling back to the product's own if that particular variation hasn't got one.
+
+Switching the whole thing back off hides the boxes but keeps every name you'd typed, ready for when you change your mind. The same goes for narrowing the field back to products only: variation suppliers are left where they are, not scrubbed.
+
+Supplier names travel with your product spreadsheet as well, in a **supplier** column on the products export and a **Supplier** column on the variations one, so you can fill in a hundred of them in a spreadsheet rather than one at a time. A spreadsheet exported before the field existed imports perfectly happily - a missing column leaves the names alone rather than wiping them.
 
 ### Zooming in on your product photos
 
