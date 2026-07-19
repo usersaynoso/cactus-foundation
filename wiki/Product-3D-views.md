@@ -105,7 +105,9 @@ Shoppers see your 3D models in the gallery as normal - the product's own to begi
 
 **Where the same attribute is used twice.** A product can put one attribute up more than once, each copy under a name of its own - a chair whose "Fabric" attribute appears as **Seat fabric** and again as **Back fabric**, rather than two near-identical attributes in your shop's vocabulary. The configurator's **Overall height from** and **Colour from** boxes list each copy separately, under the name you gave it, so a material part is pointed at the one that actually carries its values. Pick **Seat fabric** for the seat and **Back fabric** for the back and each part is painted from its own, instead of both quietly taking whichever came first. Products that use an attribute once see it once, exactly as before, and nothing you set up previously needs revisiting.
 
-**If you set one up the old way.** Products configured before the sizes moved onto the swatches keep working exactly as they did, including any part pointed at a variation option rather than an attribute - nothing is re-pointed behind your back and nothing needs revisiting. Type a size against the picture swatch whenever you get round to it and that takes over from then on.
+**If you set one up the old way.** Products configured before the sizes moved onto the swatches keep working exactly as they did, including any part pointed at a variation option rather than an attribute - nothing is re-pointed behind your back and nothing needs revisiting.
+
+Better still, those keep scaling properly too. Where a variation option shows the **same swatch picture** as one of your picture swatches - which is usually the case, since most shops photograph a swatch once and use it in both places - the size you typed against the picture is used, whichever of the two the part happens to be pointed at. So setting the sizes up on the **Product attributes** screen is enough on its own: you don't need to go back and re-point older products at anything.
 
 A part on a fixed colour needs none of this, so it shows no size or rotation settings at all.
 
