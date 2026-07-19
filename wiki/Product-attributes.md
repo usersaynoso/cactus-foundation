@@ -27,11 +27,31 @@ Choose **Picture swatches** when you add the attribute and each value gets a sma
 
 Click the square on a value that already has a picture to swap it for a different one.
 
-Pictures are filed in your media library under **Shop → Attributes → (the attribute's name)**, not under a product. That's deliberate: a value belongs to the whole shop, so the same oak picture serves every product that carries it, and it doesn't go missing the day you delete whichever product you happened to have open. Rename, crop or optimise the picture later in the library and the filter follows it - no broken squares.
+Pictures are filed in your media library under **Shop → Attributes → (the attribute's name)**, or **Shop → Attributes → (the group) → (the attribute's name)** once you've put the attribute in a group, not under a product. That's deliberate: a value belongs to the whole shop, so the same oak picture serves every product that carries it, and it doesn't go missing the day you delete whichever product you happened to have open. Rename, crop or optimise the picture later in the library and the filter follows it - no broken squares.
 
 A value with no picture yet shows an empty dotted square, and on the shop it simply shows its label. Nothing breaks while you're still getting round to the photos.
 
 Untick **Show in filters** to keep an attribute for your own reference without offering it on the shop. Deleting an attribute takes its values with it, and removes it from every product - so it asks first.
+
+## Groups
+
+A shop with six attributes reads fine as one list. A shop with thirty does not, which is what groups are for.
+
+1. On **Shop → Product attributes**, type a name under **Add a group** ("Materials and finishes", "Dimensions") and click **Add group**.
+2. Every attribute now has a **Group** dropdown next to it. Pick the group you want it in.
+3. Anything you haven't filed sits under **Not in a group** at the bottom, which is a perfectly respectable place for it to stay.
+
+Groups tidy up this screen and nothing else. Shoppers see exactly the same filters in exactly the same order whether you've spent an afternoon organising or none at all.
+
+Two conveniences worth knowing. **Rename** on a group heading changes the name everywhere it appears. **Delete group** removes only the folder - the attributes inside it drop back to **Not in a group** with all their values and every product still attached, so it is a tidying-up decision rather than one you need to sleep on.
+
+### Putting them in order
+
+Every attribute and every group has a pair of arrows. Use them to shuffle things up and down until the screen reads the way you think about your stock.
+
+The attribute order is not just for your benefit - it is the order the filters appear in on your shop, top to bottom. Groups sort themselves, and moving an attribute inside a group moves it on the shop too, so what you see here is what a shopper gets.
+
+Picture swatches come along for the ride. Move an attribute into a group, out of one, or between two, and its pictures move to match in your media library. Same when you rename or delete the group, and same when you rename the attribute itself. You will never be left hunting through a folder named after something that no longer exists.
 
 ## Putting attributes on a product
 
