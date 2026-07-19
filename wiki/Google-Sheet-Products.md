@@ -97,7 +97,17 @@ Past orders are never harmed by a deletion: an order keeps its own record of wha
 
 ## What the sheet covers, and what it doesn't
 
-The Products and Variations tabs cover the bulk of a catalogue: names, prices, stock, categories, tags, collections, images and videos, SEO fields, and the size/colour options with their per-variant price, stock and SKU.
+The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant price, stock and SKU.
+
+### The web address column
+
+The **slug** column is the last part of a product's web address - the `nice-blue-mug` in `yoursite.com/shop/nice-blue-mug`. Change it, Pull, and the product moves to the new address. Worth knowing before you do: anyone who bookmarked or linked to the old one lands on nothing.
+
+A product row with no SKU is matched back to your site by its slug, so if you clear that cell on an existing product, the next Pull treats the row as a brand-new product and you end up with two of them. When in doubt, leave the column alone - everything else on the row still works.
+
+### Numbers behave like numbers
+
+Prices, stock counts, weights and the rest arrive as proper numbers, so you can sum a column, sort by price, or point a chart at it without Google treating it as text. SKUs and barcodes stay as text on purpose, because a code beginning with a zero would otherwise quietly lose it.
 
 On the Variations tab, the **Image** column holds every picture a variant has, not only the first one. They sit in one cell separated by commas, in the order they show on the page, and the first one in the list is the one used as that variant's main picture. Add a comma and another address to give a variant a second picture; clear the cell to take its pictures away. A cell with a single address still works exactly as it did before, so an older sheet needs no attention. If anything in the cell isn't a proper web address, that row is reported back to you and its pictures are left untouched rather than half-changed.
 
