@@ -99,6 +99,8 @@ Past orders are never harmed by a deletion: an order keeps its own record of wha
 
 The Products and Variations tabs cover the bulk of a catalogue: names, prices, stock, categories, tags, collections, images and videos, SEO fields, and the size/colour options with their per-variant price, stock and SKU.
 
+On the Variations tab, the **Image** column holds every picture a variant has, not only the first one. They sit in one cell separated by commas, in the order they show on the page, and the first one in the list is the one used as that variant's main picture. Add a comma and another address to give a variant a second picture; clear the cell to take its pictures away. A cell with a single address still works exactly as it did before, so an older sheet needs no attention. If anything in the cell isn't a proper web address, that row is reported back to you and its pictures are left untouched rather than half-changed.
+
 A few things are deliberately left out, and are never touched by a sync (so they are safe, just not editable here):
 
 - **Personalisation add-ons** (engraving text boxes, gift-message fields, and the like) aren't in the sheet.
