@@ -77,6 +77,8 @@ Open it, tick the ones you want, add them. The rest stay out of it. If the attri
 
 One thing it won't do is add a value whose name that option already carries - two values with the same name make the combination names ambiguous. It skips those and tells you which.
 
+A sourced value's swatch picture stays filed with the attribute it came from, under **Shop → Attributes** in your media library - it isn't copied or moved into the product's own folder. The same oak picture serves every product built from that attribute, so there's exactly one of it, in one sensible place. Only pictures for values you type in by hand on a product go into that product's **colours** folder.
+
 ### Renaming the attribute, or one of its values
 
 Rename an attribute over on the Attributes screen and every option built from it follows suit, on every product, without you visiting any of them. The exception is an option you deliberately renamed here: that one keeps your name, because that's what overriding it was for.

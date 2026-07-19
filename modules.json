@@ -8,7 +8,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.61"
+      "version": "v0.1.62"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.17"
+      "version": "v0.1.18"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",

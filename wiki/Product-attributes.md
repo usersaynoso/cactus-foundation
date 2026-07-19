@@ -39,6 +39,8 @@ Pictures are filed in your media library under **Shop → Attributes → (the at
 
 A value with no picture yet shows an empty dotted square, and on the shop it simply shows its label. Nothing breaks while you're still getting round to the photos.
 
+If pictures have ended up in the wrong place - an earlier version of the variations module used to pull a shared swatch picture into whichever product's folder it was used on - the attributes screen has a **Tidy picture folders** button. Press it and every attribute's swatch pictures are re-filed under **Shop → Attributes** where they belong, with anything using them (including product options built from the attribute) pointed at the new home. It's safe to press whenever you like: pictures already in the right place stay put.
+
 Untick **Show in filters** to keep an attribute for your own reference without offering it on the shop. Deleting an attribute takes its values with it, and removes it from every product - so it asks first.
 
 ## Groups
