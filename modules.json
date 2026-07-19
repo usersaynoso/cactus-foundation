@@ -18,7 +18,7 @@
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.48"
+      "version": "v0.1.49"
     },
     {
       "name": "product-downloads-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.13"
+      "version": "v0.1.14"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",

@@ -27,6 +27,14 @@ Choose **Picture swatches** when you add the attribute and each value gets a sma
 
 Click the square on a value that already has a picture to swap it for a different one.
 
+### Swatch size
+
+Beside the picture box there's a **Size** box, and beside each value you've already added there's a small size link - it shows the size once you've set one, or **size?** while you haven't. Either way, that's where you record how big the real material in the picture is: "20cm", "200mm", "0.2m" or a plain "20" all read the same way.
+
+It's optional and you can set it at any time, which is rather the point - the swatch photo usually arrives long before anyone tells you the sample was 20 cm square. Click the size link on an existing value to type it in or change it, and leave the box blank to clear it again. Nothing is lost either way: the value keeps its picture, its label and every product ticked against it.
+
+What it's for: anything that draws the material at its true size needs to know how big it really is, since a photo on its own can't say whether it's a 5 cm weave or a 60 cm slab. The [3D material configurator](Product-3D-views) reads it to tile a fabric or a veneer correctly on a model. If nothing on your site draws materials at true size, you can leave every one of these blank and never think about it again.
+
 Pictures are filed in your media library under **Shop → Attributes → (the attribute's name)**, or **Shop → Attributes → (the group) → (the attribute's name)** once you've put the attribute in a group, not under a product. That's deliberate: a value belongs to the whole shop, so the same oak picture serves every product that carries it, and it doesn't go missing the day you delete whichever product you happened to have open. Rename, crop or optimise the picture later in the library and the filter follows it - no broken squares.
 
 A value with no picture yet shows an empty dotted square, and on the shop it simply shows its label. Nothing breaks while you're still getting round to the photos.
