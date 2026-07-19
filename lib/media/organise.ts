@@ -13,6 +13,11 @@ import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia } from 
 // create the new blob → update the row → rewrite references → delete the old
 // blob (best-effort). A failure before the last step leaves the old blob still
 // serving the old url, so nothing on the site breaks half-way.
+//
+// That holds only while the new blob is genuinely new. Under an exact-name key
+// it may be an existing live blob (see the parking step in moveOrRenameMedia),
+// and the write is then destructive on arrival - so whatever occupies the target
+// is moved out of the way first, and the order above starts from a clean key.
 // ---------------------------------------------------------------------------
 
 const MAX_FOLDER_DEPTH = 50
@@ -236,6 +241,30 @@ export async function moveOrRenameMedia(
   if ('skip' in resolved) return null
 
   const folderPath = await resolveFolderPath(targetFolderId)
+
+  // 'replace' hands back the item currently holding the name, and under an
+  // exact-name key "take this name" and "take that key" are the same
+  // instruction: the key is derived from the name, so the blob about to be
+  // written lands precisely on the victim's blob. Writing first and sorting the
+  // rows out afterwards is NOT failure-safe there, whatever the ordering below
+  // suggests - the victim's bytes are gone the moment the copy lands, and any
+  // failure after that leaves two live rows serving one picture while each still
+  // claims its own. That is not hypothetical: it is how a product ended up
+  // showing the same photo twice under two different urls.
+  //
+  // So the victim is moved aside BEFORE anything is written, onto a name nothing
+  // else can ask for. Its references follow it, so it keeps serving until it is
+  // superseded for real below. A failure at this point costs an oddly-named
+  // library item, not an image.
+  let victim = 'victim' in resolved ? resolved.victim : undefined
+  if (victim && opts.exactName) {
+    victim = (await moveOrRenameMedia(victim.id, {
+      newName: `${resolved.name ?? victim.id} (superseded ${victim.id})`,
+      exactName: true,
+      collision: 'suffix',
+    })) ?? victim
+  }
+
   const relocated = await relocateMediaBlob(media, folderPath || undefined, resolved.name ?? undefined, opts.exactName)
 
   const updated = await prisma.media.update({
@@ -253,20 +282,22 @@ export async function moveOrRenameMedia(
   // 'replace' collision: the incoming item is now safely in place under the
   // clashing name, so hand every reference from the item it replaces over to it,
   // then remove that item — deleting it last keeps the operation failure-safe.
-  if ('victim' in resolved && resolved.victim) {
-    await takeOverMediaReferences(resolved.victim, updated)
+  if (victim) {
+    await takeOverMediaReferences(victim, updated)
     // Only if the victim's blob isn't the one just written. An orphaned blob is
     // harmless; deleting a blob a live Media row still points at is not, and it
     // is not hypothetical — a key clash between two rows made exactly this
-    // delete take out the image that had just replaced it.
-    if (resolved.victim.key !== relocated.key) {
+    // delete take out the image that had just replaced it. (Parking above means
+    // the two keys normally differ by now; the guard stays for the paths that
+    // don't park, and because a provider is free to hand back any key it likes.)
+    if (victim.key !== relocated.key) {
       try {
-        await deleteMedia(resolved.victim.provider, resolved.victim.key)
+        await deleteMedia(victim.provider, victim.key)
       } catch {
         /* orphaned victim blob; harmless, still deletable later */
       }
     }
-    await prisma.media.delete({ where: { id: resolved.victim.id } })
+    await prisma.media.delete({ where: { id: victim.id } })
   }
 
   // Same rule for the original: a relocate that resolves to the key it started
