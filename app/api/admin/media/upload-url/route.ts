@@ -7,7 +7,7 @@ import { buildKey, isS3Provider, workerUrl, planMediaReplacement, MediaReplaceTy
 import { resolveFolderPath } from '@/lib/media/organise'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { signUploadToken, UPLOAD_TOKEN_TTL_MS } from '@/lib/media/upload-token'
-import { isRasterDirectType } from '@/lib/media/limits'
+import { isDirectUploadType } from '@/lib/media/limits'
 
 // Issue a signed, single-use-ish target for a direct-to-Worker upload. The
 // client PUTs the file bytes straight to the Worker (bypassing the serverless
@@ -38,10 +38,10 @@ export async function POST(request: NextRequest) {
   const replaceId = typeof body?.replaceId === 'string' && body.replaceId ? body.replaceId : null
 
   // The direct path is only wired for the S3-compatible family (the Worker signs
-  // those writes) and only for raster images (SVGs must be sanitised on the
-  // server). Anything else, or a Worker URL that isn't configured, means the
-  // client should fall back.
-  if (!base || !isS3Provider(provider) || !isRasterDirectType(contentType)) {
+  // those writes) and only for raster images and 3D models - SVGs must be
+  // sanitised on the server. Anything else, or a Worker URL that isn't
+  // configured, means the client should fall back.
+  if (!base || !isS3Provider(provider) || !isDirectUploadType(contentType)) {
     return NextResponse.json({ available: false })
   }
 

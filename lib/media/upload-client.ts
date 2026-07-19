@@ -17,6 +17,9 @@ import {
   MAX_DIRECT_UPLOAD_BYTES,
   MAX_DIRECT_UPLOAD_MB,
   isRasterDirectType,
+  isDirectUploadType,
+  isModelDirectType,
+  uploadTypeForFile,
   tooLargeReason,
   uploadErrorMessage,
 } from '@/lib/media/limits'
@@ -76,7 +79,11 @@ function asResponse(r: { ok: boolean; status: number; text: string }): Response 
 
 // Returns the recorded row, or null to mean "this path isn't available - fall
 // back". A thrown error is a hard failure and must not be retried.
-async function directUpload(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia | null> {
+// `contentType` is the type the file will be STORED under, which for a 3D model
+// is not the type the browser reports (see uploadTypeForFile). The key's extension
+// is built from it, and the key is what the upload token signs, so the same value
+// has to go to /upload-url and out on the PUT.
+async function directUpload(file: File, contentType: string, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia | null> {
   // Ask for a signed target. A non-OK response or { available: false } means the
   // direct route isn't on for this provider/file - caller falls back.
   let info: UploadUrlResponse
@@ -84,7 +91,7 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
     const res = await fetch('/api/admin/media/upload-url', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType: file.type, folderId }),
+      body: JSON.stringify({ filename: file.name, contentType, folderId }),
     })
     if (!res.ok) return null
     info = await res.json()
@@ -99,7 +106,7 @@ async function directUpload(file: File, folderId: string | null, onProgress?: Pr
     'PUT',
     info.uploadUrl,
     file,
-    { 'content-type': file.type, authorization: `Bearer ${info.token}` },
+    { 'content-type': contentType, authorization: `Bearer ${info.token}` },
     onProgress,
   )
   if (!put.ok) return null
@@ -147,15 +154,22 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
 // user-ready message on failure. onProgress reports a 0..1 transfer fraction so
 // callers can render a live progress bar.
 export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
-  if (isRasterDirectType(file.type)) {
+  const contentType = uploadTypeForFile(file)
+  if (isDirectUploadType(contentType)) {
     // The Worker caps the direct path too - say so plainly here rather than
     // letting it 413 and then falling through to the serverless path, which
     // would blame the (much smaller) serverless limit instead.
     if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
       throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
     }
-    const done = await directUpload(file, folderId, onProgress)
+    const done = await directUpload(file, contentType, folderId, onProgress)
     if (done) { onProgress?.(1); return done }
+  }
+  // A model has no second path. The serverless route is image-only, so falling
+  // through would fail with "not a supported image", which is both wrong and
+  // unactionable. Say what actually needs doing instead.
+  if (isModelDirectType(contentType)) {
+    throw new Error(`“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`)
   }
   const record = await serverlessUpload(file, folderId, onProgress)
   onProgress?.(1)

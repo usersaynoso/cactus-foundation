@@ -50,11 +50,11 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
 
-**Supported formats:** JPEG, PNG, WebP, GIF, SVG.
+**Supported formats:** JPEG, PNG, WebP, GIF, SVG, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
 
 **File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 50 MB ceiling - roomy enough for the full-fat shot from a phone or camera several times over. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 50 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
 
-The same 50 MB ceiling covers 3D model files, if you have [Product 3D views](Product-3D-views) installed. They go the same way photos do - browser straight to storage - and are filed with the product's pictures rather than off in a corner of their own.
+The same 50 MB ceiling covers 3D model files. They go the same way photos do - browser straight to storage - and can be uploaded here in the media library as well as from a product's own 3D views tab, where [Product 3D views](Product-3D-views) files them with that product's pictures rather than off in a corner of their own. One thing worth knowing: 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed. On any other setup they'll be turned away with a note saying as much, rather than half-uploading and going quiet.
 
 > **Worth doing once:** if you set your Worker up before this release, go to **Settings → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
 >

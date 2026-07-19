@@ -124,6 +124,8 @@ Models are filed in your media library alongside the product's photographs, unde
 
 So everything belonging to a product sits together in one place, rather than models ending up in a separate corner you have to go hunting through.
 
+Each file is also named after the product it belongs to, the same way your product photographs are: upload `120cm-natural-wood-2-person-1.glb` to the Oslo desks and it's filed as `oslo-back-to-back-office-desks-120cm-natural-wood-2-person-1.glb`. Previously it kept a string of random letters on the front, which was tidy enough for a computer and no use whatsoever to you. If two of your variations happen to use the same file name, the second one quietly picks up a `-2` so neither can overwrite the other. Models uploaded before this stay exactly where and as they are - nothing has been renamed under your feet.
+
 ---
 
 ## How well protected are your models?

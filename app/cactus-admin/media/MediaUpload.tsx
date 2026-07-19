@@ -1,9 +1,11 @@
 'use client'
 
 import { useRef } from 'react'
-import { ACCEPTED_UPLOAD_TYPES } from '@/lib/media/limits'
+import { ACCEPTED_UPLOAD_TYPES, MODEL_ACCEPT_EXTENSIONS } from '@/lib/media/limits'
 
-const ACCEPT = Array.from(ACCEPTED_UPLOAD_TYPES).join(',')
+// Images are offered by media type; 3D files have to be offered by extension,
+// because no browser agrees that a .glb is a model/gltf-binary.
+const ACCEPT = [...ACCEPTED_UPLOAD_TYPES, MODEL_ACCEPT_EXTENSIONS].join(',')
 
 // Header upload trigger. It no longer uploads itself - it just picks files and
 // hands them to the library, which owns the shared upload queue (progress,

@@ -71,6 +71,27 @@ export function isModelDirectType(mimeType: string): boolean {
   return MODEL_DIRECT_TYPES.has(mimeType)
 }
 
+// What a file picker's `accept` must list for 3D files: extensions, not types.
+// Listing "model/gltf-binary" would offer the admin nothing at all, because the
+// browser does not agree that a .glb is one - see the note above.
+export const MODEL_ACCEPT_EXTENSIONS = Object.keys(MODEL_EXTENSION_TYPES).map((e) => `.${e}`).join(',')
+
+/**
+ * The type a picked file should be uploaded and stored under.
+ *
+ * For an image this is what the browser says, which is worth trusting because the
+ * server sniffs the bytes afterwards anyway. For a 3D file it is emphatically not:
+ * a browser reports .glb as application/octet-stream and .fbx as nothing at all,
+ * so the extension is the only claim about one worth making, and the whole media
+ * pipeline keys off the type. Without this a model reached the library as
+ * "octet-stream", failed the accepted-type check, and the media page appeared not
+ * to support 3D files at all.
+ */
+export function uploadTypeForFile(file: { name: string; type: string }): string {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return modelTypeForExtension(ext) ?? file.type
+}
+
 export function modelTypeForExtension(extension: string): string | null {
   return MODEL_EXTENSION_TYPES[extension.toLowerCase()] ?? null
 }
@@ -86,14 +107,34 @@ export function extensionForModelType(mimeType: string): string | null {
   return null
 }
 
-// Every type the library accepts. Rasters go direct-to-Worker (no size cap);
-// SVG is sanitised on the size-guarded serverless path. Anything else is
-// rejected on the client before a request is made, so the user gets an instant,
-// plain reason instead of a failed upload.
+// The image types the library accepts. Rasters go direct-to-Worker (no size cap);
+// SVG is sanitised on the size-guarded serverless path.
+//
+// Not the whole of what can be uploaded any more - 3D models can be too, and they
+// live in MODEL_EXTENSION_TYPES. Use isUploadableType for "will the library take
+// this", and this set only where the question is specifically about images (the
+// Replace action, the optimiser, the reshape tools) - none of which mean anything
+// for a file the server never decodes.
 export const ACCEPTED_UPLOAD_TYPES = new Set([...RASTER_DIRECT_TYPES, 'image/svg+xml'])
 
 export function isAcceptedUploadType(mimeType: string): boolean {
   return ACCEPTED_UPLOAD_TYPES.has(mimeType)
+}
+
+// Everything the media library will take, images and 3D models alike. Kept apart
+// from ACCEPTED_UPLOAD_TYPES rather than folded into it because the two answer
+// different questions: that set is "types this library can produce and work on",
+// which is what gates Replace and the image tools, and a model has neither a
+// replacement the file picker could offer nor pixels to optimise.
+export function isUploadableType(mimeType: string): boolean {
+  return isAcceptedUploadType(mimeType) || isModelDirectType(mimeType)
+}
+
+// Types that go straight to the Worker, skipping the serverless body cap. Models
+// join the rasters here: they are far too big for the fallback path, and the
+// Worker has accepted them since 3D views arrived.
+export function isDirectUploadType(mimeType: string): boolean {
+  return isRasterDirectType(mimeType) || isModelDirectType(mimeType)
 }
 
 // The content type an object key claims, from its extension. buildKey() derives
@@ -102,11 +143,12 @@ export function isAcceptedUploadType(mimeType: string): boolean {
 // claim a client cannot forge, and both the Worker and /record read the type
 // from here rather than from a request header or body field.
 //
-// Model extensions are in the table because the Worker will now accept them, and
-// a caller that signs a model key needs the same round-trip. They stay out of
-// isRasterDirectType, so core's own /record still refuses anything that is not a
-// photograph: the library's routes upload images and nothing else, and the module
-// that uploads models records its own rows.
+// Model extensions are in the table because the Worker accepts them, and a caller
+// that signs a model key needs the same round-trip. They stay out of
+// isRasterDirectType - that one means "has pixels a server can decode", which
+// gates the optimiser and the reshape tools - but they are in isDirectUploadType,
+// so the library's own upload accepts a model dropped onto the media page as
+// readily as the 3D module's own route does.
 const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
@@ -123,13 +165,16 @@ export function contentTypeForKey(key: string): string | null {
 // file can't be uploaded, or null if it's fine to enqueue. Mirrors the server's
 // own rules so failures surface immediately rather than after a round trip.
 export function preflightUploadError(file: { name: string; type: string; size: number }): string | null {
-  if (!isAcceptedUploadType(file.type)) {
-    return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG).`
+  // The type a 3D file will actually be stored under comes from its extension,
+  // not from the browser - see uploadTypeForFile.
+  const type = uploadTypeForFile(file)
+  if (!isUploadableType(type)) {
+    return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG) or 3D model (GLB, glTF, OBJ, FBX or 3DS).`
   }
-  // Two different ceilings: rasters go straight to the Worker (25 MB), everything
-  // else takes the size-guarded serverless path (4 MB). Both are enforced
-  // server-side too - this just fails fast with a clear reason.
-  const limitMb = isRasterDirectType(file.type) ? MAX_DIRECT_UPLOAD_MB : MAX_UPLOAD_MB
+  // Two different ceilings: rasters and models go straight to the Worker (50 MB),
+  // everything else takes the size-guarded serverless path (4 MB). Both are
+  // enforced server-side too - this just fails fast with a clear reason.
+  const limitMb = isDirectUploadType(type) ? MAX_DIRECT_UPLOAD_MB : MAX_UPLOAD_MB
   if (file.size > limitMb * 1024 * 1024) {
     return `“${file.name}”: ${tooLargeReason(file.size, limitMb)}`
   }

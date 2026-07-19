@@ -4,7 +4,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { saveMediaRecord } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
-import { isRasterDirectType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
+import { isDirectUploadType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
 import { verifyUploadToken } from '@/lib/media/upload-token'
 
 // Record a Media row for a file the client already uploaded straight to the
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   // Type comes from the signed key, not from the body. The Worker stored the
   // object under exactly this type, so the row and the bytes cannot disagree.
   const contentType = contentTypeForKey(key)
-  if (!contentType || !isRasterDirectType(contentType)) {
+  if (!contentType || !isDirectUploadType(contentType)) {
     return errorResponse('Unsupported content type')
   }
 
