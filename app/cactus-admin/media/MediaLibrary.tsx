@@ -15,7 +15,7 @@ import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-c
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
-import { preflightUploadError, isAcceptedUploadType } from '@/lib/media/limits'
+import { preflightUploadError, isAcceptedUploadType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
 import type { MediaCardItem } from './MediaCard'
 import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
@@ -726,7 +726,26 @@ export default function MediaLibrary({
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
   return (
-    <div>
+    // The whole page is a drop target, not just the grid panel. A file let go over
+    // the header, the stats bar or the gap beside the folder tree used to do
+    // nothing at all - no upload, no message - which reads as "this page won't take
+    // my file" rather than "you missed". The panel keeps its own handlers for the
+    // "Drop to upload" overlay; these are the safety net around it.
+    <div
+      onDragOver={canUpload ? (e) => {
+        if (draggingInternal.current) return
+        e.preventDefault()
+        setFileDragOver(true)
+      } : undefined}
+      onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false) } : undefined}
+      onDrop={canUpload ? (e) => {
+        // A drop the grid panel or a folder row already took has had
+        // preventDefault called on it on the way up - uploading it again here
+        // would file every dropped model twice.
+        if (draggingInternal.current || e.defaultPrevented) return
+        if (e.dataTransfer.files.length > 0) { e.preventDefault(); setFileDragOver(false); enqueueFiles(e.dataTransfer.files) }
+      } : undefined}
+    >
       <div className="page-header">
         <h1 className="page-title">Media library</h1>
         {canUpload && <MediaUpload destinationLabel={folderName(currentFolderId)} onFiles={(files) => enqueueFiles(files)} />}
@@ -1167,12 +1186,15 @@ export default function MediaLibrary({
 
       <MediaToasts toasts={allToasts} onDismiss={dismissToast} />
 
-      {/* Off-screen input backing the empty-state and whitespace-menu upload actions. */}
+      {/* Off-screen input backing the empty-state and whitespace-menu upload actions.
+          Same accept as the header button: an empty folder is exactly where a first
+          3D model gets uploaded, and this input offering images alone is what made
+          the media page look as though it had never learned to take one. */}
       {canUpload && (
         <input
           ref={whitespaceUploadRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+          accept={UPLOAD_ACCEPT_ATTR}
           multiple
           style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files && e.target.files.length > 0) enqueueFiles(e.target.files); e.target.value = '' }}
@@ -1180,12 +1202,14 @@ export default function MediaLibrary({
       )}
 
       {/* And the one behind every Replace action. Single-file: a replacement is one
-          file taking one item's place, so there is nothing to do with a second. */}
+          file taking one item's place, so there is nothing to do with a second.
+          Image-only on purpose - Replace is offered only on items the server can
+          decode (canReplace), which a 3D model never is. */}
       {canUpload && (
         <input
           ref={replaceInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+          accept={IMAGE_ACCEPT_ATTR}
           style={{ display: 'none' }}
           onChange={(e) => {
             const file = e.target.files?.[0]

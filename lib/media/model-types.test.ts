@@ -2,8 +2,10 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import { describe, it, expect } from 'vitest'
 import {
+  IMAGE_ACCEPT_ATTR,
   MAX_DIRECT_UPLOAD_BYTES,
   MODEL_EXTENSION_TYPES,
+  UPLOAD_ACCEPT_ATTR,
   contentTypeForKey,
   extensionForModelType,
   isModelDirectType,
@@ -61,6 +63,36 @@ describe('model media types', () => {
       expect(isRasterDirectType(mime), mime).toBe(false)
     }
     expect(isModelDirectType('image/png')).toBe(false)
+  })
+})
+
+describe('every media-library file picker offers what the library accepts', () => {
+  // The bug this guards: the media page has more than one way to start an upload
+  // (the header button, the empty-state button, the whitespace menu), each with
+  // its own <input accept="…">. When 3D models arrived only the header one was
+  // updated, so an empty folder - the very place a first model gets uploaded -
+  // still opened an images-only picker and the file explorer greyed the model
+  // out. No error, no request, nothing to read: the feature simply looked absent.
+  //
+  // So no upload input may spell its accept list out by hand. They take
+  // UPLOAD_ACCEPT_ATTR (everything) or IMAGE_ACCEPT_ATTR (image-only, on purpose),
+  // and adding a type to limits.ts reaches every picker at once.
+  const sources = ['app/cactus-admin/media/MediaLibrary.tsx', 'app/cactus-admin/media/MediaUpload.tsx']
+
+  it('spells no accept list out by hand', () => {
+    for (const rel of sources) {
+      const src = readFileSync(path.join(process.cwd(), rel), 'utf8')
+      const literal = src.match(/accept="[^"]*(image|model)\/[^"]*"/)
+      expect(literal?.[0], `${rel} hardcodes an accept list - use UPLOAD_ACCEPT_ATTR or IMAGE_ACCEPT_ATTR`).toBeUndefined()
+    }
+  })
+
+  it('offers every model extension through the shared attribute', () => {
+    for (const ext of Object.keys(MODEL_EXTENSION_TYPES)) {
+      expect(UPLOAD_ACCEPT_ATTR.split(','), `.${ext} must be offered by the file picker`).toContain(`.${ext}`)
+    }
+    // Image-only pickers stay image-only - a model has nothing to replace.
+    expect(IMAGE_ACCEPT_ATTR).not.toContain('.glb')
   })
 })
 

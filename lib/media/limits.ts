@@ -121,6 +121,23 @@ export function isAcceptedUploadType(mimeType: string): boolean {
   return ACCEPTED_UPLOAD_TYPES.has(mimeType)
 }
 
+// The `accept` attribute for a file input that offers everything the library
+// takes: images by media type, 3D models by extension (no browser agrees that a
+// .glb is a model/gltf-binary - see MODEL_EXTENSION_TYPES).
+//
+// It lives here, and every library upload input uses it, because it was written
+// out by hand in three places and only one of them was updated when 3D models
+// arrived. The other two carried on offering images alone, so the file picker
+// greyed models out and the feature looked absent - which is exactly the failure
+// this constant exists to make impossible.
+export const UPLOAD_ACCEPT_ATTR = [...ACCEPTED_UPLOAD_TYPES, MODEL_ACCEPT_EXTENSIONS].join(',')
+
+// The `accept` for inputs that genuinely are image-only: Replace (gated on the
+// item already being an image the server can decode), branding, avatars. Kept
+// separate and named so an image-only picker is a stated choice rather than a
+// list somebody forgot to extend.
+export const IMAGE_ACCEPT_ATTR = [...ACCEPTED_UPLOAD_TYPES].join(',')
+
 // Everything the media library will take, images and 3D models alike. Kept apart
 // from ACCEPTED_UPLOAD_TYPES rather than folded into it because the two answer
 // different questions: that set is "types this library can produce and work on",
