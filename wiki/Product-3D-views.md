@@ -105,6 +105,8 @@ Shoppers see your 3D models in the gallery as normal - the product's own to begi
 
 **Picture swatches and plain colours.** A swatch that is a picture is drawn as a texture at true scale, which is what all the size and height business above is for. A swatch that is a plain colour has no weave to scale, so that part is simply painted in it - the size and rotation settings sit that one out. Either kind works from a variation option or from an attribute.
 
+**Where the same attribute is used twice.** A product can put one attribute up more than once, each copy under a name of its own - a chair whose "Fabric" attribute appears as **Seat fabric** and again as **Back fabric**, rather than two near-identical attributes in your shop's vocabulary. The configurator's **Overall height from**, **Colour from** and **Size from** boxes list each copy separately, under the name you gave it, so a material part is pointed at the one that actually carries its values. Pick **Seat fabric** for the seat and **Back fabric** for the back and each part is painted and scaled from its own, instead of both quietly taking whichever came first. Products that use an attribute once see it once, exactly as before, and nothing you set up previously needs revisiting.
+
 Because both measurements can be typed in, the configurator also works on a site with no product attributes set up at all: choose **Manual** in both boxes, type the two sizes, and you are done. A part on a fixed colour needs neither, so its size boxes disappear altogether.
 
 The configurator only starts colouring for shoppers once you have set up **at least one material part** and saved. Leave it untouched and your product behaves exactly as any other 3D product does.
