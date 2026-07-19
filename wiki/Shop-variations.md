@@ -2,7 +2,7 @@
 
 **Shop Variations** adds product options to your shop. It comes in two flavours, and you can use either or both on any product:
 
-- **Variants** - fixed choices like Size and Colour, where each combination can have its own price, stock level, SKU, barcode, weight and photo. A "Red / XL" jumper and a "Blue / S" jumper are the same product to your customer, but you can price and count them separately behind the scenes.
+- **Variants** - fixed choices like Size and Colour, where each combination can have its own price, stock level, SKU, barcode, weight and photo. (The weight column only appears while the shop is charging postage by weight - that switch lives at the top of Shop → Tax & shipping.) A "Red / XL" jumper and a "Blue / S" jumper are the same product to your customer, but you can price and count them separately behind the scenes.
 - **Personalisation** - free-form extras the customer fills in: engraving text, a gift message, a paid gift-wrap tick-box, a dropdown of finishes, a date, or an uploaded file (artwork, a photo, a logo). You decide which are optional, which are required, and what each one adds to the price.
 
 It needs the **Shop** module installed and up to date. Once both are in, every product in your shop grows a **Variations** tab, and you'll find a **Product options** entry in the Shop section of your admin sidebar for the shop-wide overview, reports and spreadsheet import.
@@ -84,6 +84,8 @@ Rename an attribute over on the Attributes screen and every option built from it
 Edit one of its *values* - a new label, a new colour, a new picture - and the same thing happens a level down. Every copy of that value updates, and the combinations built on it are re-named to match, so you aren't left with a "Small / Oak" that nobody calls oak any more. A copy is skipped only where this option already has a value by that name, since two of those would make the combination names ambiguous; Cactus says which product that was.
 
 Values typed in here go onto the attribute as well, so they follow along with the rest. Only the older hand-typed ones, from before that was the case, are copies of nothing and are never touched. See [Product Attributes](Product-attributes) for the full account.
+
+If you've switched suppliers on in **Shop → Settings → General** and set them to cover variations as well as products, the grid gains a supplier column too. It's a dropdown of your supplier list rather than a free-text box, and it ends with **Add a new supplier** for the ones you haven't got round to recording yet. Useful when the red ones come from one place and the blue ones from another.
 
 ### Other modules can add columns here
 
