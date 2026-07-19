@@ -17,8 +17,8 @@ Attributes belong to the whole shop rather than to one product, which is the poi
 There are four ways a shopper can pick:
 
 - **Tick list** - the everyday choice. A column of tick-boxes.
-- **Colour swatches** - little coloured dots. You choose the colour for each value as you add it.
-- **Picture swatches** - small pictures instead of dots, for the things a colour can't honestly describe: an oak grain, a fabric weave, a brushed brass finish. You choose the picture for each value as you add it.
+- **Colour swatches** - little coloured dots. You choose the colour for each value as you add it, and can change it later by clicking the dot.
+- **Picture swatches** - small pictures instead of dots, for the things a colour can't honestly describe: an oak grain, a fabric weave, a brushed brass finish. You choose the picture for each value as you add it, and can swap it later by clicking the square.
 - **Dropdown** - a single-choice menu, handy when there are a lot of values and not much room.
 
 ### Picture swatches
@@ -54,6 +54,14 @@ Each attribute has its own **Rename** button, and it does rather more than chang
 Two sensible exceptions. If you deliberately gave the option a different name on a particular product - the same colour list added twice as "Seat colour" and "Back colour", say - that product keeps the name you chose. Overriding it was the whole point, so a rename here doesn't barge in and undo it. And if a product already has some other option by the new name, that one is left as it was and Cactus tells you which product, rather than leaving you with two identically named dropdowns and a customer who can't tell them apart.
 
 Whatever happened, you get a line underneath saying how many options followed the rename and which, if any, didn't.
+
+### Editing a value
+
+Values are editable too, in the same place and with the same reach. Click a value's label and you can rename it; on a colour-swatch attribute, click the dot beside it to change the colour; on a picture-swatch one, click the square to swap the picture. Nothing has to be deleted and re-added, so nothing gets unticked from a hundred products in the process.
+
+A change here travels the same road a rename of the attribute does. "Oak" becoming "Natural oak" updates it on every product that filters by it, on every variation choice built from it, and in the name of every variation itself - so "Dining chair - Oak / Small" reads "Dining chair - Natural oak / Small" from then on. Web addresses stay as they were, and anything already ordered keeps the wording it was ordered under, which is rather the point of an order.
+
+The one exception is a product where the variation choice already has a value called that. Two identically named choices would make a nonsense of the variation names, so that one is left alone and Cactus names the product, same as with an attribute rename. You'll get a line underneath either way telling you how far the change went.
 
 ### Putting them in order
 

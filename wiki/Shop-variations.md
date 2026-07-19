@@ -77,9 +77,13 @@ Open it, tick the ones you want, add them. The rest stay out of it. If the attri
 
 One thing it won't do is add a value whose name you've already typed in by hand on that option - two values with the same name make the combination names ambiguous. It skips those and tells you which.
 
-### Renaming the attribute
+### Renaming the attribute, or one of its values
 
-Rename an attribute over on the Attributes screen and every option built from it follows suit, on every product, without you visiting any of them. The exception is an option you deliberately renamed here: that one keeps your name, because that's what overriding it was for. See [Product Attributes](Product-attributes) for the full account.
+Rename an attribute over on the Attributes screen and every option built from it follows suit, on every product, without you visiting any of them. The exception is an option you deliberately renamed here: that one keeps your name, because that's what overriding it was for.
+
+Edit one of its *values* - a new label, a new colour, a new picture - and the same thing happens a level down. Every copy of that value updates, and the combinations built on it are re-named to match, so you aren't left with a "Small / Oak" that nobody calls oak any more. A copy is skipped only where this option already has a value by that name, since two of those would make the combination names ambiguous; Cactus says which product that was.
+
+Values you typed in by hand here are not copies of anything, so they're never touched. See [Product Attributes](Product-attributes) for the full account.
 
 ### Other modules can add columns here
 
