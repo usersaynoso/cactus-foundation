@@ -109,7 +109,7 @@ Two things it doesn't change:
 - Shoppers still get **one** Material filter, not one per block. The blocks are how you record what this product is made of; the filter is how shoppers find it. A desk that's oak on top and steel underneath turns up under both.
 - The name you give a block is for your benefit on this product. The attribute itself keeps its shop-wide name.
 
-An attribute used more than once on a product can't also be set per variant - the Variations tab gives an attribute one column, and two blocks can't share it. Use one block for it, or turn **Use for variations** off.
+Each block can be set per variant too - see below.
 
 ## Products with variants
 
@@ -120,6 +120,16 @@ Tick **Use for variations** on an attribute and it turns up as its own column on
 The dropdown ends with **+ New value…**. Pick it, type the label, press Enter, and the value is created and put on that variant in one go. It appears in every other variant's dropdown immediately, so a colour typed on row one is a click away on row twelve. Escape backs out if you change your mind. Values for a variation attribute can also be set up in advance from the product's **Attributes** tab, using the same **Add a value** box - handy if you'd rather line up the choices before working down the grid.
 
 An attribute set to Use for variations is no longer ticked here on the product as a whole; its value lives per variant instead.
+
+### The same attribute as two columns
+
+If you've added an attribute to a product more than once, each block can be set per variant in its own right. Tick **Use for variations** on both and you get **two** columns on the Variations tab, headed by the names you gave the blocks.
+
+A boardroom table is the case this exists for. Its top and its edging both come in Beech, Oak, Walnut and the rest - one Finish list - but a customer picks them separately. Add Finish twice, call one block "Main finish" and the other "Edge finish", tick Use for variations on both, and the Variations tab gives you a column each. A variant can be oak on top and white on the edge, or oak on both; the two columns never read each other.
+
+They share the values, which is rather the point: a finish you type into the Edge finish column turns up in the Main finish dropdown straight away, and shoppers still get one Finish filter rather than two.
+
+The naming rule from earlier is doing real work here. The column headings come from the block names, and they're also the column names in a spreadsheet export, so two blocks going by one name would leave you with two identical columns and no way to tell which is which. That's why Cactus insists on it before saving.
 
 ### Importing what you've already typed
 
@@ -142,7 +152,7 @@ Those options keep a link back, so a **Refresh** button on each one picks up new
 
 ### Bulk-editing in the Google Sheet
 
-If you have the **Google Sheet** module, each **Use for variations** attribute becomes an extra column on the sheet's Variations tab, named after the attribute. Type or change a variant's value there and it comes back in on the next Pull, the same as price or stock. A value you type that didn't exist yet is created for you.
+If you have the **Google Sheet** module, each **Use for variations** block becomes an extra column on the sheet's Variations tab, named after the block - so "Main finish" and "Edge finish" come through as two columns, not one. Type or change a variant's value there and it comes back in on the next Pull, the same as price or stock. A value you type that didn't exist yet is created for you.
 
 ## Putting the filter on your shop
 
