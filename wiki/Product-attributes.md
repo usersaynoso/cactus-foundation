@@ -43,6 +43,8 @@ A shop with six attributes reads fine as one list. A shop with thirty does not, 
 
 Groups tidy up this screen and nothing else. Shoppers see exactly the same filters in exactly the same order whether you've spent an afternoon organising or none at all.
 
+Because groups keep things apart, a name only has to be unique inside its own group. If chairs and desks are both measured but measured differently, you can have a **Size** in each and they will not tread on each other. The one restriction is that you cannot have two of the same name in the *same* group, which would leave you staring at two identical headings wondering which was which. **Not in a group** counts as a group for this, so if a name is already sitting there unfiled, put the new one straight into a group using the **Group** dropdown next to the Add box.
+
 Two conveniences worth knowing. **Rename** on a group heading changes the name everywhere it appears. **Delete group** removes only the folder - the attributes inside it drop back to **Not in a group** with all their values and every product still attached, so it is a tidying-up decision rather than one you need to sleep on.
 
 ### Putting them in order
