@@ -6,6 +6,7 @@ import { errorResponse, parsePaginationParams } from '@/lib/utils'
 import {
   validateUpload,
   uploadMedia,
+  buildLibraryUploadKey,
   deleteMedia,
   saveMediaRecord,
   getMediaReferences,
@@ -59,7 +60,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const folderPath = folderId ? await resolveFolderPath(folderId) : ''
-    const result = await uploadMedia(validation.buffer, file.type, provider, file.name, folderPath || undefined)
+    // Store it under the name the person actually picked, deduped against what is
+    // already in this folder, rather than behind a random prefix.
+    const key = await buildLibraryUploadKey(provider, file.type, file.name, folderPath || undefined)
+    const result = await uploadMedia(validation.buffer, file.type, provider, file.name, folderPath || undefined, false, key)
     const record = await saveMediaRecord({
       key: result.key,
       url: result.url,

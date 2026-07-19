@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { buildKey, isS3Provider, workerUrl, planMediaReplacement, MediaReplaceTypeError } from '@/lib/media/upload'
+import { buildLibraryUploadKey, isS3Provider, workerUrl, planMediaReplacement, MediaReplaceTypeError } from '@/lib/media/upload'
 import { resolveFolderPath } from '@/lib/media/organise'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { signUploadToken, UPLOAD_TOKEN_TTL_MS } from '@/lib/media/upload-token'
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
   }
 
   const folderPath = folderId ? await resolveFolderPath(folderId) : ''
-  const key = buildKey(provider, contentType, filename, folderPath || undefined)
+  const key = await buildLibraryUploadKey(provider, contentType, filename, folderPath || undefined)
   const { token } = signUploadToken(key, UPLOAD_TOKEN_TTL_MS)
 
   return NextResponse.json({

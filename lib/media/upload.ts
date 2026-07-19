@@ -313,6 +313,41 @@ export function buildKey(
   return `${dir}/${id}`
 }
 
+/** How many "name-2", "name-3" … variants to try before giving up on the name. */
+const MAX_NAME_SUFFIX = 50
+
+// Key for a media-library upload, keeping the name the person actually chose.
+//
+// buildKey's exact form needs the CALLER to guarantee uniqueness, which the shop
+// can do (it names product images itself) and a person dragging files onto the
+// media library cannot. So uniqueness is established here instead: the exact key
+// is taken if no Media row already holds it, otherwise "-2", "-3" and so on, the
+// same thing an operating system does when you copy a file into a folder twice.
+//
+// The folder is part of the key, so two files of the same name in two folders
+// never meet. Only when even the suffixes are exhausted does this fall back to
+// the opaque nanoid form, which cannot collide at all.
+export async function buildLibraryUploadKey(
+  provider: MediaProviderType,
+  mimeType: string,
+  originalFilename?: string,
+  folderPath?: string,
+): Promise<string> {
+  const base = exactBaseName(originalFilename)
+  if (!base) return buildKey(provider, mimeType, originalFilename, folderPath)
+
+  const ext = extensionForMimeType(mimeType)
+  for (let n = 1; n <= MAX_NAME_SUFFIX; n++) {
+    // Round-trips through buildKey (rather than string-building the key here) so
+    // the prefix, folder and clipping rules stay in exactly one place.
+    const candidate = n === 1 ? base : `${base}-${n}`
+    const key = buildKey(provider, mimeType, `${candidate}.${ext}`, folderPath, true)
+    const taken = await prisma.media.findUnique({ where: { key }, select: { id: true } })
+    if (!taken) return key
+  }
+  return buildKey(provider, mimeType, originalFilename, folderPath)
+}
+
 // ---------------------------------------------------------------------------
 // Upload — branches by provider, returns the stored key + public/serving url.
 // ---------------------------------------------------------------------------
@@ -328,10 +363,16 @@ export async function uploadMedia(
   // Opt-in: use the exact (sanitised) filename as the key basename, no nanoid.
   // Callers that pass this own uniqueness within the folder. See buildKey.
   exactName?: boolean,
+  // A key the caller has already settled on, used verbatim instead of building
+  // one here. The media library passes the key buildLibraryUploadKey chose, so
+  // the collision check that picked it and the object actually written cannot
+  // disagree. Providers whose "key" is an id they mint (Cloudinary, ImageKit)
+  // can only honour the filename part of it.
+  presetKey?: string,
 ): Promise<UploadResult> {
   if (isS3Provider(provider)) {
     const { client, bucket } = getS3Config(provider)
-    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
+    const key = presetKey ?? buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     await client.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -346,7 +387,7 @@ export async function uploadMedia(
 
   if (provider === 'VERCEL_BLOB') {
     const { put } = await import('@vercel/blob')
-    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
+    const key = presetKey ?? buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     // access 'public' returns a stable blob URL; the Worker fetches it by key.
     await put(key, buffer, {
       access: 'public',
@@ -367,7 +408,7 @@ export async function uploadMedia(
       }
     )
     const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME ?? ''
-    const key = buildKey(provider, mimeType, originalFilename, folderPath, exactName)
+    const key = presetKey ?? buildKey(provider, mimeType, originalFilename, folderPath, exactName)
     const { error } = await storage.from(bucket).upload(key, buffer, { contentType: mimeType, upsert: true })
     if (error) throw new Error(`Supabase upload failed: ${error.message}`)
     return { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes: buffer.length }
@@ -399,7 +440,10 @@ export async function uploadMedia(
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
     const ext = extensionForMimeType(mimeType)
     const exactBase = exactName ? exactBaseName(originalFilename) : ''
-    const fileName = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
+    // ImageKit mints its own id for the key, so a preset key can only contribute
+    // the name the file is stored under.
+    const presetName = presetKey ? presetKey.slice(presetKey.lastIndexOf('/') + 1) : ''
+    const fileName = presetName || (exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`)
     const uploadable = await toFile(buffer, fileName, { type: mimeType })
     const result = await ik.files.upload({ file: uploadable, fileName, ...(folderPath ? { folder: `/${folderPath}` } : {}) })
     // Direct provider: store the fileId as key (needed for deletes), url is the CDN url.
