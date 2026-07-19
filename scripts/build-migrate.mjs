@@ -100,10 +100,10 @@ function resolveFailedMigrations() {
   }
 }
 
-function runWithRetry(label, cmd, args, retries = 3, backoffMs = 10_000) {
+function runWithRetry(label, cmd, args, { retries = 3, backoffMs = 10_000, childEnv = env } = {}) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     console.log(`[build-migrate] ${label} (attempt ${attempt}/${retries})…`)
-    const result = spawnSync(cmd, args, { stdio: 'inherit', env, shell: false })
+    const result = spawnSync(cmd, args, { stdio: 'inherit', env: childEnv, shell: false })
     if (result.status === 0) return
     if (attempt < retries) {
       console.log(`[build-migrate] ${label} failed — retrying in ${backoffMs / 1000}s`)
@@ -149,4 +149,15 @@ runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
 // table shapes ("cached plan must not change result type"). Clear them now rather
 // than waiting for pgBouncer to recycle. Best-effort by design: the script never
 // exits non-zero, so it can't fail a deploy.
-runWithRetry('Flush pooled query plans', 'node', ['scripts/flush-pooled-plans.mjs'])
+//
+// It gets the site's real DATABASE_URL, not the rewritten one every other step
+// runs with. `env` above replaces DATABASE_URL with the direct endpoint, so the
+// flusher's "is this pooled?" test was reading a URL from which "-pooler" had
+// just been stripped: on every pooled install it decided there was no pooler and
+// exited without clearing anything. The one guard written for this failure mode
+// had therefore never run on the installs that need it - which is how shop's
+// 006_supplier took the live storefront down on 2026-07-19, months after the
+// flusher was added for the identical failure in v0.5.578.
+runWithRetry('Flush pooled query plans', 'node', ['scripts/flush-pooled-plans.mjs'], {
+  childEnv: { ...env, DATABASE_URL: process.env.DATABASE_URL },
+})

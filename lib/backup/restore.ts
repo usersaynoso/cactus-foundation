@@ -1,5 +1,4 @@
-import type { PrismaClient } from '@prisma/client'
-import { prisma } from '@/lib/db/prisma'
+import { prisma, type ExtendedPrismaClient } from '@/lib/db/prisma'
 import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backup/secrets'
 import { checkRestoredMediaStorage } from '@/lib/backup/media-check'
 
@@ -139,7 +138,7 @@ export function setvalTargetSequence(statement: string): string | null {
   return match ? match[1]! : null
 }
 
-async function getExistingTables(db: PrismaClient): Promise<Set<string>> {
+async function getExistingTables(db: ExtendedPrismaClient): Promise<Set<string>> {
   const rows = await db.$queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -147,7 +146,7 @@ async function getExistingTables(db: PrismaClient): Promise<Set<string>> {
   return new Set(rows.map((r) => r.table_name))
 }
 
-async function getExistingSequences(db: PrismaClient): Promise<Set<string>> {
+async function getExistingSequences(db: ExtendedPrismaClient): Promise<Set<string>> {
   const rows = await db.$queryRawUnsafe<{ sequencename: string }[]>(
     `SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'`,
   )
@@ -156,7 +155,7 @@ async function getExistingSequences(db: PrismaClient): Promise<Set<string>> {
 
 // `required` = the INSERT must supply it: NOT NULL, no default, and not computed
 // by Postgres. Anything else can safely be left out of a backup's column list.
-async function getTargetColumns(db: PrismaClient): Promise<Map<string, TargetColumn[]>> {
+async function getTargetColumns(db: ExtendedPrismaClient): Promise<Map<string, TargetColumn[]>> {
   const rows = await db.$queryRawUnsafe<
     {
       table_name: string
@@ -253,7 +252,7 @@ function assertSchemasMatch(
  */
 export async function restoreDatabaseFromSql(
   sql: string,
-  db: PrismaClient = prisma,
+  db: ExtendedPrismaClient = prisma,
 ): Promise<RestoreResult> {
   const allStatements = splitSqlStatements(sql)
   const inserts = allStatements.filter((s) => /^INSERT\s+INTO/i.test(s))

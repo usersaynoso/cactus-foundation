@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
+import { stalePlanRetryExtension, type ExtendedPrismaClient } from '@/lib/db/prisma'
 import { buildBackupSql, quoteIdent } from './dump'
 import { restoreDatabaseFromSql, splitSqlStatements } from './restore'
 import { encryptSecret } from '@/lib/crypto/secrets'
@@ -66,8 +67,10 @@ async function firstOrgForKey(apiKey: string): Promise<string> {
   return org
 }
 
-async function connect(uri: string): Promise<PrismaClient> {
-  const db = new PrismaClient({ datasourceUrl: uri })
+// Extended exactly as the app's client is, so the round-trip exercises the same
+// client the site runs on rather than a plainer one that happens to type-check.
+async function connect(uri: string): Promise<ExtendedPrismaClient> {
+  const db = new PrismaClient({ datasourceUrl: uri }).$extends(stalePlanRetryExtension)
   // A freshly-created endpoint takes a moment to accept connections.
   for (let attempt = 0; ; attempt++) {
     try {
@@ -84,13 +87,13 @@ async function connect(uri: string): Promise<PrismaClient> {
 // raw executor sends one statement per call. The backup format shares this
 // splitter, and the schema uses the same constrained SQL (no dollar-quoting), so
 // this is a faithful exercise of it.
-async function applySchema(db: PrismaClient): Promise<void> {
+async function applySchema(db: ExtendedPrismaClient): Promise<void> {
   for (const statement of splitSqlStatements(SCHEMA_SQL)) {
     await db.$executeRawUnsafe(statement)
   }
 }
 
-async function listTables(db: PrismaClient): Promise<string[]> {
+async function listTables(db: ExtendedPrismaClient): Promise<string[]> {
   const rows = await db.$queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name != '_prisma_migrations'
@@ -103,7 +106,7 @@ async function listTables(db: PrismaClient): Promise<string[]> {
 // rows produce the same hashes whatever order the rows are stored in. This is the
 // assertion that would have caught the history bug without anyone predicting it:
 // a jsonb column that came back as text[] simply wouldn't have restored at all.
-async function tableHashes(db: PrismaClient, tables: string[]): Promise<Map<string, string>> {
+async function tableHashes(db: ExtendedPrismaClient, tables: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   for (const table of tables) {
     const rows = await db.$queryRawUnsafe<{ h: string }[]>(
@@ -118,7 +121,7 @@ async function tableHashes(db: PrismaClient, tables: string[]): Promise<Map<stri
 // Seed the exact shapes that break naive serialisation. The jsonb-array on
 // InfoPage.history / Layout.history is the literal regression; the String[] on
 // Passkey.transports is the real SQL-array case that must NOT be confused with it.
-async function seedAwkwardValues(db: PrismaClient): Promise<void> {
+async function seedAwkwardValues(db: ExtendedPrismaClient): Promise<void> {
   const history = JSON.stringify([
     { title: 'Home v1', at: '2026-01-01T00:00:00.000Z', byId: null },
     { title: "Home 'v2'", at: '2026-02-01T00:00:00.000Z', byId: 'u1' },
@@ -186,8 +189,8 @@ async function seedAwkwardValues(db: PrismaClient): Promise<void> {
 describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
   let project: NeonProject
   let dstBranch: NeonBranch
-  let srcDb: PrismaClient
-  let dstDb: PrismaClient
+  let srcDb: ExtendedPrismaClient
+  let dstDb: ExtendedPrismaClient
   let tables: string[]
   let backupSql: string
 

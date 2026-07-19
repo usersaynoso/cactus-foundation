@@ -33,9 +33,15 @@
  * idle pooled backend is exactly where a stale plan sits waiting. Two passes a
  * few seconds apart catch the ones that were mid-query on the first pass.
  *
- * Runs last in build-migrate.mjs, after every DDL step. Skipped when there is no
- * DATABASE_URL (initial deploy before the setup wizard) and when the database is
- * not reached through a pooler, where the problem cannot arise.
+ * Runs last in build-migrate.mjs, after every DDL step, and is given the site's
+ * real (pooled) DATABASE_URL rather than the direct one the migration steps run
+ * with. Skipped only when there is no DATABASE_URL at all (initial deploy before
+ * the setup wizard).
+ *
+ * It is a best-effort first line, not the guarantee. A build-time sweep cannot
+ * cover a connection opened after the build, so the actual guarantee is the
+ * retry in `lib/db/stale-plan.ts`, which replays any query that hits a stale plan
+ * at runtime. This script exists to keep that retry rare rather than routine.
  */
 
 import pg from 'pg'
@@ -47,13 +53,23 @@ if (!process.env.DATABASE_URL) {
   process.exit(0)
 }
 
-// Only pooled setups can strand a plan. A direct-only install replaces all its
-// connections with the deployment, so there is nothing here to clear.
+// No pooled/direct test any more, deliberately. There was one, and it was the
+// reason this script has never actually protected anything: build-migrate.mjs
+// hands its children a DATABASE_URL already rewritten to the direct endpoint, so
+// the "-pooler" test read a hostname with "-pooler" stripped out of it, decided
+// the install was direct-only, and exited having cleared nothing. Every pooled
+// install - the ones that need this - was the exact set it skipped.
+//
+// Sweeping unconditionally removes the failure mode rather than fixing that one
+// test, because a wrong answer here is silent and only shows up as a broken site
+// after the next migration. On a genuinely direct install the sweep costs one
+// query and ends idle connections that the deploy was about to replace anyway.
 const pooled = process.env.DATABASE_URL.includes('-pooler.')
-if (!pooled) {
-  console.log('[flush-plans] Not a pooled connection — nothing to clear')
-  process.exit(0)
-}
+console.log(
+  pooled
+    ? '[flush-plans] Pooled connection — clearing idle backends so plans are rebuilt'
+    : '[flush-plans] No pooler detected — sweeping anyway (the check is not worth trusting; see comment)',
+)
 
 // Terminating a backend has to be done from another connection, and it has to be
 // the direct endpoint: asking pgBouncer to end pgBouncer's own connections just

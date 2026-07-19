@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client'
+import type { ExtendedPrismaClient } from '@/lib/db/prisma'
 
 // ---------------------------------------------------------------------------
 // Styles info page — a living reference that renders real examples of every
@@ -165,7 +165,7 @@ export const stylesInfoPageData = {
 // Upserts the Styles info page as an installed-by-default draft. Idempotent:
 // safe to run on every setup/reset. Only ever writes builderData (the working
 // draft) so a published copy is never created until an admin publishes it.
-export async function upsertStylesInfoPage(db: PrismaClient) {
+export async function upsertStylesInfoPage(db: ExtendedPrismaClient) {
   await db.infoPage.upsert({
     where: { slug: STYLES_PAGE_SLUG },
     create: {
