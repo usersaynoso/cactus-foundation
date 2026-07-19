@@ -29,6 +29,40 @@ The column has one row's worth of space, so it shows the first photo with a smal
 
 On the product page, choosing that combination puts all of its photos at the front of the thumbnail strip, in the order you added them, with the product's own pictures following on behind. The first one takes the main stage. So a customer who picks walnut gets the walnut photos to browse, not one walnut photo and then the oak ones.
 
+### Building an option from a list you already have
+
+Typing "Black, Walnut, Oak, Ash, Beech" out again on the fortieth product is nobody's idea of a good afternoon. If you have [Product Attributes](Product-attributes) installed, the Variations tab offers a shortcut: under the box where you add an option you'll see **Add from attributes**.
+
+Click it and you get your attributes, in their groups, with a count of how many values each one holds. Pick one and you can:
+
+- **Change the option's name.** It starts as the attribute's name, because that's usually right, but this product's dropdown can say "Finish" while the attribute stays "Colour". Your version sticks - see below.
+- **Choose how it looks** - dropdown, pills, colour swatches or image swatches. Cactus has a guess ready: values with colours on them suggest colour swatches, values with pictures suggest image swatches.
+- **Tick only the values you want.** Everything starts ticked, so bringing the whole lot across is one click, but a chair that only comes in three of your twelve finishes takes only those three.
+
+The values are copied onto the product and are yours from that moment - rename them, reorder them, add one that exists nowhere else. Nothing you do here changes the attribute itself.
+
+### Using the same attribute twice on one product
+
+A chair whose frame and seat are both sold in your twelve finishes wants that one Colour attribute twice, not two near-identical attributes set up side by side. So you can add the same attribute to a product as many times as it earns its keep.
+
+The one rule is the one that was always there: two options on a product can't share a name, or the shopper meets two identical-looking dropdowns and your spreadsheet exports have nothing to tell them apart by. So the first helping can happily be called "Colour", and every one after it needs a name of its own - "Frame colour", "Seat colour", "Piping".
+
+The picker makes this easy rather than obstructive. Attributes already on the product say **Already added as "Colour"** underneath, so you know before you click. Pick one of those and the name box starts empty instead of pre-filled with a name that's already spoken for, with a line explaining why. Type the name you want and **Add option** wakes up. Type one that's already in use and it says so on the spot, rather than after the click.
+
+Each helping is its own option from then on: its own values, its own ticked subset, its own look, its own **Refresh** button. Bring five finishes across for the frame and three for the seat if that's what you sell. And your names stick - a "Seat colour" option built off the Colour attribute is never nagged about the attribute calling itself Colour, because you renamed it on purpose and Cactus can tell the difference between your decision and a drift.
+
+### Keeping it up to date
+
+An option built this way remembers where it came from, so it gets a **Refresh** button beside it. Press that and Cactus re-reads the attribute:
+
+- Values you've since added to the attribute are brought across.
+- Values renamed on the attribute, or given a new colour or picture, are updated here to match.
+- **Nothing is ever deleted.** Remove a value from the attribute and the copy on this product stays exactly where it is - Cactus just tells you it's no longer in the attribute and leaves the decision to you. That's deliberate: each value has real combinations hanging off it, with their own prices, stock and photos, and quietly binning those because someone tidied up an attribute would be a rotten surprise.
+- Values you typed in by hand are left alone, always.
+- **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus stops mentioning the attribute's own name altogether - an override you have to keep re-applying isn't much of an override, and one you're reminded about every single refresh is barely better. An option still carrying the attribute's original name is told once if the attribute has since been renamed, since that one you probably do want to know about.
+
+If you uninstall Product Attributes, the options themselves carry on working perfectly well. They're your own copies. The Refresh button simply goes away, having nothing left to refresh against.
+
 ### Other modules can add columns here
 
 Some modules add a column of their own beside Photo, for things that belong to one combination rather than to the product as a whole. If you have [Product 3D views](Product-3D-views) installed, that is where its **3D** column turns up: drop a model file onto a row and that combination has one. If you have [Product Attributes](Product-attributes) installed and tick **Use for variations** on an attribute, it adds a column here too, so each combination can carry its own Colour, Material or the like.
