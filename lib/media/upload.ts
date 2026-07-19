@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
@@ -580,6 +580,135 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
 }
 
 // ---------------------------------------------------------------------------
+// Inspect what storage actually holds — size of one object, or every object
+// under the media prefix. Both are read-only and used to keep Media rows honest
+// about the blobs they point at, which nothing else in the pipeline can do: the
+// direct-upload path never sees the bytes, so without asking storage the row's
+// size is only ever the client's word for it.
+// ---------------------------------------------------------------------------
+
+/**
+ * The real stored size of an object, or null when the provider can't be asked
+ * cheaply (Cloudinary/ImageKit mint their own ids) or the lookup fails. Callers
+ * treat null as "no better answer than what I already had" rather than an error:
+ * a size that is merely unconfirmed must not fail an upload whose bytes landed.
+ */
+export async function headMediaSize(provider: MediaProviderType, key: string): Promise<number | null> {
+  try {
+    if (isS3Provider(provider)) {
+      const { client, bucket } = getS3Config(provider)
+      const res = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+      return typeof res.ContentLength === 'number' ? res.ContentLength : null
+    }
+
+    if (provider === 'VERCEL_BLOB') {
+      const { head } = await import('@vercel/blob')
+      const meta = await head(key, { token: process.env.BLOB_READ_WRITE_TOKEN })
+      return typeof meta.size === 'number' ? meta.size : null
+    }
+
+    if (provider === 'SUPABASE_STORAGE') {
+      const objects = await listStoredMediaKeys(provider, key)
+      return objects?.find((o) => o.key === key)?.sizeBytes ?? null
+    }
+
+    // CLOUDINARY / IMAGEKIT: the stored "key" is a provider-minted id and both
+    // may re-encode on ingest, so a size read here would not describe the bytes
+    // this upload sent either. Left unconfirmed on purpose.
+    return null
+  } catch {
+    return null
+  }
+}
+
+export type StoredObject = { key: string; sizeBytes: number }
+
+/**
+ * Every object storage holds under this provider's media prefix. Returns null
+ * when the provider has no listing this code supports — the caller must treat
+ * that as "cannot tell", never as "found nothing", or a reconcile would report
+ * the whole library as missing from storage.
+ *
+ * `prefix` narrows the scan; omitted, it is the provider's own media namespace.
+ */
+export async function listStoredMediaKeys(
+  provider: MediaProviderType,
+  prefix?: string,
+): Promise<StoredObject[] | null> {
+  const scope = prefix ?? mediaKeyPrefix(provider)
+
+  if (isS3Provider(provider)) {
+    const { client, bucket } = getS3Config(provider)
+    const out: StoredObject[] = []
+    let token: string | undefined
+    // ListObjectsV2 returns live objects only — old versions and delete markers
+    // (which is most of what a versioned bucket's own file browser counts) are
+    // not included, so this matches what the library should be holding.
+    do {
+      const res = await client.send(new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: scope,
+        ContinuationToken: token,
+      }))
+      for (const o of res.Contents ?? []) {
+        if (typeof o.Key === 'string') out.push({ key: o.Key, sizeBytes: o.Size ?? 0 })
+      }
+      token = res.IsTruncated ? res.NextContinuationToken : undefined
+    } while (token)
+    return out
+  }
+
+  if (provider === 'VERCEL_BLOB') {
+    const { list } = await import('@vercel/blob')
+    const out: StoredObject[] = []
+    let cursor: string | undefined
+    do {
+      const res = await list({ prefix: scope, cursor, token: process.env.BLOB_READ_WRITE_TOKEN })
+      for (const b of res.blobs) out.push({ key: b.pathname, sizeBytes: b.size })
+      cursor = res.hasMore ? res.cursor : undefined
+    } while (cursor)
+    return out
+  }
+
+  if (provider === 'SUPABASE_STORAGE') {
+    const { StorageClient } = await import('@supabase/storage-js')
+    const storage = new StorageClient(
+      `${(process.env.SUPABASE_STORAGE_PROJECT_URL ?? '').replace(/\/$/, '')}/storage/v1`,
+      {
+        apikey: process.env.SUPABASE_STORAGE_SERVICE_ROLE_KEY ?? '',
+        Authorization: `Bearer ${process.env.SUPABASE_STORAGE_SERVICE_ROLE_KEY ?? ''}`,
+      }
+    )
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME ?? ''
+    // Supabase lists one folder at a time and reports subfolders as rows with no
+    // metadata, so the tree is walked breadth-first rather than in one call.
+    const out: StoredObject[] = []
+    const queue: string[] = [scope.replace(/\/$/, '')]
+    while (queue.length > 0) {
+      const dir = queue.shift() as string
+      const { data, error } = await storage.from(bucket).list(dir, { limit: 1000 })
+      if (error) throw new Error(`Supabase list failed: ${error.message}`)
+      for (const entry of data ?? []) {
+        const full = dir ? `${dir}/${entry.name}` : entry.name
+        const size = (entry.metadata as { size?: number } | null)?.size
+        if (typeof size === 'number') out.push({ key: full, sizeBytes: size })
+        else queue.push(full)
+      }
+    }
+    return out
+  }
+
+  // CLOUDINARY / IMAGEKIT store by provider-minted id in a namespace this code
+  // doesn't own end to end. "Cannot tell" is the honest answer.
+  return null
+}
+
+/** The key prefix every object this provider stores for us sits under. */
+export function mediaKeyPrefix(provider: MediaProviderType): string {
+  return provider === 'B2' ? 'media/' : `media/${provider}/`
+}
+
+// ---------------------------------------------------------------------------
 // Relocate a blob to a new folder path and/or a new filename. Creates the new
 // blob only — the old one is left in place so the caller can rewrite references
 // first and delete the original last (the same failure-safe order the optimise
@@ -1066,8 +1195,31 @@ export async function adoptReplacementBlob(
   // The direct path is only ever signed for the S3-compatible family, whose
   // canonical serving url is the Worker's.
   if (!isS3Provider(media.provider)) throw new Error('This item is not stored on a provider the direct upload path can write to.')
-  const result: UploadResult = { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes }
+  const result: UploadResult = {
+    key,
+    url: `${workerUrl()}/${key}`,
+    mimeType,
+    sizeBytes: await confirmedSizeBytes(media.provider, key, sizeBytes),
+  }
   return repointMediaToBlob(media, result, { optimised: false, originalName })
+}
+
+/**
+ * The size to record for a blob the server never held. On the direct-upload
+ * paths the bytes go from the browser straight to storage, so the only figure
+ * the request carries is the client's own `file.size` — which describes the file
+ * it meant to send, not the object that ended up stored. Ask storage instead,
+ * and keep the claimed value only when storage cannot say.
+ */
+export async function confirmedSizeBytes(
+  provider: MediaProviderType,
+  key: string,
+  claimed: number,
+): Promise<number> {
+  const actual = await headMediaSize(provider, key)
+  if (actual === null || actual === claimed) return claimed
+  console.warn(`[media] size mismatch for ${key}: client claimed ${claimed}, storage holds ${actual} - recording ${actual}`)
+  return actual
 }
 
 // Guard shared by every derive path: the row exists and its bytes are something

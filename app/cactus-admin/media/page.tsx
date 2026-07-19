@@ -5,6 +5,7 @@ import { parsePaginationParams } from '@/lib/utils'
 import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
 import { computeLibraryStats } from '@/lib/media/library-stats'
 import MediaLibrary from './MediaLibrary'
+import MediaStorageCheck from './MediaStorageCheck'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Media — Admin' }
@@ -19,9 +20,13 @@ export default async function MediaPage({ searchParams }: Props) {
   if (!user) return null
 
   // Both permissions in one query rather than a round-trip each.
-  const granted = await hasPermissions(user, ['media.upload', 'media.delete'])
+  const granted = await hasPermissions(user, ['media.upload', 'media.delete', 'config.manage'])
   const canUpload = granted['media.upload'] === true
   const canDelete = granted['media.delete'] === true
+  // The storage check reports on the bucket as a whole, including files no media
+  // item claims, so it sits behind the same permission as the other storage
+  // settings rather than the media.* pair.
+  const canCheckStorage = granted['config.manage'] === true
 
   const sp = await searchParams
   const params = new URLSearchParams(sp)
@@ -50,17 +55,20 @@ export default async function MediaPage({ searchParams }: Props) {
   }
 
   return (
-    <MediaLibrary
-      initialItems={initial.items}
-      initialHasMore={initial.hasMore}
-      initialTotal={initial.total}
-      folders={folders.map((f) => ({ ...f, mediaCount: countByFolder.get(f.id) ?? 0 }))}
-      rootCount={rootCount}
-      tags={tags.map((t) => ({ id: t.id, name: t.name, count: t._count.media }))}
-      stats={stats}
-      canUpload={canUpload}
-      canDelete={canDelete}
-      perPage={perPage}
-    />
+    <>
+      <MediaLibrary
+        initialItems={initial.items}
+        initialHasMore={initial.hasMore}
+        initialTotal={initial.total}
+        folders={folders.map((f) => ({ ...f, mediaCount: countByFolder.get(f.id) ?? 0 }))}
+        rootCount={rootCount}
+        tags={tags.map((t) => ({ id: t.id, name: t.name, count: t._count.media }))}
+        stats={stats}
+        canUpload={canUpload}
+        canDelete={canDelete}
+        perPage={perPage}
+      />
+      {canCheckStorage && <MediaStorageCheck canDelete={canDelete} />}
+    </>
   )
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { saveMediaRecord } from '@/lib/media/upload'
+import { saveMediaRecord, confirmedSizeBytes } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { isDirectUploadType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
 import { verifyUploadToken } from '@/lib/media/upload-token'
@@ -60,12 +60,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Size is the one thing left that came from the body, and the bytes never
+    // passed through here to check it against. Ask storage what it actually
+    // holds, so the library's totals describe the objects rather than the
+    // client's account of them. The body value stays the cap check above (a
+    // client understating its size cannot smuggle an oversized object past it —
+    // the Worker enforces the same cap on the PUT).
+    const storedSize = await confirmedSizeBytes(provider, key, sizeBytes)
     const record = await saveMediaRecord({
       key,
       url: '', // saveMediaRecord rebuilds the Worker url for proxied providers
       provider,
       mimeType: contentType,
-      sizeBytes,
+      sizeBytes: storedSize,
       uploadedById: user.id,
       altText,
       originalName,
