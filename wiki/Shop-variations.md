@@ -57,29 +57,21 @@ The one rule is the one that was always there: two options on a product can't sh
 
 The picker makes this easy rather than obstructive. Attributes already on the product say **Already added as "Colour"** underneath, so you know before you click. Pick one of those and the name box starts empty instead of pre-filled with a name that's already spoken for, with a line explaining why. Type the name you want and **Add option** wakes up. Type one that's already in use and it says so on the spot, rather than after the click.
 
-Each helping is its own option from then on: its own values, its own ticked subset, its own look, its own **Refresh** button. Bring five finishes across for the frame and three for the seat if that's what you sell. And your names stick - a "Seat colour" option built off the Colour attribute is never nagged about the attribute calling itself Colour, because you renamed it on purpose and Cactus can tell the difference between your decision and a drift.
+Each helping is its own option from then on: its own values, its own ticked subset, its own look. Bring five finishes across for the frame and three for the seat if that's what you sell. And your names stick - a "Seat colour" option built off the Colour attribute is never nagged about the attribute calling itself Colour, because you renamed it on purpose and Cactus can tell the difference between your decision and a drift.
 
-### Keeping it up to date
+Values you typed in here are treated like any other, since they're on the attribute too - rename one on the Attributes screen and this copy follows. Values typed in before this became the way of things have no attribute behind them, and those are left alone, always. **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus never starts calling it by the attribute's own name instead.
 
-An option built this way remembers where it came from, so it gets a **Refresh** button beside it. Press that and Cactus re-reads the attribute:
-
-- Values you've since added to the attribute are brought across.
-- Values renamed on the attribute, or given a new colour or picture, are updated here to match.
-- **Nothing is ever deleted.** Remove a value from the attribute and the copy on this product stays exactly where it is - Cactus just tells you it's no longer in the attribute and leaves the decision to you. That's deliberate: each value has real combinations hanging off it, with their own prices, stock and photos, and quietly binning those because someone tidied up an attribute would be a rotten surprise.
-- Values you typed in here are treated like any other, since they're on the attribute too - rename one on the Attributes screen and this copy follows. Values typed in before this became the way of things have no attribute behind them, and those are left alone, always.
-- **Your option name is never overwritten.** If you renamed it to "Finish", it stays "Finish", and Cactus stops mentioning the attribute's own name altogether - an override you have to keep re-applying isn't much of an override, and one you're reminded about every single refresh is barely better.
-
-If you uninstall Product Attributes, the options themselves carry on working perfectly well. They're your own copies. The Refresh button simply goes away, having nothing left to refresh against.
+If you uninstall Product Attributes, the options themselves carry on working perfectly well. They're your own copies.
 
 ### Where an option came from
 
 Under the name of any option built from an attribute you'll see a quiet line saying so - **From attributes: Upholstery Colour**. Handy when the option is called something else on this product, which is exactly when you'd otherwise have no way of telling what it's tied to.
 
-If the attribute behind it has since been deleted, the line says that instead. Better to read it there than to find out by pressing Refresh and getting an error.
+If the attribute behind it has since been deleted, the line says that instead.
 
 ### Adding a few more values later
 
-Refresh brings across *everything* the attribute has. Often that's not what you want - the attribute lists twenty-two colours and this chair comes in four of them. So next to the box where you type a value, a sourced option also offers **Add from source**, with the number of values the attribute has that this option hasn't taken yet.
+The attribute might list twenty-two colours and this chair only come in four of them, so next to the box where you type a value, a sourced option also offers **Add from source**, with the number of values the attribute has that this option hasn't taken yet.
 
 Open it, tick the ones you want, add them. The rest stay out of it. If the attribute has nothing left to offer, the button isn't there at all, which is its own small answer to "am I missing anything?".
 
