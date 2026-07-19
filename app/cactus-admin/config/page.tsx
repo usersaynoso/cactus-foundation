@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from 'react'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
@@ -18,7 +19,7 @@ export default async function ConfigPage() {
   const [user, activeModules] = await Promise.all([
     getSessionFromCookie(),
     prisma.module.findMany({
-      where: { status: { in: ['active', 'update_available'] } },
+      where: { ...INSTALLED_MODULE_WHERE },
       select: { manifest: true },
     }),
   ])

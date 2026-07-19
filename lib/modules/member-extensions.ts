@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import type { ModuleManifest } from '@/lib/modules/manifest'
 
 // Live reads of every active module's `memberExtensions` manifest field (see
@@ -8,7 +9,7 @@ import type { ModuleManifest } from '@/lib/modules/manifest'
 
 async function getActiveModuleManifests(): Promise<ModuleManifest[]> {
   const modules = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
+    where: { ...INSTALLED_MODULE_WHERE },
     select: { manifest: true },
   })
   return modules
@@ -28,7 +29,7 @@ export async function getModuleNotificationCategories(): Promise<Array<{ categor
 
 export async function getModuleDataExportPaths(): Promise<Array<{ moduleName: string; path: string }>> {
   const modules = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
+    where: { ...INSTALLED_MODULE_WHERE },
     select: { name: true, manifest: true },
   })
   const result: Array<{ moduleName: string; path: string }> = []

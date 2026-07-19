@@ -18,6 +18,10 @@ export type ModuleUpdateInfo = {
 
 export async function findModuleUpdates(): Promise<ModuleUpdateInfo[]> {
   const modules = await prisma.module.findMany({
+    // Deliberately NOT INSTALLED_MODULE_WHERE. Everywhere else, a module mid-deploy
+    // still counts as live; here it must not. A `deploying` row holds the old tag in
+    // `version` and the new one in `pendingVersion`, so including it would compare
+    // against the version being replaced and re-offer the update already in flight.
     where: { status: { in: ['active', 'update_available'] } },
   })
 

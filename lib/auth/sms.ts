@@ -4,6 +4,7 @@
 // Core only ever talks to the SmsProvider interface — no provider-specific
 // code lives here.
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleSmsProviders } from '@/lib/modules/sms-providers'
 
 export type SmsProvider = {
@@ -19,7 +20,7 @@ export async function getActiveSmsProvider(): Promise<SmsProvider | null> {
   if (moduleSmsProviders.length === 0) return null
 
   const active = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
+    where: { ...INSTALLED_MODULE_WHERE },
     select: { name: true },
   })
   const activeNames = new Set(active.map((m) => m.name))

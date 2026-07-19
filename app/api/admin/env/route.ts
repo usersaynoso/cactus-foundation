@@ -7,6 +7,7 @@ import { isLocalMode } from '@/lib/config/env'
 import { errorResponse } from '@/lib/utils'
 import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS } from '@/lib/media/providers'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_STATUSES } from '@/lib/modules/live-status'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
@@ -66,7 +67,9 @@ async function getManagedKeys(): Promise<Set<string>> {
   const keys = new Set(ALLOWED_KEYS)
   try {
     const mods = await prisma.module.findMany({
-      where: { status: { in: ['active', 'update_available', 'inactive'] } },
+      // Wider than INSTALLED_MODULE_WHERE on purpose: a switched-off module's env vars
+      // stay editable so they survive being switched back on.
+      where: { status: { in: [...INSTALLED_MODULE_STATUSES, 'inactive'] } },
       select: { manifest: true },
     })
     for (const mod of mods) {

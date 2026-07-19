@@ -1,6 +1,7 @@
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import AccountPageClient from './AccountPageClient'
 
@@ -16,7 +17,7 @@ export default async function AccountPage() {
   const [user, extensionModules] = await Promise.all([
     getSessionFromCookie(),
     prisma.module.findMany({
-      where: { status: { in: ['active', 'update_available'] } },
+      where: { ...INSTALLED_MODULE_WHERE },
       select: { manifest: true },
     }),
   ])

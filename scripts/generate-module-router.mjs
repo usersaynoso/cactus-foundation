@@ -359,6 +359,14 @@ for (const { moduleName, importPath } of robotsModules) {
 }
 out.push(`  return paths`)
 out.push(`}`)
+out.push(``)
+
+// The build fact that lib/modules/live-status.ts deliberately does not answer: which
+// modules' code is actually present in THIS build (i.e. cloned per modules.json).
+// Needed by anything that reads routes or nav entries straight off a stored manifest,
+// where there is no generated registry lookup to drop a module that isn't here yet.
+out.push(`// Modules whose code is present in this build, from the clone step.`)
+out.push(`export const MODULES_IN_BUILD: ReadonlySet<string> = new Set(${JSON.stringify(moduleNames)})`)
 
 writeFileSync(routerPath, out.join('\n') + '\n')
 console.log(

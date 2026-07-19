@@ -4,6 +4,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
 import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, type ModuleManifestNav } from '@/lib/nav/admin-menu'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
@@ -36,19 +38,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const [config, activeModules, unreadCount, branding] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true, adminMenuConfig: true } }),
-    prisma.module.findMany({ where: { status: { in: ['active', 'update_available'] } }, select: { manifest: true } }),
+    // Installed here AND present in this build. Unlike the extension-point call sites,
+    // nav entries come straight off the stored manifest with no generated registry to
+    // drop a module whose code has not landed yet - so a first install would advertise
+    // links that 404 until its deploy finishes. MODULES_IN_BUILD is that missing half.
+    prisma.module.findMany({ where: INSTALLED_MODULE_WHERE, select: { name: true, manifest: true } }),
     getUnreadCount(),
     resolveBranding(),
   ])
 
-  const manifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
+  const liveModules = activeModules.filter((mod) => MODULES_IN_BUILD.has(mod.name))
+  const manifests = liveModules.map((mod) => mod.manifest as ModuleManifestNav | null)
   // Module settings tabs (shown inside Settings, not the sidebar) so the command
   // palette can search them - resolved from the same manifests, gated by each tab's
   // own permission in the same batch query below.
   // `host` marks a settings panel rendered inside another module's slot rather than
   // as its own top-level Settings tab, so it isn't a /config?tab= destination.
   type ModuleSettingsTabMeta = { id: string; label: string; permission?: string; host?: string }
-  const settingsTabManifests = activeModules.map((mod) => mod.manifest as { settingsTabs?: ModuleSettingsTabMeta[] } | null)
+  const settingsTabManifests = liveModules.map((mod) => mod.manifest as { settingsTabs?: ModuleSettingsTabMeta[] } | null)
   // Module nav-entry permissions, each module settings tab's permission, AND the core
   // items' default-visibility keys are resolved together in one batch: the same map
   // gates module links, module settings tabs, and the core sidebar resolution below.

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission, hasPermissions } from '@/lib/permissions/check'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
@@ -22,7 +23,7 @@ export default async function MemberDetailPage({ params }: Props) {
   const [member, extensionModules] = await Promise.all([
     prisma.member.findUnique({ where: { id } }),
     prisma.module.findMany({
-      where: { status: { in: ['active', 'update_available'] } },
+      where: { ...INSTALLED_MODULE_WHERE },
       select: { manifest: true },
     }),
   ])

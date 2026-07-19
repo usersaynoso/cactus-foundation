@@ -3,12 +3,12 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.66"
+      "version": "v0.1.67"
     },
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.47"
+      "version": "v0.1.48"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -53,7 +53,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.28"
+      "version": "v0.1.29"
     },
     {
       "name": "twilio",
@@ -68,7 +68,7 @@
     {
       "name": "ultimate-seo",
       "repoUrl": "https://github.com/cactus-foundation-modules/ultimate-seo",
-      "version": "v0.1.0"
+      "version": "v0.1.1"
     }
   ]
 }

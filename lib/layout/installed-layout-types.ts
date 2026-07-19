@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import {
   moduleLayoutTypeGroups,
   moduleLayoutTypeToGroup,
@@ -14,12 +15,9 @@ import { isKnownLayoutType } from '@/lib/layout/layout-type-tabs'
 // the module's code lying around. This is the gate the admin sidebar already applies
 // to nav entries (app/cactus-admin/layout.tsx); layouts now use it too.
 
-/** A module whose code is live in this build and installed on this site. */
-const USABLE_STATUSES = ['active', 'update_available'] as const
-
 export async function getInstalledModuleNames(): Promise<Set<string>> {
   const rows = await prisma.module.findMany({
-    where: { status: { in: [...USABLE_STATUSES] } },
+    where: INSTALLED_MODULE_WHERE,
     select: { name: true },
   })
   return new Set(rows.map((r) => r.name))

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 
@@ -14,7 +15,7 @@ export default async function AccountIndexPage() {
   // extension point - unlike core.roles-page, there is no permission gate to
   // check since members have no permission keys.
   const extensionModules = await prisma.module.findMany({
-    where: { status: { in: ['active', 'update_available'] } },
+    where: { ...INSTALLED_MODULE_WHERE },
     select: { manifest: true },
   })
   const sectionIds: string[] = []

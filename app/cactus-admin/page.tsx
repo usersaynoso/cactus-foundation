@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { Metadata } from 'next'
@@ -35,7 +36,7 @@ export default async function AdminDashboard() {
       select: { siteName: true, status: true, timezone: true, mediaProvider: true },
     }),
     prisma.module.findMany({
-      where: { status: { in: ['active', 'update_available'] } },
+      where: { ...INSTALLED_MODULE_WHERE },
       select: { manifest: true },
     }),
   ])
