@@ -222,6 +222,7 @@ A few sensible things happen without you asking:
 
 - **Anything already the right shape is left well alone** rather than needlessly re-saved.
 - **One awkward file won't spoil the batch.** If a picture can't be reshaped, the rest still go through and the toast tells you how many were done and how many weren't.
+- **Six at a time, counted off as it goes.** The button shows how far along it is, so a few hundred pictures don't leave you staring at a spinner wondering whether anything is happening.
 - **Saving as new copies** gives each one a name based on the original plus the ratio, so forty files don't all fight over the same name.
 - **Very extreme shapes** - a long thin panorama forced into a tall portrait, say - would technically need an enormous canvas of mostly empty space, so Cactus quietly scales the whole thing to something sensible. The picture keeps its proportions; it just doesn't become a 60-megapixel monument to padding.
 
@@ -247,6 +248,7 @@ Tick as many pictures as you like and **Resize…** appears in the bar along the
 
 - **Anything already smaller than the size you picked is left alone**, not needlessly re-saved.
 - **One awkward file won't spoil the batch.** The rest still go through, and the toast tells you how many were done and how many weren't.
+- **Six at a time, counted off as it goes.** The button shows how far along it is, so a big pile of holiday photos doesn't leave you guessing.
 - **Saving as new copies** names each one after the original plus its new size, so nothing fights over the same name.
 - **The toast tells you how much space you saved**, which on a folder of holiday photos is usually the most satisfying number in this entire admin area.
 
@@ -366,7 +368,9 @@ Not sure where to start? The **Optimisable** tile at the top of the library tell
 
 ### Doing several at once
 
-Tick the checkbox in the corner of each thumbnail (or tick the first, hold **Shift**, and tick the last to grab a whole run - the list view has tick-boxes too, and a "select all" box at the top), then press **Optimise** in the bar that appears above the library. Cactus works through them one by one and tells you how many it slimmed down and roughly how much space you saved.
+Tick the checkbox in the corner of each thumbnail (or tick the first, hold **Shift**, and tick the last to grab a whole run - the list view has tick-boxes too, and a "select all" box at the top), then press **Optimise** in the bar that appears above the library. Cactus works through six at a time and counts them off as it goes - "Optimising 214/600" - so a big batch tells you it's getting on with it rather than sitting there silently. At the end it says how many it slimmed down and roughly how much space you saved.
+
+Doing several at once is genuinely faster than doing them one after another, which matters once you're into the hundreds: a batch that used to take an age now gets through it in a fraction of the time, and a very large selection no longer risks giving up part-way through.
 
 A few sensible rules keep things safe:
 
