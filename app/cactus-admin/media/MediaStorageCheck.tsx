@@ -42,27 +42,74 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
     }
   }
 
+  // One POST with up to three attempts. A failed attempt is retried after a
+  // short pause: a big cleanup can trip a gateway timeout mid-run, and the
+  // server treats already-handled keys as stale, so repeating a batch is safe.
+  // The response is parsed defensively - a timeout page is not JSON, and the
+  // raw parse error ("The string did not match the expected pattern") tells an
+  // admin nothing.
+  async function requestRepair<T>(action: string, keys?: string[], force?: boolean): Promise<T> {
+    let lastError: Error | null = null
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch('/api/admin/media/storage-check', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action, keys, force }),
+        })
+        const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null
+        if (!res.ok || data === null) {
+          throw new Error(data?.error ?? `The server did not finish in time (status ${res.status}).`)
+        }
+        return data
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error('That did not work.')
+        if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
+      }
+    }
+    throw lastError ?? new Error('That did not work.')
+  }
+
+  // Keys are sent in batches so no single request can outgrow the route's time
+  // limit, whatever the size of the cleanup. Purges are cheap per key (bulk row
+  // deletes); orphan deletes call storage once per file, so they go in smaller
+  // batches.
+  const BATCH_SIZE = { 'purge-missing': 200, 'delete-orphans': 25 } as const
+
   async function post(action: string, keys?: string[], force?: boolean) {
     setState('working'); setError(null); setNote(null); setBlocked([])
     try {
-      const res = await fetch('/api/admin/media/storage-check', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action, keys, force }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error ?? 'That did not work.')
       if (action === 'correct-sizes') {
+        const data = await requestRepair<{ corrected: number }>(action)
         setNote(data.corrected === 0 ? 'Nothing needed correcting.' : `Corrected ${data.corrected} recorded size${data.corrected === 1 ? '' : 's'}.`)
       } else if (action === 'purge-missing') {
-        const skipped = (data.skipped ?? []) as PurgeMissingResult['skipped']
+        const all = keys ?? []
+        const size = BATCH_SIZE[action]
+        let purged = 0
+        const skipped: PurgeMissingResult['skipped'] = []
+        for (let i = 0; i < all.length; i += size) {
+          if (all.length > size) setNote(`Removing… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
+          const data = await requestRepair<PurgeMissingResult>(action, all.slice(i, i + size), force)
+          purged += data.purged
+          skipped.push(...(data.skipped ?? []))
+        }
         setBlocked(skipped)
         setNote(
-          `Removed ${data.purged} entr${data.purged === 1 ? 'y' : 'ies'}.` +
+          `Removed ${purged} entr${purged === 1 ? 'y' : 'ies'}.` +
           (skipped.length > 0 ? ` ${skipped.length} left alone for now - still used elsewhere.` : '')
         )
       } else {
-        setNote(`Deleted ${data.deleted} file${data.deleted === 1 ? '' : 's'}, freeing ${formatBytes(data.reclaimedBytes)}.${data.skipped > 0 ? ` ${data.skipped} skipped.` : ''}`)
+        const all = keys ?? []
+        const size = BATCH_SIZE['delete-orphans']
+        let deleted = 0, skippedCount = 0, reclaimedBytes = 0
+        for (let i = 0; i < all.length; i += size) {
+          if (all.length > size) setNote(`Deleting… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
+          const data = await requestRepair<{ deleted: number; skipped: number; reclaimedBytes: number }>(action, all.slice(i, i + size), force)
+          deleted += data.deleted
+          skippedCount += data.skipped
+          reclaimedBytes += data.reclaimedBytes
+        }
+        setNote(`Deleted ${deleted} file${deleted === 1 ? '' : 's'}, freeing ${formatBytes(reclaimedBytes)}.${skippedCount > 0 ? ` ${skippedCount} skipped.` : ''}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'That did not work.')

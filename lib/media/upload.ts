@@ -814,13 +814,25 @@ export async function saveMediaRecord(data: {
 // item is safe to delete. Kept in step with lib/media/references.ts so the delete
 // warning and the media library's In Use / Not In Use tabs agree.
 export async function getMediaReferences(mediaId: string): Promise<string[]> {
-  const media = await prisma.media.findUnique({
-    where: { id: mediaId },
-    select: { id: true, key: true, url: true },
-  })
-  if (!media) return []
+  const refs = await getMediaReferencesBulk([mediaId])
+  return refs.get(mediaId) ?? []
+}
 
-  const [config, ogPages, avatars, exports] = await Promise.all([
+/**
+ * Same verdicts as `getMediaReferences`, but for many items in one pass: the
+ * per-id counts become three grouped queries and the usage index is built once,
+ * so checking hundreds of items costs the same handful of round-trips as
+ * checking one. Ids that do not exist are simply absent from the result.
+ */
+export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>()
+  if (mediaIds.length === 0) return result
+
+  const [mediaRows, config, ogPages, avatars, exports] = await Promise.all([
+    prisma.media.findMany({
+      where: { id: { in: mediaIds } },
+      select: { id: true, key: true, url: true },
+    }),
     prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
       select: {
@@ -834,21 +846,26 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
         webManifest512MediaId: true,
       },
     }),
-    prisma.infoPage.count({ where: { ogImageId: mediaId } }),
-    prisma.member.count({ where: { avatarMediaId: mediaId } }),
-    prisma.memberDataExportRequest.count({ where: { mediaId } }),
+    prisma.infoPage.groupBy({
+      by: ['ogImageId'],
+      where: { ogImageId: { in: mediaIds } },
+      _count: { _all: true },
+    }),
+    prisma.member.groupBy({
+      by: ['avatarMediaId'],
+      where: { avatarMediaId: { in: mediaIds } },
+      _count: { _all: true },
+    }),
+    prisma.memberDataExportRequest.groupBy({
+      by: ['mediaId'],
+      where: { mediaId: { in: mediaIds } },
+      _count: { _all: true },
+    }),
   ])
 
-  const refs: string[] = []
-  if (config?.logoMediaId === mediaId || config?.logoDarkMediaId === mediaId) refs.push('site logo')
-  if (config?.faviconMediaId === mediaId || config?.faviconDarkMediaId === mediaId) refs.push('site favicon')
-  if (config?.appIconMediaId === mediaId) refs.push('app icon')
-  if (config?.appleTouchIconMediaId === mediaId) refs.push('apple touch icon')
-  if (config?.webManifest192MediaId === mediaId) refs.push('web manifest icon (192px)')
-  if (config?.webManifest512MediaId === mediaId) refs.push('web manifest icon (512px)')
-  if (ogPages > 0) refs.push(`${ogPages} page social image${ogPages > 1 ? 's' : ''}`)
-  if (avatars > 0) refs.push(`${avatars} member avatar${avatars > 1 ? 's' : ''}`)
-  if (exports > 0) refs.push('a data export')
+  const ogPageCounts = new Map(ogPages.map((g) => [g.ogImageId, g._count._all]))
+  const avatarCounts = new Map(avatars.map((g) => [g.avatarMediaId, g._count._all]))
+  const exportCounts = new Map(exports.map((g) => [g.mediaId, g._count._all]))
 
   // Media embedded inside Puck page/layout content is stored by url/key/id, not
   // by a foreign key, so scan the builder JSON for any occurrence. The same
@@ -856,13 +873,32 @@ export async function getMediaReferences(mediaId: string): Promise<string[]> {
   // image, an option swatch, a 3D model), which is why the warning names modules
   // as well as pages - core cannot tell from a substring hit which one matched.
   const { haystack } = await loadMediaUsageIndex()
-  const inContent =
-    (media.url && haystack.includes(media.url.toLowerCase())) ||
-    (media.key && haystack.includes(media.key.toLowerCase())) ||
-    haystack.includes(media.id.toLowerCase())
-  if (inContent) refs.push('page, layout or module content')
 
-  return refs
+  for (const media of mediaRows) {
+    const mediaId = media.id
+    const refs: string[] = []
+    if (config?.logoMediaId === mediaId || config?.logoDarkMediaId === mediaId) refs.push('site logo')
+    if (config?.faviconMediaId === mediaId || config?.faviconDarkMediaId === mediaId) refs.push('site favicon')
+    if (config?.appIconMediaId === mediaId) refs.push('app icon')
+    if (config?.appleTouchIconMediaId === mediaId) refs.push('apple touch icon')
+    if (config?.webManifest192MediaId === mediaId) refs.push('web manifest icon (192px)')
+    if (config?.webManifest512MediaId === mediaId) refs.push('web manifest icon (512px)')
+    const pageCount = ogPageCounts.get(mediaId) ?? 0
+    if (pageCount > 0) refs.push(`${pageCount} page social image${pageCount > 1 ? 's' : ''}`)
+    const avatarCount = avatarCounts.get(mediaId) ?? 0
+    if (avatarCount > 0) refs.push(`${avatarCount} member avatar${avatarCount > 1 ? 's' : ''}`)
+    if ((exportCounts.get(mediaId) ?? 0) > 0) refs.push('a data export')
+
+    const inContent =
+      (media.url && haystack.includes(media.url.toLowerCase())) ||
+      (media.key && haystack.includes(media.key.toLowerCase())) ||
+      haystack.includes(media.id.toLowerCase())
+    if (inContent) refs.push('page, layout or module content')
+
+    result.set(mediaId, refs)
+  }
+
+  return result
 }
 
 // ---------------------------------------------------------------------------

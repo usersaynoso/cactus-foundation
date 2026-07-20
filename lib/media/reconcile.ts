@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import type { MediaProviderType } from '@prisma/client'
 import { isMediaProviderConfigured } from '@/lib/config/env'
-import { getMediaReferences, listStoredMediaKeys, mediaKeyPrefix, type StoredObject } from '@/lib/media/upload'
+import { getMediaReferencesBulk, listStoredMediaKeys, mediaKeyPrefix, type StoredObject } from '@/lib/media/upload'
 
 // ---------------------------------------------------------------------------
 // Reconcile the Media table against what storage actually holds.
@@ -262,20 +262,33 @@ export async function purgeMissingRows(keys: string[], force = false): Promise<P
 
   const result: PurgeMissingResult = { purged: 0, skipped: [], stale: 0 }
 
+  const candidates: MissingObject[] = []
   for (const key of keys) {
     const row = byKey.get(key)
     if (!row) { result.stale += 1; continue }
+    candidates.push(row)
+  }
 
-    if (!force) {
-      const references = await getMediaReferences(row.id)
-      if (references.length > 0) {
-        result.skipped.push({ key: row.key, originalName: row.originalName, references })
+  // Reference-check and delete in bulk rather than per row: a large cleanup used
+  // to run hundreds of sequential query round-trips and time the request out
+  // before it finished. The verdicts are identical, just fetched in one pass.
+  let toDelete = candidates
+  if (!force) {
+    const references = await getMediaReferencesBulk(candidates.map((c) => c.id))
+    toDelete = []
+    for (const row of candidates) {
+      const refs = references.get(row.id) ?? []
+      if (refs.length > 0) {
+        result.skipped.push({ key: row.key, originalName: row.originalName, references: refs })
         continue
       }
+      toDelete.push(row)
     }
+  }
 
-    await prisma.media.delete({ where: { id: row.id } })
-    result.purged += 1
+  if (toDelete.length > 0) {
+    const { count } = await prisma.media.deleteMany({ where: { id: { in: toDelete.map((r) => r.id) } } })
+    result.purged = count
   }
 
   return result
