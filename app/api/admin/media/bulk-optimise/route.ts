@@ -4,6 +4,11 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { optimiseMediaInPlace } from '@/lib/media/upload'
 
+// Same reasoning as ../[id]/optimise: a 3D model is a much longer job than an
+// image, and the client sends one id per request precisely so that this ceiling
+// covers a single file rather than a whole selection.
+export const maxDuration = 60
+
 // Bulk companion to ../[id]/optimise — runs the same in-place optimise over a
 // list of ids, one at a time (each re-encode is CPU-heavy, so no parallelism),
 // and reports a per-outcome tally. A single item failing doesn't abort the rest.

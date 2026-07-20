@@ -48,7 +48,7 @@ Once a provider is connected, an **Upload** button appears in:
 
 Click **Upload** (or **+ Upload** in the picker window), select a file from your computer, and it will be stored with your chosen provider and added to your media library. In the block pickers the freshly uploaded image is popped in and selected for you straight away, so there's no need to nip off to the media library first.
 
-In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
+In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. Files go up **six at a time** rather than in single file, so a few hundred photos take minutes rather than an afternoon, and one slow-moving file doesn't hold up the queue behind it. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
 
 **File names:** whatever you called the file is what it's stored as. Upload `160cm-white-6-person-1.jpg` and that's the name it keeps, in your storage and in the web address it's served from - no scrambled prefix in front of it. Names are tidied on the way in: spaces and punctuation become hyphens, capitals become lower case, because web addresses are fussy about such things.
 
@@ -86,7 +86,7 @@ Across the top sits a row of summary tiles, so you can see the state of your lib
 - **Files** - how many you've got, and how many folders you've sorted them into.
 - **Storage used** - the total space everything is taking up.
 - **Unused** - how many files nothing on your site points to, and how much space you'd get back by clearing them out. Click the tile to jump straight to those files. "Nothing points to it" covers the whole site, not just your pages: a product photo, an option or attribute swatch, a 3D model, a downloadable file, a board icon or an article's headline picture all count as in use.
-- **Optimisable** - how many photos could still be slimmed down (and how many you've already done). Click it to line up exactly those photos, ready for a tidy-up - the ones you've already done stay out of the way.
+- **Optimisable** - how many files could still be slimmed down (and how many you've already done). Photos and 3D models both count. Click it to line up exactly those files, ready for a tidy-up - the ones you've already done stay out of the way.
 
 The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place. The Optimisable list arrives with a **Still to optimise** chip above it, which you can lift at any time to see everything again.
 
@@ -111,9 +111,9 @@ Each file carries a small **in use** dot (green) or unused (grey) marker. Files 
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
 
-Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
+Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos and 3D models that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
 
-**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos that haven't been), **Edit image…**, **Change ratio…**, **Resize…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
+**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos and 3D models that haven't been), **Edit image…**, **Change ratio…**, **Resize…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
 
 **Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
@@ -344,6 +344,8 @@ All three you can put right on the spot. **Correct these** rewrites the wrong si
 
 **Remove these entries** clears out the items whose file has gone. Nothing is deleted from your storage by this - the file went long ago - it only tidies away the entries left pointing at thin air. Anything still used on a page is left alone and listed for you instead, so you can see what needs a new picture before you commit. If you'd rather have them gone regardless, there's a second button for that, and the spots they filled will simply be empty until you put something else there.
 
+Big clean-ups - hundreds of entries or leftover files at once - are worked through in batches, with a running count shown as it goes. If a batch stumbles along the way it's quietly retried a couple of times before the check admits defeat, so a wobbly connection doesn't send you back to square one.
+
 If you'd sooner keep an item and get its picture back, use **Replace file** on it instead and upload a fresh copy over the top.
 
 If some of your storage can't be read, the check says so plainly rather than pretending it found nothing. That matters most if you use Cloudinary or ImageKit, which file things under references they invent themselves, so their contents can't be lined up against your library this way.
@@ -358,9 +360,9 @@ The Storage check ignores all of that and looks only at the current version of e
 
 ---
 
-## Optimising images
+## Optimising images and 3D models
 
-Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you.
+Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you. The same goes for 3D models, which are heavier again - see [Slimming down 3D models](#slimming-down-3d-models) below.
 
 Open any un-optimised photo and its details panel has an **Optimise** button (it's on the right-click menu too). Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Your file keeps the name you gave it, too; only the bit after the dot changes, because the picture genuinely is a WebP now. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
 
@@ -377,6 +379,22 @@ A few sensible rules keep things safe:
 - **Logos and icons in the SVG format are left alone** - they're already tiny and shrinking them would do more harm than good.
 - **Anything already as small as it's going to get** is skipped rather than made bigger, and marked as optimised so you're not offered it again.
 - Optimising is a one-way tidy-up - there's no "un-optimise" - but since the picture stays visually the same, there's rarely a reason to want one.
+
+### Slimming down 3D models
+
+If you use the Product 3D views module, your 3D models sit in the media library alongside everything else - and they are comfortably the heaviest files on the site. A model straight out of a design tool routinely carries duplicate copies of the same part, materials left behind by things that were deleted, and textures at four times the detail any screen can actually show. Every shopper who opens that product downloads the lot.
+
+**New models are slimmed down automatically.** Upload one and Cactus compresses it on the way in, so it arrives wearing the same green **✓ Optimised** badge your photos do. There is nothing to remember and nothing to press.
+
+**Models you uploaded before this existed** get the same **Optimise** button as everything else - on the file's details panel, on the right-click menu, and as the little lightning bolt when you hover its thumbnail. The **Optimisable** tile at the top of the library counts them in with your photos, so one click rounds up everything still worth doing and the selection bar's **Optimise** button works through the lot six at a time.
+
+The saving is usually substantial - often more than half the file, sometimes a good deal more - and the model looks exactly the same. Nothing is simplified, smoothed or thrown away: it is the same shapes and the same materials, packed far more sensibly, with textures brought down to a size a screen can genuinely resolve. Shoppers get a product that appears in a fraction of the time, particularly on a phone.
+
+A few things worth knowing:
+
+- **GLB files are the ones that get slimmed.** They are the format we recommend anyway (see the Product 3D views guide), because a GLB carries everything it needs in one file. Models in the OBJ, FBX and 3DS formats are left exactly as they are - there is no equivalent tidy-up for them, and pretending otherwise would risk the file for nothing.
+- **A model keeps its place.** Unlike a photo, which changes format and picks up a new extension, a slimmed model is written straight back over itself - so every product and variation pointing at it carries on pointing at it, with nothing to relink.
+- **If it can't be slimmed, nothing is lost.** A model that was already tight, or that the tidy-up couldn't finish, is stored exactly as you uploaded it and simply keeps its **Optimise** button for another day. An upload never fails because of this.
 
 ---
 

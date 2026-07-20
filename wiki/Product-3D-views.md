@@ -43,6 +43,16 @@ One difference worth knowing: a model uploads the moment you drop it, rather tha
 
 Models can be up to **50 MB**. Bear in mind every shopper who opens that product downloads it, so smaller is kinder - and usually looks no worse.
 
+### Cactus slims your models down for you
+
+Upload a GLB and Cactus compresses it on the way in. Design tools are built for the person editing the model rather than the shopper downloading it, so a fresh export routinely carries several copies of the same part, materials left over from things that were deleted, and textures at four times the detail any screen can show. That all gets tidied up, and the saving is usually well over half the file.
+
+**It does not change how the model looks.** Nothing is simplified or smoothed and no detail is thrown away - it is the same shapes and the same materials, packed far more sensibly. What shoppers notice is the product appearing in a fraction of the time, which on a phone is often the difference between looking at it and giving up.
+
+There is nothing to switch on. The file picks up a green **✓ Optimised** badge in your media library once it is done, and models you uploaded before this existed can be slimmed down from there whenever you like - see [Managing media](Managing-media#slimming-down-3d-models). Only GLB files get this treatment; OBJ, FBX and 3DS are stored exactly as you sent them, which is one more reason to use GLB.
+
+If you would rather do the compressing yourself with your own tools, that works too - Cactus reads the usual compressed formats, including the newer compressed textures that keep a model light on a phone's memory as well as on its download.
+
 ### Models that move
 
 If your GLB has an animation saved inside it, the viewer plays it, on a loop, as soon as the shopper opens the model. A desk with a pop-up power socket rising out of the top, a drawer sliding open, a chair arm folding down - if the file does it, the viewer does it.

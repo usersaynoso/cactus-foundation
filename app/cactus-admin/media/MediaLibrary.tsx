@@ -15,7 +15,7 @@ import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-c
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
-import { preflightUploadError, isAcceptedUploadType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
+import { preflightUploadError, isAcceptedUploadType, isOptimisableType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
@@ -25,9 +25,13 @@ type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
 // A context menu over a specific item (id set) or over empty grid space (id null).
 type Menu = { x: number; y: number; id: string | null } | null
 
-// True when an image can still be optimised: raster, not SVG, not already done.
+// True when a file can still be optimised: something the optimiser handles (a
+// raster image or a GLB model), and not already done. The type half of that
+// question lives in lib/media/limits.ts, which the server guard and the
+// "Optimisable" tile's SQL both read too - so the button offered here and the
+// answer the server gives cannot drift apart.
 function isOptimisable(item: { mimeType: string; optimised: boolean }): boolean {
-  return item.mimeType.startsWith('image/') && item.mimeType !== 'image/svg+xml' && !item.optimised
+  return isOptimisableType(item.mimeType) && !item.optimised
 }
 
 // True when an item has actual pixels to work on - SVG is vector, so there's

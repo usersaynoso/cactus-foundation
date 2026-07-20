@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
+import { isOptimisableType } from '@/lib/media/limits'
 
 // A one-shot overview of the whole media library, rendered in the page's stat
 // bar. "Unused" and "optimisable" are computed classifications rather than
@@ -51,12 +52,12 @@ export async function computeLibraryStats(): Promise<LibraryStats> {
   for (const g of groups) {
     const count = g._count._all
     const isImage = g.mimeType.startsWith('image/')
-    const isSvg = g.mimeType === 'image/svg+xml'
     stats.totalFiles += count
     stats.totalSize += g._sum.sizeBytes ?? 0
     if (isImage) stats.imageFiles += count
     if (g.optimised) stats.optimisedFiles += count
-    if (isImage && !isSvg && !g.optimised) stats.optimisableFiles += count
+    // Models count here too, so the tile's number matches the list behind it.
+    if (isOptimisableType(g.mimeType) && !g.optimised) stats.optimisableFiles += count
   }
 
   for (const r of rows) {

@@ -107,6 +107,33 @@ export function extensionForModelType(mimeType: string): string | null {
   return null
 }
 
+// The 3D model types the optimiser can actually do something with.
+//
+// GLB only, and the omissions are deliberate rather than pending. A .gltf keeps
+// its geometry and textures in sibling files that were never uploaded with it,
+// so there is no whole model here to optimise. OBJ, FBX and 3DS have no vertex
+// compression to apply and would have to be converted to glTF first, which
+// changes the file's extension - and therefore its storage key - which is the
+// one thing an in-place optimise must not do. See lib/media/model-optimise.ts.
+export const OPTIMISABLE_MODEL_TYPES = new Set(['model/gltf-binary'])
+
+/**
+ * Whether the optimiser will take this file: a raster image, or a GLB model.
+ *
+ * The single source of truth for a question asked in five places - the card's
+ * lightning button, the detail panel's button, the selection bar, the SQL behind
+ * the "Optimisable" tile, and the server guard that has the final say. They were
+ * five separate expressions of the same rule, which is four opportunities to
+ * disagree; when 3D models became optimisable, a rule written out five times
+ * would have been updated four times.
+ *
+ * SVG is excluded because it is vector - there are no pixels to re-encode.
+ */
+export function isOptimisableType(mimeType: string): boolean {
+  if (OPTIMISABLE_MODEL_TYPES.has(mimeType)) return true
+  return mimeType.startsWith('image/') && mimeType !== 'image/svg+xml'
+}
+
 // The image types the library accepts. Rasters go direct-to-Worker (no size cap);
 // SVG is sanitised on the size-guarded serverless path.
 //

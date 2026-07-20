@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import type { LibraryItem, TagInfo } from './types'
 import { formatBytes, formatDate, filenameOf, fileKind } from './format'
 import { useFocusTrap } from './useFocusTrap'
+import { isOptimisableType } from '@/lib/media/limits'
 
 // Slide-over that replaces the old lightbox. It's both the viewer (large preview,
 // Prev/Next across the loaded list) and the single home for per-item actions and
@@ -75,7 +76,9 @@ export default function MediaDetailPanel({
   const isImage = item.mimeType.startsWith('image/')
   const isSvg = item.mimeType === 'image/svg+xml'
   const canEdit = isImage && !isSvg
-  const canOptimise = isImage && !isSvg && !item.optimised
+  // Not the same question as canEdit any more: a 3D model has nothing to crop or
+  // resize, but it very much can be optimised. See isOptimisableType.
+  const canOptimise = isOptimisableType(item.mimeType) && !item.optimised
   const filename = filenameOf(item)
   const asideRef = useRef<HTMLElement>(null)
   useFocusTrap(asideRef)

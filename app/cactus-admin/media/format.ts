@@ -25,3 +25,20 @@ export function fileKind(mimeType: string): string {
   if (sub) return sub.toUpperCase()
   return group ? group.toUpperCase() : 'File'
 }
+
+// What optimising does to this file, in the tooltip on the ✓ Optimised badge and
+// on the ⚡ button that performs it.
+//
+// The wording has to follow the file, because the two kinds are compressed in
+// ways that have nothing to do with each other: an image is re-encoded to WebP,
+// while a model has its vertex data packed and its oversized textures brought
+// down to a size a screen can actually resolve. A 3D file badged "re-encoded to
+// WebP" would be describing a pass that never ran on it.
+export function optimiseHint(mimeType: string, done: boolean): string {
+  if (mimeType.startsWith('model/')) {
+    return done
+      ? 'Compressed to download faster, with no visible change to the model'
+      : 'Optimise (compress the model so it loads faster)'
+  }
+  return done ? 'Re-encoded to WebP to save space' : 'Optimise (re-encode to WebP)'
+}

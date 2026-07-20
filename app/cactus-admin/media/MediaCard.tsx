@@ -1,7 +1,7 @@
 'use client'
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
-import { formatBytes, filenameOf, fileKind } from './format'
+import { formatBytes, filenameOf, fileKind, optimiseHint } from './format'
 
 export type MediaCardItem = {
   id: string
@@ -114,7 +114,7 @@ export default function MediaCard({
         </button>
 
         {item.optimised && (
-          <span title="Re-encoded to WebP to save space" style={cornerBadge('left')}>✓ Optimised</span>
+          <span title={optimiseHint(item.mimeType, true)} style={cornerBadge('left')}>✓ Optimised</span>
         )}
 
         {missingAlt && (
@@ -126,7 +126,7 @@ export default function MediaCard({
             {showOptimise && (
               <button
                 type="button"
-                title="Optimise (re-encode to WebP)"
+                title={optimiseHint(item.mimeType, false)}
                 aria-label={`Optimise ${filename}`}
                 disabled={optimising}
                 onClick={(e) => { e.stopPropagation(); onOptimise?.(item.id) }}

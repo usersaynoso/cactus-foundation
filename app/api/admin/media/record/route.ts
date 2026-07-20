@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { saveMediaRecord, confirmedSizeBytes } from '@/lib/media/upload'
+import { saveMediaRecord, confirmedSizeBytes, autoOptimiseNewUpload } from '@/lib/media/upload'
+import { prisma } from '@/lib/db/prisma'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { isDirectUploadType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
 import { verifyUploadToken } from '@/lib/media/upload-token'
@@ -78,6 +79,16 @@ export async function POST(request: NextRequest) {
       originalName,
       folderId,
     })
+    // A 3D model is compressed as it lands, so it is already the smaller file by
+    // the time anyone opens the product page it belongs to. Returns the row as it
+    // stands afterwards, because optimising rewrites its size and its optimised
+    // flag and the library would otherwise render the pre-optimise numbers until
+    // the next refresh. Everything else is returned untouched.
+    const optimised = await autoOptimiseNewUpload(record.id, contentType, storedSize, user.id)
+    if (optimised !== storedSize) {
+      const fresh = await prisma.media.findUnique({ where: { id: record.id } })
+      if (fresh) return NextResponse.json(fresh, { status: 201 })
+    }
     return NextResponse.json(record, { status: 201 })
   } catch (err: unknown) {
     return errorResponse(`Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 500)

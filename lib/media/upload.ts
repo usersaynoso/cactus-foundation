@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -933,12 +933,137 @@ async function exactOptimisedKey(media: Media, folderPath: string): Promise<stri
   return taken ? undefined : key
 }
 
+// ---------------------------------------------------------------------------
+// The 3D half of optimise-in-place. Split out because it shares almost nothing
+// with the image path except its promise to the caller: same Media.id, same
+// references, smaller file.
+//
+// The one structural difference is where the bytes land. An optimised image
+// changes type (a .jpg becomes a .webp) and therefore changes key, which is why
+// the image path has to rewrite references and delete the blob it superseded. An
+// optimised GLB is still a GLB, so it is written straight back over its own key
+// - and that matters far more here than it does for an image. A model's url and
+// key are held in the 3D module's own table as well as in the Media row, and
+// repointMediaToBlob's reference rewriting reaches Puck content and nothing else
+// (see its note). A new key would leave the module's table pointing at a blob
+// this function then deleted: the model would vanish from the storefront while
+// sitting perfectly intact in the library. Writing over the same key means there
+// is no reference anywhere that needs to learn anything.
+// ---------------------------------------------------------------------------
+// The providers that write an object at exactly the key they are given.
+// Cloudinary and ImageKit mint their own id instead and can honour only the
+// filename part of a preset key (see uploadMedia), so a "write it back over
+// itself" upload would land somewhere else - and everything below depends on it
+// landing in the same place. Refused rather than attempted: the alternative is
+// discovering the key moved AFTER the bytes are written, with a stray object in
+// storage and a module table pointing at whichever of the two we then delete.
+function honoursPresetKey(provider: MediaProviderType): boolean {
+  return isS3Provider(provider) || provider === 'VERCEL_BLOB' || provider === 'SUPABASE_STORAGE'
+}
+
+async function optimiseModelInPlace(media: Media): Promise<OptimiseResult> {
+  if (!honoursPresetKey(media.provider)) {
+    return { optimised: false, reason: 'This storage provider cannot optimise 3D models in place' }
+  }
+
+  const original = await downloadMedia(media.provider, media.key, media.url)
+  const { optimiseModelBytes } = await import('@/lib/media/model-optimise')
+  const result = await optimiseModelBytes(original, media.mimeType)
+
+  if (!result.optimised) {
+    // "Already as small as it gets" is a verdict about the file, so the flag is
+    // set and the action stops being offered. Any other reason is a statement
+    // about what we can handle - a format we do not optimise - and must NOT set
+    // the flag, or a GLB uploaded next to it would inherit the same silence.
+    if (result.reason === 'Already as small as it gets') {
+      await prisma.media.update({ where: { id: media.id }, data: { optimised: true } })
+    }
+    return result
+  }
+
+  const upload = await uploadMedia(
+    result.bytes,
+    media.mimeType,
+    media.provider,
+    media.originalName ?? undefined,
+    undefined,
+    undefined,
+    // The key it is already on. repointMediaToBlob compares the resulting key
+    // with the old one and skips both the reference rewrite and the delete when
+    // they match, which is exactly what an overwrite wants.
+    media.key,
+  )
+
+  // Unreachable given honoursPresetKey above, and checked anyway because the
+  // consequence of being wrong is not a visible error: repoint would rewrite Puck
+  // references and delete the old blob, while the 3D module's own table went on
+  // pointing at the key just deleted - a model gone from the storefront and
+  // perfectly intact in the library, discovered by a shopper. Loud beats quiet.
+  if (upload.key !== media.key) {
+    throw new Error(
+      `Optimised model landed on "${upload.key}" instead of "${media.key}"; refusing to repoint`,
+    )
+  }
+
+  await repointMediaToBlob(media, upload, { optimised: true })
+
+  return { optimised: true, before: result.before, after: result.after }
+}
+
+/**
+ * Optimise a model that has just been uploaded, and answer with the size it
+ * ended up at.
+ *
+ * A shopper should not have to wait on a file nobody got round to compressing,
+ * and an admin should not have to know that compressing it was an option - so a
+ * 3D upload is optimised as it lands rather than waiting to be noticed in the
+ * library. The manual button stays for the models that were already here before
+ * this existed, and for the ones this could not finish.
+ *
+ * Never throws and never fails the upload. A model that could not be optimised
+ * is still a perfectly good model: it is stored exactly as uploaded, keeps
+ * `optimised: false`, and therefore still shows the ⚡ button in the library for
+ * whenever someone wants to try again. The alternative - failing the upload
+ * because a size optimisation did not work - would be losing the admin's file
+ * over a nicety.
+ *
+ * Returns the uploaded size unchanged for anything that is not an optimisable
+ * model, so callers can use the result as "the size to record" without asking
+ * what kind of file they have.
+ */
+export async function autoOptimiseNewUpload(
+  mediaId: string,
+  mimeType: string,
+  uploadedSize: number,
+  userId?: string,
+): Promise<number> {
+  if (!OPTIMISABLE_MODEL_TYPES.has(mimeType)) return uploadedSize
+  try {
+    const result = await optimiseMediaInPlace(mediaId, userId)
+    return result.optimised ? result.after : uploadedSize
+  } catch (error) {
+    // Logged rather than swallowed silently: the admin sees a successful upload
+    // either way, so this line is the only trace that the file went up at full
+    // weight, and "models are not being compressed" is otherwise a very quiet
+    // problem to have.
+    console.error(`[media] could not optimise model ${mediaId} on upload:`, error)
+    return uploadedSize
+  }
+}
+
 export async function optimiseMediaInPlace(mediaId: string, userId?: string): Promise<OptimiseResult> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) return { optimised: false, reason: 'Media item not found' }
   if (media.optimised) return { optimised: false, reason: 'Already optimised' }
+  if (OPTIMISABLE_MODEL_TYPES.has(media.mimeType)) return optimiseModelInPlace(media)
+  // Answered before the download rather than inside the model path, so a format
+  // we cannot compress costs a sentence instead of pulling tens of megabytes out
+  // of storage to reach the same conclusion.
+  if (isModelDirectType(media.mimeType)) {
+    return { optimised: false, reason: 'Only GLB models can be optimised' }
+  }
   if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
-    return { optimised: false, reason: 'Only raster images can be optimised' }
+    return { optimised: false, reason: 'Only raster images and 3D models can be optimised' }
   }
 
   const original = await downloadMedia(media.provider, media.key, media.url)

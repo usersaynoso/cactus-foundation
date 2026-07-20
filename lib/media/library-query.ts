@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { loadMediaUsageIndex, isMediaInUse } from '@/lib/media/references'
+import { OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 
 // Shared media-library query used by both the server-rendered page and the
 // incremental-load API, so the two can never drift apart. Handles folder
@@ -63,6 +64,22 @@ function shape(row: Row, inUse: boolean): LibraryItem {
   return { ...row, inUse, tags: row.tags.map((t) => t.tag.name) }
 }
 
+// isOptimisableType from lib/media/limits.ts, expressed as a where clause - a
+// raster image or a 3D model the optimiser handles. Prisma wants a clause rather
+// than a predicate, so the rule genuinely does exist twice; what stops the two
+// drifting is library-query.test.ts, which walks every media type the library
+// accepts and asserts this clause and that helper reach the same verdict on each.
+//
+// They must agree or the page contradicts itself: the "Optimisable" tile's number
+// comes from the helper, the list behind the tile comes from this, and the ⚡
+// button on each card comes from the helper again.
+export const OPTIMISABLE_TYPE_WHERE: Prisma.MediaWhereInput = {
+  OR: [
+    { AND: [{ mimeType: { startsWith: 'image/' } }, { NOT: { mimeType: 'image/svg+xml' } }] },
+    { mimeType: { in: [...OPTIMISABLE_MODEL_TYPES] } },
+  ],
+}
+
 function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   const and: Prisma.MediaWhereInput[] = []
 
@@ -83,13 +100,16 @@ function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   if (q.type === 'image') and.push({ mimeType: { startsWith: 'image/' } })
   else if (q.type === 'other') and.push({ NOT: { mimeType: { startsWith: 'image/' } } })
 
-  // Same predicate as computeLibraryStats' optimisableFiles tally, expressed in
-  // SQL. Keep the two in step: the tile's number and the tile's list are the same
-  // set or the page contradicts itself.
+  // isOptimisableType from lib/media/limits.ts, expressed in SQL - a raster image
+  // or a 3D model the optimiser handles, not already done. It cannot call that
+  // helper (Prisma wants a where clause, not a predicate), so the two are kept in
+  // step by the test in library-query.test.ts, which walks every type the library
+  // accepts and asserts this clause and that helper agree on each one. The tile's
+  // number, the tile's list and the button on the card are the same set or the
+  // page contradicts itself.
   if (q.optimisable) {
-    and.push({ mimeType: { startsWith: 'image/' } })
-    and.push({ NOT: { mimeType: 'image/svg+xml' } })
     and.push({ optimised: false })
+    and.push(OPTIMISABLE_TYPE_WHERE)
   }
 
   return and.length ? { AND: and } : {}

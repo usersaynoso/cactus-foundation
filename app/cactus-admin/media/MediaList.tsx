@@ -2,7 +2,7 @@
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import type { LibraryItem, Sort } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind } from './format'
+import { formatBytes, formatDate, filenameOf, fileKind, optimiseHint } from './format'
 
 // The dense alternative to the grid: one row per file with sortable columns.
 // Same interaction surface as a card - click a row to open the detail panel,
@@ -111,7 +111,7 @@ export default function MediaList({
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
                     <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '22rem' }}>{filename}</span>
-                    {item.optimised && <span title="Optimised to WebP" style={miniBadge}>✓</span>}
+                    {item.optimised && <span title={optimiseHint(item.mimeType, true)} style={miniBadge}>✓</span>}
                   </div>
                   {item.tags.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>

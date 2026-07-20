@@ -59,10 +59,15 @@ export default function MediaStatsBar({
       <Tile
         label="Optimisable"
         value={stats.optimisableFiles.toLocaleString('en-GB')}
+        // Counted against everything the optimiser handles rather than against
+        // the image count, which stopped being the same number when 3D models
+        // became optimisable - a library of models read "0 of 0 images done"
+        // while the tile beside it offered a dozen files to optimise. Done plus
+        // still-to-do is the whole set by definition, and needs no new tally.
         sub={
-          stats.imageFiles > 0
-            ? `${stats.optimisedFiles} of ${stats.imageFiles} images done`
-            : 'no images yet'
+          stats.optimisedFiles + stats.optimisableFiles > 0
+            ? `${stats.optimisedFiles} of ${stats.optimisedFiles + stats.optimisableFiles} files done`
+            : 'nothing to optimise yet'
         }
         accent={hasOptimisable ? 'info' : undefined}
         active={activeFilter === 'optimisable'}
