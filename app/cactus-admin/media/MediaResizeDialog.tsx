@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
 import { useFocusTrap } from './useFocusTrap'
 import { filenameOf } from './format'
+import { runBulkImageJob } from './bulkImageJob'
 
 // "Resize" — scale one or many images down to fit inside a box. The sibling of
 // the ratio changer: that one changes an image's shape, this one keeps the shape
@@ -51,6 +52,9 @@ export default function MediaResizeDialog({
   const [newName, setNewName] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
+  // How far a bulk run has got. Resizing a few hundred images is a long wait, and
+  // a button that just says "Working…" for all of it looks like a hang.
+  const [progress, setProgress] = useState(0)
   // Media rows carry no width/height, so the source size is read off the preview
   // image once the browser has actually decoded it. Only ever used to inform the
   // user - the server measures the real bytes itself and is the one that decides.
@@ -98,6 +102,7 @@ export default function MediaResizeDialog({
 
   const alreadySmaller = !bulk && natural !== null && box !== null && projected === null
   const sizeSuffix = projected ? `${projected.w}x${projected.h}` : 'resized'
+  const workingLabel = bulk ? `Working… ${progress}/${items.length}` : 'Working…'
 
   // Why the button won't go, in the words the user needs. Said out loud next to
   // it rather than hung on its title: a disabled button takes no pointer events,
@@ -121,14 +126,14 @@ export default function MediaResizeDialog({
       if (mode === 'new' && !bulk) body.newName = newName.trim() || `${defaultName} (${sizeSuffix})`
 
       if (bulk) {
-        const res = await fetch('/api/admin/media/bulk-resize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...body, ids: items.map((i) => i.id) }),
-        })
-        const d = await res.json()
-        if (!res.ok) throw new Error(d.error ?? 'Resize failed')
-        onDone({ changed: d.changed?.length ?? 0, skipped: d.skipped ?? [], failed: d.failed?.length ?? 0, mode, bytesSaved: d.bytesSaved ?? 0 })
+        // Six images resized at a time rather than the lot in one long request.
+        const tally = await runBulkImageJob(
+          '/api/admin/media/bulk-resize',
+          items.map((i) => i.id),
+          body,
+          { onProgress: (done) => setProgress(done) },
+        )
+        onDone({ changed: tally.changed.length, skipped: tally.skipped, failed: tally.failed.length, mode, bytesSaved: tally.bytesSaved })
       } else {
         const res = await fetch(`/api/admin/media/${first.id}/resize`, {
           method: 'POST',
@@ -147,6 +152,7 @@ export default function MediaResizeDialog({
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Resize failed')
+      setProgress(0)
       setSaving(false)
     }
   }
@@ -272,7 +278,7 @@ export default function MediaResizeDialog({
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={() => setConfirming(false)}>Cancel</button>
-              <button type="button" className="btn btn-danger btn-sm" disabled={saving} onClick={run}>{saving ? 'Working…' : `Yes, replace ${bulk ? 'them' : 'it'}`}</button>
+              <button type="button" className="btn btn-danger btn-sm" disabled={saving} onClick={run}>{saving ? workingLabel : `Yes, replace ${bulk ? 'them' : 'it'}`}</button>
             </div>
           </div>
         ) : (
@@ -289,7 +295,7 @@ export default function MediaResizeDialog({
               disabled={saving || blockedReason !== null}
               onClick={() => { if (mode === 'replace') setConfirming(true); else run() }}
             >
-              {saving ? 'Working…' : bulk ? `Resize ${items.length} images` : 'Resize'}
+              {saving ? workingLabel : bulk ? `Resize ${items.length} images` : 'Resize'}
             </button>
           </div>
         )}

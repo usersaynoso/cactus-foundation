@@ -1465,55 +1465,67 @@ function fileKindLabel(mimeType: string): string {
   return sub === 'jpeg' ? 'JPEG' : sub.toUpperCase()
 }
 
+// Swap both needles inside one table's builder JSON, in a single statement.
+//
+// Atomicity is the point, not only speed. This used to read every page's JSON
+// into node, swap the strings there and write the whole blob back, which was
+// safe only for as long as these jobs ran strictly one image at a time. Two
+// images sitting on the same page, rewritten at the same time, would each read
+// that page before the other wrote it, and whichever wrote second would put the
+// first one's old url back - an url whose blob is deleted moments later, so a
+// live page ends up showing a hole. Postgres holds the row for the duration of
+// an UPDATE and re-applies it to whatever was committed in the meantime, so the
+// swaps stack instead of clobbering, and the bulk jobs can safely run in
+// parallel. Not reading every page's JSON per image is the bonus.
+//
+// A needle of '' means that pair didn't move: replace() with an empty needle
+// returns the string untouched, and the guards in WHERE keep it from matching
+// every row on the way past.
+async function swapInBuilderJson(
+  table: 'InfoPage' | 'Layout',
+  urlFrom: string,
+  urlTo: string,
+  keyFrom: string,
+  keyTo: string,
+): Promise<void> {
+  // replace() on NULL yields NULL, so a page with no published version needs no
+  // case of its own - it comes back out as NULL.
+  const swap = (column: string) => Prisma.sql`
+    replace(replace(${Prisma.raw(`"${column}"`)}::text, ${urlFrom}, ${urlTo}), ${keyFrom}, ${keyTo})::jsonb
+  `
+  // strpos rather than LIKE: these needles carry filenames, and an underscore in
+  // a filename would be read as a wildcard.
+  const mentions = (column: string) => Prisma.sql`
+    (${urlFrom} <> '' AND strpos(${Prisma.raw(`"${column}"`)}::text, ${urlFrom}) > 0)
+    OR (${keyFrom} <> '' AND strpos(${Prisma.raw(`"${column}"`)}::text, ${keyFrom}) > 0)
+  `
+  await prisma.$executeRaw`
+    UPDATE ${Prisma.raw(`"${table}"`)}
+    SET "builderData" = ${swap('builderData')},
+        "publishedData" = ${swap('publishedData')}
+    WHERE ${mentions('builderData')} OR ${mentions('publishedData')}
+  `
+}
+
 // Rewrite every occurrence of a media item's old url/key to its new url/key
 // inside Puck builder JSON (page draft + published content, and layouts). Only
-// touches rows whose blob actually mentions the old value, and only writes back
-// the columns that changed. The url/key are long unique strings (nanoid), so a
-// plain string swap can't collide with unrelated content.
+// touches rows whose blob actually mentions the old value. The url/key are long
+// unique strings (nanoid), so a plain string swap can't collide with unrelated
+// content.
 export async function rewriteMediaReferencesInContent(
   oldUrl: string,
   newUrl: string,
   oldKey: string,
   newKey: string,
 ): Promise<void> {
-  const swap = (json: Prisma.JsonValue | null): Prisma.InputJsonValue | undefined => {
-    if (json == null) return undefined
-    const before = JSON.stringify(json)
-    let text = before
-    if (oldUrl && oldUrl !== newUrl) text = text.split(oldUrl).join(newUrl)
-    if (oldKey && oldKey !== newKey) text = text.split(oldKey).join(newKey)
-    if (text === before) return undefined
-    return JSON.parse(text) as Prisma.InputJsonValue
-  }
-
-  const pages = await prisma.infoPage.findMany({ select: { id: true, builderData: true, publishedData: true } })
-  for (const p of pages) {
-    const nextBuilder = swap(p.builderData)
-    const nextPublished = swap(p.publishedData)
-    if (nextBuilder !== undefined || nextPublished !== undefined) {
-      await prisma.infoPage.update({
-        where: { id: p.id },
-        data: {
-          ...(nextBuilder !== undefined ? { builderData: nextBuilder } : {}),
-          ...(nextPublished !== undefined ? { publishedData: nextPublished } : {}),
-        },
-      })
-    }
-  }
-
-  const layouts = await prisma.layout.findMany({ select: { id: true, builderData: true, publishedData: true } })
-  for (const l of layouts) {
-    const nextBuilder = swap(l.builderData)
-    const nextPublished = swap(l.publishedData)
-    if (nextBuilder !== undefined || nextPublished !== undefined) {
-      await prisma.layout.update({
-        where: { id: l.id },
-        data: {
-          ...(nextBuilder !== undefined ? { builderData: nextBuilder } : {}),
-          ...(nextPublished !== undefined ? { publishedData: nextPublished } : {}),
-        },
-      })
-    }
+  // A needle is only worth swapping when it actually moved. Empty means "nothing
+  // to do for this pair", which the statement below reads as a no-op rather than
+  // needing a shape of its own.
+  const urlFrom = oldUrl && oldUrl !== newUrl ? oldUrl : ''
+  const keyFrom = oldKey && oldKey !== newKey ? oldKey : ''
+  if (urlFrom || keyFrom) {
+    await swapInBuilderJson('InfoPage', urlFrom, newUrl, keyFrom, newKey)
+    await swapInBuilderJson('Layout', urlFrom, newUrl, keyFrom, newKey)
   }
 
   // Puck content is core's own. A module may also hold this media's url in its own

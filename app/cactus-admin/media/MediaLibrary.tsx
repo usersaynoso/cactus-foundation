@@ -17,6 +17,7 @@ import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
 import { preflightUploadError, isAcceptedUploadType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
+import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
 import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
@@ -552,17 +553,19 @@ export default function MediaLibrary({
     // skipped server-side and muddy the result.
     const ids = items.filter((i) => selected.has(i.id) && isOptimisable(i)).map((i) => i.id)
     if (ids.length === 0) { pushToast('info', 'Nothing selected can be optimised'); return }
-    setBusy('Optimising…')
+    // Counted out loud as it goes: re-encoding a few hundred images is a long
+    // wait, and a spinner that says nothing for all of it looks like a hang.
+    const label = (done: number) => (ids.length === 1 ? 'Optimising…' : `Optimising ${done}/${ids.length}…`)
+    setBusy(label(0))
     try {
-      const res = await fetch('/api/admin/media/bulk-optimise', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
+      const tally = await runBulkImageJob('/api/admin/media/bulk-optimise', ids, {}, {
+        changedKey: 'optimised',
+        onProgress: (done) => setBusy(label(done)),
       })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Optimise failed')
       setSelected(new Set())
-      const n = d.optimised?.length ?? 0
-      const saved = typeof d.bytesSaved === 'number' ? d.bytesSaved : 0
-      const extra = d.failed?.length ? `, ${d.failed.length} failed` : ''
+      const n = tally.changed.length
+      const saved = tally.bytesSaved
+      const extra = tally.failed.length > 0 ? `, ${tally.failed.length} failed` : ''
       if (n > 0) pushToast('success', `Optimised ${n} item${n === 1 ? '' : 's'}${saved > 0 ? ` - saved ${formatBytes(saved)}` : ''}${extra}`)
       else pushToast('info', `Nothing to optimise${extra}`)
       await fetchItems()

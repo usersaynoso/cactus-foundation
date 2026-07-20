@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
 import { useFocusTrap } from './useFocusTrap'
+import { runBulkImageJob } from './bulkImageJob'
 
 // "Change ratio" — reshape one or many images to a new aspect ratio by padding
 // them out. Nothing is cropped and nothing is stretched, which is the whole
@@ -52,6 +53,9 @@ export default function MediaAspectDialog({
   const [newName, setNewName] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
+  // How far a bulk run has got. Reshaping a few hundred images is a long wait,
+  // and a button that just says "Working…" for all of it looks like a hang.
+  const [progress, setProgress] = useState(0)
 
   const bulk = items.length > 1
   const preview = items[0]
@@ -83,6 +87,7 @@ export default function MediaAspectDialog({
 
   const defaultName = (preview?.originalName ?? 'image').replace(/\.[^./\\]+$/, '')
   const ratioText = ratio ? `${ratio.w}:${ratio.h}` : ''
+  const workingLabel = bulk ? `Working… ${progress}/${items.length}` : 'Working…'
 
   function fillPayload() {
     if (fillKind === 'colour') return { kind: 'colour', colour }
@@ -100,14 +105,14 @@ export default function MediaAspectDialog({
       if (mode === 'new' && !bulk) body.newName = newName.trim() || `${defaultName} (${ratioText.replace(':', '-')})`
 
       if (bulk) {
-        const res = await fetch('/api/admin/media/bulk-aspect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...body, ids: items.map((i) => i.id) }),
-        })
-        const d = await res.json()
-        if (!res.ok) throw new Error(d.error ?? 'Ratio change failed')
-        onDone({ changed: d.changed?.length ?? 0, skipped: d.skipped ?? [], failed: d.failed?.length ?? 0, mode })
+        // Six images reshaped at a time rather than the lot in one long request.
+        const tally = await runBulkImageJob(
+          '/api/admin/media/bulk-aspect',
+          items.map((i) => i.id),
+          body,
+          { onProgress: (done) => setProgress(done) },
+        )
+        onDone({ changed: tally.changed.length, skipped: tally.skipped, failed: tally.failed.length, mode })
       } else {
         const res = await fetch(`/api/admin/media/${first.id}/aspect`, {
           method: 'POST',
@@ -120,6 +125,7 @@ export default function MediaAspectDialog({
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Ratio change failed')
+      setProgress(0)
       setSaving(false)
     }
   }
@@ -256,7 +262,7 @@ export default function MediaAspectDialog({
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={() => setConfirming(false)}>Cancel</button>
-              <button type="button" className="btn btn-danger btn-sm" disabled={saving} onClick={run}>{saving ? 'Working…' : `Yes, replace ${bulk ? 'them' : 'it'}`}</button>
+              <button type="button" className="btn btn-danger btn-sm" disabled={saving} onClick={run}>{saving ? workingLabel : `Yes, replace ${bulk ? 'them' : 'it'}`}</button>
             </div>
           </div>
         ) : (
@@ -269,7 +275,7 @@ export default function MediaAspectDialog({
               title={!ratio ? 'Pick a ratio first' : undefined}
               onClick={() => { if (mode === 'replace') setConfirming(true); else run() }}
             >
-              {saving ? 'Working…' : bulk ? `Change ${items.length} images` : 'Change ratio'}
+              {saving ? workingLabel : bulk ? `Change ${items.length} images` : 'Change ratio'}
             </button>
           </div>
         )}
