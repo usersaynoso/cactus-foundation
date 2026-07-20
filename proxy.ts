@@ -97,6 +97,19 @@ function buildCsp(): string {
     `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
     `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
+    // blob: - product-3d-views-for-shop decodes Draco-compressed meshes off the main
+    // thread, and three's DRACOLoader builds that worker the only way it can: it
+    // fetches the decoder's source as text and turns it into a Blob URL, since the
+    // decoder is an Emscripten bundle rather than a module anything can import.
+    //
+    // Spelled out rather than left to fall back: worker-src falls back to child-src,
+    // then script-src, and script-src has no blob:. So without this line the worker is
+    // blocked and every compressed model fails to open - with a console error about
+    // the worker, not about the model, which is a long way from the symptom.
+    //
+    // A blob: worker is same-origin, its URL is unguessable and it inherits this very
+    // policy, so this grants no reach the page has not already got.
+    `worker-src 'self' blob:`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `form-action 'self' https://github.com`,
