@@ -24,6 +24,9 @@ export default function MediaToolbar({
   view,
   onView,
   activeSearch,
+  searchEverywhere,
+  onSearchEverywhere,
+  searchFolderLabel,
   onClearAll,
 }: {
   searchInput: string
@@ -46,10 +49,21 @@ export default function MediaToolbar({
   onView: (v: ViewMode) => void
   /** The committed search term (not the in-progress input) - drives the chip. */
   activeSearch: string
+  /** False confines a search to the folder being browsed; true spans the library. */
+  searchEverywhere: boolean
+  onSearchEverywhere: (v: boolean) => void
+  /** Name of the folder a confined search reads, for the placeholder and the chip. */
+  searchFolderLabel: string
   onClearAll: () => void
 }) {
   const chips: { key: string; label: string; onRemove: () => void }[] = []
-  if (activeSearch) chips.push({ key: 'q', label: `Search: “${activeSearch}”`, onRemove: () => { onSearchInput(''); onSearchSubmit('') } })
+  if (activeSearch) {
+    chips.push({
+      key: 'q',
+      label: `Search: “${activeSearch}”${searchEverywhere ? '' : ` in ${searchFolderLabel}`}`,
+      onRemove: () => { onSearchInput(''); onSearchSubmit('') },
+    })
+  }
   if (type !== 'all') chips.push({ key: 'type', label: type === 'image' ? 'Images only' : 'Other files', onRemove: () => onType('all') })
   if (use !== 'all') chips.push({ key: 'use', label: use === 'in-use' ? 'In use' : 'Not in use', onRemove: () => onUse('all') })
   if (optimisableOnly) chips.push({ key: 'optimisable', label: 'Still to optimise', onRemove: () => onOptimisableOnly(false) })
@@ -66,11 +80,24 @@ export default function MediaToolbar({
           <input
             value={searchInput}
             onChange={(e) => onSearchInput(e.target.value)}
-            placeholder="Search all folders…"
+            placeholder={searchEverywhere ? 'Search all folders…' : `Search ${searchFolderLabel}…`}
             aria-label="Search media"
             style={{ ...inputStyle, paddingLeft: '1.9rem' }}
           />
         </form>
+
+        {/* Only worth showing once there's a search to scope. Sits next to the box
+            so "why am I not seeing that file" has an answer within reach. */}
+        {(searchInput || activeSearch) && (
+          <Select
+            value={searchEverywhere ? 'all' : 'folder'}
+            onChange={(v) => onSearchEverywhere(v === 'all')}
+            label="Search scope"
+          >
+            <option value="folder">In {searchFolderLabel}</option>
+            <option value="all">Everywhere</option>
+          </Select>
+        )}
 
         <Select value={sort} onChange={(v) => onSort(v as Sort)} label="Sort order">
           {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}

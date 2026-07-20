@@ -16,7 +16,6 @@ import {
   MAX_UPLOAD_BYTES,
   MAX_DIRECT_UPLOAD_BYTES,
   MAX_DIRECT_UPLOAD_MB,
-  isRasterDirectType,
   isDirectUploadType,
   isModelDirectType,
   uploadTypeForFile,
@@ -185,13 +184,13 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
 
 // True when the direct path carried it; false to mean "fall back". A thrown error
 // is a hard failure and must not be retried on the other path.
-async function directReplace(mediaId: string, file: File, onProgress?: ProgressFn): Promise<boolean> {
+async function directReplace(mediaId: string, file: File, contentType: string, onProgress?: ProgressFn): Promise<boolean> {
   let res: Response
   try {
     res = await fetch('/api/admin/media/upload-url', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType: file.type, replaceId: mediaId }),
+      body: JSON.stringify({ filename: file.name, contentType, replaceId: mediaId }),
     })
   } catch {
     return false
@@ -214,7 +213,7 @@ async function directReplace(mediaId: string, file: File, onProgress?: ProgressF
     'PUT',
     info.uploadUrl,
     file,
-    { 'content-type': file.type, authorization: `Bearer ${info.token}` },
+    { 'content-type': contentType, authorization: `Bearer ${info.token}` },
     onProgress,
   )
   if (!put.ok) return false
@@ -241,11 +240,20 @@ async function serverlessReplace(mediaId: string, file: File, onProgress?: Progr
 // Swap one existing item's file for `file`, keeping the item and every reference
 // to it. Throws with a user-ready message on failure.
 export async function replaceOneFile(mediaId: string, file: File, onProgress?: ProgressFn): Promise<void> {
-  if (isRasterDirectType(file.type)) {
+  // Same type resolution the fresh-upload path uses: a 3D file's browser-reported
+  // type is worthless, and the type decides both the key's extension and whether
+  // the direct route is on at all. Reading file.type here meant a model always
+  // fell through to the serverless route and died on its body cap.
+  const contentType = uploadTypeForFile(file)
+  if (isDirectUploadType(contentType)) {
     if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
       throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
     }
-    if (await directReplace(mediaId, file, onProgress)) { onProgress?.(1); return }
+    if (await directReplace(mediaId, file, contentType, onProgress)) { onProgress?.(1); return }
+  }
+  // A model has no serverless path, exactly as on the upload side.
+  if (isModelDirectType(contentType)) {
+    throw new Error(`“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`)
   }
   await serverlessReplace(mediaId, file, onProgress)
   onProgress?.(1)

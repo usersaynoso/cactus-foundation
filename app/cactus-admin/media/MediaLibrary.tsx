@@ -50,6 +50,49 @@ type CollisionState =
   | { kind: 'move'; ids: string[]; targetFolderId: string | null; name: string }
   | null
 
+/**
+ * Which of `names` already exist in the destination folder. A failed lookup
+ * returns nothing rather than throwing: the upload should still go ahead, just
+ * without the prompt, exactly as it did before this existed.
+ */
+async function lookUpNameClashes(
+  names: string[],
+  folderId: string | null,
+): Promise<Map<string, { name: string; suggestedName: string; existingId: string }>> {
+  const map = new Map<string, { name: string; suggestedName: string; existingId: string }>()
+  if (names.length === 0) return map
+  try {
+    const res = await fetch('/api/admin/media/name-check', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ folderId, names }),
+    })
+    if (!res.ok) return map
+    const d = await res.json()
+    for (const c of d.clashes ?? []) map.set(c.name, c)
+  } catch { /* no prompt is better than no upload */ }
+  return map
+}
+
+/** The same bytes under a different filename, so the new name reaches the key. */
+function renameFile(file: File, name: string): File {
+  return new File([file], name, { type: file.type, lastModified: file.lastModified })
+}
+
+/** What the person chose when told an upload's name was already taken. */
+type UploadChoice = 'replace' | 'suffix' | 'skip' | 'cancel'
+
+// An upload paused mid-batch on "that name is already here". `resolve` is the
+// waiting enqueueFiles loop, resumed by whichever button is pressed - so the
+// answer arrives before any bytes are sent, and nothing is renamed or
+// overwritten without being asked for.
+type UploadClash = {
+  name: string
+  suggestedName: string
+  existingId: string
+  resolve: (choice: UploadChoice) => void
+}
+
 const VIEW_KEY = 'cactus.media.view'
 const SORT_KEY = 'cactus.media.sort'
 const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest']
@@ -101,6 +144,10 @@ export default function MediaLibrary({
   const [tagFilter, setTagFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  // A search reads the folder you are standing in, the way a file manager's does.
+  // Whole-library search is still a click away - it just isn't the default any
+  // more, because "search inside this folder" used to be impossible to ask for.
+  const [searchEverywhere, setSearchEverywhere] = useState(false)
   const [view, setView] = useState<ViewMode>('grid')
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -131,6 +178,7 @@ export default function MediaLibrary({
   // Same again for the resize dialog, which is aimed the same three ways.
   const [resizeItems, setResizeItems] = useState<LibraryItem[] | null>(null)
   const [collision, setCollision] = useState<CollisionState>(null)
+  const [uploadClash, setUploadClash] = useState<UploadClash | null>(null)
 
   // --- toasts ---
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -183,9 +231,14 @@ export default function MediaLibrary({
     return () => clearTimeout(t)
   }, [searchInput, search])
 
-  // A search, tag filter or stat-tile drill-down spans the whole tree; plain
-  // folder browsing scopes to one folder.
-  const folderScope = search || tagFilter || browseAll ? 'all' : currentFolderId ?? 'root'
+  // A tag filter or stat-tile drill-down spans the whole tree. A search stays in
+  // the folder you are standing in unless you ask for the whole library, and
+  // "this folder" means its direct contents - not its sub-folders - so the result
+  // set matches what browsing that folder shows you.
+  const folderScope =
+    tagFilter || browseAll || (search && searchEverywhere) ? 'all' : currentFolderId ?? 'root'
+  /** True when the view is showing the whole tree rather than one folder. */
+  const viewingAllFolders = folderScope === 'all'
 
 
   const buildQuery = useCallback(
@@ -298,7 +351,7 @@ export default function MediaLibrary({
   // Library-wide keyboard shortcuts. Suppressed while typing or while any dialog,
   // menu or the detail panel is open (each of those owns its own keys).
   useEffect(() => {
-    const anyOverlayOpen = !!(openId || editItem || aspectItems || resizeItems || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || menu)
+    const anyOverlayOpen = !!(openId || editItem || aspectItems || resizeItems || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || uploadClash || menu)
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
@@ -321,11 +374,11 @@ export default function MediaLibrary({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- paste closes over current state; re-bind on the inputs that gate the shortcuts
-  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, aspectItems, resizeItems, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, menu])
+  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, aspectItems, resizeItems, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, uploadClash, menu])
 
   // --- navigation ---
   const navigateFolder = useCallback((id: string | null) => {
-    setSearch(''); setSearchInput(''); setTagFilter(''); setBrowseAll(false); setCurrentFolderId(id)
+    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setBrowseAll(false); setCurrentFolderId(id)
   }, [])
 
   // --- selection ---
@@ -694,12 +747,42 @@ export default function MediaLibrary({
     })
     addUploads(tasks.map((t) => t.task))
 
+    // Ask the server which of these names are already taken in the destination
+    // before anything is sent. A name that is free uploads straight through; a
+    // name that isn't stops and asks, because the alternatives - overwrite, or
+    // quietly file it as something else - are both things only the person
+    // uploading can choose between.
+    const clashes = await lookUpNameClashes(tasks.filter((t) => t.task.status !== 'error').map((t) => t.file.name), targetFolderId)
+
     let uploaded = 0
+    let cancelled = false
     for (const { file, task } of tasks) {
       if (task.status === 'error') continue
+      if (cancelled) { updateUpload(task.id, { status: 'skipped' }); continue }
+
+      let choice: UploadChoice = 'suffix'
+      const clash = clashes.get(file.name)
+      if (clash) {
+        choice = await new Promise<UploadChoice>((resolve) => {
+          setUploadClash({ ...clash, resolve: (c) => { setUploadClash(null); resolve(c) } })
+        })
+        if (choice === 'cancel') { cancelled = true; updateUpload(task.id, { status: 'skipped' }); continue }
+        if (choice === 'skip') { updateUpload(task.id, { status: 'skipped' }); continue }
+      }
+
       updateUpload(task.id, { status: 'uploading', progress: 0 })
       try {
-        await uploadOneFile(file, targetFolderId, (fraction) => updateUpload(task.id, { progress: fraction }))
+        if (clash && choice === 'replace') {
+          // The existing item keeps its row, its url and everything pointing at
+          // it - only the bytes change. That is what "replace" has to mean here,
+          // or the pages already using the file would be left on the old one.
+          await replaceOneFile(clash.existingId, file, (fraction) => updateUpload(task.id, { progress: fraction }))
+        } else {
+          // "Keep both": the file goes up under the free name the server offered,
+          // which carries into the storage key and so into the public url too.
+          const named = clash ? renameFile(file, clash.suggestedName) : file
+          await uploadOneFile(named, targetFolderId, (fraction) => updateUpload(task.id, { progress: fraction }))
+        }
         updateUpload(task.id, { status: 'done', progress: 1 })
         uploaded++
       } catch (err) {
@@ -722,7 +805,7 @@ export default function MediaLibrary({
     : 'other'
 
   function clearAllFilters() {
-    setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('all'); setOptimisableOnly(false)
+    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setType('all'); setUse('all'); setOptimisableOnly(false)
   }
 
   const selectionActive = selected.size > 0
@@ -771,7 +854,7 @@ export default function MediaLibrary({
           folders={folders}
           rootCount={rootCount}
           currentFolderId={currentFolderId}
-          browsingAll={browseAll || !!search || !!tagFilter}
+          browsingAll={viewingAllFolders}
           canManage={canUpload}
           canDelete={canDelete}
           onNavigate={navigateFolder}
@@ -803,20 +886,20 @@ export default function MediaLibrary({
         >
           {fileDragOver && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--color-primary)', borderRadius: 'var(--radius)', background: 'var(--color-overlay)', color: 'var(--color-text)', fontSize: 'var(--text-base)', fontWeight: 600, pointerEvents: 'none' }}>
-              Drop to upload{currentTrail.length > 0 && !browseAll && !search && !tagFilter ? ` to ${currentTrail[currentTrail.length - 1]?.name}` : ''}
+              Drop to upload{currentTrail.length > 0 && !viewingAllFolders ? ` to ${currentTrail[currentTrail.length - 1]?.name}` : ''}
             </div>
           )}
 
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: 'var(--text-sm)' }}>
-            <BreadcrumbCrumb label="Media" onClick={() => navigateFolder(null)} onDrop={(raw) => onDropToFolder(null, raw)} active={currentFolderId === null && !search && !tagFilter && !browseAll} />
-            {!browseAll && !search && !tagFilter && currentTrail.map((f) => (
+            <BreadcrumbCrumb label="Media" onClick={() => navigateFolder(null)} onDrop={(raw) => onDropToFolder(null, raw)} active={currentFolderId === null && !viewingAllFolders} />
+            {!viewingAllFolders && currentTrail.map((f) => (
               <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>/</span>
                 <BreadcrumbCrumb label={f.name} onClick={() => navigateFolder(f.id)} onDrop={(raw) => onDropToFolder(f.id, raw)} active={f.id === currentFolderId} />
               </span>
             ))}
-            {(browseAll || search || tagFilter) && (
+            {viewingAllFolders && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>/</span>
                 <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>All folders</span>
@@ -842,6 +925,9 @@ export default function MediaLibrary({
             view={view}
             onView={setView}
             activeSearch={search}
+            searchEverywhere={searchEverywhere}
+            onSearchEverywhere={setSearchEverywhere}
+            searchFolderLabel={folderName(currentFolderId)}
             onClearAll={clearAllFilters}
           />
 
@@ -906,7 +992,16 @@ export default function MediaLibrary({
             </div>
           )}
           {items.length === 0 ? (
-            <EmptyState loading={loading} search={search} hasFilters={anyFilterActive} canUpload={canUpload} onChoose={() => whitespaceUploadRef.current?.click()} onClearFilters={clearAllFilters} />
+            <EmptyState
+              loading={loading}
+              search={search}
+              hasFilters={anyFilterActive}
+              canUpload={canUpload}
+              scopedSearchIn={search && !viewingAllFolders ? folderName(currentFolderId) : null}
+              onChoose={() => whitespaceUploadRef.current?.click()}
+              onClearFilters={clearAllFilters}
+              onSearchEverywhere={() => setSearchEverywhere(true)}
+            />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '1rem' }}>
               {items.map((item) => (
@@ -1180,6 +1275,14 @@ export default function MediaLibrary({
         </Overlay>
       )}
 
+      {uploadClash && (
+        <UploadClashDialog
+          name={uploadClash.name}
+          suggestedName={uploadClash.suggestedName}
+          onChoose={uploadClash.resolve}
+        />
+      )}
+
       {collision && (
         <CollisionDialog
           name={collision.name}
@@ -1236,14 +1339,34 @@ export default function MediaLibrary({
 const inputStyle: CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', width: '100%', fontFamily: 'inherit', fontSize: 'var(--text-base)', background: 'var(--color-surface)', color: 'var(--color-text)' }
 const barStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', background: 'var(--color-bg-subtle)', position: 'sticky', top: '0.5rem', zIndex: 30 }
 
-function EmptyState({ loading, search, hasFilters, canUpload, onChoose, onClearFilters }: { loading: boolean; search: string; hasFilters: boolean; canUpload: boolean; onChoose: () => void; onClearFilters: () => void }) {
+function EmptyState({ loading, search, hasFilters, canUpload, scopedSearchIn, onChoose, onClearFilters, onSearchEverywhere }: {
+  loading: boolean
+  search: string
+  hasFilters: boolean
+  canUpload: boolean
+  /** Folder name a fruitless search was confined to, or null when it already spanned the library. */
+  scopedSearchIn: string | null
+  onChoose: () => void
+  onClearFilters: () => void
+  onSearchEverywhere: () => void
+}) {
   const filteredEmpty = !loading && hasFilters
+  const offerWiderSearch = filteredEmpty && !!search && !!scopedSearchIn
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '3.5rem 1rem', border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-subtle)' }}>
       <span style={{ fontSize: '2.25rem' }} aria-hidden>{filteredEmpty ? '🔍' : '🗂️'}</span>
       <span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 500 }}>
-        {loading ? 'Loading…' : filteredEmpty ? (search ? 'Nothing matches your search' : 'Nothing matches these filters') : 'This folder is empty'}
+        {loading
+          ? 'Loading…'
+          : filteredEmpty
+            ? search
+              ? offerWiderSearch ? `Nothing in ${scopedSearchIn} matches your search` : 'Nothing matches your search'
+              : 'Nothing matches these filters'
+            : 'This folder is empty'}
       </span>
+      {offerWiderSearch && (
+        <button type="button" className="btn btn-primary btn-sm" onClick={onSearchEverywhere}>Search all folders</button>
+      )}
       {filteredEmpty && (
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClearFilters}>Clear filters</button>
       )}
@@ -1451,6 +1574,31 @@ function CollisionDialog({ name, allowSkip, onCancel, onChoose }: { name: string
       <DialogButtons>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
         {allowSkip && <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('skip')}>Skip</button>}
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => onChoose('replace')}>Replace</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onChoose('suffix')}>Keep both</button>
+      </DialogButtons>
+    </Overlay>
+  )
+}
+
+// The upload half of the same question, asked before the bytes go up. Separate
+// from CollisionDialog because the choices aren't quite the same: "Keep both"
+// can name the file it is about to create, and Cancel abandons the rest of the
+// batch rather than the one file (Skip does that).
+function UploadClashDialog({ name, suggestedName, onChoose }: {
+  name: string
+  suggestedName: string
+  onChoose: (choice: UploadChoice) => void
+}) {
+  return (
+    <Overlay onCancel={() => onChoose('cancel')}>
+      <h2 style={dialogTitle}>“{name}” is already in this folder</h2>
+      <p style={dialogText}>
+        Replace the file that&apos;s there (everything already using it picks up the new one), or keep both and upload this one as “{suggestedName}”.
+      </p>
+      <DialogButtons>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('cancel')}>Cancel</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('skip')}>Skip</button>
         <button type="button" className="btn btn-danger btn-sm" onClick={() => onChoose('replace')}>Replace</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => onChoose('suffix')}>Keep both</button>
       </DialogButtons>

@@ -138,6 +138,41 @@ async function findCollision(
   })
 }
 
+/**
+ * Is a file about to be uploaded as `name` going to land on something already in
+ * `folderId`? Returns the item in the way, and a free "name-1.ext" beside it, so
+ * the person uploading can be asked which they meant rather than having one of
+ * the two silently renamed behind their back.
+ *
+ * The "-1" form (not the " (1)" one used by move/rename) is deliberate: it is
+ * what ends up in the storage key and therefore in the public url, where a space
+ * and a bracket would only be escaped into noise.
+ */
+export async function checkUploadName(
+  name: string,
+  folderId: string | null,
+): Promise<{ existingId: string; suggestedName: string } | null> {
+  const clash = await prisma.media.findFirst({
+    where: { folderId, originalName: name },
+    select: { id: true },
+  })
+  if (!clash) return null
+
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  let suggestedName = `${stem}-1${ext}`
+  for (let n = 1; n < 1000; n++) {
+    const candidate = `${stem}-${n}${ext}`
+    const taken = await prisma.media.findFirst({
+      where: { folderId, originalName: candidate },
+      select: { id: true },
+    })
+    if (!taken) { suggestedName = candidate; break }
+  }
+  return { existingId: clash.id, suggestedName }
+}
+
 /** Append " (1)", " (2)"… to a name until it's free in the target folder. */
 async function suffixUntilFree(name: string, folderId: string | null, excludeMediaId: string): Promise<string> {
   const dot = name.lastIndexOf('.')
