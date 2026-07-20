@@ -754,14 +754,24 @@ export default function MediaLibrary({
     // uploading can choose between.
     const clashes = await lookUpNameClashes(tasks.filter((t) => t.task.status !== 'error').map((t) => t.file.name), targetFolderId)
 
-    let uploaded = 0
+    // Every clash is answered before anything is sent - one dialog at a time, in
+    // file order. Only then does the batch upload, so a "cancel" here still means
+    // "nothing happened", and the parallel phase below never has to pause a
+    // half-finished pool to ask a question.
+    type UploadJob = {
+      file: File
+      taskId: string
+      clash: { existingId: string; suggestedName: string } | null
+      choice: UploadChoice
+    }
+    const jobs: UploadJob[] = []
     let cancelled = false
     for (const { file, task } of tasks) {
       if (task.status === 'error') continue
       if (cancelled) { updateUpload(task.id, { status: 'skipped' }); continue }
 
       let choice: UploadChoice = 'suffix'
-      const clash = clashes.get(file.name)
+      const clash = clashes.get(file.name) ?? null
       if (clash) {
         choice = await new Promise<UploadChoice>((resolve) => {
           setUploadClash({ ...clash, resolve: (c) => { setUploadClash(null); resolve(c) } })
@@ -769,26 +779,42 @@ export default function MediaLibrary({
         if (choice === 'cancel') { cancelled = true; updateUpload(task.id, { status: 'skipped' }); continue }
         if (choice === 'skip') { updateUpload(task.id, { status: 'skipped' }); continue }
       }
+      jobs.push({ file, taskId: task.id, clash, choice })
+    }
 
-      updateUpload(task.id, { status: 'uploading', progress: 0 })
-      try {
-        if (clash && choice === 'replace') {
-          // The existing item keeps its row, its url and everything pointing at
-          // it - only the bytes change. That is what "replace" has to mean here,
-          // or the pages already using the file would be left on the old one.
-          await replaceOneFile(clash.existingId, file, (fraction) => updateUpload(task.id, { progress: fraction }))
-        } else {
-          // "Keep both": the file goes up under the free name the server offered,
-          // which carries into the storage key and so into the public url too.
-          const named = clash ? renameFile(file, clash.suggestedName) : file
-          await uploadOneFile(named, targetFolderId, (fraction) => updateUpload(task.id, { progress: fraction }))
+    // Six uploads in flight at once. Browsers hold ~6 connections per host, so a
+    // bigger pool would only queue inside the browser; a serial loop left five of
+    // them idle, which is what made a few hundred small files take all afternoon.
+    // Each worker pulls the next job off the shared cursor, so a slow video never
+    // blocks the photos behind it - the other five lanes keep draining.
+    const CONCURRENT_UPLOADS = 6
+    let uploaded = 0
+    let next = 0
+    async function uploadWorker() {
+      while (next < jobs.length) {
+        const job = jobs[next++]
+        if (!job) return
+        updateUpload(job.taskId, { status: 'uploading', progress: 0 })
+        try {
+          if (job.clash && job.choice === 'replace') {
+            // The existing item keeps its row, its url and everything pointing at
+            // it - only the bytes change. That is what "replace" has to mean here,
+            // or the pages already using the file would be left on the old one.
+            await replaceOneFile(job.clash.existingId, job.file, (fraction) => updateUpload(job.taskId, { progress: fraction }))
+          } else {
+            // "Keep both": the file goes up under the free name the server offered,
+            // which carries into the storage key and so into the public url too.
+            const named = job.clash ? renameFile(job.file, job.clash.suggestedName) : job.file
+            await uploadOneFile(named, targetFolderId, (fraction) => updateUpload(job.taskId, { progress: fraction }))
+          }
+          updateUpload(job.taskId, { status: 'done', progress: 1 })
+          uploaded++
+        } catch (err) {
+          updateUpload(job.taskId, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
         }
-        updateUpload(task.id, { status: 'done', progress: 1 })
-        uploaded++
-      } catch (err) {
-        updateUpload(task.id, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
       }
     }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENT_UPLOADS, jobs.length) }, uploadWorker))
 
     if (uploaded > 0) await Promise.all([fetchItems(), refetchFolders()])
   }
