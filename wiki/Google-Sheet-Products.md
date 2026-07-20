@@ -61,6 +61,8 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations.
 
+If you have made changes in the sheet since Cactus last synced with it, Push stops and asks first - because filling the sheet from your site would wipe those edits. You can either go and Pull them in before you Push, or say yes to overwrite them. Cactus's own Pushes and Pulls don't trip this, only edits made by hand in the sheet.
+
 ### Pull from sheet (the sheet → your site)
 
 This is the one to take a breath over, so it makes you look first. Choose **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, how many it will delete, any rows it can't make sense of, and - importantly - a named list of everything that is **"In the shop but not in your sheet."**
@@ -73,7 +75,7 @@ Once you confirm, Pull shows you a live count as it goes - so many products of s
 
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
-The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing.
+The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure.
 
 ### Sheet logs
 

@@ -70,7 +70,7 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 
 1. **Neon API call** - `POST https://console.neon.tech/api/v2/projects` creates a new Neon project. The response includes both a direct and a **pooled** connection string. Cactus uses the pooled one (`connection_parameters.pooler_host`) to satisfy the pooling requirement.
 2. **Vercel API write** - `POST https://api.vercel.com/v10/projects/{projectId}/env` writes `DATABASE_URL` (pooled) and `NEON_PROJECT_ID` (for idempotency) as project environment variables.
-3. **Triggered redeploy** - the wizard explicitly triggers a new production deployment via the Vercel API (a redeploy of the latest production deployment, passing `teamId` when the project is team-owned). During that build, the existing `build` script (`node scripts/prebuild.mjs && next build`, whose database branch runs `prisma migrate deploy` → `reconcile-core-schema.mjs` → `run-module-migrations.mjs`) applies the full schema. If the trigger fails, the failure is surfaced in the wizard with a "Retry redeploy" button and a pointer to the Vercel dashboard - it is never silently swallowed.
+3. **Triggered redeploy** - the wizard explicitly triggers a new production deployment via the Vercel API (a redeploy of the latest production deployment, passing `teamId` when the project is team-owned). During that build, the existing `build` script (`node scripts/prebuild.mjs && next build`, whose database branch runs `prisma migrate deploy` → `reconcile-core-schema.mjs` → `run-module-migrations.mjs` → `flush-pooled-plans.mjs`) applies the full schema. If the trigger fails, the failure is surfaced in the wizard with a "Retry redeploy" button and a pointer to the Vercel dashboard - it is never silently swallowed.
 4. **Readiness poll** - the wizard polls `/api/health` every 5 seconds. Once the database is reachable (redeploy complete, schema applied), the wizard advances to the next step. It also streams the deployment's state and build log while waiting; a deployment that ends in ERROR or CANCELED is shown as failed with its log and a retry, not left spinning.
 
 **Migrations are never triggered from the wizard.** Provisioning only creates the Neon project and writes the env var. The schema reaches the database exactly as it always does: via the `build` script, run by Vercel during the triggered deployment. The wizard cannot continue in the same page load; the redeploy is the mechanism, not a side-effect.
@@ -186,6 +186,20 @@ The geometry for reshape and resize lives in its own pure, unit-tested module wi
 Both bulk routes run **sequentially** - each re-encode is CPU-heavy - and report a three-bucket tally (`changed` / `skipped` / `failed`). A skip is a 200 with a plain-English `reason`, not an error: "already that shape", "already smaller than that box". One awkward item never aborts the batch.
 
 `Media` carries no `width`/`height` columns; dimensions are read on demand via `sharp(...).metadata()`. The resize dialog therefore reads `naturalWidth`/`naturalHeight` off the loaded preview purely to tell the user what they're getting - the server measures the real bytes itself and is the one that decides.
+
+### Reconciling rows against storage
+
+Every figure the media page shows is derived from `Media` rows, so the library can only ever agree with itself. Three drifts are therefore invisible to it: an object in storage with no row (each write-new-then-delete-old flow - optimise, relocate, provider migration - has a failure window that leaves one behind), a row whose object has gone, and a row whose `sizeBytes` disagrees with the object.
+
+`GET /api/admin/media/storage-check` (`config.manage`) closes that gap. `reconcileMediaStorage` in `lib/media/reconcile.ts` groups rows by their own `provider` - a library that has been through a provider switch holds rows on several, and scanning only the active one would report every other row as missing - then enumerates each provider via `listStoredMediaKeys` and compares. The comparison itself is a pure function, `diffStorageAgainstRows`, unit-tested without a bucket or a database: a false orphan here becomes a deleted file downstream, so it is the part worth pinning down.
+
+A provider that cannot be listed returns `null`, meaning "cannot tell", never an empty list - Cloudinary and ImageKit file under provider-minted ids, so they are reported as unscanned rather than as a library entirely missing from storage. The same applies to an unconfigured provider, a listing that threw, and a bucket over `KEYS_PER_PROVIDER_LIMIT`. Any of those sets `partial: true` with a per-provider reason.
+
+`POST` repairs. `correct-sizes` is non-destructive and re-derives its own list. `delete-orphans` additionally requires `media.delete` and re-runs the scan server-side, deleting only keys a fresh scan still calls orphaned - the client's list is a selection, not an authority, which is what stops a stale page removing an object since claimed by a row.
+
+Note that a versioned bucket's own file browser counts superseded versions and delete markers as files, so it will routinely report several times the object count and size that this check does. `ListObjectsV2` sees only current versions, which is the set the library should match.
+
+**Where the size drift came from.** On the direct-upload paths the bytes go from the browser straight to the Worker, so the app never holds them. `/record` hardens everything else about that request against the body - the key must carry a signature this app issued, the content type is derived from that signed key - but `sizeBytes` was still the client's own `file.size`, which describes the file it meant to send rather than the object that landed. `confirmedSizeBytes` now HEADs the object and records the real length, keeping the claimed figure only when the provider cannot say (the body value still serves the size-cap check, which the Worker enforces independently on the PUT).
 
 ## Notifications and deferred deployment
 
@@ -337,7 +351,7 @@ Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). Th
 `npm run build` is `node scripts/prebuild.mjs && next build`. The prebuild is a fan-out, not a queue: `scripts/checkout-modules.mjs` runs first as a barrier, because everything after it reads the module code it clones into `/modules`. Once that is done, three branches run concurrently, since none of them reads another's inputs or writes another's outputs:
 
 - `prisma generate` (writes the Prisma client into `node_modules`)
-- the database chain: `build-migrate.mjs` (`prisma migrate deploy` → `reconcile-core-schema.mjs` → `run-module-migrations.mjs`) followed by `sync-module-manifests.mjs`
+- the database chain: `build-migrate.mjs` (`prisma migrate deploy` → `reconcile-core-schema.mjs` → `run-module-migrations.mjs` → `flush-pooled-plans.mjs`) followed by `sync-module-manifests.mjs`
 - `generate-all.mjs` (the eight code generators that write the gitignored files in `lib/`)
 
 Each branch's log output is buffered and printed as one labelled block when it finishes, so concurrent output cannot interleave, and any branch exiting non-zero fails the whole build.
@@ -351,6 +365,23 @@ Core ships a single Prisma migration that is **edited in place** for schema chan
 `scripts/reconcile-core-schema.mjs` closes that gap. It runs on every deploy, immediately after `prisma migrate deploy`, and applies each not-yet-applied `.sql` file in `prisma/core-reconcile/` (in lexicographic order). Applied files are recorded, with a checksum, in the existing `ModuleMigration` table under the reserved module name `__core__`, so a file that has already run on this install is skipped on later deploys rather than re-executed as a no-op; a file whose contents change is re-applied. Every statement in those files is **additive and idempotent** - `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, and foreign keys guarded by a `pg_constraint` name check. On a fresh or up-to-date install every statement is a no-op; on a drifted install it adds exactly the missing objects and nothing else. The files are never used to drop, rename, or retype anything - reconcile only ever moves an old database *forward* to the additive parts of the current core schema.
 
 The reconcile files heal installs provisioned before recent core features landed: the media library's `Folder`, `Tag`, and `MediaTag` tables plus the `Media.originalName`, `Media.folderId`, and `Media.optimised` columns (what a site set up on an earlier release needs before the admin media page can load), and SMS-based member two-factor (`MemberTwoFactor.phoneEncrypted` and the `SMS` value on the two-factor method enum). The enum change lives in its own file as the only statement, because `ALTER TYPE ... ADD VALUE` cannot be batched with other statements in one transaction on older PostgreSQL.
+
+### Clearing stale query plans after a schema change
+
+Postgres plans a prepared statement against the table shape it saw when the statement was prepared. For a `SELECT *` that shape is every column of the table, so changing the table invalidates the plan: the next execution on a connection still holding it fails with `cached plan must not change result type` (SQLSTATE 0A000).
+
+A deploy normally makes this a non-issue, because it replaces the application and its database connections together. It is not a non-issue through a pooler. Neon's pooled endpoint is pgBouncer, and pgBouncer keeps its own **server** connections open across deploys, while the migration chain above deliberately runs its DDL on the *direct* endpoint and so never touches them. A schema change therefore strands stale plans on the pool for as long as pgBouncer keeps those connections alive.
+
+The symptom is a site that only half works. A request routed onto a fresh pooled connection succeeds; one routed onto an older connection returns a 500; which happens varies from request to request, and it clears up on its own once the connections are recycled - potentially an hour or more later.
+
+`scripts/flush-pooled-plans.mjs` runs last in `build-migrate.mjs`, after every DDL step, and ends idle backends on the database so their plans are rebuilt against the current schema. It connects on the direct endpoint (asking pgBouncer to end pgBouncer's own connections would just route the request back through the pool) and terminates **idle backends only**, so nothing in flight on the still-serving previous deployment is interrupted; it sweeps twice, three seconds apart, to catch backends that were mid-query on the first pass. It skips only when there is no `DATABASE_URL`, and it never exits non-zero - a failure here leaves the previous behaviour (waiting for pgBouncer to recycle) rather than failing the deploy.
+
+Two changes on 2026-07-19, after shop's `006_supplier` migration took every product page, the product editor and the CSV export on a live site down with this error:
+
+- **The flusher was being handed the wrong URL.** `build-migrate.mjs` replaces `DATABASE_URL` with the direct endpoint for its children, so the flusher's "is this pooled?" test was reading a hostname from which `-pooler` had already been stripped. It concluded there was no pooler and exited without clearing anything - on precisely the installs that need it. The flusher now receives the site's real `DATABASE_URL`, and the pooled/direct test no longer decides whether to sweep, only which line to log. A silent wrong answer there costs a broken storefront one migration later, which is not a trade worth making to skip one query.
+- **A runtime retry, which is the actual guarantee.** A build-time sweep cannot help a connection opened after the build, so `lib/db/stale-plan.ts` replays any query that fails with this error exactly once. The first failure is what discards the stale plan, so the replay re-plans against the real schema and succeeds. It is wired into the shared Prisma client as a `$allOperations` extension, which means it covers raw queries as well as model calls, and covers every module, since they all import that one client. It matches on the error message rather than SQLSTATE `0A000`, which is Postgres's generic "feature not supported" and covers plenty of errors that must never be retried.
+
+The sweep is now the thing that keeps the retry rare, rather than the thing standing between a migration and a broken site.
 
 ### Module Puck blocks
 
