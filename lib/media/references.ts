@@ -37,12 +37,17 @@ export type MediaUsageIndex = {
   degraded: boolean
 }
 
-// Wrapped in React's `cache` so the index is built at most once per request. The
-// media page alone used to build it twice (library query + stats), and it is the
-// single most expensive read in the admin: every page and layout's builder JSON.
-// The cache is per-request, so a later request always sees fresh content.
-/** Load the usage index once, then classify many Media rows against it. */
-export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
+// Cross-request cache on top of the per-request one below: rebuilding this scans
+// every page's and every layout's whole builder JSON, so a media library visited
+// repeatedly within the TTL reuses the last scan instead of paying for it again.
+// A page saved moments ago briefly reads as "not yet referenced" here - the safe
+// direction already established above (isMediaInUse defaults to "in use" on any
+// doubt), so a short-lived stale index costs nothing worse than a wasted click.
+let cachedIndex: MediaUsageIndex | null = null
+let cachedIndexAt = 0
+const CACHE_TTL_MS = 30_000
+
+async function buildMediaUsageIndex(): Promise<MediaUsageIndex> {
   const [config, ogPages, avatars, exports, pages, layouts] = await Promise.all([
     prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
@@ -111,6 +116,19 @@ export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
   const haystack = parts.join('\n').toLowerCase()
 
   return { referencedIds, haystack, degraded }
+}
+
+// Wrapped in React's `cache` so a single request never builds the index twice
+// (the media page alone used to: library query + stats). The TTL cache above
+// this covers every request after the first within its window.
+/** Load the usage index once, then classify many Media rows against it. */
+export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
+  const now = Date.now()
+  if (cachedIndex && now - cachedIndexAt < CACHE_TTL_MS) return cachedIndex
+  const index = await buildMediaUsageIndex()
+  cachedIndex = index
+  cachedIndexAt = now
+  return index
 })
 
 /** Is a single Media row referenced anywhere on the site? */

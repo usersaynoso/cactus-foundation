@@ -3,14 +3,14 @@ import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
 import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, type ModuleManifestNav } from '@/lib/nav/admin-menu'
-import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledModules } from '@/lib/modules/live-status'
 import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
+import { getSiteConfig } from '@/lib/config/site'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -37,12 +37,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const [config, activeModules, unreadCount, branding] = await Promise.all([
-    prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true, designTokens: true, adminMenuConfig: true } }),
+    getSiteConfig(),
     // Installed here AND present in this build. Unlike the extension-point call sites,
     // nav entries come straight off the stored manifest with no generated registry to
     // drop a module whose code has not landed yet - so a first install would advertise
     // links that 404 until its deploy finishes. MODULES_IN_BUILD is that missing half.
-    prisma.module.findMany({ where: INSTALLED_MODULE_WHERE, select: { name: true, manifest: true } }),
+    getInstalledModules(),
     getUnreadCount(),
     resolveBranding(),
   ])

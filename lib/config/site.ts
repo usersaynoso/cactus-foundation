@@ -96,17 +96,6 @@ export async function getPendingRedeployIdCached(): Promise<string | null> {
   return resolved
 }
 
-export async function getPendingRedeployIdUncached(): Promise<string | null> {
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { pendingRedeployId: true, pendingRedeployAt: true },
-  })
-  const resolved = config ? await resolvePendingRedeploy(config) : null
-  cachedPendingRedeployId = resolved
-  cachedPendingRedeployIdAt = Date.now()
-  return resolved
-}
-
 export function invalidateSiteConfigCache() {
   cachedAdminPath = null
   cachedAdminPathAt = 0

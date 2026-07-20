@@ -2,7 +2,8 @@ import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledModules } from '@/lib/modules/live-status'
+import { getSiteConfig } from '@/lib/config/site'
 import { isMediaProviderConfigured, isGitHubConfigured } from '@/lib/config/env'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { Metadata } from 'next'
@@ -31,14 +32,8 @@ export default async function AdminDashboard() {
   // dashboard knows the point name only, never any module name.
   const [user, config, widgetModules] = await Promise.all([
     getSessionFromCookie(),
-    prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { siteName: true, status: true, timezone: true, mediaProvider: true },
-    }),
-    prisma.module.findMany({
-      where: { ...INSTALLED_MODULE_WHERE },
-      select: { manifest: true },
-    }),
+    getSiteConfig(),
+    getInstalledModules(),
   ])
 
   const widgetEntries: ExtensionPointEntry[] = []

@@ -1,4 +1,6 @@
+import { cache } from 'react'
 import type { $Enums, Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db/prisma'
 
 // Which modules are LIVE on this site, for every feature that renders something a
 // module contributes: gallery media, detail slots, member extensions, layout types,
@@ -41,3 +43,13 @@ export const INSTALLED_MODULE_STATUSES = [
 export const INSTALLED_MODULE_WHERE = {
   status: { in: [...INSTALLED_MODULE_STATUSES] },
 } satisfies Prisma.ModuleWhereInput
+
+// Wrapped in React `cache()` because the admin layout and the admin dashboard
+// page both need "every installed module's manifest" on the same request (nav
+// entries vs. dashboard widgets) and used to each run their own findMany with a
+// different `select` - two round trips on every single admin page load. Name is
+// included even though the dashboard page only reads manifest, so one query
+// covers both shapes.
+export const getInstalledModules = cache(() =>
+  prisma.module.findMany({ where: INSTALLED_MODULE_WHERE, select: { name: true, manifest: true } }),
+)

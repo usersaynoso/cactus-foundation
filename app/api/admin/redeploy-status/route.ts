@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { invalidateSiteConfigCache, getPendingRedeployIdUncached, getAdminPathCached } from '@/lib/config/site'
+import { invalidateSiteConfigCache, getPendingRedeployIdCached, getAdminPathCached } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
 import { getLatestDeploymentStatus } from '@/lib/modules/github'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
@@ -17,7 +17,7 @@ export async function GET() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   const [deploymentId, adminPath] = await Promise.all([
-    getPendingRedeployIdUncached(),
+    getPendingRedeployIdCached(),
     getAdminPathCached(),
   ])
   return NextResponse.json({
