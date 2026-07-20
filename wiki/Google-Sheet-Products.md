@@ -71,7 +71,9 @@ Nothing has changed at this point. When you are happy, press the button in the p
 
 Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
 
-If something interrupts it - you close the tab, your connection drops, a stubborn row trips it up - it doesn't lose its place. It stops exactly where it got to, and a **Continue** appears (on that same Google Sheet menu, and in the Pull window) to carry on from there rather than starting the whole thing over. Everything it does is safe to repeat, so continuing never doubles anything up. You can also just cancel and leave things as they are.
+If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
+
+The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing.
 
 ### Sheet logs
 
