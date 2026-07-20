@@ -8,12 +8,12 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.63"
+      "version": "v0.1.65"
     },
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.13"
+      "version": "v0.1.16"
     },
     {
       "name": "product-3d-views-for-shop",
