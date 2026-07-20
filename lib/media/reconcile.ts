@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import type { MediaProviderType } from '@prisma/client'
 import { isMediaProviderConfigured } from '@/lib/config/env'
-import { listStoredMediaKeys, mediaKeyPrefix, type StoredObject } from '@/lib/media/upload'
+import { getMediaReferences, listStoredMediaKeys, mediaKeyPrefix, type StoredObject } from '@/lib/media/upload'
 
 // ---------------------------------------------------------------------------
 // Reconcile the Media table against what storage actually holds.
@@ -231,6 +231,54 @@ export async function correctRecordedSizes(): Promise<{ corrected: number }> {
     await prisma.media.update({ where: { id: m.id }, data: { sizeBytes: m.storedBytes } })
   }
   return { corrected: mismatched.length }
+}
+
+export type PurgeMissingResult = {
+  purged: number
+  /** Rows left alone because something still points at them and force wasn't set. */
+  skipped: { key: string; originalName: string | null; references: string[] }[]
+  /** Keys the caller asked for that a fresh scan no longer calls missing. */
+  stale: number
+}
+
+/**
+ * Delete the library rows whose file is no longer in storage - the drift you get
+ * when someone tidies the bucket from the provider's own console.
+ *
+ * No blob is touched: the object these rows name is already gone, so there is
+ * nothing to delete and calling the provider would only raise a not-found. The
+ * destructive part is the row, and the safeguard is the same one `delete-orphans`
+ * uses - the caller's key list is a selection, never an authority, so a fresh
+ * scan decides what actually qualifies.
+ *
+ * A row still referenced by a page or a setting is skipped unless `force`. That
+ * reference is already broken (the picture cannot load either way), but the
+ * skipped list is the only place an admin gets told which pages need attention,
+ * so it is worth one deliberate second look.
+ */
+export async function purgeMissingRows(keys: string[], force = false): Promise<PurgeMissingResult> {
+  const { missing } = await reconcileMediaStorage()
+  const byKey = new Map(missing.map((m) => [m.key, m]))
+
+  const result: PurgeMissingResult = { purged: 0, skipped: [], stale: 0 }
+
+  for (const key of keys) {
+    const row = byKey.get(key)
+    if (!row) { result.stale += 1; continue }
+
+    if (!force) {
+      const references = await getMediaReferences(row.id)
+      if (references.length > 0) {
+        result.skipped.push({ key: row.key, originalName: row.originalName, references })
+        continue
+      }
+    }
+
+    await prisma.media.delete({ where: { id: row.id } })
+    result.purged += 1
+  }
+
+  return result
 }
 
 /** True when a key is one this app would have written for that provider. */

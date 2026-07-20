@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { formatBytes } from './format'
 // Type-only - erased at build, so the server-only reconcile module (and its
 // prisma import) never reaches the client bundle.
-import type { StorageReconcile } from '@/lib/media/reconcile'
+import type { StorageReconcile, PurgeMissingResult } from '@/lib/media/reconcile'
 
 // Storage check. Every other figure on this page is counted from the library's
 // own records, so it can only ever agree with itself; this is the one thing that
@@ -20,10 +20,16 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
 
+  // Entries a purge left alone because something still points at them. Held so
+  // the admin can see what they are before deciding to remove them anyway.
+  const [blocked, setBlocked] = useState<PurgeMissingResult['skipped']>([])
+
   const busy = state !== 'idle'
 
-  async function scan() {
-    setState('scanning'); setError(null); setNote(null)
+  // `keepNote` is for the re-scan that follows a repair: that scan is part of
+  // the repair, so it must not wipe the sentence saying what the repair did.
+  async function scan(keepNote = false) {
+    setState('scanning'); setError(null); if (!keepNote) { setNote(null); setBlocked([]) }
     try {
       const res = await fetch('/api/admin/media/storage-check')
       const data = await res.json()
@@ -36,18 +42,25 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
     }
   }
 
-  async function post(action: string, keys?: string[]) {
-    setState('working'); setError(null); setNote(null)
+  async function post(action: string, keys?: string[], force?: boolean) {
+    setState('working'); setError(null); setNote(null); setBlocked([])
     try {
       const res = await fetch('/api/admin/media/storage-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action, keys }),
+        body: JSON.stringify({ action, keys, force }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error ?? 'That did not work.')
       if (action === 'correct-sizes') {
         setNote(data.corrected === 0 ? 'Nothing needed correcting.' : `Corrected ${data.corrected} recorded size${data.corrected === 1 ? '' : 's'}.`)
+      } else if (action === 'purge-missing') {
+        const skipped = (data.skipped ?? []) as PurgeMissingResult['skipped']
+        setBlocked(skipped)
+        setNote(
+          `Removed ${data.purged} entr${data.purged === 1 ? 'y' : 'ies'}.` +
+          (skipped.length > 0 ? ` ${skipped.length} left alone for now - still used elsewhere.` : '')
+        )
       } else {
         setNote(`Deleted ${data.deleted} file${data.deleted === 1 ? '' : 's'}, freeing ${formatBytes(data.reclaimedBytes)}.${data.skipped > 0 ? ` ${data.skipped} skipped.` : ''}`)
       }
@@ -58,7 +71,7 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
     }
     // Re-scan rather than patching the list in place: the repair is the thing
     // being verified, so the numbers shown afterwards should come from storage.
-    await scan()
+    await scan(true)
   }
 
   return (
@@ -79,7 +92,7 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
             room, items whose file has gone, and sizes recorded wrongly.
           </p>
         </div>
-        <button type="button" onClick={scan} disabled={busy} style={buttonStyle(false)}>
+        <button type="button" onClick={() => void scan()} disabled={busy} style={buttonStyle(false)}>
           {state === 'scanning' ? 'Checking…' : result ? 'Check again' : 'Run check'}
         </button>
       </div>
@@ -123,8 +136,63 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
             empty="Every item here has its file."
             count={result.missing.length}
             summary="shown in the library, but not in storage"
+            action={
+              canDelete && result.missing.length > 0
+                ? {
+                    label: state === 'working' ? 'Removing…' : 'Remove these entries',
+                    danger: true,
+                    onClick: () => {
+                      const ok = window.confirm(
+                        `Remove ${result.missing.length} entr${result.missing.length === 1 ? 'y' : 'ies'} from this library?\n\nTheir files are already gone from storage, so nothing is deleted from storage here - this only clears the entries pointing at them. Anything still used on a page will be listed rather than removed.`
+                      )
+                      if (ok) void post('purge-missing', result.missing.map((m) => m.key))
+                    },
+                  }
+                : undefined
+            }
             rows={result.missing.map((m) => ({ key: m.key, label: m.originalName ?? m.key, detail: m.key }))}
           />
+
+          {/* Message renders a <p>, so this list-and-button block gets its own
+              container rather than nesting invalid markup inside one. */}
+          {blocked.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--color-warning)',
+              }}
+            >
+              <span>
+                These entries are still used, so they were left alone. Their files have gone either way, so
+                whatever points at them is already showing nothing:
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+                {blocked.map((b) => (
+                  <li key={b.key}>
+                    <strong>{b.originalName ?? b.key}</strong> - {b.references.join(', ')}
+                  </li>
+                ))}
+              </ul>
+              <div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  style={buttonStyle(true)}
+                  onClick={() => {
+                    const ok = window.confirm(
+                      `Remove ${blocked.length} entr${blocked.length === 1 ? 'y' : 'ies'} anyway?\n\nWherever they are used will be left with nothing in that spot, so it is worth putting something else there afterwards.`
+                    )
+                    if (ok) void post('purge-missing', blocked.map((b) => b.key), true)
+                  }}
+                >
+                  {state === 'working' ? 'Removing…' : 'Remove them anyway'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <Group
             title="Sizes recorded wrongly"

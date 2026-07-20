@@ -3,7 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMedia } from '@/lib/media/upload'
-import { reconcileMediaStorage, correctRecordedSizes } from '@/lib/media/reconcile'
+import { reconcileMediaStorage, correctRecordedSizes, purgeMissingRows } from '@/lib/media/reconcile'
 
 // Compare the media library against what storage actually holds, and repair the
 // two drifts that are safe to repair. Slow by nature - it lists every object the
@@ -38,6 +38,14 @@ export async function GET() {
 //                                              permission as well and only ever
 //                                              acts on keys a fresh scan still
 //                                              calls orphaned.
+//   { action: 'purge-missing', keys: [],     - removes library entries whose
+//     force?: boolean }                        file is no longer in storage.
+//                                              Deletes no blob (there isn't one
+//                                              left), but it does delete rows,
+//                                              so it needs the delete permission
+//                                              too. Entries something still
+//                                              points at are skipped and listed
+//                                              back unless force is set.
 export async function POST(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
@@ -78,6 +86,15 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json({ deleted: deleted.length, skipped: skipped.length, reclaimedBytes })
+    }
+
+    if (action === 'purge-missing') {
+      if (!await hasPermission(user, 'media.delete')) return errorResponse('Forbidden', 403)
+
+      const requested = Array.isArray(body?.keys) ? body.keys.filter((k: unknown) => typeof k === 'string') as string[] : []
+      if (requested.length === 0) return errorResponse('No entries selected')
+
+      return NextResponse.json(await purgeMissingRows(requested, body?.force === true))
     }
 
     return errorResponse('Unknown action')

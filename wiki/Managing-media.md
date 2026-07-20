@@ -50,7 +50,16 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
 
-**File names:** whatever you called the file is what it's stored as. Upload `160cm-white-6-person-1.jpg` and that's the name it keeps, in your storage and in the web address it's served from - no scrambled prefix in front of it. Upload a second file of the same name into the same folder and Cactus adds `-2` to the newcomer rather than quietly writing over the first, much as your computer does. Names are tidied on the way in: spaces and punctuation become hyphens, capitals become lower case, because web addresses are fussy about such things.
+**File names:** whatever you called the file is what it's stored as. Upload `160cm-white-6-person-1.jpg` and that's the name it keeps, in your storage and in the web address it's served from - no scrambled prefix in front of it. Names are tidied on the way in: spaces and punctuation become hyphens, capitals become lower case, because web addresses are fussy about such things.
+
+**If that name is already taken** in the folder you're uploading to, Cactus stops and asks rather than deciding for you:
+
+- **Replace** - the file that's already there keeps its web address and everything pointing at it, and simply starts serving your new one. Handy for updating a photo you've used in a dozen places.
+- **Keep both** - your upload goes in alongside it as `name-1`, with the suggested name shown on the button so there are no surprises.
+- **Skip** - leave that one out and carry on with the rest.
+- **Cancel** - abandon the rest of the batch.
+
+The question is asked before a single byte leaves your computer, so nothing is overwritten or renamed behind your back.
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
 
@@ -83,11 +92,13 @@ The Unused and Optimisable tiles light up while there's something worth doing, a
 
 If part of your site can't be checked for some reason, the library errs on the side of caution and reports nothing as unused at all, rather than pointing you at files that may well be in use.
 
+All of these tiles are counted from Cactus's own records. If you want to know what your storage provider is really holding, see [Checking your storage](#checking-your-storage) at the bottom of the page.
+
 ### Finding things
 
 Below that is a row of controls to help you find things in a hurry:
 
-- A **search box** that looks across every folder, not just the one you're in. It filters as you type, so you don't have to press Enter and wait.
+- A **search box** that looks inside the folder you're standing in, filtering as you type so you don't have to press Enter and wait. Next to it a small **In [folder name] / Everywhere** switch appears: leave it be to search where you are, or flip it to sweep the whole library. Searching a folder means that folder itself - files tucked away in folders inside it aren't counted, which is the same set you'd see by browsing it. If a search inside a folder comes up empty, the message offers a one-click **Search all folders**, and the little tag under the controls always says which of the two you're looking at.
 - **Sort** - newest or oldest first, by name A-Z or Z-A, or largest to smallest.
 - **File type** - show everything, just images, or just other files.
 - **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
@@ -314,6 +325,34 @@ Tick the small checkbox in the corner of each thumbnail (or the tick-boxes in th
 Got a long run of files to bin? Tick the first one, then hold **Shift** and tick the last one - everything in between gets picked too.
 
 If any of your selection turns out to be in use somewhere, Cactus holds those back and tells you where - you can then choose **Delete anyway** if you're sure, or back out and go and unlink them first.
+
+---
+
+## Checking your storage
+
+Everything else on the media page is counted from Cactus's own records, so it can only ever agree with itself. The **Storage check** at the bottom of the page is the one thing that goes and asks your storage provider what is actually sitting there, and reports the difference. You'll only see it if you're allowed to manage settings.
+
+Press **Run check**. It can take a little while on a big library, because it genuinely reads through everything your provider holds. Then it tells you about three things:
+
+- **Leftover files** - files sitting in storage that no item in your library points to, along with how much room they're taking up. These are the usual reason your provider's own dashboard reports more files than your library does. They build up in small ways: a file gets replaced or moved and the old copy doesn't quite get cleared away.
+- **Files that have gone** - the opposite problem. An item shows in your library but its actual file is no longer in storage, which is why it appears as a broken picture. Usually because someone tidied up in the provider's own dashboard: deleting a file there tells Cactus nothing, so the entry stays behind.
+- **Sizes recorded wrongly** - where Cactus has the wrong size written down for a file. Harmless in itself, but it makes the "Storage used" figure on this page slightly out.
+
+All three you can put right on the spot. **Correct these** rewrites the wrong sizes to match the real files, and changes nothing else. **Delete all leftovers** removes the stray files from storage and tells you how much room you got back. That one asks you to confirm first, and only appears if you're allowed to delete media, because nothing in your library points at those files to vouch for them. It is not undoable from here.
+
+**Remove these entries** clears out the items whose file has gone. Nothing is deleted from your storage by this - the file went long ago - it only tidies away the entries left pointing at thin air. Anything still used on a page is left alone and listed for you instead, so you can see what needs a new picture before you commit. If you'd rather have them gone regardless, there's a second button for that, and the spots they filled will simply be empty until you put something else there.
+
+If you'd sooner keep an item and get its picture back, use **Replace file** on it instead and upload a fresh copy over the top.
+
+If some of your storage can't be read, the check says so plainly rather than pretending it found nothing. That matters most if you use Cloudinary or ImageKit, which file things under references they invent themselves, so their contents can't be lined up against your library this way.
+
+### Why your provider's dashboard shows a bigger number
+
+If you look at your storage provider's own file browser, it may well report several times as many files, and a great deal more space, than your library does. That usually isn't a fault.
+
+Most providers keep the previous copy of a file for a while after it's replaced, and leave a small marker behind when one is deleted. Their file browser counts all of that. So a spell of tidying up, renaming or reorganising can briefly triple the numbers on their dashboard while your library stays exactly the same size. Providers generally have a housekeeping setting that clears the old copies out automatically after a day or so. If yours does, it's worth having it switched on, and the numbers will settle by themselves.
+
+The Storage check ignores all of that and looks only at the current version of each file, which is why it's the figure to trust.
 
 ---
 
