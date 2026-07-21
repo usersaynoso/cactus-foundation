@@ -157,6 +157,10 @@ Every option starts unchosen, and the page opens showing the product's own price
 
 If you'd rather build the page yourself, you still can. The **Variant Purchase** block does the lot in one, and there are five smaller blocks - options, personalisation, price, add-to-cart and gallery - that you can place independently and they'll stay in step.
 
+The **options** block has a few looks to choose from in the editor. By default every option's choices are on show at once, one under the next. Switch it to **Accordion** and each option folds into its own labelled section that the customer opens and closes, which keeps a product with a long list of options from running the page on forever. With the accordion picked, you decide how it opens: every section closed, just the first section open, or all of them open. Unless you've started with all of them open, you can also have each choice carry the customer along - leave the next section closed, open the next section as they go, or open the next and tidy the one they've just finished away behind them. Whichever you pick, the customer can always open and close any section by hand.
+
+Colour and image choices have a look of their own too. Left as they are, each shows as a pill carrying both the swatch and its name. Choose **Swatch only** and the name steps back to a small label that appears when the customer hovers over the swatch, leaving a tidy row of colours or pictures - handy when a product has a lot of them and the names would only crowd the page.
+
 ## Reports and spreadsheets
 
 The **Product options** entry in your sidebar is where the shop-wide views live. Editing still happens on each product's own Variations tab.
