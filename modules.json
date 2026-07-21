@@ -58,7 +58,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.12"
+      "version": "v0.1.13"
     },
     {
       "name": "gemini-watermark-remover",
