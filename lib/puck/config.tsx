@@ -2622,18 +2622,27 @@ export function SiteLogoRsc(props: any) {
     // Shared --header-cell-height custom property drives the logo image height;
     // the shrink override just swaps the variable. Mirrors SiteLogoClient (the
     // editor render) exactly so editor and live markup stay identical.
+    //
+    // No `transition` inline on purpose: the height is resolved from an inline
+    // desktop base plus in-body <style> media rules that shrink it on mobile.
+    // On a first, uncached load the base can paint before those media rules
+    // apply, so an armed transition would animate the big->correct height change
+    // and the logo visibly loads oversized then shrinks. The transition is
+    // instead armed via data-shrink-ready, which HeaderShrinkScroll sets only
+    // after mount - past first paint - so the initial responsive resolution
+    // never animates and only the scroll-shrink does.
     const logoImgStyle = {
       '--header-cell-height': `${cellH}px`,
       height: 'var(--header-cell-height)',
       width: 'auto',
       maxWidth: '100%',
       objectFit: 'contain',
-      transition: 'height 0.25s ease',
     } as React.CSSProperties
     return (
       <a href={sanitizeHref(homeUrl) || '/'} data-sitelogo-id={id} style={style}>
         {alignCss && <style>{alignCss}</style>}
         {cellHCss && <style>{cellHCss}</style>}
+        <style>{`header[data-shrink-ready] img[data-site-logo]{transition:height 0.25s ease;}`}</style>
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}

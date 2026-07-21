@@ -73,22 +73,30 @@ export default function SiteLogoClient({
   if (logoUrl) {
     // The logo image is sized by a shared --header-cell-height custom property
     // rather than a hard-coded height, so on shrink the override below just
-    // swaps the variable. transition:height animates the resolved height change
-    // (no @property needed - height is animatable regardless of the value
-    // arriving via a variable). object-fit:contain + width:auto preserve the
-    // logo's aspect ratio as the height changes.
+    // swaps the variable. object-fit:contain + width:auto preserve the logo's
+    // aspect ratio as the height changes.
+    //
+    // No `transition` inline on purpose: the height is resolved from an inline
+    // desktop base plus in-body <style> media rules that shrink it on mobile.
+    // On a first, uncached load the base can paint before those media rules
+    // apply, so an armed transition would animate the big->correct height change
+    // and the logo visibly loads oversized then shrinks. The transition is
+    // instead armed via data-shrink-ready, which HeaderShrinkScroll sets only
+    // after mount - past first paint - so the initial responsive resolution
+    // never animates and only the scroll-shrink does. (height stays animatable
+    // via a variable - no @property needed.)
     const logoImgStyle = {
       '--header-cell-height': `${cellH}px`,
       height: 'var(--header-cell-height)',
       width: 'auto',
       maxWidth: '100%',
       objectFit: 'contain',
-      transition: 'height 0.25s ease',
     } as React.CSSProperties
     return (
       <a href={href} data-sitelogo-id={id} style={style} {...events}>
         {alignCss && <style>{alignCss}</style>}
         {cellHCss && <style>{cellHCss}</style>}
+        <style>{`header[data-shrink-ready] img[data-site-logo]{transition:height 0.25s ease;}`}</style>
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}

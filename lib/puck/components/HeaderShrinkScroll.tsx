@@ -40,6 +40,13 @@ export default function HeaderShrinkScroll({ threshold = 40, children }: { thres
     }
 
     apply()
+    // Arm CSS transitions that must not animate on first paint (e.g. the logo's
+    // height, which is resolved from an inline desktop base plus in-body media
+    // rules and would otherwise animate big->correct on an uncached load). Set
+    // after the first apply(), i.e. past first paint, so only real scroll-driven
+    // changes animate. rAF defers it one frame so the initial value is committed
+    // transition-free first.
+    window.requestAnimationFrame(() => header?.setAttribute('data-shrink-ready', ''))
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       window.removeEventListener('scroll', onScroll)
