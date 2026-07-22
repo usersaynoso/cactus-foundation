@@ -9,10 +9,12 @@ If you don't have a Twilio account, none of this page applies - carry on happily
 ## Setting it up
 
 1. Install the module from **Modules** in the admin (repository: `cactus-foundation-modules/twilio`).
-2. Go to **Settings → Twilio** and enter two things from your Twilio console:
-   - **Account SID** - starts with `AC`, sits on the console dashboard.
-   - **Auth token** - right next to the Account SID. Treat it like a password, because it is one.
-3. Save. The values take effect after the next deployment - the site will let you know one is needed.
+2. Go to **Settings → Twilio** and pick your **Twilio account country** first. That's the country your Twilio account itself lives in - it's shown in the region switcher at the top of the Twilio console. Not where you are, and not where your phone numbers are. Get this wrong and Twilio rejects the credentials with an unhelpful "Authenticate", so it's worth the ten seconds.
+3. In the Twilio console, open **Account → API keys & tokens** and copy two things into the settings tab:
+   - **Account SID** - starts with `AC`, top of the page, the same in every country.
+   - **Primary auth token** - under **Auth tokens** on the same page, with the page's region dropdown showing the same country as step 2. Treat it like a password, because it is one.
+   API keys (the ones starting `SK`) are a different thing and won't work - the settings tab will say so rather than letting you find out the hard way.
+4. Save. The values take effect after the next deployment - the site will let you know one is needed.
 
 Once connected, the settings tab shows the account it's talking to, so you can tell at a glance whether the credentials work.
 
@@ -32,6 +34,8 @@ To use Ireland or Australia, there's one wrinkle worth knowing about: **Twilio i
 You'll find them in the Twilio console under **API keys & tokens**, with the country picked in the Region dropdown - the same page as your main token, just a different setting on it. Fill in only the ones you actually use and leave the rest blank. Like the credentials above, they take effect after the next deployment.
 
 Without the right token, a number routed to that country still works perfectly well for callers - it just won't show you any of its calls or texts, because those records live in that country and the site can't reach in to read them. The settings page says so plainly next to any number in that state, rather than leaving you staring at an empty table wondering.
+
+One more console quirk worth knowing: **each country keeps its own copy of a number's call settings.** The site wires everything up in the right country automatically when you save, but if you go inspecting a number in the Twilio console, flip the console's region switcher (top right) to the country the number is handled in first - the same number viewed under the wrong country looks blank or half-configured, which has sent more than one person off hunting a problem that wasn't there.
 
 ---
 
@@ -55,9 +59,10 @@ Go to **Settings → Twilio** and scroll past the credentials - the **Call forwa
 - **Forward calls to** - the number that should ring when someone calls your Twilio number, in international format.
 - **Forwarding on** - the switch that makes it happen.
 - **Greeting played before forwarding** - an optional message read out to the caller before their call is put through, e.g. "Thank you for calling. Calls are recorded." Leave it blank and calls go straight through.
-- **Greeting voice** - pick who reads the greeting. The list covers Twilio's basic voices plus a selection of their more natural-sounding ones (British, American and Australian accents). The fancier voices sound better and cost slightly more per call - Twilio bills text-to-speech by the character.
+- **Greeting voice** - pick who reads the greeting. The list covers Twilio's basic voices plus a selection of their more natural-sounding ones (British, American and Australian accents). The fancier voices sound better and cost slightly more per call - Twilio bills text-to-speech by the character. One wrinkle: the most natural "Generative" voices only work on numbers handled in the **United States** - Twilio hasn't rolled them out elsewhere yet. On a number handled in Ireland or Australia the picker says so, and if one is somehow already saved, callers hear the closest natural-sounding equivalent instead of the call failing - which is what used to happen, and precisely nobody wants a phone number that hangs up on customers over a voice actor.
 - **Record calls** - when ticked, Twilio records the forwarded call from the moment it's answered. Recordings live in your Twilio account (Twilio's usual recording storage charges apply) and can be played back straight from the call log on the **Twilio** page - no console safari required.
 - **Show this number as caller ID** - normally a forwarded call shows the original caller's number on your phone. Tick this and it shows your Twilio number instead, so you know at a glance the call came through this line - useful if calls to several numbers all land on the same mobile. The trade-off is that you won't see who's actually calling until you answer; the caller's real number is still in your Twilio call logs.
+- **Or upload a recording** - rather have a human? Upload an MP3 or WAV (up to 10 MB) and callers hear that instead of the typed message and voice - the recording wins whenever one is set, and a little player appears so you can check what's live. Files are kept in your media library, in a **twilio** folder, on whatever storage your site already uses. Remove the recording and the typed greeting takes over again.
 - **Call me to preview** - appears once you've written a greeting. Enter your own number, press the button, and Twilio rings you and reads the greeting in your chosen voice - exactly what callers will hear, because it is what callers will hear. Works before you save, so you can audition voices to your heart's content. Each preview is a normal (short) outbound call at Twilio's usual rates.
 
 Turn forwarding on and calls to that Twilio number are put straight through to your chosen number. Turn it off and, unless voicemail is on, the number goes back to doing whatever it did before. Changes apply as soon as you press Save - no redeploy needed.
@@ -72,7 +77,8 @@ Underneath each number's forwarding settings is **Take a voicemail when nobody a
 
 - **Ring for (seconds) before voicemail** - how long your phone rings before voicemail steps in. Twenty seconds is about five rings, which is the usual sort of thing. Anything from 5 to 120 seconds is allowed, though a caller listening to two minutes of ringing has long since given up. If forwarding is off there's nothing to ring, so this box greys out and callers go straight to voicemail.
 - **What callers hear before the beep** - your voicemail message. Leave it blank and callers get a stock apology, which does the job but won't win any awards.
-- **Voicemail voice** - same choice of readers as the forwarding greeting, and you can pick a different one. **Call me to hear it** rings you and reads it out before you commit.
+- **Voicemail voice** - same choice of readers as the forwarding greeting, and you can pick a different one. **Call me to hear it** rings you and reads it out before you commit. The same country rule as the greeting voice applies: "Generative" voices are United States numbers only, and elsewhere callers get the closest equivalent rather than a dead line.
+- **Or upload a recording** - same as the forwarding greeting: an MP3 or WAV plays instead of the text-to-speech whenever one is set, stored in your media library's **twilio** folder.
 
 Voicemail also catches calls where your phone is engaged or the forward fails, not just the ones you don't reach in time. Messages can run to two minutes, then Twilio wraps things up.
 
@@ -103,6 +109,7 @@ Opening hours only decide whether the phone rings. Everything else - your greeti
 "Sorry, nobody is available to take your call" is fair enough at half past four on a Tuesday. At three in the morning it's rather stating the obvious. So with voicemail and opening hours both switched on, you get a second box: **What callers hear when you're closed**. Fill it in and out-of-hours callers hear that instead - your opening times, when you'll ring back, whatever suits.
 
 - Leave it empty and closed callers simply hear your usual voicemail greeting. Nothing changes.
+- A recording can be uploaded here too, and closed callers hear it ahead of anything else. With no closed recording, closed words win over the everyday recording - you wrote them specially, after all - and with nothing closed-specific at all, the everyday recording or greeting carries on as usual.
 - Only the words change. The voice, the two-minute limit and where the messages land are all the same as any other voicemail.
 - **Call me to hear it** rings you and reads it out, same as the others, so you can check it before anybody else does.
 - Calls that come in while you're open and simply ring out still get your usual greeting - the caller heard the phone ring, so telling them you're closed would be a bit rich.
