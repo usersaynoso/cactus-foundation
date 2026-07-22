@@ -25,6 +25,9 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   // recovery_token is still read for older emailed links already in flight.
   const legacyRecoveryToken = searchParams.get('recovery_token') ?? ''
   const inRecoveryMode = searchParams.get('recovery') === '1' || !!legacyRecoveryToken
+  // Set by SessionExpiryWatcher when an open admin tab hits its 24-hour limit, so
+  // the login page explains itself rather than looking like a random sign-out.
+  const sessionExpired = searchParams.get('expired') === '1'
 
   const [step, setStep] = useState<LoginStep>('passkey')
   const [email, setEmail] = useState('')
@@ -255,6 +258,10 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
           )}
           <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Sign in</h1>
         </div>
+
+        {sessionExpired && !error && (
+          <div className="alert alert-info">Your session expired, so you were signed out. Sign in to carry on.</div>
+        )}
 
         {error && <div className="alert alert-danger">{error}</div>}
 

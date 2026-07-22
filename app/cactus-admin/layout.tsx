@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { getSessionFromCookie } from '@/lib/auth/session'
+import { getSessionWithMeta, msUntilExpiry } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
 import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, resolveAdminMenu, type ModuleManifestNav } from '@/lib/nav/admin-menu'
 import { getInstalledModules } from '@/lib/modules/live-status'
@@ -31,10 +31,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // Secondary session check — proxy.ts is the primary gate, but server components
   // independently validate so a bypass of proxy.ts headers never opens the UI.
-  const user = await getSessionFromCookie()
-  if (!user) {
+  // Same cached lookup getSessionFromCookie uses, so asking for the expiry as
+  // well costs no extra query - it feeds SessionExpiryWatcher in the shell.
+  const session = await getSessionWithMeta()
+  if (!session) {
     redirect(`/${adminPath}/login`)
   }
+  const user = session.user
 
   const [config, activeModules, unreadCount, branding] = await Promise.all([
     getSiteConfig(),
@@ -118,6 +121,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}
         faviconDarkUrl={branding.faviconDarkUrl}
+        sessionExpiresInMs={msUntilExpiry(session.expiresAt)}
       >
         {children}
       </AdminShell>

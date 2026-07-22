@@ -6,6 +6,7 @@ import {
   generateToken,
   createSession,
   validateSession,
+  validateSessionWithMeta,
   deleteSession,
   deleteAllUserSessions,
   createTrustedDevice,
@@ -15,9 +16,9 @@ import {
   safeCompare,
   getSessionCreatedAt,
 } from '@/lib/auth/session-core'
-import type { SessionUser } from '@/lib/auth/session-core'
+import type { SessionUser, SessionWithMeta } from '@/lib/auth/session-core'
 
-export type { SessionUser }
+export type { SessionUser, SessionWithMeta }
 export {
   generateToken,
   createSession,
@@ -66,11 +67,24 @@ export async function setSessionCookie(token: string): Promise<void> {
 // and the cookie can't change mid-request, so the answer is identical either way.
 // The underlying cookies() call still runs on the first invocation, which is what
 // marks the request dynamic - see the note in app/(public)/[slug]/page.tsx.
-export const getSessionFromCookie = cache(async (): Promise<SessionUser | null> => {
+export const getSessionWithMeta = cache(async (): Promise<SessionWithMeta | null> => {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
-  return validateSession(token)
+  return validateSessionWithMeta(token)
+})
+
+// How long a session has left, as a duration. Lives here rather than inline in the
+// admin layout because reading the clock during a component render is impure.
+export function msUntilExpiry(expiresAt: Date): number {
+  return Math.max(0, expiresAt.getTime() - Date.now())
+}
+
+// Derived from the cached lookup above, so a render that wants both the user and
+// the expiry still costs exactly one session query.
+export const getSessionFromCookie = cache(async (): Promise<SessionUser | null> => {
+  const session = await getSessionWithMeta()
+  return session?.user ?? null
 })
 
 export async function clearSessionCookie(): Promise<void> {

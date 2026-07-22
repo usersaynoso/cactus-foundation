@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import AdminNav from './AdminNav'
 import CommandPalette from './CommandPalette'
 import NotificationBell from './NotificationBell'
+import SessionExpiryWatcher from './SessionExpiryWatcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
@@ -20,9 +21,11 @@ type Props = {
   unreadCount?: number
   faviconUrl?: string | null
   faviconDarkUrl?: string | null
+  /** Milliseconds of session left at render time, so the tab can bow out on its own. */
+  sessionExpiresInMs?: number
 }
 
-export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, sessionExpiresInMs }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -200,6 +203,9 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
         </div>
       </div>
       <CommandPalette adminPath={adminPath} sections={sections} moduleSettingsTabs={moduleSettingsTabs} />
+      {sessionExpiresInMs !== undefined && (
+        <SessionExpiryWatcher expiresInMs={sessionExpiresInMs} adminPath={adminPath} />
+      )}
     </div>
     </AdminPathProvider>
   )

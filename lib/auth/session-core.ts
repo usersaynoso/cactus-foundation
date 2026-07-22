@@ -12,6 +12,9 @@ const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 export type SessionUser = User & { role: Role }
 
+/** A live session plus the metadata callers need beyond the user record. */
+export type SessionWithMeta = { user: SessionUser; expiresAt: Date }
+
 export function hashToken(token: string): string {
   const secret = getSessionSecret()
   return createHash('sha256')
@@ -35,7 +38,10 @@ export async function createSession(userId: string): Promise<string> {
   return token
 }
 
-export async function validateSession(token: string): Promise<SessionUser | null> {
+// Full validation, including when this session runs out. The admin UI needs the
+// expiry so an already-open tab can take itself to the login page the moment the
+// session dies, rather than sitting there looking signed in until the next click.
+export async function validateSessionWithMeta(token: string): Promise<SessionWithMeta | null> {
   const tokenHash = hashToken(token)
   const session = await prisma.session.findUnique({
     where: { tokenHash },
@@ -49,7 +55,12 @@ export async function validateSession(token: string): Promise<SessionUser | null
   }
   if (session.user.suspendedAt) return null
 
-  return session.user as SessionUser
+  return { user: session.user as SessionUser, expiresAt: session.expiresAt }
+}
+
+export async function validateSession(token: string): Promise<SessionUser | null> {
+  const session = await validateSessionWithMeta(token)
+  return session?.user ?? null
 }
 
 // Authentication time of the session behind this token, for step-up checks. A
