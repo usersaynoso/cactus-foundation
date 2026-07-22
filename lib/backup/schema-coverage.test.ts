@@ -9,8 +9,8 @@ import { isSupportedUdtName } from './serialize'
 // it runs in plain `npm test` with no key, no server, no skip.
 //
 // This exists because the round-trip test (roundtrip.test.ts) is the one that
-// proves restore actually WORKS, but it needs NEON_API_KEY and is gated on
-// RUN_BACKUP_ROUNDTRIP=1 - a missing key makes it report "skipped", not "failed",
+// proves restore actually WORKS, but it needs the database server credentials and
+// is gated on RUN_BACKUP_ROUNDTRIP=1 - missing details make it report "skipped", not "failed",
 // and a skip that reads as green is exactly the gap a new column type could slip
 // through. This test has no such escape hatch: any column whose type the
 // serialiser doesn't recognise fails `npm test` outright, on the PR that added it,

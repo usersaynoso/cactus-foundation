@@ -7,12 +7,16 @@ import { buildBackupSql, quoteIdent } from './dump'
 import { restoreDatabaseFromSql, splitSqlStatements } from './restore'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import {
-  createProject,
-  deleteProject,
-  createBranch,
-  type NeonProject,
-  type NeonBranch,
-} from './neon-branch'
+  vpsConfigFromEnv,
+  createTestRole,
+  createTestDatabase,
+  dropTestDatabase,
+  dropTestRole,
+  dropStaleTestObjects,
+  type VpsConfig,
+  type TestRole,
+  type TestDatabase,
+} from './vps-database'
 
 // The only test that actually proves a backup restores.
 //
@@ -22,14 +26,16 @@ import {
 // schema, seed it with the exact awkward shapes, dump it, restore the dump into a
 // second real database, and compare every table byte for byte.
 //
-// It provisions its OWN throwaway Neon project (core schema only, synthetic data,
-// deleted whole afterwards), so it never depends on or touches any real database,
-// and runs with any org-scoped Neon key. Skipped unless opted into explicitly, so
-// a plain `npm test` never hits the network. Run it with:
+// It provisions its OWN throwaway databases on the self-hosted Postgres VPS (core
+// schema only, synthetic data, dropped whole afterwards, plus a sweep for anything
+// a crashed run left behind), so it never depends on or touches any real database -
+// the live site's database sits on the same server and is never named, opened or
+// altered. Skipped unless opted into explicitly, so a plain `npm test` never hits
+// the network. Run it with:
 //
 //   npm run test:backup-roundtrip
 //
-// which sets RUN_BACKUP_ROUNDTRIP=1. Only then is .env loaded for the key.
+// which sets RUN_BACKUP_ROUNDTRIP=1. Only then is .env loaded for the server details.
 const shouldRun = process.env.RUN_BACKUP_ROUNDTRIP === '1'
 if (shouldRun) {
   try {
@@ -38,10 +44,6 @@ if (shouldRun) {
     // No .env - the API-key guard below fails the suite loudly.
   }
 }
-
-const API_KEY = process.env.NEON_API_KEY
-// The org the throwaway project is created in. Discovered from the key if unset.
-let ORG_ID = process.env.BACKUP_TEST_ORG_ID
 
 const SCHEMA_SQL = readFileSync(
   path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql'),
@@ -55,17 +57,6 @@ const SCHEMA_SQL = readFileSync(
 // it fails.
 const SOURCE_KEY = 'a'.repeat(64)
 const OTHER_KEY = 'b'.repeat(64)
-
-async function firstOrgForKey(apiKey: string): Promise<string> {
-  const res = await fetch('https://console.neon.tech/api/v2/users/me/organizations', {
-    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
-  })
-  if (!res.ok) throw new Error(`Neon: could not list organizations (${res.status})`)
-  const body = (await res.json()) as { organizations: { id: string }[] }
-  const org = body.organizations[0]?.id
-  if (!org) throw new Error('Neon: this key belongs to no organization; set BACKUP_TEST_ORG_ID')
-  return org
-}
 
 // Extended exactly as the app's client is, so the round-trip exercises the same
 // client the site runs on rather than a plainer one that happens to type-check.
@@ -187,40 +178,53 @@ async function seedAwkwardValues(db: ExtendedPrismaClient): Promise<void> {
 }
 
 describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
-  let project: NeonProject
-  let dstBranch: NeonBranch
+  let vps: VpsConfig
+  let role: TestRole
+  let srcDatabase: TestDatabase
+  let dstDatabase: TestDatabase
   let srcDb: ExtendedPrismaClient
   let dstDb: ExtendedPrismaClient
   let tables: string[]
   let backupSql: string
 
   beforeAll(async () => {
-    if (!API_KEY) throw new Error('RUN_BACKUP_ROUNDTRIP=1 but NEON_API_KEY is not set (checked .env)')
-    ORG_ID ??= await firstOrgForKey(API_KEY)
+    vps = vpsConfigFromEnv()
+    // Anything a previous crashed run left behind, before adding more.
+    await dropStaleTestObjects(vps)
 
     // Seed as the SOURCE site: every secret below is encrypted with its key.
     process.env.ENCRYPTION_KEY = SOURCE_KEY
 
     const stamp = Date.now()
-    project = await createProject(API_KEY, ORG_ID, `cactus-backup-roundtrip-${stamp}`)
+    role = await createTestRole(vps, `cactus_rt_role_${stamp}`)
 
-    // Source = the project's default branch, built from the core schema and seeded.
-    srcDb = await connect(project.connectionUri)
+    // Source = a fresh database built from the core schema and seeded.
+    srcDatabase = await createTestDatabase(vps, `cactus_rt_src_${stamp}`, role)
+    srcDb = await connect(srcDatabase.connectionUri)
     await applySchema(srcDb)
     await seedAwkwardValues(srcDb)
     tables = await listTables(srcDb)
 
-    // Target = a copy-on-write branch off the seeded source, so the two start
-    // identical and the restore has something faithful to be checked against.
-    dstBranch = await createBranch(API_KEY, project.id, project.defaultBranchId, `dst-${stamp}`)
-    dstDb = await connect(dstBranch.connectionUri)
+    // Target = a clone of the seeded source, so the two start identical and the
+    // restore has something faithful to be checked against. Postgres will not copy
+    // a template anybody is connected to, hence the disconnect; Prisma reconnects
+    // by itself on the next query.
+    await srcDb.$disconnect()
+    dstDatabase = await createTestDatabase(vps, `cactus_rt_dst_${stamp}`, role, srcDatabase.name)
+    dstDb = await connect(dstDatabase.connectionUri)
   }, 600_000)
 
+  // Cleanup runs whatever happened above: a half-provisioned run must still leave
+  // the server as it found it. Each step is independently guarded so one failure
+  // cannot strand the rest, and the final sweep is the backstop.
   afterAll(async () => {
     await srcDb?.$disconnect().catch(() => {})
     await dstDb?.$disconnect().catch(() => {})
-    // Deleting the project takes its branches and endpoints with it.
-    if (project && API_KEY) await deleteProject(API_KEY, project.id).catch(() => {})
+    if (!vps) return
+    if (dstDatabase) await dropTestDatabase(vps, dstDatabase.name).catch(() => {})
+    if (srcDatabase) await dropTestDatabase(vps, srcDatabase.name).catch(() => {})
+    if (role) await dropTestRole(vps, role.name).catch(() => {})
+    await dropStaleTestObjects(vps).catch(() => {})
   }, 600_000)
 
   it('dumps, restores, and lands on a byte-identical database', async () => {
