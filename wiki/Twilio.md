@@ -14,9 +14,20 @@ If you don't have a Twilio account, none of this page applies - carry on happily
    - **Account SID** - starts with `AC`, top of the page, the same in every country.
    - **Primary auth token** - under **Auth tokens** on the same page, with the page's region dropdown showing the same country as step 2. Treat it like a password, because it is one.
    API keys (the ones starting `SK`) are a different thing and won't work - the settings tab will say so rather than letting you find out the hard way.
-4. Save. The values take effect after the next deployment - the site will let you know one is needed.
+4. Press **Test connection** if you'd like to be sure before committing. It checks whatever you've just typed against Twilio there and then, so a mistyped token is caught in seconds rather than after a deployment. Anything you've left blank is checked against the values already saved.
+5. Save. The values take effect after the next deployment - the site will let you know one is needed.
 
-Once connected, the settings tab shows the account it's talking to, so you can tell at a glance whether the credentials work.
+Once connected, the settings tab shows the account it's talking to, so you can tell at a glance whether the credentials work. The set-up instructions fold themselves away at that point, on the grounds that you've read them.
+
+### Finding your way around
+
+The Twilio settings tab is divided into five sections along the top:
+
+- **Account** - the credentials above, your account country, and the Test connection button.
+- **Phone numbers** - which of your Twilio numbers this site uses, and which one texts go out from.
+- **Call handling** - forwarding, greetings, voicemail and opening hours, one number at a time.
+- **Texting** - what texts go out from, and a button to send yourself a test one.
+- **Alerts & data** - email alerts, and how long recordings are kept.
 
 ---
 
@@ -54,9 +65,12 @@ Until a text-capable number is added, sign-in codes carry on arriving by email a
 
 ## Call forwarding
 
-Go to **Settings → Twilio** and scroll past the credentials - the **Call forwarding** section appears once the account is connected. Every phone number on your Twilio account is listed, each with:
+Go to **Settings → Twilio → Call handling**. If you have more than one Twilio number, pick the one you're setting up from the row along the top - you work on one number at a time, which beats scrolling past four of them to reach the fifth. A dot next to a number means it has changes you haven't saved yet; switching between numbers doesn't lose them.
+
+Each number has:
 
 - **Forward calls to** - the number that should ring when someone calls your Twilio number, in international format.
+- **If nobody answers, also try** - an optional second number. When the first one rings out, this one gets its turn for the same length of time before voicemail steps in. Useful for the mobile-then-landline arrangement, or for handing calls to whoever's actually in.
 - **Forwarding on** - the switch that makes it happen.
 - **Greeting played before forwarding** - an optional message read out to the caller before their call is put through, e.g. "Thank you for calling. Calls are recorded." Leave it blank and calls go straight through.
 - **Greeting voice** - pick who reads the greeting. The list covers Twilio's basic voices plus a selection of their more natural-sounding ones (British, American and Australian accents). The fancier voices sound better and cost slightly more per call - Twilio bills text-to-speech by the character. One wrinkle: the most natural "Generative" voices only work on numbers handled in the **United States** - Twilio hasn't rolled them out elsewhere yet. On a number handled in Ireland or Australia the picker says so, and if one is somehow already saved, callers hear the closest natural-sounding equivalent instead of the call failing - which is what used to happen, and precisely nobody wants a phone number that hangs up on customers over a voice actor.
@@ -68,6 +82,26 @@ Go to **Settings → Twilio** and scroll past the credentials - the **Call forwa
 Turn forwarding on and calls to that Twilio number are put straight through to your chosen number. Turn it off and, unless voicemail is on, the number goes back to doing whatever it did before. Changes apply as soon as you press Save - no redeploy needed.
 
 **A word on recording law:** many places require you to tell callers they're being recorded, and some require consent. The greeting is the natural place to say so, but what it needs to say is between you and your local regulations - Cactus merely holds the microphone.
+
+### Callers who withhold their number
+
+Underneath the forwarding settings is **Callers who withhold their number**, with three choices:
+
+- **Ring through like anyone else** - what's always happened, and what you get unless you say otherwise.
+- **Straight to voicemail** - they can leave a message, your phone stays quiet. (If voicemail is off, they're turned away instead, and the settings page says so.)
+- **Reject the call** - the caller gets the engaged tone and you get on with your day.
+
+Worth remembering that plenty of legitimate callers withhold their number without meaning anything by it - hospitals and some office switchboards do it as standard - so rejecting outright is a blunter instrument than it looks.
+
+---
+
+## Missed calls
+
+Nobody answered. Two things can happen automatically, both switched off until you say otherwise.
+
+**Text the caller back** - on the Call handling tab, tick **Text the caller back when nobody answers** and write the message: "Sorry we missed your call, we'll ring you back shortly" and so on. Leave the message blank and a sensible stock line goes instead. The text comes from the number they rang where that number can send texts, otherwise from your usual texting number. Callers who withheld their number can't be texted back, for reasons that hopefully need no explanation. Each text costs a text at Twilio's usual rates.
+
+**Email yourself** - on the **Alerts & data** tab, tick **Email me when a call goes unanswered** and give an address. You get a note saying who rang, what they rang, and a link to the call log. Ideal if you'd rather not keep an eye on the admin all day.
 
 ---
 
@@ -86,6 +120,10 @@ Voicemail also catches calls where your phone is engaged or the forward fails, n
 
 **How you find out about it:** each new message rings the notification bell in the admin bar, with the caller's number in the notice and a link straight to the Twilio page. Withheld numbers say so rather than pretending to be one. Read the notice and it clears itself; the next message raises its own, so a quiet week doesn't bury a busy one. Only messages left from now on are marked and announced - anything recorded before this update stays in the log as an ordinary recording, because Twilio never knew the difference and neither, retrospectively, do we.
 
+If the bell isn't enough, tick **Email me when someone leaves a voicemail** on the **Alerts & data** tab and add an address. You get who called, how long they talked for, and a link to go and listen. The recording itself stays where it is - the email carries a link, not an attachment.
+
+**Type messages up for me:** tick this on a number and Twilio has a go at writing out what the caller said. The words appear in the call log a few minutes after the message, underneath the Listen button - handy for skimming a morning's messages without listening to all of them. It's English-only and it's a machine doing its best, so a mumbled postcode may come out as poetry. Twilio charges a small amount per transcription.
+
 **Callers who don't say anything:** plenty of people hear the greeting, think better of it and hang up at the beep. Twilio still files a recording of the silence, but a message under two seconds long isn't a message, so it gets no badge and no notification. The recording stays in the call log if you're curious about what nobody said.
 
 ---
@@ -103,6 +141,26 @@ A few things worth knowing:
 - Leave the box unticked and the number behaves as it always has: available at any hour.
 
 Opening hours only decide whether the phone rings. Everything else - your greeting, recording, caller ID - carries on as configured.
+
+### Bank holidays and other days off
+
+A weekly timetable can't say "closed on Boxing Day", so underneath the days is **Closed on these dates**. Pick a date, press **Add date**, and that day is closed all day whatever the weekly hours say. Add as many as you like and remove them with the little cross.
+
+Dates that have been and gone do no harm if you leave them - they simply never come round again - but a tidy list is easier to read next December.
+
+**Importing bank holidays.** Typing out every bank holiday each year is nobody's idea of an afternoon, so press **Import bank holidays**, pick a country, and press **Look up the next 12 months**. Available:
+
+- England and Wales
+- Scotland
+- Northern Ireland
+- Republic of Ireland
+- United States
+
+You get every public holiday between today and this time next year - so an import in October reaches next Easter, rather than offering you last January. Everything is ticked apart from dates you already have, so you can untick the ones you actually work and press **Add**. Nothing is added until you say so: plenty of businesses open on the odd bank holiday, and the site is in no position to guess which.
+
+The UK lists come from the government's own bank holiday feed, so they're as official as it gets, including the one-off royal occasions that appear from time to time. Ireland and the United States come from a public holiday service; the American list is the nationwide holidays only, since a holiday observed in one state shouldn't shut a phone line three thousand miles away.
+
+Two things worth knowing: the window rolls forward from whenever you press the button, so coming back in a year picks up the next twelve months from that point, and if a source is having a bad day the import says so and changes nothing - your existing dates are never touched by a failed lookup.
 
 ### A different greeting when you're closed
 
@@ -149,8 +207,21 @@ Normally, signing in with a password sends a 6-digit code to your email. With Tw
 
 **If the texts ever stop working** - credentials removed, module disabled, Twilio having a bad day - codes quietly go back to email. Nobody gets locked out.
 
+**Checking it works:** the **Texting** tab tells you which number texts go out from, and has a **Send a test text** box. Put your mobile in, press the button, and a message saying it's a test lands a few seconds later. Rather more civilised than signing yourself out to find out.
+
+---
+
+## Keeping recordings
+
+Call recordings and voicemails sit in your Twilio account until something removes them, and Twilio charges storage for the privilege. On the **Alerts & data** tab, **Keep recordings for (days)** sets how long they stay: anything older is cleared out overnight, automatically.
+
+- Leave it at **0** and nothing is ever deleted, which is exactly how it has always worked.
+- Set it to 90 and you keep a rolling three months.
+
+Deleted recordings are gone for good - there's no bin to fish them back out of, at Twilio's end or ours - so pick a number you can live with. If you've a legal reason to keep recordings for a set period, that period is the one to use, and it's your call rather than ours.
+
 ---
 
 ## A note on costs
 
-Twilio charges per text and per forwarded minute at their usual rates. Cactus adds nothing on top, but do keep an eye on your Twilio balance - a busy site sending many sign-in texts is not free, merely cheap.
+Twilio charges per text and per forwarded minute at their usual rates, plus a little for storing recordings and for typing up voicemails. Cactus adds nothing on top, but do keep an eye on your Twilio balance - a busy site sending many sign-in texts is not free, merely cheap. The two things worth watching are the auto-text to missed callers (one text each) and a second forwarding number, which rings on for as long as you've told it to.
