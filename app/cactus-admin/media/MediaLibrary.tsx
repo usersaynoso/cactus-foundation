@@ -95,7 +95,10 @@ type UploadClash = {
   name: string
   suggestedName: string
   existingId: string
-  resolve: (choice: UploadChoice) => void
+  // How many clashes are still unanswered, this one included. Drives the "do the
+  // same for the rest" offer, which only makes sense when there's more than one.
+  remaining: number
+  resolve: (choice: UploadChoice, applyToAll: boolean) => void
 }
 
 const VIEW_KEY = 'cactus.media.view'
@@ -792,8 +795,17 @@ export default function MediaLibrary({
       clash: { existingId: string; suggestedName: string } | null
       choice: UploadChoice
     }
+    // How many queued files clash. More than one, and we let the person answer
+    // once and tick "do the same for the rest" - so a hundred same-named files
+    // don't mean a hundred identical dialogs.
+    const totalClashes = tasks.filter((t) => t.task.status !== 'error' && clashes.has(t.file.name)).length
+
     const jobs: UploadJob[] = []
     let cancelled = false
+    // Set once the person answers a dialog with "do the same for the rest" ticked.
+    // Every later clash reuses it instead of stopping to ask again.
+    let bulkChoice: UploadChoice | null = null
+    let clashesHandled = 0
     for (const { file, task } of tasks) {
       if (task.status === 'error') continue
       if (cancelled) { updateUpload(task.id, { status: 'skipped' }); continue }
@@ -801,9 +813,18 @@ export default function MediaLibrary({
       let choice: UploadChoice = 'suffix'
       const clash = clashes.get(file.name) ?? null
       if (clash) {
-        choice = await new Promise<UploadChoice>((resolve) => {
-          setUploadClash({ ...clash, resolve: (c) => { setUploadClash(null); resolve(c) } })
-        })
+        if (bulkChoice) {
+          choice = bulkChoice
+        } else {
+          const remaining = totalClashes - clashesHandled
+          const answer = await new Promise<{ choice: UploadChoice; applyToAll: boolean }>((resolve) => {
+            setUploadClash({ ...clash, remaining, resolve: (c, all) => { setUploadClash(null); resolve({ choice: c, applyToAll: all }) } })
+          })
+          choice = answer.choice
+          // Cancel stops the whole batch anyway, so there's nothing to carry.
+          if (answer.applyToAll && choice !== 'cancel') bulkChoice = choice
+        }
+        clashesHandled++
         if (choice === 'cancel') { cancelled = true; updateUpload(task.id, { status: 'skipped' }); continue }
         if (choice === 'skip') { updateUpload(task.id, { status: 'skipped' }); continue }
       }
@@ -1368,6 +1389,7 @@ export default function MediaLibrary({
         <UploadClashDialog
           name={uploadClash.name}
           suggestedName={uploadClash.suggestedName}
+          remaining={uploadClash.remaining}
           onChoose={uploadClash.resolve}
         />
       )}
@@ -1675,22 +1697,34 @@ function CollisionDialog({ name, allowSkip, onCancel, onChoose }: { name: string
 // from CollisionDialog because the choices aren't quite the same: "Keep both"
 // can name the file it is about to create, and Cancel abandons the rest of the
 // batch rather than the one file (Skip does that).
-function UploadClashDialog({ name, suggestedName, onChoose }: {
+function UploadClashDialog({ name, suggestedName, remaining, onChoose }: {
   name: string
   suggestedName: string
-  onChoose: (choice: UploadChoice) => void
+  remaining: number
+  onChoose: (choice: UploadChoice, applyToAll: boolean) => void
 }) {
+  // With more than one clash in the batch, offer to apply this answer to the
+  // rest - ticked by default, so the usual case is one dialog, not one per file.
+  // Cancel ignores it; it stops the whole batch either way.
+  const [applyToAll, setApplyToAll] = useState(true)
+  const others = remaining - 1
   return (
-    <Overlay onCancel={() => onChoose('cancel')}>
+    <Overlay onCancel={() => onChoose('cancel', false)}>
       <h2 style={dialogTitle}>“{name}” is already in this folder</h2>
       <p style={dialogText}>
         Replace the file that&apos;s there (everything already using it picks up the new one), or keep both and upload this one as “{suggestedName}”.
       </p>
+      {others > 0 && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={applyToAll} onChange={(e) => setApplyToAll(e.target.checked)} />
+          Do the same for the other {others} {others === 1 ? 'file' : 'files'} with a clashing name
+        </label>
+      )}
       <DialogButtons>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('cancel')}>Cancel</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('skip')}>Skip</button>
-        <button type="button" className="btn btn-danger btn-sm" onClick={() => onChoose('replace')}>Replace</button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => onChoose('suffix')}>Keep both</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('cancel', false)}>Cancel</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChoose('skip', applyToAll)}>Skip</button>
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => onChoose('replace', applyToAll)}>Replace</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onChoose('suffix', applyToAll)}>Keep both</button>
       </DialogButtons>
     </Overlay>
   )
