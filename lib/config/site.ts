@@ -27,15 +27,24 @@ export const getSiteConfig = cache(async (): Promise<SiteConfig | null> => {
   return prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
 })
 
+// Both readers below run on proxy.ts's hot path, where a thrown error is not an
+// error page but a bare 500 for whatever the visitor asked for. The 5-second TTL
+// means a cold instance always misses, so a single connection blip - most likely
+// exactly when an instance is spinning up after a quiet spell - used to take out
+// the request. Serve the last known value instead: stale for a few seconds beats
+// dead, and the value only changes when an admin edits it.
 export async function getAdminPathCached(): Promise<string | null> {
   const now = Date.now()
   if (cachedAdminPath && now - cachedAdminPathAt < CACHE_TTL_MS) {
     return cachedAdminPath
   }
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { adminPath: true },
-  })
+  const config = await prisma.siteConfig
+    .findUnique({
+      where: { id: 'singleton' },
+      select: { adminPath: true },
+    })
+    .catch(() => undefined)
+  if (config === undefined) return cachedAdminPath
   if (config) {
     cachedAdminPath = config.adminPath
     cachedAdminPathAt = now
@@ -48,10 +57,13 @@ export async function getSiteStatusCached(): Promise<SiteStatus | null> {
   if (cachedStatus && now - cachedStatusAt < CACHE_TTL_MS) {
     return cachedStatus
   }
-  const config = await prisma.siteConfig.findUnique({
-    where: { id: 'singleton' },
-    select: { status: true },
-  })
+  const config = await prisma.siteConfig
+    .findUnique({
+      where: { id: 'singleton' },
+      select: { status: true },
+    })
+    .catch(() => undefined)
+  if (config === undefined) return cachedStatus
   if (config) {
     cachedStatus = config.status
     cachedStatusAt = now

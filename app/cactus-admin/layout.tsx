@@ -33,20 +33,38 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // independently validate so a bypass of proxy.ts headers never opens the UI.
   // Same cached lookup getSessionFromCookie uses, so asking for the expiry as
   // well costs no extra query - it feeds SessionExpiryWatcher in the shell.
-  const session = await getSessionWithMeta()
+  //
+  // A throw here (a passing DB blip on a cold instance) would bubble past this
+  // segment's error.tsx to the root, i.e. a bare 500 - and this is the admin shell,
+  // the frame every admin page renders inside. proxy.ts has already validated the
+  // session as the primary gate, so treating a failed secondary read as "not signed
+  // in" and bouncing to the now-resilient login page is a safe degradation: it never
+  // fabricates a session, and the worst case is one re-authentication instead of a
+  // dead screen. Kept outside the redirect (redirect() throws NEXT_REDIRECT).
+  let session: Awaited<ReturnType<typeof getSessionWithMeta>>
+  try {
+    session = await getSessionWithMeta()
+  } catch {
+    session = null
+  }
   if (!session) {
     redirect(`/${adminPath}/login`)
   }
   const user = session.user
 
+  // Every read below is best-effort for the same reason: a blip on any one must
+  // degrade a corner of the shell, never take the whole frame down. Each falls back
+  // to the same empty/absent value the layout already tolerates - config is read
+  // through `?.`, an empty module list just drops module nav, zero unread hides the
+  // badge. resolveBranding already self-guards (returns the Cactus defaults).
   const [config, activeModules, unreadCount, branding] = await Promise.all([
-    getSiteConfig(),
+    getSiteConfig().catch(() => null),
     // Installed here AND present in this build. Unlike the extension-point call sites,
     // nav entries come straight off the stored manifest with no generated registry to
     // drop a module whose code has not landed yet - so a first install would advertise
     // links that 404 until its deploy finishes. MODULES_IN_BUILD is that missing half.
-    getInstalledModules(),
-    getUnreadCount(),
+    getInstalledModules().catch(() => []),
+    getUnreadCount().catch(() => 0),
     resolveBranding(),
   ])
 
@@ -69,7 +87,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ...CORE_NAV_PERMISSION_KEYS,
     ]),
   ]
-  const navPermissions = await hasPermissions(user, navPermissionKeys)
+  // Same best-effort stance: on a failed read, fall back to "grant nothing". That
+  // can only ever hide nav a role was entitled to (a self-correcting annoyance),
+  // never reveal one it wasn't. isProtected admins take the no-DB all-true branch
+  // inside hasPermissions, so the catch only bites non-admins and only ever denies.
+  const navPermissions = await hasPermissions(user, navPermissionKeys).catch(
+    () => ({}) as Record<string, boolean>,
+  )
 
   // The module settings tabs this user may open, as command-palette search targets.
   const moduleSettingsTabs: Array<{ id: string; label: string }> = []
