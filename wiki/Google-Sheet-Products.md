@@ -79,17 +79,19 @@ If you want formulas that survive absolutely everything, put them in columns to 
 
 This is the one to take a breath over, so it makes you look first. Choose **Pull from sheet** and Cactus reads the sheet and shows you a **preview**: how many products it will create, how many it will update, how many it will delete, any rows it can't make sense of, and - importantly - a named list of everything that is **"In the shop but not in your sheet."**
 
+If nothing at all has changed since your last Push or Pull, the window just says so - "Your sheet already matches your shop" - with nothing to confirm, rather than making you click through a list of zeros.
+
 Nothing has changed at this point. When you are happy, press the button in the preview to actually do it.
 
 ### Watching it work, and picking up where it left off
 
-Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
+Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - along with a small tracker across the three stages (Products, Removals, Variations) so you can see how far through it is, rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
 
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
 Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
 
-The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure.
+The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit.
 
 ### Sheet logs
 
