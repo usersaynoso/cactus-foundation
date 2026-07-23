@@ -13,7 +13,7 @@
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.16"
+      "version": "v0.1.17"
     },
     {
       "name": "product-3d-views-for-shop",
@@ -54,6 +54,11 @@
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
       "version": "v0.1.29"
+    },
+    {
+      "name": "contact-form-reply-catcher",
+      "repoUrl": "https://github.com/cactus-foundation-modules/reply-catcher",
+      "version": "v0.1.7"
     },
     {
       "name": "twilio",
