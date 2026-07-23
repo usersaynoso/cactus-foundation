@@ -153,6 +153,16 @@ The top row of each tab is the bit Pull relies on to know which column is which.
 
 ---
 
+## When Pull complains
+
+Pull does two things, and they fail for completely different reasons: it fetches the two tabs from Google, then it compares them against your catalogue. It used to report both as "could not read the sheet", which sent more than one owner off rebuilding a spreadsheet that was perfectly fine. Now it tells you which half fell over:
+
+- **"Could not read the Google Sheet"** followed by a reason - Google would not hand the tabs over. If the reason mentions a range it could not find, a tab has been renamed or deleted: put the **Products** and **Variations** names back, or use **Reset sheet** on the settings tab.
+- **"Read the sheet fine, but comparing it with your catalogue failed"** - the sheet is not the problem and rebuilding it will not help. Something on your own site fell over mid-comparison. Try again in a minute; if it keeps happening, the reason on the end of that message is the thing to quote to us.
+- **"Your site answered with an error"**, or **"It ran out of time"** - your site never got as far as an opinion. The first is a crash, the second is a very large catalogue taking longer than the minute it is allowed. Either way, nothing has been changed on your site.
+
+---
+
 ## If it stops working after about a week
 
 Almost always, this is the Testing-mode trap from the setup steps above: the consent screen was never published to production, so Google expired the connection after seven days. Publish it to "In production" and click **Reconnect Google**. That's it.
