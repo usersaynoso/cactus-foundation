@@ -169,7 +169,7 @@ A product row with no SKU is matched back to your site by its slug, so if you cl
 
 ### Numbers behave like numbers
 
-Prices, stock counts, weights and the rest arrive as proper numbers, so you can sum a column, sort by price, or point a chart at it without Google treating it as text. SKUs and barcodes stay as text on purpose, because a code beginning with a zero would otherwise quietly lose it.
+Prices, stock counts, weights and the rest arrive as proper numbers, so you can sum a column, sort by price, or point a chart at it without Google treating it as text. This now holds for **any** column that carries a number, including a custom attribute of your own - if a cell is a plain number it goes in as one, so a formula that works it out is kept rather than replaced by a stray-apostrophe copy on the next Push. SKUs, barcodes and anything that only looks like a number - a code beginning with a zero, say - stay as text on purpose, because that leading zero would otherwise quietly vanish.
 
 On the Variations tab, the **Image** column holds every picture a variant has, not only the first one. They sit in one cell separated by commas, in the order they show on the page, and the first one in the list is the one used as that variant's main picture. Add a comma and another address to give a variant a second picture; clear the cell to take its pictures away. A cell with a single address still works exactly as it did before, so an older sheet needs no attention. If anything in the cell isn't a proper web address, that row is reported back to you and its pictures are left untouched rather than half-changed.
 
