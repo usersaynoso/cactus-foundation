@@ -54,6 +54,8 @@ Moderators get a full toolkit at **Boards → Moderation**:
 
 From any thread or reply, a moderator can also hide, delete, lock, pin, archive, move to a different board, or split a thread from a chosen reply onwards into a brand new thread - handy when a conversation has wandered off-topic.
 
+A thread that is waiting in the queue, or that a moderator has hidden or deleted, is closed to replies for everyone but moderators - including the person who started it. That is what most people assume already happens; until recently a determined member could still add to one, and those replies then reappeared if the thread was later approved or restored. Voting in a poll, reacting to a post and reporting something all check the same way that the board and the item in question are actually visible to the person doing it, so none of them can be aimed at a private board or an item that isn't there.
+
 ---
 
 ## Polls, reactions, subscriptions and bookmarks

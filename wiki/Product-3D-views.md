@@ -161,6 +161,12 @@ So everything belonging to a product sits together in one place, rather than mod
 
 Each file is also named after the product it belongs to, the same way your product photographs are: upload `120cm-natural-wood-2-person-1.glb` to the Oslo desks and it's filed as `oslo-back-to-back-office-desks-120cm-natural-wood-2-person-1.glb`. Previously it kept a string of random letters on the front, which was tidy enough for a computer and no use whatsoever to you. If a model you're uploading would land on a name already filed with that product, Cactus asks what you meant: **Replace** it (anything showing that model switches to the new one), **Keep both** and file yours as `-2`, or **Cancel**. Nothing is sent to your storage until you've answered. Models uploaded before this stay exactly where and as they are - nothing has been renamed under your feet.
 
+### Renaming a product no longer breaks its models
+
+Because a model file is named and filed after its product, renaming the product - or the folder it sits in - moves and renames the file too. The model itself follows the move: the viewer, the thumbnail in the gallery strip and any measurements the material configurator has taken are all repointed at the file's new home as part of the same action, before the old copy goes anywhere. If something goes wrong mid-move, the rename is refused outright and the old file carries on serving, which is much easier to recover from than a product page quietly showing a missing model.
+
+Anything already broken by a rename made before this landed mends itself: the next time such a model is shown, Cactus notices its details are out of date and puts them right. There is nothing to click and nothing to re-upload.
+
 ---
 
 ## How well protected are your models?

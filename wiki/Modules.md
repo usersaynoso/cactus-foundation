@@ -61,6 +61,14 @@ When a newer version is available, an update notice appears next to the module.
 
 If two or more modules all have updates waiting, an **Update all** button appears above the installed list. Click it to install every pending update in one go - it's a single rebuild covering all of them, rather than one rebuild per module.
 
+**Update all now checks compatibility one module at a time**, exactly as updating a single module has always done. A module that needs a newer version of Cactus than you're running, or another module you haven't installed, is left on its current version and reported back to you with the reason. The rest go ahead. Previously the bulk button took every latest version on trust, and one module wanting a newer Cactus could stop the site rebuilding at all - a bad afternoon for the sake of a convenience button.
+
+Cactus also reads a module's requirements from the exact release it's about to install, rather than from whatever the module's authors have committed since. What you're told about a version is what that version actually says about itself.
+
+### "An install is already in progress"
+
+Only one install, update or removal can run at a time, which is why a second one is turned away with that message. If the first one was cut short - the odd occasion where the job is stopped mid-flight rather than finishing or failing properly - that hold used to stay put and nothing could be installed or updated again. Now anything left holding on for more than fifteen minutes is treated as abandoned and cleared automatically, so the next attempt simply works. Fifteen minutes is comfortably longer than any genuine install takes, rebuild included.
+
 ---
 
 ## Uninstalling a module

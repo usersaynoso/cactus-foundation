@@ -81,6 +81,8 @@ Turn emoji reactions on or off, and pick which emoji show up, from **Settings â†
 
 View counts are tracked either way, but only shown publicly if you switch **Show view counts** on.
 
+Both only count for posts the public can actually read. A draft, a private post or one scheduled for next Tuesday can no longer collect reactions or have its view count nudged along, so the numbers on a post reflect its life after publication rather than the afternoon you spent editing it.
+
 ---
 
 ## RSS feed

@@ -87,6 +87,29 @@ On the shop front, a category page shows a breadcrumb trail back up to the top, 
 
 Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are a manual job outside Cactus, since there's no card or account to refund back to automatically.
 
+### Sending an order out in more than one parcel
+
+Orders rarely leave in one tidy box. Two of the four items are on the shelf, the third is on a lorry somewhere, and the fourth is a pre-order that won't land until next month. Marking the whole order as shipped would be a fib, so an order can now be dispatched a bit at a time.
+
+Open the order and press **Dispatch items**. You get a line for every item with anything still owed, each capped at the number still to go out, so you can send two of the five today and the rest on Friday. Optionally add the courier, a tracking number, a note, and the date the parcel actually went out - handy on a Monday morning, when you're recording something that left on Friday afternoon.
+
+Once recorded, the order picks up a **Dispatched** column showing how many of each item have gone, a **Dispatches** list of every parcel so far, and a small marker next to the status reading **Partly dispatched** or **All dispatched**. That marker is worked out from what's actually left the building rather than being a status you set, so it can't drift out of step with reality and there's no extra status to remember to change.
+
+Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Shop → Email templates**.
+
+Recorded a dispatch that never happened? Undo it from the Dispatches list and the items go straight back to being outstanding. Nothing else needs correcting, because the totals are counted from the parcels rather than kept in a separate tally that could disagree with them.
+
+Two sensible limits: you can't dispatch more of something than was bought, and you can't dispatch something you've already refunded. If a refund and a dispatch are attempted at the same moment, one of them waits its turn rather than both squeezing past the check.
+
+### Mixed baskets with a pre-order in them
+
+**Settings → Shop → Checkout** has a setting for what happens when a basket mixes something in stock with something on pre-order. It has never stopped anyone buying such a basket, and it still doesn't - it decides how the order gets sent.
+
+- **Hold everything until it's all in** - the whole order goes out in one piece. Cactus won't let you mark the order as dispatched while any pre-order item is still waiting on stock, and it tells you which items are holding things up and when they're expected. Shoppers are told at checkout that the order will be sent together once everything has arrived.
+- **Offer to split the shipment** - anything on the shelf can go straight away, with the pre-order following on. That's the setting to use if you want to dispatch part of an order, and shoppers are told as much at checkout.
+
+If you're on "hold everything" and the stock has actually arrived, take the products off pre-order on their **Stock & delivery** tab and the order will let you mark it dispatched. Or switch this setting over to splitting shipments, if sending things separately suits you better after all.
+
 ---
 
 ## Discounts
@@ -207,7 +230,7 @@ Selling something a photograph struggles with - furniture, a lamp, anything with
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock carts are handled. Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
 
 ### Recording who supplied something
 

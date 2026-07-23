@@ -49,6 +49,8 @@ proxy.ts  (Node.js runtime - NOT Edge)
                       signed in but insufficiently privileged? → 404
 ```
 
+**Security headers.** In production every response leaving the proxy is wrapped in `withSecurity()`, which applies the CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and HSTS. That includes the site-status gate's protected-role bypass: an admin previewing a coming-soon or maintenance site takes an early return out of the proxy, and until 2026-07-23 that one path returned a bare `NextResponse.next()` and therefore no headers at all. Any new early return added to `proxy.ts` must go through `withSecurity()` for the same reason.
+
 **Why `proxy.ts` instead of `middleware.ts`?** Next.js 16 moved the request-interception layer from the Edge runtime to Node.js and renamed the file. Running on Node.js means Prisma works directly - no edge-compatible ORM, no edge Config only as a fallback. The admin path and site status checks can use real database reads.
 
 ## Admin path and Edge Config
@@ -87,6 +89,7 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 - **Password + OTP fallback** (when email is configured): bcrypt, Pwned Passwords k-anonymity check on registration, mandatory 6-digit email OTP as second factor. When the user has enrolled a phone number (`User.smsOtpPhoneEncrypted`, AES-256-GCM) and an active module contributes a configured SMS provider (manifest `smsProviders` field → generated `lib/modules/sms-providers.ts`, consumed via `lib/auth/sms.ts`), the same OTP is delivered by text message instead of email, falling back to email automatically if the text fails or the provider disappears. Verification is unchanged - both channels share the `EmailChallenge` record. Members get the equivalent via an `SMS` `TwoFactorMethod` on `MemberTwoFactor` (phone in `phoneEncrypted`), which takes priority over other configured methods when deliverable, shares the member email-challenge store, and has the same silent email fallback.
 - **Trust this browser**: a `TrustedDevice` cookie skips the OTP step for a configurable number of days.
 - **Recovery**: offline single-use recovery code (generated at setup), or email link (30-minute expiry). Both land on the login page's recovery UI.
+- **`GET /api/auth/config`** is the one pre-auth payload the login screen reads, and it is deliberately thin: `emailConfigured`, `turnstileConfigured`, `turnstileSiteKey`. It used to include `neonProjectId` as well, purely to deep-link the lost-passkey help at the right Neon project; that is infrastructure metadata handed to anyone who can reach the login page, so it was removed on 2026-07-23 and the help links to the plain console instead. Treat this route as public output when adding to it.
 
 ## Members system
 
@@ -115,6 +118,8 @@ Security-sensitive changes (passkey added/removed, password changed, 2FA changed
 The member-facing account area (`/<memberAreaPath>/...`, e.g. `/account`) has five independently-toggleable sections: Profile, Security, Notifications, Activity, Danger Zone. Its layout gate reads the `x-cactus-member-full-path` header set by proxy.ts to build an accurate post-login redirect.
 
 Every member gets a public profile at `/members/<username>`, whose visibility (`PUBLIC` / `MEMBERS_ONLY` / `HIDDEN`) is config-driven, plus an optional member directory. Avatars resolve through `lib/members/avatar.ts` (`resolveEffectiveAvatarChoice`) across three sources - an uploaded photo, Gravatar (proxied server-side through `/api/members/avatar-proxy/[id]` so a member's email is never exposed to a client-side Gravatar request), or a generated initials avatar - respecting the `avatarUploadsEnabled`/`gravatarEnabled` config toggles even if a member's stored choice predates a toggle being switched off.
+
+A member's **website** field goes straight into an `href` on that public profile, which makes it a stored-XSS surface. It is validated with `isHttpUrl()` (`lib/utils.ts`), an allow-list that parses the value and accepts only the `http:` and `https:` schemes. Zod's `.url()` is not a substitute: it accepts `javascript:alert(1)` perfectly happily, which is exactly how the hole existed. The check runs at both write paths (the member's own `PATCH /api/members/profile` and an admin's `PATCH /api/admin/members/[id]`) **and again at render**, because rows written before the guard existed are still sitting in the database and a write-time check can never clean those up. Any new field that stores an owner- or visitor-supplied address and later emits it into an `href` or a `src` should use the same helper on both sides.
 
 ### GDPR and email
 
@@ -163,6 +168,10 @@ Browser ──── Next.js <Image> ────▶ Custom loader (lib/media/lo
                                           ▼
                                Provider CDN (res.cloudinary.com / ik.imagekit.io)
 ```
+
+### Reading the library
+
+`GET /api/admin/media` serves two different jobs from one route. With a `folder`, `q`, `tag`, `type`, `sort`, `filter` or `page` parameter it is the paginated library listing that backs the media screen and every picker. With **`?id=<mediaId>`** it short-circuits ahead of all of that and returns just that one row, still wrapped in the same `{ items, total, page, perPage, hasMore }` envelope so a caller needs no second response shape; an unknown id comes back as an empty `items` array rather than a 404. Callers that hold an id and want to render a preview - the OG-image field and the media picker's own selected-item preview - use this form. Until 2026-07-23 the parameter was silently ignored and those callers fell through to the default newest-first listing, so they rendered whatever had been uploaded last: a bug that looks like a caching problem and is not one.
 
 ### Provider selection and migration
 
@@ -281,7 +290,7 @@ Module install / update / uninstall and core updates ship their code by pushing 
 
 ### Module checkout is pinned to the registry version
 
-`scripts/checkout-modules.mjs` clones each module at the tag recorded in its `modules.json` entry (`git clone --depth=1 --branch <version>`), falling back to the repo's default-branch HEAD only if an entry has no `version` or the pinned clone fails (e.g. a deleted tag). This applies on every build, Vercel or local.
+`scripts/checkout-modules.mjs` clones each module at the tag recorded in its `modules.json` entry (`git clone --depth=1 --branch <version>`). An entry with no `version` at all - a hand-edited registry - is cloned at the repo's default-branch HEAD. This applies on every build, Vercel or local. What happens when a *pinned* clone fails now depends on where the build is running: on Vercel it retries once and then fails the build outright, while locally it warns and falls back to HEAD. See [A pinned module must ship its pin](#a-pinned-module-must-ship-its-pin) below.
 
 This matters because `modules.json` is committed independently of any specific admin action - a core update, a different module's install/update/uninstall, or a plain "Redeploy now" can all trigger a build. Before the pin was enforced, the clone ignored `version` entirely and always fetched upstream HEAD, so **any** deploy silently advanced every installed module to whatever was on its default branch, regardless of what `Module.version` (and the Modules page) claimed was installed. Now the registry's `version` field is authoritative: a module's code only changes when something explicitly updates its `modules.json` entry.
 
@@ -346,6 +355,26 @@ Modules are git submodules living under `modules/<name>/`. Installing one:
 5. The Vercel webhook (`deployment.succeeded`) reconciles the module rows via `markModulesDeploySucceeded()` (promoting `pendingVersion → version`) and releases the deploy lock; `deployment.error`/`canceled` calls `markModulesDeployFailed()`. On Hobby plans without webhooks, the Modules page polls `check-status` instead, and dismissing the deploy status reconciles against the real deployment state. See "Confirmed vs in-flight version" above.
 
 Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). They never touch Prisma's migration history. The core Prisma client knows nothing about module tables - modules query their own tables directly.
+
+### The deploy lock, and recovering from a stranded one
+
+`DeployLock` is a single row (`id = "singleton"`) that makes install, update, core update and uninstall mutually exclusive; a second attempt while it is held gets a 409. It is released by the handler that took it, by the Vercel deploy webhook, or by the redeploy-status handler.
+
+None of those runs if the function holding it is hard-killed - a Vercel function timeout or an OOM - and the row then sat there forever, turning every subsequent install or update into a permanent 409 that the admin UI offers no way out of. Every acquire and check site now goes through `getActiveDeployLock()` (`lib/deploy/lock.ts`), which treats a lock older than `STALE_LOCK_MS` (15 minutes) as orphaned: it deletes it and reports no lock held. Fifteen minutes comfortably exceeds the longest legitimate hold, which is a 60-second route plus the build it triggers. The delete is scoped to the exact `id` + `lockedAt` pair, so a fresh lock taken by another request in the window between the read and the delete is never removed by mistake. Read the lock through this helper, never with a bare `findUnique`.
+
+### Compatibility is checked per module, including in bulk
+
+`checkModuleUpdateCompat()` (`lib/modules/compat.ts`) is the shared gate: it reads the module's manifest at the tag about to be installed and returns a short human-readable reason when the running core or the installed module set fails to satisfy `requiresCoreVersion` / `requiresModules`, or `null` when it is fine. A manifest that cannot be fetched counts as compatible, deliberately, so a transient GitHub failure never blocks an otherwise-fine update.
+
+The single-module install and update paths have always run this check. The bulk "Update all" path did not: it pinned every module's latest tag into `modules.json` and let the build find out. One module wanting a newer core than the site is running then broke every subsequent build on a missing import, with no obvious culprit. Bulk update now runs the same gate per module and drops incompatible ones into its `failed[]` result instead of pinning them.
+
+`fetchManifestFromRepo(repoUrl, filename, ref)` takes the git ref to read at. Install and update pass the `release.tag` they are shipping, so requirements are validated against the version actually being installed. It defaults to `HEAD` only for callers that genuinely want the current default branch, and reading a manifest at `HEAD` while installing a tag is a bug, not a shortcut.
+
+### A pinned module must ship its pin
+
+`scripts/checkout-modules.mjs` clones each `modules.json` entry at its recorded version tag. On Vercel it no longer falls back to an unpinned `HEAD` clone when that fails: it retries the pinned clone once, to absorb a transient network blip, and then exits non-zero and fails the build. Silently shipping `HEAD` would put unvetted module code - possibly needing a newer core - into production while the database and `modules.json` both still claim the pinned version, which is a lie the rest of the system has no way to detect. Locally nothing is fatal: a deleted tag or a network blip still warns and falls back, so local work carries on. `scripts/prebuild.mjs` likewise treats a child killed by a signal as a failure; a signalled child reports a `null` exit code, which previously read as success.
+
+The four manifest-driven generators (`generate-module-puck.mjs`, `generate-module-settings-tabs.mjs`, `generate-module-sms-providers.mjs`, `generate-module-extension-points.mjs`) dedupe the import lines they emit. A module can legitimately contribute the same component to two extension points, two settings tabs or two block types, and the generated identifier is derived from module name plus component name, so the same `import` was written twice and the generated file did not compile. A repeat is now collapsed; the same identifier mapping to two *different* paths is a genuine name clash and throws, failing the build rather than emitting a duplicate declaration.
 
 ### Build pipeline
 
@@ -485,6 +514,8 @@ Blocks are organised into categories that appear as collapsible groups in the Pu
 | **ImageBlock** *(displayed as "Image")* | Full-width image with alt text and optional caption |
 | **VideoEmbed** *(displayed as "Video")* | YouTube or Vimeo embed (paste the watch URL; 16:9 / 4:3 / 1:1) |
 | **Embed** | Generic `<iframe>` embed (maps, forms, etc.) |
+
+Both of those put an editor-supplied address into an `<iframe src>`, so both are restricted to `http:` and `https:` (`toEmbedUrl` tests the protocol before it matches a provider; `Embed` runs its `src` through `isHttpUrl()`). Anything else - a `javascript:` or `data:text/html` address - would execute in the site's own origin, so the block renders its "could not parse" notice instead of a frame. Any future block that frames or links an editor-supplied address should do the same.
 
 #### Content
 

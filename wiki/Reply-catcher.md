@@ -2,7 +2,7 @@
 
 If you reply to a contact form message from the Cactus admin inbox, your visitor's reply-to lands wherever your own mailbox happens to live - Gmail, Outlook, iCloud, whatever you use day to day. Cactus never sees it, and the conversation splits in two: half in your admin inbox, half in your actual email.
 
-**Reply Catcher** is an add-on for the [contact form module](Modules) that fixes this. Point it at your real mailbox once, and it quietly checks for replies (and for anything you sent by hand from your own email client) and matches them up to the right conversation.
+**Reply Catcher** is an add-on for the [contact form module](Contact-form) that fixes this. Point it at your real mailbox once, and it quietly checks for replies (and for anything you sent by hand from your own email client) and matches them up to the right conversation.
 
 It never changes anything in your mailbox - nothing gets marked read, moved, or deleted. It only reads. And it never changes anything about the contact form module itself - it keeps its own records alongside, so sites that don't install it carry none of this.
 
@@ -45,6 +45,8 @@ Google's Gmail requires a lengthy, paid security review process to connect this 
 Reply Catcher checks your mailbox automatically once a day - that's a limit of the hosting plan Cactus runs on, not something we can speed up. If you don't want to wait, click **Check now** on the settings page for an on-the-spot check. To keep things polite to your mail provider, **Check now** has a one-minute cooldown between clicks.
 
 The settings page always shows when it last checked and whether that went smoothly.
+
+Every message it has already dealt with is remembered, so a check that finds nothing new genuinely records nothing new. Earlier versions had a habit of picking the most recent message up again on every single check and filing it as another reply, which turned one polite "thanks, that's sorted" into a conversation that appeared to repeat itself daily. Copies already filed that way stay where they are - Cactus has no way of telling them apart from genuine repeat mail - so delete any you don't want and it won't happen again.
 
 ---
 

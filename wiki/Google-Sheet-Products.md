@@ -61,7 +61,19 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations.
 
+It fills in its own columns and leaves the rest of the tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
+
 If you have made changes in the sheet since Cactus last synced with it, Push stops and asks first - because filling the sheet from your site would wipe those edits. You can either go and Pull them in before you Push, or say yes to overwrite them. Cactus's own Pushes and Pulls don't trip this, only edits made by hand in the sheet.
+
+### Using formulas in the sheet
+
+You can, and a Push will do its best to leave them where they are.
+
+The rule is simple enough: **a formula survives a Push as long as it still works out to the same value your website holds.** Put `=D2*1.2` in a price cell, and as long as your site agrees the price is that number, the formula stays put and the sheet keeps working the way you set it up. Change that price in the admin, Push, and the formula is replaced by the new number - it has to be, because the number is the one that's true and a stale formula quietly disagreeing with your shop is worse than no formula at all. The message after a Push tells you how many it kept.
+
+There's one more thing that ends a formula's life, and it's worth knowing about: **a formula is dropped if its row moves.** Rows move whenever a product is added or removed above it, which on a busy shop is most weeks. This is not us being lazy - a formula's references don't shuffle along with it the way they do when you drag a cell about in Google Sheets, so a formula that moved rows would carry on pointing at whichever product had wandered into the old spot. Better a plain number than a confidently wrong one.
+
+If you want formulas that survive absolutely everything, put them in columns to the **right** of the last one Cactus fills in. That space is entirely yours: a Push never writes there and never clears it, so anything you build out there - a margin calculator, a running total, a whole second dashboard - is untouched. Same goes for a Pull, which only ever reads the columns it recognises.
 
 ### Pull from sheet (the sheet → your site)
 
@@ -75,6 +87,8 @@ Once you confirm, Pull shows you a live count as it goes - so many products of s
 
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
+Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
+
 The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure.
 
 ### Sheet logs
@@ -85,7 +99,7 @@ A few things the preview will tell you:
 
 - **Products always sync before variations**, in both directions. A variant's parent product must already exist, or its rows are skipped.
 - If you have edited products in the admin since you last pushed, the preview warns you - pulling would overwrite those admin edits with the (older) sheet.
-- Rows with an obvious mistake (a missing name, a price that isn't a number, a made-up status) are listed as errors and skipped, rather than being guessed at.
+- Rows with an obvious mistake (a missing name, a price that isn't a number or is below zero, a made-up status) are listed as errors and skipped, rather than being guessed at. A stray minus sign in a price cell used to sail through and create a product priced in negative money, which is a generous business model but rarely the intended one.
 
 ### Rows you deleted from the sheet
 
