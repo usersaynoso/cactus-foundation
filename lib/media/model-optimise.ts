@@ -72,7 +72,7 @@ let ioPromise: Promise<import('@gltf-transform/core').NodeIO> | null = null
 
 async function getIO(): Promise<import('@gltf-transform/core').NodeIO> {
   if (!ioPromise) {
-    ioPromise = (async () => {
+    const building = (async () => {
       const { NodeIO } = await import('@gltf-transform/core')
       const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions')
       const draco3d = await import('draco3d')
@@ -100,6 +100,14 @@ async function getIO(): Promise<import('@gltf-transform/core').NodeIO> {
           'meshopt.encoder': MeshoptEncoder,
         })
     })()
+    // Hold the promise so concurrent optimises share one instantiation, but
+    // never cache a rejection: if the wasm fails to load once (a transient fault,
+    // or a bad bundle fixed by the next deploy), a later call gets a fresh try
+    // instead of every optimise on this warm process failing forever.
+    building.catch(() => {
+      if (ioPromise === building) ioPromise = null
+    })
+    ioPromise = building
   }
   return ioPromise
 }

@@ -64,6 +64,15 @@ const config: NextConfig = {
     // what actually changed is recompiled.
     turbopackFileSystemCacheForBuild: true,
   },
+  // draco3d ships an Emscripten glue file whose only way to find its sibling
+  // `.wasm` is `readFileSync(__dirname + '/draco_decoder.wasm')`. Bundling that
+  // glue into a serverless function rewrites `__dirname` to a placeholder base
+  // (`/ROOT/node_modules/draco3d/...`), where no wasm sits, so the 3D-model
+  // optimiser aborts with ENOENT on the deployed build while working fine in
+  // dev. Keeping the package external preserves the real `__dirname`; the trace
+  // include below then makes sure the wasm actually ships next to it. meshopt
+  // needs neither - it base64-inlines its wasm.
+  serverExternalPackages: ['draco3d'],
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
     // every change already goes through (see CLAUDE.md work loop). On Vercel it
@@ -80,6 +89,13 @@ const config: NextConfig = {
     // by a module route that reads them via fs. Generic glob (no module name)
     // so any module's assets/ dir is traced into the module-API function.
     'app/api/m/[module]/[...path]/route.ts': ['./modules/*/assets/**'],
+    // draco3d's decoder wasm is read via fs at runtime (see serverExternalPackages
+    // above), so the file tracer can't see it statically. Force it into every
+    // function that can run the 3D-model optimiser: the two explicit optimise
+    // routes and the upload record route, which auto-optimises new GLB uploads.
+    'app/api/admin/media/[id]/optimise/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
+    'app/api/admin/media/bulk-optimise/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
+    'app/api/admin/media/record/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
   },
   // Security headers are applied in proxy.ts
 }
