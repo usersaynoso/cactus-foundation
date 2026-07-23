@@ -117,13 +117,29 @@ export async function startDeferredRedeploy(
       return
     }
 
-    // Deferred module registry sync. The desired state is the full set of Module rows
-    // (any status — a row existing means its code should ship; uninstall already deleted
-    // the row). If creds are missing or this throws, fall through to the env-var redeploy
-    // path so settings-only redeploys still work.
+    // Deferred module registry sync. The desired state is the set of Module rows whose
+    // code should actually ship. A row existing is nearly enough - uninstall deletes the
+    // row - but NOT quite, because 'failed' and 'inactive' are the two states that must
+    // not run.
+    //
+    // Shipping those was a real hole: modules.json drives both the module checkout and
+    // the build-time generators, so a failed or disabled module still got cloned and
+    // wired into the router, while scripts/run-module-migrations.mjs only migrates
+    // status IN ('active','deploying','update_available'). The result is live routes
+    // sitting on tables that were never created - a 500 on a page the owner believes is
+    // switched off, or one whose install they watched fail.
+    //
+    // Every other status still ships, deliberately: pending_install / pending_deploy /
+    // deploying are mid-install, and their code has to be present for the very build
+    // that installs them.
+    //
+    // If creds are missing or this throws, fall through to the env-var redeploy path so
+    // settings-only redeploys still work.
     let committed = false
     try {
-      const modules = await prisma.module.findMany()
+      const modules = await prisma.module.findMany({
+        where: { status: { notIn: ['failed', 'inactive'] } },
+      })
       const synced = await syncModulesJson(
         // Ship the in-flight target while a deploy is mid-flight (pendingVersion);
         // it's promoted to `version` only once the deploy succeeds.

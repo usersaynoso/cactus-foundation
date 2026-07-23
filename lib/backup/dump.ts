@@ -1,4 +1,6 @@
-import { serializeValue, type ColumnType } from '@/lib/backup/serialize'
+import { Prisma } from '@prisma/client'
+
+import { serializeValue, UnrestorableBackupError, type ColumnType } from '@/lib/backup/serialize'
 
 // Builds a Cactus database backup: a single .sql file holding a schema section
 // (the init migration, verbatim) followed by a data section of INSERT statements,
@@ -22,9 +24,32 @@ import { serializeValue, type ColumnType } from '@/lib/backup/serialize'
 
 const ROWS_PER_INSERT = 500
 
-/** The slice of PrismaClient this file needs - lets a test pass its own client. */
-export type BackupDb = {
+// The whole dump runs inside a single interactive transaction so every read sees
+// one consistent snapshot (see buildBackupSql). Default Prisma interactive
+// transactions time out after 5s, which a full-database read would blow through,
+// so we widen it to sit just under the route's maxDuration of 60s.
+const TRANSACTION_MAX_WAIT_MS = 10_000
+const TRANSACTION_TIMEOUT_MS = 58_000
+
+/** The slice of a transaction client the read helpers need. Inside an interactive
+ *  transaction Prisma hands back a client WITHOUT `$transaction` (it's on the deny
+ *  list), so this is deliberately narrower than BackupDb. */
+export type BackupTx = {
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
+  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
+}
+
+/** The slice of PrismaClient this file needs - lets a test pass its own client.
+ *  Must expose `$transaction` so the dump can take a single consistent snapshot. */
+export type BackupDb = BackupTx & {
+  $transaction<R>(
+    fn: (tx: BackupTx) => Promise<R>,
+    options?: {
+      isolationLevel?: Prisma.TransactionIsolationLevel
+      maxWait?: number
+      timeout?: number
+    },
+  ): Promise<R>
 }
 
 type Row = Record<string, unknown>
@@ -41,7 +66,7 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out
 }
 
-async function getTables(db: BackupDb): Promise<string[]> {
+async function getTables(db: BackupTx): Promise<string[]> {
   const rows = await db.$queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -52,7 +77,7 @@ async function getTables(db: BackupDb): Promise<string[]> {
 }
 
 /** Enum type names, so `serializeValue` can tell a `PageStatus` column from an unknown type. */
-async function getEnumTypes(db: BackupDb): Promise<Set<string>> {
+async function getEnumTypes(db: BackupTx): Promise<Set<string>> {
   const rows = await db.$queryRawUnsafe<{ typname: string }[]>(`
     SELECT t.typname FROM pg_type t
     JOIN pg_namespace n ON n.oid = t.typnamespace
@@ -64,7 +89,7 @@ async function getEnumTypes(db: BackupDb): Promise<Set<string>> {
 // Generated and identity columns are computed by Postgres and CANNOT be inserted
 // into ("cannot insert into column ... it is a generated column"), so they are
 // excluded from the dump entirely. None exist today; a module could add one.
-async function getColumns(db: BackupDb, tables: string[], enums: Set<string>): Promise<Map<string, ColumnType[]>> {
+async function getColumns(db: BackupTx, tables: string[], enums: Set<string>): Promise<Map<string, ColumnType[]>> {
   const rows = await db.$queryRawUnsafe<{ table_name: string; column_name: string; udt_name: string }[]>(
     `SELECT table_name, column_name, udt_name FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = ANY($1)
@@ -88,7 +113,7 @@ async function getColumns(db: BackupDb, tables: string[], enums: Set<string>): P
   return map
 }
 
-async function getPrimaryKeys(db: BackupDb, tables: string[]): Promise<Map<string, string[]>> {
+async function getPrimaryKeys(db: BackupTx, tables: string[]): Promise<Map<string, string[]>> {
   const rows = await db.$queryRawUnsafe<{ table_name: string; column_name: string }[]>(
     `SELECT tc.table_name, kcu.column_name
      FROM information_schema.table_constraints tc
@@ -109,7 +134,7 @@ async function getPrimaryKeys(db: BackupDb, tables: string[]): Promise<Map<strin
 
 // Scoped to the discovered table set - a FK pointing outside `public` (or at a
 // table we didn't enumerate) is defensively ignored rather than crashing the dump.
-async function getForeignKeys(db: BackupDb, tables: string[]): Promise<ForeignKey[]> {
+async function getForeignKeys(db: BackupTx, tables: string[]): Promise<ForeignKey[]> {
   const rows = await db.$queryRawUnsafe<
     { table_name: string; column_name: string; ref_table: string; ref_column: string }[]
   >(
@@ -132,7 +157,7 @@ async function getForeignKeys(db: BackupDb, tables: string[]): Promise<ForeignKe
 // Missing them meant a restored shop reset shp_order_number_seq to 1 and the next
 // checkout generated an order number that already existed - and order_number is
 // UNIQUE, so the customer's checkout simply failed.
-async function getSequences(db: BackupDb): Promise<Sequence[]> {
+async function getSequences(db: BackupTx): Promise<Sequence[]> {
   const rows = await db.$queryRawUnsafe<
     { sequencename: string; last_value: bigint | null; start_value: bigint }[]
   >(`SELECT sequencename, last_value, start_value FROM pg_sequences WHERE schemaname = 'public' ORDER BY sequencename`)
@@ -169,12 +194,23 @@ export function topoSortTables(tables: string[], foreignKeys: ForeignKey[]): str
     }
   }
 
-  // Defensive fallback: a genuine multi-table FK cycle (not expected in this
-  // schema) would strand tables here. Append them rather than silently
-  // dropping data - restore may need manual reordering in that exotic case.
+  // A genuine multi-table FK cycle (A references B references A) strands tables
+  // here. There is no table-level order that satisfies such a cycle, and plain
+  // FKs in this schema are NOT DEFERRABLE, so appending the stranded tables in
+  // arbitrary order - which is what this used to do - emits a file that looks
+  // perfectly healthy, downloads fine, and then fails its FKs at restore. That
+  // is the exact "quiet poison" the backup rules forbid: a loud failure now is
+  // recoverable, an unrestorable file discovered months later is not.
+  //
+  // No such cycle exists in the schema today. If one is ever introduced, this
+  // fires on the PR that introduces it rather than in somebody's emergency.
   if (order.length < tables.length) {
     const seen = new Set(order)
-    for (const table of tables) if (!seen.has(table)) order.push(table)
+    const stranded = tables.filter((t) => !seen.has(t))
+    throw new UnrestorableBackupError(
+      `the tables ${stranded.join(', ')} form a foreign-key cycle, so there is no order ` +
+        `in which their rows can be inserted back.`
+    )
   }
   return order
 }
@@ -222,59 +258,83 @@ export function sortSelfReferencingRows(rows: Row[], pkCol: string, selfFkCol: s
  *         faithfully represent. The whole dump aborts - see serialize.ts.
  */
 export async function buildBackupSql(db: BackupDb, schemaSql: string, generatedAt: string): Promise<string> {
-  const tables = await getTables(db)
-  const enums = await getEnumTypes(db)
-  const [columnsByTable, pkColsByTable, foreignKeys, sequences] = await Promise.all([
-    getColumns(db, tables, enums),
-    getPrimaryKeys(db, tables),
-    getForeignKeys(db, tables),
-    getSequences(db),
-  ])
+  // EVERY read below - schema discovery, each table's rows, and the sequence
+  // counters - runs inside ONE interactive transaction at REPEATABLE READ, READ
+  // ONLY. Without a shared snapshot the dump was torn: a sequence could be read at
+  // N while a row using N+1 was read afterwards (restore rewinds the sequence, next
+  // insert collides on a UNIQUE column), or a child row written mid-dump could
+  // reference a parent whose table was already read (restore fails the FK). A single
+  // REPEATABLE READ snapshot makes all reads agree on one instant, so the file is
+  // internally consistent no matter what writes happen while it is being built.
+  const { dataSections, sequenceSection } = await db.$transaction(
+    async (tx) => {
+      // Belt-and-braces: REPEATABLE READ already fixes the snapshot; READ ONLY makes
+      // the intent explicit and lets Postgres reject any accidental write. Must be
+      // the first statement in the transaction, before any query touches a snapshot.
+      await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY')
 
-  const order = topoSortTables(tables, foreignKeys)
+      const tables = await getTables(tx)
+      const enums = await getEnumTypes(tx)
+      const [columnsByTable, pkColsByTable, foreignKeys, sequences] = await Promise.all([
+        getColumns(tx, tables, enums),
+        getPrimaryKeys(tx, tables),
+        getForeignKeys(tx, tables),
+        getSequences(tx),
+      ])
 
-  // A table qualifies for row-level reordering only when it has a single-column
-  // primary key and a foreign key that references that same column on itself.
-  const selfRefByTable = new Map<string, { pkCol: string; selfFkCol: string }>()
-  for (const table of tables) {
-    const pkCols = pkColsByTable.get(table) ?? []
-    const pkCol = pkCols[0]
-    if (pkCols.length !== 1 || pkCol === undefined) continue
-    const selfFk = foreignKeys.find(
-      (fk) => fk.table === table && fk.refTable === table && fk.refColumn === pkCol,
-    )
-    if (selfFk) selfRefByTable.set(table, { pkCol, selfFkCol: selfFk.column })
-  }
+      const order = topoSortTables(tables, foreignKeys)
 
-  const dataSections: string[] = []
-  for (const table of order) {
-    const columns = columnsByTable.get(table) ?? []
-    if (columns.length === 0) continue
-    const columnList = columns.map((c) => quoteIdent(c.column)).join(', ')
+      // A table qualifies for row-level reordering only when it has a single-column
+      // primary key and a foreign key that references that same column on itself.
+      const selfRefByTable = new Map<string, { pkCol: string; selfFkCol: string }>()
+      for (const table of tables) {
+        const pkCols = pkColsByTable.get(table) ?? []
+        const pkCol = pkCols[0]
+        if (pkCols.length !== 1 || pkCol === undefined) continue
+        const selfFk = foreignKeys.find(
+          (fk) => fk.table === table && fk.refTable === table && fk.refColumn === pkCol,
+        )
+        if (selfFk) selfRefByTable.set(table, { pkCol, selfFkCol: selfFk.column })
+      }
 
-    const rows = await db.$queryRawUnsafe<Row[]>(`SELECT ${columnList} FROM ${quoteIdent(table)}`)
-    if (rows.length === 0) continue
+      const dataSections: string[] = []
+      for (const table of order) {
+        const columns = columnsByTable.get(table) ?? []
+        if (columns.length === 0) continue
+        const columnList = columns.map((c) => quoteIdent(c.column)).join(', ')
 
-    const selfRef = selfRefByTable.get(table)
-    const orderedRows = selfRef ? sortSelfReferencingRows(rows, selfRef.pkCol, selfRef.selfFkCol) : rows
+        const rows = await tx.$queryRawUnsafe<Row[]>(`SELECT ${columnList} FROM ${quoteIdent(table)}`)
+        if (rows.length === 0) continue
 
-    const insertStatements = chunk(orderedRows, ROWS_PER_INSERT).map((rowsChunk) => {
-      const valuesSql = rowsChunk
-        .map((row) => `(${columns.map((c) => serializeValue(row[c.column], c)).join(', ')})`)
-        .join(',\n')
-      return `INSERT INTO ${quoteIdent(table)} (${columnList}) VALUES\n${valuesSql};`
-    })
-    dataSections.push(`-- Table: ${table} (${rows.length} rows)\n${insertStatements.join('\n')}`)
-  }
+        const selfRef = selfRefByTable.get(table)
+        const orderedRows = selfRef ? sortSelfReferencingRows(rows, selfRef.pkCol, selfRef.selfFkCol) : rows
 
-  // `setval(seq, n, true)` = "n has been handed out, next call returns n+1".
-  // `setval(seq, start, false)` = "nothing handed out yet, next call returns start" -
-  // which is what a NULL last_value (never called) means.
-  const sequenceSection = sequences.map((seq) => {
-    const target = seq.lastValue ?? seq.startValue
-    const isCalled = seq.lastValue !== null
-    return `SELECT setval('${quoteIdent(seq.name).replace(/'/g, "''")}', ${target}, ${isCalled ? 'TRUE' : 'FALSE'});`
-  })
+        const insertStatements = chunk(orderedRows, ROWS_PER_INSERT).map((rowsChunk) => {
+          const valuesSql = rowsChunk
+            .map((row) => `(${columns.map((c) => serializeValue(row[c.column], c)).join(', ')})`)
+            .join(',\n')
+          return `INSERT INTO ${quoteIdent(table)} (${columnList}) VALUES\n${valuesSql};`
+        })
+        dataSections.push(`-- Table: ${table} (${rows.length} rows)\n${insertStatements.join('\n')}`)
+      }
+
+      // `setval(seq, n, true)` = "n has been handed out, next call returns n+1".
+      // `setval(seq, start, false)` = "nothing handed out yet, next call returns start" -
+      // which is what a NULL last_value (never called) means.
+      const sequenceSection = sequences.map((seq) => {
+        const target = seq.lastValue ?? seq.startValue
+        const isCalled = seq.lastValue !== null
+        return `SELECT setval('${quoteIdent(seq.name).replace(/'/g, "''")}', ${target}, ${isCalled ? 'TRUE' : 'FALSE'});`
+      })
+
+      return { dataSections, sequenceSection }
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      maxWait: TRANSACTION_MAX_WAIT_MS,
+      timeout: TRANSACTION_TIMEOUT_MS,
+    },
+  )
 
   return [
     '-- Cactus database backup',

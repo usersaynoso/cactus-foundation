@@ -63,6 +63,10 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
   const [newEmail, setNewEmail] = useState('')
   const [emailPassword, setEmailPassword] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
+  // The address awaiting confirmation, and the code the owner reads out of it.
+  // Set once the request step succeeds; cleared when the change lands or is abandoned.
+  const [emailPendingFor, setEmailPendingFor] = useState('')
+  const [emailCode, setEmailCode] = useState('')
 
   // Passkeys
   const [newPasskeyLoading, setNewPasskeyLoading] = useState(false)
@@ -176,12 +180,38 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((d as { error?: string }).error ?? 'Failed to change email')
-      setProfile((p) => p ? { ...p, email: newEmail } : p)
-      setNewEmail('')
+      // Nothing has moved yet. The address only changes once the code sent to it
+      // is confirmed, so the form now waits for that code.
       setEmailPassword('')
-      setMessage('Email address updated.')
+      setEmailPendingFor(newEmail)
+      setMessage(`We have sent a confirmation code to ${newEmail}. Enter it below to finish the change. Until then your sign-in address is unchanged.`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to change email')
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  async function handleConfirmEmail() {
+    setEmailLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch('/api/account/email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: emailCode.trim() }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((d as { error?: string }).error ?? 'Failed to confirm email')
+      const confirmed = (d as { email?: string }).email ?? emailPendingFor
+      setProfile((p) => p ? { ...p, email: confirmed } : p)
+      setNewEmail('')
+      setEmailCode('')
+      setEmailPendingFor('')
+      setMessage('Email address updated. Sign-in codes will go to your new address from now on.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to confirm email')
     } finally {
       setEmailLoading(false)
     }
@@ -438,8 +468,38 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
             disabled={emailLoading || !newEmail || (passwordInfo?.hasPassword ? !emailPassword : false)}
             onClick={handleChangeEmail}
           >
-            {emailLoading ? 'Saving…' : 'Change email'}
+            {emailLoading ? 'Sending…' : emailPendingFor ? 'Send a new code' : 'Change email'}
           </button>
+
+          {emailPendingFor && (
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
+              <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
+                Waiting on <strong>{emailPendingFor}</strong>. Your sign-in address stays as it is until the code below is confirmed.
+              </p>
+              <div className="field">
+                <label>Confirmation code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" disabled={emailLoading || !emailCode.trim()} onClick={handleConfirmEmail}>
+                  {emailLoading ? 'Confirming…' : 'Confirm new address'}
+                </button>
+                <button
+                  className="btn"
+                  disabled={emailLoading}
+                  onClick={() => { setEmailPendingFor(''); setEmailCode(''); setMessage('') }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

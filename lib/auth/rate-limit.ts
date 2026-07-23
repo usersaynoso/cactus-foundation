@@ -11,6 +11,7 @@ type RateLimitAction =
   | 'passkey_authenticate'
   | 'consent'
   | 'totp_verify'
+  | 'email_change'
   // Members system (see MEMBERS_SPEC.md)
   | 'member_register'
   | 'member_magic_link'
@@ -32,6 +33,9 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   passkey_authenticate: { windowMs: 15 * 60 * 1000, maxAttempts: 20 },
   consent: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
   totp_verify: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  // Deliberately tight: each attempt posts a code to an address the requester
+  // chose, so a loose limit here is a way to use the site as a mailer.
+  email_change: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   member_register: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   member_magic_link: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   member_login: { windowMs: 15 * 60 * 1000, maxAttempts: 10 },

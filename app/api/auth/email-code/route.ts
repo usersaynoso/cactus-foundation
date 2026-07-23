@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
+  // Same guard as the sibling session-mint flows (password/TOTP/passkey): a
+  // suspended account must not be able to mint a session via the OTP step.
+  if (user.suspendedAt) {
+    return NextResponse.json({ error: 'Account suspended' }, { status: 403 })
+  }
+
   // Check if device is already trusted — skip OTP if so
   const trusted = await isTrustedDevice(userId)
 

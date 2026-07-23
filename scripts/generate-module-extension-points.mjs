@@ -2,22 +2,35 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const outPath = join(rootDir, 'lib', 'modules', 'extension-points.ts')
 
+// Registry-filtered: see scripts/lib/module-names.mjs for why a bare directory
+// listing is not good enough here.
 function getModuleNames() {
-  if (!existsSync(modulesDir)) return []
-  return readdirSync(modulesDir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name)
-    .sort()
+  return registeredModuleNames(rootDir)
 }
 
 const moduleNames = getModuleNames()
 const imports = []
+// ident -> importPath already emitted. A module can contribute the same component
+// to two extension points, which yields the same (ident, importPath) twice; emit
+// the import once. A collision - the same ident mapping to a DIFFERENT path - is a
+// real name clash and must throw rather than emit a duplicate identifier.
+const emittedIdents = new Map()
+function pushImport(ident, importPath, line) {
+  const existing = emittedIdents.get(ident)
+  if (existing === undefined) {
+    emittedIdents.set(ident, importPath)
+    imports.push(line)
+  } else if (existing !== importPath) {
+    throw new Error(`[generate-module-extension-points] identifier ${ident} maps to two different imports: '${existing}' and '${importPath}'`)
+  }
+}
 // point -> [{ id, ident }]
 const byPoint = new Map()
 
@@ -46,7 +59,7 @@ for (const moduleName of moduleNames) {
     const safeModule = moduleName.replace(/-/g, '_')
     const ident = `_${safeModule}_${entry.component}`
 
-    imports.push(`import { ${entry.component} as ${ident} } from '${importPath}'`)
+    pushImport(ident, importPath, `import { ${entry.component} as ${ident} } from '${importPath}'`)
     if (!byPoint.has(entry.point)) byPoint.set(entry.point, [])
     byPoint.get(entry.point).push({ id: entry.id, ident })
   }

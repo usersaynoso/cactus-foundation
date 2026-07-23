@@ -10,6 +10,7 @@ import { compareVersions } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { getActiveDeployLock } from '@/lib/deploy/lock'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
@@ -59,7 +60,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (mod.status !== 'deploying') {
       return NextResponse.json({ status: mod.status })
     }
-    const deployStatus = await getLatestDeploymentStatus()
+    // Key the check on the deploy we actually triggered, not whatever landed most
+    // recently on the project - see getLatestDeploymentStatus.
+    const pendingDeploy = await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } })
+    const deployStatus = await getLatestDeploymentStatus(pendingDeploy?.pendingRedeployId)
     if (deployStatus === 'READY') {
       await markModulesDeploySucceeded()
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
@@ -91,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
-    const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+    const lock = await getActiveDeployLock()
     if (lock) return errorResponse('Another install or update is in progress', 409)
 
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
@@ -104,7 +108,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // otherwise-fine update.
     let incoming: ModuleManifest | undefined
     try {
-      incoming = parseModuleManifest(await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json'))
+      // Read the manifest AT the tag being installed, not HEAD - otherwise the
+      // requiresCoreVersion / requiresModules checks below judge unreleased code.
+      incoming = parseModuleManifest(await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json', release.tag))
     } catch (err) {
       console.warn(`[modules] Could not pre-check requirements for ${mod.name}:`, err)
     }
@@ -246,7 +252,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const { mode } = parsed.data
 
-  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  const lock = await getActiveDeployLock()
   if (lock) return errorResponse('Another install or update is in progress', 409)
 
   const manifest = mod.manifest as { teardown?: string[] } | null

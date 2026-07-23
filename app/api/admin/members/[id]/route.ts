@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { logMemberAdminAction } from '@/lib/members/admin-log'
+import { isHttpUrl } from '@/lib/utils'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionFromCookie()
@@ -32,7 +33,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 const Body = z.object({
   displayName: z.string().trim().max(80).nullable().optional(),
   bio: z.string().trim().max(500).nullable().optional(),
-  websiteUrl: z.string().trim().max(300).nullable().optional(),
+  // http(s) only - a "javascript:" value here renders into an href on the
+  // member's public profile page (stored XSS), same as the member-facing path.
+  websiteUrl: z.string().trim().max(300).refine(isHttpUrl, 'Enter a valid website address (http or https)').nullable().or(z.literal('')).optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

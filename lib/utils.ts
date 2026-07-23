@@ -43,6 +43,21 @@ export function successResponse<T>(data: T, status = 200) {
   return Response.json(data, { status })
 }
 
+// Scheme allow-list for user-supplied "website" fields. A value that parses as
+// an http(s) URL is safe to place in an href/src; anything else - a
+// "javascript:"/"data:" scheme (stored XSS), or a mailto/tel/relative value a
+// website field is never meant to hold - is rejected. Used at every write path
+// that stores such a URL and at every render path that emits it.
+export function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    const u = new URL(value.trim())
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 // Truncate a string to a max length, appending ellipsis if truncated
 export function truncate(str: string, max: number): string {
   if (str.length <= max) return str

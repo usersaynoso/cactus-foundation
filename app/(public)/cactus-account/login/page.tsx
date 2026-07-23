@@ -1,16 +1,9 @@
 import LoginForm from '@/components/members/LoginForm'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
 
 export const dynamic = 'force-dynamic'
 
 type Props = { searchParams: Promise<{ redirect?: string; magic_token?: string }> }
-
-// Guards against an open-redirect via ?redirect= - only same-origin relative
-// paths are honoured (no protocol-relative "//host" or absolute "scheme://" values).
-function sanitizeRedirect(raw: string | undefined): string {
-  if (!raw) return '/'
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('://')) return '/'
-  return raw
-}
 
 export default async function MemberLoginPage({ searchParams }: Props) {
   const { redirect, magic_token: magicToken } = await searchParams

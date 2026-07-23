@@ -41,7 +41,6 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState(false)
-  const [neonProjectId, setNeonProjectId] = useState<string | null>(null)
   const [lostAccessMode, setLostAccessMode] = useState(false)
   const [lostAccessEmail, setLostAccessEmail] = useState('')
   const [lostAccessSent, setLostAccessSent] = useState(false)
@@ -52,9 +51,8 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   const autoPasskeyAttempted = useRef(false)
 
   useEffect(() => {
-    fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean; neonProjectId: string | null }) => {
+    fetch('/api/auth/config').then((r) => r.json()).then((d: { emailConfigured: boolean }) => {
       setEmailAvailable(d.emailConfigured)
-      setNeonProjectId(d.neonProjectId)
     }).catch(() => {})
   }, [])
 
@@ -294,7 +292,7 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
             <p style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-4)' }}>
               Once you&apos;re in, add a fresh passkey from <strong>Account → Security</strong>. Deleting the old passkey row from your{' '}
               <a
-                href={neonProjectId ? `https://console.neon.tech/app/projects/${neonProjectId}` : 'https://console.neon.tech'}
+                href="https://console.neon.tech"
                 target="_blank"
                 rel="noopener noreferrer"
               >

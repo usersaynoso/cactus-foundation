@@ -347,24 +347,46 @@ export async function syncCoreFromUpstream(
     sha?: string | null
     content?: string
   }
-  const treeEntries: TreeEntry[] = []
-  for (const w of plan.writes) {
-    // getBlob (unlike getContent) has no 1 MB ceiling, so large files aren't dropped.
-    const { data: upstreamBlob } = await retryTransient(() =>
-      octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: w.sha }),
-    )
-    const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
-    if (bytes.includes(0)) {
-      const sha = await createReplicatedBlob(octokit, {
-        owner: adminOwner, repo: adminRepo,
-        content: bytes.toString('base64'),
-        encoding: 'base64',
-      })
-      treeEntries.push({ path: w.path, mode: w.mode, type: 'blob', sha })
-    } else {
-      treeEntries.push({ path: w.path, mode: w.mode, type: 'blob', content: bytes.toString('utf8') })
+  // Fetch every write's target content, bounded to a small number of concurrent
+  // blob reads. A large update can touch hundreds of files; fetching them one at a
+  // time - each with the default multi-minute retry budget - blows the calling
+  // route's 60s ceiling and gets the function hard-killed mid-push, which is
+  // exactly what strands the deploy lock. A fixed-size worker pool keeps wall-clock
+  // time down without hammering the API, and results are written back by index so
+  // the resulting tree entry order still matches plan.writes.
+  const BLOB_FETCH_CONCURRENCY = 8
+  const writeResults: (TreeEntry | undefined)[] = new Array(plan.writes.length)
+  let cursor = 0
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor++
+      if (index >= plan.writes.length) return
+      const w = plan.writes[index]!
+      // getBlob (unlike getContent) has no 1 MB ceiling, so large files aren't dropped.
+      // A tighter retry budget than the default (8 attempts / up to minutes) stops one
+      // file's backoff from dominating the whole 60s route; the createTree transaction
+      // below keeps the full retry budget as the real durability guarantee.
+      const { data: upstreamBlob } = await retryTransient(
+        () => octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: w.sha }),
+        { attempts: 4, capMs: 8000 },
+      )
+      const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
+      if (bytes.includes(0)) {
+        const sha = await createReplicatedBlob(octokit, {
+          owner: adminOwner, repo: adminRepo,
+          content: bytes.toString('base64'),
+          encoding: 'base64',
+        })
+        writeResults[index] = { path: w.path, mode: w.mode, type: 'blob', sha }
+      } else {
+        writeResults[index] = { path: w.path, mode: w.mode, type: 'blob', content: bytes.toString('utf8') }
+      }
     }
   }
+  await Promise.all(
+    Array.from({ length: Math.min(BLOB_FETCH_CONCURRENCY, plan.writes.length) }, () => worker()),
+  )
+  const treeEntries: TreeEntry[] = writeResults.filter((e): e is TreeEntry => e !== undefined)
 
   if (modulesJson) {
     // JSON is text, so inline it too - no separate blob, no race.

@@ -2,6 +2,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
@@ -11,12 +12,10 @@ const startersOutPath = join(rootDir, 'lib', 'setup', 'module-starter-layouts.ts
 const embedOptionsOutPath = join(rootDir, 'lib', 'puck', 'module-embed-options.ts')
 const embedInjectOutPath = join(rootDir, 'lib', 'puck', 'module-embed-inject.ts')
 
+// Registry-filtered: see scripts/lib/module-names.mjs for why a bare directory
+// listing is not good enough here.
 function getModuleNames() {
-  if (!existsSync(modulesDir)) return []
-  return readdirSync(modulesDir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name)
-    .sort()
+  return registeredModuleNames(rootDir)
 }
 
 const moduleNames = getModuleNames()

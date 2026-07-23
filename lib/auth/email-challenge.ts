@@ -7,7 +7,7 @@ const CODE_LENGTH = 6
 const CODE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 const MAX_ATTEMPTS = 5
 
-export type ChallengePurpose = 'login_otp' | 'verify_email'
+export type ChallengePurpose = 'login_otp' | 'verify_email' | 'email_change'
 
 function generateCode(): string {
   return String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0')
@@ -25,9 +25,13 @@ function hashCode(code: string): string {
   return createHmac('sha256', getSessionSecret()).update(code).digest('hex')
 }
 
+// `pendingEmail` is only meaningful for the 'email_change' purpose: it parks the
+// address being moved to, so the change can be applied when - and only when -
+// the code sent to that address comes back verified.
 export async function createEmailChallenge(
   userId: string,
-  purpose: ChallengePurpose
+  purpose: ChallengePurpose,
+  pendingEmail?: string
 ): Promise<string> {
   // Invalidate any existing challenges for this user + purpose
   await prisma.emailChallenge.deleteMany({ where: { userId, purpose } })
@@ -37,14 +41,16 @@ export async function createEmailChallenge(
   const expiresAt = new Date(Date.now() + CODE_TTL_MS)
 
   await prisma.emailChallenge.create({
-    data: { userId, codeHash, purpose, expiresAt },
+    data: { userId, codeHash, purpose, expiresAt, pendingEmail: pendingEmail ?? null },
   })
 
   return code
 }
 
 export type ChallengeVerifyResult =
-  | { success: true }
+  // `pendingEmail` is returned because verifying consumes (deletes) the row, so
+  // this is the caller's only chance to learn which address was being confirmed.
+  | { success: true; pendingEmail: string | null }
   | { success: false; reason: 'invalid' | 'expired' | 'max_attempts' }
 
 export async function verifyEmailChallenge(
@@ -82,5 +88,5 @@ export async function verifyEmailChallenge(
 
   // Success — consume the challenge
   await prisma.emailChallenge.delete({ where: { id: challenge.id } })
-  return { success: true }
+  return { success: true, pendingEmail: challenge.pendingEmail }
 }

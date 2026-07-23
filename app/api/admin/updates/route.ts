@@ -13,6 +13,7 @@ import {
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { getActiveDeployLock } from '@/lib/deploy/lock'
 import { findModuleUpdates } from '@/lib/modules/updates'
 
 export const maxDuration = 60
@@ -92,8 +93,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Check deploy lock
-  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  // Check deploy lock (a lock stranded by a hard-killed function is treated as
+  // stale and cleared, so a crashed update doesn't block every future one).
+  const lock = await getActiveDeployLock()
   if (lock) {
     return errorResponse('Another install or update is in progress. Please wait.', 409)
   }

@@ -11,18 +11,17 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const outPath = join(rootDir, 'vercel.json')
 
+// Registry-filtered: see scripts/lib/module-names.mjs for why a bare directory
+// listing is not good enough here.
 function getModuleNames() {
-  if (!existsSync(modulesDir)) return []
-  return readdirSync(modulesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort()
+  return registeredModuleNames(rootDir)
 }
 
 // Core Members system cron jobs (see MEMBERS_SPEC.md amendment 7) - declared

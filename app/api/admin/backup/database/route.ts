@@ -3,7 +3,7 @@ import path from 'path'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { buildBackupSql } from '@/lib/backup/dump'
-import { UnsupportedColumnError } from '@/lib/backup/serialize'
+import { UnsupportedColumnError, UnrestorableBackupError } from '@/lib/backup/serialize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 
@@ -44,7 +44,7 @@ export async function GET() {
     // A column the backup can't faithfully write aborts the whole thing rather
     // than handing the owner a file that would fail to restore. Its message is
     // already written for a human.
-    if (err instanceof UnsupportedColumnError) {
+    if (err instanceof UnsupportedColumnError || err instanceof UnrestorableBackupError) {
       return NextResponse.json({ error: err.message }, { status: 500 })
     }
     throw err

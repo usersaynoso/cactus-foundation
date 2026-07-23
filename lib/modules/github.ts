@@ -200,30 +200,58 @@ export async function syncModulesJson(
   return { committed: true, commitSha }
 }
 
-export async function getLatestDeploymentStatus(): Promise<
-  'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'
-> {
+function readyStateToStatus(state: string | undefined): 'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN' {
+  if (state === 'READY') return 'READY'
+  if (state === 'ERROR' || state === 'CANCELED') return 'ERROR'
+  if (state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING') return 'BUILDING'
+  return 'UNKNOWN'
+}
+
+// Status of the deploy we actually triggered, where we know which one that was.
+//
+// Taking the project's newest deployment (limit=1) is a misattribution waiting to
+// happen: anyone else pushing to main, a preview build, or a rollback lands a
+// newer deployment than ours, and the install flow then reports that stranger's
+// success or failure as its own. An install can be declared finished off the back
+// of an unrelated build, or marked failed because someone else's push broke.
+//
+// The specific id is already captured and parked on SiteConfig.pendingRedeployId
+// by lib/deploy/redeploy.ts, so prefer it. 'pending' is the sentinel meaning "we
+// triggered something but have not resolved its id yet" - not a real id, so it
+// falls through to the latest-deployment behaviour, which is the best available
+// answer during that window.
+export async function getLatestDeploymentStatus(
+  deploymentId?: string | null
+): Promise<'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'> {
   const token = process.env.VERCEL_API_TOKEN
   const projectId = process.env.VERCEL_PROJECT_ID
   if (!token || !projectId) return 'UNKNOWN'
 
+  const headers = { Authorization: `Bearer ${token}` }
+
   try {
+    if (deploymentId && deploymentId !== 'pending') {
+      const res = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { readyState?: string; status?: string }
+        return readyStateToStatus(data.readyState ?? data.status)
+      }
+      // A 404 means the id is stale or from another project. Fall through rather
+      // than reporting UNKNOWN forever.
+    }
+
     const res = await fetch(
       `https://api.vercel.com/v6/deployments?projectId=${projectId}&limit=1`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(10_000),
-      }
+      { headers, signal: AbortSignal.timeout(10_000) }
     )
     if (!res.ok) return 'UNKNOWN'
     const data = (await res.json()) as {
       deployments?: Array<{ readyState: string }>
     }
-    const state = data.deployments?.[0]?.readyState
-    if (state === 'READY') return 'READY'
-    if (state === 'ERROR' || state === 'CANCELED') return 'ERROR'
-    if (state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING') return 'BUILDING'
-    return 'UNKNOWN'
+    return readyStateToStatus(data.deployments?.[0]?.readyState)
   } catch {
     return 'UNKNOWN'
   }

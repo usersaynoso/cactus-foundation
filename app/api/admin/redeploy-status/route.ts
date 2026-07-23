@@ -41,7 +41,10 @@ export async function DELETE() {
   // than assuming success - dismissing a failed deploy must not mark it active.
   const deploying = await prisma.module.findMany({ where: { status: 'deploying' }, select: { id: true } })
   if (deploying.length > 0) {
-    const deployStatus = await getLatestDeploymentStatus()
+    // Key the check on the deploy we actually triggered, not whatever landed most
+    // recently on the project - see getLatestDeploymentStatus.
+    const pending = await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } })
+    const deployStatus = await getLatestDeploymentStatus(pending?.pendingRedeployId)
     if (deployStatus === 'READY') {
       await markModulesDeploySucceeded()
     } else if (deployStatus === 'ERROR') {

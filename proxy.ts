@@ -343,7 +343,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     if (token) {
       try {
         const user = await validateSession(token)
-        if (user?.role.isProtected) return NextResponse.next()
+        if (user?.role.isProtected) return withSecurity(NextResponse.next())
       } catch {
         // Fall through
       }

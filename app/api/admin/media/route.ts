@@ -20,6 +20,24 @@ export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
 
+  // Single-item lookup: `?id=` returns just that media row (still shaped as the
+  // usual `{ items: [...] }` payload). Without this a caller passing an id fell
+  // through to the default newest-first listing and got the last-uploaded item
+  // back instead of the one it asked for - which is exactly what the OG-image /
+  // media-picker preview did wrong.
+  const id = request.nextUrl.searchParams.get('id')
+  if (id) {
+    const row = await prisma.media.findUnique({
+      where: { id },
+      select: {
+        id: true, key: true, url: true, altText: true, originalName: true, mimeType: true,
+      },
+    })
+    if (!row) return NextResponse.json({ items: [], total: 0, page: 1, perPage: 1, hasMore: false })
+    const item = { ...row, url: signAssetUrl(row.url) }
+    return NextResponse.json({ items: [item], total: 1, page: 1, perPage: 1, hasMore: false })
+  }
+
   const { perPage, page } = parsePaginationParams(
     Object.fromEntries(request.nextUrl.searchParams)
   )

@@ -74,15 +74,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Recovery link is invalid or expired' }, { status: 400 })
   }
   const userId = result.userId
-  await consumeRecoveryToken(token)
 
-  // Optionally set a new password
+  // Validate the new password BEFORE spending the token. A weak password used
+  // to return 400 with the token already consumed, forcing the user to request
+  // a fresh recovery link just to try a stronger one.
+  let hash: string | null = null
   if (newPassword) {
     const pwResult = await validateNewPassword(newPassword)
     if (!pwResult.valid) {
       return NextResponse.json({ error: pwResult.reason }, { status: 400 })
     }
-    const hash = await hashPassword(newPassword)
+    hash = await hashPassword(newPassword)
+  }
+
+  await consumeRecoveryToken(token)
+
+  if (hash) {
     await prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } })
   }
 

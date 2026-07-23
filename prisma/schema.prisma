@@ -95,6 +95,11 @@ model EmailChallenge {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   codeHash  String
   purpose   String
+  // Set only for the email_change purpose: the address being moved TO. The
+  // change is held here and applied to User.email only once a code sent to that
+  // address is confirmed, so an unverified or mistyped address never takes over
+  // the account (and never inherits emailVerifiedAt).
+  pendingEmail String?
   expiresAt DateTime
   attempts  Int      @default(0)
   createdAt DateTime @default(now())

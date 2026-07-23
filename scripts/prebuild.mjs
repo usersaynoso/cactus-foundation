@@ -72,7 +72,10 @@ function flush({ label, output }) {
 // 1. Module code on disk. Everything below reads it, so this one is a barrier.
 const checkout = await run('checkout-modules', 'node', ['scripts/checkout-modules.mjs'])
 flush(checkout)
-if (checkout.status !== 0) process.exit(checkout.status)
+// `close` reports status null when the child dies from a signal (e.g. OOM kill).
+// `process.exit(null)` would exit 0 and let `next build` proceed with no module
+// code on disk, so coerce a null/undefined status to a non-zero exit.
+if (checkout.status !== 0) process.exit(checkout.status ?? 1)
 
 // 2. The three independent branches.
 const results = await Promise.all([

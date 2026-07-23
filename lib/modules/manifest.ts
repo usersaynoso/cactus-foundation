@@ -202,12 +202,20 @@ export function validatePublicBasePathUnique(
 // The raw URL is built exclusively from a validated owner/repo pair (never from
 // the caller's string directly) so a non-github.com repoUrl can never reach
 // fetch() with the GitHub token attached — see parseGitHubRepo.
+//
+// `ref` is the git ref (release tag, branch, or commit sha) to read the manifest
+// at. Install and update ship a specific `release.tag`, so they MUST pass that tag
+// here - reading the manifest at HEAD instead would validate requiresCoreVersion /
+// requiresModules / permissions against unreleased code, not the version actually
+// being installed. It defaults to 'HEAD' only for callers that genuinely want the
+// latest default-branch manifest.
 export async function fetchManifestFromRepo(
   repoUrl: string,
-  filename: 'cactus.module.json' | 'cactus.theme.json'
+  filename: 'cactus.module.json' | 'cactus.theme.json',
+  ref: string = 'HEAD'
 ): Promise<unknown> {
   const { owner, repo } = parseGitHubRepo(repoUrl)
-  const raw = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${filename}`
+  const raw = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${filename}`
 
   const token = await getGithubToken()
   const res = await fetch(raw, {

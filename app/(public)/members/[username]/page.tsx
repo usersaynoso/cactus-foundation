@@ -6,6 +6,7 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
+import { isHttpUrl } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,7 +93,7 @@ export default async function MemberProfilePage({ params }: Props) {
       {visibility.showBio && member.bio && (
         <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 var(--space-3)' }}>{member.bio}</p>
       )}
-      {visibility.showWebsite && member.websiteUrl && (
+      {visibility.showWebsite && member.websiteUrl && isHttpUrl(member.websiteUrl) && (
         <p style={{ margin: '0 0 var(--space-3)' }}>
           <a href={member.websiteUrl} rel="noopener noreferrer nofollow">{member.websiteUrl}</a>
         </p>

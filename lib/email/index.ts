@@ -118,6 +118,36 @@ export async function sendEmailVerification(
   })
 }
 
+// Sent to the address the account is being moved TO. Until this code comes back,
+// the account keeps its old address, so a typo here costs nothing.
+export async function sendEmailChangeCode(
+  to: string,
+  code: string,
+  siteName: string
+) {
+  await sendEmail({
+    to,
+    subject: `Confirm your new ${siteName} email address`,
+    html: `<p>Your confirmation code is: <strong>${code}</strong></p><p>Enter it on the account page to finish moving your ${siteName} sign-in to this address.</p><p>This code expires in 10 minutes. If you were not expecting this, you can ignore it - nothing has changed yet.</p>`,
+    text: `Your confirmation code is: ${code}\n\nEnter it on the account page to finish moving your ${siteName} sign-in to this address.\n\nThis code expires in 10 minutes. If you were not expecting this, you can ignore it - nothing has changed yet.`,
+  })
+}
+
+// Sent to the address the account is moving AWAY from, so an owner whose session
+// has been hijacked finds out while they can still do something about it.
+export async function sendEmailChangeNotice(
+  to: string,
+  newEmail: string,
+  siteName: string
+) {
+  await sendEmail({
+    to,
+    subject: `Someone asked to change your ${siteName} email address`,
+    html: `<p>A request was made to move your ${siteName} sign-in to <strong>${newEmail}</strong>.</p><p>It will not take effect until that address is confirmed.</p><p>If this was not you, sign in and change your password now - whoever asked for this has access to your account.</p>`,
+    text: `A request was made to move your ${siteName} sign-in to ${newEmail}.\n\nIt will not take effect until that address is confirmed.\n\nIf this was not you, sign in and change your password now - whoever asked for this has access to your account.`,
+  })
+}
+
 export async function sendRecoveryLink(
   to: string,
   recoveryUrl: string,

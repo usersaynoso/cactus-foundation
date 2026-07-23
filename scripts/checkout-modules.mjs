@@ -53,9 +53,15 @@ function git(args) {
   })
 }
 
-// Clones `repoUrl` into `moduleDir` at `version` (a tag) if given, falling back to the
-// default branch HEAD if the pinned clone fails (e.g. the tag was deleted upstream) or
-// no version was recorded. Returns true on success.
+// Clones `repoUrl` into `moduleDir` at `version` (a tag) if given. Returns true on
+// success. The HEAD fallback is only ever used for an entry with NO recorded version
+// (e.g. a hand-edited registry). A pinned entry must ship exactly its pin:
+//   - On Vercel: never fall back to HEAD. Retry the pinned clone once (covers a
+//     transient network blip), then give up and let the caller fail the build.
+//     Shipping HEAD would put unvetted module code (possibly needing a newer core)
+//     live while the DB and modules.json still claim the pin.
+//   - Locally: stay lenient - warn and fall back to HEAD so a deleted tag or a
+//     network blip doesn't block local work.
 async function cloneModule(log, name, repoUrl, moduleDir, version) {
   try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
 
@@ -67,7 +73,19 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
     log(`${name}: cloning ${repoUrl} at ${version}…`)
     const pinned = await git(['clone', '--depth=1', '--branch', version, '--', repoUrl, moduleDir])
     if (pinned.status === 0) return true
-    log(`${name}: pinned clone at ${version} failed — falling back to HEAD`)
+
+    if (isVercel) {
+      // Retry the pinned clone once - a transient blip shouldn't sink the build,
+      // but an unpinned HEAD clone must never replace a pin here.
+      log(`${name}: pinned clone at ${version} failed — retrying (Vercel never falls back to HEAD for a pinned entry)`)
+      try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
+      const retry = await git(['clone', '--depth=1', '--branch', version, '--', repoUrl, moduleDir])
+      if (retry.status === 0) return true
+      log(`${name}: pinned clone at ${version} failed again — ${retry.output.trim().split('\n')[0] ?? ''}`)
+      return false
+    }
+
+    log(`${name}: pinned clone at ${version} failed — falling back to HEAD (local dev only)`)
     try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
   } else {
     log(`${name}: no version recorded — cloning ${repoUrl} at HEAD…`)
@@ -77,16 +95,20 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
   return fallback.status === 0
 }
 
+// Returns { fatal } - fatal is true only when a PINNED entry could not be cloned
+// at its pin on Vercel, which must fail the whole build (see cloneModule). Every
+// other clone failure stays a non-fatal warning, as before.
 async function checkoutModule({ name, repoUrl, version }) {
   if (!name || !repoUrl) {
     console.warn('[checkout-modules] Skipping entry with missing name or repoUrl:', { name, repoUrl })
-    return
+    return { fatal: false }
   }
 
   const lines = []
   const log = (message) => lines.push(`[checkout-modules] ${message}`)
   const moduleDir = join(modulesDir, name)
   let failure = null
+  let fatal = false
 
   try {
     if (!isVercel && existsSync(moduleDir)) {
@@ -98,7 +120,7 @@ async function checkoutModule({ name, repoUrl, version }) {
 
       if (checkout.status === 0) {
         log(`${name}: checkout succeeded`)
-        return
+        return { fatal: false }
       }
 
       const firstLine = checkout.output.trim().split('\n')[0] ?? ''
@@ -109,12 +131,25 @@ async function checkoutModule({ name, repoUrl, version }) {
       log(`${name}: done`)
     } else {
       failure = `[checkout-modules] ${name}: clone failed — module pages will be missing`
+      // On Vercel a pinned entry that won't clone at its pin must not be papered
+      // over with HEAD (cloneModule already refused to) - fail the whole build.
+      if (isVercel && version) fatal = true
     }
   } finally {
     if (lines.length > 0) console.log(lines.join('\n'))
     if (failure) console.error(failure)
   }
+
+  return { fatal }
 }
 
 mkdirSync(modulesDir, { recursive: true })
-await Promise.all(entries.map(checkoutModule))
+const outcomes = await Promise.all(entries.map(checkoutModule))
+
+// A pinned module that could not be cloned at its pin on Vercel is a hard build
+// failure: shipping its HEAD instead would put unvetted module code live while the
+// registry still claims the pin. Locally this stays a warning (nothing is fatal).
+if (outcomes.some((o) => o?.fatal)) {
+  console.error('[checkout-modules] One or more pinned modules could not be cloned at their pinned version on Vercel — failing the build.')
+  process.exit(1)
+}

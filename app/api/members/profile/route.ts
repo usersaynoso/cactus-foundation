@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
+import { isHttpUrl } from '@/lib/utils'
 
 export async function GET() {
   const member = await getMemberFromCookie()
@@ -40,7 +41,9 @@ export async function GET() {
 const Body = z.object({
   displayName: z.string().trim().max(80).nullable().optional(),
   bio: z.string().trim().max(500).nullable().optional(),
-  websiteUrl: z.string().trim().url().max(300).nullable().or(z.literal('')).optional(),
+  // Must be a real http(s) link. Zod's .url() alone accepts "javascript:…",
+  // which lands in an href on the public profile page - stored XSS.
+  websiteUrl: z.string().trim().max(300).refine(isHttpUrl, 'Enter a valid website address (http or https)').nullable().or(z.literal('')).optional(),
 })
 
 export async function PATCH(request: NextRequest) {

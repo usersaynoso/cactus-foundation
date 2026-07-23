@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.89"
+      "version": "v0.1.90"
     },
     {
       "name": "shop-variations",
@@ -13,12 +13,12 @@
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.17"
+      "version": "v0.1.18"
     },
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.61"
+      "version": "v0.1.62"
     },
     {
       "name": "product-downloads-for-shop",
@@ -28,12 +28,12 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.18"
+      "version": "v0.1.20"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop",
-      "version": "v0.1.2"
+      "version": "v0.1.3"
     },
     {
       "name": "directory",
@@ -43,22 +43,22 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.29"
+      "version": "v0.1.30"
     },
     {
       "name": "contact-form-reply-catcher",
       "repoUrl": "https://github.com/cactus-foundation-modules/reply-catcher",
-      "version": "v0.1.7"
+      "version": "v0.1.8"
     },
     {
       "name": "twilio",

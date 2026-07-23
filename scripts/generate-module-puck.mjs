@@ -2,6 +2,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
@@ -14,12 +15,10 @@ const modulesDir = join(rootDir, 'modules')
 const clientOutPath = join(rootDir, 'lib', 'puck', 'module-components.ts')
 const rscOutPath = join(rootDir, 'lib', 'puck', 'module-rsc-components.ts')
 
+// Registry-filtered: see scripts/lib/module-names.mjs for why a bare directory
+// listing is not good enough here.
 function getModuleNames() {
-  if (!existsSync(modulesDir)) return []
-  return readdirSync(modulesDir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name)
-    .sort()
+  return registeredModuleNames(rootDir)
 }
 
 // Resolves a manifest import spec (e.g. "./components/puck/StructuredDataBlock")
@@ -46,6 +45,26 @@ const clientEntries = []
 const rscEntries = []
 // layoutType -> [{ type, clientIdent, rscIdent }]
 const byLayoutType = new Map()
+
+// A module can register the same component under two puck block types, which yields
+// the same (ident, importPath) import twice; emit it once. A collision - the same
+// ident mapping to a DIFFERENT path - is a real name clash and must throw rather
+// than emit a duplicate identifier. Client and RSC import lists are deduped
+// separately since they live in separate generated files.
+function makePushImport(list, label) {
+  const emitted = new Map()
+  return (ident, importPath, line) => {
+    const existing = emitted.get(ident)
+    if (existing === undefined) {
+      emitted.set(ident, importPath)
+      list.push(line)
+    } else if (existing !== importPath) {
+      throw new Error(`[generate-module-puck] ${label} identifier ${ident} maps to two different imports: '${existing}' and '${importPath}'`)
+    }
+  }
+}
+const pushClientImport = makePushImport(clientImports, 'client')
+const pushRscImport = makePushImport(rscImports, 'rsc')
 
 for (const moduleName of moduleNames) {
   const manifestPath = join(modulesDir, moduleName, 'cactus.module.json')
@@ -82,7 +101,7 @@ for (const moduleName of moduleNames) {
     const safeModule = moduleName.replace(/-/g, '_')
     const clientIdent = `_${safeModule}_${block.component}`
 
-    clientImports.push(`import { ${block.component} as ${clientIdent} } from '${importPath}'`)
+    pushClientImport(clientIdent, importPath, `import { ${block.component} as ${clientIdent} } from '${importPath}'`)
     clientEntries.push(`  ${JSON.stringify(block.type)}: ${clientIdent},`)
 
     let rscIdent = clientIdent
@@ -92,9 +111,9 @@ for (const moduleName of moduleNames) {
       // placeholder — needed when the RSC render uses next/headers (cookies()) or
       // other server-only APIs.
       const rscImportPath = (block.rscImport ?? block.import).replace(/^\.\//, `@/modules/${moduleName}/`)
-      rscImports.push(`import { ${block.rscComponent} as ${rscIdent} } from '${rscImportPath}'`)
+      pushRscImport(rscIdent, rscImportPath, `import { ${block.rscComponent} as ${rscIdent} } from '${rscImportPath}'`)
     } else {
-      rscImports.push(`import { ${block.component} as ${rscIdent} } from '${importPath}'`)
+      pushRscImport(rscIdent, importPath, `import { ${block.component} as ${rscIdent} } from '${importPath}'`)
     }
     rscEntries.push(`  ${JSON.stringify(block.type)}: ${rscIdent},`)
 

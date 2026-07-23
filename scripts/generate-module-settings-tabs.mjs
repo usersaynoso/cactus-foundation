@@ -2,18 +2,17 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const outPath = join(rootDir, 'lib', 'modules', 'settings-tabs.ts')
 
+// Registry-filtered: see scripts/lib/module-names.mjs for why a bare directory
+// listing is not good enough here.
 function getModuleNames() {
-  if (!existsSync(modulesDir)) return []
-  return readdirSync(modulesDir, { withFileTypes: true })
-    .filter(e => e.isDirectory())
-    .map(e => e.name)
-    .sort()
+  return registeredModuleNames(rootDir)
 }
 
 // Resolves a manifest import spec to a real file on disk, the way a bundler
@@ -34,6 +33,20 @@ function moduleImportExists(moduleName, importSpec) {
 const moduleNames = getModuleNames()
 const imports = []
 const entries = []
+// ident -> importPath already emitted. A module can contribute the same component
+// to two settings tabs, which yields the same (ident, importPath) twice; emit the
+// import once. A collision - the same ident mapping to a DIFFERENT path - is a real
+// name clash and must throw rather than emit a duplicate identifier.
+const emittedIdents = new Map()
+function pushImport(ident, importPath, line) {
+  const existing = emittedIdents.get(ident)
+  if (existing === undefined) {
+    emittedIdents.set(ident, importPath)
+    imports.push(line)
+  } else if (existing !== importPath) {
+    throw new Error(`[generate-module-settings-tabs] identifier ${ident} maps to two different imports: '${existing}' and '${importPath}'`)
+  }
+}
 
 for (const moduleName of moduleNames) {
   const manifestPath = join(modulesDir, moduleName, 'cactus.module.json')
@@ -66,7 +79,7 @@ for (const moduleName of moduleNames) {
     const safeModule = moduleName.replace(/-/g, '_')
     const ident = `_${safeModule}_${tab.component}`
 
-    imports.push(`import { ${tab.component} as ${ident} } from '${importPath}'`)
+    pushImport(ident, importPath, `import { ${tab.component} as ${ident} } from '${importPath}'`)
     entries.push(`  ${JSON.stringify(tab.id)}: ${ident},`)
   }
 }

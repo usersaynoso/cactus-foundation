@@ -13,12 +13,14 @@ import {
   validatePublicBasePathUnique,
 } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
+import { checkModuleUpdateCompat } from '@/lib/modules/compat'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
 import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { getActiveDeployLock } from '@/lib/deploy/lock'
 import { compareVersions } from '@/lib/updates/core'
 import pkg from '@/package.json'
 
@@ -62,16 +64,29 @@ export async function POST(request: NextRequest) {
 
   const { repoUrl, channel } = parsed.data
 
-  // Check deploy lock
-  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  // Check deploy lock (a lock stranded by a hard-killed function is treated as
+  // stale and cleared, so a crashed install doesn't block every future one).
+  const lock = await getActiveDeployLock()
   if (lock) {
     return errorResponse('Another install or update is in progress. Please wait.', 409)
   }
 
-  // Fetch and validate the manifest
+  // Resolve the release first: the manifest is read AT this tag (not HEAD), so
+  // every check below judges the exact version about to be installed.
+  // Channel chosen at install time; can be switched per-module afterwards.
+  const release = await getLatestRelease(repoUrl, channel)
+  if (!release) {
+    return errorResponse(
+      channel === 'beta'
+        ? 'No releases (stable or pre-release) found in this repository. Publish a GitHub release first.'
+        : 'No tagged releases found in this repository. Publish a GitHub release first.'
+    )
+  }
+
+  // Fetch and validate the manifest at the tag being installed
   let manifest
   try {
-    const raw = await fetchManifestFromRepo(repoUrl, 'cactus.module.json')
+    const raw = await fetchManifestFromRepo(repoUrl, 'cactus.module.json', release.tag)
     manifest = parseModuleManifest(raw)
   } catch (err: unknown) {
     return errorResponse(`Manifest error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -134,16 +149,6 @@ export async function POST(request: NextRequest) {
       unmet.reason === 'missing'
         ? `"${manifest.name}" requires the "${unmet.name}" module (v${unmet.minVersion}+) to be installed and active first.`
         : `"${manifest.name}" requires "${unmet.name}" v${unmet.minVersion}+, but v${unmet.installedVersion.replace(/^v/i, '')} is installed. Update it first.`
-    )
-  }
-
-  // Channel chosen at install time; can be switched per-module afterwards.
-  const release = await getLatestRelease(repoUrl, channel)
-  if (!release) {
-    return errorResponse(
-      channel === 'beta'
-        ? 'No releases (stable or pre-release) found in this repository. Publish a GitHub release first.'
-        : 'No tagged releases found in this repository. Publish a GitHub release first.'
     )
   }
 
@@ -251,13 +256,19 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const lock = await prisma.deployLock.findUnique({ where: { id: 'singleton' } })
+  const lock = await getActiveDeployLock()
   if (lock) return errorResponse('Another install or update is in progress', 409)
 
   const pending = await prisma.module.findMany({ where: { status: 'update_available' } })
   if (pending.length === 0) {
     return NextResponse.json({ ok: true, updated: 0, failed: [] })
   }
+
+  // The current installed set, judged against each incoming manifest's declared
+  // dependencies. Mirrors the single-module update path's requiresModules check.
+  const installed = await prisma.module.findMany({
+    select: { name: true, version: true, status: true },
+  })
 
   await prisma.deployLock.create({ data: { id: 'singleton', lockedBy: 'modules:update-all' } })
 
@@ -271,6 +282,22 @@ export async function PATCH(request: NextRequest) {
         failed.push(mod.name)
         continue
       }
+
+      // Same compat gate the single-module path runs: an incoming version that
+      // needs a newer core or sibling module would break the site's next build on
+      // a missing import. Drop it from this batch (never write it to modules.json)
+      // and report why, instead of pinning every latest tag blindly.
+      const incompatReason = await checkModuleUpdateCompat({
+        repoUrl: mod.repoUrl,
+        coreVersion: pkg.version,
+        installed,
+        ref: release.tag,
+      })
+      if (incompatReason) {
+        failed.push(`${formatModuleDisplayName(mod.repoUrl)}: ${incompatReason}`)
+        continue
+      }
+
       await prisma.module.update({
         where: { id: mod.id },
         data: { status: 'deploying', pendingVersion: release.tag, updateAvailable: null, updateNotes: null },

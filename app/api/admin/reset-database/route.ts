@@ -53,11 +53,12 @@ export async function POST(req: NextRequest) {
     await prisma.$executeRawUnsafe(`
       TRUNCATE TABLE
         "WebAuthnChallenge", "RateLimit",
-        "MediaMigrationJob", "Media",
+        "MediaMigrationJob", "Media", "Folder", "Tag",
         "RecoveryRequest", "EmailChallenge", "TrustedDevice", "Session", "Passkey",
         "ModuleMigration", "DeployLock", "Module",
         "MenuItem", "Menu",
-        "Layout", "InfoPage",
+        "SavedBlock", "Layout", "InfoPage",
+        "Notification", "EmailTemplate", "GithubAppConnection",
         "RolePermission", "Permission",
         "SiteConfig", "User", "Role"
       RESTART IDENTITY CASCADE

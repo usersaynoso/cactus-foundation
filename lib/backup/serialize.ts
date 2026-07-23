@@ -47,6 +47,19 @@ export class UnsupportedColumnError extends Error {
   }
 }
 
+// The same "stop rather than write a file that cannot be restored" rule, for a
+// problem that is about the shape of the schema rather than one column's type.
+export class UnrestorableBackupError extends Error {
+  constructor(detail: string) {
+    super(
+      `Backup stopped: ${detail} ` +
+        `Rather than write a backup file that would fail when you came to restore it, ` +
+        `Cactus has stopped. Please report this.`,
+    )
+    this.name = 'UnrestorableBackupError'
+  }
+}
+
 // Types whose Postgres text representation IS the JS string Prisma returns, so a
 // quoted literal round-trips exactly (Postgres coerces the untyped literal to
 // the target column's type on INSERT - the same mechanism that makes enum values
@@ -54,11 +67,16 @@ export class UnsupportedColumnError extends Error {
 const TEXTUAL = new Set([
   'text', 'varchar', 'bpchar', 'char', 'name', 'citext', 'uuid',
   'inet', 'cidr', 'macaddr', 'macaddr8', 'xml', 'tsvector', 'money', 'interval',
-  'date', 'time', 'timetz',
 ])
 const INTEGRAL = new Set(['int2', 'int4', 'int8', 'oid'])
 const FRACTIONAL = new Set(['numeric', 'float4', 'float8'])
 const TEMPORAL = new Set(['timestamp', 'timestamptz'])
+// date / time / timetz are NOT textual: Prisma hands them back as a JS Date, not
+// a string, so they cannot share the string-only TEXTUAL branch (which would then
+// throw UnsupportedColumnError on the very first install carrying a DATE column).
+// They also cannot share the TEMPORAL branch, which emits a full ISO datetime - a
+// `date` column rejects the time part and a `time` column rejects the date part.
+const TIME_OF_DAY = new Set(['date', 'time', 'timetz'])
 const JSONISH = new Set(['json', 'jsonb'])
 
 /**
@@ -73,6 +91,7 @@ export function isSupportedUdtName(udtName: string, isEnum: boolean): boolean {
   if (udtName.startsWith('_')) return isSupportedUdtName(udtName.slice(1), isEnum)
   if (udtName === 'bool' || udtName === 'bytea') return true
   if (INTEGRAL.has(udtName) || FRACTIONAL.has(udtName) || TEMPORAL.has(udtName)) return true
+  if (TIME_OF_DAY.has(udtName)) return true
   return TEXTUAL.has(udtName) || isEnum
 }
 
@@ -168,6 +187,28 @@ export function serializeValue(value: unknown, type: ColumnType): string {
     if (value instanceof Date) return quoteLiteral(value.toISOString())
     if (typeof value === 'string') return quoteLiteral(value)
     throw new UnsupportedColumnError(type, `is a date column but holds ${describe(value)}`)
+  }
+
+  // date / time / timetz. Prisma returns a JS Date: for `date` the calendar day at
+  // UTC midnight; for `time`/`timetz` the time-of-day carried on the 1970-01-01
+  // epoch day. A raw path can also hand back the plain string, which we accept as
+  // is. We slice the right span out of the ISO form rather than emitting the whole
+  // datetime, because the target column type only accepts its own part:
+  //   date   -> 'YYYY-MM-DD'
+  //   time   -> 'HH:MM:SS.mmm'
+  //   timetz -> 'HH:MM:SS.mmm+00'  (a JS Date is an instant with no stored offset,
+  //             so the faithful literal is the UTC time-of-day with an explicit
+  //             +00 zone; timetz compares by UTC, so the value survives even though
+  //             the originally-printed offset is not recoverable from a Date).
+  if (TIME_OF_DAY.has(udtName)) {
+    if (value instanceof Date) {
+      const iso = value.toISOString()
+      if (udtName === 'date') return quoteLiteral(iso.slice(0, 10))
+      if (udtName === 'timetz') return quoteLiteral(`${iso.slice(11, 23)}+00`)
+      return quoteLiteral(iso.slice(11, 23))
+    }
+    if (typeof value === 'string') return quoteLiteral(value)
+    throw new UnsupportedColumnError(type, `is a date/time column but holds ${describe(value)}`)
   }
 
   if (TEXTUAL.has(udtName) || type.isEnum) {

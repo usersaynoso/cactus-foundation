@@ -24,6 +24,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { emailSafeHref, sanitizeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
+import { isHttpUrl } from '@/lib/utils'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { imgLoading } from '@/lib/puck/imgLoading'
@@ -1776,6 +1777,9 @@ function ImageBlock(props: any) {
 function toEmbedUrl(url: string): string | null {
   try {
     const u = new URL(url)
+    // http(s) only - a "javascript:"/"data:text/html" src would run in the
+    // site origin once it reaches the <iframe>. Drop the frame otherwise.
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
     if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) return `https://www.youtube.com/embed/${u.searchParams.get('v')}`
     if (u.hostname === 'youtu.be') return `https://www.youtube.com/embed${u.pathname}`
     if (u.hostname.includes('vimeo.com')) return `https://player.vimeo.com/video${u.pathname}`
@@ -1787,7 +1791,7 @@ function VideoEmbed(props: any) {
   const { id, url, aspectRatio, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!url) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No video URL entered</div>
   const embedUrl = toEmbedUrl(url)
-  if (!embedUrl) return <div style={{ background: '#fef2f2', borderRadius: 6, padding: '1rem', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
+  if (!embedUrl) return <div style={{ background: 'var(--color-error-bg)', borderRadius: 6, padding: '1rem', color: 'var(--color-error)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
   const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
   // Aspect ratio is per-device (padding-bottom drives the box height): a wide
   // 16:9 embed on desktop can be a square on mobile, say.
@@ -1806,6 +1810,9 @@ function VideoEmbed(props: any) {
 function Embed(props: any) {
   const { id, src, height, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   if (!src) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No embed URL entered</div>
+  // http(s) only - anything else (a "javascript:"/"data:text/html" src) would
+  // run in the site origin once it reaches the <iframe>, so drop the frame.
+  if (!isHttpUrl(src)) return <div style={{ background: 'var(--color-error-bg)', borderRadius: 6, padding: '1rem', color: 'var(--color-error)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Embed URL must be a valid http(s) address</div>
   // Height is per-device: embedded widgets frequently need a taller (or
   // shorter) box once the viewport narrows.
   const hRv = normalizeResponsiveValue<string>(height)
