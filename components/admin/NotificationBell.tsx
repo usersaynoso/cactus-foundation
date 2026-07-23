@@ -15,10 +15,11 @@ import {
 import {
   UPLOAD_STARTED_EVENT,
   type UploadTask,
+  type UploadSnapshot,
   clearFinishedUploads,
   dismissUpload,
-  getServerUploads,
-  getUploads,
+  getServerUploadSnapshot,
+  getUploadSnapshot,
   subscribeUploads,
 } from '@/lib/upload-status-client'
 import { formatBytes } from '@/app/cactus-admin/media/format'
@@ -152,21 +153,29 @@ function uploadGlyph(s: UploadTask['status']): string {
 // The live upload batch, rendered as its own section at the top of the bell
 // dropdown. These are ephemeral and have no read/unread state - just progress,
 // with a Clear for finished files and a per-file dismiss.
-function UploadSection({ uploads, onClear, onDismiss }: {
-  uploads: UploadTask[]
+//
+// It renders the pre-aggregated snapshot, not the raw task list: a 25,000-file
+// drop is summarised by its totals and one overall bar, with only the failures
+// and the handful in flight listed by name (`snapshot.visible`, capped upstream).
+// Listing every file meant thousands of DOM rows repainting on every progress
+// tick, which locked the page - the whole reason a big upload looked stuck.
+function UploadSection({ snapshot, onClear, onDismiss }: {
+  snapshot: UploadSnapshot
   onClear: () => void
   onDismiss: (id: string) => void
 }) {
-  if (uploads.length === 0) return null
+  const { total, active, done, failed, skipped, overallProgress, visible, hidden } = snapshot
+  if (total === 0) return null
 
-  const active = uploads.filter((t) => t.status === 'queued' || t.status === 'uploading').length
-  const done = uploads.filter((t) => t.status === 'done').length
-  const failed = uploads.filter((t) => t.status === 'error').length
   const title = active > 0
-    ? `Uploading ${active} file${active === 1 ? '' : 's'}…`
+    ? `Uploading ${active.toLocaleString('en-GB')} file${active === 1 ? '' : 's'}…`
     : failed > 0
-      ? `${done} uploaded, ${failed} failed`
-      : `Uploaded ${done} file${done === 1 ? '' : 's'}`
+      ? `${done.toLocaleString('en-GB')} uploaded, ${failed.toLocaleString('en-GB')} failed`
+      : `Uploaded ${done.toLocaleString('en-GB')} file${done === 1 ? '' : 's'}`
+  // How many finished, out of the whole batch - the honest denominator while
+  // thousands are still queued, so the bar doesn't read as "nearly done" at the
+  // start of a huge drop.
+  const settled = done + failed + skipped
 
   return (
     <div className="admin-bell-uploads" role="status" aria-live="polite">
@@ -176,8 +185,16 @@ function UploadSection({ uploads, onClear, onDismiss }: {
           <button type="button" className="admin-bell-uploads-clear" onClick={onClear}>Clear</button>
         )}
       </div>
+      {active > 0 && (
+        <div className="admin-bell-uploads-overall">
+          <div className="admin-bell-upload-track">
+            <div className="admin-bell-upload-fill" style={{ width: `${Math.round(overallProgress * 100)}%` }} />
+          </div>
+          <span className="admin-bell-uploads-count">{settled.toLocaleString('en-GB')} of {total.toLocaleString('en-GB')}</span>
+        </div>
+      )}
       <ul className="admin-bell-uploads-list">
-        {uploads.map((t) => {
+        {visible.map((t) => {
           const finished = t.status === 'done' || t.status === 'error' || t.status === 'skipped'
           return (
             <li key={t.id} className="admin-bell-upload-row">
@@ -204,6 +221,9 @@ function UploadSection({ uploads, onClear, onDismiss }: {
           )
         })}
       </ul>
+      {hidden > 0 && (
+        <p className="admin-bell-uploads-more">…and {hidden.toLocaleString('en-GB')} more</p>
+      )}
     </div>
   )
 }
@@ -220,8 +240,8 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
   // which is the React-idiomatic way to gate createPortal without a setState-in-effect.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const deployStatus = useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
-  const uploads = useSyncExternalStore(subscribeUploads, getUploads, getServerUploads)
-  const activeUploads = uploads.filter((t) => t.status === 'queued' || t.status === 'uploading').length
+  const uploads = useSyncExternalStore(subscribeUploads, getUploadSnapshot, getServerUploadSnapshot)
+  const activeUploads = uploads.active
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -435,7 +455,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
 
       <DeployStatusLive />
 
-      <UploadSection uploads={uploads} onClear={clearFinishedUploads} onDismiss={dismissUpload} />
+      <UploadSection snapshot={uploads} onClear={clearFinishedUploads} onDismiss={dismissUpload} />
 
       <div className="admin-bell-dropdown-body">
         {notifications === null ? (

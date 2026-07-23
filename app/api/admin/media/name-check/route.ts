@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { checkUploadName } from '@/lib/media/organise'
+import { checkUploadNamesBulk } from '@/lib/media/organise'
 
 // Which of the names about to be uploaded are already taken in the destination
 // folder, and what each could be called instead.
@@ -23,13 +23,10 @@ export async function POST(request: NextRequest) {
     : []
   if (names.length === 0) return NextResponse.json({ clashes: [] })
 
-  // Deduplicated: a batch containing the same name twice only needs asking once,
-  // and the second copy is a clash against the first either way.
-  const clashes: { name: string; existingId: string; suggestedName: string }[] = []
-  for (const name of Array.from(new Set(names))) {
-    const clash = await checkUploadName(name, folderId)
-    if (clash) clashes.push({ name, ...clash })
-  }
+  // Bulk: the whole batch is answered in a bounded number of queries. Doing this
+  // name-by-name turned a 25,000-file drop into 50,000 sequential round trips,
+  // which timed out before any upload began - the batch looked stuck forever.
+  const clashes = await checkUploadNamesBulk(names, folderId)
 
   return NextResponse.json({ clashes })
 }

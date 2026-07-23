@@ -707,6 +707,30 @@ a:hover {
 .admin-bell-uploads-clear:hover {
   color: var(--color-text);
 }
+/* Overall progress across a whole batch - the honest denominator while thousands
+   of files are still queued, shown instead of one row per file. */
+.admin-bell-uploads-overall {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-2);
+}
+.admin-bell-uploads-overall .admin-bell-upload-track {
+  flex: 1;
+  margin-top: 0;
+}
+.admin-bell-uploads-count {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.admin-bell-uploads-more {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
 .admin-bell-uploads-list {
   list-style: none;
   margin: 0;

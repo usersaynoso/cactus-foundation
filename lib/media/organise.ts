@@ -173,6 +173,88 @@ export async function checkUploadName(
   return { existingId: clash.id, suggestedName }
 }
 
+/**
+ * The bulk form of checkUploadName, for a whole drag-and-drop batch. Answers the
+ * same question - which of these names are already taken in `folderId`, and what
+ * each clash could be called instead - but in a bounded number of queries rather
+ * than the two-per-name the single form costs.
+ *
+ * That difference is the whole point: a 25,000-file drop through checkUploadName
+ * is 50,000 sequential round trips, which times out the serverless function
+ * before a single byte is uploaded, so the batch appears to hang forever. Here:
+ *   - Clashes are found with chunked `IN` queries (a handful, run in parallel),
+ *     so the common case of dropping into a fresh folder returns [] near-instantly.
+ *   - Suffixes are computed in memory against one snapshot of the folder's names,
+ *     so no clash costs a query, and two clashing names never pick the same free
+ *     name (each suggestion is reserved as it's chosen).
+ */
+export async function checkUploadNamesBulk(
+  names: string[],
+  folderId: string | null,
+): Promise<{ name: string; existingId: string; suggestedName: string }[]> {
+  // A batch containing the same name twice only needs asking once; the second
+  // copy clashes against the first either way.
+  const unique = Array.from(new Set(names.filter((n) => typeof n === 'string' && !!n)))
+  if (unique.length === 0) return []
+
+  // Find the clashes with chunked IN queries. Chunked so a giant batch never
+  // builds a single query with tens of thousands of bound parameters, and run in
+  // parallel because they're independent reads.
+  const CHUNK = 1000
+  const chunks: string[][] = []
+  for (let i = 0; i < unique.length; i += CHUNK) chunks.push(unique.slice(i, i + CHUNK))
+  const found = await Promise.all(
+    chunks.map((chunk) =>
+      prisma.media.findMany({
+        where: { folderId, originalName: { in: chunk } },
+        select: { id: true, originalName: true },
+      }),
+    ),
+  )
+  const existingIdByName = new Map<string, string>()
+  for (const row of found.flat()) {
+    if (row.originalName && !existingIdByName.has(row.originalName)) {
+      existingIdByName.set(row.originalName, row.id)
+    }
+  }
+  if (existingIdByName.size === 0) return []
+
+  // At least one clash, so load the folder's names once and compute every
+  // suffix in memory against that set - reserving each suggestion so distinct
+  // clashing names can't be handed the same "free" name.
+  const allNames = await prisma.media.findMany({ where: { folderId }, select: { originalName: true } })
+  const taken = new Set<string>()
+  for (const r of allNames) if (r.originalName) taken.add(r.originalName)
+
+  const clashes: { name: string; existingId: string; suggestedName: string }[] = []
+  // Preserve first-seen order so the prompts appear in the order files were picked.
+  for (const name of unique) {
+    const existingId = existingIdByName.get(name)
+    if (!existingId) continue
+    clashes.push({ name, existingId, suggestedName: reserveSuffix(name, taken) })
+  }
+  return clashes
+}
+
+/**
+ * Pick the first free "name-1.ext", "name-2.ext"… against `taken`, mark it taken
+ * so the next caller skips it, and return it. The "-N" form (not " (N)") matches
+ * checkUploadName: it's what lands in the storage key and therefore the url,
+ * where a space and bracket would only escape into noise.
+ */
+function reserveSuffix(name: string, taken: Set<string>): string {
+  const dot = name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  let suggested = `${stem}-1${ext}`
+  for (let n = 1; n < 100000; n++) {
+    const candidate = `${stem}-${n}${ext}`
+    if (!taken.has(candidate)) { suggested = candidate; break }
+  }
+  taken.add(suggested)
+  return suggested
+}
+
 /** Append " (1)", " (2)"… to a name until it's free in the target folder. */
 async function suffixUntilFree(name: string, folderId: string | null, excludeMediaId: string): Promise<string> {
   const dot = name.lastIndexOf('.')

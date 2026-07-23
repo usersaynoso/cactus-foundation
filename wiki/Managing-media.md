@@ -50,6 +50,8 @@ Click **Upload** (or **+ Upload** in the picker window), select a file from your
 
 In the media library the Upload button spells out where files will land (**+ Upload to Photos**, say), and as soon as you pick or drop files the **notification bell** pops open with a live progress list, showing each one filling up as it goes and ticking green when it's done. Files go up **six at a time** rather than in single file, so a few hundred photos take minutes rather than an afternoon, and one slow-moving file doesn't hold up the queue behind it. If one won't do - wrong sort of file, or a stray oversized SVG - it's flagged there and then with the reason, so nothing fails in silence. These upload entries sit above your usual notifications and don't count as unread - clear them with a click once you're done.
 
+Dropping a really big batch - thousands of files, or tens of thousands - is fine, and the bell keeps up: instead of drawing a row for every single file (which would be a wall of thousands), it shows one **overall bar** with a running "**so many of so many**" count, and lists individually only what's in flight right now and anything that went wrong. It all still uploads; you just get a tidy summary rather than an unreadable list.
+
 **File names:** whatever you called the file is what it's stored as. Upload `160cm-white-6-person-1.jpg` and that's the name it keeps, in your storage and in the web address it's served from - no scrambled prefix in front of it. Names are tidied on the way in: spaces and punctuation become hyphens, capitals become lower case, because web addresses are fussy about such things.
 
 **If that name is already taken** in the folder you're uploading to, Cactus stops and asks rather than deciding for you:
