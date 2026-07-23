@@ -47,9 +47,7 @@ Once the sheet exists, the settings tab is done with its job. The day-to-day but
 
 ## Cost price - a quiet warning
 
-Your product cost price is your supplier cost - your margin. If you push it to the sheet, anyone you share that sheet with can see it.
-
-There is an **Include cost price** switch on the settings tab. It is on by default. Turn it off and Push again, and the cost price column disappears from the sheet entirely - so it can't be seen, and a later Pull can't blank it out.
+Your product cost price is your supplier cost - your margin. It is always included in the sheet, on both the Products and the Variations tabs, so anyone you share that sheet with can see it. Share the sheet with that in mind - and if you would rather a particular person didn't see your margins, send them a copy with the cost column deleted rather than the live sheet.
 
 ---
 
@@ -89,6 +87,8 @@ Once you confirm, Pull shows you a live count as it goes - so many products of s
 
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
+Every stage now works this way, products included. Previously the products stage tried to swallow the whole lot in one go, and on a large enough catalogue it would run out of time, start again, run out of time again - and sit on "Updating products…" indefinitely while looking terribly busy. It now works through products in small batches exactly like variations, banking its progress after each one, so however large the catalogue, every batch counts and the Pull always gets there. Variations also go through in larger batches than before, so the whole thing finishes sooner.
+
 ### Changed your mind halfway through
 
 A Pull that is running now has a **Stop pull** button next to the progress bars. Press it, confirm, and it winds up at the end of the batch it is already on rather than in the middle of one - so you may see it tick over once more before it settles. Everything it had already applied stays applied; the rest of your sheet is simply left alone, and the window then shows you the tally of what did land before you close it.
@@ -97,7 +97,7 @@ It is a stop, not an undo. Nothing gets put back, and a stopped Pull cannot be r
 
 Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
 
-The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit.
+The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit, and the matching list under the variation count to see which variations (by product and option) a Pull will update.
 
 ### Sheet logs
 
@@ -113,7 +113,7 @@ A few things the preview will tell you:
 
 The sheet is treated as the say-so on what should exist. **Delete a product's row, Pull, and that product is deleted from your site** - along with any of its size/colour variations. Delete just some of a product's variation rows and only those variations go; clear out all of a product's variation rows and it loses the lot.
 
-Because this cannot be undone, the preview never hides it from you. Every product about to be deleted is listed by name under **"In the shop but not in your sheet"**, and the number of variations about to be removed is spelled out too. Nothing happens until you press the button, and if you change your mind you just put the row back in the sheet before you do.
+Because this cannot be undone, the preview never hides it from you. Every product about to be deleted is listed by name under **"In the shop but not in your sheet"**, and every variation about to be removed is listed too - by product name and option (say, "Oak Desk - 1600mm") - so a bare "55 variations will be removed" never leaves you guessing which 55. Nothing happens until you press the button, and if you change your mind you just put the row back in the sheet before you do.
 
 One quiet safeguard worth knowing: Pull will only ever delete something that was in the sheet as of your **last Push**. So if you add a brand-new product in the admin and then Pull before you have Pushed it out to the sheet, Cactus won't mistake "not pushed yet" for "deleted" and bin it. (And on a sheet you have never Pushed to at all, Pull deletes nothing - it has no idea what was meant to be there.)
 
@@ -123,7 +123,7 @@ Past orders are never harmed by a deletion: an order keeps its own record of wha
 
 ## What the sheet covers, and what it doesn't
 
-The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant price, stock and SKU.
+The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
 
 ### The Supplier Catalogues tab
 
