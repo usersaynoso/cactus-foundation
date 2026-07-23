@@ -174,7 +174,9 @@ Your **Products** list (Shop → Products) has a **Variations** tab beside the u
 The **Variation tools** entry in your sidebar holds the shop-wide reports and the spreadsheet import. Editing still happens on each product's own Variations tab.
 
 - **Reports** rolls your variant sales up under each parent product, with the best and slowest sellers, so you can see whether it's the small blue ones flying off the shelf.
-- **Import / export** downloads every variant as a spreadsheet and lets you upload one back - one row per variant, with its options and price, stock, SKU, barcode and weight. Handy for a big price change or setting up lots of variants at once. Create the parent products in the shop first; the spreadsheet fills in their options and variants.
+- **Import / export** downloads every variant as a spreadsheet and lets you upload one back - one row per variant, with its options and price, stock, SKU, barcode and weight. The extra price types travel too: **Sale Price, RRP, Trade Price and Cost Price** each get their own column beside the ordinary price, so a big change to any of them is a spreadsheet job rather than a variant-by-variant one. A blank price cell means the variant simply hasn't got that figure; fill it in and upload to set it. Handy for a big price change or setting up lots of variants at once. Create the parent products in the shop first; the spreadsheet fills in their options and variants.
+
+  The export also carries a **Variant ID** column - each variation's permanent identity. Leave it alone and re-importing an edited file recognises every row even when you've reworded its option values: change "Red" to "Crimson" down the column and the import renames the value (or moves just the edited variations onto the new wording) instead of treating them as strangers and creating duplicates. Rows without an ID - a file from before the column existed, or a row you add by hand for a new variation - still match by their option values exactly as before.
 
 ## Good to know
 

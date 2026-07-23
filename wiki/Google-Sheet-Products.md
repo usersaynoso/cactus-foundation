@@ -119,6 +119,17 @@ One quiet safeguard worth knowing: Pull will only ever delete something that was
 
 Past orders are never harmed by a deletion: an order keeps its own record of what was bought, even once the product itself is gone.
 
+### The Variant ID column, and renaming things in the sheet
+
+The Variations tab carries a **Variant ID** column (it appears on your next Push if your sheet predates it). It is each variation's permanent identity - not pretty, not meant to be - and it is what lets you rename things in the sheet without consequences.
+
+Before this column existed, a variation was recognised purely by its option values. Change "Red" to "Crimson" down a column and Pull no longer recognised those rows: it offered to delete every "Red" variation and create a fresh set of "Crimson" ones - new identities, broken links to 3D files and the like. With the column in place, Pull sees the ID, knows exactly which variation each row is, and treats the new wording as a **rename**: same variation, same stock, same SKU, new label. If every row using a value agrees on the new wording, the value itself is renamed in one go; if only some rows change, just those variations are moved to the new value.
+
+Two things to keep in mind:
+
+- **Leave the column alone.** Don't type into it, don't clear it, don't paste one row's ID into another. A blank cell just falls back to the old matching (by SKU, then by option values), so nothing breaks - you simply lose the safety net for that row.
+- A row you add by hand for a brand-new variation naturally has no ID; leave the cell empty and Push will fill it in once the variation exists.
+
 ---
 
 ## What the sheet covers, and what it doesn't
