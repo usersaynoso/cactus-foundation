@@ -39,7 +39,7 @@ If you leave it in Testing, Google quietly cuts off access after **seven days** 
 ### 3. Connect, and make the sheet
 
 1. Click **Connect Google** and sign in when prompted. The settings tab will then show "Connected as ..." with your account.
-2. Click **Create the sheet**. Cactus makes a fresh Google Sheet - always its own, never one you picked - with four tabs: **Products**, **Variations**, **Supplier Catalogues**, and a **Read me** with the short version of this page.
+2. Click **Create the sheet**. Cactus makes a fresh Google Sheet - always its own, never one you picked - with four tabs: **Products**, **Variations**, **Suppliers**, and a **Read me** with the short version of this page.
 
 Once the sheet exists, the settings tab is done with its job. The day-to-day buttons - **Push**, **Pull**, **Open sheet** and the sync log - live on your **Products** page from now on, under a **Google Sheet** button next to New product. Settings stays as the one-off setup.
 
@@ -57,7 +57,7 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 ### Push to sheet (your site → the sheet)
 
-Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations, then Supplier Catalogues.
+Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations, then Suppliers.
 
 It fills in its own columns and leaves the rest of the tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
 
@@ -72,6 +72,8 @@ The rule is simple enough: **a formula survives a Push as long as it still works
 There's one more thing that ends a formula's life, and it's worth knowing about: **a formula is dropped if its row moves.** Rows move whenever a product is added or removed above it, which on a busy shop is most weeks. This is not us being lazy - a formula's references don't shuffle along with it the way they do when you drag a cell about in Google Sheets, so a formula that moved rows would carry on pointing at whichever product had wandered into the old spot. Better a plain number than a confidently wrong one.
 
 If you want formulas that survive absolutely everything, put them in columns to the **right** of the last one Cactus fills in. That space is entirely yours: a Push never writes there and never clears it, so anything you build out there - a margin calculator, a running total, a whole second dashboard - is untouched. Same goes for a Pull, which only ever reads the columns it recognises.
+
+One quirk on the **Variations** tab is now sorted. A variant's price cells used to arrive as text - you'd sometimes spot a stray apostrophe in front of the number - which meant a formula there was replaced on every Push even when the price hadn't changed. Variant prices now behave exactly like the ones on the Products tab, so a formula on a variant price is kept for as long as it still agrees with your shop.
 
 ### Pull from sheet (the sheet → your site)
 
@@ -136,13 +138,26 @@ Two things to keep in mind:
 
 The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
 
-### The Supplier Catalogues tab
+### Attribute columns
 
-Alongside the catalogue itself, the sheet carries a **Supplier Catalogues** tab: every supplier in your address book, whether they're enabled or disabled, and the catalogues you've recorded against each one with a link to each. It's there so the person doing the pricing has the supplier's own price list to hand instead of in another browser tab.
+If you use **Attributes** on your products, they travel with the sheet too.
 
-This one only travels one way. Push refreshes it; Pull never so much as glances at it, so editing it changes nothing on your site and nothing you type there survives the next Push. Catalogues are added and edited under **Shop → Suppliers**, which is where they belong.
+- Attributes that tell your **variants apart** - a per-variant Finish, Catalog and the like - each get a column on the **Variations** tab. Type a value and Pull, and it's set on that variant. Type one against a product that wasn't using that attribute yet, and Pull simply starts using it: the attribute is added to that product and the value set, with no trip to the admin needed. Blank cells are left alone, and the sheet's own columns (Price, Supplier and so on) are never mistaken for an attribute.
+- Attributes you keep at the **product level** - one value for the whole product, like a markup band - get a column on the **Products** tab. Fill it in and Pull to save it against the product; if the attribute takes more than one value, separate them with commas in the same cell.
+
+A value the attribute hasn't seen before is created for you, exactly as a new size or colour would be. A product-level attribute only shows up as a column once a product actually uses it, so to put one on a product for the first time, add it in the admin and it'll be in the sheet from then on.
+
+### The Suppliers tab
+
+Alongside the catalogue itself, the sheet carries a **Suppliers** tab: every supplier in your address book, whether they're enabled or disabled, the trade discount you've got on file for each, and the catalogues you've recorded against them with a link to each. It's there so the person doing the pricing has the supplier's own price list, and the discount that goes with it, to hand instead of in another browser tab.
+
+The **Discount** column is a plain number, no percent sign, so you can add it into your own sums without the sheet treating it as text. It's left blank for a supplier you've recorded no discount against.
+
+This one only travels one way. Push refreshes it; Pull never so much as glances at it, so editing it changes nothing on your site and nothing you type there survives the next Push. Suppliers and their catalogues are added and edited under **Shop → Suppliers**, which is where they belong.
 
 A supplier with no catalogues recorded still gets a row, with the catalogue columns left blank - "none recorded yet" being rather more useful than a silent absence.
+
+> If you made your sheet before this tab was renamed, don't worry: your old **Supplier Catalogues** tab keeps its place and its name simply changes to **Suppliers** on your next Push, with everything on it intact.
 
 If your sheet was created before this tab existed, don't go looking for it: your next Push adds it, formatting and all, with nothing required from you.
 
