@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -1112,6 +1112,63 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
   await repointMediaToBlob(media, result, { optimised: true })
 
   return { optimised: true, before, after }
+}
+
+export type MarkOptimisedResult = {
+  changed: string[]
+  skipped: { id: string; reason: string }[]
+}
+
+/**
+ * Set (or clear) the "already optimised" flag on media items without touching a
+ * single byte.
+ *
+ * The flag's only job is to decide whether the library keeps offering to
+ * re-encode a file. Nothing reads it to describe the bytes, so an admin who
+ * compressed a batch of images on their own machine before uploading them can
+ * say so here, rather than sitting through a re-encode of every one of them to
+ * be told what they already knew. The optimiser reaches the same verdict — it
+ * downloads each file, encodes it, finds no saving and sets the flag itself —
+ * it just charges a download and a WebP encode per image for the privilege.
+ *
+ * `optimised` is a parameter rather than always true because this is an
+ * assertion, and assertions are sometimes wrong: marking four hundred images by
+ * mistake would otherwise be a one-way door, with no way left to ask for the
+ * optimise that is genuinely owed.
+ *
+ * Only files the optimiser would ever have taken (raster images, GLB models) are
+ * eligible. Flagging an SVG would put a ✓ Optimised badge on a file that was
+ * never offered an optimise in the first place — a claim about nothing.
+ */
+export async function markMediaOptimised(ids: string[], optimised: boolean): Promise<MarkOptimisedResult> {
+  const changed: string[] = []
+  const skipped: { id: string; reason: string }[] = []
+  if (ids.length === 0) return { changed, skipped }
+
+  const rows = await prisma.media.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, mimeType: true, optimised: true },
+  })
+  const found = new Map(rows.map((r) => [r.id, r]))
+
+  for (const id of ids) {
+    const row = found.get(id)
+    if (!row) {
+      skipped.push({ id, reason: 'Media item not found' })
+    } else if (!isOptimisableType(row.mimeType)) {
+      skipped.push({ id, reason: 'Not a file the optimiser handles' })
+    } else if (row.optimised === optimised) {
+      skipped.push({ id, reason: optimised ? 'Already marked as optimised' : 'Not marked as optimised' })
+    } else {
+      changed.push(id)
+    }
+  }
+
+  if (changed.length > 0) {
+    await prisma.media.updateMany({ where: { id: { in: changed } }, data: { optimised } })
+  }
+
+  return { changed, skipped }
 }
 
 // ---------------------------------------------------------------------------

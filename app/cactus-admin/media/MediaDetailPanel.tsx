@@ -35,6 +35,7 @@ export default function MediaDetailPanel({
   onCopy,
   onDelete,
   onOptimise,
+  onMarkOptimised,
   onReplace,
   onCopyLink,
   onDownload,
@@ -67,6 +68,8 @@ export default function MediaDetailPanel({
   onCopy: () => void
   onDelete: () => void
   onOptimise: () => void
+  /** Flip the "already optimised" flag - no re-encode. Direction follows item.optimised. */
+  onMarkOptimised: () => void
   onReplace: () => void
   onCopyLink: () => void
   onDownload: () => void
@@ -78,7 +81,12 @@ export default function MediaDetailPanel({
   const canEdit = isImage && !isSvg
   // Not the same question as canEdit any more: a 3D model has nothing to crop or
   // resize, but it very much can be optimised. See isOptimisableType.
-  const canOptimise = isOptimisableType(item.mimeType) && !item.optimised
+  // Two different questions. "Can it be optimised" is what puts the Optimise
+  // button there; "would the optimiser ever have taken it" is what allows the
+  // claim that it already has been - and that one stays true afterwards, because
+  // taking the claim back is how a wrong one gets fixed.
+  const canMarkOptimised = isOptimisableType(item.mimeType)
+  const canOptimise = canMarkOptimised && !item.optimised
   const filename = filenameOf(item)
   const asideRef = useRef<HTMLElement>(null)
   useFocusTrap(asideRef)
@@ -270,6 +278,18 @@ export default function MediaDetailPanel({
           <button type="button" className="btn btn-secondary btn-sm" onClick={onCopyLink}>Copy link</button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onDownload}>Download</button>
           {canManage && canOptimise && <button type="button" className="btn btn-secondary btn-sm" disabled={optimising} onClick={onOptimise}>{optimising ? 'Optimising…' : 'Optimise'}</button>}
+          {canManage && canMarkOptimised && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              title={item.optimised
+                ? 'Put this back on the optimise list. The file is not touched.'
+                : 'Already optimised it yourself? Say so and the library stops offering to re-encode it. The file is not touched.'}
+              onClick={onMarkOptimised}
+            >
+              {item.optimised ? 'Mark as not optimised' : 'Mark as optimised'}
+            </button>
+          )}
           {canManage && replaceable && <button type="button" className="btn btn-secondary btn-sm" disabled={replacing} title="Swap the file for a fresh one, keeping this item and everything pointing at it" onClick={onReplace}>{replacing ? 'Replacing…' : 'Replace file…'}</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onChangeRatio}>Change ratio…</button>}

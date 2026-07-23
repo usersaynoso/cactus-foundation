@@ -576,6 +576,27 @@ export default function MediaLibrary({
     } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Optimise failed') } finally { setBusy('') }
   }
 
+  // Say a file is already optimised without re-encoding it - for images that were
+  // compressed before they were ever uploaded, where the optimiser's offer is
+  // just a slow way of being told what you already knew. Reversible, so a wrong
+  // call isn't a one-way door: the same action puts an item back on the list.
+  async function markOptimised(ids: string[], optimised: boolean) {
+    if (ids.length === 0) { pushToast('info', 'Nothing selected can be marked'); return }
+    setBusy(optimised ? 'Marking…' : 'Unmarking…')
+    try {
+      const res = await fetch('/api/admin/media/bulk-mark-optimised', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, optimised }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Could not mark those items')
+      const n = Array.isArray(d.changed) ? d.changed.length : 0
+      const noun = `${n} item${n === 1 ? '' : 's'}`
+      if (n > 0) pushToast('success', optimised ? `Marked ${noun} as optimised` : `${noun} back on the optimise list`)
+      else pushToast('info', 'Nothing to mark')
+      await fetchItems()
+    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Could not mark those items') } finally { setBusy('') }
+  }
+
   // Open the file picker for a replacement. Which item it's aimed at rides on a
   // ref through the browser's own dialog and comes back in the input's change.
   function chooseReplacement(id: string) {
@@ -844,6 +865,16 @@ export default function MediaLibrary({
   const selectionActive = selected.size > 0
   const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
   const rasterSelected = useMemo(() => items.filter((i) => selected.has(i.id) && isRasterImage(i)), [items, selected])
+  // Which way the "already optimised" button points, and at what. Anything still
+  // unmarked gets marked; a selection where everything is marked already offers
+  // the way back instead, so the flag is never a door that only opens one way.
+  const markTargets = useMemo(() => {
+    const eligible = items.filter((i) => selected.has(i.id) && isOptimisableType(i.mimeType))
+    const unmarked = eligible.filter((i) => !i.optimised)
+    return unmarked.length > 0
+      ? { optimised: true, ids: unmarked.map((i) => i.id) }
+      : { optimised: false, ids: eligible.map((i) => i.id) }
+  }, [items, selected])
   const anyFilterActive = !!search || type !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
@@ -977,6 +1008,19 @@ export default function MediaLibrary({
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setClipboard({ mode: 'copy', ids: Array.from(selected) })}>Copy</button>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveIds(Array.from(selected))}>Move to…</button>
                   <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy || !optimisableSelected} title={optimisableSelected ? 'Optimise selected images' : 'Nothing selected can be optimised'} onClick={optimiseBulk}>Optimise</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={!!busy || markTargets.ids.length === 0}
+                    title={markTargets.ids.length === 0
+                      ? 'Nothing selected can be marked'
+                      : markTargets.optimised
+                        ? 'Already optimised these yourself? Say so and the library stops offering to re-encode them. The files are not touched.'
+                        : 'Put these back on the optimise list. The files are not touched.'}
+                    onClick={() => markOptimised(markTargets.ids, markTargets.optimised)}
+                  >
+                    {markTargets.optimised ? 'Mark as optimised' : 'Mark as not optimised'}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -1117,6 +1161,7 @@ export default function MediaLibrary({
           onCopy={() => { setClipboard({ mode: 'copy', ids: [openItem.id] }); setOpenId(null) }}
           onDelete={() => { setSkippedInUse([]); setDeleteConfirm({ ids: [openItem.id] }) }}
           onOptimise={() => optimiseSingle(openItem.id)}
+          onMarkOptimised={() => markOptimised([openItem.id], !openItem.optimised)}
           onReplace={() => chooseReplacement(openItem.id)}
           onCopyLink={() => copyLink(openItem)}
           onDownload={() => downloadItem(openItem)}
@@ -1166,9 +1211,20 @@ export default function MediaLibrary({
             hasClipboard={!!clipboard}
             canEdit={!!it && it.mimeType.startsWith('image/') && it.mimeType !== 'image/svg+xml'}
             canOptimise={!!it && isOptimisable(it)}
+            canMarkOptimised={!!it && isOptimisableType(it.mimeType)}
+            markedOptimised={!!it?.optimised}
             canReplace={!!it && isReplaceable(it)}
             onOpen={() => setOpenId(id)}
             onOptimise={() => optimiseSingle(id)}
+            onMarkOptimised={() => {
+              // Right-clicking inside a selection acts on the whole selection, as
+              // Cut/Copy/Move already do here - but only on the items the claim
+              // can be made about, and only in the direction this one implies.
+              const target = selected.has(id)
+                ? items.filter((i) => selected.has(i.id) && isOptimisableType(i.mimeType) && i.optimised === !!it?.optimised)
+                : (it ? [it] : [])
+              markOptimised(target.map((i) => i.id), !it?.optimised)
+            }}
             onReplace={() => chooseReplacement(id)}
             onCopyLink={() => { if (it) copyLink(it) }}
             onDownload={() => { if (it) downloadItem(it) }}
@@ -1479,17 +1535,18 @@ function menuItem(label: string, fn: () => void, danger = false, disabled = fals
   )
 }
 
-function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, canReplace, onOpen, onOptimise, onReplace, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onChangeRatio, onResize, onDelete }: {
+function ContextMenu({ menu, canUpload, canDelete, hasClipboard, canEdit, canOptimise, canMarkOptimised, markedOptimised, canReplace, onOpen, onOptimise, onMarkOptimised, onReplace, onCopyLink, onDownload, onCut, onCopy, onPaste, onRename, onMove, onTags, onEdit, onChangeRatio, onResize, onDelete }: {
   menu: { x: number; y: number }
-  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean; canReplace: boolean
-  onOpen: () => void; onOptimise: () => void; onReplace: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onChangeRatio: () => void; onResize: () => void; onDelete: () => void
+  canUpload: boolean; canDelete: boolean; hasClipboard: boolean; canEdit: boolean; canOptimise: boolean; canMarkOptimised: boolean; markedOptimised: boolean; canReplace: boolean
+  onOpen: () => void; onOptimise: () => void; onMarkOptimised: () => void; onReplace: () => void; onCopyLink: () => void; onDownload: () => void; onCut: () => void; onCopy: () => void; onPaste: () => void; onRename: () => void; onMove: () => void; onTags: () => void; onEdit: () => void; onChangeRatio: () => void; onResize: () => void; onDelete: () => void
 }) {
   return (
-    <MenuShell menu={menu} height={390}>
+    <MenuShell menu={menu} height={420}>
       {menuItem('Open details', onOpen)}
       {menuItem('Copy link', onCopyLink)}
       {menuItem('Download', onDownload)}
       {canUpload && canOptimise && menuItem('Optimise', onOptimise)}
+      {canUpload && canMarkOptimised && menuItem(markedOptimised ? 'Mark as not optimised' : 'Mark as optimised', onMarkOptimised)}
       {canUpload && canReplace && menuItem('Replace file…', onReplace)}
       {canUpload && canEdit && menuItem('Edit image…', onEdit)}
       {canUpload && canEdit && menuItem('Change ratio…', onChangeRatio)}
