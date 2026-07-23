@@ -5,7 +5,7 @@
 - **Variants** - fixed choices like Size and Colour, where each combination can have its own price, stock level, SKU, barcode, weight and photo. (The weight column only appears while the shop is charging postage by weight - that switch lives at the top of Shop → Tax & shipping.) A "Red / XL" jumper and a "Blue / S" jumper are the same product to your customer, but you can price and count them separately behind the scenes.
 - **Personalisation** - free-form extras the customer fills in: engraving text, a gift message, a paid gift-wrap tick-box, a dropdown of finishes, a date, or an uploaded file (artwork, a photo, a logo). You decide which are optional, which are required, and what each one adds to the price.
 
-It needs the **Shop** module installed and up to date. Once both are in, every product in your shop grows a **Variations** tab, and you'll find a **Product options** entry in the Shop section of your admin sidebar for the shop-wide overview, reports and spreadsheet import.
+It needs the **Shop** module installed and up to date. Once both are in, every product grows a **Variations** tab for editing its own options, your **Products** list (Shop → Products) grows a **Variations** tab that lists every variation across the whole shop in one place, and a **Variation tools** entry appears in the Shop section of your admin sidebar for reports and spreadsheet import.
 
 ## Adding options to a product
 
@@ -161,13 +161,20 @@ The **options** block has a few looks to choose from in the editor. By default e
 
 Colour and image choices have a look of their own too. Left as they are, each shows as a pill carrying both the swatch and its name. Choose **Swatch only** and the name steps back to a small label that appears when the customer hovers over the swatch, leaving a tidy row of colours or pictures - handy when a product has a lot of them and the names would only crowd the page.
 
+## Browsing every variation
+
+Your **Products** list (Shop → Products) has a **Variations** tab beside the usual list of products. It shows every variation across the whole shop in one place - a thumbnail, which product it belongs to, its options (like "Walnut / Large"), price, stock and SKU, and, if you have the 3D module, its 3D file.
+
+- Pick a product from the **searchable dropdown** to narrow the list down to just that one.
+- Use the **Without…** filter to find the gaps: variations with no image, or (with the 3D module installed) no 3D file - so you can spot at a glance the ones still waiting for a photo or a model. Any extra columns your other add-ons contribute can be filtered on the same way.
+- It's a read-only overview: click a product's name to jump to its own Variations tab, which is where the actual editing happens.
+
 ## Reports and spreadsheets
 
-The **Product options** entry in your sidebar is where the shop-wide views live. Editing still happens on each product's own Variations tab.
+The **Variation tools** entry in your sidebar holds the shop-wide reports and the spreadsheet import. Editing still happens on each product's own Variations tab.
 
-- **Product options** lists every product that has options or personalisation, with its counts, and **Manage** drops you straight onto that product's Variations tab.
-- **Reports** (Product options → Reports) rolls your variant sales up under each parent product, with the best and slowest sellers, so you can see whether it's the small blue ones flying off the shelf.
-- **Import / export** (Product options → Import) downloads every variant as a spreadsheet and lets you upload one back - one row per variant, with its options and price, stock, SKU, barcode and weight. Handy for a big price change or setting up lots of variants at once. Create the parent products in the shop first; the spreadsheet fills in their options and variants.
+- **Reports** rolls your variant sales up under each parent product, with the best and slowest sellers, so you can see whether it's the small blue ones flying off the shelf.
+- **Import / export** downloads every variant as a spreadsheet and lets you upload one back - one row per variant, with its options and price, stock, SKU, barcode and weight. Handy for a big price change or setting up lots of variants at once. Create the parent products in the shop first; the spreadsheet fills in their options and variants.
 
 ## Good to know
 

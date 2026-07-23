@@ -89,6 +89,12 @@ Once you confirm, Pull shows you a live count as it goes - so many products of s
 
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
+### Changed your mind halfway through
+
+A Pull that is running now has a **Stop pull** button next to the progress bars. Press it, confirm, and it winds up at the end of the batch it is already on rather than in the middle of one - so you may see it tick over once more before it settles. Everything it had already applied stays applied; the rest of your sheet is simply left alone, and the window then shows you the tally of what did land before you close it.
+
+It is a stop, not an undo. Nothing gets put back, and a stopped Pull cannot be resumed - if you want the rest of the changes, run Pull again and it will pick up the differences that are still outstanding. The same button is there while it is retrying after a wobble, for when you would rather not sit and wait for it.
+
 Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
 
 The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit.

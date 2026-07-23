@@ -572,6 +572,16 @@ It is `shop.gallery-media` copied almost line for line, and that is the point of
 
 One trap this point had to design around, which any host with a dual-compiled file will hit: `detail-parts.tsx` is imported by both the RSC config *and* the client Puck editor bundle, so it cannot import `lib/modules/extension-points` at all - that module's static imports reach prisma, and dragging prisma into the editor bundle breaks the build. The registry is therefore only ever touched from `ShopProductDetail.rsc.tsx`, which is server-only by construction, and the resolved contributions ride to the part as data. If a host part renders in the editor as well as on the page, resolve elsewhere.
 
+### A whole-page tab beside a host's list
+
+`shop.products-tabs` (`modules/shop/app/cactus-admin/shop/products/page.tsx`, shop v0.1.92) lets a module add a whole-page tab beside the built-in list on the Products admin page. Its live consumer is `shop-variations`, whose **Variations** tab lists every variation across the shop with per-product and missing-image/missing-file filters. Use it when a module has a *catalogue-wide* view that belongs next to Products rather than as its own sidebar entry.
+
+It is the simplest tab point of the lot, because there is no shared form to save into (unlike `shop.product-editor-sections`): a contribution is just a self-contained screen.
+
+- **The host resolves the tabs, the client screen owns the strip.** `resolveProductsTabs` reads each active module's manifest, permission-filters per entry, and builds `ProductsTab[]` (`{id, label, order, node}`) passed into the client `ProductsScreen` with `initialTab` (from `?tab=`). The `node` is the contributed component already rendered - a client component here, since it is interactive and self-fetching, but a server component would work exactly as `shop.product-editor-sections` does.
+- **Render only the active tab.** `ProductsScreen` shows a `TabStrip` only when at least one tab is contributed (a plain shop is byte-for-byte unchanged), keeps "Products" as the first tab, and mounts *only* the active tab's node - so a contributed screen does not fetch until it is opened, and the host's own products fetch is skipped while a contributed tab is active.
+- **`label`/`order` on the manifest entry, with a fallback.** Like `shop.product-editor-sections`, these ride as extra manifest fields the generator ignores; the install-time schema strips them until the next deploy restores them, so the host derives a tidy label from the entry id in the meantime. Pick an id that reads well on its own (`variations`, not `shop-variations-list`) so that fallback window is invisible.
+
 ### A column in a host's table
 
 `shop-variations.variant-columns` (`modules/shop-variations/components/admin/ProductVariationsSection.tsx`) hangs an extra column on the variants table, one cell per variant. Its live consumer is `product-3d-views-for-shop`, whose **3D** column sits beside the Image column and takes a dropped model file for that variation.

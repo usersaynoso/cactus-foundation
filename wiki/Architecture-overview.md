@@ -57,6 +57,10 @@ proxy.ts  (Node.js runtime - NOT Edge)
 
 The admin path is a secret URL prefix chosen during setup. It's stored in `SiteConfig.adminPath` and mirrored to **Vercel Edge Config** whenever it changes (via the Vercel REST API). `proxy.ts` reads it from Edge Config first (fast, no database round-trip), falling back to a Prisma read cached briefly in memory if the Edge Config write credentials are absent. Same pattern for site status.
 
+That fallback read is deliberately failure-tolerant. The in-memory cache only lives five seconds, so a freshly started instance always has to go to the database, and a throw inside `proxy.ts` is not a friendly error page - it is a bare 500 on whatever the visitor asked for. `getAdminPathCached()` and `getSiteStatusCached()` therefore return the last value they successfully read when a refresh fails, rather than letting the error escape. A value a few seconds stale is harmless here: both only change when an admin edits them.
+
+The admin section also has a render error boundary (`app/cactus-admin/error.tsx`), covering the sign-in page as well as the rest of admin. It replaces the framework's default "Internal Server Error" screen with a card explaining the request did not load and a **Try again** button that re-runs the render. Errors thrown by the admin *layout* itself go to the parent boundary rather than this one, so the layout guards its own reads inline instead: the session read falls back to a redirect to the (resilient) login page, and the config, module-list, unread-count and permission reads each fall back to an empty value the shell already tolerates, so a passing blip loses a corner of the chrome rather than the whole frame.
+
 ## Vercel project and domain connection (setup wizard)
 
 Before database provisioning, the wizard connects to Vercel and attaches a domain to the project:
@@ -194,6 +198,8 @@ All three gate on `media.upload`, take `mode: 'replace' | 'new'`, and funnel int
 The geometry for reshape and resize lives in its own pure, unit-tested module with no sharp or prisma import: the arithmetic is the part that silently ruins images, and it is cheap to pin down. Both cap their output (`MAX_ASPECT_PIXELS` / `MAX_RESIZE_PIXELS`, 40 MP) by scaling the whole plan uniformly rather than by trimming.
 
 Both bulk routes run **sequentially** - each re-encode is CPU-heavy - and report a three-bucket tally (`changed` / `skipped` / `failed`). A skip is a 200 with a plain-English `reason`, not an error: "already that shape", "already smaller than that box". One awkward item never aborts the batch.
+
+One neighbouring route deliberately derives nothing. `POST /api/admin/media/bulk-mark-optimised` (`media.upload`, body `{ ids, optimised? }`) sets or clears `Media.optimised` and touches no bytes at all, for images that were compressed before they were ever uploaded - the optimiser reaches the same verdict, but charges a download and a WebP encode per file to get there. Because it is one SELECT and one UPDATE rather than per-image work, it takes the whole selection in a single request instead of being driven an id at a time through `runBulkImageJob`. The flag is writable in both directions on purpose: it is an admin's assertion, and a wrong one must not be a one-way door.
 
 `Media` carries no `width`/`height` columns; dimensions are read on demand via `sharp(...).metadata()`. The resize dialog therefore reads `naturalWidth`/`naturalHeight` off the loaded preview purely to tell the user what they're getting - the server measures the real bytes itself and is the one that decides.
 

@@ -378,7 +378,17 @@ A few sensible rules keep things safe:
 
 - **Logos and icons in the SVG format are left alone** - they're already tiny and shrinking them would do more harm than good.
 - **Anything already as small as it's going to get** is skipped rather than made bigger, and marked as optimised so you're not offered it again.
-- Optimising is a one-way tidy-up - there's no "un-optimise" - but since the picture stays visually the same, there's rarely a reason to want one.
+- Optimising is a one-way tidy-up - the heavier original isn't kept - but since the picture stays visually the same, there's rarely a reason to want it back.
+
+### Already slimmed them down yourself?
+
+Plenty of people optimise their pictures on their own computer before uploading them, particularly for a big batch. Cactus has no way of knowing that has happened, so it will cheerfully offer to do the job all over again.
+
+You can put it straight. Select the files and press **Mark as optimised** in the bar above the library, or use the button on a single file's details panel - it's on the right-click menu too. The files themselves aren't touched: nothing is re-saved, the picture doesn't change and neither does its name. All it does is tell the library to stop asking. The green **✓ Optimised** badge appears, and the **Optimisable** tile stops counting them.
+
+Marked something by mistake? Select it again and the same button now reads **Mark as not optimised**, which puts it back on the list. Nothing is lost either way, which is rather the point of letting you say it in the first place.
+
+To be clear, pressing **Optimise** on a picture that genuinely is already as small as it gets does no harm at all - Cactus re-saves it, finds it can't do better, leaves your original exactly where it was and ticks it off. Marking simply spares you the wait, which on a few hundred files is a wait worth sparing.
 
 ### Slimming down 3D models
 
