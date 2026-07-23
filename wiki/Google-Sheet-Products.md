@@ -39,7 +39,7 @@ If you leave it in Testing, Google quietly cuts off access after **seven days** 
 ### 3. Connect, and make the sheet
 
 1. Click **Connect Google** and sign in when prompted. The settings tab will then show "Connected as ..." with your account.
-2. Click **Create the sheet**. Cactus makes a fresh Google Sheet - always its own, never one you picked - with three tabs: **Products**, **Variations**, and a **Read me** with the short version of this page.
+2. Click **Create the sheet**. Cactus makes a fresh Google Sheet - always its own, never one you picked - with four tabs: **Products**, **Variations**, **Supplier Catalogues**, and a **Read me** with the short version of this page.
 
 Once the sheet exists, the settings tab is done with its job. The day-to-day buttons - **Push**, **Pull**, **Open sheet** and the sync log - live on your **Products** page from now on, under a **Google Sheet** button next to New product. Settings stays as the one-off setup.
 
@@ -59,7 +59,7 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 ### Push to sheet (your site → the sheet)
 
-Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations.
+Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations, then Supplier Catalogues.
 
 It fills in its own columns and leaves the rest of the tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
 
@@ -116,6 +116,16 @@ Past orders are never harmed by a deletion: an order keeps its own record of wha
 ## What the sheet covers, and what it doesn't
 
 The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant price, stock and SKU.
+
+### The Supplier Catalogues tab
+
+Alongside the catalogue itself, the sheet carries a **Supplier Catalogues** tab: every supplier in your address book, whether they're enabled or disabled, and the catalogues you've recorded against each one with a link to each. It's there so the person doing the pricing has the supplier's own price list to hand instead of in another browser tab.
+
+This one only travels one way. Push refreshes it; Pull never so much as glances at it, so editing it changes nothing on your site and nothing you type there survives the next Push. Catalogues are added and edited under **Shop → Suppliers**, which is where they belong.
+
+A supplier with no catalogues recorded still gets a row, with the catalogue columns left blank - "none recorded yet" being rather more useful than a silent absence.
+
+If your sheet was created before this tab existed, don't go looking for it: your next Push adds it, formatting and all, with nothing required from you.
 
 ### The web address column
 

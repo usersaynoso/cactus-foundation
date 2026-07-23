@@ -258,6 +258,16 @@ Renaming a supplier carries every product and variation filed under the old name
 
 Adding a supplier doesn't mean stopping what you're doing, either. The dropdown on a product, and the one in the variations grid, both end with **Add a new supplier**, which records a new one there and then and makes it available on everything else too.
 
+### Their catalogues
+
+Most suppliers hand you a catalogue or three - "Spring 2026", "Seating", the trade price list - and most of those end up as a spreadsheet somebody has to go and find. The supplier form has a **Catalogues** section for exactly that: add as many as you like, each with a name and the web address it lives at, usually a Google Sheet.
+
+They show up on the Suppliers list beside the supplier, as clickable links where you've given one, so getting to the right price list is a click rather than a rummage through your email. A catalogue with no link yet is fine - the name on its own is still better than nothing.
+
+Two catalogues under the same supplier can't share a name, for the obvious reason. Different suppliers can, of course, since half of them call theirs "Main catalogue". Deleting a supplier takes their catalogues with them, which is the one place the address book does forget something.
+
+If you have the Google Sheet module, your suppliers and their catalogues also get a tab of their own in the spreadsheet - see [Google Sheet Products](Google-Sheet-Products).
+
 ### Zooming in on your product photos
 
 **Zoom the image on hover** on the General tab magnifies whichever part of the main product photo a shopper points at, so they can inspect the grain, the stitching or the small print without you having to upload a set of close-ups. On a phone or tablet a tap magnifies the spot they touched, a drag moves the magnified area about, and a second tap zooms back out. It's off to begin with, and switching it on changes nothing about the photos themselves - the same picture simply gets a closer look.
