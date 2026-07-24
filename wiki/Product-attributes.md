@@ -43,6 +43,10 @@ If pictures have ended up in the wrong place - an earlier version of the variati
 
 Untick **Show in filters** to keep an attribute for your own reference without offering it on the shop. Deleting an attribute takes its values with it, and removes it from every product - so it asks first.
 
+### Attributes with a lot of values
+
+A colour range that runs to several hundred shades would otherwise fill the screen and push everything else off the bottom of it, so an attribute shows its first 30 values and then a **Load more** button telling you how many are still tucked away. Press it for the next 30, or use **Show all** beside it to unfold the lot in one go. It's per attribute, so opening up Colour leaves the rest of the page as it was, and adding a new value always brings it into view rather than filing it away unseen.
+
 ## Groups
 
 A shop with six attributes reads fine as one list. A shop with thirty does not, which is what groups are for.
