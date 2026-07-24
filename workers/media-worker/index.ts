@@ -45,6 +45,37 @@ const KNOWN_PROVIDERS = new Set([
   'B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE',
 ])
 
+// Whether a key's basename looks like the NANOID form every ordinary upload gets
+// (see lib/media/keys.ts — buildKey), as opposed to the EXACT form a caller asks
+// for by name (a product photo, a colour swatch: "<name>.<ext>", no nanoid).
+//
+// The distinction is the one fact this Worker needs to answer safely, because
+// only the exact form can have its bytes replaced at the SAME key: a "Replace"
+// or a same-type resize overwrites it in place, by design (that is the whole
+// point of a stable, human-named url). A nanoid key's bytes are permanent — any
+// rewrite mints a fresh nanoid rather than touching the old one — so caching it
+// forever is free. Caching an exact key forever is not: it happily serves
+// whatever bytes were there the day it was first fetched, for as long as the
+// browser (or an edge cache) chooses to believe `immutable` — up to the year
+// below. That is exactly what made a resized swatch keep showing its old,
+// four-times-larger self after being replaced.
+//
+// nanoid()'s default alphabet is fixed at 21 mixed-case characters
+// (A-Za-z0-9_-), while every exact key comes through keys.ts's sanitize(),
+// which lower-cases the whole name before it is ever written. A real exact
+// name can only be mistaken for this shape if an admin happens to file
+// something under exactly 21 characters of upper- AND lower-case letters,
+// digits, `_` and `-` — which sanitize() itself cannot produce. Worth stating
+// the failure direction: if this ever mis-reads a genuine nanoid key as exact,
+// the cost is a shorter cache lifetime on a file that did not need one — not a
+// stale image shown as fresh, which is the failure this exists to prevent.
+const NANOID_KEY_RE = /^[A-Za-z0-9_-]{21}[-.]/
+
+function isExactFormKey(fullKey: string): boolean {
+  const basename = fullKey.slice(fullKey.lastIndexOf('/') + 1)
+  return !NANOID_KEY_RE.test(basename)
+}
+
 // Ceiling for a direct-to-Worker PUT. The body is buffered whole to hash it, so
 // this is what stops one request eating the isolate's memory. Mirrors
 // MAX_DIRECT_UPLOAD_BYTES in lib/media/limits.ts - keep the two in step.
@@ -209,8 +240,26 @@ const worker = {
     }
 
     const cfOptions = buildImageResizingOptions(url)
+    // An exact-form key can be replaced in place (see isExactFormKey) - the very
+    // thing that happened when a swatch got resized - so it must not be told to
+    // cache forever: `must-revalidate` plus a short lifetime means a browser
+    // that already has it makes one cheap conditional request rather than
+    // trusting stale bytes for up to a year. The nanoid form never changes at
+    // its key, so it keeps the long, `immutable` lifetime that lets a repeat
+    // visitor skip the request entirely.
+    //
+    // A PROTECTED key (a 3D model) is exact-form too - "oblong-60cm.glb", no
+    // nanoid - but is excluded from that downgrade: it already carries its own
+    // cache-busting in the signed `?t=` token (see lib/media/asset-token.ts),
+    // which changes the whole url once a day and makes the browser fetch fresh
+    // on its own schedule. Downgrading it here would only throw away the
+    // immutable caching that scheme was built to keep, for a staleness problem
+    // it does not have.
+    const cacheableForever = !isExactFormKey(fullKey) || isProtectedKey(fullKey)
     const responseHeaders = new Headers({
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': cacheableForever
+        ? 'public, max-age=31536000, immutable'
+        : 'public, max-age=300, must-revalidate',
       'Vary': 'Accept',
       'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN ?? '*',
       // Never let the browser second-guess the type we declare below. Without
@@ -225,6 +274,23 @@ const worker = {
         return upstream.status === 404
           ? readError('Not found', 404, env)
           : readError('Upstream error', 502, env)
+      }
+
+      // The provider's own ETag, forwarded so a short-lived exact-form key (above)
+      // revalidates on the byte content rather than falling back to a full
+      // re-download every five minutes. `If-None-Match` is answered with a
+      // bodyless 304 the moment it matches: unchanged bytes cost the browser one
+      // small round trip instead of the whole file, and changed ones (a resize,
+      // a Replace) are served fresh the moment the old entry expires rather than
+      // up to a year later. The worker still fetches the object from its
+      // provider either way - that leg is same-region object storage, not the
+      // shopper's own connection, which is the one this is actually shortening.
+      const upstreamEtag = upstream.headers.get('ETag')
+      if (upstreamEtag) {
+        responseHeaders.set('ETag', upstreamEtag)
+        if (request.headers.get('If-None-Match') === upstreamEtag) {
+          return new Response(null, { status: 304, headers: responseHeaders })
+        }
       }
 
       // The stored Content-Type is attacker-influenced on any object written
