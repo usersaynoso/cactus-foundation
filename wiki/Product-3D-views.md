@@ -71,7 +71,9 @@ Two formats people reasonably expect are turned away at the door, and it is bett
 
 **DWG** is AutoCAD's own format. Nothing in any web browser can read one - turning it into something a shopper could see needs a separate paid conversion service. If your model started life in AutoCAD, export it as GLB or FBX and upload that.
 
-**USDZ** is Apple's format for their augmented-reality preview. It only does anything on an iPhone or iPad, where it takes over the whole screen, and does nothing whatsoever on a computer or an Android phone. Since the entire point here is a model a shopper can turn round inside your product page, USDZ cannot do the job.
+**USDZ** is Apple's format for their augmented-reality preview. It only does anything on an iPhone or iPad, where it takes over the whole screen, and does nothing whatsoever on a computer or an Android phone. Since the entire point here is a model a shopper can turn round inside your product page, USDZ cannot do the job as an upload.
+
+That does not mean no augmented reality - quite the opposite. You do not need to upload anything for it: the viewer builds the AR view itself, on the phone, from the GLB you already have. See [View in your room](#view-in-your-room-ar) below.
 
 ---
 
@@ -140,6 +142,22 @@ The configurator only starts colouring for shoppers once you have set up **at le
 
 ---
 
+## View in your room (AR)
+
+Turning a chair round on screen tells a shopper what it looks like. Standing it on their own floor tells them whether it fits. On a phone that can do it, the main viewer carries a **View in your room** button that does exactly that: it puts the product, at its real size, into the room the shopper is pointing their camera at.
+
+They point the phone at the floor, a ring appears where the floor is, and a tap drops the product there. From then on they can walk around it, crouch to it, back off to see it against the sofa - it stays put on the floor like a real thing would. A tap somewhere else moves it; a pinch makes it bigger or smaller if your starting size wasn't quite right.
+
+**Nothing extra is uploaded, ever.** This is the part that matters if you sell one shape in a lot of finishes. The AR view is built from the same model that's on the page, on the shopper's phone, at the moment they tap - so whatever fabric or finish they've picked is exactly what lands on their floor. Change the seat colour and view it in the room again and the new colour is there. You are not filing away a separate AR copy per colour, which would be hundreds of near-identical files for a single chair.
+
+**It only shows where it works.** The button appears on phones and tablets that support AR, looking at a **GLB or glTF** model, and nowhere else - so there is nothing on a desktop, and nothing on the older formats, which cannot carry what an AR view needs. A shopper on a computer sees the ordinary viewer exactly as before. There is no "sorry, not supported" message to nobody; the button simply isn't there unless it will do something.
+
+**Setting it up is one number, if that.** It is on by default. The only thing worth checking is the size the product first appears at - see **Real-world size** under [Fine-tuning the viewer](#fine-tuning-the-viewer) - since a 3D file doesn't reliably say how big the real thing is. Set the product's longest side in metres (about 1 suits most furniture) and it lands life-sized; the shopper can still pinch to adjust. If you would rather not offer it at all, there is a switch to turn it off for the whole site.
+
+Between them the two platforms cover the field: iPhones and iPads use Apple's own AR, and Android phones use Google's, and the button quietly picks whichever the shopper has. Either way it is the same button and the same product on the same floor.
+
+---
+
 ## Turning it with a keyboard
 
 Not everybody uses a mouse, and a shopper who cannot is exactly as interested in the back of the chair as one who can. So the viewer takes keyboard focus like any other control on the page: tab to it and a ring appears round the model, along with a note saying which keys do what.
@@ -193,7 +211,7 @@ Your fabric swatch pictures are not covered by this, on purpose. They are photog
 
 Everything above works out of the box, and most shops will never need to touch a single setting. If you do want to change how your models are lit or handled, the controls live under **Settings → Shop → 3D Viewer**. They apply to every model on the site, not one product at a time, and they arrive set to the same sensible defaults the viewer has always used - so opening the tab changes nothing until you actually move something. There is a **Reset to defaults** button for when you have fiddled yourself into a corner.
 
-The settings come in four groups.
+The settings come in five groups.
 
 **Lighting.** The studio your models stand in. The most useful control here is the one for shiny surfaces: chrome, steel and glass have no colour of their own and show you nothing but a reflection of the room, so if a polished product looks dull or too dark, turn the studio up. You can also switch on a **shadow** under the model to ground it rather than leave it floating - worth a look at your own products first, mind, because a model whose photograph already has a shadow baked in will end up wearing two. There is a colour-handling choice for the odd model that looks washed out here but perfect in whatever built it; picking one wakes a **Brightness** slider beside it, which sets how bright the whole catalogue renders.
 
@@ -218,6 +236,8 @@ Whichever you pick, the model only moves while somebody is actually looking at i
 The small 3D thumbnails in the strip follow the same choice, so you do not end up with a still main view beside a strip of permanently spinning thumbnails, and they hold still while they are off the screen as well. Whether they move at all is still the separate tick under **Speed**.
 
 There is also a choice of what the turning actually moves. Normally the view swings around a still model - drifting on its own or dragged by hand - so if you have a shadow switched on, it appears to travel round with the model. Tick **Spin the model itself** and the model turns on the spot instead, idling or dragged sideways, while its shadow stays anchored to the floor beneath it and changes shape as the model turns - which is what makes the turning obvious. Dragging up and down still tilts the view either way. It is only really worth pairing with the shadow, since without one there is nothing standing still to turn against. Anyone who has asked their device for less movement still gets a still model whatever you set here; that is their call to make, not yours to override - though they can of course still turn it by hand.
+
+**View in your room (AR).** Whether the **View in your room** button is offered, and how big the product first lands when it does. It is on by default and shows only where a phone can actually use it (see [View in your room](#view-in-your-room-ar)). The one setting worth a look is **Real-world size**: a 3D file doesn't reliably say how large the real thing is, so this is the product's longest side in metres when it first appears on the floor - around 1 suits most furniture, and the shopper can pinch to adjust from there. Turn the whole thing off here if you would rather not offer it.
 
 **Speed.** Mostly only worth touching if shoppers on older phones tell you the viewer is struggling - on anything reasonably modern the defaults cost nothing. The viewer now also redraws only when there is actually something new to see: a model sitting still, with nobody turning it, is left alone rather than redrawn sixty times a second to produce the same picture. Nothing looks any different, phones stay cooler and batteries last longer, and there is no setting for it because there is no reason anybody would want it the other way round. The one dial here you might reach for on purpose is **Fine-detail sharpening**: turn it up if a fine fabric or other fine detail looks grainy or choppy when the whole model is on screen and tidies itself up only once a shopper zooms in. It draws the model at higher detail and smooths it back down, which does cost real speed - the top setting draws four times the work - so nudge it up only as far as it needs to go.
 
@@ -250,6 +270,10 @@ If it is a GLB and it looks right when you open it on your own computer, the sit
 **The model shows but looks tiny, or enormous.** It shouldn't - models are sized to fit automatically, whatever units they were built in. If one genuinely looks wrong, the model most likely has stray geometry far away from the object itself, dragging the sizing out; clean that up in whatever built it.
 
 **It does not turn on its own.** Thumbnails hold still while they are off the screen, and if the shop is set to the single-turn style they hold still once they have taken their turn. If you have "reduce motion" switched on in your computer's or phone's accessibility settings, the thumbnails hold still throughout, on purpose. Clicking through to the viewer still works normally either way. (Thumbnails did once freeze on their first picture for everybody, whatever the settings said - that was a fault, and it is fixed.)
+
+**The "View in your room" button isn't showing.** It appears only where it can work, which rules out most of the places you might be looking. On a desktop or laptop there is no AR to offer, so it never shows there - test it on an actual phone or tablet. On a phone, it needs a **GLB or glTF** model (the older OBJ, FBX and 3DS formats can't carry what an AR view needs) and a device new enough to support AR - most phones of the last few years are. Also check it hasn't been switched off under **Settings → Shop → 3D Viewer**. If all of that is in order and it still doesn't appear, the phone or its browser simply doesn't support AR, and there is nothing to be done at your end.
+
+**"View in your room" opens and then the model doesn't appear.** On Android the phone asks permission to use the camera the first time; declining it closes AR with nothing shown. On iPhone, point at a clear patch of floor and give it a second to find it - very shiny or very dark floors are harder for it to lock onto. If the model lands far too big or too small, that is the **Real-world size** setting - see [Fine-tuning the viewer](#fine-tuning-the-viewer) - though a shopper can always pinch it to size in the meantime.
 
 **Nothing at all shows, on any product.** Check that a media provider is set up under **Settings → Media**. Models are stored the same way images are, so without one there is nowhere to put them.
 
