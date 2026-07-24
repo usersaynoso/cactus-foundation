@@ -26,8 +26,42 @@ export const stalePlanRetryExtension = Prisma.defineExtension({
   },
 })
 
+// On Vercel every concurrent request can land on its own short-lived instance,
+// and each instance builds its own PrismaClient with its own connection pool.
+// Prisma's default pool size is (physical CPUs × 2 + 1), so a burst of parallel
+// requests multiplies into far more open Postgres connections than the database
+// will grant. A bulk media upload is the usual trigger: the browser fires many
+// /record calls at once, Vercel fans them across instances, and the overflow
+// fails with "remaining connection slots are reserved for roles with the
+// SUPERUSER attribute". That FATAL then lands on unrelated queries too - a
+// session lookup that fails reads as logged-out - so one big upload can knock
+// other admin pages over at the same time.
+//
+// Capping each instance at a single connection keeps the total bounded by the
+// number of live instances instead of multiplying by the per-instance pool.
+// This is Prisma's own guidance for serverless. An operator who has already set
+// connection_limit on their URL (e.g. pointing at their own PgBouncer) keeps
+// their choice - we only fill in the gap. Left untouched off Vercel, where a
+// single long-lived process on the default pool is exactly what you want.
+function runtimeDatabaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL
+  if (!raw || !process.env.VERCEL) return raw
+  try {
+    const url = new URL(raw)
+    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '1')
+    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '20')
+    return url.toString()
+  } catch {
+    // A URL we can't parse is one we shouldn't rewrite - hand it back verbatim
+    // and let Prisma report on it rather than swallowing the real address.
+    return raw
+  }
+}
+
 function createPrismaClient() {
+  const datasourceUrl = runtimeDatabaseUrl()
   return new PrismaClient({
+    ...(datasourceUrl ? { datasourceUrl } : {}),
     log:
       process.env.NODE_ENV === 'development'
         ? ['query', 'error', 'warn']
