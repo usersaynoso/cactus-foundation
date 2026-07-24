@@ -14,7 +14,7 @@ import { isMediaProviderConfigured } from '@/lib/config/env'
 import { verifyUploadToken } from '@/lib/media/upload-token'
 import {
   contentTypeForKey,
-  isRasterDirectType,
+  isDirectUploadType,
   MAX_DIRECT_UPLOAD_BYTES,
   MAX_DIRECT_UPLOAD_MB,
   tooLargeReason,
@@ -104,9 +104,13 @@ async function adoptDirect(request: NextRequest, media: MediaRow) {
   }
 
   // Type comes from the signed key, not the body. The Worker stored the object
-  // under exactly this type, so the row and the bytes cannot disagree.
+  // under exactly this type, so the row and the bytes cannot disagree. Models
+  // are accepted as well as rasters: /upload-url signs them for a replace and
+  // the Worker takes the PUT, so refusing them here stranded the whole file in
+  // storage after it had already been pushed up. planMediaReplacement still
+  // refuses a model changing type, so what arrives here writes over its own key.
   const contentType = contentTypeForKey(key)
-  if (!contentType || !isRasterDirectType(contentType)) throw new BadRequest('Unsupported content type')
+  if (!contentType || !isDirectUploadType(contentType)) throw new BadRequest('Unsupported content type')
 
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) throw new BadRequest('Invalid file size')
   if (sizeBytes > MAX_DIRECT_UPLOAD_BYTES) throw new BadRequest(tooLargeReason(sizeBytes, MAX_DIRECT_UPLOAD_MB), 413)

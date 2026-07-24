@@ -178,6 +178,13 @@ export default function MediaLibrary({
   const [savingMeta, setSavingMeta] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
   const uploadSeq = useRef(0)
+  // Upload batches run strictly one after another. Two live at once was broken
+  // twice over: a second drop's clash dialog overwrote the first batch's pending
+  // one (uploadClash is a single state slot, so the first batch's resolve was
+  // never called and its files sat "queued" forever), and two upload pools meant
+  // six requests in flight - exactly the Safari connection ceiling the 3-wide
+  // pool exists to stay under.
+  const uploadBatchChain = useRef<Promise<void>>(Promise.resolve())
   const [optimisingIds, setOptimisingIds] = useState<Set<string>>(new Set())
   const [replacingIds, setReplacingIds] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[] } | null>(null)
@@ -867,6 +874,18 @@ export default function MediaLibrary({
     })
     addUploads(tasks.map((t) => t.task))
 
+    // Tasks appear in the queue immediately, but the batch itself waits its turn
+    // behind any batch already running (see uploadBatchChain).
+    const turn = uploadBatchChain.current.then(() => runUploadBatch(tasks, targetFolderId))
+    // A failed batch must not wedge every batch after it.
+    uploadBatchChain.current = turn.catch(() => {})
+    await turn
+  }
+
+  async function runUploadBatch(
+    tasks: { file: File; task: UploadTask }[],
+    targetFolderId: string | null,
+  ) {
     // Ask the server which of these names are already taken in the destination
     // before anything is sent. A name that is free uploads straight through; a
     // name that isn't stops and asks, because the alternatives - overwrite, or

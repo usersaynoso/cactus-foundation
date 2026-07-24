@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -1395,18 +1395,26 @@ export class MediaReplaceTypeError extends Error {
 // the row already says — its provider, its folder, its name — and only the
 // extension follows the new bytes' type.
 //
-// Which is why an exact-named item (see lib/media/keys.ts) can only be replaced
-// by a file of its own type. Its name IS its key, so a new extension means a new
-// key; reference rewriting reaches Puck content and nothing else, so the url the
-// shop holds for that product image in its own table would be left pointing at
-// the blob this then deletes. The image would vanish from the storefront while
-// sitting perfectly intact in the library. Refuse, and say so, instead.
+// An exact-named item (see lib/media/keys.ts) can swap between raster image
+// types: its key follows its name, so a new extension means a new key, and
+// repointMediaToBlob then rewrites Puck content plus every module-registered
+// rewriter (core.media-reference-rewriters) before the old blob is dropped.
+// Refusing this is what made "Replace" fail for every previously-optimised
+// image - the library files uploads under exact names, and optimising turns a
+// .jpg into WebP bytes while the item keeps its .jpg display name, so re-
+// uploading the original was refused as a "type change".
+//
+// A type change on anything that is NOT a raster-to-raster swap (3D models,
+// SVG) is still refused: a model's url lives in module tables that may not
+// register a rewriter, and its key staying put is what keeps those references
+// alive. Same type over same type never hits this and never moves the key.
 export async function planMediaReplacement(
   media: Media,
   mimeType: string,
 ): Promise<{ key: string; originalName: string | null; folderPath: string; exactName: boolean }> {
   const exactName = isExactNameKey(media.key, media.originalName)
-  if (exactName && mimeType !== media.mimeType) {
+  const rasterSwap = isRasterDirectType(media.mimeType) && isRasterDirectType(mimeType)
+  if (exactName && mimeType !== media.mimeType && !rasterSwap) {
     throw new MediaReplaceTypeError(
       `“${media.originalName ?? media.key}” is filed under a fixed name by another part of the site, so its replacement has to be a ${fileKindLabel(media.mimeType)} as well.`
     )
@@ -1419,8 +1427,21 @@ export async function planMediaReplacement(
   // claim to be a PNG while holding JPEG bytes. A row with no name (a generated
   // file) stays nameless and takes the nanoid form.
   const originalName = media.originalName ? withExtensionForMime(media.originalName, mimeType) : null
-  const key = buildKey(media.provider, mimeType, originalName ?? undefined, folderPath || undefined, exactName)
-  return { key, originalName, folderPath, exactName }
+  let key = buildKey(media.provider, mimeType, originalName ?? undefined, folderPath || undefined, exactName)
+  let keepsExactName = exactName
+  // A type swap moves an exact key ("photo.webp" → "photo.jpg"), and that target
+  // may already belong to a different library item. Writing over its blob would
+  // leave two rows serving the same bytes - the very collision the nanoid form
+  // exists to prevent - so the replacement takes the nanoid form instead, exactly
+  // as exactOptimisedKey does when an optimise finds its .webp name taken.
+  if (exactName && key !== media.key) {
+    const taken = await prisma.media.findUnique({ where: { key }, select: { id: true } })
+    if (taken) {
+      key = buildKey(media.provider, mimeType, originalName ?? undefined, folderPath || undefined, false)
+      keepsExactName = false
+    }
+  }
+  return { key, originalName, folderPath, exactName: keepsExactName }
 }
 
 // Replace an item's bytes with `buffer`. The serverless path: the bytes came
