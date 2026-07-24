@@ -178,18 +178,18 @@ const worker = {
     }
 
     if (request.method !== 'GET') {
-      return new Response('Method not allowed', { status: 405 })
+      return readError('Method not allowed', 405, env)
     }
 
     // Strip leading slash → full storage key, e.g. "media/R2/abc.jpg"
     const fullKey = url.pathname.slice(1)
 
     if (!fullKey || fullKey.length < 2) {
-      return new Response('Not found', { status: 404 })
+      return readError('Not found', 404, env)
     }
 
     if (!fullKey.startsWith('media/')) {
-      return new Response('Not found', { status: 404 })
+      return readError('Not found', 404, env)
     }
 
     // Determine which provider owns this key.
@@ -222,9 +222,9 @@ const worker = {
     try {
       const upstream = await fetchFromProvider(provider, fullKey, env, cfOptions)
       if (!upstream.ok) {
-        return new Response(upstream.status === 404 ? 'Not found' : 'Upstream error', {
-          status: upstream.status === 404 ? 404 : 502,
-        })
+        return upstream.status === 404
+          ? readError('Not found', 404, env)
+          : readError('Upstream error', 502, env)
       }
 
       // The stored Content-Type is attacker-influenced on any object written
@@ -242,11 +242,45 @@ const worker = {
 
       return new Response(upstream.body, { status: 200, headers: responseHeaders })
     } catch {
-      return new Response('Upstream error', { status: 502 })
+      return readError('Upstream error', 502, env)
     }
   },
 }
 export default worker
+
+/**
+ * A refusal on the READ path, carrying the same CORS header the success path does.
+ *
+ * The header is the whole point of this existing. Every read that matters here is
+ * cross-origin - the site is on one host and this Worker on another - and a
+ * response with no `Access-Control-Allow-Origin` is not a response the browser
+ * will hand to the page at all. It rejects the `fetch()` with a bare TypeError
+ * instead, so the caller cannot read the status, cannot read the body, and cannot
+ * tell a deleted file from an expired token from a storage outage. The 3D viewer
+ * has a perfectly good "Could not fetch model (404 Not Found)" message that could
+ * never once fire; what an admin saw was Safari's "Load failed", which says
+ * nothing and points nowhere. An FBX that was drawing at 1/100th scale and a GLB
+ * whose object had been deleted produced the identical, useless sentence.
+ *
+ * Sending the header on a refusal leaks nothing: the status and the four words of
+ * body are exactly what the requester would have got same-origin, and a
+ * mismatched Origin is already turned away by refuseUnauthorisedRead before this.
+ *
+ * `no-store` because the success path sets `immutable` for a year, and a
+ * momentary upstream failure that got cached under that rule would outlive the
+ * problem by rather a lot.
+ */
+function readError(message: string, status: number, env: Env): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN ?? '*',
+      'Cache-Control': 'no-store',
+      'Content-Type': 'text/plain;charset=UTF-8',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  })
+}
 
 // ---------------------------------------------------------------------------
 // Protected reads — signed access to 3D models
@@ -283,12 +317,12 @@ async function refuseUnauthorisedRead(
   // does the work; this is a cheap extra that costs no round-trip.
   const origin = request.headers.get('origin')
   if (origin && env.ALLOWED_ORIGIN && origin !== env.ALLOWED_ORIGIN) {
-    return new Response('Not authorised', { status: 403 })
+    return readError('Not authorised', 403, env)
   }
 
   const token = url.searchParams.get('t') ?? ''
   if (!(await verifyAssetToken(env.ASSET_SIGNING_SECRET, fullKey, token, Date.now()))) {
-    return new Response('Not authorised', { status: 403 })
+    return readError('Not authorised', 403, env)
   }
 
   return null
