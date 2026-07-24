@@ -8,8 +8,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime: pooled connection (PgBouncer transaction mode, port 6432).
+  url       = env("DATABASE_URL")
+  // Migrations / DDL: direct connection (Postgres, port 5432). PgBouncer
+  // transaction pooling cannot carry advisory locks or multi-statement DDL,
+  // so `prisma migrate deploy` must bypass the pooler. Every install must set
+  // DIRECT_URL alongside DATABASE_URL or its next migrate will fail.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
