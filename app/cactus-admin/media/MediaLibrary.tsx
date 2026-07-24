@@ -14,7 +14,7 @@ import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
 import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-client'
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
-import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
+import { uploadOneFile, replaceOneFile, isFileReadable, UNREADABLE_FILE_MESSAGE } from '@/lib/media/upload-client'
 import { type UploadChoice, planUploadJobs, runUploadPool } from '@/lib/media/upload-batch'
 import { preflightUploadError, isAcceptedUploadType, isOptimisableType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
@@ -879,9 +879,37 @@ export default function MediaLibrary({
     })
     addUploads(tasks.map((t) => t.task))
 
+    // Read-access guard (see isFileReadable in upload-client). Safari hands a web
+    // page read access to only a prefix of a very large multi-file selection - a
+    // 26k-file pick came back with the first few hundred readable and the rest
+    // refused outright, which used to fail deep in the upload path as a status-0
+    // "bad URL" with no hint why. Probe every file that cleared the type/size
+    // preflight, a wave at a time so a huge selection doesn't open tens of
+    // thousands of readers at once, and settle the unreadable tail here with a
+    // reason instead of letting it upload, retry three times and die on the wire.
+    const toProbe = tasks.filter((t) => t.task.status !== 'error')
+    const unreadable = new Set<string>()
+    const PROBE_WIDTH = 24
+    for (let i = 0; i < toProbe.length; i += PROBE_WIDTH) {
+      await Promise.all(toProbe.slice(i, i + PROBE_WIDTH).map(async (t) => {
+        if (!(await isFileReadable(t.file))) {
+          unreadable.add(t.task.id)
+          updateUpload(t.task.id, { status: 'error', error: UNREADABLE_FILE_MESSAGE })
+        }
+      }))
+    }
+    if (unreadable.size > 0) {
+      const readable = toProbe.length - unreadable.size
+      pushToast('error', `Your browser could only read ${readable} of ${toProbe.length} files. Safari limits how many a page may open at once, so upload the rest in smaller batches - or use Chrome or Edge for very large uploads.`)
+    }
+    // Only the files the browser will actually read reach the uploader; the rest
+    // are already settled as errors above.
+    const runnable = tasks.filter((t) => !unreadable.has(t.task.id) && t.task.status !== 'error')
+    if (runnable.length === 0) return
+
     // Tasks appear in the queue immediately, but the batch itself waits its turn
     // behind any batch already running (see uploadBatchChain).
-    const turn = uploadBatchChain.current.then(() => runUploadBatch(tasks, targetFolderId))
+    const turn = uploadBatchChain.current.then(() => runUploadBatch(runnable, targetFolderId))
     // A failed batch must not wedge every batch after it.
     uploadBatchChain.current = turn.catch(() => {})
     try {
@@ -936,18 +964,15 @@ export default function MediaLibrary({
         (taskId) => settle(taskId, { status: 'skipped' }),
       )
 
-      // Phase 2: three uploads in flight at once, not six. Browsers hold ~6
-      // connections per host and every job needs two of them - the signing call
-      // to this origin, then the byte PUT to the media host - so a six-wide pool
-      // sat exactly on that ceiling with nothing left for the thumbnails and API
-      // calls the page is making alongside. Safari enforces the ceiling by
-      // refusing the excess outright rather than queueing it, which is why a bulk
-      // upload into a folder full of images failed en masse ("bad URL", no
-      // response at all) while the very same files went up fine into an empty
-      // folder, and fine from Chrome.
-      //
-      // A serial loop is the other extreme and left five lanes idle, which is
-      // what made a few hundred small files take all afternoon.
+      // Phase 2: three uploads in flight at once, not six. Every job needs two
+      // connections - the signing call to this origin, then the byte PUT to the
+      // media host - and a six-wide pool would sit on the browser's ~6-per-host
+      // ceiling with nothing left for the thumbnails and API calls the page makes
+      // alongside. Three keeps a lane spare without leaving five idle the way a
+      // serial loop did, which is what made a few hundred small files take all
+      // afternoon. (The "bulk uploads fail en masse" bug was a separate thing
+      // entirely - Safari refusing to read the tail of a huge selection - and is
+      // caught up front in enqueueFiles now, not here.)
       const CONCURRENT_UPLOADS = 3
       const uploaded = await runUploadPool(
         jobs,

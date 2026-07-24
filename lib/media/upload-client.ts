@@ -23,6 +23,46 @@ import {
   uploadErrorMessage,
 } from '@/lib/media/limits'
 
+// A picked File is backed by the file on disk and read lazily. Safari grants a
+// web page read access to only a prefix of a very large multi-file selection
+// (tens of thousands of files at once): reads of the rest fail immediately with
+// notReadableError ("WebKitBlobResource error 4"), which reaches the network
+// layer as a status-0 "bad URL" and was long misread as a dropped connection.
+// The cliff is fixed at pick time - the tail is unreadable from the moment the
+// selection is made, so no amount of buffering or retrying rescues it. Probing a
+// few bytes up front separates "the browser cannot read this file" from "the
+// connection dropped", so an unreadable file fails at once with an honest,
+// actionable message instead of three pointless status-0 retries that all blame
+// the network. Chrome grants access to the whole selection, so it never trips.
+export function isFileReadable(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(ok)
+    }
+    // A readable file resolves in a millisecond or two and an unreadable one
+    // errors just as fast; the timeout is only a backstop against a read that
+    // neither loads nor errors, so a single stuck file can't wedge a batch scan.
+    const timer = setTimeout(() => finish(false), 5000)
+    reader.onload = () => finish(true)
+    reader.onerror = () => finish(false)
+    try {
+      reader.readAsArrayBuffer(file.slice(0, 16))
+    } catch {
+      finish(false)
+    }
+  })
+}
+
+// Shown when a file cannot be read (see isFileReadable). Kept in words a site
+// owner can act on: the cause is almost always too large a Safari selection.
+export const UNREADABLE_FILE_MESSAGE =
+  'the browser could not read this file. Safari limits how many files a page may open at once, so the tail of a very large selection cannot be read - upload in smaller batches, or use Chrome or Edge for very large uploads'
+
 type UploadUrlResponse =
   | { available: true; uploadUrl: string; key: string; token: string }
   | { available: false }
@@ -71,13 +111,15 @@ function xhrSend(
 //
 // ONLY a status-0 result is retried, and that distinction is the whole point: 0
 // means the browser gave up before any reply existed, which is a statement about
-// the connection, not about the file. Safari enforces its ~6-connections-per-host
-// ceiling by refusing the excess outright instead of queueing it, so a bulk upload
-// into a folder that has just rendered a gridful of thumbnails from the media host
-// has every request past the limit fail instantly - reported, unhelpfully, as
-// "bad URL". The same files uploaded into an empty folder, or from Chrome (whose
-// pool is larger), went up without complaint. The refusal is transient, so a short
-// pause and a re-send lands.
+// the connection, not about the file. A genuinely transient drop mid-transfer
+// lands on a short pause and a re-send.
+//
+// It is NOT retried when the file itself is unreadable: Safari refuses to read
+// the tail of a very large multi-file selection, and that also surfaces as
+// status 0 (see isFileReadable) - but re-sending a file the browser will never
+// read just wastes three attempts. uploadOneFile/replaceOneFile catch that case
+// before they ever reach here, so anything that gets this far is a real transfer
+// that a retry can plausibly rescue.
 //
 // Any status the server actually chose (401 on a stale token, 413 too large, 415
 // wrong type, 500) is a real answer and is handed straight back - retrying it
@@ -222,6 +264,11 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
 // user-ready message on failure. onProgress reports a 0..1 transfer fraction so
 // callers can render a live progress bar.
 export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
+  // Fail fast, and honestly, on a file the browser will not read (see
+  // isFileReadable): both upload paths carry the file bytes, so an unreadable
+  // file dies on either as a status-0 "bad URL" - retried three times, then
+  // blamed on the network. Catching it here names the real cause once.
+  if (!(await isFileReadable(file))) throw new Error(`${file.name}: ${UNREADABLE_FILE_MESSAGE}`)
   const contentType = uploadTypeForFile(file)
   // Why the direct path stood down, when it did - woven into the error if the
   // fallback then fails as well.
@@ -336,6 +383,10 @@ async function serverlessReplace(mediaId: string, file: File, onProgress?: Progr
 // Swap one existing item's file for `file`, keeping the item and every reference
 // to it. Throws with a user-ready message on failure.
 export async function replaceOneFile(mediaId: string, file: File, onProgress?: ProgressFn): Promise<void> {
+  // Same unreadable-file guard as the upload path: a file the browser cannot read
+  // fails identically on either transport, so name it once rather than after the
+  // whole file has appeared to send and then died with a status-0 "bad URL".
+  if (!(await isFileReadable(file))) throw new Error(`${file.name}: ${UNREADABLE_FILE_MESSAGE}`)
   // Same type resolution the fresh-upload path uses: a 3D file's browser-reported
   // type is worthless, and the type decides both the key's extension and whether
   // the direct route is on at all. Reading file.type here meant a model always
