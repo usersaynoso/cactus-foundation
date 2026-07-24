@@ -66,6 +66,48 @@ function xhrSend(
   })
 }
 
+// Attempts for the two calls that actually move the file bytes, and the pauses
+// between them.
+//
+// ONLY a status-0 result is retried, and that distinction is the whole point: 0
+// means the browser gave up before any reply existed, which is a statement about
+// the connection, not about the file. Safari enforces its ~6-connections-per-host
+// ceiling by refusing the excess outright instead of queueing it, so a bulk upload
+// into a folder that has just rendered a gridful of thumbnails from the media host
+// has every request past the limit fail instantly - reported, unhelpfully, as
+// "bad URL". The same files uploaded into an empty folder, or from Chrome (whose
+// pool is larger), went up without complaint. The refusal is transient, so a short
+// pause and a re-send lands.
+//
+// Any status the server actually chose (401 on a stale token, 413 too large, 415
+// wrong type, 500) is a real answer and is handed straight back - retrying it
+// would only arrive at the same answer, more slowly.
+const SEND_ATTEMPTS = 3
+const SEND_BACKOFF_MS = [400, 1200]
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
+}
+
+async function sendWithRetry(
+  method: 'PUT' | 'POST',
+  url: string,
+  body: XMLHttpRequestBodyInit,
+  headers: Record<string, string>,
+  onProgress?: ProgressFn,
+): Promise<{ ok: boolean; status: number; text: string }> {
+  let result = await xhrSend(method, url, body, headers, onProgress)
+  for (let attempt = 1; attempt < SEND_ATTEMPTS && result.status === 0; attempt++) {
+    await pause(SEND_BACKOFF_MS[attempt - 1] ?? 1200)
+    // Rewind the caller's progress bar first: the retry re-sends every byte from
+    // the start, so leaving it where the refused attempt stopped would show the
+    // bar running backwards.
+    onProgress?.(0)
+    result = await xhrSend(method, url, body, headers, onProgress)
+  }
+  return result
+}
+
 // Adapt an xhrSend result to the subset of the fetch Response that
 // uploadErrorMessage() reads, so both upload paths share one error formatter.
 // text() as well as json(): a platform-level failure (a crashed function, a
@@ -106,7 +148,7 @@ async function directUpload(file: File, contentType: string, folderId: string | 
 
   // PUT the bytes straight to the Worker. If the Worker is old (no PUT support)
   // or rejects the token, fall back rather than hard-failing.
-  const put = await xhrSend(
+  const put = await sendWithRetry(
     'PUT',
     info.uploadUrl,
     file,
@@ -143,6 +185,13 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
   fd.append('file', file)
   fd.append('altText', '')
   if (folderId) fd.append('folderId', folderId)
+  // Deliberately NOT sendWithRetry. A Worker PUT is idempotent - it writes the
+  // same bytes to the same signed key, so re-sending one costs nothing. This POST
+  // CREATES a Media row, and status 0 only says no reply arrived, not that the
+  // server never acted: if a response were ever lost after the row was written, a
+  // retry would file the same picture twice. A duplicate nobody asked for is worse
+  // than a failure that says so plainly, and the retries on the direct path above
+  // mean this one is rarely reached now anyway.
   const res = await xhrSend('POST', '/api/admin/media', fd, {}, onProgress)
   if (!res.ok) throw new Error(await uploadErrorMessage(asResponse(res), file))
   try {
@@ -214,7 +263,7 @@ async function directReplace(mediaId: string, file: File, contentType: string, o
   }
   if (!info.available) return false
 
-  const put = await xhrSend(
+  const put = await sendWithRetry(
     'PUT',
     info.uploadUrl,
     file,
@@ -238,6 +287,9 @@ async function serverlessReplace(mediaId: string, file: File, onProgress?: Progr
   if (file.size > MAX_UPLOAD_BYTES) throw new Error(`${file.name}: ${tooLargeReason(file.size)}`)
   const fd = new FormData()
   fd.append('file', file)
+  // Single-shot for the same reason as the create path above: this one repoints an
+  // existing row and drops the blob it superseded, so a retry after a reply that
+  // was merely lost would be doing that a second time over.
   const res = await xhrSend('POST', `/api/admin/media/${mediaId}/replace`, fd, {}, onProgress)
   if (!res.ok) throw new Error(await uploadErrorMessage(asResponse(res), file))
 }

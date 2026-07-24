@@ -831,12 +831,20 @@ export default function MediaLibrary({
       jobs.push({ file, taskId: task.id, clash, choice })
     }
 
-    // Six uploads in flight at once. Browsers hold ~6 connections per host, so a
-    // bigger pool would only queue inside the browser; a serial loop left five of
-    // them idle, which is what made a few hundred small files take all afternoon.
-    // Each worker pulls the next job off the shared cursor, so a slow video never
-    // blocks the photos behind it - the other five lanes keep draining.
-    const CONCURRENT_UPLOADS = 6
+    // Three uploads in flight at once, not six. Browsers hold ~6 connections per
+    // host and every job needs two of them - the signing call to this origin, then
+    // the byte PUT to the media host - so a six-wide pool sat exactly on that
+    // ceiling with nothing left for the thumbnails and API calls the page is making
+    // alongside. Safari enforces the ceiling by refusing the excess outright rather
+    // than queueing it, which is why a bulk upload into a folder full of images
+    // failed en masse ("bad URL", no response at all) while the very same files
+    // went up fine into an empty folder, and fine from Chrome.
+    //
+    // A serial loop is the other extreme and left five lanes idle, which is what
+    // made a few hundred small files take all afternoon. Each worker pulls the next
+    // job off the shared cursor, so a slow video never blocks the photos behind it -
+    // the other lanes keep draining.
+    const CONCURRENT_UPLOADS = 3
     let uploaded = 0
     let next = 0
     async function uploadWorker() {
