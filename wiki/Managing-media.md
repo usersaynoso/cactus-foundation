@@ -61,6 +61,8 @@ Dropping a really big batch - thousands of files, or tens of thousands - is fine
 - **Skip** - leave that one out and carry on with the rest.
 - **Cancel** - abandon the rest of the batch.
 
+If several files in the same batch clash at once, the question comes up just the once. It carries a **Do the same for the other files with a clashing name** tick-box, on by default, so one **Replace**, **Keep both** or **Skip** settles the whole lot. Untick it if you'd rather be asked about each one.
+
 The question is asked before a single byte leaves your computer, so nothing is overwritten or renamed behind your back.
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
@@ -126,6 +128,8 @@ Hover over a thumbnail and a couple of quick buttons appear in its corner: **Opt
 A few **keyboard shortcuts** if you like to move quickly: Ctrl/Cmd+A selects everything on show, Ctrl/Cmd+X cuts and Ctrl/Cmd+C copies your selection, Ctrl/Cmd+V pastes whatever you've cut or copied, Delete removes what's selected (with the usual confirmation), and Esc clears your selection.
 
 When you've got a few files selected, a **Copy links** button on the selection bar puts all their web addresses on your clipboard at once, one per line - handy for pasting a batch into an email or a spreadsheet.
+
+Only tapped a few pictures but want the lot? The library only shows 25 at a time to keep things snappy, so ticking every visible one still leaves the rest of a big folder untouched. A **Select all [total]** button appears on the selection bar whenever there's more to grab - click it and every file your current folder, search or filter matches gets selected, loaded or not, ready for Delete, Move, Optimise or any other bulk action.
 
 A word of caution: "Not In Use" means nothing on your site links to it *right now*. If you've saved an image's address somewhere Cactus can't see - pasted into a third-party tool, say - it'll still show as unused. So have a quick think before deleting anything you don't recognise.
 

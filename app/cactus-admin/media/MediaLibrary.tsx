@@ -104,6 +104,11 @@ type UploadClash = {
 const VIEW_KEY = 'cactus.media.view'
 const SORT_KEY = 'cactus.media.sort'
 const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest']
+// Batch size for bulk delete/move once "Select all" can hand over hundreds of
+// ids in one go - each item is a storage round trip server-side, so a big
+// selection needs splitting into several short requests rather than one long one.
+const DELETE_BATCH = 40
+const MOVE_BATCH = 40
 
 export default function MediaLibrary({
   initialItems,
@@ -159,6 +164,11 @@ export default function MediaLibrary({
   const [view, setView] = useState<ViewMode>('grid')
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Items that are selected but not on screen - what "Select all" pulls in from
+  // the pages nobody has scrolled to yet. The bulk actions need the rows, not
+  // just the ids (a ratio change wants the image, "Optimise" wants the mime type),
+  // and those rows aren't in `items` because the grid never loaded them.
+  const [extraSelected, setExtraSelected] = useState<Map<string, LibraryItem>>(new Map())
   const [lastToggled, setLastToggled] = useState<number | null>(null)
   const [clipboard, setClipboard] = useState<Clipboard>(null)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -274,6 +284,7 @@ export default function MediaLibrary({
       setTotal(d.total ?? d.items.length)
       setPage(1)
       setSelected(new Set())
+      setExtraSelected(new Map())
       setLastToggled(null)
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : 'Failed to load media')
@@ -376,7 +387,7 @@ export default function MediaLibrary({
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && canDelete && selected.size > 0) {
         e.preventDefault(); setSkippedInUse([]); setDeleteConfirm({ ids: Array.from(selected) })
       } else if (e.key === 'Escape' && (selected.size > 0 || clipboard)) {
-        setSelected(new Set()); setClipboard(null)
+        setSelected(new Set()); setExtraSelected(new Map()); setClipboard(null)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -405,6 +416,49 @@ export default function MediaLibrary({
   function toggleSelectAll() {
     setSelected((prev) => (items.every((i) => prev.has(i.id)) ? new Set() : new Set(items.map((i) => i.id))))
   }
+  function clearSelection() {
+    setSelected(new Set())
+    setExtraSelected(new Map())
+    setLastToggled(null)
+  }
+
+  // Select everything the current view matches, not just the pages that have been
+  // scrolled into view. The server hands back the rows as well as the ids, so the
+  // bulk actions can judge what they're allowed to do to items nobody has seen.
+  async function selectAllMatching() {
+    setBusy('Selecting…')
+    try {
+      const res = await fetch(`/api/admin/media/select-all?${buildQuery(1)}`)
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Could not select everything')
+      const all = (d.items ?? []) as LibraryItem[]
+      if (all.length === 0) { pushToast('info', 'Nothing here to select'); return }
+      setExtraSelected(new Map(all.map((i) => [i.id, i])))
+      setSelected(new Set(all.map((i) => i.id)))
+      setLastToggled(null)
+      if (d.truncated) {
+        pushToast('info', `Selected the first ${all.length.toLocaleString('en-GB')} of ${Number(d.total ?? all.length).toLocaleString('en-GB')} - that is as many as one go handles`)
+      }
+    } catch (err) {
+      pushToast('error', err instanceof Error ? err.message : 'Could not select everything')
+    } finally { setBusy('') }
+  }
+
+  // Every selected row, on screen or not, in the order the grid shows them. The
+  // bulk actions read this rather than `items`, or a selection made with "Select
+  // all" would silently shrink to the 25 cards that happen to be rendered.
+  const selectedItems = useMemo<LibraryItem[]>(() => {
+    if (selected.size === 0) return []
+    const shown = items.filter((i) => selected.has(i.id))
+    const seen = new Set(shown.map((i) => i.id))
+    const offscreen: LibraryItem[] = []
+    for (const id of selected) {
+      if (seen.has(id)) continue
+      const extra = extraSelected.get(id)
+      if (extra) offscreen.push(extra)
+    }
+    return [...shown, ...offscreen]
+  }, [items, selected, extraSelected])
 
   const openIndex = openId ? items.findIndex((i) => i.id === openId) : -1
   const openItem = openIndex >= 0 ? items[openIndex] : null
@@ -439,19 +493,36 @@ export default function MediaLibrary({
   }
 
   // --- mutations ---
+  // Batched the same way as delete: a "Select all" selection can be hundreds of
+  // ids, and the route resolves each one's target path in turn server-side, so
+  // one giant request risks the same time-limit cliff. A collision anywhere
+  // stops the whole run there - the batches after it are never sent - so the
+  // prompt lines up with what has and hasn't moved yet.
   async function performMove(ids: string[], targetFolderId: string | null, mode: 'error' | 'suffix' | 'replace' | 'skip') {
-    setBusy('Moving…')
+    const label = (done: number) => (ids.length <= MOVE_BATCH ? 'Moving…' : `Moving ${done}/${ids.length}…`)
+    setBusy(label(0))
+    let movedCount = 0
     try {
-      const res = await fetch('/api/admin/media/move', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, targetFolderId, collision: mode }),
-      })
-      const d = await res.json()
-      if (res.status === 409 && d.collision) { setCollision({ kind: 'move', ids, targetFolderId, name: d.name }); return }
-      if (!res.ok) throw new Error(d.error ?? 'Move failed')
+      for (let i = 0; i < ids.length; i += MOVE_BATCH) {
+        const batch = ids.slice(i, i + MOVE_BATCH)
+        const res = await fetch('/api/admin/media/move', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: batch, targetFolderId, collision: mode }),
+        })
+        const d = await res.json()
+        if (res.status === 409 && d.collision) {
+          // Items after this one in the batch, and every later batch, never went.
+          const remaining = [...batch.slice(batch.indexOf(d.id)), ...ids.slice(i + batch.length)]
+          setCollision({ kind: 'move', ids: remaining, targetFolderId, name: d.name })
+          return
+        }
+        if (!res.ok) throw new Error(d.error ?? 'Move failed')
+        movedCount += Array.isArray(d.moved) ? d.moved.length : batch.length
+        setBusy(label(Math.min(i + batch.length, ids.length)))
+      }
       setCollision(null)
-      setSelected(new Set())
-      pushToast('success', `Moved ${ids.length} item${ids.length === 1 ? '' : 's'}`)
+      clearSelection()
+      pushToast('success', `Moved ${movedCount} item${movedCount === 1 ? '' : 's'}`)
       await Promise.all([fetchItems(), refetchFolders()])
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : 'Move failed')
@@ -515,25 +586,45 @@ export default function MediaLibrary({
 
   // First pass without force reports any items still referenced elsewhere so the
   // admin can reconsider before forcing.
+  //
+  // Sent in batches, because each item means a storage delete and a row delete
+  // done one after another server-side: a whole-folder selection handed over in
+  // one request would run past the request time limit and report nothing at all
+  // for work it had actually done. Batching keeps every request short and lets
+  // the count tick along while it goes.
   async function runDelete(ids: string[], force: boolean) {
     if (ids.length === 0) return
-    setBusy('Deleting…')
+    const label = (done: number) => (ids.length <= DELETE_BATCH ? 'Deleting…' : `Deleting ${done}/${ids.length}…`)
+    setBusy(label(0))
+    const deleted: string[] = []
+    const skipped: { id: string; references: string[] }[] = []
     try {
-      const res = await fetch('/api/admin/media/bulk-delete', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, force }),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Delete failed')
-      if (d.skipped?.length > 0 && !force) {
-        setSkippedInUse(d.skipped)
-        setDeleteConfirm({ ids: d.skipped.map((s: { id: string }) => s.id) })
+      for (let i = 0; i < ids.length; i += DELETE_BATCH) {
+        const batch = ids.slice(i, i + DELETE_BATCH)
+        const res = await fetch('/api/admin/media/bulk-delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: batch, force }),
+        })
+        const d = await res.json()
+        if (!res.ok) throw new Error(d.error ?? 'Delete failed')
+        if (Array.isArray(d.deleted)) deleted.push(...d.deleted)
+        if (Array.isArray(d.skipped)) skipped.push(...d.skipped)
+        setBusy(label(Math.min(i + batch.length, ids.length)))
+      }
+      if (skipped.length > 0 && !force) {
+        setSkippedInUse(skipped)
+        setDeleteConfirm({ ids: skipped.map((s) => s.id) })
       } else {
-        setDeleteConfirm(null); setSkippedInUse([]); setSelected(new Set())
+        setDeleteConfirm(null); setSkippedInUse([]); clearSelection()
         if (openId && ids.includes(openId)) setOpenId(null)
-        pushToast('success', `Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}`)
+        pushToast('success', `Deleted ${deleted.length} item${deleted.length === 1 ? '' : 's'}`)
       }
       await Promise.all([fetchItems(), refetchFolders()])
-    } catch (err) { pushToast('error', err instanceof Error ? err.message : 'Delete failed') } finally { setBusy('') }
+    } catch (err) {
+      pushToast('error', err instanceof Error ? err.message : 'Delete failed')
+      // A run that stops half way through has still deleted whatever the earlier
+      // batches got through, so the grid has to be refreshed either way.
+      await Promise.all([fetchItems(), refetchFolders()])
+    } finally { setBusy('') }
   }
 
   async function optimiseSingle(id: string) {
@@ -558,7 +649,7 @@ export default function MediaLibrary({
   async function optimiseBulk() {
     // Only send the ones that can actually be optimised - the rest would just be
     // skipped server-side and muddy the result.
-    const ids = items.filter((i) => selected.has(i.id) && isOptimisable(i)).map((i) => i.id)
+    const ids = selectedItems.filter((i) => isOptimisable(i)).map((i) => i.id)
     if (ids.length === 0) { pushToast('info', 'Nothing selected can be optimised'); return }
     // Counted out loud as it goes: re-encoding a few hundred images is a long
     // wait, and a spinner that says nothing for all of it looks like a hang.
@@ -569,7 +660,7 @@ export default function MediaLibrary({
         changedKey: 'optimised',
         onProgress: (done) => setBusy(label(done)),
       })
-      setSelected(new Set())
+      clearSelection()
       const n = tally.changed.length
       const saved = tally.bytesSaved
       const extra = tally.failed.length > 0 ? `, ${tally.failed.length} failed` : ''
@@ -663,7 +754,7 @@ export default function MediaLibrary({
       pushToast(failed > 0 ? 'error' : 'info', failed > 0 ? `Ratio change failed for ${failed} image${failed === 1 ? '' : 's'}` : 'Nothing to change')
     }
     if (changed > 0) {
-      setSelected(new Set())
+      clearSelection()
       await Promise.all([fetchItems(), refetchFolders()])
     }
   }
@@ -688,7 +779,7 @@ export default function MediaLibrary({
       pushToast(failed > 0 ? 'error' : 'info', failed > 0 ? `Resize failed for ${failed} image${failed === 1 ? '' : 's'}` : 'Nothing to resize')
     }
     if (changed > 0) {
-      setSelected(new Set())
+      clearSelection()
       await Promise.all([fetchItems(), refetchFolders()])
     }
   }
@@ -717,10 +808,8 @@ export default function MediaLibrary({
 
   // Copy several items' public URLs at once, newline-separated - handy for
   // pasting a batch into content or a spreadsheet.
-  async function copyManyLinks(ids: string[]) {
-    const urls = items
-      .filter((i) => ids.includes(i.id))
-      .map((i) => (i.url.startsWith('http') ? i.url : `${window.location.origin}${i.url}`))
+  async function copyManyLinks(sources: LibraryItem[]) {
+    const urls = sources.map((i) => (i.url.startsWith('http') ? i.url : `${window.location.origin}${i.url}`))
     if (urls.length === 0) return
     try {
       await navigator.clipboard.writeText(urls.join('\n'))
@@ -892,18 +981,18 @@ export default function MediaLibrary({
   }
 
   const selectionActive = selected.size > 0
-  const optimisableSelected = useMemo(() => items.some((i) => selected.has(i.id) && isOptimisable(i)), [items, selected])
-  const rasterSelected = useMemo(() => items.filter((i) => selected.has(i.id) && isRasterImage(i)), [items, selected])
+  const optimisableSelected = useMemo(() => selectedItems.some((i) => isOptimisable(i)), [selectedItems])
+  const rasterSelected = useMemo(() => selectedItems.filter((i) => isRasterImage(i)), [selectedItems])
   // Which way the "already optimised" button points, and at what. Anything still
   // unmarked gets marked; a selection where everything is marked already offers
   // the way back instead, so the flag is never a door that only opens one way.
   const markTargets = useMemo(() => {
-    const eligible = items.filter((i) => selected.has(i.id) && isOptimisableType(i.mimeType))
+    const eligible = selectedItems.filter((i) => isOptimisableType(i.mimeType))
     const unmarked = eligible.filter((i) => !i.optimised)
     return unmarked.length > 0
       ? { optimised: true, ids: unmarked.map((i) => i.id) }
       : { optimised: false, ids: eligible.map((i) => i.id) }
-  }, [items, selected])
+  }, [selectedItems])
   const anyFilterActive = !!search || type !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
@@ -1027,9 +1116,24 @@ export default function MediaLibrary({
           {/* Selection / clipboard bar */}
           {(selectionActive || clipboard) && (
             <div style={barStyle}>
-              {selectionActive && <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{selected.size} selected</span>}
+              {selectionActive && <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{selected.size.toLocaleString('en-GB')} selected</span>}
+              {/* The grid only holds the pages you have scrolled to, so ticking
+                  every card still leaves the rest of the folder untouched. This
+                  reaches the lot - everything the current filters match, seen or
+                  not - which is what people mean by "select all". */}
+              {selectionActive && selected.size < total && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={!!busy}
+                  title={`Select all ${total.toLocaleString('en-GB')} items this view matches, including the ones not loaded yet`}
+                  onClick={selectAllMatching}
+                >
+                  Select all {total.toLocaleString('en-GB')}
+                </button>
+              )}
               {selectionActive && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => copyManyLinks(Array.from(selected))}>Copy links</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => copyManyLinks(selectedItems)}>Copy links</button>
               )}
               {selectionActive && canUpload && (
                 <>
@@ -1078,7 +1182,7 @@ export default function MediaLibrary({
                   Paste {clipboard.ids.length} here ({clipboard.mode})
                 </button>
               )}
-              <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => { setSelected(new Set()); setClipboard(null) }}>Clear</button>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => { clearSelection(); setClipboard(null) }}>Clear</button>
             </div>
           )}
 
