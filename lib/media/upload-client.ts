@@ -68,10 +68,15 @@ function xhrSend(
 
 // Adapt an xhrSend result to the subset of the fetch Response that
 // uploadErrorMessage() reads, so both upload paths share one error formatter.
+// text() as well as json(): a platform-level failure (a crashed function, a
+// gateway 502/504) returns HTML or an empty body, and uploadErrorMessage now
+// reads the body as text so it can fall back to the status rather than swallow
+// the failure whole.
 function asResponse(r: { ok: boolean; status: number; text: string }): Response {
   return {
     ok: r.ok,
     status: r.status,
+    text: async () => r.text,
     json: async () => JSON.parse(r.text),
   } as unknown as Response
 }

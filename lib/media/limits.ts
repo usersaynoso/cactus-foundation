@@ -240,10 +240,28 @@ export async function uploadErrorMessage(res: Response, file?: { name?: string; 
     const size = file?.size ? tooLargeReason(file.size) : `File exceeds the ${MAX_UPLOAD_MB} MB limit.`
     return file?.name ? `${file.name}: ${size}` : size
   }
+  // Read the body ONCE as text, then try to lift our own { error } JSON out of
+  // it. Our routes always answer a handled failure with that shape, so the real
+  // reason still surfaces. What used to get lost was everything that ISN'T our
+  // JSON: a 500/502/504 from the hosting edge, a crashed or timed-out function,
+  // a dropped connection - all of those return HTML or nothing, res.json() threw
+  // on them, and the catch collapsed every one to a bare "Upload failed" with no
+  // clue why. Fall back to the status so at least the KIND of failure is visible,
+  // which is the difference between "retry" and "check the server".
+  let bodyText = ''
   try {
-    const d = await res.json()
-    return typeof d?.error === 'string' ? d.error : 'Upload failed'
-  } catch {
-    return 'Upload failed'
+    bodyText = await res.text()
+  } catch { /* body already consumed or unavailable - fall through to status */ }
+  if (bodyText) {
+    try {
+      const d = JSON.parse(bodyText)
+      if (typeof d?.error === 'string' && d.error) return d.error
+    } catch { /* not our JSON (an HTML error page etc.) - use the status below */ }
   }
+  const status = res.status
+  if (status === 0) return 'Upload failed: the connection dropped before the server replied. Check your network and try again.'
+  if (status === 504 || status === 502) return `Upload failed: the server took too long to respond (${status}). This usually clears on a retry.`
+  if (status >= 500) return `Upload failed: the server hit an error (${status}). Try again; if it keeps happening the server logs will have the detail.`
+  if (status === 401 || status === 403) return `Upload failed: you appear to be signed out or lack permission (${status}). Try reloading and signing in again.`
+  return status ? `Upload failed (HTTP ${status}).` : 'Upload failed.'
 }

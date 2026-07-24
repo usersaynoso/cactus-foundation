@@ -148,7 +148,45 @@ function extensionForMimeType(mimeType: string): string {
 const filenameLabel = nanoidLabel
 
 export function workerUrl(): string {
-  return process.env.CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''
+  // trim() before anything else: a stray trailing space or newline in the env
+  // value (Vercel keeps whatever was pasted, invisible ones included) survives
+  // into `${workerUrl()}/${key}`, putting a space in the MIDDLE of every upload
+  // PUT target and stored serving url - which the browser rejects outright as a
+  // "bad URL" before it even sends the request. Every other reader of this value
+  // (the CSP host, the image-loader allowlist) runs it through `new URL().origin`,
+  // which trims for them, so the fault hides everywhere except the raw string
+  // concatenation here. Strip surrounding whitespace and any trailing slashes.
+  return process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/+$/, '') ?? ''
+}
+
+// Same origin as workerUrl(), but throws a clear, user-facing error when it is
+// missing or not a usable absolute http(s) url instead of handing back an empty
+// string. A proxied provider's serving url is built as `${workerUrl()}/${key}`,
+// so an empty or half-written value silently mints rows like `/media/…` or
+// `https:///media/…` - addresses a browser rejects outright ("bad URL"), so the
+// image never loads and nothing says why. Every path that writes a proxied
+// Media row runs through this, so a misconfigured worker address fails the
+// upload at the source with an actionable message rather than storing a dead
+// link that only shows itself later as a broken thumbnail.
+export function requireWorkerUrl(): string {
+  const raw = process.env.CLOUDFLARE_WORKER_URL?.trim()
+  if (!raw) {
+    throw new Error('The media service address (CLOUDFLARE_WORKER_URL) is not set. Add it and redeploy the media worker from Settings → Media before uploading.')
+  }
+  // Tolerate a scheme-less value (media.example.com) the way the image loader
+  // and CSP builder already do - it is a common way to write it down - but a
+  // value that still will not parse, or has no host, is a real misconfiguration.
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  let parsed: URL
+  try {
+    parsed = new URL(withScheme)
+  } catch {
+    throw new Error(`The media service address (CLOUDFLARE_WORKER_URL) is not a valid URL: "${raw}".`)
+  }
+  if (!parsed.hostname) {
+    throw new Error(`The media service address (CLOUDFLARE_WORKER_URL) has no host: "${raw}".`)
+  }
+  return parsed.origin
 }
 
 // Rewrite every proxied provider's stored Media.url so it sits under `base` (the
@@ -792,7 +830,11 @@ export async function saveMediaRecord(data: {
   optimised?: boolean
 }): Promise<Media> {
   // For proxied providers the canonical serving url is always the Worker url.
-  const url = isProxied(data.provider) ? `${workerUrl()}/${data.key}` : data.url
+  // requireWorkerUrl() (not workerUrl()) so a missing or malformed worker
+  // address aborts the upload with a clear reason here, rather than saving a
+  // row whose url is a browser-rejected "bad URL" that surfaces days later as a
+  // blank thumbnail no one can explain.
+  const url = isProxied(data.provider) ? `${requireWorkerUrl()}/${data.key}` : data.url
   return prisma.media.create({
     data: {
       key: data.key,
