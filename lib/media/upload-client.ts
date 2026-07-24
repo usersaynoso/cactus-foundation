@@ -123,13 +123,22 @@ function asResponse(r: { ok: boolean; status: number; text: string }): Response 
   } as unknown as Response
 }
 
-// Returns the recorded row, or null to mean "this path isn't available - fall
-// back". A thrown error is a hard failure and must not be retried.
+// Why the direct path stepped aside, in words. Carried into the final error if
+// the fallback then fails too, so a two-stage failure names both stages instead
+// of blaming whichever path happened to die last. Diagnosing "bulk uploads fail
+// sometimes" without this meant guessing at which of five round trips broke.
+type DirectFallback = { fallback: string }
+function isFallback(x: unknown): x is DirectFallback {
+  return typeof x === 'object' && x !== null && 'fallback' in x
+}
+
+// Returns the recorded row, or { fallback } to mean "this path isn't available -
+// fall back". A thrown error is a hard failure and must not be retried.
 // `contentType` is the type the file will be STORED under, which for a 3D model
 // is not the type the browser reports (see uploadTypeForFile). The key's extension
 // is built from it, and the key is what the upload token signs, so the same value
 // has to go to /upload-url and out on the PUT.
-async function directUpload(file: File, contentType: string, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia | null> {
+async function directUpload(file: File, contentType: string, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia | DirectFallback> {
   // Ask for a signed target. A non-OK response or { available: false } means the
   // direct route isn't on for this provider/file - caller falls back.
   let info: UploadUrlResponse
@@ -139,12 +148,12 @@ async function directUpload(file: File, contentType: string, folderId: string | 
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType, folderId }),
     })
-    if (!res.ok) return null
+    if (!res.ok) return { fallback: `the signing call failed (HTTP ${res.status})` }
     info = await res.json()
   } catch {
-    return null
+    return { fallback: 'the signing call never reached the server' }
   }
-  if (!info.available) return null
+  if (!info.available) return { fallback: 'direct uploads are not enabled for this storage set-up' }
 
   // PUT the bytes straight to the Worker. If the Worker is old (no PUT support)
   // or rejects the token, fall back rather than hard-failing.
@@ -155,7 +164,13 @@ async function directUpload(file: File, contentType: string, folderId: string | 
     { 'content-type': contentType, authorization: `Bearer ${info.token}` },
     onProgress,
   )
-  if (!put.ok) return null
+  if (!put.ok) {
+    return {
+      fallback: put.status === 0
+        ? 'the connection dropped while sending the file to the media service'
+        : `the media service refused the file (HTTP ${put.status})`,
+    }
+  }
 
   // Record the row. This one must succeed - the bytes are already stored. The
   // token goes back with it: /record re-checks the same signature the Worker did,
@@ -208,6 +223,9 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
 // callers can render a live progress bar.
 export async function uploadOneFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
   const contentType = uploadTypeForFile(file)
+  // Why the direct path stood down, when it did - woven into the error if the
+  // fallback then fails as well.
+  let directReason: string | null = null
   if (isDirectUploadType(contentType)) {
     // The Worker caps the direct path too - say so plainly here rather than
     // letting it 413 and then falling through to the serverless path, which
@@ -216,17 +234,32 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
       throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
     }
     const done = await directUpload(file, contentType, folderId, onProgress)
-    if (done) { onProgress?.(1); return done }
+    if (!isFallback(done)) { onProgress?.(1); return done }
+    directReason = done.fallback
   }
   // A model has no second path. The serverless route is image-only, so falling
   // through would fail with "not a supported image", which is both wrong and
-  // unactionable. Say what actually needs doing instead.
+  // unactionable. Say what stopped the one path it has.
   if (isModelDirectType(contentType)) {
-    throw new Error(`“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`)
+    throw new Error(
+      directReason
+        ? `“${file.name}” could not be uploaded: ${directReason}. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`
+        : `“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`
+    )
   }
-  const record = await serverlessUpload(file, folderId, onProgress)
-  onProgress?.(1)
-  return record
+  try {
+    const record = await serverlessUpload(file, folderId, onProgress)
+    onProgress?.(1)
+    return record
+  } catch (err) {
+    // The fallback failed too. If the direct path also had a reason, report
+    // both - otherwise a 50 MB photo dies blaming the 4 MB serverless cap with
+    // no hint that the real question is why the direct path stepped aside.
+    if (directReason && err instanceof Error) {
+      throw new Error(`${err.message} (direct upload was tried first but ${directReason})`)
+    }
+    throw err
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -236,9 +269,9 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
 // call is /[id]/replace rather than /record.
 // ---------------------------------------------------------------------------
 
-// True when the direct path carried it; false to mean "fall back". A thrown error
-// is a hard failure and must not be retried on the other path.
-async function directReplace(mediaId: string, file: File, contentType: string, onProgress?: ProgressFn): Promise<boolean> {
+// True when the direct path carried it; { fallback } to mean "fall back". A
+// thrown error is a hard failure and must not be retried on the other path.
+async function directReplace(mediaId: string, file: File, contentType: string, onProgress?: ProgressFn): Promise<true | DirectFallback> {
   let res: Response
   try {
     res = await fetch('/api/admin/media/upload-url', {
@@ -247,21 +280,21 @@ async function directReplace(mediaId: string, file: File, contentType: string, o
       body: JSON.stringify({ filename: file.name, contentType, replaceId: mediaId }),
     })
   } catch {
-    return false
+    return { fallback: 'the signing call never reached the server' }
   }
   // 409 is the app refusing this replacement outright (it would have to rename the
   // file, stranding whatever points at it). The serverless path refuses it for the
   // same reason, so surface it now rather than after pushing the whole file up.
   if (res.status === 409) throw new Error(await uploadErrorMessage(res, file))
-  if (!res.ok) return false
+  if (!res.ok) return { fallback: `the signing call failed (HTTP ${res.status})` }
 
   let info: UploadUrlResponse
   try {
     info = await res.json()
   } catch {
-    return false
+    return { fallback: "the signing call's reply could not be read" }
   }
-  if (!info.available) return false
+  if (!info.available) return { fallback: 'direct uploads are not enabled for this storage set-up' }
 
   const put = await sendWithRetry(
     'PUT',
@@ -270,7 +303,13 @@ async function directReplace(mediaId: string, file: File, contentType: string, o
     { 'content-type': contentType, authorization: `Bearer ${info.token}` },
     onProgress,
   )
-  if (!put.ok) return false
+  if (!put.ok) {
+    return {
+      fallback: put.status === 0
+        ? 'the connection dropped while sending the file to the media service'
+        : `the media service refused the file (HTTP ${put.status})`,
+    }
+  }
 
   // The bytes are stored; this one must succeed or the item is left pointing at
   // its old file with no sign anything happened.
@@ -302,16 +341,30 @@ export async function replaceOneFile(mediaId: string, file: File, onProgress?: P
   // the direct route is on at all. Reading file.type here meant a model always
   // fell through to the serverless route and died on its body cap.
   const contentType = uploadTypeForFile(file)
+  let directReason: string | null = null
   if (isDirectUploadType(contentType)) {
     if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
       throw new Error(`${file.name}: ${tooLargeReason(file.size, MAX_DIRECT_UPLOAD_MB)}`)
     }
-    if (await directReplace(mediaId, file, contentType, onProgress)) { onProgress?.(1); return }
+    const carried = await directReplace(mediaId, file, contentType, onProgress)
+    if (carried === true) { onProgress?.(1); return }
+    directReason = carried.fallback
   }
   // A model has no serverless path, exactly as on the upload side.
   if (isModelDirectType(contentType)) {
-    throw new Error(`“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`)
+    throw new Error(
+      directReason
+        ? `“${file.name}” could not be uploaded: ${directReason}. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`
+        : `“${file.name}” could not be uploaded. 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed - check Settings → Media.`
+    )
   }
-  await serverlessReplace(mediaId, file, onProgress)
-  onProgress?.(1)
+  try {
+    await serverlessReplace(mediaId, file, onProgress)
+    onProgress?.(1)
+  } catch (err) {
+    if (directReason && err instanceof Error) {
+      throw new Error(`${err.message} (direct upload was tried first but ${directReason})`)
+    }
+    throw err
+  }
 }

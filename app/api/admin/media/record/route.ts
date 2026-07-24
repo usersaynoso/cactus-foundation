@@ -91,6 +91,17 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(record, { status: 201 })
   } catch (err: unknown) {
+    // Two files whose names sanitise to the same storage key can both be signed
+    // before either has a row (the key is only claimed at this point), so the
+    // second lands here on the unique constraint. Rare, but "Save failed:
+    // Unique constraint failed on the fields: (key)" reads as gibberish - name
+    // what actually happened and what to do about it.
+    if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002') {
+      return errorResponse(
+        `“${originalName ?? key}” was uploaded at the same time as another file with a matching name, and the other one got there first. Upload this file again on its own.`,
+        409,
+      )
+    }
     return errorResponse(`Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 500)
   }
 }

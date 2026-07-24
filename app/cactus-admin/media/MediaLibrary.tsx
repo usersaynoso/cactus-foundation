@@ -15,6 +15,7 @@ import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-c
 import FolderTree, { type FolderNode } from './FolderTree'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile } from '@/lib/media/upload-client'
+import { type UploadChoice, planUploadJobs, runUploadPool } from '@/lib/media/upload-batch'
 import { preflightUploadError, isAcceptedUploadType, isOptimisableType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
@@ -57,26 +58,30 @@ type CollisionState =
 
 /**
  * Which of `names` already exist in the destination folder. A failed lookup
- * returns nothing rather than throwing: the upload should still go ahead, just
- * without the prompt, exactly as it did before this existed.
+ * returns an empty map rather than throwing: the upload should still go ahead,
+ * just without the prompt - but the caller is told (`checkFailed`), so it can
+ * say so out loud instead of silently uploading over the top.
  */
 async function lookUpNameClashes(
   names: string[],
   folderId: string | null,
-): Promise<Map<string, { name: string; suggestedName: string; existingId: string }>> {
+): Promise<{ clashes: Map<string, { name: string; suggestedName: string; existingId: string }>; checkFailed: boolean }> {
   const map = new Map<string, { name: string; suggestedName: string; existingId: string }>()
-  if (names.length === 0) return map
+  if (names.length === 0) return { clashes: map, checkFailed: false }
   try {
     const res = await fetch('/api/admin/media/name-check', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ folderId, names }),
     })
-    if (!res.ok) return map
+    if (!res.ok) return { clashes: map, checkFailed: true }
     const d = await res.json()
     for (const c of d.clashes ?? []) map.set(c.name, c)
-  } catch { /* no prompt is better than no upload */ }
-  return map
+  } catch {
+    // No prompt is better than no upload - but not silently.
+    return { clashes: map, checkFailed: true }
+  }
+  return { clashes: map, checkFailed: false }
 }
 
 /** The same bytes under a different filename, so the new name reaches the key. */
@@ -84,8 +89,8 @@ function renameFile(file: File, name: string): File {
   return new File([file], name, { type: file.type, lastModified: file.lastModified })
 }
 
-/** What the person chose when told an upload's name was already taken. */
-type UploadChoice = 'replace' | 'suffix' | 'skip' | 'cancel'
+// UploadChoice - what the person chose when told an upload's name was already
+// taken - lives in lib/media/upload-batch.ts with the rest of the batch logic.
 
 // An upload paused mid-batch on "that name is already here". `resolve` is the
 // waiting enqueueFiles loop, resumed by whichever button is pressed - so the
@@ -879,88 +884,75 @@ export default function MediaLibrary({
     const turn = uploadBatchChain.current.then(() => runUploadBatch(tasks, targetFolderId))
     // A failed batch must not wedge every batch after it.
     uploadBatchChain.current = turn.catch(() => {})
-    await turn
+    try {
+      await turn
+    } catch (err) {
+      // Callers fire-and-forget this function, so a rejection here would vanish
+      // into an unhandled-promise warning nobody sees. runUploadBatch already
+      // marked its own tasks; this is the last-resort announcement.
+      pushToast('error', `Upload batch stopped: ${err instanceof Error ? err.message : 'unknown error'}`)
+    }
   }
 
   async function runUploadBatch(
     tasks: { file: File; task: UploadTask }[],
     targetFolderId: string | null,
   ) {
-    // Ask the server which of these names are already taken in the destination
-    // before anything is sent. A name that is free uploads straight through; a
-    // name that isn't stops and asks, because the alternatives - overwrite, or
-    // quietly file it as something else - are both things only the person
-    // uploading can choose between.
-    const clashes = await lookUpNameClashes(tasks.filter((t) => t.task.status !== 'error').map((t) => t.file.name), targetFolderId)
-
-    // Every clash is answered before anything is sent - one dialog at a time, in
-    // file order. Only then does the batch upload, so a "cancel" here still means
-    // "nothing happened", and the parallel phase below never has to pause a
-    // half-finished pool to ask a question.
-    type UploadJob = {
-      file: File
-      taskId: string
-      clash: { existingId: string; suggestedName: string } | null
-      choice: UploadChoice
+    // Whatever happens below, every task must end in a terminal state. A task
+    // left "queued" forever is the worst failure mode this path has had: a
+    // stalled bar with no message, nothing to report, nothing to copy. Track
+    // what has settled so the catch-all can name the rest.
+    const settled = new Set<string>()
+    const settle = (taskId: string, patch: Partial<UploadTask>) => {
+      settled.add(taskId)
+      updateUpload(taskId, patch)
     }
-    // How many queued files clash. More than one, and we let the person answer
-    // once and tick "do the same for the rest" - so a hundred same-named files
-    // don't mean a hundred identical dialogs.
-    const totalClashes = tasks.filter((t) => t.task.status !== 'error' && clashes.has(t.file.name)).length
+    for (const t of tasks) if (t.task.status === 'error') settled.add(t.task.id)
 
-    const jobs: UploadJob[] = []
-    let cancelled = false
-    // Set once the person answers a dialog with "do the same for the rest" ticked.
-    // Every later clash reuses it instead of stopping to ask again.
-    let bulkChoice: UploadChoice | null = null
-    let clashesHandled = 0
-    for (const { file, task } of tasks) {
-      if (task.status === 'error') continue
-      if (cancelled) { updateUpload(task.id, { status: 'skipped' }); continue }
-
-      let choice: UploadChoice = 'suffix'
-      const clash = clashes.get(file.name) ?? null
-      if (clash) {
-        if (bulkChoice) {
-          choice = bulkChoice
-        } else {
-          const remaining = totalClashes - clashesHandled
-          const answer = await new Promise<{ choice: UploadChoice; applyToAll: boolean }>((resolve) => {
-            setUploadClash({ ...clash, remaining, resolve: (c, all) => { setUploadClash(null); resolve({ choice: c, applyToAll: all }) } })
-          })
-          choice = answer.choice
-          // Cancel stops the whole batch anyway, so there's nothing to carry.
-          if (answer.applyToAll && choice !== 'cancel') bulkChoice = choice
-        }
-        clashesHandled++
-        if (choice === 'cancel') { cancelled = true; updateUpload(task.id, { status: 'skipped' }); continue }
-        if (choice === 'skip') { updateUpload(task.id, { status: 'skipped' }); continue }
+    try {
+      // Ask the server which of these names are already taken in the destination
+      // before anything is sent. A name that is free uploads straight through; a
+      // name that isn't stops and asks, because the alternatives - overwrite, or
+      // quietly file it as something else - are both things only the person
+      // uploading can choose between.
+      const live = tasks.filter((t) => t.task.status !== 'error')
+      const { clashes, checkFailed } = await lookUpNameClashes(live.map((t) => t.file.name), targetFolderId)
+      if (checkFailed) {
+        // The upload still goes ahead - clashing names get a "-2" suffix from the
+        // server rather than overwriting - but say so, because the person was
+        // expecting a prompt and needs to know why it never came.
+        pushToast('error', 'Could not check for existing file names, so nothing will be overwritten - any name that is already taken will upload under a numbered name instead.')
       }
-      jobs.push({ file, taskId: task.id, clash, choice })
-    }
 
-    // Three uploads in flight at once, not six. Browsers hold ~6 connections per
-    // host and every job needs two of them - the signing call to this origin, then
-    // the byte PUT to the media host - so a six-wide pool sat exactly on that
-    // ceiling with nothing left for the thumbnails and API calls the page is making
-    // alongside. Safari enforces the ceiling by refusing the excess outright rather
-    // than queueing it, which is why a bulk upload into a folder full of images
-    // failed en masse ("bad URL", no response at all) while the very same files
-    // went up fine into an empty folder, and fine from Chrome.
-    //
-    // A serial loop is the other extreme and left five lanes idle, which is what
-    // made a few hundred small files take all afternoon. Each worker pulls the next
-    // job off the shared cursor, so a slow video never blocks the photos behind it -
-    // the other lanes keep draining.
-    const CONCURRENT_UPLOADS = 3
-    let uploaded = 0
-    let next = 0
-    async function uploadWorker() {
-      while (next < jobs.length) {
-        const job = jobs[next++]
-        if (!job) return
-        updateUpload(job.taskId, { status: 'uploading', progress: 0 })
-        try {
+      // Phase 1: every clash answered before anything is sent (see
+      // lib/media/upload-batch.ts for why). The dialog is the `ask` callback;
+      // pressing a button resolves it and the loop moves to the next clash.
+      const jobs = await planUploadJobs(
+        tasks.map((t) => ({ file: t.file, taskId: t.task.id, name: t.file.name, blocked: t.task.status === 'error' })),
+        clashes,
+        (clash, remaining) => new Promise((resolve) => {
+          setUploadClash({ ...clash, remaining, resolve: (c, all) => { setUploadClash(null); resolve({ choice: c, applyToAll: all }) } })
+        }),
+        (taskId) => settle(taskId, { status: 'skipped' }),
+      )
+
+      // Phase 2: three uploads in flight at once, not six. Browsers hold ~6
+      // connections per host and every job needs two of them - the signing call
+      // to this origin, then the byte PUT to the media host - so a six-wide pool
+      // sat exactly on that ceiling with nothing left for the thumbnails and API
+      // calls the page is making alongside. Safari enforces the ceiling by
+      // refusing the excess outright rather than queueing it, which is why a bulk
+      // upload into a folder full of images failed en masse ("bad URL", no
+      // response at all) while the very same files went up fine into an empty
+      // folder, and fine from Chrome.
+      //
+      // A serial loop is the other extreme and left five lanes idle, which is
+      // what made a few hundred small files take all afternoon.
+      const CONCURRENT_UPLOADS = 3
+      const uploaded = await runUploadPool(
+        jobs,
+        CONCURRENT_UPLOADS,
+        async (job) => {
           if (job.clash && job.choice === 'replace') {
             // The existing item keeps its row, its url and everything pointing at
             // it - only the bytes change. That is what "replace" has to mean here,
@@ -972,16 +964,26 @@ export default function MediaLibrary({
             const named = job.clash ? renameFile(job.file, job.clash.suggestedName) : job.file
             await uploadOneFile(named, targetFolderId, (fraction) => updateUpload(job.taskId, { progress: fraction }))
           }
-          updateUpload(job.taskId, { status: 'done', progress: 1 })
-          uploaded++
-        } catch (err) {
-          updateUpload(job.taskId, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' })
-        }
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENT_UPLOADS, jobs.length) }, uploadWorker))
+        },
+        {
+          start: (taskId) => updateUpload(taskId, { status: 'uploading', progress: 0 }),
+          done: (taskId) => settle(taskId, { status: 'done', progress: 1 }),
+          fail: (taskId, message) => settle(taskId, { status: 'error', error: message }),
+        },
+      )
 
-    if (uploaded > 0) await Promise.all([fetchItems(), refetchFolders()])
+      if (uploaded > 0) await Promise.all([fetchItems(), refetchFolders()])
+    } catch (err) {
+      // Something outside a single upload broke (the refresh after the batch,
+      // or a bug in the batch plumbing itself). Name it on every task it
+      // stranded, so the failure reads as what it is rather than a bar stuck at
+      // nought forever.
+      const message = `The batch stopped unexpectedly: ${err instanceof Error ? err.message : 'unknown error'}`
+      for (const t of tasks) {
+        if (!settled.has(t.task.id)) settle(t.task.id, { status: 'error', error: message })
+      }
+      throw err
+    }
   }
 
   const currentTrail = useMemo(() => trailFor(currentFolderId, folders), [currentFolderId, folders])
