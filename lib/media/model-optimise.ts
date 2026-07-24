@@ -142,7 +142,21 @@ export async function optimiseModelBytes(input: Buffer, mimeType: string): Promi
     // textures no material points at, empty nodes, unused animation channels.
     // This is the pass that most often accounts for a surprising chunk of a file,
     // because an authoring session's dead ends all get written out.
-    prune(),
+    //
+    // keepAttributes, though, against the library's default. Left to itself, prune
+    // also deletes a vertex attribute nothing in the FILE uses - and its headline
+    // example is "UVs without an assigned texture", which is precisely what a model
+    // destined for the material configurator looks like: the shopper's finish is
+    // painted onto the named material at runtime, so the uploaded GLB carries UVs
+    // and a plain colour, and not one texture between them. Pruning those UVs is
+    // silent and total. The model still loads, still spins, still paints its
+    // colours; but every texture-scale measurement the configurator takes off the
+    // mesh reads zero, so every material reports "not measured" however many times
+    // the admin presses Detect, and the shop draws every weave untiled. The bytes
+    // saved were never the point - a UV set is small - and the file cannot be
+    // recovered afterwards, because the optimised model is written back over its
+    // own key.
+    prune({ keepAttributes: true }),
     // Merge vertices that are bitwise identical across every attribute, so an
     // indexed primitive stores each one once. This is a deduplication rather than
     // a simplification - it has no tolerance to set and cannot move a surface -

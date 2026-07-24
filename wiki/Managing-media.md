@@ -179,7 +179,8 @@ A couple of things to expect:
 
 - **There's no undo.** The old file is gone from your storage once the new one is in. If you might want it back, download it first.
 - **Big files are fine** - the same generous limit as a normal upload, with a progress bar in the notification bell while it goes up.
-- **Occasionally Cactus will say no**, and it'll tell you why. Some pictures are filed under a fixed name by another part of your site - product photos, most often - and for those the replacement has to be the same type of file as the original: a JPEG for a JPEG, a PNG for a PNG. Swapping the type would move the file to a new address that the shop wouldn't know to follow, and your product photo would quietly vanish from the storefront while sitting perfectly safe in your library. Easier to say no up front. Save the new picture in the matching format and it'll go straight through.
+- **Pictures can change format freely.** A JPEG can take over from a PNG, a PNG from a WebP, and so on - Cactus quietly re-points everything that was using the old file, so nothing on your site notices the swap. This matters more than it sounds: after Cactus optimises a picture it's stored as WebP behind the scenes, and replacing it with your original again used to be refused for being "the wrong type". It isn't any more.
+- **3D models are the one place Cactus will say no** to a change of type. A model's address is pinned by the product pages that show it, so a `.glb` has to be replaced by another `.glb`. Cactus tells you up front rather than after the upload.
 
 If what you actually want is a *changed* version of the picture you've already got - trimmed, reshaped, or scaled down - the next three sections do that without you leaving Cactus at all.
 
@@ -411,6 +412,7 @@ A few things worth knowing:
 - **GLB files are the ones that get slimmed.** They are the format we recommend anyway (see the Product 3D views guide), because a GLB carries everything it needs in one file. Models in the OBJ, FBX and 3DS formats are left exactly as they are - there is no equivalent tidy-up for them, and pretending otherwise would risk the file for nothing.
 - **A model keeps its place.** Unlike a photo, which changes format and picks up a new extension, a slimmed model is written straight back over itself - so every product and variation pointing at it carries on pointing at it, with nothing to relink.
 - **If it can't be slimmed, nothing is lost.** A model that was already tight, or that the tidy-up couldn't finish, is stored exactly as you uploaded it and simply keeps its **Optimise** button for another day. An upload never fails because of this.
+- **The texture map stays put.** For a while the tidy-up threw away a model's texture map - the part that says how a flat piece of material wraps round a shape - whenever its surfaces had no picture on them yet. Nothing looked wrong: the model still turned, still took its colours. But the material configurator had lost the one thing it measures the weave against, so every part sat on "not measured" for good. Fixed, with apologies. Models slimmed since then keep it; anything uploaded while that was the case wants uploading again, as the file was altered as it landed and there is no putting it back.
 
 ---
 

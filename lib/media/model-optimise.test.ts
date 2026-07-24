@@ -56,6 +56,32 @@ async function buildTestModel(): Promise<Buffer> {
   return Buffer.from(await new NodeIO().writeBinary(doc))
 }
 
+// A model shaped like one destined for the material configurator: named materials,
+// real UVs, and no texture anywhere - the finish is painted on at runtime from the
+// shopper's swatch, so the uploaded file has nothing in its texture slots.
+async function buildUntexturedModel(): Promise<Buffer> {
+  const doc = new Document()
+  const buffer = doc.createBuffer()
+
+  const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array([
+    0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
+  ])).setBuffer(buffer)
+  const uv = doc.createAccessor().setType('VEC2').setArray(new Float32Array([
+    0, 0, 1, 0, 1, 1, 0, 1,
+  ])).setBuffer(buffer)
+  const indices = doc.createAccessor().setType('SCALAR').setArray(new Uint16Array([0, 1, 2, 0, 2, 3])).setBuffer(buffer)
+
+  const material = doc.createMaterial('Fabric').setBaseColorFactor([0.5, 0.5, 0.5, 1])
+  const prim = doc.createPrimitive()
+    .setAttribute('POSITION', pos)
+    .setAttribute('TEXCOORD_0', uv)
+    .setIndices(indices)
+    .setMaterial(material)
+  doc.createScene('scene').addChild(doc.createNode('screen').setMesh(doc.createMesh('screen').addPrimitive(prim)))
+
+  return Buffer.from(await new NodeIO().writeBinary(doc))
+}
+
 describe('optimiseModelBytes', () => {
   it('refuses anything that is not a GLB, without throwing', async () => {
     for (const type of ['model/gltf+json', 'model/obj', 'model/x-fbx', 'model/x-3ds']) {
@@ -110,6 +136,36 @@ describe('optimiseModelBytes', () => {
     expect(prim).toBeDefined()
     expect(prim?.getAttribute('POSITION')?.getCount()).toBeGreaterThan(0)
     expect(prim?.getAttribute('TEXCOORD_0')).not.toBeNull()
+  }, 120_000)
+
+  it('keeps the UVs of a material that has no texture yet', async () => {
+    // The one that got away. prune() removes "UVs without an assigned texture" by
+    // default, and a material configurator model has no assigned texture by
+    // design - the swatch is painted on in the browser. Stripping the UVs on the
+    // way in breaks nothing visible: the model loads, spins and takes its colours,
+    // but every texture-scale measurement the configurator reads off the mesh comes
+    // back zero, so each material sits at "not measured" for ever and the shop
+    // draws the weave untiled. The bytes are overwritten in place, so the UVs
+    // cannot be got back afterwards either.
+    const input = await buildUntexturedModel()
+    const result = await optimiseModelBytes(input, 'model/gltf-binary')
+
+    // Whether this tiny file gets smaller is beside the point; what it must not do
+    // is come back without its UVs.
+    const bytes = result.optimised ? result.bytes : input
+    const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions')
+    const { MeshoptDecoder } = await import('meshoptimizer')
+    await MeshoptDecoder.ready
+    const io = new NodeIO()
+      .registerExtensions(ALL_EXTENSIONS)
+      .registerDependencies({ 'meshopt.decoder': MeshoptDecoder })
+    const doc = await io.readBinary(new Uint8Array(bytes))
+
+    const prim = doc.getRoot().listMeshes()[0]?.listPrimitives()[0]
+    expect(prim).toBeDefined()
+    expect(prim?.getAttribute('TEXCOORD_0')).not.toBeNull()
+    expect(prim?.getAttribute('TEXCOORD_0')?.getCount()).toBeGreaterThan(0)
+    expect(prim?.getMaterial()?.getName()).toBe('Fabric')
   }, 120_000)
 
   it('caps texture size at 2048 and re-encodes to WebP', async () => {
