@@ -65,7 +65,7 @@ If several files in the same batch clash at once, the question comes up just the
 
 The question is asked before a single byte leaves your computer, so nothing is overwritten or renamed behind your back.
 
-**Supported formats:** JPEG, PNG, WebP, GIF, SVG, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
+**Supported formats:** JPEG, PNG, WebP, GIF, SVG, the video formats MP4 and WebM, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
 
 **File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 50 MB ceiling - roomy enough for the full-fat shot from a phone or camera several times over. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 50 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
 
@@ -76,6 +76,20 @@ The same 50 MB ceiling covers 3D model files. They go the same way photos do - b
 > **Necessary, not merely worth doing, if you want 3D models.** A Worker deployed before this release will turn every 3D file away, because accepting them is new and your Worker only learns new things when you send it a fresh copy. Redeploy and they upload as normal. Photos are unaffected either way.
 >
 > **And once more, if you would rather people didn't help themselves to your 3D models.** A redeployed Worker will only hand out a model file to someone whose link carries a valid pass, and Cactus expires those passes after a day or so. Copied links go stale, and other websites can't point at your models at all. Photographs are deliberately left alone, so nothing else on your site changes. Until you redeploy, models are served to anyone who has the address - which is what every Worker did before now.
+
+---
+
+## Videos and scroll sequences
+
+You can upload **video** to your media library the same way you upload a photo - MP4 and WebM files are both welcome. A video sits in the library as its own tile with a little film-strip marker, and clicking it plays a preview.
+
+The clever bit is what you can do next. Open a video and choose **Convert to scroll sequence**, and Cactus quietly rebuilds it into a *scroll sequence*: a smooth, frame-by-frame animation with the plain studio background - and the drop shadow that usually tags along with it - removed, so it looks right on both light and dark pages. You choose where it's stored, give it a name, and pick **Fast** (recommended) or **High quality, slower** for the background removal.
+
+The work happens quietly in the background and takes the better part of fifteen to twenty minutes for a short clip, so there's no need to sit and watch - close the window and carry on, and the finished sequence turns up in your library on its own, as a single tidy tile rather than a hundred separate frames. Deleting that tile clears the whole thing away in one go.
+
+To show one on your site, add the **Scroll sequence** block to a page or a product description - see [Available blocks](Managing-pages#available-blocks). It plays the frames as visitors scroll down, loops gently once it reaches the end, and fades away as they scroll past.
+
+> **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded. (Converting a video you've already got needs nothing extra.)
 
 ---
 

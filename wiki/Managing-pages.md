@@ -120,6 +120,7 @@ Use these to structure the page and create visual sections.
 | **Image** | An image with optional caption. Requires a media provider to be set up. |
 | **Video** | Embed a YouTube or Vimeo video. Paste the video URL and choose an aspect ratio. |
 | **Embed** | Embed anything via URL - maps, booking forms, surveys, and so on. |
+| **Scroll sequence** | Plays a *scroll sequence* (made from a video over in your [media library](Managing-media#videos-and-scroll-sequences)) as a frame-by-frame animation that runs as visitors scroll, loops at the end, and fades as they scroll past. Pick a sequence from your library, set how much scrolling it spans (**Scroll length**), and choose whether it loops and fades. Its background is already removed, so it sits happily on light or dark pages. In the editor it shows a still so it doesn't run off with your scroll wheel. |
 
 ### Content
 
