@@ -2,6 +2,23 @@
 // panel and stat bar all render sizes, dates and filenames identically.
 
 import { SEQUENCE_MIME } from '@/lib/media/limits'
+import { ALL_PROVIDERS } from '@/lib/media/providers'
+
+// The media-library folder path an item lives in, derived from its storage key.
+// Keys are `media/<folderPath>/<file>` (B2) or `media/<PROVIDER>/<folderPath>/<file>`
+// for other proxied providers, so strip the leading `media/`, an optional provider
+// segment, and the filename - what's left mirrors the library's folder tree.
+// Used to prefill the scroll-sequence dialog's destination path with the video's
+// own folder. Returns a trailing-slashed path, or '' when the item sits at the root.
+const PROVIDER_SEGMENTS = new Set<string>(ALL_PROVIDERS.map(String))
+
+export function folderPathOf(item: { key: string }): string {
+  const segments = item.key.split('/').filter(Boolean)
+  segments.pop() // drop the filename
+  if (segments[0] === 'media') segments.shift()
+  if (segments[0] && PROVIDER_SEGMENTS.has(segments[0])) segments.shift()
+  return segments.length ? `${segments.join('/')}/` : ''
+}
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

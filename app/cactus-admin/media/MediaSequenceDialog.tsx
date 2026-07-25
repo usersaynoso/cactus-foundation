@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
 import { useFocusTrap } from './useFocusTrap'
-import { filenameOf } from './format'
+import { filenameOf, folderPathOf } from './format'
 
 // "Convert to scroll sequence" — turn one video into a folder of alpha-WebP
 // frames plus a manifest the scroll-sequence block can play. The heavy lifting
@@ -55,7 +55,9 @@ export default function MediaSequenceDialog({
   // The video's name without its extension makes a sensible default.
   const defaultName = filenameOf(item).replace(/\.[^./\\]+$/, '')
 
-  const [path, setPath] = useState('shop/')
+  // Prefill the destination with the folder the video already lives in, so the
+  // frames land beside their source. Falls back to 'shop/' for a root-level video.
+  const [path, setPath] = useState(() => folderPathOf(item) || 'shop/')
   const [name, setName] = useState(defaultName)
   const [preset, setPreset] = useState<PresetKey>('fast')
   const [presets, setPresets] = useState<PresetSummaries | null>(null)
