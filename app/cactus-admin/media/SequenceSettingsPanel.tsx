@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 // Media > Scroll sequences. Two things live here: the conversion presets ("Fast"
 // and "High quality, slower") an admin tunes once, and a live list of every
@@ -76,29 +76,45 @@ export default function SequenceSettingsPanel({
   const [error, setError] = useState<string | null>(null)
 
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Poll the job list so statuses tick over while a conversion runs. A failed poll
-  // is ignored - the last good list stays on screen until the next one lands.
+  // Fetch the job list once. Shared by the poller and the manual Refresh button. A
+  // failed fetch is swallowed - the last good list stays on screen. Returns whether
+  // it landed so the button can flag a wobble if it did not.
+  const loadJobs = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/admin/media/sequence-jobs')
+      if (!res.ok) return false
+      const d = await res.json()
+      if (Array.isArray(d.jobs)) setJobs(d.jobs as Job[])
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Poll the job list so statuses tick over while a conversion runs.
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const schedule = () => { timer = setTimeout(poll, JOBS_POLL_MS) }
     async function poll() {
-      try {
-        const res = await fetch('/api/admin/media/sequence-jobs')
-        if (!cancelled && res.ok) {
-          const d = await res.json()
-          if (Array.isArray(d.jobs)) setJobs(d.jobs as Job[])
-        }
-      } catch {
-        // keep the last list
-      } finally {
-        if (!cancelled) schedule()
-      }
+      await loadJobs()
+      if (!cancelled) schedule()
     }
     schedule()
     return () => { cancelled = true; if (timer) clearTimeout(timer) }
-  }, [])
+  }, [loadJobs])
+
+  async function refreshJobs() {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      await loadJobs()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   function setPresetField(key: PresetKey, field: keyof Preset, value: Engine | number) {
     setSaved(false)
@@ -244,9 +260,14 @@ export default function SequenceSettingsPanel({
 
       {/* ── Jobs ────────────────────────────────────────────────────────── */}
       <section>
-        <h2 style={{ margin: '0 0 var(--space-1) 0', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
-          Recent jobs
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', margin: '0 0 var(--space-1) 0' }}>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
+            Recent jobs
+          </h2>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={refreshing} onClick={refreshJobs}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
         <p style={{ margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
           Every conversion and where it got to. A job stays here until you clear it - the same notice you see on the bell.
         </p>
