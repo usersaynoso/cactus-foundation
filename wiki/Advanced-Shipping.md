@@ -13,8 +13,9 @@ It needs the **Shop** and **Product Attributes** modules installed.
   "Order within 6h 12m to get it by then." When the cut-off passes, the date
   quietly rolls forward on its own.
 - In the basket: each line shows its own delivery date and a picker for the
-  delivery service. Choosing, say, full installation updates the price and the
-  promised date on the spot.
+  delivery service. Choosing, say, full installation updates the price the
+  instant it is picked - no waiting on a spinner - and the promised date
+  follows a beat later once the server has confirmed the sums.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
 
@@ -72,3 +73,8 @@ Everything lives under **Delivery** in the admin sidebar:
 
 There is nothing to configure in your hosting - no keys, no environment
 variables. Set your rules, import the holidays, and you are away.
+
+One small note on timing: to keep the storefront quick, the shop keeps a very
+short-lived copy of your rules, tiers and prices (about ten seconds). An edit
+in the admin can therefore take up to ten seconds to show on product pages and
+in the basket - blink and you'll miss it, but it is not a bug.
