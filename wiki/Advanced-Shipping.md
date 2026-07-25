@@ -65,8 +65,10 @@ Everything lives under **Delivery** in the admin sidebar:
 - **Service tiers** - your delivery-and-assembly options and their prices.
 - **Holidays** - import the official bank-holiday calendar for your region
   (England & Wales, Scotland, or Northern Ireland). It refreshes itself weekly.
-- **Delivery settings** - which attribute means "range", your holiday region, and
-  the default service shown before the shopper changes it.
+- **Delivery settings** - which attribute means "range", your holiday region, the
+  default service shown before the shopper changes it, and how the basket shows
+  the delivery-service picker: a compact **dropdown** (the default) or **radio
+  buttons** that lay every option out at once.
 
 There is nothing to configure in your hosting - no keys, no environment
 variables. Set your rules, import the holidays, and you are away.
