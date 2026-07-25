@@ -74,7 +74,15 @@ export function verifyCallbackSignature(rawBody: string, signature: string | nul
 // Worker HTTP client
 // ---------------------------------------------------------------------------
 
-export class SequenceWorkerError extends Error {}
+export class SequenceWorkerError extends Error {
+  /** The worker's HTTP status, when the failure came from a response. 404 means
+   *  the worker has no record of the job - it restarted and lost it mid-build. */
+  readonly status?: number
+  constructor(message: string, status?: number) {
+    super(message)
+    this.status = status
+  }
+}
 
 function workerBase(): string {
   const url = getSequenceWorkerUrl()
@@ -145,7 +153,7 @@ export async function getSequenceJob(jobId: string): Promise<SequenceJobStatus> 
     headers: { authorization: workerAuth() },
     signal: AbortSignal.timeout(15_000),
   })
-  if (!res.ok) throw new SequenceWorkerError(`The conversion service status check failed (HTTP ${res.status}).`)
+  if (!res.ok) throw new SequenceWorkerError(`The conversion service status check failed (HTTP ${res.status}).`, res.status)
   return (await res.json()) as SequenceJobStatus
 }
 

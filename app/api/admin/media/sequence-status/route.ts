@@ -33,6 +33,25 @@ export async function GET(request: NextRequest) {
     })
     return NextResponse.json({ status: job.status, progress: job.progress, error: job.error ?? null })
   } catch (err) {
+    // The worker keeps jobs in memory only, so a restart loses any job that was
+    // in flight - it then answers 404 for that id forever. Nothing can revive it,
+    // so mark the job Failed here rather than leaving it stuck at its last % (and
+    // return that as the status, not a bare 502, so the poller reflects it).
+    if (err instanceof SequenceWorkerError && err.status === 404) {
+      const detail = 'The conversion service restarted and lost this job. Convert the video again.'
+      const existing = await prisma.notification.findFirst({
+        where: { dedupeKey: `sequence-job:${jobId}` },
+        select: { title: true },
+      })
+      const title = existing?.title ?? `Scroll sequence in progress: ${jobId}`
+      await upsertSequenceNotification({
+        jobId,
+        name: title.replace(/^Scroll sequence (?:in progress|complete|failed): /, ''),
+        state: 'error',
+        detail,
+      })
+      return NextResponse.json({ status: 'error', progress: null, error: detail })
+    }
     if (err instanceof SequenceWorkerError) return errorResponse(err.message, 502)
     throw err
   }

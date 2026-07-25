@@ -78,12 +78,28 @@ export default function SequenceSettingsPanel({
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Fetch the job list once. Shared by the poller and the manual Refresh button. A
-  // failed fetch is swallowed - the last good list stays on screen. Returns whether
-  // it landed so the button can flag a wobble if it did not.
+  // Latest job list, kept in a ref so loadJobs can see it without re-subscribing.
+  const jobsRef = useRef<Job[]>(initialJobs)
+  useEffect(() => { jobsRef.current = jobs }, [jobs])
+
+  // Refresh the job list. Shared by the poller and the manual Refresh button.
+  //
+  // A job's notification only moves on its own via the convert dialog (while open)
+  // or the worker's final done/error callback. So for any job still in flight we
+  // first poke sequence-status, which proxies the worker's live progress and
+  // rewrites the notification - otherwise a job whose dialog was closed sits
+  // frozen at its last-seen % and refreshing would show nothing new. Then we read
+  // the list back. Every fetch is best-effort: a failure leaves the last good list
+  // on screen. Returns whether the list read landed.
   const loadJobs = useCallback(async (): Promise<boolean> => {
+    const active = jobsRef.current.filter((j) => j.state === 'queued' || j.state === 'running')
+    if (active.length > 0) {
+      await Promise.all(active.map((j) =>
+        fetch(`/api/admin/media/sequence-status?jobId=${encodeURIComponent(j.jobId)}`, { cache: 'no-store' }).catch(() => {})
+      ))
+    }
     try {
-      const res = await fetch('/api/admin/media/sequence-jobs')
+      const res = await fetch('/api/admin/media/sequence-jobs', { cache: 'no-store' })
       if (!res.ok) return false
       const d = await res.json()
       if (Array.isArray(d.jobs)) setJobs(d.jobs as Job[])
