@@ -42,6 +42,11 @@ Out-of-stock items on backorder add their restock time, and pre-order items use
 their pre-order date. Any single product can have its own **override** on the
 Delivery tab of its editor, for the odd exception.
 
+A product bought with options chosen (a colour, a headrest) counts as its main
+product for all of this: it uses the same range, category, supplier and any
+override, so the basket shows the same delivery choices whichever options were
+picked. Its own stock level still decides stock-based dates.
+
 ## Service tiers
 
 Service tiers are the delivery-and-assembly options a shopper picks in the

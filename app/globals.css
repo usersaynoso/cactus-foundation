@@ -2290,8 +2290,10 @@ tbody tr:hover {
   to   { background-position:  200% 0; }
 }
 .skeleton {
+  /* Semantic tokens, not raw sand: these resolve to the same sand pair in
+     light mode but follow the theme in dark mode (raw sand stayed light). */
   background: linear-gradient(90deg,
-    var(--sand-200) 25%, var(--sand-100) 50%, var(--sand-200) 75%);
+    var(--color-border) 25%, var(--color-bg-subtle) 50%, var(--color-border) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s infinite;
   border-radius: var(--radius);
