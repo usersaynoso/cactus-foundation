@@ -4,6 +4,7 @@ import { getActiveMediaProvider } from '@/lib/config/env'
 import { SEQUENCE_MIME } from '@/lib/media/limits'
 import { saveMediaRecord } from '@/lib/media/upload'
 import { verifyCallbackSignature, verifySequenceContext } from '@/lib/media/sequence'
+import { upsertSequenceNotification } from '@/lib/notifications/alerts'
 
 // Completion callback from the sequence worker. Not session-authenticated (the
 // worker holds no cookie) but HMAC-gated: the body is signed with the shared
@@ -36,6 +37,10 @@ export async function POST(request: NextRequest) {
 
   const manifestKey = typeof body.manifestKey === 'string' ? body.manifestKey : ''
   if (!manifestKey) return NextResponse.json({ error: 'missing manifestKey' }, { status: 400 })
+  const jobId = typeof body.jobId === 'string' ? body.jobId : ''
+  const sequenceName = typeof body.sequenceName === 'string' && body.sequenceName.trim()
+    ? body.sequenceName.trim()
+    : ctx?.name || manifestKey.split('/').slice(-2, -1)[0] || 'Scroll sequence'
 
   const provider = await getActiveMediaProvider()
   if (!provider) return NextResponse.json({ error: 'no media provider configured' }, { status: 503 })
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   // Fall back to the folder segment above manifest.json for a name if the token
   // was somehow absent - the HMAC has already proved the callback genuine.
-  const name = ctx?.name || manifestKey.split('/').slice(-2, -1)[0] || 'Scroll sequence'
+  const name = sequenceName
 
   const record = await saveMediaRecord({
     key: manifestKey,
@@ -58,5 +63,13 @@ export async function POST(request: NextRequest) {
     originalName: name,
     folderId: ctx?.folderId ?? null,
   })
+  if (jobId) {
+    await upsertSequenceNotification({
+      jobId,
+      name,
+      state: 'done',
+      progress: 1,
+    }).catch(() => {})
+  }
   return NextResponse.json({ ok: true, recorded: true, mediaId: record.id })
 }

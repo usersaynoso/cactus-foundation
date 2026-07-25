@@ -7,6 +7,7 @@ import { isVideoDirectType } from '@/lib/media/limits'
 import { getSiteUrl, isSequenceWorkerConfigured } from '@/lib/config/env'
 import { requireWorkerUrl } from '@/lib/media/upload'
 import { buildDestPrefix, signSequenceContext, enqueueSequenceJob, SequenceWorkerError } from '@/lib/media/sequence'
+import { upsertSequenceNotification } from '@/lib/notifications/alerts'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       callbackUrl,
       callbackToken,
     })
+    await upsertSequenceNotification({ jobId, name, state: 'queued', progress: 0 })
     return NextResponse.json({ jobId, destPrefix })
   } catch (err) {
     if (err instanceof SequenceWorkerError) return errorResponse(err.message, 502)
