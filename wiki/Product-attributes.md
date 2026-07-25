@@ -116,6 +116,8 @@ Each attribute you add carries two tick-boxes:
 - **Use for variations** - the value changes from one variant to the next (a jumper in red, blue and green). See below.
 - **Show in shop filters** - untick to keep an attribute on the product for your own reference without offering it to shoppers here. Useful when you only added it to organise the variants. This is per product; the shop-wide **Show in filters** on the attribute itself still applies on top, so an attribute switched off there is hidden everywhere regardless.
 
+To list an attribute and its value on the product page's own Specification tab - so a shopper reading the page sees "Gas height adjustment: Yes" without having to filter for it - drag it onto the page in the **Specification layout** below. See [Showing attributes on the product page](#showing-attributes-on-the-product-page).
+
 ### Using the same attribute twice
 
 Some products need the same attribute more than once. A desk has a material on top and a different one underneath, and setting up "Top material" and "Frame material" as two separate attributes means two filters where shoppers only wanted one.
@@ -175,6 +177,24 @@ The link works in both directions where new values are concerned. Add a value to
 ### Bulk-editing in the Google Sheet
 
 If you have the **Google Sheet** module, each **Use for variations** block becomes an extra column on the sheet's Variations tab, named after the block - so "Main finish" and "Edge finish" come through as two columns, not one. Type or change a variant's value there and it comes back in on the next Pull, the same as price or stock. A value you type that didn't exist yet is created for you.
+
+## Showing attributes on the product page
+
+Filters help a shopper *find* a product; the Specification tab helps them *read* one. The same attributes can do both. Underneath the attributes on the Attributes tab you'll find **Specification layout** - the one place you decide what shows on the product page and how it's grouped.
+
+Every attribute you've put on the product starts in **Not shown**. Drag one up onto the page and it appears on that product's Specification tab as a plain "name: value" line - "Tilt tension: Adjustable", "Backrest: Height adjustable". Drag it back down to **Not shown** to take it off again. Anything on the page replaces the standard specification facts (SKU, type, weight, dimensions); a product with nothing on the page carries on showing those as before.
+
+Attributes you set per variant can go on the page too, not just the ordinary ones. A per-variant attribute has no single value on the product as a whole, so it lists the ones its variants actually use - drop "Upholstery colour" onto the page and a shopper reads "Upholstery colour: Black, Grey, Blue". Only the values on variants that are switched on are counted, so a colour you've retired doesn't linger in the spec.
+
+### Sorting them into sections
+
+A long flat list of facts is hard to skim, so you can group them under headings of your own - **Mechanisms**, **Guarantee**, **Materials**, whatever suits:
+
+- Click **Add section** and give it a name.
+- Drag attributes into it - straight from **Not shown** or from another section. The little handle on each one is your grip. Drop one back onto the loose area above the sections and it still shows, just without a heading.
+- The arrows beside a section's name move the whole section up or down; **Remove** takes the heading away and tips its attributes back into the loose pile above the first heading, rather than hiding them.
+
+Sections are per product, so the headings you build on a chair don't clutter up a desk that never needed them. Drag, name and order it once, hit Save, and that's exactly how it reads on the page. Nothing here changes your filters or your variants - it's only about what a shopper sees written on the product itself.
 
 ## Putting the filter on your shop
 
