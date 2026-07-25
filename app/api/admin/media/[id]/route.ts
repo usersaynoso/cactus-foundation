@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { deleteMedia, getMediaReferences } from '@/lib/media/upload'
+import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
 import { moveOrRenameMedia, MediaNameCollisionError, type CollisionMode } from '@/lib/media/organise'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -95,7 +95,8 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
   }
 
   // Delete from the provider the row actually lives on (not the active selection).
-  await deleteMedia(media.provider, media.key)
+  // A scroll sequence takes its whole frame folder with it, not just the manifest.
+  await deleteMediaBytes(media)
   await prisma.media.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

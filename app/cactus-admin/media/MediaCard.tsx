@@ -1,7 +1,8 @@
 'use client'
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
-import { formatBytes, filenameOf, fileKind, optimiseHint } from './format'
+import { formatBytes, filenameOf, fileKind, optimiseHint, sequencePosterUrl } from './format'
+import { isSequenceType } from '@/lib/media/limits'
 
 export type MediaCardItem = {
   id: string
@@ -71,6 +72,9 @@ export default function MediaCard({
   dimmed?: boolean
 }) {
   const isImage = item.mimeType.startsWith('image/')
+  const isVideo = item.mimeType.startsWith('video/')
+  const isSequence = isSequenceType(item.mimeType)
+  const posterUrl = isSequence ? sequencePosterUrl(item.url) : null
   const filename = filenameOf(item)
   const showOptimise = !!onOptimise && optimisable
   const showReplace = !!onReplace && replaceable
@@ -108,8 +112,11 @@ export default function MediaCard({
           {isImage && !broken ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={item.url} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : isSequence && posterUrl && !broken ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={posterUrl} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
-            <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : undefined}>{broken ? '🚫' : '📄'}</span>
+            <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : '📄'}</span>
           )}
         </button>
 

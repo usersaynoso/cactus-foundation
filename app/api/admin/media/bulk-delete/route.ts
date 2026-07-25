@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { deleteMedia, getMediaReferences } from '@/lib/media/upload'
+import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
 
 // Bulk companion to the per-id DELETE in ../[id]/route.ts — same reference
 // check and force-override semantics, just applied to a list. Items still in
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       continue
     }
 
-    await deleteMedia(media.provider, media.key)
+    await deleteMediaBytes(media)
     await prisma.media.delete({ where: { id } })
     deleted.push(id)
   }

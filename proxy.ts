@@ -80,6 +80,12 @@ function buildCsp(): string {
     `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
+    // media-src - the library now stores video (mp4/webm). The <video> preview in
+    // the admin media detail panel is served from the media Worker origin, and
+    // media-src otherwise falls back to default-src 'self', which would block it
+    // exactly the way img-src once blocked Worker-served images. blob: is included
+    // for any client-generated clip a future feature might play back.
+    `media-src 'self' blob:${workerHost ? ` https://${workerHost}` : ''}`,
     `font-src 'self' https://fonts.gstatic.com`,
     // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
     // workerHost - direct-to-Worker PUT upload (admin > Media) fetches the Worker directly from the browser

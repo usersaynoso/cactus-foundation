@@ -71,6 +71,39 @@ export function isModelDirectType(mimeType: string): boolean {
   return MODEL_DIRECT_TYPES.has(mimeType)
 }
 
+// The video types the library accepts. Like 3D models they ride the
+// direct-to-Worker path (the serverless body cap is far too small for video)
+// and, like models, the server never decodes them - so they are deliberately NOT
+// raster: no optimise, no crop/resize, no image "Replace". mp4 (H.264/AAC) and
+// webm are the two a browser will actually play in a <video>; .mov/quicktime is
+// left out on purpose - its container is not reliably playable across browsers,
+// and its MIME subtype ("quicktime") would not round-trip to a ".mov" key the way
+// extensionForMimeType (lib/media/upload.ts) needs. Video is both the SOURCE a
+// scroll sequence is built from and a first-class library asset in its own right.
+export const VIDEO_DIRECT_TYPES = new Set(['video/mp4', 'video/webm'])
+
+export function isVideoDirectType(mimeType: string): boolean {
+  return VIDEO_DIRECT_TYPES.has(mimeType)
+}
+
+// What a file picker's `accept` lists for video. Unlike a 3D file, the browser
+// reports these types reliably from the extension, so they are offered by type.
+export const VIDEO_ACCEPT_TYPES = [...VIDEO_DIRECT_TYPES].join(',')
+
+// The custom type carried by a "scroll sequence" library item. A sequence is a
+// whole folder of alpha-WebP frames plus a manifest.json in object storage,
+// produced by the sequence worker from a video; the library records ONE pointer
+// row (this type, its url -> the manifest.json) so it shows a single tile rather
+// than a hundred near-identical frames. It is never uploaded - the worker writes
+// the frames and a server route records the row - so it stays out of the upload /
+// accept / direct-path / optimisable sets entirely, and exists only so the
+// library and the Puck block have something to point at.
+export const SEQUENCE_MIME = 'application/vnd.cactus.sequence+json'
+
+export function isSequenceType(mimeType: string): boolean {
+  return mimeType === SEQUENCE_MIME
+}
+
 // What a file picker's `accept` must list for 3D files: extensions, not types.
 // Listing "model/gltf-binary" would offer the admin nothing at all, because the
 // browser does not agree that a .glb is one - see the note above.
@@ -157,7 +190,7 @@ export function isAcceptedUploadType(mimeType: string): boolean {
 // arrived. The other two carried on offering images alone, so the file picker
 // greyed models out and the feature looked absent - which is exactly the failure
 // this constant exists to make impossible.
-export const UPLOAD_ACCEPT_ATTR = [...ACCEPTED_UPLOAD_TYPES, MODEL_ACCEPT_EXTENSIONS].join(',')
+export const UPLOAD_ACCEPT_ATTR = [...ACCEPTED_UPLOAD_TYPES, MODEL_ACCEPT_EXTENSIONS, VIDEO_ACCEPT_TYPES].join(',')
 
 // The `accept` for inputs that genuinely are image-only: Replace (gated on the
 // item already being an image the server can decode), branding, avatars. Kept
@@ -171,14 +204,14 @@ export const IMAGE_ACCEPT_ATTR = [...ACCEPTED_UPLOAD_TYPES].join(',')
 // which is what gates Replace and the image tools, and a model has neither a
 // replacement the file picker could offer nor pixels to optimise.
 export function isUploadableType(mimeType: string): boolean {
-  return isAcceptedUploadType(mimeType) || isModelDirectType(mimeType)
+  return isAcceptedUploadType(mimeType) || isModelDirectType(mimeType) || isVideoDirectType(mimeType)
 }
 
 // Types that go straight to the Worker, skipping the serverless body cap. Models
 // join the rasters here: they are far too big for the fallback path, and the
 // Worker has accepted them since 3D views arrived.
 export function isDirectUploadType(mimeType: string): boolean {
-  return isRasterDirectType(mimeType) || isModelDirectType(mimeType)
+  return isRasterDirectType(mimeType) || isModelDirectType(mimeType) || isVideoDirectType(mimeType)
 }
 
 // The content type an object key claims, from its extension. buildKey() derives
@@ -196,6 +229,7 @@ export function isDirectUploadType(mimeType: string): boolean {
 const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+  mp4: 'video/mp4', webm: 'video/webm',
   ...MODEL_EXTENSION_TYPES,
 }
 
@@ -213,7 +247,7 @@ export function preflightUploadError(file: { name: string; type: string; size: n
   // not from the browser - see uploadTypeForFile.
   const type = uploadTypeForFile(file)
   if (!isUploadableType(type)) {
-    return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG) or 3D model (GLB, glTF, OBJ, FBX or 3DS).`
+    return `“${file.name}” isn’t a supported image (JPEG, PNG, WebP, GIF or SVG), video (MP4 or WebM) or 3D model (GLB, glTF, OBJ, FBX or 3DS).`
   }
   // Two different ceilings: rasters and models go straight to the Worker (50 MB),
   // everything else takes the size-guarded serverless path (4 MB). Both are

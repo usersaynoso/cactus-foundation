@@ -339,3 +339,23 @@ export function getSessionSecret(): string {
   }
   return secret
 }
+
+// The sequence worker (services/sequence-worker) turns a product video into a
+// transparent scroll-sequence of alpha-WebP frames. It runs off-platform (a CPU
+// box, typically beside the database), so the app reaches it over HTTPS with a
+// shared bearer secret. Both are optional: unset simply means the "Convert to
+// scroll sequence" action is unavailable, the same way an unconfigured media
+// provider disables uploads rather than breaking the page.
+export function getSequenceWorkerUrl(): string | null {
+  const url = process.env.SEQUENCE_WORKER_URL?.trim().replace(/\/+$/, '')
+  return url || null
+}
+
+export function getSequenceWorkerSecret(): string | null {
+  const secret = process.env.SEQUENCE_WORKER_SECRET?.trim()
+  return secret || null
+}
+
+export function isSequenceWorkerConfigured(): boolean {
+  return !!getSequenceWorkerUrl() && !!getSequenceWorkerSecret()
+}

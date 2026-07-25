@@ -93,6 +93,16 @@ const SERVABLE_IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
 ])
 
+// Video the library now stores (mp4/webm). Served inline - not as an attachment -
+// so an admin can preview the clip a scroll sequence is built from, and so the
+// browser's <video> element can stream and SEEK it (Safari refuses to play at all
+// without Range support; see the GET path). Kept as its own set rather than folded
+// into SERVABLE_IMAGE_TYPES because video needs Range handling an image does not,
+// and because a static test asserts the image set never gains a non-image type.
+// Video's served Content-Type is taken from the key extension, never the stored
+// header, so it is the un-forgeable claim - the same rule the upload path uses.
+const SERVABLE_VIDEO_TYPES = new Set(['video/mp4', 'video/webm'])
+
 // Content type for a key, from its extension. The app builds every key's
 // extension from a MIME type it has already validated (lib/media/upload.ts
 // buildKey), and the key is covered by the upload signature - so on the write
@@ -106,6 +116,7 @@ const SERVABLE_IMAGE_TYPES = new Set([
 const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
+  mp4: 'video/mp4', webm: 'video/webm',
   glb: 'model/gltf-binary', gltf: 'model/gltf+json', obj: 'model/obj',
   fbx: 'model/x-fbx', '3ds': 'model/x-3ds',
 }
@@ -240,6 +251,10 @@ const worker = {
     }
 
     const cfOptions = buildImageResizingOptions(url)
+    // Video is streamed by the browser's <video> element, which issues Range
+    // requests (and Safari refuses to play at all without them). Forward the
+    // header to storage and return its 206 verbatim below. Images never send it.
+    const rangeHeader = request.headers.get('Range')
     // An exact-form key can be replaced in place (see isExactFormKey) - the very
     // thing that happened when a swatch got resized - so it must not be told to
     // cache forever: `must-revalidate` plus a short lifetime means a browser
@@ -269,7 +284,7 @@ const worker = {
     })
 
     try {
-      const upstream = await fetchFromProvider(provider, fullKey, env, cfOptions)
+      const upstream = await fetchFromProvider(provider, fullKey, env, cfOptions, rangeHeader)
       if (!upstream.ok) {
         return upstream.status === 404
           ? readError('Not found', 404, env)
@@ -298,15 +313,30 @@ const worker = {
       // an image type is echoed (Cloudflare image resizing legitimately converts
       // jpeg → webp/avif here, so the upstream value is the accurate one), and
       // anything else is served as an inert download rather than rendered.
+      // Video's served type comes from the KEY extension, not the stored header:
+      // the key is covered by the upload signature, so it is the un-forgeable
+      // claim (the same reason the write path types by extension). Served inline,
+      // with Range/Length forwarded so the browser can stream and seek; a 206 is
+      // passed straight through so it knows it got a partial.
+      const keyType = contentTypeForKey(fullKey)
       const upstreamType = (upstream.headers.get('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase()
-      if (SERVABLE_IMAGE_TYPES.has(upstreamType)) {
+      let status = 200
+      if (keyType && SERVABLE_VIDEO_TYPES.has(keyType)) {
+        responseHeaders.set('Content-Type', keyType)
+        responseHeaders.set('Accept-Ranges', 'bytes')
+        const contentRange = upstream.headers.get('Content-Range')
+        if (contentRange) responseHeaders.set('Content-Range', contentRange)
+        const contentLength = upstream.headers.get('Content-Length')
+        if (contentLength) responseHeaders.set('Content-Length', contentLength)
+        if (upstream.status === 206) status = 206
+      } else if (SERVABLE_IMAGE_TYPES.has(upstreamType)) {
         responseHeaders.set('Content-Type', upstreamType)
       } else {
         responseHeaders.set('Content-Type', 'application/octet-stream')
         responseHeaders.set('Content-Disposition', 'attachment')
       }
 
-      return new Response(upstream.body, { status: 200, headers: responseHeaders })
+      return new Response(upstream.body, { status, headers: responseHeaders })
     } catch {
       return readError('Upstream error', 502, env)
     }
@@ -474,7 +504,7 @@ async function handleUpload(request: Request, env: Env, url: URL): Promise<Respo
   if (!contentType || contentType === 'image/svg+xml') {
     // SVG is deliberately excluded: it's markup, and only the app's serverless
     // path sanitises it. The Worker never stores one.
-    return uploadError('Only raster image and 3D model uploads are accepted here.', 415, env)
+    return uploadError('Only raster image, video, and 3D model uploads are accepted here.', 415, env)
   }
 
   // Bound the body before reading it. The Worker buffers the whole payload into
@@ -632,6 +662,7 @@ async function fetchFromProvider(
   fullKey: string,
   env: Env,
   cfOptions: RequestInit['cf'],
+  range: string | null,
 ): Promise<Response> {
   switch (provider) {
     case 'B2':
@@ -643,6 +674,7 @@ async function fetchFromProvider(
         env.B2_APPLICATION_KEY ?? '',
         'auto',
         cfOptions,
+        range,
       )
 
     case 'R2':
@@ -654,6 +686,7 @@ async function fetchFromProvider(
         env.R2_SECRET_ACCESS_KEY ?? '',
         'auto',
         cfOptions,
+        range,
       )
 
     case 'S3':
@@ -665,6 +698,7 @@ async function fetchFromProvider(
         env.S3_SECRET_ACCESS_KEY ?? '',
         env.S3_REGION ?? 'us-east-1',
         cfOptions,
+        range,
       )
 
     case 'SPACES':
@@ -676,6 +710,7 @@ async function fetchFromProvider(
         env.SPACES_SECRET_ACCESS_KEY ?? '',
         env.SPACES_REGION ?? 'nyc3',
         cfOptions,
+        range,
       )
 
     case 'WASABI':
@@ -687,6 +722,7 @@ async function fetchFromProvider(
         env.WASABI_SECRET_ACCESS_KEY ?? '',
         env.WASABI_REGION ?? 'us-east-1',
         cfOptions,
+        range,
       )
 
     case 'MINIO':
@@ -698,6 +734,7 @@ async function fetchFromProvider(
         env.MINIO_SECRET_ACCESS_KEY ?? '',
         'us-east-1',
         cfOptions,
+        range,
       )
 
     case 'VERCEL_BLOB': {
@@ -749,6 +786,7 @@ async function fetchS3Compatible(
   secretAccessKey: string,
   region: string,
   cfOptions: RequestInit['cf'],
+  range: string | null,
 ): Promise<Response> {
   const base = normalizeEndpoint(endpoint)
   const objectUrl = `${base}/${bucket}/${key}`
@@ -796,8 +834,13 @@ async function fetchS3Compatible(
     `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope},` +
     `SignedHeaders=${signedHeaders},Signature=${signature}`
 
+  const outHeaders: Record<string, string> = { ...headers, Authorization: authorization }
+  // Range is sent UNSIGNED: SigV4 does not require it in SignedHeaders, and every
+  // S3-compatible provider (B2 included) honours an unsigned Range on a GET. This
+  // is what lets the Worker hand the browser's <video> a 206 it can stream/seek.
+  if (range) outHeaders['Range'] = range
   return fetch(objectUrl, {
-    headers: { ...headers, Authorization: authorization },
+    headers: outHeaders,
     cf: cfOptions,
   })
 }

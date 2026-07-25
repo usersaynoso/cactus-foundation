@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isSequenceType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -615,6 +615,44 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
   }
 
   throw new Error(`Unsupported media provider: ${provider}`)
+}
+
+// Delete every object under a key prefix (S3-compatible providers only). A scroll
+// sequence is a whole folder - a hundred-odd frames, a poster and a manifest - so
+// removing its single pointer row has to take the lot with it. Non-S3 providers
+// never host a sequence (the sequence worker writes only to the S3/B2 bucket), so
+// there is nothing to delete for them.
+export async function deleteMediaTree(provider: MediaProviderType, prefix: string): Promise<void> {
+  if (!prefix || !isS3Provider(provider)) return
+  const { client, bucket } = getS3Config(provider)
+  let token: string | undefined
+  do {
+    const listed = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }))
+    const objects = (listed.Contents ?? [])
+      .map((o) => o.Key)
+      .filter((k): k is string => !!k)
+      .map((Key) => ({ Key }))
+    // A single ListObjectsV2 page is already ≤1000 keys, which is exactly the
+    // DeleteObjects per-call ceiling, so one delete per page needs no chunking.
+    if (objects.length > 0) {
+      await client.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: objects, Quiet: true } }))
+    }
+    token = listed.IsTruncated ? listed.NextContinuationToken : undefined
+  } while (token)
+}
+
+// Delete the storage bytes behind a Media row: a single object for an ordinary
+// item, or the whole frame folder for a scroll sequence (whose key is the
+// manifest.json sitting alongside its frames). The one place both delete routes
+// call, so the sequence rule can't be applied in one and forgotten in the other.
+export async function deleteMediaBytes(media: { provider: MediaProviderType; key: string; mimeType: string }): Promise<void> {
+  if (isSequenceType(media.mimeType)) {
+    const i = media.key.lastIndexOf('/')
+    const prefix = i === -1 ? '' : media.key.slice(0, i + 1)
+    await deleteMediaTree(media.provider, prefix)
+    return
+  }
+  await deleteMedia(media.provider, media.key)
 }
 
 // ---------------------------------------------------------------------------

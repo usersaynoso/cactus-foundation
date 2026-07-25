@@ -2,9 +2,9 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import type { LibraryItem, TagInfo } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind } from './format'
+import { formatBytes, formatDate, filenameOf, fileKind, sequencePosterUrl } from './format'
 import { useFocusTrap } from './useFocusTrap'
-import { isOptimisableType } from '@/lib/media/limits'
+import { isOptimisableType, isSequenceType } from '@/lib/media/limits'
 
 // Slide-over that replaces the old lightbox. It's both the viewer (large preview,
 // Prev/Next across the loaded list) and the single home for per-item actions and
@@ -29,6 +29,7 @@ export default function MediaDetailPanel({
   onEdit,
   onChangeRatio,
   onResize,
+  onConvertToSequence,
   onRename,
   onMove,
   onCut,
@@ -62,6 +63,8 @@ export default function MediaDetailPanel({
   onEdit: () => void
   onChangeRatio: () => void
   onResize: () => void
+  /** Build a scroll sequence from this video. Only shown for video items. */
+  onConvertToSequence: () => void
   onRename: () => void
   onMove: () => void
   onCut: () => void
@@ -77,7 +80,10 @@ export default function MediaDetailPanel({
   onSaveMeta: (altText: string, isDecorative: boolean) => void
 }) {
   const isImage = item.mimeType.startsWith('image/')
+  const isVideo = item.mimeType.startsWith('video/')
   const isSvg = item.mimeType === 'image/svg+xml'
+  const isSequence = isSequenceType(item.mimeType)
+  const posterUrl = isSequence ? sequencePosterUrl(item.url) : null
   const canEdit = isImage && !isSvg
   // Not the same question as canEdit any more: a 3D model has nothing to crop or
   // resize, but it very much can be optimised. See isOptimisableType.
@@ -180,8 +186,13 @@ export default function MediaDetailPanel({
             {isImage && !broken ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={item.url} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
+            ) : isVideo && !broken ? (
+              <video src={item.url} controls playsInline preload="metadata" onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, display: 'block' }} />
+            ) : isSequence && posterUrl && !broken ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={posterUrl} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : (
-              <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : undefined}>{broken ? '🚫' : '📄'}</span>
+              <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : '📄'}</span>
             )}
           </div>
 
@@ -294,6 +305,7 @@ export default function MediaDetailPanel({
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onChangeRatio}>Change ratio…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onResize}>Resize…</button>}
+          {canManage && isVideo && <button type="button" className="btn btn-secondary btn-sm" title="Turn this video into a scroll-through sequence with the background removed" onClick={onConvertToSequence}>Convert to scroll sequence…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onMove}>Move…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onCut}>Cut</button>}
