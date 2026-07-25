@@ -15,8 +15,26 @@ import { filenameOf } from './format'
 
 const POLL_MS = 4000
 
-type Engine = 'isnet' | 'birefnet'
+type PresetKey = 'fast' | 'quality'
 type JobStatus = 'queued' | 'running' | 'done' | 'error'
+
+// Labels mirror lib/media/sequence-presets.ts. Kept inline rather than imported
+// because that module pulls in Prisma and this is a client component.
+const PRESET_LABELS: Record<PresetKey, string> = {
+  fast: 'Fast',
+  quality: 'High quality, slower',
+}
+
+// The numeric knobs behind each preset, shown as a one-line summary so the admin
+// knows what they're choosing. Values are read from the settings, not chosen here
+// - the server ignores anything the browser might send for engine/fps/width.
+type PresetSummary = { engine: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
+type PresetSummaries = Record<PresetKey, PresetSummary>
+
+function describePreset(p: PresetSummary): string {
+  const removal = p.engine === 'birefnet' ? 'best-quality background removal' : 'fast background removal'
+  return `${p.fps} fps · up to ${p.maxWidth}px wide · ${removal}`
+}
 
 export default function MediaSequenceDialog({
   item,
@@ -39,8 +57,8 @@ export default function MediaSequenceDialog({
 
   const [path, setPath] = useState('shop/')
   const [name, setName] = useState(defaultName)
-  const [engine, setEngine] = useState<Engine>('isnet')
-  const [fps, setFps] = useState('15')
+  const [preset, setPreset] = useState<PresetKey>('fast')
+  const [presets, setPresets] = useState<PresetSummaries | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   // Once a job exists the dialog flips from the form to the progress view.
@@ -63,6 +81,18 @@ export default function MediaSequenceDialog({
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [onClose, submitting])
+
+  // Pull the admin-tuned preset knobs so the dialog can show what each choice
+  // does. Purely for display - failing quietly just drops the summary line, the
+  // conversion still runs the stored preset.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/media/sequence-presets')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.presets) setPresets(d.presets as PresetSummaries) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   // Poll the job's status every few seconds while the progress view is up. A blip
   // on a twenty-minute job shouldn't tear the view down, so a failed poll is only
@@ -113,7 +143,7 @@ export default function MediaSequenceDialog({
       const res = await fetch(`/api/admin/media/${item.id}/convert-sequence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: cleanPath, name: cleanName, folderId, engine, fps: clampFps(fps) }),
+        body: JSON.stringify({ path: cleanPath, name: cleanName, folderId, preset }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not start the conversion.')
@@ -193,29 +223,16 @@ export default function MediaSequenceDialog({
               />
             </div>
 
-            {/* Background-removal engine */}
+            {/* Quality preset */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label htmlFor="seq-engine" style={sectionLabel}>Background removal</label>
-              <select id="seq-engine" value={engine} onChange={(e) => setEngine(e.target.value as Engine)} style={textInput}>
-                <option value="isnet">Fast (recommended)</option>
-                <option value="birefnet">High quality, slower</option>
+              <label htmlFor="seq-preset" style={sectionLabel}>Quality preset</label>
+              <select id="seq-preset" value={preset} onChange={(e) => setPreset(e.target.value as PresetKey)} style={textInput}>
+                <option value="fast">{PRESET_LABELS.fast}</option>
+                <option value="quality">{PRESET_LABELS.quality}</option>
               </select>
-            </div>
-
-            {/* Frames per second */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label htmlFor="seq-fps" style={sectionLabel}>Frames per second</label>
-              <input
-                id="seq-fps"
-                type="number"
-                min={1}
-                max={60}
-                value={fps}
-                onChange={(e) => setFps(e.target.value)}
-                onBlur={() => setFps(String(clampFps(fps)))}
-                style={{ ...textInput, maxWidth: '8rem' }}
-              />
-              <span style={helpText}>Between 1 and 60. More frames make a smoother scroll but a larger sequence.</span>
+              <span style={helpText}>
+                {presets ? describePreset(presets[preset]) : 'Set the frame rate and quality of each preset under Media › Scroll sequences.'}
+              </span>
             </div>
 
             {error && <div style={errorBox} role="alert">{error}</div>}
@@ -277,14 +294,6 @@ export default function MediaSequenceDialog({
 function clamp01(n: unknown): number {
   const v = typeof n === 'number' && Number.isFinite(n) ? n : 0
   return v < 0 ? 0 : v > 1 ? 1 : v
-}
-
-// Parse the frames-per-second field to a whole number inside the allowed range,
-// falling back to the default when the box is empty or nonsense.
-function clampFps(value: string): number {
-  const n = parseInt(value, 10)
-  if (!Number.isFinite(n)) return 15
-  return Math.min(60, Math.max(1, n))
 }
 
 const sectionLabel: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-text-muted)' }

@@ -167,6 +167,7 @@ CREATE TABLE "SiteConfig" (
     "coreUpdateChannel"     TEXT NOT NULL DEFAULT 'public',
     "membersConfig" JSONB,
     "adminMenuConfig" JSONB,
+    "sequenceConfig" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")

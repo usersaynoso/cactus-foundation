@@ -8,6 +8,7 @@ import { getSiteUrl, isSequenceWorkerConfigured } from '@/lib/config/env'
 import { requireWorkerUrl } from '@/lib/media/upload'
 import { buildDestPrefix, signSequenceContext, enqueueSequenceJob, SequenceWorkerError } from '@/lib/media/sequence'
 import { upsertSequenceNotification } from '@/lib/notifications/alerts'
+import { getSequenceConfig, isSequencePresetKey } from '@/lib/media/sequence-presets'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -34,12 +35,16 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   const path = typeof body?.path === 'string' ? body.path : ''
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const folderId = typeof body?.folderId === 'string' && body.folderId ? body.folderId : null
-  const engine = body?.engine === 'birefnet' ? 'birefnet' : 'isnet'
-  const fps =
-    typeof body?.fps === 'number' && Number.isFinite(body.fps)
-      ? Math.max(1, Math.min(60, Math.round(body.fps)))
-      : undefined
   if (!name) return errorResponse('A sequence name is required.', 400)
+
+  // The engine, frame rate and max width are not the browser's to choose: they
+  // come from the admin-tuned preset (Media > Scroll sequences). The client only
+  // names which preset it wants; everything numeric is read server-side, so a
+  // conversion always runs exactly what the settings say.
+  const rawPreset: unknown = body?.preset
+  const presetKey = isSequencePresetKey(rawPreset) ? rawPreset : 'fast'
+  const presets = await getSequenceConfig()
+  const preset = presets[presetKey]
 
   const destPrefix = buildDestPrefix(path, name)
   if (!destPrefix) return errorResponse('Enter a valid destination path and sequence name.', 400)
@@ -55,8 +60,9 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       videoUrl,
       destPrefix,
       sequenceName: name,
-      fps,
-      engine,
+      fps: preset.fps,
+      maxWidth: preset.maxWidth,
+      engine: preset.engine,
       callbackUrl,
       callbackToken,
     })

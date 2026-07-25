@@ -29,9 +29,23 @@ export async function POST(request: NextRequest) {
   const auth = request.headers.get('authorization') ?? ''
   const ctx = verifySequenceContext(auth.startsWith('Bearer ') ? auth.slice(7) : '')
 
-  // Anything other than a completed job carries no manifest to record. Ack it so
-  // the worker stops retrying; the failure is already visible via the status poll.
+  // Anything other than a completed job carries no manifest to record. A failure
+  // still needs to land on the job's notification though: the admin has very
+  // likely closed the modal (the whole point of the notification), so the status
+  // poll that would otherwise surface the error is long gone. Mark the persistent
+  // notification failed here so a walked-away admin sees the real outcome, then
+  // ack either way so the worker stops retrying.
   if (body.status !== 'done') {
+    if (body.status === 'error' || body.status === 'failed') {
+      const failedJobId = typeof body.jobId === 'string' ? body.jobId : ''
+      const failedName = typeof body.sequenceName === 'string' && body.sequenceName.trim()
+        ? body.sequenceName.trim()
+        : ctx?.name || 'Scroll sequence'
+      const detail = typeof body.error === 'string' && body.error ? body.error : undefined
+      if (failedJobId) {
+        await upsertSequenceNotification({ jobId: failedJobId, name: failedName, state: 'error', detail }).catch(() => {})
+      }
+    }
     return NextResponse.json({ ok: true, recorded: false })
   }
 
