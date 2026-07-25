@@ -56,6 +56,14 @@ Each tier can bring the date forward or push it back, or set a floor (a full
 installation is never sooner than, say, ten working days). Prices are set per
 scope, so seating can be priced differently from everything else.
 
+In the basket each option now spells out when it would arrive right there in its
+own label - "Standard Delivery by Monday (included)", "Express Delivery by
+Monday (+£4.95)" - so a shopper can weigh the dates against the prices without
+having to select each one in turn. Anything landing within the week shows just
+the weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday"
+can never be mistaken for the one three weeks off; past four weeks it adds the
+month too ("Monday 3rd Aug").
+
 ## Setting it up
 
 Everything lives under **Delivery** in the admin sidebar:
