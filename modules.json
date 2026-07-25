@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.106"
+      "version": "v0.1.107"
     },
     {
       "name": "shop-variations",
@@ -38,7 +38,7 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.3"
+      "version": "v0.1.4"
     },
     {
       "name": "directory",
