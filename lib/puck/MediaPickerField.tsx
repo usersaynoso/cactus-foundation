@@ -2,6 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { CustomFieldRender } from '@puckeditor/core'
+import { isSequenceType } from '@/lib/media/limits'
+
+// A scroll-sequence item's url is its manifest.json; its poster sits beside it as
+// "poster.webp". The picker only ever has something displayable to show for a
+// sequence by deriving that sibling (the manifest itself is not an image).
+function sequencePosterUrl(manifestUrl: string): string {
+  return (manifestUrl.split('?')[0] ?? manifestUrl).replace(/[^/]*$/, 'poster.webp')
+}
 
 type MediaItem = {
   id: string
@@ -19,9 +27,10 @@ type Folder = {
   mediaCount: number
 }
 
-function MediaPickerModal({ onSelect, onClose }: {
+function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
   onSelect: (item: MediaItem) => void
   onClose: () => void
+  kind?: 'image' | 'sequence'
 }) {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +55,10 @@ function MediaPickerModal({ onSelect, onClose }: {
   const trimmed = query.trim()
   useEffect(() => {
     let cancelled = false
-    const params = new URLSearchParams({ perPage: '50', type: 'image' })
+    // The library has no dedicated "sequence" server filter (only all/image/other),
+    // so sequences are fetched as "other" (non-image) and narrowed client-side by
+    // isSequenceType below.
+    const params = new URLSearchParams({ perPage: '50', type: kind === 'sequence' ? 'other' : 'image' })
     if (trimmed) {
       params.set('folder', 'all')
       params.set('q', trimmed)
@@ -61,7 +73,7 @@ function MediaPickerModal({ onSelect, onClose }: {
         .catch(() => { if (!cancelled) setLoading(false) })
     }, trimmed ? 250 : 0)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [folderId, trimmed])
+  }, [folderId, trimmed, kind])
 
   // Subfolders of the current level, hidden while searching (search spans all).
   const subfolders = trimmed ? [] : folders.filter((f) => f.parentId === folderId)
@@ -103,7 +115,9 @@ function MediaPickerModal({ onSelect, onClose }: {
     }
   }
 
-  const images = items.filter((i) => i.mimeType.startsWith('image/'))
+  const filtered = kind === 'sequence'
+    ? items.filter((i) => isSequenceType(i.mimeType))
+    : items.filter((i) => i.mimeType.startsWith('image/'))
 
   return (
     <div
@@ -120,7 +134,7 @@ function MediaPickerModal({ onSelect, onClose }: {
         boxShadow: '0 25px 50px -12px rgba(0,0,0,.25)',
       }}>
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>Select image</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{kind === 'sequence' ? 'Select scroll sequence' : 'Select image'}</h3>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -128,21 +142,27 @@ function MediaPickerModal({ onSelect, onClose }: {
             autoFocus
             style={{ flex: 1, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'inherit', background: 'var(--color-bg)', color: 'var(--color-text)' }}
           />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            style={{ display: 'none' }}
-            onChange={(e) => handleUpload(e.target.files)}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            style={{ flexShrink: 0, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: uploading ? 'default' : 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--color-text)', opacity: uploading ? 0.6 : 1 }}
-          >
-            {uploading ? 'Uploading…' : '+ Upload'}
-          </button>
+          {/* A scroll sequence is produced by the sequence worker, not uploaded,
+              so the upload control has no meaning here and is omitted. */}
+          {kind !== 'sequence' && (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={(e) => handleUpload(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                style={{ flexShrink: 0, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: uploading ? 'default' : 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--color-text)', opacity: uploading ? 0.6 : 1 }}
+              >
+                {uploading ? 'Uploading…' : '+ Upload'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             aria-label="Close"
@@ -178,8 +198,8 @@ function MediaPickerModal({ onSelect, onClose }: {
         <div style={{ padding: '1rem', overflowY: 'auto', flex: 1 }}>
           {uploadError && <p style={{ color: 'var(--color-destructive)', textAlign: 'center', fontSize: '0.8125rem', marginTop: 0 }}>{uploadError}</p>}
           {loading && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>Loading…</p>}
-          {!loading && subfolders.length === 0 && images.length === 0 && (
-            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{trimmed ? 'No images found' : 'This folder is empty'}</p>
+          {!loading && subfolders.length === 0 && filtered.length === 0 && (
+            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{trimmed ? (kind === 'sequence' ? 'No scroll sequences found' : 'No images found') : 'This folder is empty'}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
             {subfolders.map((f) => (
@@ -200,7 +220,7 @@ function MediaPickerModal({ onSelect, onClose }: {
                 </div>
               </button>
             ))}
-            {images.map((item) => (
+            {filtered.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onSelect(item)}
@@ -209,9 +229,10 @@ function MediaPickerModal({ onSelect, onClose }: {
                   cursor: 'pointer', padding: 0, overflow: 'hidden', textAlign: 'left',
                 }}
               >
+                {/* A sequence's own url is its manifest.json; show its poster sibling instead. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={item.url}
+                  src={kind === 'sequence' ? sequencePosterUrl(item.url) : item.url}
                   alt={item.altText ?? ''}
                   style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
                 />
@@ -298,25 +319,37 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   Section:        { bgImage: 'Background image' },
 }
 
-// Swap every known image URL text field in a Puck config for the media picker.
-// Components/fields not present in the given config are skipped, so this is safe
-// on the layout editor's filtered config too.
+// Same idea as IMAGE_PICKER_FIELDS, but for fields that hold a scroll sequence's
+// manifest URL: they get the sequence picker (which stores item.url, the manifest)
+// rather than the image picker.
+const SEQUENCE_PICKER_FIELDS: Record<string, Record<string, string>> = {
+  ScrollSequence: { sequenceUrl: 'Scroll sequence' },
+}
+
+// Swap every known media URL text field in a Puck config for the matching media
+// picker — image fields for the image picker, sequence fields for the sequence
+// picker. Components/fields not present in the given config are skipped, so this
+// is safe on the layout editor's filtered config too.
 export function withImagePickerFields<C>(config: C): C {
   const cfg = config as { components?: Record<string, { fields?: Record<string, unknown> }> }
   if (!cfg?.components) return config
   const components = { ...cfg.components }
-  for (const [componentName, fieldLabels] of Object.entries(IMAGE_PICKER_FIELDS)) {
-    const component = components[componentName]
-    if (!component?.fields) continue
-    const fields = { ...component.fields }
-    let changed = false
-    for (const [fieldName, label] of Object.entries(fieldLabels)) {
-      if (!(fieldName in fields)) continue
-      fields[fieldName] = { type: 'custom' as const, label, render: ImageUrlPickerField }
-      changed = true
+  const swap = (map: Record<string, Record<string, string>>, render: CustomFieldRender<string>) => {
+    for (const [componentName, fieldLabels] of Object.entries(map)) {
+      const component = components[componentName]
+      if (!component?.fields) continue
+      const fields = { ...component.fields }
+      let changed = false
+      for (const [fieldName, label] of Object.entries(fieldLabels)) {
+        if (!(fieldName in fields)) continue
+        fields[fieldName] = { type: 'custom' as const, label, render }
+        changed = true
+      }
+      if (changed) components[componentName] = { ...component, fields }
     }
-    if (changed) components[componentName] = { ...component, fields }
   }
+  swap(IMAGE_PICKER_FIELDS, ImageUrlPickerField)
+  swap(SEQUENCE_PICKER_FIELDS, SequenceUrlPickerField)
   return { ...cfg, components } as C
 }
 
@@ -362,6 +395,53 @@ export const ImageUrlPickerField: CustomFieldRender<string> = ({ value, onChange
         )}
       </div>
       {open && <MediaPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} />}
+    </div>
+  )
+}
+
+// For ScrollSequence.sequenceUrl — the same media library picker, filtered to
+// scroll sequences, storing the picked item's url (its manifest.json). The
+// preview shows the sequence's poster sibling, since the manifest is not an image.
+export const SequenceUrlPickerField: CustomFieldRender<string> = ({ value, onChange, field }) => {
+  const [open, setOpen] = useState(false)
+
+  function handleSelect(item: MediaItem) {
+    onChange(item.url)
+    setOpen(false)
+  }
+
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
+        {(field as { label?: string }).label ?? 'Scroll sequence'}
+      </label>
+      {value && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={sequencePosterUrl(value)}
+          alt=""
+          style={{ width: '100%', maxHeight: 100, objectFit: 'contain', borderRadius: 4, marginBottom: '0.5rem', display: 'block', border: '1px solid var(--color-border)', background: 'var(--color-bg-subtle)' }}
+        />
+      )}
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
+        >
+          {value ? 'Change sequence' : 'Select scroll sequence'}
+        </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-destructive-border)', borderRadius: 6, background: 'var(--color-surface)', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {open && <MediaPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} kind="sequence" />}
     </div>
   )
 }

@@ -62,6 +62,7 @@ import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
+import ScrollSequence from '@/lib/puck/components/ScrollSequence'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
@@ -2701,7 +2702,7 @@ export const puckConfig = {
     layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                        defaultExpanded: true },
-    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                       defaultExpanded: true },
+    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed', 'ScrollSequence'],     defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
@@ -3225,6 +3226,34 @@ export const puckConfig = {
         return rest
       },
       render: Embed,
+    },
+    ScrollSequence: {
+      label: 'Scroll sequence',
+      fields: {
+        sequenceUrl: { type: 'text' as const, label: 'Scroll sequence' },
+        scrubScreens: { type: 'number' as const, label: 'Scroll length (screens)', min: 1 },
+        loop: { type: 'radio' as const, label: 'Loop at the end', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
+        fade: { type: 'radio' as const, label: 'Fade on enter/exit', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
+        maxWidth: { type: 'text' as const, label: 'Max width (e.g. 600px or 100%)' },
+        ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
+      },
+      defaultProps: { sequenceUrl: '', scrubScreens: 2, loop: true, fade: true, maxWidth: '', ariaLabel: '' },
+      // The player is a client component (scroll listeners, canvas, rAF) - this
+      // render only hands it props, staying editor-safe like the rest of the file.
+      // The same render is reused on the RSC/published path (config.rsc.tsx spreads
+      // puckConfig.components), which is fine: a client component renders happily
+      // from a server component.
+      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, ariaLabel, puck }: any) => (
+        <ScrollSequence
+          sequenceUrl={sequenceUrl}
+          scrubScreens={scrubScreens}
+          loop={loop}
+          fade={fade}
+          maxWidth={maxWidth}
+          ariaLabel={ariaLabel}
+          isEditing={puck?.isEditing}
+        />
+      ),
     },
 
     // ── Content ──────────────────────────────────────────────────────────────
