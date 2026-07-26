@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.125"
+      "version": "v0.1.127"
     },
     {
       "name": "shop-variations",
@@ -18,7 +18,7 @@
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.74"
+      "version": "v0.1.75"
     },
     {
       "name": "product-downloads-for-shop",
