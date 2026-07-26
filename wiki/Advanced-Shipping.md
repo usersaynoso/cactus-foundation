@@ -61,6 +61,16 @@ Each tier can bring the date forward or push it back, or set a floor (a full
 installation is never sooner than, say, ten working days). Prices are set per
 scope, so seating can be priced differently from everything else.
 
+The timing can vary per scope too. Each price row can tick **Different timing
+here** and fill in only what differs - a longer transit for one range, a lifted
+minimum for another - and anything left blank keeps the tier's usual timing. So
+one "Installation" tier can take ten working days for most furniture but thirty
+for one awkward range, without setting up a second tier with the same name. (If
+you have ever ended up with two tiers both called "Installation", this is the
+cure: fold the odd one out into a per-range timing on the original, then delete
+the spare.) Setting "Never sooner than" to 0 on a row lifts the tier's minimum
+just there.
+
 Each tier can also be tied to a single **supplier** when you add it, or left as
 **Any supplier**. A supplier-specific tier is only ever offered on products from
 that supplier, so you can run several tiers that share a name - a "Full
