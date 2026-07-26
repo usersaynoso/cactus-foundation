@@ -127,17 +127,38 @@ export async function optimiseModelBytes(input: Buffer, mimeType: string): Promi
   }
 
   const io = await getIO()
+  const { PropertyType } = await import('@gltf-transform/core')
   const { MeshoptEncoder } = await import('meshoptimizer')
   const { dedup, prune, weld, meshopt, textureCompress } = await import('@gltf-transform/functions')
 
   const document: Document = await io.readBinary(new Uint8Array(input))
 
   const transforms: Transform[] = [
-    // Merge accessors, meshes, materials and textures that are byte-for-byte the
-    // same thing stored twice. Exporters produce these constantly - a chair with
-    // four identical legs commonly ships four copies of one leg's geometry - and
+    // Merge accessors, meshes and textures that are byte-for-byte the same thing
+    // stored twice. Exporters produce these constantly - a chair with four
+    // identical legs commonly ships four copies of one leg's geometry - and
     // collapsing them changes nothing about what is drawn.
-    dedup(),
+    //
+    // Materials are excluded, and that exclusion is load-bearing. dedup compares
+    // a material's PROPERTIES and ignores its name, so two materials that shade
+    // identically are merged into one - the survivor keeping whichever name came
+    // first. For an ordinary model that is free bytes. For a model destined for
+    // the material configurator it destroys a paint slot: the slot's contract is
+    // the material NAME (see the module's load-model.ts, which paints by exact
+    // name match), and an upholstered chair's seat and back are the same cloth,
+    // so they arrive as two identically-shaded materials that differ only in
+    // being called "Seat Fabric" and "Back Fabric". dedup collapsed them, the
+    // admin's parts dropdown then offered one fabric where the file had two, and
+    // the back could never be painted separately. Silent, and unrecoverable
+    // afterwards, because the optimised model is written back over its own key.
+    //
+    // The library's own keepUniqueNames option would fix that case, but it keys
+    // off names for EVERY property type, and an exporter names every mesh
+    // uniquely (Blender writes Mesh_0, Mesh_1 ...), so it would also stop the
+    // geometry dedup that is the whole point of this pass. Dropping materials
+    // from the list instead costs a few hundred bytes of JSON at most and leaves
+    // every real saving intact.
+    dedup({ propertyTypes: [PropertyType.ACCESSOR, PropertyType.MESH, PropertyType.TEXTURE, PropertyType.SKIN] }),
     // Drop what nothing references: materials left behind by a deleted object,
     // textures no material points at, empty nodes, unused animation channels.
     // This is the pass that most often accounts for a surprising chunk of a file,

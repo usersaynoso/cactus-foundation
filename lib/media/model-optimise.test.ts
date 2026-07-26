@@ -82,6 +82,56 @@ async function buildUntexturedModel(): Promise<Buffer> {
   return Buffer.from(await new NodeIO().writeBinary(doc))
 }
 
+// An upholstered chair as the configurator wants it: the seat and the back are
+// the same cloth, so the two materials are identical in every property and differ
+// only in name. Plus a pair of identical meshes, which dedup SHOULD still merge.
+async function buildTwoSlotModel(): Promise<Buffer> {
+  const doc = new Document()
+  const buffer = doc.createBuffer()
+
+  // Enough geometry that the optimise is a real saving. A four-vertex quad comes
+  // back "already as small as it gets", and the assertions below would then be
+  // reading the untouched input and proving nothing at all.
+  const N = 60
+  const positions: number[] = []
+  const uvs: number[] = []
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const u = i / N
+      const v = j / N
+      for (let k = 0; k < 3; k++) {
+        positions.push(Math.cos(u * Math.PI * 2), v * 2 - 1, Math.sin(u * Math.PI * 2))
+        uvs.push(u, v)
+      }
+    }
+  }
+
+  const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer)
+  const uv = doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer)
+
+  const prim = (material: ReturnType<Document['createMaterial']>) => doc.createPrimitive()
+    .setAttribute('POSITION', pos)
+    .setAttribute('TEXCOORD_0', uv)
+    .setMaterial(material)
+
+  // Same cloth on both: identical factors, no textures. Only the names differ.
+  const seat = doc.createMaterial('Seat Fabric').setBaseColorFactor([0.8, 0.8, 0.8, 1]).setRoughnessFactor(0.9).setMetallicFactor(0)
+  const back = doc.createMaterial('Back Fabric').setBaseColorFactor([0.8, 0.8, 0.8, 1]).setRoughnessFactor(0.9).setMetallicFactor(0)
+  const frame = doc.createMaterial('Plastic').setBaseColorFactor([0, 0, 0, 1])
+
+  const scene = doc.createScene('scene')
+  scene.addChild(doc.createNode('seat').setMesh(doc.createMesh('seat').addPrimitive(prim(seat))))
+  scene.addChild(doc.createNode('back').setMesh(doc.createMesh('back').addPrimitive(prim(back))))
+  // Two castors over one primitive, differently named - a duplicate pair dedup is
+  // expected to collapse, so the narrowing above can be shown not to have switched
+  // the whole pass off.
+  const castor = prim(frame)
+  scene.addChild(doc.createNode('castor-a').setMesh(doc.createMesh('castor-a').addPrimitive(castor)))
+  scene.addChild(doc.createNode('castor-b').setMesh(doc.createMesh('castor-b').addPrimitive(castor)))
+
+  return Buffer.from(await new NodeIO().writeBinary(doc))
+}
+
 describe('optimiseModelBytes', () => {
   it('refuses anything that is not a GLB, without throwing', async () => {
     for (const type of ['model/gltf+json', 'model/obj', 'model/x-fbx', 'model/x-3ds']) {
@@ -166,6 +216,37 @@ describe('optimiseModelBytes', () => {
     expect(prim?.getAttribute('TEXCOORD_0')).not.toBeNull()
     expect(prim?.getAttribute('TEXCOORD_0')?.getCount()).toBeGreaterThan(0)
     expect(prim?.getMaterial()?.getName()).toBe('Fabric')
+  }, 120_000)
+
+  it('keeps two identically-shaded materials that differ only in name', async () => {
+    // dedup() compares a material's properties and ignores its name, so a seat and
+    // a back cut from the same cloth used to be merged into one - and the material
+    // name IS the paint slot, so the configurator's parts dropdown offered one
+    // fabric where the file had two and the back could never be painted on its own.
+    // Silent, and unrecoverable, because the optimised bytes overwrite the original.
+    const input = await buildTwoSlotModel()
+    const result = await optimiseModelBytes(input, 'model/gltf-binary')
+
+    // Asserted, not tolerated: reading back the input because the optimise
+    // declined would pass this test whatever the pass did to the materials.
+    expect(result.optimised).toBe(true)
+    if (!result.optimised) return
+
+    const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions')
+    const { MeshoptDecoder } = await import('meshoptimizer')
+    await MeshoptDecoder.ready
+    const io = new NodeIO()
+      .registerExtensions(ALL_EXTENSIONS)
+      .registerDependencies({ 'meshopt.decoder': MeshoptDecoder })
+    const doc = await io.readBinary(new Uint8Array(result.bytes))
+
+    const names = doc.getRoot().listMaterials().map((m) => m.getName())
+    expect(names).toContain('Seat Fabric')
+    expect(names).toContain('Back Fabric')
+
+    // ...and the narrowing must not have switched the pass off wholesale: two
+    // identical castors, differently named, still collapse to one mesh.
+    expect(doc.getRoot().listMeshes().length).toBeLessThan(4)
   }, 120_000)
 
   it('caps texture size at 2048 and re-encodes to WebP', async () => {
