@@ -57,11 +57,19 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 ### Push to sheet (your site → the sheet)
 
-Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then Variations, then Suppliers.
+Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then a tab for each of your products that has variations, then Suppliers.
 
-It fills in its own columns and leaves the rest of the tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
+Like a Pull, a Push now works in stages with a live count and a little tracker (Products, then the product tabs, then a tidy-up), because a big catalogue is a lot of tabs to fill. You can leave the window open and watch it along; if something interrupts it, it picks up where it left off, and a **Continue** button appears if it ever needs a nudge.
+
+It fills in its own columns and leaves the rest of each tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
 
 If you have made changes in the sheet since Cactus last synced with it, Push stops and asks first - because filling the sheet from your site would wipe those edits. You can either go and Pull them in before you Push, or say yes to overwrite them. Cactus's own Pushes and Pulls don't trip this, only edits made by hand in the sheet.
+
+### A tab for each product's variations
+
+Products with variations no longer share one enormous "Variations" tab. Each such product gets **its own tab**, named after it, showing only the option columns that product actually uses - so you are never scrolling past blank columns that belong to something else. A plain product without variations just lives on the Products tab as before.
+
+One thing to leave be: **don't rename or delete a product's tab by hand.** A Pull needs to find every tab to know which variations you still have. If one has gone missing, the Pull stops and tells you which to put back (or just Push again to rebuild it) - rather than assume those variations were deleted and remove them. Tidying a product away in the admin removes its tab for you on the next Push, which is the safe way round.
 
 ### Using formulas in the sheet
 
@@ -81,7 +89,7 @@ The same promise covers **columns**. The attribute and extra-field columns towar
 
 If you want formulas that survive absolutely everything, put them in columns to the **right** of the last one Cactus fills in. That space is entirely yours: a Push never writes there and never clears it, so anything you build out there - a margin calculator, a running total, a whole second dashboard - is untouched. Same goes for a Pull, which only ever reads the columns it recognises. And on the rare occasion a formula in a catalogue cell would end up showing a different number to the one your shop actually charges - because a figure it depends on changed in the same Push - Cactus replaces it with the true number rather than leave a cell quietly disagreeing with your till.
 
-One quirk on the **Variations** tab is now sorted. A variant's price cells used to arrive as text - you'd sometimes spot a stray apostrophe in front of the number - which meant a formula there was replaced on every Push even when the price hadn't changed. Variant prices now behave exactly like the ones on the Products tab, so a formula on a variant price is kept for as long as it still agrees with your shop.
+One quirk on the **product variation tabs** is now sorted. A variant's price cells used to arrive as text - you'd sometimes spot a stray apostrophe in front of the number - which meant a formula there was replaced on every Push even when the price hadn't changed. Variant prices now behave exactly like the ones on the Products tab, so a formula on a variant price is kept for as long as it still agrees with your shop.
 
 ### Pull from sheet (the sheet → your site)
 
@@ -184,7 +192,7 @@ On the Variations tab, the **Image** column holds every picture a variant has, n
 A few things are deliberately left out, and are never touched by a sync (so they are safe, just not editable here):
 
 - **Personalisation add-ons** (engraving text boxes, gift-message fields, and the like) aren't in the sheet.
-- **Swatches** - the little colour or image chips on an option - aren't carried across for brand-new option values you create via the sheet. Add those in the admin.
+- **Swatches** - the little colour or image chips on an option - are filled in automatically when a value matches one on the option's master list (an attribute): it borrows that list's colour or picture. A value that has no match on any master list - a genuinely new one, on an option that isn't drawn from a list - has no chip until you add one in the admin.
 - An option type created via the sheet defaults to a **dropdown**; change it in the admin if you want something else.
 
 ---
