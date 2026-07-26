@@ -140,11 +140,17 @@ export async function queryMediaLibrary(
   // The usage index itself is request-cached, so the page's library query and its
   // stats bar build it once between them rather than once each.
   if (q.use === 'all') {
-    const [rows, total, usage] = await Promise.all([
+    const [rows, total] = await Promise.all([
       prisma.media.findMany({ where, orderBy, skip, take: q.perPage, select: SELECT }),
       prisma.media.count({ where }),
-      loadMediaUsageIndex(),
     ])
+    // The usage index exists only to stamp each row's "in use" flag. Building it
+    // scans every page's and every layout's whole builder JSON, so an empty page -
+    // the library root on a fresh install, or any folder with nothing in it - has
+    // no reason to pay for it. This is exactly the first-paint case that made the
+    // media page feel slow "even when there's nothing in the root".
+    if (rows.length === 0) return { items: [], total, hasMore: false }
+    const usage = await loadMediaUsageIndex()
     const items = rows.map((r) => shape(r, isMediaInUse(r, usage)))
     return { items, total, hasMore: skip + rows.length < total }
   }

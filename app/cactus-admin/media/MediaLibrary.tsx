@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MediaCard from './MediaCard'
 import MediaList from './MediaList'
 import MediaDetailPanel from './MediaDetailPanel'
@@ -116,6 +116,67 @@ const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest',
 const DELETE_BATCH = 40
 const MOVE_BATCH = 40
 
+// Resolves the un-awaited stat scan (see the statsPromise prop) and renders the
+// real bar. Kept out of MediaLibrary's body so only this subtree suspends - the
+// grid and folder tree beside it paint without waiting for the count tiles.
+function StatsBarAsync({
+  statsPromise,
+  folderCount,
+  activeFilter,
+  onShowAll,
+  onShowUnused,
+  onShowOptimisable,
+}: {
+  statsPromise: Promise<LibraryStats>
+  folderCount: number
+  activeFilter: 'all' | 'unused' | 'optimisable' | 'other'
+  onShowAll: () => void
+  onShowUnused: () => void
+  onShowOptimisable: () => void
+}) {
+  const stats = use(statsPromise)
+  return (
+    <MediaStatsBar
+      stats={stats}
+      folderCount={folderCount}
+      activeFilter={activeFilter}
+      onShowAll={onShowAll}
+      onShowUnused={onShowUnused}
+      onShowOptimisable={onShowOptimisable}
+    />
+  )
+}
+
+// Placeholder holding the exact four-tile shape of the stat bar, so the grid
+// below doesn't jump when the real counts stream in a moment later.
+function StatsBarSkeleton() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: 'var(--space-3)',
+        marginBottom: 'var(--space-5)',
+      }}
+    >
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          style={{
+            minHeight: '4.75rem',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-sm)',
+            opacity: 0.6,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function MediaLibrary({
   initialItems,
   initialHasMore,
@@ -123,7 +184,7 @@ export default function MediaLibrary({
   folders: initialFolders,
   rootCount: initialRootCount,
   tags: initialTags,
-  stats,
+  statsPromise,
   canUpload,
   canDelete,
   perPage,
@@ -134,7 +195,11 @@ export default function MediaLibrary({
   folders: FolderNode[]
   rootCount: number
   tags: TagInfo[]
-  stats: LibraryStats
+  // The whole-library stat scan, kicked off by the server but left un-awaited so
+  // it never held up first paint. Resolved client-side inside a Suspense boundary
+  // (StatsBarAsync below), so the grid and folder tree render at once and the four
+  // count tiles fill in a beat later.
+  statsPromise: Promise<LibraryStats>
   canUpload: boolean
   canDelete: boolean
   perPage: number
@@ -1094,14 +1159,16 @@ export default function MediaLibrary({
         {canUpload && <MediaUpload destinationLabel={folderName(currentFolderId)} onFiles={(files) => enqueueFiles(files)} />}
       </div>
 
-      <MediaStatsBar
-        stats={stats}
-        folderCount={folders.length}
-        activeFilter={activeFilter}
-        onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
-        onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
-        onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setOptimisableOnly(true); setBrowseAll(true) }}
-      />
+      <Suspense fallback={<StatsBarSkeleton />}>
+        <StatsBarAsync
+          statsPromise={statsPromise}
+          folderCount={folders.length}
+          activeFilter={activeFilter}
+          onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
+          onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
+          onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setOptimisableOnly(true); setBrowseAll(true) }}
+        />
+      </Suspense>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
         <FolderTree

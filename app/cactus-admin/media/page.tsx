@@ -39,15 +39,22 @@ export default async function MediaPage({ searchParams }: Props) {
   // and filtering happens client-side against /api/admin/media.
   const query = parseLibraryQuery(new URLSearchParams(), perPage, 1)
 
+  // The stat bar needs a scan of the whole library (every row plus the usage
+  // index), which has no business holding up first paint - a visitor opening the
+  // media page wants the grid and the folder tree, not to wait on four count
+  // tiles. So the scan is kicked off but deliberately left un-awaited here; the
+  // promise is handed to the client, which streams the tiles in under a Suspense
+  // boundary once they resolve. Nothing below blocks on it.
+  const statsPromise = computeLibraryStats()
+
   // Folder and tag lists are sidebar furniture, so they're capped rather than
   // unbounded. A library with more than FOLDER_LIMIT folders or TAG_LIMIT tags is
   // well past the point where a flat sidebar list is the right UI anyway.
-  const [initial, folders, folderCounts, tags, stats, sequencePresets, sequenceJobs] = await Promise.all([
+  const [initial, folders, folderCounts, tags, sequencePresets, sequenceJobs] = await Promise.all([
     queryMediaLibrary(query),
     prisma.folder.findMany({ orderBy: { name: 'asc' }, take: FOLDER_LIMIT, select: { id: true, name: true, parentId: true } }),
     prisma.media.groupBy({ by: ['folderId'], _count: { _all: true } }),
     prisma.tag.findMany({ orderBy: { name: 'asc' }, take: TAG_LIMIT, select: { id: true, name: true, _count: { select: { media: true } } } }),
-    computeLibraryStats(),
     getSequenceConfig(),
     listSequenceJobs(),
   ])
@@ -73,7 +80,7 @@ export default async function MediaPage({ searchParams }: Props) {
             folders={folders.map((f) => ({ ...f, mediaCount: countByFolder.get(f.id) ?? 0 }))}
             rootCount={rootCount}
             tags={tags.map((t) => ({ id: t.id, name: t.name, count: t._count.media }))}
-            stats={stats}
+            statsPromise={statsPromise}
             canUpload={canUpload}
             canDelete={canDelete}
             perPage={perPage}
