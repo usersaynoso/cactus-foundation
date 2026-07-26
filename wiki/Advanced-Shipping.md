@@ -44,9 +44,14 @@ their pre-order date. Any single product can have its own **override** on the
 Delivery tab of its editor, for the odd exception.
 
 A product bought with options chosen (a colour, a headrest) counts as its main
-product for all of this: it uses the same range, category, supplier and any
-override, so the basket shows the same delivery choices whichever options were
-picked. Its own stock level still decides stock-based dates.
+product for all of this: it uses the same category, supplier and any override, so
+the basket shows the same delivery choices whichever options were picked. Its own
+stock level still decides stock-based dates.
+
+The one exception is the range. If you have set range up as an option that varies
+per variation (rather than one range for the whole product), each variation uses
+its own range, and the basket shows the delivery choices for the exact variation
+picked. A product with a single range for the whole thing behaves as before.
 
 ## Service tiers
 
@@ -56,6 +61,15 @@ Each tier can bring the date forward or push it back, or set a floor (a full
 installation is never sooner than, say, ten working days). Prices are set per
 scope, so seating can be priced differently from everything else.
 
+Each tier can also be tied to a single **supplier** when you add it, or left as
+**Any supplier**. A supplier-specific tier is only ever offered on products from
+that supplier, so you can run several tiers that share a name - a "Full
+installation" from one supplier and another from a second, each with its own
+timing and price - and a shopper only sees the one that fits the item in their
+basket. Leave the supplier as Any and the tier is offered on everything, exactly
+as before. Because a tier now carries its own supplier, the price list beneath it
+scopes by category, range, or the default only.
+
 In the basket each option now spells out when it would arrive right there in its
 own label - "Standard Delivery by Monday (included)", "Express Delivery by
 Monday (+£4.95)" - so a shopper can weigh the dates against the prices without
@@ -64,9 +78,29 @@ the weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday"
 can never be mistaken for the one three weeks off; past four weeks it adds the
 month too ("Monday 3rd Aug").
 
+### Pricing per person
+
+Some things are priced by how many people they are for, not by the line: a bench
+desk sold as a two, four or six-person unit, where a "delivered and built" price
+is really a price per seat. Any tier price can be ticked **per person** on the
+Service tiers screen. When it is, the price is multiplied by a number read off
+one of the product's own attributes - you nominate which attribute carries that
+number in Delivery settings (say a "Seats" attribute whose values read "2
+People", "4 People", "6 People"). So a £50 build on a six-person desk shows as
+"+£300.00" in the basket and is charged, and saved on the order, exactly so.
+
+The number is read from the attribute value's text - the first whole number in it
+wins, so "6 People", "6" and "6-seat" all count as six. If a product set to a
+per-person tier has no such number to read, that line is held back rather than
+guessed at: the shopper is asked to choose the number of people before it can be
+bought. A flat (not-per-person) tier is unaffected and is charged once per line
+as before.
+
 ## Setting it up
 
-Everything lives under **Delivery** in the admin sidebar:
+Everything lives on the shop's **Tax & shipping** page (Shop in the admin
+sidebar, then **Tax & shipping**). Alongside the shop's own tax and shipping tab
+you get four more tabs:
 
 - **Delivery rules** - add a rule per supplier, category, range, or the default.
   A live preview shows the date an order placed right now would land on, so you
@@ -74,9 +108,10 @@ Everything lives under **Delivery** in the admin sidebar:
 - **Service tiers** - your delivery-and-assembly options and their prices.
 - **Holidays** - import the official bank-holiday calendar for your region
   (England & Wales, Scotland, or Northern Ireland). It refreshes itself weekly.
-- **Delivery settings** - which attribute means "range", your holiday region, the
-  default service shown before the shopper changes it, and how the basket shows
-  the delivery-service picker: a compact **dropdown** (the default) or **radio
+- **Delivery settings** - which attribute means "range", which attribute holds a
+  **person count** for per-person pricing, your holiday region, the default
+  service shown before the shopper changes it, and how the basket shows the
+  delivery-service picker: a compact **dropdown** (the default) or **radio
   buttons** that lay every option out at once.
 
 There is nothing to configure in your hosting - no keys, no environment
