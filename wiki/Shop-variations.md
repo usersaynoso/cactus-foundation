@@ -163,6 +163,22 @@ The **options** block has a few looks to choose from in the editor. By default e
 
 Colour and image choices have a look of their own too. Left as they are, each shows as a pill carrying both the swatch and its name. Choose **Swatch only** and the name steps back to a small label that appears when the customer hovers over the swatch, leaving a tidy row of colours or pictures - handy when a product has a lot of them and the names would only crowd the page.
 
+## On your category pages
+
+A shopper scrolling a category sees a photo, a name and a price. What they don't see is that the chair comes in eleven colours, which is quite often the thing that would have made them click.
+
+So each option now carries a tickbox: **Display in categories**. Tick it and that option summarises itself on the product's card wherever cards appear - your category pages, your shop home, the "you might also like" row, a featured collection. Colour and image swatches show as a small row of dots or thumbnails; dropdowns and pills show as a plain list of names separated by commas. Either way the option's heading goes in front, so nobody is left guessing what the row of dots is meant to be.
+
+Two settings appear alongside the tick once it's on.
+
+**Label.** What the option is called on a card, which needn't be what it's called on the product page. "Seat upholstery colour" is a perfectly good heading on a full product page and hopeless on a tile two inches wide, so put "Colour" here and the product page keeps its longer name. Leave the box empty and the card simply uses the option's own name.
+
+**Swatches shown** (or **Options shown**, for dropdowns and pills). How many values fit before Cactus stops and adds a **+4** to say how many more there are. Eleven colours on a card is a wall of dots; five and a "+6" tells the same story and leaves room for the price. Leave it empty and every value is shown, however many that turns out to be.
+
+One thing to do first, and only once for the whole shop: the summary needs somewhere to sit on the card, and where it sits is your decision rather than ours. Go to **Appearance → Layouts → Shop → Product Card** and drag the **Card: Variation options** piece into your card design - under the name reads well, or above the price. Publish it and every card in the shop follows suit. Until you do, ticking the box quietly changes nothing, which is why the Variations tab reminds you the moment you first tick one.
+
+Options you leave unticked carry on exactly as before and never appear on a card, so a product with a Size, a Colour and three fitting choices doesn't turn its tile into a specification sheet. An option nobody has given any values to yet is skipped as well, rather than printing an empty heading and looking broken.
+
 ## Browsing every variation
 
 Your **Products** list (Shop → Products) has a **Variations** tab beside the usual list of products. It shows every variation across the whole shop in one place - a thumbnail, which product it belongs to, its options (like "Walnut / Large"), price, stock and SKU, and, if you have the 3D module, its 3D file.

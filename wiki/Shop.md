@@ -212,6 +212,8 @@ If you'd rather a plainer set of jump-links - the same idea with none of the tab
 
 The **Product Card** sub-tab does the same for the little product cards, with **Standard** (photo on top), **Overlay** (the name and price floating over the photo) and **Horizontal** (photo on the left, details on the right) to choose from. Design it once and it applies to every card across the shop.
 
+If you have the Variations module, the Product Card sub-tab also offers a **Card: Variation options** piece. Drag it onto the card and every product that has options set to show there summarises them: a row of colour or fabric swatches, or a plain comma-separated list of sizes, each behind whatever heading you chose. Which options appear, what they are called and how many are shown before a "+4" is decided per product on its Variations tab. See [Shop variations](Shop-variations) for that half.
+
 Both come with a sensible design switched on from the moment Shop starts, so nothing looks broken before you touch them. If you want a *particular* grid or the product page to use a different design from the shop-wide one, open that block's settings and pick a **Layout** there; leave it on "Use shop default" to follow whatever you've published.
 
 You can also drop a whole **Category** layout onto any other page - your homepage, for instance - using the **Embed Layout** block, then pick the category and the number of products to show. See [Managing pages](Managing-pages) for how that block works.
