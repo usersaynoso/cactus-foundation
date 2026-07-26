@@ -10,7 +10,7 @@ import SequenceSettingsPanel from './SequenceSettingsPanel'
 // hidden - switching tabs never tears the library's selection or scroll down.
 
 type PresetKey = 'fast' | 'quality'
-type Engine = 'isnet' | 'birefnet'
+type Engine = 'isnet' // birefnet removed - OOM-kills the worker box (see lib/media/sequence-presets.ts)
 type Preset = { engine: Engine; fps: number; maxWidth: number }
 type Presets = Record<PresetKey, Preset>
 

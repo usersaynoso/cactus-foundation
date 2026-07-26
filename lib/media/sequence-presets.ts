@@ -14,7 +14,14 @@ import { prisma } from '@/lib/db/prisma'
 // the dialog and the enqueue route only ever read the stored values, so what an
 // admin sets is exactly what runs - the browser never gets to pick engine/fps.
 
-export const SEQUENCE_ENGINES = ['isnet', 'birefnet'] as const
+// Only 'isnet' is offered. The sharper 'birefnet' model needs 3 GB+ of RAM even
+// on a small frame (it does not downscale internally the way isnet does), which
+// OOM-kills the conversion worker on its 2 GB-capped box - it shares that box
+// with a live database, so the cap cannot simply be lifted. isnet mattes a
+// product on a white sweep cleanly and peaks well under the cap, so it is the
+// only safe engine here. Dropping 'birefnet' from the enum also self-heals any
+// stored preset that still names it: parsing falls back to the isnet defaults.
+export const SEQUENCE_ENGINES = ['isnet'] as const
 export type SequenceEngine = (typeof SEQUENCE_ENGINES)[number]
 
 export const SEQUENCE_PRESET_KEYS = ['fast', 'quality'] as const
@@ -30,9 +37,12 @@ const PresetSchema = z.object({
 })
 export type SequencePreset = z.infer<typeof PresetSchema>
 
+// Both presets run the isnet engine (the only one the worker's box can afford -
+// see SEQUENCE_ENGINES). "High quality" earns its name through a higher frame
+// rate and a wider frame, not a heavier model: smoother scroll, sharper stills.
 export const SequenceConfigSchema = z.object({
   fast: PresetSchema.default({ engine: 'isnet', fps: 15, maxWidth: 1280 }),
-  quality: PresetSchema.default({ engine: 'birefnet', fps: 30, maxWidth: 1920 }),
+  quality: PresetSchema.default({ engine: 'isnet', fps: 30, maxWidth: 1920 }),
 })
 
 export type SequenceConfig = z.infer<typeof SequenceConfigSchema>

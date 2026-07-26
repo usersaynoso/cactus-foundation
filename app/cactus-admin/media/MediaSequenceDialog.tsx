@@ -28,12 +28,11 @@ const PRESET_LABELS: Record<PresetKey, string> = {
 // The numeric knobs behind each preset, shown as a one-line summary so the admin
 // knows what they're choosing. Values are read from the settings, not chosen here
 // - the server ignores anything the browser might send for engine/fps/width.
-type PresetSummary = { engine: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
+type PresetSummary = { engine: 'isnet'; fps: number; maxWidth: number }
 type PresetSummaries = Record<PresetKey, PresetSummary>
 
 function describePreset(p: PresetSummary): string {
-  const removal = p.engine === 'birefnet' ? 'best-quality background removal' : 'fast background removal'
-  return `${p.fps} fps · up to ${p.maxWidth}px wide · ${removal}`
+  return `${p.fps} fps · up to ${p.maxWidth}px wide`
 }
 
 export default function MediaSequenceDialog({

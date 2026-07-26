@@ -9,7 +9,10 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 // deleting one deletes its notification (and clears the bell).
 
 type PresetKey = 'fast' | 'quality'
-type Engine = 'isnet' | 'birefnet'
+// Only isnet is offered now - birefnet needs 3 GB+ and OOM-kills the worker box
+// (see lib/media/sequence-presets.ts). The engine is no longer a per-preset choice
+// in the UI; it is fixed to isnet and the two presets differ by fps and width.
+type Engine = 'isnet'
 type Preset = { engine: Engine; fps: number; maxWidth: number }
 type Presets = Record<PresetKey, Preset>
 
@@ -32,7 +35,7 @@ const PRESET_LABELS: Record<PresetKey, string> = {
 
 const PRESET_BLURB: Record<PresetKey, string> = {
   fast: 'The everyday choice - quicker to build, easily good enough for most product spins.',
-  quality: 'Sharper edges on tricky subjects (hair, glass, fine detail) at the cost of a longer wait.',
+  quality: 'More frames and a wider image, for a smoother, sharper spin - at the cost of a longer wait.',
 }
 
 const JOBS_POLL_MS = 8000
@@ -206,20 +209,6 @@ export default function SequenceSettingsPanel({
               <div>
                 <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>{PRESET_LABELS[key]}</h3>
                 <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{PRESET_BLURB[key]}</p>
-              </div>
-
-              <div style={fieldWrap}>
-                <label htmlFor={`${key}-engine`} style={sectionLabel}>Background removal</label>
-                <select
-                  id={`${key}-engine`}
-                  value={presets[key].engine}
-                  disabled={!canManage}
-                  onChange={(e) => setPresetField(key, 'engine', e.target.value as Engine)}
-                  style={textInput}
-                >
-                  <option value="isnet">Fast removal</option>
-                  <option value="birefnet">Best-quality removal</option>
-                </select>
               </div>
 
               <div style={fieldWrap}>

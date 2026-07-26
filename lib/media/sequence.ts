@@ -102,7 +102,7 @@ export type EnqueueArgs = {
   sequenceName: string
   fps?: number
   maxWidth?: number
-  engine?: 'isnet' | 'birefnet'
+  engine?: 'isnet'
   callbackUrl: string
   callbackToken: string
 }
