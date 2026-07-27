@@ -85,11 +85,26 @@ And when a product is removed, its **whole row** is now taken out of the sheet r
 
 If your sheet already picked up one of the old blank gaps - from before this row-deletion behaviour existed - a Push now clears those away too, as long as there is genuinely nothing on the row: no product, no note, nothing. The moment you have written so much as a word in your own column on a row, it is left alone.
 
-The same promise covers **columns**. The attribute and extra-field columns towards the right of each tab used to come out in whatever order the database offered them up, and one software update was enough to swap whole blocks of them around - which counted as the sheet changing shape, and flattened every formula on the tab in one go. A Push now keeps those columns wherever your sheet already has them, and anything genuinely new is added at the far end - and crucially, a new column arriving is slotted in *beside* your own columns rather than landing on top of the first one, so nothing you added gets overwritten.
+The same promise covers **columns**, and it now covers all of them rather than just the ones on the right. The attribute and extra-field columns used to come out in whatever order the database offered them up, and one software update was enough to swap whole blocks of them around - which counted as the sheet changing shape, and flattened every formula on the tab in one go. A Push now keeps every column wherever your sheet already has it, and anything genuinely new is added at the far end - and crucially, a new column arriving is slotted in *beside* your own columns rather than landing on top of the first one, so nothing you added gets overwritten.
 
 If you want formulas that survive absolutely everything, put them in columns to the **right** of the last one Cactus fills in. That space is entirely yours: a Push never writes there and never clears it, so anything you build out there - a margin calculator, a running total, a whole second dashboard - is untouched. Same goes for a Pull, which only ever reads the columns it recognises. And on the rare occasion a formula in a catalogue cell would end up showing a different number to the one your shop actually charges - because a figure it depends on changed in the same Push - Cactus replaces it with the true number rather than leave a cell quietly disagreeing with your till.
 
 One quirk on the **product variation tabs** is now sorted. A variant's price cells used to arrive as text - you'd sometimes spot a stray apostrophe in front of the number - which meant a formula there was replaced on every Push even when the price hadn't changed. Variant prices now behave exactly like the ones on the Products tab, so a formula on a variant price is kept for as long as it still agrees with your shop.
+
+### Moving the columns about
+
+The order Cactus writes the columns in is the order the database happens to keep them, which is nobody's idea of a sensible working layout. So drag them wherever you like.
+
+**Your order is the one that sticks.** A Pull finds each column by the heading at the top of it, not by where it sits, so cost price can live next to price, the columns you never touch can be shoved off to the right, and everything still reads back correctly. A Push then writes your catalogue into the sheet exactly as you have arranged it, rather than shuffling it all back to the factory order every time. Rearrange, Pull, Push, and the sheet still looks like your sheet.
+
+This works on the product variation tabs too, including the Parent Slug column - move it off column A if you want to, and a Pull will still find it.
+
+Two things to keep in mind:
+
+- **Move the whole column, don't rename the heading.** The heading is the only thing that tells Cactus what a column is. Retitle `retail_price` to "RRP" and that column simply stops being read, and a Pull will tell you the sheet is missing a column it needs.
+- **New columns arrive at the far right of ours.** When an update adds a column, it goes on the end rather than being wedged into the middle, so nothing you have already arranged shuffles along to make room for it.
+
+If you keep columns of your own, they still belong to the right-hand side. Anything of yours that ends up in the middle of Cactus's own columns is nudged out to the right on the next Push rather than being written over, which keeps it intact but probably isn't where you wanted it.
 
 ### Pull from sheet (the sheet → your site)
 
@@ -217,7 +232,7 @@ A few things are deliberately left out, and are never touched by a sync (so they
 
 ## If you make a mess of the header
 
-The top row of each tab is the bit Pull relies on to know which column is which. It is protected with a gentle warning, but if it gets mangled beyond repair, use **Reset sheet** on the settings tab. That makes a fresh, clean sheet and points Cactus at it. Your old sheet stays in your Google Drive (you can bin it yourself), and a Push refills the new one.
+The top row of each tab is the bit Pull relies on to know which column is which. Moving a column is fine - the heading travels with it and everything carries on working. Changing what a heading *says* is not, because that is the only way Cactus knows what the column holds. It is protected with a gentle warning, but if it gets mangled beyond repair, use **Reset sheet** on the settings tab. That makes a fresh, clean sheet and points Cactus at it. Your old sheet stays in your Google Drive (you can bin it yourself), and a Push refills the new one.
 
 ---
 
