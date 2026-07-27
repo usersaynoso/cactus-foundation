@@ -152,7 +152,7 @@ Two things to keep in mind:
 
 ## What the sheet covers, and what it doesn't
 
-The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
+The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, both kinds of description (the plain one you type and the one you lay out in the designer), and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
 
 ### Attribute columns
 
@@ -162,6 +162,24 @@ If you use **Attributes** on your products, they travel with the sheet too.
 - Attributes you keep at the **product level** - one value for the whole product, like a markup band - get a column on the **Products** tab. Fill it in and Pull to save it against the product; if the attribute takes more than one value, separate them with commas in the same cell.
 
 A value the attribute hasn't seen before is created for you, exactly as a new size or colour would be. A product-level attribute only shows up as a column once a product actually uses it, so to put one on a product for the first time, add it in the admin and it'll be in the sheet from then on.
+
+### The designed description column
+
+If you have laid a product's description out in the **description designer** rather than typing it into the plain description box, that layout now travels with the sheet too. It sits on the Products tab in a column called **description_puck**, one row along from the plain `description`.
+
+Fair warning: it looks like gibberish. It is one long line of code describing every block of the layout, and it is there so that a Push and a Pull carry your designed descriptions along with everything else, not so you can read it over breakfast.
+
+What you can usefully do with it:
+
+- **Copy the whole cell** from one product to another and Pull. That product gets the same designed description. This is far and away the most useful thing about the column - it's the quickest way to give forty products the same layout.
+- **Empty the cell** and Pull. That product drops back to using its plain description text, exactly as if you had never opened the designer.
+- **Leave it alone** on every product you aren't changing, which will be most of them.
+
+What you should not do is edit it by hand, character by character. If you do and you get it wrong, nothing breaks: Pull tells you which row is the problem and leaves that product's description exactly as it was. The rest of the row still goes through.
+
+Every so often a layout is too long to fit in a spreadsheet cell - Google caps them, and a very elaborate description can run past it. Rather than write half a layout into the cell and read the broken half back on the next Pull, we put a short note there instead saying it's too large. Leave that note where it is: that product's design is edited in the admin only, and a Pull won't touch it.
+
+If your sheet was made before this column existed, your next Push adds it.
 
 ### The Suppliers tab
 
