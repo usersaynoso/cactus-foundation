@@ -8,6 +8,14 @@ Requires the **Shop** module. It works alongside **Shop Variations** if you have
 
 ---
 
+## On your shop's listing pages
+
+A product with a model also gets a small **3D** badge on its picture wherever it's listed - a category page, a collection, a search result. Tapping it swaps the photograph for the live model, right there in the tile.
+
+If the product has variations, left and right arrows appear on the model too, letting a shopper flick through each variation's own model without leaving the listing - the same way the arrows on the photograph flick through each variation's picture. It opens on whichever variation's photo the shopper was already looking at. A tap on the close button hands the picture and its arrows straight back.
+
+---
+
 ## Adding a 3D model
 
 1. Open a product under **Shop → Products**.
@@ -118,6 +126,8 @@ Shoppers see your 3D models in the gallery as normal - the product's own to begi
 While a freshly picked finish is on its way - the first time each colour is chosen, its material has to be fetched - the model shows a gentle shimmer and a small **Loading material…** note, so nobody is left wondering whether their click took. The model stays on screen and can still be turned while it waits, and a colour already seen appears at once with no shimmer at all.
 
 **Two things to finish off:** each picture swatch needs its **size** typed in on the **Product attributes** screen, and each variation needs its **overall height or width** - whichever you chose to scale by - filled in on the **Attributes** tab, unless you typed that measurement in by hand, in which case there is nothing left to fill. Where either is missing, that surface still shows in the right colour - only its scale sits neutral until you fill the values in, so the product works from day one.
+
+**Where a colour has no swatch picture behind it.** Every colour a shopper can pick needs a picture on it for the 3D view to have anything to paint with. Where one has been added loose - typed straight onto the **Variations** tab rather than picked from your shop's material list, so it carries no picture - that part of the model simply shows the finish the 3D file itself was built in, and goes on showing it until you give the colour a picture. It does **not** keep the colour the shopper was looking at a moment ago, which is the far worse of the two: a chair back left in the previous fabric looks like a combination you sell, and reads as the shop quoting for something it will never send. If you spot a part of a model stubbornly showing the file's own plain finish while everything around it colours in, that colour is the one to go and look at.
 
 **If you swap out a product's 3D files.** Detach a model and re-attach a new one, or a replacement of the same file, and Cactus notices the configurator's calibration no longer matches what's attached. Open the material configurator and it re-measures the new files and saves that on its own - you'll see a note saying it's done so, and nothing else needs touching. Skip the panel and the shop keeps painting the right colours; only the scale sits neutral, exactly as it does for a swatch or variation whose size hasn't been filled in yet, until the panel is next opened.
 
