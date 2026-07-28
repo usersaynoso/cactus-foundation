@@ -177,10 +177,12 @@ The Products and Variations tabs cover the bulk of a catalogue: names, web addre
 
 If you use **Attributes** on your products, they travel with the sheet too.
 
-- Attributes that tell your **variants apart** - a per-variant Finish, Catalog and the like - each get a column on the **Variations** tab. Type a value and Pull, and it's set on that variant. Type one against a product that wasn't using that attribute yet, and Pull simply starts using it: the attribute is added to that product and the value set, with no trip to the admin needed. Blank cells are left alone, and the sheet's own columns (Price, Supplier and so on) are never mistaken for an attribute.
+- Attributes that tell your **variants apart** - a per-variant Finish, Catalog and the like - each get a column on the **Variations** tab. Type a value and Pull, and it's set on that variant. Blank cells are left alone.
 - Attributes you keep at the **product level** - one value for the whole product, like a markup band - get a column on the **Products** tab. Fill it in and Pull to save it against the product; if the attribute takes more than one value, separate them with commas in the same cell.
 
-A value the attribute hasn't seen before is created for you, exactly as a new size or colour would be. A product-level attribute only shows up as a column once a product actually uses it, so to put one on a product for the first time, add it in the admin and it'll be in the sheet from then on.
+A value the attribute hasn't seen before is created for you, exactly as a new size or colour would be.
+
+An attribute only shows up as a column once a product actually uses it - on either tab - so to put one on a product for the first time, tick it on that product's **Attributes** tab in the admin and it'll be in the sheet from then on. A Pull will not start using an attribute on your behalf just because a column happens to be headed with its name. That used to be the way of it on the Variations tab, and it turned out to be a touch too helpful: a column of supplier codes pasted onto a variations tab was enough to promote "Range" and "Catalog" into per-variation settings on every product it touched, each one then dutifully written back into the sheet so it came straight back the moment you deleted it. Your own columns, and other features' columns, are now left exactly where they are.
 
 ### The designed description column
 
