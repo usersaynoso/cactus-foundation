@@ -14,6 +14,7 @@ import MediaToolbar from './MediaToolbar'
 import MediaToasts, { type Toast, type ToastKind } from './MediaToasts'
 import { type UploadTask, addUploads, updateUpload } from '@/lib/upload-status-client'
 import FolderTree, { type FolderNode } from './FolderTree'
+import FolderPaneResizer from './FolderPaneResizer'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile, isFileReadable, UNREADABLE_FILE_MESSAGE } from '@/lib/media/upload-client'
 import { type UploadChoice, planUploadJobs, runUploadPool } from '@/lib/media/upload-batch'
@@ -109,6 +110,13 @@ type UploadClash = {
 
 const VIEW_KEY = 'cactus.media.view'
 const SORT_KEY = 'cactus.media.sort'
+const FOLDER_WIDTH_KEY = 'cactus.media.folderPaneWidth'
+// Folder pane sizing. The default matches the old fixed column; the floor keeps
+// a deeply nested folder name readable, the ceiling stops the grid being pushed
+// off the page on a wide screen.
+const FOLDER_WIDTH_DEFAULT = 220
+const FOLDER_WIDTH_MIN = 160
+const FOLDER_WIDTH_MAX = 520
 const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest']
 // Batch size for bulk delete/move once "Select all" can hand over hundreds of
 // ids in one go - each item is a storage round trip server-side, so a big
@@ -233,6 +241,10 @@ export default function MediaLibrary({
   // more, because "search inside this folder" used to be impossible to ask for.
   const [searchEverywhere, setSearchEverywhere] = useState(false)
   const [view, setView] = useState<ViewMode>('grid')
+  // Width of the folder tree column, in px. Server render always uses the
+  // default; the stored preference is applied after mount (see the hydrate
+  // effect below) so there's nothing for hydration to disagree about.
+  const [folderPaneWidth, setFolderPaneWidth] = useState(FOLDER_WIDTH_DEFAULT)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Items that are selected but not on screen - what "Select all" pulls in from
@@ -317,6 +329,16 @@ export default function MediaLibrary({
     if (saved && (SORT_VALUES as string[]).includes(saved)) setSort(saved as Sort)
   }, [])
   useEffect(() => { window.localStorage.setItem(SORT_KEY, sort) }, [sort])
+
+  // Same one-shot hydrate for the folder pane width. Clamped on the way in so a
+  // hand-edited or stale stored value can't strand the pane off-screen.
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(FOLDER_WIDTH_KEY))
+    if (!Number.isFinite(saved) || saved <= 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- post-mount hydrate of a persisted UI pref; safe one-shot re-render
+    setFolderPaneWidth(Math.min(FOLDER_WIDTH_MAX, Math.max(FOLDER_WIDTH_MIN, Math.round(saved))))
+  }, [])
+  useEffect(() => { window.localStorage.setItem(FOLDER_WIDTH_KEY, String(folderPaneWidth)) }, [folderPaneWidth])
 
   // Live search: commit the typed query after a short pause so results filter as
   // you type. Enter still commits instantly via the toolbar's submit handler.
@@ -1170,7 +1192,9 @@ export default function MediaLibrary({
         />
       </Suspense>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
+      {/* Three columns, not two: the middle one is the drag handle. Its width
+          plus the two gaps adds up to the 1.5rem the plain gap used to be. */}
+      <div style={{ display: 'grid', gridTemplateColumns: `${folderPaneWidth}px 8px 1fr`, gap: '0.5rem', alignItems: 'start' }}>
         <FolderTree
           folders={folders}
           rootCount={rootCount}
@@ -1185,6 +1209,14 @@ export default function MediaLibrary({
           onNewFolder={() => setNewFolderOpen(true)}
           onRenameFolder={(f) => setRenameFolderNode(f)}
           onDeleteFolder={(f) => setDeleteFolderNode(f)}
+        />
+
+        <FolderPaneResizer
+          width={folderPaneWidth}
+          min={FOLDER_WIDTH_MIN}
+          max={FOLDER_WIDTH_MAX}
+          defaultWidth={FOLDER_WIDTH_DEFAULT}
+          onWidth={setFolderPaneWidth}
         />
 
         <div
