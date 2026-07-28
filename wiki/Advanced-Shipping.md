@@ -16,13 +16,15 @@ It needs the **Shop** and **Product Attributes** modules installed.
   delivery service. Choosing, say, full installation updates the price the
   instant it is picked - no waiting on a spinner - and the promised date
   follows a beat later once the server has confirmed the sums.
-- Also in the basket, the **Delivery: basket summary** block carries one
-  countdown for the whole lot - "Order within 5 hours and 12 minutes to keep
-  these dates." - and it appears only when every item shares the same cut-off. A
-  basket of items with different cut-offs shows the dates and no deadline, on the
-  grounds that one number cannot be true for all of them and a countdown per line
-  is just clutter. Drop the block above your basket lines to have it read as a
-  heading over the Delivery column.
+- Also in the basket, the **Delivery: basket cut-off countdown** block gives the
+  whole lot one deadline - "Order within 5 hours and 12 minutes to keep these
+  delivery dates." - and nothing else. The dates themselves already sit beside
+  each line, so it does not repeat them. Drop the block above your basket lines
+  to have it read as a heading over the Delivery column.
+- That countdown appears only when every item in the basket shares the same
+  cut-off. Mixed basket, mixed deadlines, and it stays quiet rather than pick one
+  and be wrong about the rest. Items with no cut-off at all (made to order,
+  pre-order) count as a mismatch, since there is no deadline to keep.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
 
