@@ -172,7 +172,7 @@ That's the road in. There's one out, too, and it's now the only way variation op
 
 Those options keep a link back, so a **Refresh** button on each one picks up new values and renames from the attribute later. It only ever adds and updates - nothing gets deleted behind your back, since every value has real variants and real stock hanging off it.
 
-The link works in both directions where new values are concerned. Add a value to one of those options on a product - a finish you've only just started offering - and it's added to the attribute here as well, so it appears on this screen and is there to pick on every other product without you making a second trip. A name the attribute already has is reused rather than duplicated. The full account is on the [Shop Variations](Shop-variations) page.
+The link works in both directions where new values are concerned. Add a value to one of those options on a product - a finish you've only just started offering - and it's added to the attribute here as well, so it appears on this screen and is there to pick on every other product without you making a second trip. That holds however the value arrives: typed on the Variations tab, or brought in by a spreadsheet import or a Google Sheet Pull. A name the attribute already has is reused rather than duplicated. The full account is on the [Shop Variations](Shop-variations) page.
 
 ### Bulk-editing in the Google Sheet
 
