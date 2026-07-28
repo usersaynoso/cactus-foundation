@@ -35,9 +35,22 @@ export default async function MediaPage({ searchParams }: Props) {
   const params = new URLSearchParams(sp)
   const { perPage } = parsePaginationParams(params)
 
-  // First paint: the library root, newest first. All further navigation, sorting
-  // and filtering happens client-side against /api/admin/media.
-  const query = parseLibraryQuery(new URLSearchParams(), perPage, 1)
+  // The folder you were standing in, carried in the URL so a refresh (or a
+  // shared link) lands back in it rather than dumping you at the root. Verified
+  // before it is used: a stale or hand-typed id would otherwise render an empty
+  // grid with no way back except the breadcrumb.
+  const requested = params.get('folder')
+  const initialFolderId =
+    requested && requested !== 'root' && requested !== 'all'
+      ? (await prisma.folder.findUnique({ where: { id: requested }, select: { id: true } }))?.id ?? null
+      : null
+
+  // First paint: that folder (or the library root), newest first. All further
+  // navigation, sorting and filtering happens client-side against
+  // /api/admin/media.
+  const firstPaint = new URLSearchParams()
+  if (initialFolderId) firstPaint.set('folder', initialFolderId)
+  const query = parseLibraryQuery(firstPaint, perPage, 1)
 
   // The stat bar needs a scan of the whole library (every row plus the usage
   // index), which has no business holding up first paint - a visitor opening the
@@ -79,6 +92,7 @@ export default async function MediaPage({ searchParams }: Props) {
             initialTotal={initial.total}
             folders={folders.map((f) => ({ ...f, mediaCount: countByFolder.get(f.id) ?? 0 }))}
             rootCount={rootCount}
+            initialFolderId={initialFolderId}
             tags={tags.map((t) => ({ id: t.id, name: t.name, count: t._count.media }))}
             statsPromise={statsPromise}
             canUpload={canUpload}

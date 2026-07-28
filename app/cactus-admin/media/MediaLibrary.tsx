@@ -191,6 +191,7 @@ export default function MediaLibrary({
   initialTotal,
   folders: initialFolders,
   rootCount: initialRootCount,
+  initialFolderId,
   tags: initialTags,
   statsPromise,
   canUpload,
@@ -202,6 +203,10 @@ export default function MediaLibrary({
   initialTotal: number
   folders: FolderNode[]
   rootCount: number
+  // The folder the URL asked for, already verified server-side (null = root).
+  // Held as the initial state rather than restored in an effect so the server's
+  // first page and the client's opening view are the same folder.
+  initialFolderId: string | null
   tags: TagInfo[]
   // The whole-library stat scan, kicked off by the server but left un-awaited so
   // it never held up first paint. Resolved client-side inside a Suspense boundary
@@ -216,7 +221,7 @@ export default function MediaLibrary({
   const [rootCount, setRootCount] = useState(initialRootCount)
   const [tags, setTags] = useState<TagInfo[]>(initialTags)
 
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId)
   // Forces the whole-library scope (all folders) even without a search/tag -
   // set when a stat tile is clicked, cleared as soon as a folder is browsed.
   const [browseAll, setBrowseAll] = useState(false)
@@ -339,6 +344,18 @@ export default function MediaLibrary({
     setFolderPaneWidth(Math.min(FOLDER_WIDTH_MAX, Math.max(FOLDER_WIDTH_MIN, Math.round(saved))))
   }, [])
   useEffect(() => { window.localStorage.setItem(FOLDER_WIDTH_KEY, String(folderPaneWidth)) }, [folderPaneWidth])
+
+  // Keep the folder you are browsing in the URL, so a refresh, a bookmark or a
+  // pasted link opens the same folder instead of the root. replaceState rather
+  // than a router navigation: this is bookkeeping about where you already are,
+  // and a push would fill the back stack with every folder click while a router
+  // call would re-run the server page for a view the client already has.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (currentFolderId) url.searchParams.set('folder', currentFolderId)
+    else url.searchParams.delete('folder')
+    if (url.href !== window.location.href) window.history.replaceState(null, '', url)
+  }, [currentFolderId])
 
   // Live search: commit the typed query after a short pause so results filter as
   // you type. Enter still commits instantly via the toolbar's submit handler.
