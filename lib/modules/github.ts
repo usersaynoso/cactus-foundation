@@ -5,6 +5,7 @@
 import { parseGitHubRepo } from './manifest'
 import { getGithubClient } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
+import { applyPinFloor, formatHeldPins } from './pin-floor'
 
 function getMainRepo(): { owner: string; repo: string } {
   const raw = process.env.GITHUB_REPO ?? ''
@@ -181,12 +182,20 @@ export async function syncModulesJson(
   const { owner, repo } = getMainRepo()
 
   const { content } = await readModulesJson(octokit, owner, repo)
-  if (normaliseModules(content.modules) === normaliseModules(desired)) {
+
+  // The desired list comes from the Module table, which can be behind what the repo
+  // already pins (a pin moved in git is not something the database hears about). Writing
+  // it as-is downgrades that pin silently - see pin-floor.ts for the case that cost a
+  // live site two failed deploys.
+  const { entries: floored, held } = applyPinFloor(desired, content.modules)
+  if (held.length > 0) console.warn(`[modules] ${formatHeldPins(held)}`)
+
+  if (normaliseModules(content.modules) === normaliseModules(floored)) {
     return { committed: false }
   }
 
   const updated: ModulesJson = {
-    modules: desired.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version })),
+    modules: floored.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version })),
   }
   const deleteGitmodules = await hasGitmodules(octokit, owner, repo)
   const { commitSha } = await commitModulesJson(

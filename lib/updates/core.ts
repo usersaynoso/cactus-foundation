@@ -9,6 +9,8 @@ import { getGithubClient } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { isGitHubConfigured, isLocalMode } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
+import { compareVersions } from './version'
+import { applyPinFloor, formatHeldPins, type RegistryPin } from '@/lib/modules/pin-floor'
 
 const UPSTREAM_REPO = process.env.CACTUS_CORE_REPO ?? 'usersaynoso/cactus-foundation'
 
@@ -25,16 +27,10 @@ function getMainRepo(): { owner: string; repo: string } {
   return { owner, repo }
 }
 
-// Strips a leading "v" and compares numeric major.minor.patch.
-// Returns positive if a > b, negative if a < b, 0 if equal.
-export function compareVersions(a: string, b: string): number {
-  const parse = (v: string) => v.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0)
-  const [aMaj, aMin, aPat] = parse(a)
-  const [bMaj, bMin, bPat] = parse(b)
-  if (aMaj !== bMaj) return (aMaj ?? 0) - (bMaj ?? 0)
-  if (aMin !== bMin) return (aMin ?? 0) - (bMin ?? 0)
-  return (aPat ?? 0) - (bPat ?? 0)
-}
+// Lives in ./version so lib/modules/pin-floor.ts can use it without importing this
+// module (which imports pin-floor in turn). Re-exported here because this is where
+// every caller already imports it from.
+export { compareVersions } from './version'
 
 export type CoreUpdateStatus =
   // Local-development mode: updates ship via git + Vercel redeploy, neither of
@@ -269,6 +265,29 @@ async function readAdminBase(
   return { headSha, baseTreeSha, shaByPath, truncated: Boolean(baseTree.truncated) }
 }
 
+// The module pins modules.json holds at a given commit, for applyPinFloor to floor
+// against. Read by path at an exact ref rather than out of the base tree map, because
+// that map is truncated on very large repos and a silently absent modules.json would
+// read as "nothing pinned" - which is precisely the case where a downgrade slips
+// through. Anything unreadable or malformed yields no floor: a corrupt registry is not
+// a reason to block the core update, and the write that follows replaces it anyway.
+async function readPinnedModules(
+  octokit: Awaited<ReturnType<typeof getGithubClient>>,
+  owner: string,
+  repo: string,
+  ref: string,
+): Promise<RegistryPin[]> {
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: 'modules.json', ref })
+    if (!('content' in data)) return []
+    const parsed = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as { modules?: RegistryPin[] }
+    return Array.isArray(parsed.modules) ? parsed.modules : []
+  } catch (err) {
+    console.warn('[core-update] could not read current module pins - no pin floor applied:', err)
+    return []
+  }
+}
+
 // Reconciles the admin's core files toward the upstream release (not a replayed diff).
 // Skips anything under modules/, .gitmodules, or modules.json.
 // Uses createTree(base_tree=adminHEAD) so user files outside core are preserved.
@@ -389,8 +408,16 @@ export async function syncCoreFromUpstream(
   const treeEntries: TreeEntry[] = writeResults.filter((e): e is TreeEntry => e !== undefined)
 
   if (modulesJson) {
+    // The list arrives from the Module table, which can be BEHIND what the repo already
+    // pins - a pin moved in git by hand or by another install's deploy is not something
+    // the database ever hears about. Writing it as-is downgrades that pin silently and
+    // rebuilds whatever it was moved away from. Hold the higher version instead.
+    const currentPins = await readPinnedModules(octokit, adminOwner, adminRepo, initialBase.headSha)
+    const { entries, held } = applyPinFloor(modulesJson, currentPins)
+    if (held.length > 0) console.warn(`[core-update] ${formatHeldPins(held)}`)
+
     // JSON is text, so inline it too - no separate blob, no race.
-    const jsonContent = JSON.stringify({ modules: modulesJson }, null, 2) + '\n'
+    const jsonContent = JSON.stringify({ modules: entries }, null, 2) + '\n'
     treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
   }
 
