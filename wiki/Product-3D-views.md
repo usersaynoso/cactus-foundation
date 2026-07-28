@@ -33,6 +33,8 @@ If you have **Shop Variations**, there is a quicker route for models that belong
 
 Both routes do exactly the same thing, so use whichever suits. The **3D views** tab is still the only place to put a model against the **whole product** rather than one variation.
 
+**Click a file's badge to look at it.** Once a variation has a model, the little **GLB** (or OBJ, or FBX) badge in that row is a button. Click it and the model opens in a window you can drag, turn and zoom, lit the way a shopper's would be - and, on a product set up with the material configurator, painted with that variation's own finishes rather than shown as a bare grey shell. Handy when forty near-identically named files have gone onto forty rows and you want to be sure the oak one really did land on the oak row. **Esc** closes it, as does clicking outside.
+
 One difference worth knowing: a model uploads the moment you drop it, rather than waiting for **Save** like the prices and stock counts in the same table. A file has either arrived or it hasn't, and pretending otherwise is a good way to lose one.
 
 ---

@@ -91,6 +91,14 @@ Values typed in here go onto the attribute as well, so they follow along with th
 
 If you've switched suppliers on in **Shop → Settings → General** and set them to cover variations as well as products, the grid gains a supplier column too. It's a dropdown of your supplier list rather than a free-text box, and it ends with **Add a new supplier** for the ones you haven't got round to recording yet. Useful when the red ones come from one place and the blue ones from another.
 
+### Finding one combination in a big grid
+
+Four options with five values each makes six hundred and twenty-five rows, and scrolling through them looking for the oak one in 1600mm is nobody's idea of an afternoon. So above the grid there's a row of dropdowns - one per option, in the order the shopper meets them, with the same value names. Pick a colour and the grid shows only that colour; pick a size as well and it narrows again. Leave an option on **Any** and it asks nothing.
+
+The dropdowns tidy up after each other: once you've picked a size that only comes in two of your five finishes, the other three drop off the finish list rather than sitting there leading nowhere. **Show all** puts everything back, and the heading counts what you're looking at - "Variants (8 of 625)" - so a filtered grid never passes for the whole thing.
+
+Two things follow the filter, deliberately. The tick box in the header selects the rows **shown**, not all six hundred, and **Fill the rows shown** does what its name says - which is rather the point, since "every row in oak, £340" is why you filtered in the first place. **Delete all** and **Rebuild from options** ignore the filter entirely; they were never about a subset.
+
 ### Other modules can add columns here
 
 Some modules add a column of their own beside Photo, for things that belong to one combination rather than to the product as a whole. If you have [Product 3D views](Product-3D-views) installed, that is where its **3D** column turns up: drop a model file onto a row and that combination has one. If you have [Product Attributes](Product-attributes) installed and tick **Use for variations** on an attribute, it adds a column here too, so each combination can carry its own Colour, Material or the like.
