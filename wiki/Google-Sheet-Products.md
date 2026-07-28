@@ -118,6 +118,8 @@ Nothing has changed at this point. When you are happy, press the button in the p
 
 Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - along with a small tracker across the three stages (Products, Removals, Variations) so you can see how far through it is, rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
 
+It also tells you **what** it is working on, not merely how much. The window names the product it is writing at that moment - "Updating Chiro Plus Ergonomic Chair…" - and for variations it names the product and the options too, so you get "Chiro Plus Ergonomic Chair - Black / High back" rather than an anonymous number creeping upwards. Underneath, a short **Just done** list keeps the last handful of items on screen as they go by. The counts now move item by item as well, so a long stretch on one big product no longer looks like it has wandered off.
+
 If something interrupts it - a wobbly connection, a stubborn row, a request cut short - it doesn't lose its place. It retries by itself a few times first, quietly, and only if it genuinely cannot get any further does a **Continue** button appear (on that same Google Sheet menu, and in the Pull window) so you can nudge it on or cancel. Reopening a half-finished Pull carries straight on without being asked, too. Everything it does is safe to repeat, so resuming never doubles anything up.
 
 Every stage now works this way, products included. Previously the products stage tried to swallow the whole lot in one go, and on a large enough catalogue it would run out of time, start again, run out of time again - and sit on "Updating products…" indefinitely while looking terribly busy. It now works through products in small batches exactly like variations, banking its progress after each one, so however large the catalogue, every batch counts and the Pull always gets there. Variations also go through in larger batches than before, so the whole thing finishes sooner.
@@ -135,6 +137,8 @@ The preview's numbers only count real differences: a Pull straight after a Push 
 ### Sheet logs
 
 **Sheet logs** on the menu opens a window listing your recent Pushes and Pulls, with what each one changed - handy for a quick "did that last Pull actually land?" without leaving the Products page.
+
+The "updated" figure counts the extra columns other features add to the Variations tab, not just the built-in ones. A Pull whose only work was attaching a pile of 3D files used to sign off with "0 updated", which is a fine way to make you do the whole thing again for nothing.
 
 A few things the preview will tell you:
 
@@ -243,6 +247,14 @@ Pull does two things, and they fail for completely different reasons: it fetches
 - **"Could not read the Google Sheet"** followed by a reason - Google would not hand the tabs over. If the reason mentions a range it could not find, a tab has been renamed or deleted: put the **Products** and **Variations** names back, or use **Reset sheet** on the settings tab.
 - **"Read the sheet fine, but comparing it with your catalogue failed"** - the sheet is not the problem and rebuilding it will not help. Something on your own site fell over mid-comparison. Try again in a minute; if it keeps happening, the reason on the end of that message is the thing to quote to us.
 - **"Your site answered with an error"**, or **"It ran out of time"** - your site never got as far as an opinion. The first is a crash, the second is a very large catalogue taking longer than the minute it is allowed. Either way, nothing has been changed on your site.
+
+### Google's speed limit
+
+Google only lets one account read from, or write to, a sheet so many times a minute. A catalogue with a lot of products goes through that allowance quickly, because every product with variations has a tab of its own to fetch or fill in.
+
+Push and Pull now pace themselves to stay inside it. On a large catalogue that means the odd pause partway through, and a Push that works through its tabs in a few more goes than it used to - the progress bar keeps ticking either way, and none of it needs anything from you. If Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
+
+Should it still run out of patience, you will see **"Google is limiting how fast it will let us read and write this sheet"**. Nothing is broken and nothing is lost. Wait a minute, then press **Continue** and it carries on from where it stopped. Running Push and Pull back to back on a big catalogue is the usual way to meet it, so if you are doing both, give it a minute in between.
 
 ---
 
