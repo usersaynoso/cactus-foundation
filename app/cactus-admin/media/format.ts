@@ -1,7 +1,7 @@
 // Small shared formatters for the media library UI, so the grid, list, detail
 // panel and stat bar all render sizes, dates and filenames identically.
 
-import { SEQUENCE_MIME } from '@/lib/media/limits'
+import { SEQUENCE_MIME, extensionForModelType } from '@/lib/media/limits'
 import { ALL_PROVIDERS } from '@/lib/media/providers'
 
 // The media-library folder path an item lives in, derived from its storage key.
@@ -49,6 +49,11 @@ export function sequencePosterUrl(url: string): string {
 export function fileKind(mimeType: string): string {
   if (mimeType === SEQUENCE_MIME) return 'Scroll sequence'
   if (mimeType === 'image/svg+xml') return 'SVG'
+  // A 3D type's subtype is not what anyone calls the file: "model/gltf-binary"
+  // read as "GLTF-BINARY" in the Type column while the file itself was a .glb.
+  // The extension is the name the admin uploaded it under.
+  const modelExtension = extensionForModelType(mimeType)
+  if (modelExtension) return modelExtension.toUpperCase()
   const [group, sub] = mimeType.split('/')
   if (sub) return sub.toUpperCase()
   return group ? group.toUpperCase() : 'File'

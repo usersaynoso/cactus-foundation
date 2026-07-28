@@ -2,7 +2,7 @@
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import { formatBytes, filenameOf, fileKind, optimiseHint, sequencePosterUrl } from './format'
-import { isSequenceType } from '@/lib/media/limits'
+import { isModelDirectType, isSequenceType } from '@/lib/media/limits'
 
 export type MediaCardItem = {
   id: string
@@ -74,6 +74,11 @@ export default function MediaCard({
   const isImage = item.mimeType.startsWith('image/')
   const isVideo = item.mimeType.startsWith('video/')
   const isSequence = isSequenceType(item.mimeType)
+  // A tile can't draw a model - a grid of WebGL contexts is how a browser runs
+  // out of them (they cap at around sixteen) - but it can at least say what the
+  // file is, so a folder of models doesn't read as a folder of unknown files.
+  // The model itself draws in the detail panel, one at a time.
+  const isModel = isModelDirectType(item.mimeType)
   const posterUrl = isSequence ? sequencePosterUrl(item.url) : null
   const filename = filenameOf(item)
   const showOptimise = !!onOptimise && optimisable
@@ -116,7 +121,7 @@ export default function MediaCard({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={posterUrl} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
-            <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : '📄'}</span>
+            <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : isModel ? '3D model - open it to turn it around' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : isModel ? '🧊' : '📄'}</span>
           )}
         </button>
 

@@ -1,10 +1,17 @@
 'use client'
 
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { LibraryItem, TagInfo } from './types'
 import { formatBytes, formatDate, filenameOf, fileKind, sequencePosterUrl } from './format'
 import { useFocusTrap } from './useFocusTrap'
-import { isOptimisableType, isSequenceType } from '@/lib/media/limits'
+import { isModelDirectType, isOptimisableType, isSequenceType } from '@/lib/media/limits'
+
+// The 3D viewer is loaded only when a model is actually opened. It pulls three
+// and a loader behind it - the better part of a megabyte - and the media library
+// is mostly opened to look at pictures. `ssr: false` because it builds a WebGL
+// context against a canvas ref, which has no meaning on the server.
+const ModelPreview = dynamic(() => import('./ModelPreview'), { ssr: false })
 
 // Slide-over that replaces the old lightbox. It's both the viewer (large preview,
 // Prev/Next across the loaded list) and the single home for per-item actions and
@@ -83,6 +90,7 @@ export default function MediaDetailPanel({
   const isVideo = item.mimeType.startsWith('video/')
   const isSvg = item.mimeType === 'image/svg+xml'
   const isSequence = isSequenceType(item.mimeType)
+  const isModel = isModelDirectType(item.mimeType)
   const posterUrl = isSequence ? sequencePosterUrl(item.url) : null
   const canEdit = isImage && !isSvg
   // Not the same question as canEdit any more: a 3D model has nothing to crop or
@@ -182,8 +190,13 @@ export default function MediaDetailPanel({
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {/* Preview */}
-          <div style={{ background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, maxHeight: 320, padding: 'var(--space-4)', overflow: 'hidden' }}>
-            {isImage && !broken ? (
+          <div style={{ background: 'var(--color-bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, maxHeight: 320, padding: isModel ? 0 : 'var(--space-4)', overflow: 'hidden' }}>
+            {isModel ? (
+              /* Draws itself, reports its own failures, and needs the whole box
+                 rather than a padded letterbox - so it sits ahead of the shared
+                 `broken` handling the flat file types share. */
+              <ModelPreview url={item.url} mimeType={item.mimeType} />
+            ) : isImage && !broken ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={item.url} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : isVideo && !broken ? (
