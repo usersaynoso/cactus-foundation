@@ -10,12 +10,19 @@ It needs the **Shop** and **Product Attributes** modules installed.
 ## What the shopper sees
 
 - On a product page: **"Delivery by Tue 29 Jul"**, with a gentle countdown -
-  "Order within 6h 12m to get it by then." When the cut-off passes, the date
-  quietly rolls forward on its own.
+  "Order within 6 hours and 12 minutes to get it by then." When the cut-off
+  passes, the date quietly rolls forward on its own.
 - In the basket: each line shows its own delivery date and a picker for the
   delivery service. Choosing, say, full installation updates the price the
   instant it is picked - no waiting on a spinner - and the promised date
   follows a beat later once the server has confirmed the sums.
+- Also in the basket, the **Delivery: basket summary** block carries one
+  countdown for the whole lot - "Order within 5 hours and 12 minutes to keep
+  these dates." - and it appears only when every item shares the same cut-off. A
+  basket of items with different cut-offs shows the dates and no deadline, on the
+  grounds that one number cannot be true for all of them and a countdown per line
+  is just clutter. Drop the block above your basket lines to have it read as a
+  heading over the Delivery column.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
 
