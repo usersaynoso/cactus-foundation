@@ -2,11 +2,19 @@ import { CSV_COLUMNS, type CsvColumn } from '@/modules/shop/lib/csv'
 import { buildProductCsvRows, type ProductCsvRow } from '@/modules/shop/lib/csv-rows'
 import { slugify } from '@/modules/shop/lib/slug'
 import { getProductsBySlugs } from '@/modules/shop/lib/db/products'
+import type { ShpProduct } from '@/modules/shop/lib/types'
 import { buildTaxClassRefIndex } from '@/modules/shop/lib/db/tax-shipping'
 import { getEditorPayloadsBatch, type VariantEditorRow } from '@/modules/shop-variations/lib/variants-service'
 import { parseVariantImages } from '@/modules/shop-variations/lib/csv'
 import { resolveVariantFieldProviders } from '@/modules/shop-variations/lib/variant-field-providers'
 import { resolveProductFieldProviders } from '@/modules/shop/lib/product-field-providers'
+import {
+  DESCRIPTION_PUCK_COLUMN,
+  describeDescriptionPuck,
+  describeDescriptionPuckCell,
+  descriptionPuckChanged,
+  readDescriptionPuckCell,
+} from '@/modules/google-sheet-products-for-shop/lib/description-puck'
 import type { SyncRowError } from '@/modules/google-sheet-products-for-shop/lib/types'
 import { numbersMatch } from '@/modules/google-sheet-products-for-shop/lib/numeric-cell'
 
@@ -123,9 +131,13 @@ export async function diffProductRows(productsGrid: string[][]): Promise<Product
   const allProviders = await resolveProductFieldProviders()
   const providers = allProviders.filter((p) => typeof p.provider.rowChanged === 'function')
   const undiffableProviders = allProviders.length > providers.length
-  const productBySlug = allProviders.length > 0
+  // The designed-description column is this module's own, so shop's CSV columns
+  // above say nothing about it - it is compared separately, against the stored
+  // Puck document, and only when the sheet actually carries the column.
+  const designCol = header.indexOf(DESCRIPTION_PUCK_COLUMN)
+  const productBySlug = allProviders.length > 0 || designCol >= 0
     ? await getProductsBySlugs(csvRows.map((r) => r.slug))
-    : new Map<string, { id: string }>()
+    : new Map<string, ShpProduct>()
   const providerCtx = new Map<string, unknown>()
   if (providers.length > 0) {
     const productIds = [...new Set([...productBySlug.values()].map((p) => p.id))]
@@ -173,19 +185,51 @@ export async function diffProductRows(productsGrid: string[][]): Promise<Product
     for (const { col, idx } of compared) {
       const to = (row[idx] ?? '').trim()
       const from = existing[col]
-      const equal = col === 'tax_class'
-        ? taxClassEqual(from, to)
-        : CASE_INSENSITIVE_COLUMNS.has(col)
-          ? from.trim().toUpperCase() === to.toUpperCase()
-          : sameValue(from, to)
+      // A blank price on an EXISTING product is "leave it alone", not a change:
+      // the price column is NOT NULL, so the importer keeps the stored value (a
+      // variable product priced "from £x" carries no meaningful parent price).
+      // Comparing it as a change would flag the row on every Pull, forever, and
+      // the import would no-op it every time.
+      const equal = col === 'price' && to === ''
+        ? true
+        : col === 'tax_class'
+          ? taxClassEqual(from, to)
+          : CASE_INSENSITIVE_COLUMNS.has(col)
+            ? from.trim().toUpperCase() === to.toUpperCase()
+            : sameValue(from, to)
       if (!equal) changes.push({ field: col, from, to })
     }
+
+    // The designed description. Compared through the document itself, not the
+    // cell text, so re-indented or re-ordered JSON is not read as an edit and
+    // dragged through the importer on every Pull. Both sides are described
+    // rather than printed: the confirm dialog lists changes inline and a whole
+    // JSON document would bury the rest of the list.
+    const product = productBySlug.get(existing.slug)
+    if (designCol >= 0) {
+      const cell = (row[designCol] ?? '').trim()
+      if (!product) {
+        // Cannot read what is stored, so cannot prove the cell matches it. The
+        // write-back pass matches rows by its own query and may well apply this
+        // one, so the row must not be dropped from the Pull.
+        if (readDescriptionPuckCell(cell).kind !== 'skip') {
+          changes.push({ field: DESCRIPTION_PUCK_COLUMN, from: 'unknown', to: describeDescriptionPuckCell(cell) })
+        }
+      } else if (descriptionPuckChanged(cell, product.descriptionPuck)) {
+        changes.push({
+          field: DESCRIPTION_PUCK_COLUMN,
+          from: describeDescriptionPuck(product.descriptionPuck),
+          to: describeDescriptionPuckCell(cell),
+        })
+      }
+    }
+
     if (changes.length > 0) { results.push({ row: r, kind: 'update', sku, name, changes }); continue }
 
     // No fixed-column change: a product-level attribute column may still have been
     // edited. Ask each provider; only when none reports a change is the row truly
     // unchanged and safe to drop from the Pull.
-    const productId = productBySlug.get(existing.slug)?.id
+    const productId = product?.id
     if (productId && (undiffableProviders || await providerRowChangedProduct(providers, productId, rawHeader, row, providerCtx))) {
       results.push({ row: r, kind: 'update', sku, name, changes: [{ field: 'attributes', from: '', to: 'edited in sheet' }] })
     } else {

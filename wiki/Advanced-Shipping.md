@@ -9,22 +9,22 @@ It needs the **Shop** and **Product Attributes** modules installed.
 
 ## What the shopper sees
 
-- On a product page: **"Delivery by Tue 29 Jul"**, with a gentle countdown -
+- On a product page: **"Delivery by Wednesday 29th of July"**, with a gentle countdown -
   "Order within 6 hours and 12 minutes to get it by then." When the cut-off
   passes, the date quietly rolls forward on its own.
 - In the basket: each line states what it has already chosen - a ticked bar
-  reading **"Arrives by Thu 6 Aug"**, the service name beside it and the price
+  reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
-  sits underneath as a one-click chip - "Switch to: Installed by Thu 13 Aug
+  sits underneath as a one-click chip - "Switch to: Installed by Thursday 13th
   +£25.95" - so the alternatives are visible without the shopper opening
   anything. Picking one updates the price the instant it is clicked - no waiting
   on a spinner - and the promised date follows a beat later once the server has
   confirmed the sums. A service's **description** (what it includes - delivered
   to the room of your choice, built, packaging taken away) appears in smaller
   text beneath the chosen bar, so the shopper knows what they are paying for
-  without leaving the basket. A line with only one service says so quietly
-  ("Only option") rather than pretending there is a choice.
-- On the basket's sticky checkout bar: **"everything by Fri 4 Sep"** beside the
+  without leaving the basket. A line with only one service simply states what
+  happens and offers nothing to switch to.
+- On the basket's sticky checkout bar: **"everything by Friday"** beside the
   item count - the last of the basket's own delivery dates, which is when the
   whole order has actually landed. It follows the shopper down a long basket,
   and it disappears when nothing in the basket has a delivery date to promise.
@@ -37,8 +37,34 @@ It needs the **Shop** and **Product Attributes** modules installed.
   cut-off. Mixed basket, mixed deadlines, and it stays quiet rather than pick one
   and be wrong about the rest. Items with no cut-off at all (pre-order) count as
   a mismatch, since there is no deadline to keep.
+- The **Delivery: whole-order upgrades** block offers the basket things no single
+  line can - "Get everything sooner **+£13.90** (2 items) · first arrives Friday
+  (was Thursday 6th of August)", or "Built or installed for you **+£66.90**
+  (3 items) · everything by Friday 11th Sep (was Friday 4th of September)". One
+  click moves every affected line at once. It
+  works out the offers from the services your items are actually offered, so
+  there is nothing to configure: an upgrade only appears when it applies to at
+  least two lines and the shopper is not already on it, and one it cannot put a
+  firm price on (a per-person service on an item with no people count) is not
+  offered at all rather than guessed at. Drop it under the countdown, above your
+  basket lines. A basket with one item in it never shows the row - that item's
+  own picker already offers everything this could.
+- The **Delivery: basket arrivals summary** block goes underneath the basket
+  lines and answers "so when have I actually got everything?" - a heading reading
+  **"Everything arrives by Friday 4th of September"**, then one card per arrival date naming
+  what turns up on it ("Flat-pack delivery by Thursday 6th of August - Task chair + Desk with
+  storage"). It appears only when the basket is waiting on more than one date;
+  with everything landing together, each line already says so beside itself. The
+  footnote underneath is yours to edit, or to empty if you would rather not
+  commit to confirming days by email.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
+
+Every "arrives by" date is spelled out in full - **"Wednesday 29th of July"** -
+because that is the line a shopper reads as a promise and an abbreviation is one
+more thing to decode. The tighter spots keep the short form on purpose: a switch
+chip and the sticky bar say "by Friday" inside the week, adding the date and then
+the month only as the distance makes it necessary.
 
 Every date counts **working days only** - weekends and bank holidays are skipped.
 
@@ -80,6 +106,12 @@ express, delivered and built, full installation, and so on. Each one carries:
   a full installation is never sooner than, say, ten working days out however
   fast the van is,
 - and its **price rows**.
+
+Prices you type on a service row are recorded the same way your product prices
+are, and they are shown to shoppers the same way too: if Shop is set to
+[show prices with tax included](Shop#showing-prices-with-or-without-tax), the
+"+£4.95" on a delivery upgrade has the tax added on exactly as the item price
+beside it does. Nothing about what you charge changes - only what is printed.
 
 A price row says where the service is offered and what it costs there. Rows can
 apply to everything, to one supplier, one category, or one range (a product

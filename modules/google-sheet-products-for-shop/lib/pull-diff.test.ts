@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { PatVariationColumn } from '@/modules/product-attributes-for-shop/lib/types'
 
 // Repro: does diffVariationRows detect an ATTRIBUTE-ONLY edit (e.g. the "Catalog"
@@ -43,8 +43,13 @@ vi.mock('@/modules/product-attributes-for-shop/lib/db/membership', () => ({
 // --- shop / variations DB seams diffVariationRows imports ---
 const buildProductCsvRows = vi.fn(async (): Promise<Record<string, string>[]> => [])
 vi.mock('@/modules/shop/lib/csv-rows', () => ({ buildProductCsvRows: (...a: unknown[]) => buildProductCsvRows(...(a as [])) }))
+// Overridable per test, so the designed-description cases can control what the
+// product currently holds in shp_products.description_puck.
+type StoredProduct = { id: string; name: string; slug: string; descriptionPuck: unknown }
+const getProductsBySlugs = vi.fn(async (_slugs: string[]): Promise<Map<string, StoredProduct>> =>
+  new Map([['widget', { id: 'p1', name: 'Widget', slug: 'widget', descriptionPuck: null }]]))
 vi.mock('@/modules/shop/lib/db/products', () => ({
-  getProductsBySlugs: vi.fn(async (_slugs: string[]) => new Map([['widget', { id: 'p1', name: 'Widget', slug: 'widget' }]])),
+  getProductsBySlugs: (...a: unknown[]) => getProductsBySlugs(...(a as [string[]])),
 }))
 // A fake product-field provider whose rowChanged the test drives, so diffProductRows'
 // provider-awareness is exercised without the real attribute DB.
@@ -93,6 +98,7 @@ vi.mock('@/modules/shop-variations/lib/variant-field-providers', () => ({
 }))
 
 import { diffVariationRows, diffProductRows } from '@/modules/google-sheet-products-for-shop/lib/pull-diff'
+import { DESCRIPTION_PUCK_COLUMN, descriptionPuckCell } from '@/modules/google-sheet-products-for-shop/lib/description-puck'
 import { CSV_COLUMNS } from '@/modules/shop/lib/csv'
 
 describe('diffVariationRows - attribute-only edit', () => {
@@ -207,6 +213,118 @@ describe('diffProductRows - multi-column products edits', () => {
 
     expect(results).toHaveLength(1)
     expect(results[0]?.kind).toBe('update')
+  })
+})
+
+describe('diffProductRows - blank price on an existing product', () => {
+  // A variable product priced "from £x" off its cheapest variation carries no
+  // meaningful parent price, and the price column is NOT NULL - so a blank price
+  // cell on an EXISTING product means "leave it alone", never an error or a
+  // change. A blank price on a NEW product is still a hard error (nothing to
+  // create it with).
+  const base = { ...Object.fromEntries(CSV_COLUMNS.map((c) => [c, ''])), name: 'Widget', slug: 'widget', type: 'PHYSICAL', price: '10' } as Record<string, string>
+  const cells = (over: Record<string, string>) => CSV_COLUMNS.map((c) => (c in over ? over[c]! : base[c] ?? ''))
+
+  it('reads a blanked price with nothing else changed as unchanged', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([{ ...base }])
+    productRowChanged.mockResolvedValueOnce(false)
+    const results = await diffProductRows([[...CSV_COLUMNS], cells({ price: '' })])
+    expect(results[0]?.kind).toBe('unchanged')
+  })
+
+  it('flags the row as update on other edits but never lists price as a change', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([{ ...base, retail_price: '999' }])
+    productRowChanged.mockResolvedValueOnce(false)
+    const results = await diffProductRows([[...CSV_COLUMNS], cells({ price: '', retail_price: '' })])
+    expect(results[0]?.kind).toBe('update')
+    const changes = (results[0] as { changes: { field: string }[] }).changes
+    expect(changes.some((c) => c.field === 'price')).toBe(false)
+    expect(changes.some((c) => c.field === 'retail_price')).toBe(true)
+  })
+
+  it('still errors a blank price on a product that does not exist yet', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([])
+    const results = await diffProductRows([[...CSV_COLUMNS], cells({ name: 'Newthing', slug: 'newthing', price: '' })])
+    expect(results[0]?.kind).toBe('error')
+    expect((results[0] as { reason: string }).reason).toMatch(/price/i)
+  })
+})
+
+// The designed description (shp_products.description_puck) rides in this module's
+// own column, which shop's import engine cannot see - so the diff must judge it
+// itself, or an edited design is read as "unchanged" and dropped before the
+// write-back pass ever runs.
+describe('diffProductRows - designed description column', () => {
+  const base = { ...Object.fromEntries(CSV_COLUMNS.map((c) => [c, ''])), name: 'Widget', slug: 'widget', type: 'PHYSICAL', price: '10' } as Record<string, string>
+  const header = [...CSV_COLUMNS, DESCRIPTION_PUCK_COLUMN]
+  const rowCells = (design: string) => [...CSV_COLUMNS.map((c) => base[c] ?? ''), design]
+  const doc = { root: { props: {} }, content: [{ type: 'Text' }] }
+  const stored = (descriptionPuck: unknown) =>
+    getProductsBySlugs.mockResolvedValueOnce(new Map([['widget', { id: 'p1', name: 'Widget', slug: 'widget', descriptionPuck }]]))
+
+  // Earlier describes queue rowChanged answers they never consume (a row with a
+  // fixed-column change returns before the provider is asked), and a stale one
+  // would answer for a row here instead. Start every test from a clean "no
+  // attribute change" so these cases only ever prove the design column.
+  beforeEach(() => {
+    productRowChanged.mockReset()
+    productRowChanged.mockResolvedValue(false)
+  })
+
+  it('reads the cell a Push just wrote as unchanged', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(doc)
+    const results = await diffProductRows([header, rowCells(descriptionPuckCell(doc as never))])
+    expect(results[0]?.kind).toBe('unchanged')
+  })
+
+  it('flags an edited design as update', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(doc)
+    const edited = { ...doc, content: [{ type: 'Text' }, { type: 'Heading' }] }
+    const results = await diffProductRows([header, rowCells(descriptionPuckCell(edited as never))])
+    expect(results[0]?.kind).toBe('update')
+    const changes = (results[0] as { changes: { field: string; from: string; to: string }[] }).changes
+    expect(changes).toContainEqual({ field: DESCRIPTION_PUCK_COLUMN, from: 'design (1 block)', to: 'design (2 blocks)' })
+  })
+
+  it('flags a cleared cell as update so the design is removed', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(doc)
+    const results = await diffProductRows([header, rowCells('')])
+    expect(results[0]?.kind).toBe('update')
+  })
+
+  it('leaves a product with no design and a blank cell unchanged', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(null)
+    const results = await diffProductRows([header, rowCells('')])
+    expect(results[0]?.kind).toBe('unchanged')
+  })
+
+  it('flags an unreadable cell so the Pull reports the row rather than skipping it', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(doc)
+    const results = await diffProductRows([header, rowCells('{ not json')])
+    expect(results[0]?.kind).toBe('update')
+    const changes = (results[0] as { changes: { to: string }[] }).changes
+    expect(changes.some((c) => c.to === 'unreadable design')).toBe(true)
+  })
+
+  it('never lists the whole document in a change, however big it is', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(null)
+    const big = { root: {}, content: Array.from({ length: 50 }, () => ({ type: 'Text', props: { text: 'x'.repeat(200) } })) }
+    const results = await diffProductRows([header, rowCells(descriptionPuckCell(big as never))])
+    const changes = (results[0] as { changes: { from: string; to: string }[] }).changes
+    for (const c of changes) expect(c.from.length + c.to.length).toBeLessThan(80)
+  })
+
+  it('ignores the column entirely when the sheet does not carry it', async () => {
+    buildProductCsvRows.mockResolvedValueOnce([base])
+    stored(doc)
+    const results = await diffProductRows([[...CSV_COLUMNS], CSV_COLUMNS.map((c) => base[c] ?? '')])
+    expect(results[0]?.kind).toBe('unchanged')
   })
 })
 

@@ -83,9 +83,15 @@ The same 50 MB ceiling covers 3D model files. They go the same way photos do - b
 
 You can upload **video** to your media library the same way you upload a photo - MP4 and WebM files are both welcome. A video sits in the library as its own tile with a little film-strip marker, and clicking it plays a preview.
 
-The clever bit is what you can do next. Open a video and choose **Convert to scroll sequence**, and Cactus quietly rebuilds it into a *scroll sequence*: a smooth, frame-by-frame animation with the plain studio background - and the drop shadow that usually tags along with it - removed, so it looks right on both light and dark pages. You choose where it's stored, give it a name, and pick **Fast** (recommended) or **High quality, slower** for the background removal.
+The clever bit is what you can do next. Open a video and choose **Convert to scroll sequence**, and Cactus quietly rebuilds it into a *scroll sequence*: a smooth, frame-by-frame animation with the plain studio background - and the drop shadow that usually tags along with it - removed, so it looks right on both light and dark pages. You choose where it's stored, give it a name, and pick one of two quality presets: **Fast** (the everyday choice) or **High quality, slower** (more frames and a wider image for a smoother, sharper spin, at the cost of a longer wait).
 
 The work happens quietly in the background and takes the better part of fifteen to twenty minutes for a short clip, so there's no need to sit and watch - close the window and carry on, and the finished sequence turns up in your library on its own, as a single tidy tile rather than a hundred separate frames. Deleting that tile clears the whole thing away in one go.
+
+When you set a conversion going, a note appears in your admin notifications (the bell) so you can keep an eye on it while you get on with something else. It sticks around when it's finished - showing as complete, or telling you plainly if something went wrong - until you clear it yourself.
+
+### The Scroll sequences tab
+
+The **Media** page has a **Scroll sequences** tab next to your library. It holds two things. First, the settings behind those two presets: for each of **Fast** and **High quality, slower** you can set how many frames a second are captured (smoother scroll versus a larger, slower build) and the widest the frames may be. Whatever you set here is exactly what runs the next time you convert a video - the conversion window just lets you pick which preset to use. Second, a running list of every conversion and where it got to, with a live status while it's building; when one's done with, **Clear** tidies it away (and clears the matching note from the bell).
 
 To show one on your site, add the **Scroll sequence** block to a page or a product description - see [Available blocks](Managing-pages#available-blocks). It plays the frames as visitors scroll down, loops gently once it reaches the end, and fades away as they scroll past.
 
@@ -96,6 +102,8 @@ To show one on your site, add the **Scroll sequence** block to a page or a produ
 ## Your media library
 
 Everything you've uploaded lives in **Media**. Down the left is your **folder tree**, and the main area shows whatever's in the folder you're currently looking at, with a breadcrumb trail along the top so you always know where you are.
+
+If your folder names are long, drag the divider between the tree and the grid to widen it - the setting sticks in that browser, so you only have to do it once. Double-click the divider to put it back where it started. With the keyboard, tab to the divider and use the left and right arrows (hold Shift for bigger steps).
 
 ### The overview at a glance
 
@@ -131,7 +139,7 @@ Got a big library? Just keep scrolling - more files load in automatically as you
 
 Hover over a thumbnail and a couple of quick buttons appear in its corner: **Optimise** (the little lightning bolt, on photos and 3D models that haven't been done yet) and **Copy link** - so the two things you reach for most aren't tucked away behind a right-click.
 
-**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos and 3D models that haven't been), **Edit image…**, **Change ratio…**, **Resize…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
+**Click any file** and a details panel slides in from the right. It shows the full picture along with the filename, file size, type, folder, and who uploaded it and when. **Click a 3D model** and you get the model itself, turning gently on the spot: drag it to look round it, scroll to move in closer. It stops turning the moment you take hold of it, so it isn't fighting you while you inspect a corner. Handy when a folder holds a dozen chairs whose filenames all look much the same - no need to download one to find out which is which. From here you can edit its **alt text** - a short description used by screen readers and search engines - and tick **Decorative** for images that are purely for show and need no description. You can also edit its **tags** on the spot, step through your files with the arrow buttons (or the arrow keys) - and Cactus keeps loading more as you reach the end, so stepping through never hits a wall - and reach every action for that file in one place: **Open original**, **Copy link**, **Download**, **Optimise** (for photos and 3D models that haven't been), **Edit image…**, **Change ratio…**, **Resize…**, **Rename…**, **Move…**, **Cut**, **Copy** and **Delete**. Press Esc or click outside to close.
 
 **Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
@@ -157,6 +165,7 @@ Folders keep a growing library tidy - one for logos, one for blog photos, one fo
 - **Open a folder** by clicking its name in the tree, or a step in the breadcrumb trail to hop back up.
 - **Rename or delete a folder** using the small pencil and bin icons that appear beside its name in the tree.
 - **Upload straight into a folder** by opening it first, then clicking **Upload** - the new files land right there.
+- **Stay where you were**: the folder you're viewing is remembered in the page address, so refreshing the page (or bookmarking it, or sending the link to a colleague) opens that same folder rather than tipping you back out to the top.
 
 **Drag and drop** is the quickest way to file things away: grab any thumbnail and drop it onto a folder in the tree (or onto a step in the breadcrumb). Selected several files first? Dragging any one of them carries the whole selection along.
 
