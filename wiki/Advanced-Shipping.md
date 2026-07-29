@@ -50,7 +50,9 @@ It needs the **Shop** and **Product Attributes** modules installed.
   basket lines. A basket with one item in it never shows the row - that item's
   own picker already offers everything this could.
 - The **Delivery: basket arrivals summary** block goes underneath the basket
-  lines and answers "so when have I actually got everything?" - a heading reading
+  lines - and if you split the basket into the **Cart items** and **Cart totals**
+  blocks, this is the thing to put between them, so the dates are read before the
+  money rather than after it - and answers "so when have I actually got everything?" - a heading reading
   **"Everything arrives by Friday 4th of September"**, then one card per arrival date naming
   what turns up on it ("Flat-pack delivery by Thursday 6th of August - Task chair + Desk with
   storage"). It appears only when the basket is waiting on more than one date;
