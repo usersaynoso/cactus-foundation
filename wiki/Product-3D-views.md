@@ -103,6 +103,13 @@ The rules are meant to match what a shopper expects:
 - Changing one option away from a fully picked variation doesn't blank the model - it stays put until a new full combination is chosen (or nothing is picked at all), rather than flicking back to a photo mid-choice.
 - Once the page has settled, the shop quietly fetches the product's other models and fabric colours in the background, so switching to a different option shows the new model or colour near-instantly rather than after a short wait. It only ever runs after the page is ready, so it never holds up the first view a shopper sees.
 - When an option change swaps in a **different model** - a headrest appearing, a different base - the viewer keeps the shopper's viewing angle and zoom rather than snapping back to the opening view. Someone peering at a corner stays on that corner while the model changes under them, and the **Reset view** button still takes them back to the opening framing if they want it. If they hadn't touched the model yet, the slow turn simply carries on from where it was.
+- **Reset options** on a product with choices puts the model away with everything else. The shopper is back to the product's own view, not still looking at the variation they had built.
+
+### The scroll wheel stays the page's until it's asked for
+
+Scrolling down a product page and having it stop dead because the pointer happened to cross the model - which then zooms instead - is the single most disliked thing a 3D view can do. So it doesn't.
+
+The viewer leaves the wheel alone until the shopper clicks or taps in it, and says so with a small **Click to interact** label in the bottom-left corner. One click and the label goes, the wheel is the model's, and **Reset view** takes its usual place in the corner once there's a view worth resetting. Dragging to turn the model has never needed asking for and still doesn't - nobody arrives at a drag by scrolling past. Tabbing onto the model with the keyboard counts as asking too, so the zoom keys work for someone with no mouse to click with. A shopper who changes an option after all that keeps the wheel they've already earned rather than being asked again.
 
 ---
 

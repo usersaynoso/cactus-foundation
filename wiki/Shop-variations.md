@@ -171,6 +171,22 @@ The **options** block has a few looks to choose from in the editor. By default e
 
 Colour and image choices have a look of their own too. Left as they are, each shows as a pill carrying both the swatch and its name. Choose **Swatch only** and the name steps back to a small label that appears when the customer hovers over the swatch, leaving a tidy row of colours or pictures - handy when a product has a lot of them and the names would only crowd the page.
 
+### Working through the choices
+
+A product with five options is a small form, and a page that treats it as a loose pile of buttons leaves the customer to work out for themselves how far along they are. So the choosers now read as a sequence, and nothing about the way you set them up has to change - it applies to every product with options, on the standard layout and on one you've built yourself.
+
+**Each option is numbered.** A circle sits in front of the option's name - 1, 2, 3 - and fills in once that option has been answered. It counts the options the customer can actually see, so an option you've set to appear only after the ones before it doesn't leave a gap in the numbering when it's still hidden.
+
+**Choices that cost more say so.** Where an option genuinely changes the price, each of its choices carries the figure underneath: "180cm" with "from £246" under it. It only appears where there's something to tell - if every choice for an option costs the same, printing the same number four times helps nobody, so it stays quiet. "From" appears when that choice still leaves a range depending on what comes after it, and drops away when the choice pins the price exactly.
+
+**The choice they've made is unmistakable.** A chosen value keeps its coloured outline, takes a light tint of your site's main colour, gains a small tick on its corner, and says **Selected** where the price used to be. At a glance, on a page with six options, the customer can see which rows they've answered and which they haven't.
+
+**The basket button waits until they've finished.** It stays firmly off until every option has an answer - and rather than a vague "choose your options", it now names the ones still outstanding: "Choose Width and Storage first". That wording appears both as a tooltip when they point at the button and as a line of text under it, so it's there for someone on a phone as well. The moment the last option is answered, a green line appears above the button reading back exactly what they've built - "Ready to add: 140cm · 2 Drawer Fixed Pedestal · Black" - so the thing they're about to pay for is written down in words rather than left implied by which buttons happen to be lit.
+
+**The picture says whose it is.** Once the whole combination is settled and the page is showing that combination's own photograph or its own 3D view, a small **Your choice** badge sits in the top-left corner of it. It's answering a question a configurator quietly raises: is this the thing I just built, or the one off the catalogue page? Click back to one of the product's general photos and the badge goes, because that one isn't theirs.
+
+**Reset options really does reset.** As well as clearing the choices and the price, it now puts the picture back too - including the 3D view of the variation they'd configured, which used to stay up looking rather like a live choice long after the choices had gone. The page returns to how it looked when they arrived.
+
 ## On your category pages
 
 A shopper scrolling a category sees a photo, a name and a price. What they don't see is that the chair comes in eleven colours, which is quite often the thing that would have made them click.
