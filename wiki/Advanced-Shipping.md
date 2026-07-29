@@ -3,7 +3,7 @@
 Advanced Shipping replaces vague promises like "within a few working days" with a
 concrete delivery date the shopper can actually plan around - shown live on every
 product page and every basket line - and lets you sell delivery-and-assembly
-options they choose per item.
+services they choose per item.
 
 It needs the **Shop** and **Product Attributes** modules installed.
 
@@ -12,10 +12,22 @@ It needs the **Shop** and **Product Attributes** modules installed.
 - On a product page: **"Delivery by Tue 29 Jul"**, with a gentle countdown -
   "Order within 6 hours and 12 minutes to get it by then." When the cut-off
   passes, the date quietly rolls forward on its own.
-- In the basket: each line shows its own delivery date and a picker for the
-  delivery service. Choosing, say, full installation updates the price the
-  instant it is picked - no waiting on a spinner - and the promised date
-  follows a beat later once the server has confirmed the sums.
+- In the basket: each line states what it has already chosen - a ticked bar
+  reading **"Arrives by Thu 6 Aug"**, the service name beside it and the price
+  on the right (**Free**, or what it adds). Every other service for that line
+  sits underneath as a one-click chip - "Switch to: Installed by Thu 13 Aug
+  +£25.95" - so the alternatives are visible without the shopper opening
+  anything. Picking one updates the price the instant it is clicked - no waiting
+  on a spinner - and the promised date follows a beat later once the server has
+  confirmed the sums. A service's **description** (what it includes - delivered
+  to the room of your choice, built, packaging taken away) appears in smaller
+  text beneath the chosen bar, so the shopper knows what they are paying for
+  without leaving the basket. A line with only one service says so quietly
+  ("Only option") rather than pretending there is a choice.
+- On the basket's sticky checkout bar: **"everything by Fri 4 Sep"** beside the
+  item count - the last of the basket's own delivery dates, which is when the
+  whole order has actually landed. It follows the shopper down a long basket,
+  and it disappears when nothing in the basket has a delivery date to promise.
 - Also in the basket, the **Delivery: basket cut-off countdown** block gives the
   whole lot one deadline - "Order within 5 hours and 12 minutes to keep these
   delivery dates." - and nothing else. The dates themselves already sit beside
@@ -23,8 +35,8 @@ It needs the **Shop** and **Product Attributes** modules installed.
   to have it read as a heading over the Delivery column.
 - That countdown appears only when every item in the basket shares the same
   cut-off. Mixed basket, mixed deadlines, and it stays quiet rather than pick one
-  and be wrong about the rest. Items with no cut-off at all (made to order,
-  pre-order) count as a mismatch, since there is no deadline to keep.
+  and be wrong about the rest. Items with no cut-off at all (pre-order) count as
+  a mismatch, since there is no deadline to keep.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
 
@@ -32,29 +44,24 @@ Every date counts **working days only** - weekends and bank holidays are skipped
 
 ## How a date is worked out
 
-You set up **delivery rules**, and each product uses the most specific rule that
-fits it:
+Two ingredients, and that is the whole recipe:
 
-1. Its **range** (a product attribute you nominate, e.g. Hyphen or Aero), then
-2. Its **category**, then
-3. Its **supplier**, and finally
-4. The shop-wide **default**.
+1. **Dispatch clears.** Your shop has one set of dispatch timing (in Delivery
+   settings): a daily **cut-off**, the working days it takes to pick and pack,
+   and which days the courier collects. Order before the cut-off on a ship day
+   and it starts that day; otherwise the next working day. This part is the same
+   whichever service the shopper picks.
+2. **The service adds its delivery time.** Each delivery service says how many
+   working days it takes from dispatch to the door - a plain number, not an
+   adjustment on top of something else. Standard might be 5, express 1, full
+   installation 10.
 
-A rule can work two ways:
-
-- **Stocked** - it dispatches from stock. Order before the daily **cut-off** on a
-  shipping day and it goes out that day; otherwise the next working day. Then add
-  the time to pack and the time in transit.
-- **Made to order** - there is no cut-off; it takes a set number of working days
-  to make, then the transit time on top.
-
-Out-of-stock items on backorder add their restock time, and pre-order items use
-their pre-order date. Any single product can have its own **override** on the
-Delivery tab of its editor, for the odd exception.
+Pre-order items dispatch on their pre-order date instead of the cut-off. An item
+out of stock and set to block simply makes no promise at all.
 
 A product bought with options chosen (a colour, a headrest) counts as its main
-product for all of this: it uses the same category, supplier and any override, so
-the basket shows the same delivery choices whichever options were picked. Its own
+product for all of this: it uses the same category, supplier and ranges, so the
+basket shows the same delivery choices whichever options were picked. Its own
 stock level still decides stock-based dates.
 
 The one exception is the range. If you have set range up as an option that varies
@@ -62,81 +69,101 @@ per variation (rather than one range for the whole product), each variation uses
 its own range, and the basket shows the delivery choices for the exact variation
 picked. A product with a single range for the whole thing behaves as before.
 
-## Service tiers
+## Delivery services
 
-Service tiers are the delivery-and-assembly options a shopper picks in the
-basket - standard, next day, delivered and built, full installation, and so on.
-Each tier can bring the date forward or push it back, or set a floor (a full
-installation is never sooner than, say, ten working days). Prices are set per
-scope, so seating can be priced differently from everything else.
+Delivery services are the options a shopper picks in the basket - standard,
+express, delivered and built, full installation, and so on. Each one carries:
 
-The timing can vary per scope too. Each price row can tick **Different timing
-here** and fill in only what differs - a longer transit for one range, a lifted
-minimum for another - and anything left blank keeps the tier's usual timing. So
-one "Installation" tier can take ten working days for most furniture but thirty
-for one awkward range, without setting up a second tier with the same name. (If
-you have ever ended up with two tiers both called "Installation", this is the
-cure: fold the odd one out into a per-range timing on the original, then delete
-the spare.) Setting "Never sooner than" to 0 on a row lifts the tier's minimum
-just there.
+- a **name** and an optional shopper-facing **description**,
+- its **delivery time** in working days,
+- optionally a **floor** ("never sooner than") for services that need booking -
+  a full installation is never sooner than, say, ten working days out however
+  fast the van is,
+- and its **price rows**.
 
-Each tier can also be tied to a single **supplier** when you add it, or left as
-**Any supplier**. A supplier-specific tier is only ever offered on products from
-that supplier, so you can run several tiers that share a name - a "Full
-installation" from one supplier and another from a second, each with its own
-timing and price - and a shopper only sees the one that fits the item in their
-basket. Leave the supplier as Any and the tier is offered on everything, exactly
-as before. Because a tier now carries its own supplier, the price list beneath it
-scopes by category, range, or the default only.
+A price row says where the service is offered and what it costs there. Rows can
+apply to everything, to one supplier, one category, or one range (a product
+attribute you nominate, e.g. Hyphen or Aero), and the most specific row that fits
+the product wins: range beats category, category beats supplier, supplier beats
+the everywhere row. **No matching row means the service simply is not offered on
+that product** - which is also how you keep a service to one supplier: give it a
+single supplier row and nothing else.
 
-In the basket each option now spells out when it would arrive right there in its
-own label - "Standard Delivery by Monday (included)", "Express Delivery by
-Monday (+£4.95)" - so a shopper can weigh the dates against the prices without
-having to select each one in turn. Anything landing within the week shows just
-the weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday"
-can never be mistaken for the one three weeks off; past four weeks it adds the
-month too ("Monday 3rd Aug").
+A price row can also carry **different timing for just that scope**: tick
+"Different timing here" and fill in only what differs. So one Standard delivery
+service can be 5 working days for stocked ranges but 25 for a made-to-order one,
+and one Installation service can take ten days for most furniture but thirty for
+one awkward range - no second service with the same name, no mental arithmetic.
+Anything left blank keeps the service's usual timing, and setting "Never sooner
+than" to 0 on a row lifts the service's floor just there.
+
+If a product falls under no service at all, it shows no delivery estimate - by
+design, not by accident.
+
+In the basket each option spells out when it would arrive right there in its own
+label - "Standard Delivery by Monday (included)", "Express Delivery by Monday
+(+£4.95)" - so a shopper can weigh the dates against the prices without having
+to select each one in turn. Anything landing within the week shows just the
+weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday" can
+never be mistaken for the one three weeks off; past four weeks it adds the month
+too ("Monday 3rd Aug").
 
 ### Pricing per person
 
 Some things are priced by how many people they are for, not by the line: a bench
 desk sold as a two, four or six-person unit, where a "delivered and built" price
-is really a price per seat. Any tier price can be ticked **per person** on the
-Service tiers screen. When it is, the price is multiplied by a number read off
-one of the product's own attributes - you nominate which attribute carries that
-number in Delivery settings (say a "Seats" attribute whose values read "2
+is really a price per seat. Any service price can be ticked **per person** on the
+Delivery services screen. When it is, the price is multiplied by a number read
+off one of the product's own attributes - you nominate which attribute carries
+that number in Delivery settings (say a "Seats" attribute whose values read "2
 People", "4 People", "6 People"). So a £50 build on a six-person desk shows as
 "+£300.00" in the basket and is charged, and saved on the order, exactly so.
 
 The number is read from the attribute value's text - the first whole number in it
 wins, so "6 People", "6" and "6-seat" all count as six. If a product set to a
-per-person tier has no such number to read, that line is held back rather than
+per-person service has no such number to read, that line is held back rather than
 guessed at: the shopper is asked to choose the number of people before it can be
-bought. A flat (not-per-person) tier is unaffected and is charged once per line
-as before.
+bought. A flat (not-per-person) service is unaffected and is charged once per
+line as before.
 
 ## Setting it up
 
 Everything lives on the shop's **Tax & shipping** page (Shop in the admin
 sidebar, then **Tax & shipping**). Alongside the shop's own tax and shipping tab
-you get four more tabs:
+you get three more tabs:
 
-- **Delivery rules** - add a rule per supplier, category, range, or the default.
-  A live preview shows the date an order placed right now would land on, so you
-  can spot a wrong cut-off before a shopper does.
-- **Service tiers** - your delivery-and-assembly options and their prices.
+- **Delivery services** - your delivery-and-assembly options: name, description,
+  delivery time, floor, and the price rows that say where each is offered.
 - **Holidays** - import the official bank-holiday calendar for your region
   (England & Wales, Scotland, or Northern Ireland). It refreshes itself weekly.
-- **Delivery settings** - which attribute means "range", which attribute holds a
-  **person count** for per-person pricing, your holiday region, the default
-  service shown before the shopper changes it, and how the basket shows the
-  delivery-service picker: a compact **dropdown** (the default) or **radio
-  buttons** that lay every option out at once.
+- **Delivery settings** - the shop-wide dispatch timing (cut-off, days to
+  dispatch, ship days, with a live "an order placed now would dispatch…"
+  preview so you can spot a wrong cut-off before a shopper does), which
+  attribute means "range", which attribute holds a **person count** for
+  per-person pricing, your holiday region, the default service shown before the
+  shopper changes it, and how the basket shows the picker: the **chosen service
+  with the rest as chips** (the default), a compact **dropdown**, or **radio
+  buttons** that list every option at once.
 
 There is nothing to configure in your hosting - no keys, no environment
-variables. Set your rules, import the holidays, and you are away.
+variables. Set your dispatch timing, add your services, import the holidays, and
+you are away.
 
 One small note on timing: to keep the storefront quick, the shop keeps a very
-short-lived copy of your rules, tiers and prices (about ten seconds). An edit
-in the admin can therefore take up to ten seconds to show on product pages and
-in the basket - blink and you'll miss it, but it is not a bug.
+short-lived copy of your services and prices (about ten seconds). An edit in the
+admin can therefore take up to ten seconds to show on product pages and in the
+basket - blink and you'll miss it, but it is not a bug.
+
+## Changed in 0.1.18
+
+Earlier versions kept **delivery rules** (base timing per range, category or
+supplier) as a separate screen, with each service holding day *adjustments* on
+top, plus a per-product override tab. In practice that meant reading two screens
+and adding them up to know what a shopper would see. The two have been folded
+into one: dispatch timing moved to Delivery settings, every service now states
+its delivery time as a plain number of working days, and a price row overrides it
+outright where a range or category takes longer. Existing numbers were carried
+across exactly - what a shopper is promised does not change. The per-product
+override tab and the per-service supplier tie went with it (a supplier-scoped
+price row does the same job); the odd exception is now a range or category row
+rather than a buried per-product patch.
