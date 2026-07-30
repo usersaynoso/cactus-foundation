@@ -284,6 +284,8 @@ Selling something a photograph struggles with - furniture, a lamp, anything with
 
 Want your customers saying why the thing was good, where the next shopper will read it? Install the **[Reviews](Reviews)** module. It adds a Reviews tab to every product page, holds each new review until you have read it (unless you would rather it went straight up), badges the ones written by people who actually bought the thing, lets you reply underneath, and will email past customers to ask if you want it to.
 
+Starting from nothing and rather wishing you were not? The **[Google Reviews](Google-Reviews)** module goes and finds your products on Google Shopping and brings back what people have already said about them, straight into that same Reviews list. It needs the Reviews module underneath it, and everything it brings in is labelled so nobody mistakes a stranger's opinion for one of your customers'.
+
 ## Quoting instead of selling
 
 Price every job on its own merits, quote trade against list, or simply have customers who want a figure in writing before they commit? Install the **[Quotes](Quotes)** module.
