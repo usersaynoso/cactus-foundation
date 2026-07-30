@@ -252,9 +252,9 @@ Pull does two things, and they fail for completely different reasons: it fetches
 
 ### Google's speed limit
 
-Google only lets one account read from, or write to, a sheet so many times a minute. A catalogue with a lot of products goes through that allowance quickly, because every product with variations has a tab of its own to fetch or fill in.
+Google only lets one account read from, or write to, a sheet so many times a minute. A catalogue with a lot of products used to go through that allowance quickly, because every product with variations has a tab of its own to fetch or fill in.
 
-Push and Pull now pace themselves to stay inside it. On a large catalogue that means the odd pause partway through, and a Push that works through its tabs in a few more goes than it used to - the progress bar keeps ticking either way, and none of it needs anything from you. If Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
+Pull now fetches those tabs in bundles of forty or so at a time rather than one by one, so reading even a very large catalogue costs Google a handful of requests and takes seconds - this is also what fixed the "ran out of time" failure that very large catalogues used to hit before the reading had even finished. Push still works tab by tab (filling in is fussier than fetching), pacing itself to stay inside the allowance: on a large catalogue that means the odd pause partway through and a few more goes than it used to take - the progress bar keeps ticking either way, and none of it needs anything from you. If Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
 
 Should it still run out of patience, you will see **"Google is limiting how fast it will let us read and write this sheet"**. Nothing is broken and nothing is lost. Wait a minute, then press **Continue** and it carries on from where it stopped. Running Push and Pull back to back on a big catalogue is the usual way to meet it, so if you are doing both, give it a minute in between.
 
