@@ -24,6 +24,14 @@ It needs the **Shop** and **Product Attributes** modules installed.
   add-to-cart creates - including when the shopper picks a different variation on
   the way, in which case a service that variation is not offered quietly falls
   back to your default rather than being honoured.
+- **On a product with variations**, the block follows whichever combination the
+  shopper is building. Before they have settled on one it shows only what every
+  variation of that product agrees on, costed and dated at its slowest and
+  dearest, so nothing on offer can be taken away or go up once they choose. The
+  moment a full combination is picked, it asks again for that exact variation
+  and shows its real services and dates. This matters where your delivery
+  services are priced by range and the range is set on the variations rather
+  than the listing: without it, the listing offers nothing to show at all.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line

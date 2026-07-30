@@ -230,6 +230,7 @@ The **Variation tools** entry in your sidebar holds the shop-wide reports and th
 
 - A variant only appears through its parent product - it never turns up as its own item in the shop grid, search or sitemap.
 - **You can link straight to a variation.** The web address a variation carries in the basket - the one with its colour and size in it - now opens the product page with exactly those choices already made, rather than the customer having to pick them all again. Drop that link in an email or an advert, or hand it to a customer, and whoever follows it lands on the right product already set to the right combination, price and photo and all. Until now those links led nowhere, which rather defeated the object.
+- **Other blocks can follow the chosen variation.** The page now announces which variation the customer has settled on, so a block from another add-on can react to it - the delivery add-on's shipping options do exactly that, showing what every variation agrees on until a combination is chosen and then the real services for that one. Nothing to switch on: it happens by itself, and a shop without those add-ons carries on as before.
 - Personalisation prices are always worked out on our side at checkout, so nobody can tinker with the total.
 - Removing this module leaves the behind-the-scenes variant products in place; tidy them up from the shop if you no longer want them.
 
