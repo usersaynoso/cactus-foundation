@@ -61,6 +61,8 @@ Overwrites the sheet with whatever is currently on your website. This is how you
 
 Like a Pull, a Push now works in stages with a live count and a little tracker (Products, then the product tabs, then a tidy-up), because a big catalogue is a lot of tabs to fill. You can leave the window open and watch it along; if something interrupts it, it picks up where it left off, and a **Continue** button appears if it ever needs a nudge.
 
+Closing the Push window while it is working now means **stop**: it asks first (the same question as the Stop button), then winds the push up at the tab it is on. Tabs already written stay written; push again whenever you like. Closing the whole browser tab is different - nothing is running on your side then, so the push simply pauses, and reopening offers Continue as before.
+
 It fills in its own columns and leaves the rest of each tab alone - so anything you have added off to the right stays where you put it, as do your formulas where they still add up. See **Using formulas in the sheet**, just below.
 
 If you have made changes in the sheet since Cactus last synced with it, Push stops and asks first - because filling the sheet from your site would wipe those edits. You can either go and Pull them in before you Push, or say yes to overwrite them. Cactus's own Pushes and Pulls don't trip this, only edits made by hand in the sheet.
@@ -130,7 +132,11 @@ A Pull that is running now has a **Stop pull** button next to the progress bars.
 
 It is a stop, not an undo. Nothing gets put back, and a stopped Pull cannot be resumed - if you want the rest of the changes, run Pull again and it will pick up the differences that are still outstanding. The same button is there while it is retrying after a wobble, for when you would rather not sit and wait for it.
 
+Closing the Pull window while it is working also means stop now - it asks the same question first, then winds up at the end of the batch it is on. It used to quietly leave the job waiting to be resumed, which read as "it carried on after I closed it". Closing the whole browser tab still just pauses it (nothing is running on your side then), and reopening carries on as before.
+
 Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
+
+Push and Pull also refuse to run over the top of each other. If a Push is part-way through - even one you have walked away from - opening Pull says so plainly and asks you to let it finish (or cancel it) first, rather than fighting it for Google's reading allowance and timing out with a misleading "could not read the sheet". Push has always had the same manners about a Pull in progress.
 
 The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit, and the matching list under the variation count to see which variations (by product and option) a Pull will update.
 
@@ -139,6 +145,8 @@ The preview's numbers only count real differences: a Pull straight after a Push 
 **Sheet logs** on the menu opens a window listing your recent Pushes and Pulls, with what each one changed - handy for a quick "did that last Pull actually land?" without leaving the Products page.
 
 The "updated" figure counts the extra columns other features add to the Variations tab, not just the built-in ones. A Pull whose only work was attaching a pile of 3D files used to sign off with "0 updated", which is a fine way to make you do the whole thing again for nothing.
+
+A Pull that finished but had rows rejected along the way no longer masquerades as a clean run. The log shows how many rows failed, in a colour you will not miss, and clicking that count unfolds the list - each failed row's number in your sheet and the reason it was turned away (a variation blocked by a SKU already in use, say). Previously such a run signed off as a plain success and the errors sat unread in the record, which rather defeated the point of keeping them.
 
 A few things the preview will tell you:
 
