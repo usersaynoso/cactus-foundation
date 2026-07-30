@@ -58,9 +58,6 @@ function buildCsp(): string {
     "'self'", 'data:', 'blob:',
     // Style guide demo images
     'https://picsum.photos', 'https://fastly.picsum.photos',
-    // The robot-check widget's own tiles (see script-src below) - an image puzzle
-    // whose images are served from Google's own hosts.
-    'https://www.google.com', 'https://www.gstatic.com',
     workerHost ? `https://${workerHost}` : '',
   ].filter(Boolean).join(' ')
   return [
@@ -80,13 +77,7 @@ function buildCsp(): string {
     // decoder (Draco/Meshopt) when reading a .glb, e.g. the admin "Detect from
     // model" button. It permits ONLY WebAssembly.compile/instantiate, not JS
     // eval() - strictly narrower than 'unsafe-eval', which stays banned.
-    // https://www.google.com + https://www.gstatic.com - google-reviews-for-shop
-    // shows the admin the robot check Google served the site, so a person can
-    // answer it. The widget is Google's own, drawn by Google's own script, and it
-    // is the only thing in this module's design that gets past a check - nothing
-    // reads the puzzle and solves it. Admin screens only; the storefront never
-    // loads either origin.
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://www.google.com https://www.gstatic.com`,
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
     // media-src - the library now stores video (mp4/webm). The <video> preview in
@@ -109,12 +100,9 @@ function buildCsp(): string {
     // rather than a factor. A blob: URL is same-origin, unguessable and readable
     // only by the document that made it, so this grants no reach the page hasn't
     // already got.
-    // https://www.google.com - the robot-check widget talks to its own backend as
-    // the person works through the puzzle.
-    `connect-src 'self' blob: https://api.stripe.com https://www.google.com${workerHost ? ` https://${workerHost}` : ''}`,
+    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
-    // https://www.google.com - the robot-check widget above draws itself in one.
-    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.google.com`,
+    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
     // blob: - product-3d-views-for-shop decodes Draco-compressed meshes off the main
     // thread, and three's DRACOLoader builds that worker the only way it can: it
     // fetches the decoder's source as text and turns it into a Blob URL, since the
