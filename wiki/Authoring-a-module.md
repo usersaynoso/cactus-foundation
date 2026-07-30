@@ -525,6 +525,46 @@ A per-line resolver can only speak about its own line, so there is a companion p
 
 A resolver runs once per basket line, so if it does its own database reads it will fan out across a whole cart. A resolver that reads the database should therefore also register the companion `shop.cart-line-resolver-prefetch` point (same `id`, a function taking the full `ShpProduct[]` for the cart). Shop calls every prefetcher once, up front, before it folds the lines, so the module can resolve the whole cart in one batched pass and stash the result in a request-scoped `cache()` store that the per-line resolver then reads. The prefetch is optional and additive: a resolver without one, or an older shop that predates the point, simply falls back to the resolver's own per-line lookups. `advanced-shipping-for-shop` (`lib/delivery-cache.ts`) and `shop-variations` (`lib/addon-cache.ts`) are the worked pair - batching the delivery-estimate and add-on lookups this way is what keeps a multi-line cart a handful of queries rather than a handful per line.
 
+### One point for one decision: `shop.commerce-mode`
+
+Some questions cannot be answered a piece at a time. "Does this shop take money?" is one: the wording on the buy button, where the basket's forward button leads, whether a price may be printed at all, and whether `/shop/checkout` serves a page are four consequences of a single decision, and a shop that has switched its checkout off while still saying "Add to basket" everywhere reads as broken rather than as either mode.
+
+So `shop.commerce-mode` collects a provider that hands back **the whole shape or nothing**:
+
+```ts
+import type { ShopCommerceMode, ShopCommerceModeProvider } from '@/modules/shop/lib/commerce-mode'
+
+export const quoteCommerceModeProvider: ShopCommerceModeProvider = {
+  resolve: async (): Promise<ShopCommerceMode | null> => {
+    const config = await getQuoteConfigCached()
+    if (config.mode !== 'QUOTE_ONLY') return null   // no opinion: shop behaves exactly as before
+    return {
+      mode: 'quote',
+      addLabel: config.addToQuoteLabel,
+      cartCtaLabel: config.cartCtaLabel,
+      cartCtaHref: '/quote',
+      hidePrices: config.hidePrices,
+      hiddenPriceLabel: config.hiddenPriceLabel,
+      blockedMessage: 'This shop works by quote.',
+    }
+  },
+}
+```
+
+Three things in that shape are worth copying into any point of your own:
+
+- **Returning `null` means "no opinion", not "no".** A provider that only cares in one of its own modes returns nothing in the others, and the host's own default stands. Answering `'cart'` would be claiming a decision the module has not made.
+- **The first provider with an answer wins.** Two modules disagreeing about whether the shop takes money would leave the storefront half in each, so shop does not merge them.
+- **A provider that throws is ignored.** An add-on with a broken settings read must not take a storefront down with it, and the host always has a safe answer of its own.
+
+The pure half of the contract - the types, the defaults and the two helpers that decide what a surface prints (`commerceModeMoney`, `commerceModeButtonLabel`) - lives in `modules/shop/lib/commerce-mode-shared.ts`, apart from the resolver that reads the database. That split is what lets shop's client cart components honour the same mode with the same defaults; a client component importing the resolver would drag Prisma into the browser bundle. If you publish a point whose answer both server and client surfaces need, do the same.
+
+### Putting a control where a shopper will find it: `shop.cart-header-actions`
+
+`shop.cart-header-actions` collects components shop renders on the basket page's own heading row, to the right of "Your cart". `quote-for-shop` contributes two ("Save cart as a quote" and "Retrieve quote"), each a server component that reads its own settings and returns `null` when the owner has switched it off.
+
+It exists for a specific problem: a control a shopper has to be able to **find without having been told it exists** cannot depend on the site owner having dragged a block onto a layout. The right answer is usually both - the point for the default placement, a Puck block for owners who want it somewhere else, and a setting that turns the automatic one off so they never get two.
+
 ### Contributing a tab that saves with the host's form
 
 `shop.product-editor-sections` is the worked example of a point whose contributions are not a panel bolted underneath, but a **tab inside the host's own form**, saved by the host's own Save button. It is worth copying whenever a host page is a form and a contributor needs to add fields to it, because the obvious alternative - every contributor growing its own save button - gives the user three buttons and no idea which one did what.

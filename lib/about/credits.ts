@@ -68,6 +68,8 @@ export const CREDITS: CreditGroup[] = [
       { name: 'Supabase Storage', description: 'A further storage option for your files.', url: 'https://supabase.com/storage' },
       { name: 'ONNX Runtime', description: 'Runs the in-browser model behind background and watermark removal.', url: 'https://onnxruntime.ai' },
       { name: 'Shiki', description: 'Pretty syntax highlighting for code blocks.', url: 'https://shiki.style' },
+      { name: 'Puppeteer', description: 'Drives a browser behind the scenes to print documents as PDFs.', url: 'https://pptr.dev' },
+      { name: 'Chromium for serverless', description: 'The browser itself, packed small enough to run on the server.', url: 'https://github.com/Sparticuz/chromium' },
     ],
   },
   {

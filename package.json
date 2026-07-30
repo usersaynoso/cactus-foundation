@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.794",
+  "version": "0.5.795",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -35,6 +35,7 @@
     "@puckeditor/core": "^0.22.0",
     "@simplewebauthn/browser": "^13.0.0",
     "@simplewebauthn/server": "^13.0.0",
+    "@sparticuz/chromium": "^149.0.0",
     "@supabase/storage-js": "^2.108.2",
     "@types/aos": "^3.0.8",
     "@vercel/blob": "^2.4.1",
@@ -60,6 +61,7 @@
     "nodemailer": "^9.0.3",
     "otpauth": "^9.5.1",
     "pg": "^8.12.0",
+    "puppeteer-core": "^25.4.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

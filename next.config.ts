@@ -72,7 +72,13 @@ const config: NextConfig = {
   // dev. Keeping the package external preserves the real `__dirname`; the trace
   // include below then makes sure the wasm actually ships next to it. meshopt
   // needs neither - it base64-inlines its wasm.
-  serverExternalPackages: ['draco3d'],
+  // puppeteer-core and @sparticuz/chromium must stay external for the same class
+  // of reason: the chromium package ships a brotli-packed browser it unpacks from
+  // its own directory at runtime and then hands the path to puppeteer, so bundling
+  // either one breaks the paths they resolve against themselves. Only a module
+  // that prints a document (Quote for Shop's PDF route) loads them, and it does so
+  // through a dynamic import, so nothing else pays for them being here.
+  serverExternalPackages: ['draco3d', 'puppeteer-core', '@sparticuz/chromium'],
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
     // every change already goes through (see CLAUDE.md work loop). On Vercel it

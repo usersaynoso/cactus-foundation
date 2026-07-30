@@ -280,6 +280,12 @@ Want size/colour choices, or let customers add engraving, a gift message or an u
 
 Selling something a photograph struggles with - furniture, a lamp, anything with a back to it? Install the **[Product 3D views](Product-3D-views)** module. It puts a slowly turning 3D model in the product gallery alongside your photographs, which shoppers can click to turn, pan and zoom. Models can be attached to a product or to individual variations.
 
+## Quoting instead of selling
+
+Price every job on its own merits, quote trade against list, or simply have customers who want a figure in writing before they commit? Install the **[Quotes](Quotes)** module.
+
+It works two ways. Leave your checkout exactly as it is and add a "Save cart as a quote" button, so a shopper can park a basket, walk away with a short code and fetch it back later - useful on any shop, not only a quoting one. Or switch the shop over entirely: every buy button becomes "Add to quote", the basket leads to a quote request page rather than the till, checkout stops serving, and prices can be withheld until you have quoted them yourself. Quotes land in a list under Shop, where you price them, reply, send them out and turn the accepted ones into ordinary orders.
+
 ## Settings
 
 **Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
