@@ -12,27 +12,29 @@ Requires the **Shop** module and the **[Reviews](Reviews)** module. It leans on 
 
 Google does not hand its reviews out. Since the start of 2025 it has only shown its results to a real browser, and asks anything else to prove it is not a robot.
 
-So your site opens a browser and reads the page the way you would - on the very machine your site already runs on. There is nothing to install, nothing to run in a cupboard, no second service to keep alive, no account to open and no monthly bill. Switch the module on and press the button.
+So this module keeps a real browser: a small machine of your own at [Fly.io](https://fly.io), which the module sets up for you from one pasted token. It wakes when a scan needs it, reads the page the way you would, and puts itself away five minutes after the last scan so it only costs anything while it is actually looking. What makes it worth having is its **fixed address**: the machine talks to Google from the same address every time, which is the difference between being asked "are you a person?" constantly and being asked occasionally.
 
-**Sometimes Google will ask whether it is talking to a person.** Hosted sites ask their questions from a data centre, and Google is warier of those than of an office broadband line. When it happens, a box opens on whichever screen you were on, showing a picture of exactly what Google put in front of your site, so you are never left guessing why nothing came back.
+The costs, plainly: the fixed address is **$3.60 a month**, and the machine itself is a few pennies while scans run and nothing when idle. That is the entire bill, and it goes to Fly.io, not to us.
 
-Being honest about what that box can do: Google only accepts an answer to one of its questions on its own pages, so the puzzle in that box will say "Invalid domain for site key" and refuse to be clicked. That is Google's rule, not a fault in your site, and no setting here changes it. What actually helps is trying again later - a scan of several products carries on past a question rather than giving up, so the ones that were asked can simply be scanned again in a bit.
-
-It also remembers what Google tells it between runs, so this should be an occasional interruption rather than a daily chore. If it ever becomes relentless, **Forget what Google told us** on the same screen wipes the slate and starts fresh, which sometimes helps.
+**Sometimes Google will still ask whether it is talking to a person.** When it happens, a box opens on whichever screen you were on - and as of this version you can actually answer it. Press **Answer it now** and the box becomes a live window onto the machine's own browser, with Google's question in it. Tick the box, pick the pictures, do whatever it asks - your clicks go straight through. The moment Google moves on, the window closes itself and the machine remembers what it was granted, so this should be an occasional interruption rather than a daily chore. If it ever becomes relentless, **Forget what Google told us** on the same screen wipes the slate and starts fresh, which sometimes helps.
 
 ## Setting it up
 
-1. Go to **Settings > Shop > Google Reviews**.
-2. Turn **Use Google reviews on this shop** on.
-3. Press **Save settings**.
+1. Make a free account at [fly.io](https://fly.io) and add a payment card (Fly needs one for the address rental).
+2. In Fly's dashboard, create an **organisation token** (Dashboard > Tokens - or `fly tokens create org` if you use their command line).
+3. Go to **Settings > Shop > Google Reviews**, paste the token into **The browser machine**, pick where the machine should live (London, unless your shoppers are elsewhere), and press **Connect**. The module builds everything else itself and shows you the machine's fixed address when it is done.
+4. Turn **Use Google reviews on this shop** on.
+5. Press **Save settings**.
 
-That is genuinely all of it. Everything below is optional tuning.
+The place you pick decides the machine's address, so it cannot be changed later without disconnecting and starting afresh - and a fresh address means Google getting to know you all over again, so pick once and leave it.
 
 ## Getting the reviews
 
 **One product, or a hundred.** A **Google Reviews** tab now sits beside Products in the admin. Every product is listed with what Google made of it, how many reviews have come in and when it was last looked at. Press **Scan** on a row, or tick several and press **Scan selected**. The ticks survive turning the page, so you can gather a couple from here and a couple from there and do the lot in one go.
 
-If Google asks its question part way through a batch, that product is left unchecked and the batch pauses a moment and carries on with the rest. At the end it tells you how many were skipped, and those are simply worth another go later.
+The first scan after a quiet spell takes a little longer while the machine wakes up - the progress line says so - and the rest fly along once it is warm.
+
+If Google asks its question part way through a batch, the batch stops - every scan goes out from the machine's one address, so the next product would only be asked the same thing. The question is already on screen by then: answer it, press **Scan selected** again, and your ticks are exactly where you left them.
 
 There is one way in and it is that tab. The settings screen has no **Get Reviews** button of its own any more - two buttons doing nearly the same job, one of which could not tell you which products it meant, was one button too many. Settings are settings; the fetching happens where the products are.
 
@@ -81,7 +83,8 @@ It is deliberately separate from your shop and reviews permissions. Being allowe
 
 ## What it does not do
 
-- **It does not get past the robot check.** No puzzle-solving by machine, no rented home broadband lines, no paying a service to answer on your behalf. It shows you exactly what Google asked and then waits, and Google will not let that question be answered anywhere except on Google's own pages. When Google says no, the module says so rather than quietly returning nothing.
+- **It does not get past the robot check by itself.** No puzzle-solving by machine, no rented home broadband lines, no paying a service to answer on your behalf. When Google asks, a person answers - you, live, on the machine's own browser, which is the one place Google accepts an answer. When Google says no, the module says so rather than quietly returning nothing.
+- **It does not run for free any more.** The old arrangement cost nothing and did not work: hosted sites ask Google from shared addresses that get challenged morning, noon and night, and an answered challenge counted for nothing a moment later. $3.60 a month buys the fixed address that makes the whole thing viable. We looked for a cheaper honest way and there is not one.
 - **It does not bring in review photographs.** Words and a rating only.
 - **It cannot promise to keep working forever.** Google rearranges its pages, and one day it will rearrange them enough to need a fix here. The module is built to survive the ordinary reshuffles - it recognises a review by its shape rather than by anything Google can rename - but this is the honest reason companies charge money for the same job.
 - **It does not go quickly.** A page every few seconds, deliberately. Hurrying is the surest way to be shown the door, so a big catalogue is a thing to set going and leave alone rather than sit and watch.
