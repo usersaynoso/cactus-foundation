@@ -202,6 +202,16 @@ Every so often a layout is too long to fit in a spreadsheet cell - Google caps t
 
 If your sheet was made before this column existed, your next Push adds it.
 
+### The variations count column
+
+The Products tab carries a **variations** column: how many variations each product has. It is the same figure as the number of rows on that product's own tab, so a desk offered in four widths and three finishes reads 12. A product with no variations at all reads 0.
+
+It is a plain number rather than text, so you can sort by it, filter on it, or add it into your own sums - handy for spotting the product that has quietly grown to two hundred variants, or the one that was meant to have some and doesn't.
+
+This column is worked out for you and only ever read one way. Type a different number into it and nothing happens: Pull ignores it entirely, and your next Push puts the real figure back. Variations are added and removed on the product's own tab, or in the admin, which is rather the point.
+
+If your sheet was made before this column existed, your next Push adds it.
+
 ### The Suppliers tab
 
 Alongside the catalogue itself, the sheet carries a **Suppliers** tab: every supplier in your address book, whether they're enabled or disabled, the trade discount you've got on file for each, and the catalogues you've recorded against them with a link to each. It's there so the person doing the pricing has the supplier's own price list, and the discount that goes with it, to hand instead of in another browser tab.
