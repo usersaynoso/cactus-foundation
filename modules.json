@@ -46,6 +46,11 @@
       "version": "v0.1.4"
     },
     {
+      "name": "reviews-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
+      "version": "v0.1.0"
+    },
+    {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
       "version": "v0.1.11"
