@@ -89,12 +89,19 @@ const config: NextConfig = {
   // The database backup route reads this file at runtime via fs, not a static
   // import - the file tracer can't see it otherwise, so it'd be missing from
   // the deployed function bundle on Vercel despite working fine in dev.
+  // Keys here are ROUTE-PATH GLOBS matched with `contains` semantics against the
+  // normalized route (e.g. `/app/api/m/[module]/[...path]/route`), NOT file paths.
+  // A file-path key like 'app/api/x/route.ts' never matches - and literal `[id]`
+  // segments in a key are parsed as glob character classes, so dynamic routes must
+  // be written with `*` instead. Both the webpack matcher (collect-build-traces.js)
+  // and the Turbopack one (crates/next-api/src/nft_json.rs) agree on this; every
+  // key below is written to match under both.
   outputFileTracingIncludes: {
-    'app/api/admin/backup/database/route.ts': ['./prisma/migrations/**'],
+    '/api/admin/backup/database': ['./prisma/migrations/**'],
     // Modules can ship browser assets (e.g. ML model + wasm) served same-origin
     // by a module route that reads them via fs. Generic glob (no module name)
     // so any module's assets/ dir is traced into the module-API function.
-    'app/api/m/[module]/[...path]/route.ts': [
+    '/api/m/**': [
       './modules/*/assets/**',
       // @sparticuz/chromium ships its browser as brotli packs and finds them by
       // resolving `../bin` against its own file URL, then reading them with fs -
@@ -111,9 +118,9 @@ const config: NextConfig = {
     // above), so the file tracer can't see it statically. Force it into every
     // function that can run the 3D-model optimiser: the two explicit optimise
     // routes and the upload record route, which auto-optimises new GLB uploads.
-    'app/api/admin/media/[id]/optimise/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
-    'app/api/admin/media/bulk-optimise/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
-    'app/api/admin/media/record/route.ts': ['./node_modules/draco3d/draco_decoder.wasm'],
+    '/api/admin/media/*/optimise': ['./node_modules/draco3d/draco_decoder.wasm'],
+    '/api/admin/media/bulk-optimise': ['./node_modules/draco3d/draco_decoder.wasm'],
+    '/api/admin/media/record': ['./node_modules/draco3d/draco_decoder.wasm'],
   },
   // Security headers are applied in proxy.ts
 }
