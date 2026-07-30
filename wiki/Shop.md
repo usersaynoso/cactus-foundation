@@ -82,7 +82,7 @@ On the shop front, a category page shows a breadcrumb trail back up to the top, 
 Until recently a category was just a name, which made for a slightly bleak page: a wall of products with a heading over it, and any sub-categories reduced to a row of little grey pills. Categories now carry the same three things a product does, all in the **Edit** panel on **Shop → Categories**:
 
 - **Short description.** One line, printed on the category's card. "Height-adjustable desks for every office" is the idea; a paragraph is not.
-- **Picture.** Choose one from your media library, or upload a new one there and then. It's the picture on the category's card, so it wants to be square-ish; anything else is trimmed to fit rather than squashed.
+- **Picture.** Choose one from your media library, or upload a new one there and then. It's the picture on the category's card, so it wants to be square-ish; anything else is trimmed to fit rather than squashed. The picker opens in that category's own folder in your media library (Shop → Homeware → Kitchenware, matching your category tree), and anything you upload is filed there rather than dumped in the top of the library - the same folder the products in that category keep their photos in. Rename a category, or drag it under a different parent, and its picture moves along with it.
 - **Full description.** A paragraph or two shown on the category's own page.
 
 Fill those in and a parent category's page opens with its sub-categories as cards - picture, name, your one-liner and a "Browse" link - laid out exactly like the product cards further down, because they *are* the product cards' design. Restyle one and you restyle both, which saves you doing the job twice.
