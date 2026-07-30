@@ -94,7 +94,19 @@ const config: NextConfig = {
     // Modules can ship browser assets (e.g. ML model + wasm) served same-origin
     // by a module route that reads them via fs. Generic glob (no module name)
     // so any module's assets/ dir is traced into the module-API function.
-    'app/api/m/[module]/[...path]/route.ts': ['./modules/*/assets/**'],
+    'app/api/m/[module]/[...path]/route.ts': [
+      './modules/*/assets/**',
+      // @sparticuz/chromium ships its browser as brotli packs and finds them by
+      // resolving `../bin` against its own file URL, then reading them with fs -
+      // invisible to the file tracer, exactly like draco3d's wasm above. Without
+      // this the deployed function has the package but not its browser, and
+      // executablePath() throws "The input directory does not exist", which is
+      // what made quote-for-shop's PDF route 500 on the first live shop to press
+      // the button. ~66MB into the module-API function, which is the price of a
+      // PDF; the alternative (@sparticuz/chromium-min) trades it for a required
+      // env var and a download on every cold start.
+      './node_modules/@sparticuz/chromium/bin/**',
+    ],
     // draco3d's decoder wasm is read via fs at runtime (see serverExternalPackages
     // above), so the file tracer can't see it statically. Force it into every
     // function that can run the 3D-model optimiser: the two explicit optimise
