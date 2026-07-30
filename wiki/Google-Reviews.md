@@ -10,30 +10,33 @@ Requires the **Shop** module and the **[Reviews](Reviews)** module. It leans on 
 
 ## The awkward bit, up front
 
-Google does not hand its reviews out. Since the start of 2025 it has only shown its results to a real browser, and asks anything else to prove it is not a robot. There are companies who sell a way round that, and you can use one if you like - but you do not have to, because this module comes with a small helper that does the job on a machine of your own.
+Google does not hand its reviews out. Since the start of 2025 it has only shown its results to a real browser, and asks anything else to prove it is not a robot.
 
-That helper is the only setting-up there is, and it is four commands. There is no account to open and no monthly bill.
+So your site opens a browser and reads the page the way you would - on the very machine your site already runs on. There is nothing to install, nothing to run in a cupboard, no second service to keep alive, no account to open and no monthly bill. Switch the module on and press the button.
 
-**Where you run it matters more than anything else here.** On an ordinary broadband connection - an office machine, a mini PC in a cupboard, the Mac that is on anyway - Google is generally happy to answer it. On a rented machine in a data centre it will often be shown the robot check instead. When that happens the module tells you so in plain English rather than letting you believe your products have no reviews, and picks up where it left off next time.
+**Sometimes Google will ask whether it is talking to a person.** Hosted sites ask their questions from a data centre, and Google is warier of those than of an office broadband line. When it happens, a box opens on whichever screen you were on, showing a picture of exactly what Google put in front of your site, so you are never left guessing why nothing came back.
+
+Being honest about what that box can do: Google only accepts an answer to one of its questions on its own pages, so the puzzle in that box will say "Invalid domain for site key" and refuse to be clicked. That is Google's rule, not a fault in your site, and no setting here changes it. What actually helps is trying again later - a scan of several products carries on past a question rather than giving up, so the ones that were asked can simply be scanned again in a bit.
+
+It also remembers what Google tells it between runs, so this should be an occasional interruption rather than a daily chore. If it ever becomes relentless, **Forget what Google told us** on the same screen wipes the slate and starts fresh, which sometimes helps.
 
 ## Setting it up
 
-1. Copy the `renderer` folder out of the module and onto whichever machine will do the looking.
-2. Run the four commands in its own instructions. The last one prints a long random key - keep it.
-3. In **Settings > Shop > Google Reviews**, switch the module on, paste that key in, and check the address matches where the helper is running (`http://localhost:8791` if it is on the same machine as your site).
-4. Press **Check my key**. It will tell you straight away whether the two are talking.
+1. Go to **Settings > Shop > Google Reviews**.
+2. Turn **Use Google reviews on this shop** on.
+3. Press **Save settings**.
 
-If your site and the helper are on different machines, the address has to be a secure one - the key travels with every request, and it would be a shame to shout it across the room.
+That is genuinely all of it. Everything below is optional tuning.
 
 ## Getting the reviews
 
-Two ways, and you will probably use both.
+**One product, or a hundred.** A **Google Reviews** tab now sits beside Products in the admin. Every product is listed with what Google made of it, how many reviews have come in and when it was last looked at. Press **Scan** on a row, or tick several and press **Scan selected**. The ticks survive turning the page, so you can gather a couple from here and a couple from there and do the lot in one go.
 
-**The whole catalogue.** In **Settings > Shop > Google Reviews**, press **Get Reviews**. It works through your products, oldest-looked-at first, showing you what it is doing as it goes. You can close the tab: it stops where it is and offers to carry on when you come back. Turn on the nightly check and it does the same thing quietly overnight.
+If Google asks its question part way through a batch, that product is left unchecked and the batch pauses a moment and carries on with the rest. At the end it tells you how many were skipped, and those are simply worth another go later.
 
-**One product, or a handful.** A **Google Reviews** tab now sits beside Products in the admin. Every product is listed with what Google made of it, how many reviews have come in and when it was last looked at. Press **Scan** on a row, or tick several and press **Scan selected**. The ticks survive turning the page, so you can gather a couple from here and a couple from there and do the lot in one go.
+There is one way in and it is that tab. The settings screen has no **Get Reviews** button of its own any more - two buttons doing nearly the same job, one of which could not tell you which products it meant, was one button too many. Settings are settings; the fetching happens where the products are.
 
-The per-product tab is the one to use just after you have added something. It is also the only way to scan a draft, or one of the hidden rows behind a product's variations - the nightly check leaves those alone, quite sensibly, since they have no page of their own.
+**There is no nightly run either**, deliberately. Something sweeping your catalogue at four in the morning mostly earns a note saying Google asked whether it was talking to a person, with nobody up to read it. Reviews come in when you ask for them.
 
 ## Deciding what goes up
 
@@ -67,18 +70,19 @@ Products Google has never heard of are listed as exactly that, on both screens. 
 | Shortest review worth having | Keeps "good" off your product pages. |
 | Most reviews per product | Counts the ones still on the product, so binning a few lets the next run top it back up. |
 | Leave a product alone for N days | Reviews do not appear by the hour. A week is plenty. |
-| Most searches one run may use | A hard stop. A run that reaches it finishes early and says so, and the next one carries on from there. |
+| Most pages one scan may load | A hard stop for a single product, so one unusually chatty listing cannot swallow an afternoon. |
 | Only products that are on sale | Skips drafts and the hidden rows behind variations. |
 
 ## Who can do what
 
 One permission: **Manage Google reviews**. It covers the settings tab, the products tab and pressing any of the buttons.
 
-It is deliberately separate from your shop and reviews permissions. Being allowed to edit the catalogue does not automatically mean being allowed to put a stranger's words on a product page, and being allowed to moderate reviews does not automatically mean being allowed to spend money on searches. If you want one person doing all three, give them all three keys - as a decision rather than by accident.
+It is deliberately separate from your shop and reviews permissions. Being allowed to edit the catalogue does not automatically mean being allowed to put a stranger's words on a product page, and being allowed to moderate reviews does not automatically mean being allowed to set your site off trawling Google. If you want one person doing all three, give them all three keys - as a decision rather than by accident.
 
 ## What it does not do
 
-- **It does not get past the robot check.** No puzzle-solving, no rented home broadband lines, no pretending to be a person. When Google says no, the module says so.
+- **It does not get past the robot check.** No puzzle-solving by machine, no rented home broadband lines, no paying a service to answer on your behalf. It shows you exactly what Google asked and then waits, and Google will not let that question be answered anywhere except on Google's own pages. When Google says no, the module says so rather than quietly returning nothing.
 - **It does not bring in review photographs.** Words and a rating only.
 - **It cannot promise to keep working forever.** Google rearranges its pages, and one day it will rearrange them enough to need a fix here. The module is built to survive the ordinary reshuffles - it recognises a review by its shape rather than by anything Google can rename - but this is the honest reason companies charge money for the same job.
+- **It does not go quickly.** A page every few seconds, deliberately. Hurrying is the surest way to be shown the door, so a big catalogue is a thing to set going and leave alone rather than sit and watch.
 - **It does not touch your existing reviews.** Remove the module and everything it imported stays exactly where it is, as ordinary reviews in your ordinary list.
