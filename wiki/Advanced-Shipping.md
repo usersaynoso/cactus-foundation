@@ -78,7 +78,12 @@ It needs the **Shop** and **Product Attributes** modules installed.
   storage"). It appears only when the basket is waiting on more than one date;
   with everything landing together, each line already says so beside itself. The
   footnote underneath is yours to edit, or to empty if you would rather not
-  commit to confirming days by email.
+  commit to confirming days by email. **Show each arrival as** picks how a card
+  says what is in it: **Item names** writes them out as it always has, and
+  **Product photos** shows the pictures instead, with the name and the chosen
+  options on hover (or on a tap, on a phone). Photos suit a basket of
+  long-winded variation names; a catalogue with no pictures in it is better off
+  with the names, since a product without a photo gets a blank tile.
 - The date and the chosen service are saved with the order exactly as quoted, so
   there is never any confusion later about what was promised.
 
