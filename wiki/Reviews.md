@@ -73,6 +73,33 @@ Two thank-you messages, in your own words: one for a review that went straight u
 
 ---
 
+## The reviews spreadsheet
+
+**Shop → Reviews → Import / export.**
+
+### Taking them out
+
+**Download reviews spreadsheet** gives you the lot: one line per review, with the product it is about, who wrote it, the stars, the words, your reply and the dates.
+
+It also gives you a line for **every product nobody has reviewed yet**, saying `No reviews yet` where the review would be. That half is usually the more interesting one - a list of your reviews tells you how you are doing, and a list of the products with none tells you what to do next.
+
+Product options are left out. A review belongs to the desk, not to the 1600mm oak one with the black frame, so you get one line per product rather than one per combination. Drafts and archived products are in there too, since "has anyone said anything about this" is a fair question to ask about something not on sale yet.
+
+### Putting them back
+
+Upload the same spreadsheet and the reviews in it are saved. Type them into the empty rows, or paste in a list you have been keeping somewhere else since before you had a shop that could hold them.
+
+- **Rows keep their review id**, so a review already on the site is updated rather than added a second time. Clear that cell and the row goes in as a brand new review.
+- **Sending the same file twice is safe.** A row with no id is skipped if the same person has already said the same words about the same product.
+- **Which product** is matched on the slug (the bit of the web address), falling back to the SKU. The product name is there for you to read, not to match on - two things can share a name, and renaming one should not move its reviews.
+- **Reviews with no status of their own** go up straight away or wait for you, whichever you pick before choosing the file.
+- **Anything it cannot use is listed back at you** by row number, and everything else still goes in. A single mistyped rating does not throw out the other four hundred.
+- **Dates** are kept, so a review you collected two years ago does not claim to be from this morning.
+
+Keep files to 5,000 rows. Above that a single upload has more to do than one request is given time for, so split it in half - the second half will pick up exactly where the first left off.
+
+---
+
 ## Verified purchases
 
 A review whose email address matches a paid order containing that product is badged **Verified purchase**.
