@@ -12,6 +12,18 @@ It needs the **Shop** and **Product Attributes** modules installed.
 - On a product page: **"Delivery by Wednesday 29th of July"**, with a gentle countdown -
   "Order within 6 hours and 12 minutes to get it by then." When the cut-off
   passes, the date quietly rolls forward on its own.
+- Also on a product page, the **Product: Shipping options** block shows the
+  delivery services that product is offered before anything is added to the
+  basket - the same ticked bar and switch chips the basket uses, because it is
+  literally the same picker, so what each service costs and when each one lands
+  is answered on the page the shopper is already reading. It carries a heading
+  you can rename or empty, and it follows whichever basket picker style is set in
+  Delivery settings. A choice made here is remembered for that product for the
+  rest of the visit, moves that product's basket line straight away if it is
+  already in the basket, and otherwise rides along onto the line the next
+  add-to-cart creates - including when the shopper picks a different variation on
+  the way, in which case a service that variation is not offered quietly falls
+  back to your default rather than being honoured.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
