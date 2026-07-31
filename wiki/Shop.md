@@ -41,6 +41,8 @@ You can offer as many or as few of these as you like.
 
 From **Shop → Products → New product**, fill in a name and price to get started, then come back to fill in the rest.
 
+The search box on the products list matches whole words in any order, across the name and the SKU. Typing "evolve screen" finds "Evolve / Impulse Plus Bench Screen" - you no longer have to remember the exact wording, or everything that sits between the two words you do remember. Every word you type has to appear somewhere, so adding another word narrows things down rather than widening them.
+
 The product page is split into tabs, with a panel down the right that stays put as you work: whether the product is on sale, its main photo, its price and stock at a glance, and the **Save changes** button.
 
 - **Details** - the name, the descriptions, and your own SKU and barcode. If you've switched on suppliers (see below), the box for picking one lives here too. The web address is set when you first save; if the name has changed a lot and nothing links to it yet, you can ask for it to be rebuilt. The full description can stay plain text, or you can hit **Design with the page builder** to lay it out with headings, images and columns instead - and once you're designing, **Open in a new tab** pops that builder out into a page of its own with nothing else on screen, handy on a small window. Saving there sends the design straight back to the product; it never fights with anything you're doing on the main page.
@@ -57,6 +59,8 @@ Install the Shop Variations or Product Attributes modules and they add their own
 **One button saves the lot.** Any tab holding changes you haven't saved gets an amber dot, and they're listed next to the Save button so nothing hides from you. Anything that needs fixing first goes red and Cactus takes you to it. Try to wander off with unsaved work and you'll be asked first, rather than finding out later.
 
 Leave it as a draft to keep working on it privately, or set it **Active** to put it in front of customers straight away.
+
+Both the products list and a product's own edit page carry a **Preview** button - the list's sits beside each row's actions, the edit page's just under Save - opening the live shop page in a new tab. It only works once a product is Active; a draft or archived one greys it out, since there's nothing to see yet.
 
 ---
 
