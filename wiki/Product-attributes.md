@@ -73,9 +73,15 @@ Whatever happened, you get a line underneath saying how many options followed th
 
 Values are editable too, in the same place and with the same reach. Click a value's label and you can rename it; on a colour-swatch attribute, click the dot beside it to change the colour; on a picture-swatch one, click the square to swap the picture. Nothing has to be deleted and re-added, so nothing gets unticked from a hundred products in the process.
 
-A change here travels the same road a rename of the attribute does. "Oak" becoming "Natural oak" updates it on every product that filters by it, on every variation choice built from it, and in the name of every variation itself - so "Dining chair - Oak / Small" reads "Dining chair - Natural oak / Small" from then on. Web addresses stay as they were, and anything already ordered keeps the wording it was ordered under, which is rather the point of an order.
+A change here travels the same road a rename of the attribute does. "Oak" becoming "Natural oak" updates it on every product that filters by it, on every variation choice built from it, and in the name of every variation itself - so "Dining chair - Oak / Small" reads "Dining chair - Natural oak / Small" from then on. Web addresses stay as they were, and anything already ordered keeps the wording it was ordered under, which is rather the point of an order. Renaming a value never touches its slug (see just below) - the sheets and products holding on to it keep resolving the same value, which is the whole point of it.
 
-The one exception is a product where the variation choice already has a value called that. Two identically named choices would make a nonsense of the variation names, so that one is left alone and Cactus names the product, same as with an attribute rename. You'll get a line underneath either way telling you how far the change went.
+### Two values with the same name
+
+A value can share its name with another on the same attribute. That sounds like a mistake until the supplier sends you "Black" in melamine and "Black" in fabric: same word, different material, different swatch. Add both - shoppers see "Black" twice with two different swatches to tell them apart, which on a swatch or picture control is all they need.
+
+What keeps the two straight behind the scenes is each value's **slug** - a short lowercase name like `black-mfc` that never changes when you rename the label. Every value chip shows its slug in small print beside the label; click it to change it. To choose the slug up front, type the value into the Add box as `(black-mfc)Black` - brackets round the slug, label after - which is exactly the spelling the Google Sheet uses. Leave the brackets off and the slug is made from the label automatically ("black", then "black-2" for a second Black).
+
+One small caution: a dropdown shows text only, so two values called "Black" read identically there. The product's Variations tab points this out when it happens - switch the option to swatches or pictures, or rename one of them.
 
 ### Putting them in order
 

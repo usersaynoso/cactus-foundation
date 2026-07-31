@@ -6,6 +6,7 @@ import type { ShpProduct } from '@/modules/shop/lib/types'
 import { buildTaxClassRefIndex } from '@/modules/shop/lib/db/tax-shipping'
 import { getEditorPayloadsBatch, type VariantEditorRow } from '@/modules/shop-variations/lib/variants-service'
 import { parseVariantImages } from '@/modules/shop-variations/lib/csv'
+import { parseValueCell } from '@/modules/shop-variations/lib/value-cell'
 import { resolveVariantFieldProviders } from '@/modules/shop-variations/lib/variant-field-providers'
 import { resolveProductFieldProviders } from '@/modules/shop/lib/product-field-providers'
 import {
@@ -396,8 +397,22 @@ export async function diffVariationRows(grid: string[][]): Promise<VariationRowR
       continue
     }
     const payload = payloadByParentId.get(parent.id)
+    // Slug first, label as the legacy fallback - the same resolution order the
+    // importer applies to a "(slug)Label" cell. Where duplicate labels exist the
+    // label map keeps the first (position order), which is why the Push always
+    // writes the slug.
     const valueIdByKey = new Map<string, string>()
-    for (const o of payload?.options ?? []) for (const v of o.values) valueIdByKey.set(`${o.name.toLowerCase()}|${v.label.toLowerCase()}`, v.id)
+    const valueIdBySlug = new Map<string, string>()
+    const valueLabelById = new Map<string, string>()
+    for (const o of payload?.options ?? []) {
+      for (const v of o.values) {
+        if (!valueIdByKey.has(`${o.name.toLowerCase()}|${v.label.toLowerCase()}`)) {
+          valueIdByKey.set(`${o.name.toLowerCase()}|${v.label.toLowerCase()}`, v.id)
+        }
+        valueIdBySlug.set(`${o.name.toLowerCase()}|${v.slug}`, v.id)
+        valueLabelById.set(v.id, v.label)
+      }
+    }
     const variantByKey = new Map((payload?.variants ?? []).map((v) => [[...v.optionValueIds].sort().join('|'), v]))
     const variantByChildId = new Map((payload?.variants ?? []).map((v) => [v.childProductId, v]))
 
@@ -420,12 +435,21 @@ export async function diffVariationRows(grid: string[][]): Promise<VariationRowR
       const byId = idCol >= 0 ? variantByChildId.get(((gr.cols[idCol] ?? '')).trim()) : undefined
       const ids: string[] = []
       let allResolvable = true
+      // A "(slug)Label" cell whose slug resolves but whose label differs from
+      // the stored one is a value rename typed into the sheet. The row must
+      // reach the importer even when every other cell matches, or the rename
+      // would be filtered out as "unchanged" and never applied.
+      let labelDrift = false
       for (const pair of optionPairs) {
         const optName = (gr.cols[pair.nameCol] ?? '').trim()
-        const valLabel = (gr.cols[pair.valueCol] ?? '').trim()
-        if (!optName || !valLabel) continue
-        const id = valueIdByKey.get(`${optName.toLowerCase()}|${valLabel.toLowerCase()}`)
+        const rawCell = (gr.cols[pair.valueCol] ?? '').trim()
+        if (!optName || !rawCell) continue
+        const parsed = parseValueCell(rawCell)
+        const id = parsed.slug
+          ? valueIdBySlug.get(`${optName.toLowerCase()}|${parsed.slug}`)
+          : valueIdByKey.get(`${optName.toLowerCase()}|${parsed.label.toLowerCase()}`)
         if (!id) { allResolvable = false; break } // a new option/value = a new combination
+        if (parsed.slug && valueLabelById.get(id) !== parsed.label) labelDrift = true
         ids.push(id)
       }
       if (!allResolvable) {
@@ -445,6 +469,7 @@ export async function diffVariationRows(grid: string[][]): Promise<VariationRowR
       }
       const existing = byId ?? variantByKey.get([...ids].sort().join('|'))
       if (!existing) { results.push({ row: gr.row, kind: 'create' }); continue }
+      if (labelDrift) { results.push({ row: gr.row, kind: 'update', parentName: parent.name, label: existing.label }); continue }
       if (variationRowChanged(existing, gr.cols, fieldCol)) { results.push({ row: gr.row, kind: 'update', parentName: parent.name, label: existing.label }); continue }
       if (undiffableProviders || (providers.length > 0 && await providerRowChanged(providers, parent.id, existing.childProductId, header, gr.cols, providerCtx))) {
         results.push({ row: gr.row, kind: 'update', parentName: parent.name, label: existing.label })

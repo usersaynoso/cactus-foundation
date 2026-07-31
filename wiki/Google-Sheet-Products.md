@@ -175,6 +175,10 @@ Two things to keep in mind:
 - **Leave the column alone.** Don't type into it, don't clear it, don't paste one row's ID into another. A blank cell just falls back to the old matching (by SKU, then by option values), so nothing breaks - you simply lose the safety net for that row.
 - A row you add by hand for a brand-new variation naturally has no ID; leave the cell empty and Push will fill it in once the variation exists.
 
+### How option values are spelled in the sheet
+
+Each Value cell now reads **`(slug)Name`** - `(black-mfc)Black`, say. The brackets hold the value's permanent slug (set on the Attributes screen); the rest is the name shoppers see. It's what lets a shop carry two values both called "Black" - one melamine, one fabric - without a Pull ever confusing them, and it makes renames unambiguous: keep the slug, change the name, and that value is renamed; use a new slug and a new value is created under it. Cells without brackets still work as plain names, so an older sheet Pulls exactly as before - and the very next Push rewrites the cells in the new spelling.
+
 ---
 
 ## What the sheet covers, and what it doesn't
