@@ -276,9 +276,22 @@ Pull does two things, and they fail for completely different reasons: it fetches
 
 Google only lets one account read from, or write to, a sheet so many times a minute. A catalogue with a lot of products used to go through that allowance quickly, because every product with variations has a tab of its own to fetch or fill in.
 
-Pull now fetches those tabs in bundles of forty or so at a time rather than one by one, so reading even a very large catalogue costs Google a handful of requests and takes seconds - this is also what fixed the "ran out of time" failure that very large catalogues used to hit before the reading had even finished. Push still works tab by tab (filling in is fussier than fetching), pacing itself to stay inside the allowance: on a large catalogue that means the odd pause partway through and a few more goes than it used to take - the progress bar keeps ticking either way, and none of it needs anything from you. If Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
+Pull fetches those tabs in bundles of forty or so at a time rather than one by one, so reading even a very large catalogue costs Google a handful of requests and takes seconds - this is also what fixed the "ran out of time" failure that very large catalogues used to hit before the reading had even finished.
+
+Push now works the same way: the product tabs are read, filled in and tidied in bundles of fifteen, so a bundle costs Google roughly half a dozen requests where it used to cost several **per tab**. On top of that, a Push keeps a fingerprint of what it wrote to each tab last time - if a product hasn't changed since, and nobody has edited the sheet by hand in between, its tab is skipped without so much as a glance. On the usual push, where a handful of products changed since the last one, that is nearly every tab, and the whole thing is over in seconds. It still paces itself to stay inside Google's allowance, and if Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
 
 Should it still run out of patience, you will see **"Google is limiting how fast it will let us read and write this sheet"**. Nothing is broken and nothing is lost. Wait a minute, then press **Continue** and it carries on from where it stopped. Running Push and Pull back to back on a big catalogue is the usual way to meet it, so if you are doing both, give it a minute in between.
+
+### Asking Google for a higher speed limit
+
+The sixty-a-minute allowance is only Google's starting figure, and Google will often raise it for the asking, free of charge. In the [Google Cloud Console](https://console.cloud.google.com/), with the same project you registered during setup selected, go to **IAM & Admin → Quotas**, filter for the **Google Sheets API**, and request a higher value for **Read requests per minute per user** and **Write requests per minute per user**. Small raises are usually granted automatically; larger ones get a short review.
+
+Once Google has granted it, tell Cactus so the sync actually uses the headroom, by adding two environment variables to your hosting settings (both optional; leave them out and the sync assumes Google's standard sixty):
+
+- `GSP_SHEETS_READS_PER_MINUTE` - the read allowance Google granted you.
+- `GSP_SHEETS_WRITES_PER_MINUTE` - the write allowance.
+
+Set them to the figures Google granted, redeploy, and the sync paces itself to the new limits. Setting them **higher** than what Google actually granted gains nothing - Google just says no faster, and the sync falls back to waiting politely.
 
 ---
 
