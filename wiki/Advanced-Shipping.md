@@ -25,15 +25,23 @@ It needs the **Shop** and **Product Attributes** modules installed.
   the way, in which case a service that variation is not offered quietly falls
   back to your default rather than being honoured.
 - **On a product with variations**, the block follows whichever combination the
-  shopper is building. Before they have settled on one it offers only what every
-  variation of that product agrees on, costed and dated at its slowest and
-  dearest, so nothing on offer can be taken away or go up once they choose. The
-  moment a full combination is picked, it asks again for that exact variation
-  and shows its real services and dates. This matters where your delivery
-  services are priced by range and the range is set on the variations rather
-  than the listing: without it, the listing offers nothing to show at all.
-- **A service the chosen variation cannot have is crossed out, not hidden.**
-  Under the live chips sits a second row listing every
+  shopper is building. Before they have touched anything it offers every service
+  any variation of that product carries - a shopper who has chosen nothing has
+  ruled nothing out, so nothing is withheld from them yet. Each one is costed and
+  dated at its slowest and dearest across the variations that carry it, so no
+  price or date shown there can go up or slip once they choose. As choices come
+  in the block narrows to the variations still matching them, and the moment a
+  full combination is picked it asks again for that exact variation and shows its
+  real services and dates. The answer always comes from the variations rather
+  than the listing itself, since the variation is what actually goes in the
+  basket - which also matters where your delivery services are priced by range
+  and the range is set on the variations: without it, the listing has nothing to
+  show at all.
+- **A service the shopper's own choices have ruled out is crossed out, not
+  hidden** - and only then. Nothing is struck through on a page nobody has
+  touched: a service is only crossed out once a choice they made is what lost
+  it, which is the only point at which there is anything to tell them. Once that
+  happens, a second row appears under the live chips listing every
   other service you sell on that product, struck through, with its price and a
   line saying which choice does carry it: *"Available in 120cm or 140cm"*,
   *"Available With Arms"*. That line is worked out against what the shopper has
@@ -48,9 +56,10 @@ It needs the **Shop** and **Product Attributes** modules installed.
   desks is something they can find rather than something that silently is not
   there. Nothing in that row can be clicked - it states what is on offer
   elsewhere in the range, it does not sell it - and where no single choice
-  explains it, it simply reads "Not available on this choice". Where a product
-  has no services of its own at all, the row still appears on its own, so the
-  page is never blank on a listing whose variations agree on nothing.
+  explains it, it simply reads "Not available on this choice". Where the
+  combination they have settled on carries no service at all, that row appears on
+  its own with nothing above it, so the page still says where the delivery went
+  rather than going quiet.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
