@@ -25,13 +25,26 @@ It needs the **Shop** and **Product Attributes** modules installed.
   the way, in which case a service that variation is not offered quietly falls
   back to your default rather than being honoured.
 - **On a product with variations**, the block follows whichever combination the
-  shopper is building. Before they have settled on one it shows only what every
+  shopper is building. Before they have settled on one it offers only what every
   variation of that product agrees on, costed and dated at its slowest and
   dearest, so nothing on offer can be taken away or go up once they choose. The
   moment a full combination is picked, it asks again for that exact variation
   and shows its real services and dates. This matters where your delivery
   services are priced by range and the range is set on the variations rather
   than the listing: without it, the listing offers nothing to show at all.
+- **A service the chosen variation cannot have is crossed out, not hidden.**
+  Under the live chips sits a second row - "Not on this choice:" - listing every
+  other service you sell on that product, struck through, with its price and a
+  line saying which choice does carry it: *"Available in 120cm or 140cm"*,
+  *"Available With Arms"*. It is the same courtesy the variation choices
+  themselves pay a shopper who wants something the current combination cannot
+  give them, and it means a two-person delivery you only offer on the wider
+  desks is something they can find rather than something that silently is not
+  there. Nothing in that row can be clicked - it states what is on offer
+  elsewhere in the range, it does not sell it - and where no single choice
+  explains it, it simply reads "Not available on this choice". Where a product
+  has no services of its own at all, the row still appears on its own, so the
+  page is never blank on a listing whose variations agree on nothing.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
