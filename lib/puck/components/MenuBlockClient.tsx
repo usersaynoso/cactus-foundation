@@ -745,7 +745,14 @@ export default function MenuBlockClient({
             // which is what clientWidth is then reporting.
             flexWrap: 'nowrap' as const,
             minWidth: 0,
-            ...(shrunkToFit ? { transform: `scale(${fitScale})`, transformOrigin: 'left center' } : {}),
+            // The transform creates a stacking context, which would trap the
+            // dropdown panels' z-index inside it - any positioned element later
+            // in the header (e.g. a search box) would paint over an open
+            // sub-menu. Lifting the scaled list itself to the panels' z-index
+            // makes the whole context stack above those neighbours. Only the
+            // list's own painted pixels (the links, an open panel) cover
+            // anything, so this is inert while no panel is open.
+            ...(shrunkToFit ? { transform: `scale(${fitScale})`, transformOrigin: 'left center', position: 'relative' as const, zIndex: 100 } : {}),
           } : {}),
         }}
       >
