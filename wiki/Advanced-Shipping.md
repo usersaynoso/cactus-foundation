@@ -36,7 +36,13 @@ It needs the **Shop** and **Product Attributes** modules installed.
   Under the live chips sits a second row listing every
   other service you sell on that product, struck through, with its price and a
   line saying which choice does carry it: *"Available in 120cm or 140cm"*,
-  *"Available With Arms"*. It is the same courtesy the variation choices
+  *"Available With Arms"*. That line is worked out against what the shopper has
+  already chosen, not against the range as a whole - so on a chair that offers
+  express delivery on fourteen of its colours overall, but only four of them
+  with the arms this shopper has picked, it names those four. Where one of their
+  own earlier choices is what rules it out, it says which one to change instead,
+  and where either of two would do it, it says *"or"* rather than sending them
+  off to change both. It is the same courtesy the variation choices
   themselves pay a shopper who wants something the current combination cannot
   give them, and it means a two-person delivery you only offer on the wider
   desks is something they can find rather than something that silently is not
