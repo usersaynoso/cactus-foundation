@@ -37,6 +37,7 @@ type Notification = {
   createdAt: string
   readAt: string | null
   link: string | null
+  actionLabel: string | null
   deployInitiatedAt: string | null
 }
 
@@ -89,7 +90,7 @@ function NotificationItem({
 }) {
   const isRead = !!n.readAt
   const isDeployPending = n.type === 'deployment' && !n.deployInitiatedAt
-  const viewLabel = VIEW_LABEL_BY_TYPE[n.type]
+  const viewLabel = n.actionLabel ?? VIEW_LABEL_BY_TYPE[n.type]
   const viewHref = n.link ? `/${adminPath}${n.link}` : null
   const busy = actionLoading === n.id
   const err = actionError[n.id]

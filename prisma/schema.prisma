@@ -540,6 +540,10 @@ model Notification {
   reasons           Json?
   // Admin-relative "View X" target (e.g. "/config?tab=general"). null for deployment.
   link              String?
+  // Label for the link button. null falls back to the bell's per-type default
+  // ("View Update" / "View Messages") - lets an alert say what clicking it
+  // actually does (e.g. "Build the index").
+  actionLabel       String?
   // Idempotency handle for on-demand alerts (core-update, module-update:{id},
   // contact-form:messages). null for deployment notifications.
   dedupeKey         String?

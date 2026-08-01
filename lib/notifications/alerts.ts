@@ -11,6 +11,8 @@ type UpsertAlert = {
   dedupeKey: string
   title: string
   link: string
+  // Label for the link button; omitted = the bell's per-type default.
+  actionLabel?: string
   reasons?: unknown
 }
 
@@ -18,22 +20,27 @@ type UpsertAlert = {
 // so a notice only re-lights the bell when the underlying state actually changes
 // (e.g. a newer version becomes available). If the title is unchanged we leave it
 // alone - no point nagging the admin about a notice they have already read.
-export async function upsertAlert({ type, dedupeKey, title, link, reasons }: UpsertAlert): Promise<void> {
+export async function upsertAlert({ type, dedupeKey, title, link, actionLabel, reasons }: UpsertAlert): Promise<void> {
   const existing = await prisma.notification.findFirst({ where: { dedupeKey } })
   const jsonReasons =
     reasons === undefined ? undefined : reasons === null ? Prisma.DbNull : (reasons as Prisma.InputJsonValue)
 
   if (!existing) {
     await prisma.notification.create({
-      data: { type, dedupeKey, title, link, reasons: jsonReasons, readAt: null },
+      data: { type, dedupeKey, title, link, actionLabel: actionLabel ?? null, reasons: jsonReasons, readAt: null },
     })
     return
   }
 
-  if (existing.title !== title || existing.link !== link || JSON.stringify(existing.reasons ?? null) !== JSON.stringify(reasons ?? null)) {
+  if (
+    existing.title !== title ||
+    existing.link !== link ||
+    existing.actionLabel !== (actionLabel ?? null) ||
+    JSON.stringify(existing.reasons ?? null) !== JSON.stringify(reasons ?? null)
+  ) {
     await prisma.notification.update({
       where: { id: existing.id },
-      data: { title, link, reasons: jsonReasons, readAt: null, updatedAt: new Date() },
+      data: { title, link, actionLabel: actionLabel ?? null, reasons: jsonReasons, readAt: null, updatedAt: new Date() },
     })
   }
 }

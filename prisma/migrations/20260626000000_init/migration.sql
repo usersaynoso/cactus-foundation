@@ -519,6 +519,7 @@ CREATE TABLE "Notification" (
     "title" TEXT NOT NULL,
     "reasons" JSONB,
     "link" TEXT,
+    "actionLabel" TEXT,
     "dedupeKey" TEXT,
     "readAt" TIMESTAMP(3),
     "deployInitiatedAt" TIMESTAMP(3),

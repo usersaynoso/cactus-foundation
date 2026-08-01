@@ -15,7 +15,8 @@ Provided by the `search` module (`cactus-foundation-modules/search`, table prefi
 ## What owners get
 
 - **Admin → Search** (its own sidebar section): the index dashboard - how many items of each type are indexed and when, a Rebuild button (per type or the lot), and search analytics for the last 30 days: top search terms and, most usefully, searches that found nothing. On a fresh install the first build starts itself the moment this screen opens; an empty index also raises a bell notification that links straight here, so the notification is the one-click fix.
-- **Settings → Search**: master switches per content type (a block can narrow these, never widen them), the stemming language (changing it asks for a rebuild), per-type ranking weights, and search-term logging with a retention period. The log stores the words typed and the result count - never who typed them.
+- **Settings → Search**: master switches per content type (a block can narrow these, never widen them), the stemming language (changing it asks for a rebuild), per-type ranking weights, search-term logging with a retention period, and its own "Rebuild index now" button. The log stores the words typed and the result count - never who typed them.
+- **A notification that does the job**: if the index is ever empty, admins get a bell notification whose button says "Build the index" and does exactly that - it opens the Search screen, which starts the build itself.
 
 ## How content gets into the index
 

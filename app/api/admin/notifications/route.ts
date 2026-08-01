@@ -24,6 +24,7 @@ export async function GET() {
         title: true,
         type: true,
         link: true,
+        actionLabel: true,
         readAt: true,
         deployInitiatedAt: true,
         createdAt: true,
