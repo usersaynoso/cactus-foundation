@@ -207,6 +207,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | No | Shop module - enables card payments via Stripe (see [Shop](Shop)). All three must be set before Stripe is offered at checkout, even if switched on in Settings → Shop. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_MODE` | No | Shop module - enables PayPal payments. `PAYPAL_MODE` is `sandbox` for testing or `live` for real payments. |
 | `GOCARDLESS_ACCESS_TOKEN`, `GOCARDLESS_WEBHOOK_SECRET`, `GOCARDLESS_ENVIRONMENT` | No | GoCardless Instant Bank Pay module - enables pay-by-bank (open banking) payments (see [Shop](Shop)). `GOCARDLESS_ENVIRONMENT` is `sandbox` for testing or `live` for real payments; sandbox and live use different access tokens. Set them on Settings → Instant Bank Pay (or in `.env.local` locally), then switch the method on there. Both the token and webhook secret must be set before it is offered at checkout. |
+| `IDEAL_POSTCODES_KEY` | No | Address Lookup module - fallback Ideal Postcodes API key for checkout address suggestions (see [Address Lookup](Address-Lookup)). The key saved on Shop → Settings → Address lookup takes precedence; this covers installs that already carry the key in their environment. |
 
 ---
 
