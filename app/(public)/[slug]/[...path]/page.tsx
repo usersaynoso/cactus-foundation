@@ -9,11 +9,15 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug, path } = await params
-  const resolved = await resolveModulePublicPage(slug, path)
-  if (!resolved?.generateMetadata) return {}
-  return resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams) })
+  try {
+    const resolved = await resolveModulePublicPage(slug, path)
+    if (!resolved?.generateMetadata) return {}
+    // searchParams must travel too, and the await must sit inside the try: a
+    // module metadata failure should cost the title, never the page.
+    return await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
+  } catch { return {} }
 }
 
 export default async function ModulePublicSubPage({ params, searchParams }: Props) {

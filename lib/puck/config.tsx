@@ -1000,7 +1000,13 @@ function SectionBlock(props: any) {
         flexDirection: desktopCa === 'top' ? undefined : 'column',
         justifyContent: desktopCa === 'top' ? undefined : (alignMap[desktopCa] ?? 'flex-start'),
         position: 'relative',
-        zIndex: 1,
+        // zIndex only when a tint overlay exists: an unconditional zIndex made
+        // every section its own stacking context, so a dropdown (menu panel,
+        // z-index 100) could never rise above a LATER sibling section - its
+        // sub-menus rendered behind whatever the next row held (e.g. a search
+        // box). Without the overlay there is nothing to stack above: positioned
+        // z-auto siblings already paint in DOM order, content over background.
+        zIndex: overlayColor && overlayOpacity > 0 ? 1 : undefined,
       }}>
         {typeof content === 'function' ? content() : null}
       </div>

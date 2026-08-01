@@ -6,17 +6,17 @@ Provided by the `search` module (`cactus-foundation-modules/search`, table prefi
 
 ## What visitors get
 
-- **Search box** anywhere a block can go - regular pages, and the header layout editor (where it usually belongs). Three behaviours: submit to the results page (works without JavaScript), live results in a dropdown while typing, or a full-screen overlay. The dropdown can match the field width, widen into a panel, or span the whole viewport - the classic shop "mega search".
+- **Search box** anywhere a block can go - regular pages, and the header layout editor (where it usually belongs). Three behaviours: submit to the results page (works without JavaScript), live results in a dropdown while typing, or a full overlay while typing. The overlay keeps the box exactly where it sits on the page - the page dims and results drop from the box in place (the icon-button presentation keeps the centred overlay panel, having no field to anchor to). The dropdown can match the field width, widen into a panel, or span the whole viewport - the classic shop "mega search".
 - **Results page** at `/search`: ranked results with highlighted matching words, filter tabs per content type, relevance/newest sorting, numbered pages or a Load More button, and templates for the heading, count line and empty state.
-- **Products behave like products.** Product results carry live prices (sale strike-through included) straight from the shop at the moment of the search, never stale figures from the index. In the dropdown they can render as a card grid; on the results page they can use the site's own designed Product Card template, identical to the shop grids (see below).
+- **Products behave like products.** Product results carry live prices (sale strike-through included) straight from the shop at the moment of the search, never stale figures from the index. A product priced by a companion module (shop-variations) shows the same **From £…** figure as the shop grids - the cheapest of its variations, never the parent's unused £0.00. In the dropdown they can render as a card grid; on the results page they can use the site's own designed Product Card template, identical to the shop grids (see below).
 - Matching is proper full-text search: word stemming in your chosen language, quoted phrases, `-word` exclusion, and prefix matching on the last word so results appear mid-word while typing.
 - **Keyboard**: optional `/` or Ctrl/Cmd-K shortcut to focus the box, arrow keys and Enter in the dropdown, Escape to close. The box is a screen-reader-correct combobox.
 
 ## What owners get
 
-- **Admin → Search** (its own sidebar section): the index dashboard - how many items of each type are indexed and when, a Rebuild button (per type or the lot), and search analytics for the last 30 days: top search terms and, most usefully, searches that found nothing. On a fresh install the first build starts itself the moment this screen opens; an empty index also raises a bell notification that links straight here, so the notification is the one-click fix.
+- **Admin → Search** (its own sidebar section): the index dashboard - how many items of each type are indexed and when, a Rebuild button (per type or the lot), and search analytics for the last 30 days: top search terms and, most usefully, searches that found nothing. On a fresh install the first build starts itself the moment this screen opens.
 - **Settings → Search**: master switches per content type (a block can narrow these, never widen them), the stemming language (changing it asks for a rebuild), per-type ranking weights, search-term logging with a retention period, and its own "Rebuild index now" button. The log stores the words typed and the result count - never who typed them.
-- **A notification that does the job**: if the index is ever empty, admins get a bell notification whose button says "Build the index" and does exactly that - it opens the Search screen, which starts the build itself.
+- **A notification that does the job**: if the index is ever empty, admins get a bell notification whose button says "Build the index" and does exactly that - it opens Settings → Search, home of the Rebuild button.
 
 ## How content gets into the index
 

@@ -28,7 +28,7 @@ const getPageBySlug = cache((slug: string) =>
   })
 )
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params
   try {
     const page = await getPageBySlug(slug)
@@ -41,9 +41,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
 
     // No InfoPage at this slug - fall through to a module's public index, if any.
+    // searchParams must travel too (the search module titles the page from ?q=),
+    // and the call must be awaited INSIDE the try: returning the bare promise let
+    // a rejection escape the catch and kill the whole page render.
     const resolved = await resolveModulePublicPage(slug, [])
     if (resolved?.generateMetadata) {
-      return resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams) })
+      return await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
     }
     return {}
   } catch { return {} }
