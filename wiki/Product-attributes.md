@@ -192,6 +192,20 @@ Every attribute you've put on the product starts in **Not shown**. Drag one up o
 
 Attributes you set per variant can go on the page too, not just the ordinary ones. A per-variant attribute has no single value on the product as a whole, so it lists the ones its variants actually use - drop "Upholstery colour" onto the page and a shopper reads "Upholstery colour: Black, Grey, Blue". Only the values on variants that are switched on are counted, so a colour you've retired doesn't linger in the spec.
 
+### When the specification changes with the options
+
+Plenty of facts aren't fixed for a whole listing. A chair's seat height, its weight, whether it has a tilt lock - all of it moves with the options chosen. Give a value to each variant and the Specification tab handles both readers at once.
+
+Before anyone has picked their options, a line like that describes the whole range rather than pretending to a single answer:
+
+- **Measurements become a span** - "Seat height: 44cm - 56cm", "Weight: 8.4kg - 23.4kg".
+- **A handful of names is simply listed** - "Tilt: Synchro, Anti-shock".
+- **Too many to read becomes a count** - "Finish: 92 choices - select your options to see yours". A ninety-two item list isn't a specification, it's a wall.
+
+The moment a shopper settles on a full combination, the table stops describing the range and describes the chair they've actually configured: every one of those lines swaps to that variant's own figure, and a **Your choice** badge appears above the table so it's clear what they're reading. Lines that don't apply to their pick simply go - a bespoke-only fabric range disappears on a stock chair, arm dimensions disappear on the armless version - rather than sitting there blank.
+
+Nothing is needed to switch this on. Give a fact one value on the product and it stays put; give it a value per variant and it follows the shopper. A fact you've set identically on every variant is treated as fixed, so it doesn't get badged as a choice when it never was one. And because the range version is written into the page itself, search engines and anyone without JavaScript still read the full specification.
+
 ### Sorting them into sections
 
 A long flat list of facts is hard to skim, so you can group them under headings of your own - **Mechanisms**, **Guarantee**, **Materials**, whatever suits:
@@ -201,6 +215,8 @@ A long flat list of facts is hard to skim, so you can group them under headings 
 - The arrows beside a section's name move the whole section up or down; **Remove** takes the heading away and tips its attributes back into the loose pile above the first heading, rather than hiding them.
 
 Sections are per product, so the headings you build on a chair don't clutter up a desk that never needed them. Drag, name and order it once, hit Save, and that's exactly how it reads on the page. Nothing here changes your filters or your variants - it's only about what a shopper sees written on the product itself.
+
+On the page itself, each section is its own boxed group and they sit three across on a desktop screen, dropping to two on a tablet and one on a phone - the same widths your other responsive layouts collapse at, set under Styles > Spacing & Breakpoints.
 
 ## Putting the filter on your shop
 
