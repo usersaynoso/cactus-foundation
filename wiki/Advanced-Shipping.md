@@ -33,7 +33,7 @@ It needs the **Shop** and **Product Attributes** modules installed.
   services are priced by range and the range is set on the variations rather
   than the listing: without it, the listing offers nothing to show at all.
 - **A service the chosen variation cannot have is crossed out, not hidden.**
-  Under the live chips sits a second row - "Not on this choice:" - listing every
+  Under the live chips sits a second row listing every
   other service you sell on that product, struck through, with its price and a
   line saying which choice does carry it: *"Available in 120cm or 140cm"*,
   *"Available With Arms"*. It is the same courtesy the variation choices
