@@ -6,7 +6,7 @@ Provided by the `search` module (`cactus-foundation-modules/search`, table prefi
 
 ## What visitors get
 
-- **Search box** anywhere a block can go. Three behaviours: submit to the results page (works without JavaScript), live results in a dropdown while typing, or a full-screen overlay. The dropdown can match the field width, widen into a panel, or span the whole viewport - the classic shop "mega search".
+- **Search box** anywhere a block can go - regular pages, and the header layout editor (where it usually belongs). Three behaviours: submit to the results page (works without JavaScript), live results in a dropdown while typing, or a full-screen overlay. The dropdown can match the field width, widen into a panel, or span the whole viewport - the classic shop "mega search".
 - **Results page** at `/search`: ranked results with highlighted matching words, filter tabs per content type, relevance/newest sorting, numbered pages or a Load More button, and templates for the heading, count line and empty state.
 - **Products behave like products.** Product results carry live prices (sale strike-through included) straight from the shop at the moment of the search, never stale figures from the index. In the dropdown they can render as a card grid; on the results page they can use the site's own designed Product Card template, identical to the shop grids (see below).
 - Matching is proper full-text search: word stemming in your chosen language, quoted phrases, `-word` exclusion, and prefix matching on the last word so results appear mid-word while typing.
@@ -14,7 +14,7 @@ Provided by the `search` module (`cactus-foundation-modules/search`, table prefi
 
 ## What owners get
 
-- **Admin → Search**: the index dashboard - how many items of each type are indexed and when, a Rebuild button (per type or the lot), and search analytics for the last 30 days: top search terms and, most usefully, searches that found nothing.
+- **Admin → Search** (its own sidebar section): the index dashboard - how many items of each type are indexed and when, a Rebuild button (per type or the lot), and search analytics for the last 30 days: top search terms and, most usefully, searches that found nothing. On a fresh install the first build starts itself the moment this screen opens; an empty index also raises a bell notification that links straight here, so the notification is the one-click fix.
 - **Settings → Search**: master switches per content type (a block can narrow these, never widen them), the stemming language (changing it asks for a rebuild), per-type ranking weights, and search-term logging with a retention period. The log stores the words typed and the result count - never who typed them.
 
 ## How content gets into the index
