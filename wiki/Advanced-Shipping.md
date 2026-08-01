@@ -54,8 +54,12 @@ It needs the **Shop** and **Product Attributes** modules installed.
   themselves pay a shopper who wants something the current combination cannot
   give them, and it means a two-person delivery you only offer on the wider
   desks is something they can find rather than something that silently is not
-  there. Nothing in that row can be clicked - it states what is on offer
-  elsewhere in the range, it does not sell it - and where no single choice
+  there. Two options that move as a matched pair - a seat and back upholstered
+  in the same material, say - are treated as the one choice they really are, so
+  a chair whose express delivery sits on the all-black builds says *"Available
+  in Black Fabric or Black Leather"* rather than naming only the one a single
+  swap would reach. Nothing in that row can be clicked - it states what is on
+  offer elsewhere in the range, it does not sell it - and where no single choice
   explains it, it simply reads "Not available on this choice". Where the
   combination they have settled on carries no service at all, that row appears on
   its own with nothing above it, so the page still says where the delivery went
