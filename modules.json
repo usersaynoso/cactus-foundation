@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.161"
+      "version": "v0.1.162"
     },
     {
       "name": "shop-variations",
@@ -98,7 +98,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.6"
+      "version": "v0.1.7"
     }
   ]
 }
