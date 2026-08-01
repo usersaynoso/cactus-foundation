@@ -4,6 +4,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import NotificationActions from './NotificationActions'
 import DeployStatusLive from '@/components/admin/DeployStatusLive'
+import SequenceProgress from '@/components/admin/SequenceProgress'
+import { isSequenceInFlight, parseSequenceNotification } from '@/lib/media/sequence-notification'
 import type { Metadata } from 'next'
 import type { NotificationType } from '@prisma/client'
 
@@ -59,10 +61,12 @@ export default async function NotificationsPage() {
         title: true,
         type: true,
         link: true,
+        actionLabel: true,
         reasons: true,
         readAt: true,
         deployInitiatedAt: true,
         createdAt: true,
+        dedupeKey: true,
       },
     }),
     prisma.notification.count(),
@@ -91,8 +95,15 @@ export default async function NotificationsPage() {
             const isDeployPending = notification.type === 'deployment' && !notification.deployInitiatedAt
             const isRead = !!notification.readAt
             const viewHref = notification.link ? `/${adminPath}${notification.link}` : null
-            const viewLabel = VIEW_LABEL_BY_TYPE[notification.type] ?? null
-            const icon = ICON_BY_TYPE[notification.type] ?? '🔔'
+            // A scroll-sequence conversion gets a live bar in place of the reason
+            // list - "Building - 42%" from ten minutes ago is not progress.
+            const sequence = parseSequenceNotification(notification)
+            const sequenceRunning = !!sequence && isSequenceInFlight(sequence.state)
+            // The alert's own label wins; the per-type default is only a fallback
+            // for alerts that never set one - and never for a sequence job, which
+            // rides the generic 'message' type but is nobody's inbox.
+            const viewLabel = notification.actionLabel ?? (sequence ? 'Open media folder' : VIEW_LABEL_BY_TYPE[notification.type] ?? null)
+            const icon = sequence ? '🎞️' : ICON_BY_TYPE[notification.type] ?? '🔔'
 
             return (
               <div key={notification.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -114,7 +125,18 @@ export default async function NotificationsPage() {
                       )}
                     </div>
 
-                    {reasons.length > 0 && (
+                    {sequenceRunning && (
+                      <div style={{ marginTop: 'var(--space-2)', maxWidth: '32rem' }}>
+                        <SequenceProgress
+                          jobId={sequence.jobId}
+                          state={sequence.state}
+                          progress={sequence.progress}
+                          detail={sequence.detail}
+                        />
+                      </div>
+                    )}
+
+                    {!sequenceRunning && reasons.length > 0 && (
                       <ul style={{ margin: 'var(--space-2) 0 0 0', paddingLeft: 'var(--space-4)', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                         {reasons.map((r, i) => (
                           <li key={i}>

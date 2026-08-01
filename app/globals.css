@@ -819,6 +819,53 @@ a:hover {
   color: var(--color-text);
 }
 
+/* Live progress of a scroll-sequence conversion, shown on its own notification in
+   the bell and on the notifications page - hence its own classes rather than the
+   upload row's. */
+.admin-seq-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.admin-seq-progress-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+.admin-seq-progress-pct {
+  flex-shrink: 0;
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.admin-seq-progress-track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+.admin-seq-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  transition: width var(--dur-fast);
+}
+.admin-seq-progress-fill--error {
+  background: var(--color-error);
+}
+.admin-seq-progress-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  word-break: break-word;
+}
+.admin-seq-progress-note--error {
+  color: var(--color-error);
+}
+
 .admin-bell-dropdown-body {
   overflow-y: auto;
   max-height: 320px;

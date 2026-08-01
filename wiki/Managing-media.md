@@ -87,7 +87,7 @@ The clever bit is what you can do next. Open a video and choose **Convert to scr
 
 The work happens quietly in the background and takes the better part of fifteen to twenty minutes for a short clip, so there's no need to sit and watch - close the window and carry on, and the finished sequence turns up in your library on its own, as a single tidy tile rather than a hundred separate frames. Deleting that tile clears the whole thing away in one go.
 
-When you set a conversion going, a note appears in your admin notifications (the bell) so you can keep an eye on it while you get on with something else. It sticks around when it's finished - showing as complete, or telling you plainly if something went wrong - until you clear it yourself.
+When you set a conversion going, a note appears in your admin notifications (the bell) so you can keep an eye on it while you get on with something else. While it's building, that note carries a **live progress bar** with the actual percentage on it, ticking over as the frames are made - no button, because there's nothing to open yet. The moment it lands, the bar is replaced by an **Open media folder** button that takes you straight to the folder the finished sequence was filed into. If it goes wrong instead, the note says so in plain English. Either way it sticks around until you clear it yourself.
 
 ### The Scroll sequences tab
 

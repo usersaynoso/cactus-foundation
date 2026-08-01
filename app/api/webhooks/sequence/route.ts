@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
       name,
       state: 'done',
       progress: 1,
+      // Same folder the tile was just filed into, so the notification's button
+      // opens the admin exactly where the sequence now lives.
+      folderId: record.folderId ?? null,
     }).catch(() => {})
   }
   if (machineId) await destroyMachine(machineId)

@@ -35,6 +35,7 @@ describe('upsertAlert', () => {
         dedupeKey: 'demo',
         title: 'Demo',
         link: '/media',
+        actionLabel: null,
         reasons: [{ label: 'Queued', detail: '0%', at: '2026-07-25T00:00:00.000Z' }],
         readAt: null,
       },
@@ -46,7 +47,9 @@ describe('upsertAlert', () => {
       id: 'n1',
       title: 'Old',
       link: '/media',
+      actionLabel: null,
       reasons: null,
+      readAt: null,
     })
 
     await upsertAlert({
@@ -62,16 +65,61 @@ describe('upsertAlert', () => {
       data: {
         title: 'New',
         link: '/media',
+        actionLabel: null,
         reasons: [{ label: 'Building', detail: '25%', at: '2026-07-25T00:00:00.000Z' }],
         readAt: null,
         updatedAt: expect.any(Date),
       },
     })
   })
+
+  it('leaves an omitted link and label exactly as they were', async () => {
+    notification.findFirst.mockResolvedValue({
+      id: 'n1',
+      title: 'Old',
+      link: '/media?folder=f1',
+      actionLabel: 'Open media folder',
+      reasons: null,
+      readAt: null,
+    })
+
+    await upsertAlert({ type: 'message', dedupeKey: 'demo', title: 'New' })
+
+    expect(notification.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: expect.objectContaining({ link: '/media?folder=f1', actionLabel: 'Open media folder' }),
+    })
+  })
+
+  it('keeps a read alert read when only its progress moves', async () => {
+    const readAt = new Date('2026-07-25T00:00:00.000Z')
+    notification.findFirst.mockResolvedValue({
+      id: 'n1',
+      title: 'Same',
+      link: null,
+      actionLabel: null,
+      reasons: [{ label: 'Building', detail: '25%', at: '2026-07-25T00:00:00.000Z' }],
+      readAt,
+    })
+
+    await upsertAlert({
+      type: 'message',
+      dedupeKey: 'demo',
+      title: 'Same',
+      link: null,
+      reasons: [{ label: 'Building', detail: '40%', at: '2026-07-25T00:01:00.000Z' }],
+      resurfaceOnTitleChangeOnly: true,
+    })
+
+    expect(notification.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: expect.objectContaining({ readAt }),
+    })
+  })
 })
 
 describe('upsertSequenceNotification', () => {
-  it('surfaces queued sequence progress in notifications', async () => {
+  it('surfaces queued sequence progress with no button to press', async () => {
     notification.findFirst.mockResolvedValue(null)
 
     await upsertSequenceNotification({
@@ -86,10 +134,77 @@ describe('upsertSequenceNotification', () => {
         type: 'message',
         dedupeKey: 'sequence-job:job-123',
         title: 'Scroll sequence in progress: Office Chair',
-        link: '/media',
+        link: null,
+        actionLabel: null,
         reasons: [{ label: 'Queued', detail: '0%', at: expect.any(String) }],
         readAt: null,
       },
+    })
+  })
+
+  it('reads the worker progress as a fraction, not a percentage', async () => {
+    notification.findFirst.mockResolvedValue(null)
+
+    await upsertSequenceNotification({
+      jobId: 'job-123',
+      name: 'Office Chair',
+      state: 'running',
+      progress: 0.42,
+    })
+
+    expect(notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        reasons: [{ label: 'Building', detail: '42%', at: expect.any(String) }],
+      }),
+    })
+  })
+
+  it('finishes at 100%, with a button to the folder the frames landed in', async () => {
+    notification.findFirst.mockResolvedValue(null)
+
+    await upsertSequenceNotification({
+      jobId: 'job-123',
+      name: 'Office Chair',
+      state: 'done',
+      progress: 1,
+      folderId: 'fld_1',
+    })
+
+    expect(notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        title: 'Scroll sequence complete: Office Chair',
+        link: '/media?folder=fld_1',
+        actionLabel: 'Open media folder',
+        reasons: [{ label: 'Finished', detail: '100%', at: expect.any(String) }],
+      }),
+    })
+  })
+
+  it('points a root-level sequence at the library root', async () => {
+    notification.findFirst.mockResolvedValue(null)
+
+    await upsertSequenceNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1, folderId: null })
+
+    expect(notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ link: '/media', actionLabel: 'Open media folder' }),
+    })
+  })
+
+  it('leaves the finished link alone when the caller does not know the folder', async () => {
+    notification.findFirst.mockResolvedValue({
+      id: 'n1',
+      title: 'Scroll sequence in progress: Chair',
+      link: '/media?folder=fld_1',
+      actionLabel: 'Open media folder',
+      reasons: null,
+      readAt: null,
+    })
+
+    await upsertSequenceNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1 })
+
+    expect(notification.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: expect.objectContaining({ link: '/media?folder=fld_1', actionLabel: 'Open media folder' }),
     })
   })
 })

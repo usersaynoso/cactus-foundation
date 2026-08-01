@@ -28,6 +28,10 @@ export async function GET() {
         readAt: true,
         deployInitiatedAt: true,
         createdAt: true,
+        // A scroll-sequence job carries its state in the dedupeKey and its live
+        // progress in reasons[0], which is what the bell draws its bar from.
+        dedupeKey: true,
+        reasons: true,
       },
     }),
     getUnreadCount(),

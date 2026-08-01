@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DeployStatusLive from './DeployStatusLive'
+import SequenceProgress from './SequenceProgress'
+import { parseSequenceNotification } from '@/lib/media/sequence-notification'
 import {
   REDEPLOY_STARTED_EVENT,
   announceRedeployStarted,
@@ -39,6 +41,8 @@ type Notification = {
   link: string | null
   actionLabel: string | null
   deployInitiatedAt: string | null
+  dedupeKey: string | null
+  reasons: unknown
 }
 
 // How often the bell asks the server for new notifications while the tab is in
@@ -78,6 +82,7 @@ function NotificationItem({
   onRedeploy,
   onToggleRead,
   onDelete,
+  onSequenceSettled,
 }: {
   n: Notification
   adminPath: string
@@ -87,25 +92,40 @@ function NotificationItem({
   onRedeploy: (id: string) => void
   onToggleRead: (id: string, isRead: boolean) => void
   onDelete: (id: string) => void
+  onSequenceSettled: () => void
 }) {
   const isRead = !!n.readAt
   const isDeployPending = n.type === 'deployment' && !n.deployInitiatedAt
-  const viewLabel = n.actionLabel ?? VIEW_LABEL_BY_TYPE[n.type]
   const viewHref = n.link ? `/${adminPath}${n.link}` : null
   const busy = actionLoading === n.id
   const err = actionError[n.id]
+  // A conversion shows its progress (or why it failed) instead of a button - there
+  // is nothing to open until the frames exist. Sequence jobs ride the generic
+  // 'message' type, so they never take its "View Messages" label.
+  const sequence = parseSequenceNotification(n)
+  const sequenceStatus = !!sequence && sequence.state !== 'done'
+  const viewLabel = n.actionLabel ?? (sequence ? 'Open media folder' : VIEW_LABEL_BY_TYPE[n.type])
 
   return (
     <div className={['admin-bell-dropdown-item', isRead ? '' : 'admin-bell-dropdown-item--unread'].filter(Boolean).join(' ')}>
       <div className="admin-bell-dropdown-item-top">
         <span className="admin-bell-dropdown-icon" aria-hidden="true">
-          {ICON_BY_TYPE[n.type] ?? '🔔'}
+          {sequence ? '🎞️' : ICON_BY_TYPE[n.type] ?? '🔔'}
         </span>
         <div className="admin-bell-dropdown-info">
           <span className="admin-bell-dropdown-item-title">{n.title}</span>
           <span className="admin-bell-dropdown-time">{relativeTime(n.createdAt)}</span>
         </div>
       </div>
+      {sequenceStatus && (
+        <SequenceProgress
+          jobId={sequence.jobId}
+          state={sequence.state}
+          progress={sequence.progress}
+          detail={sequence.detail}
+          onSettled={onSequenceSettled}
+        />
+      )}
       {err && (
         <p className="admin-bell-dropdown-action-error">{err}</p>
       )}
@@ -473,6 +493,7 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
               onRedeploy={handleRedeploy}
               onToggleRead={handleToggleRead}
               onDelete={handleDelete}
+              onSequenceSettled={fetchNotifications}
             />
           ))
         ) : (
