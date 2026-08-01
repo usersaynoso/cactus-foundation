@@ -202,7 +202,7 @@ Before anyone has picked their options, a line like that describes the whole ran
 - **A handful of names is simply listed** - "Tilt: Synchro, Anti-shock".
 - **Too many to read becomes a count** - "Finish: 92 choices - select your options to see yours". A ninety-two item list isn't a specification, it's a wall.
 
-The moment a shopper settles on a full combination, the table stops describing the range and describes the chair they've actually configured: every one of those lines swaps to that variant's own figure, and a **Your choice** badge appears above the table so it's clear what they're reading. Lines that don't apply to their pick simply go - a bespoke-only fabric range disappears on a stock chair, arm dimensions disappear on the armless version - rather than sitting there blank.
+The moment a shopper settles on a full combination, the table stops describing the range and describes the chair they've actually configured: every one of those lines swaps to that variant's own figure, and the same **Your choice** pill that sits over the picture appears above the table so it's clear what they're reading. Lines that don't apply to their pick simply go - a bespoke-only fabric range disappears on a stock chair, arm dimensions disappear on the armless version - rather than sitting there blank.
 
 Nothing is needed to switch this on. Give a fact one value on the product and it stays put; give it a value per variant and it follows the shopper. A fact you've set identically on every variant is treated as fixed, so it doesn't get badged as a choice when it never was one. And because the range version is written into the page itself, search engines and anyone without JavaScript still read the full specification.
 
@@ -216,7 +216,9 @@ A long flat list of facts is hard to skim, so you can group them under headings 
 
 Sections are per product, so the headings you build on a chair don't clutter up a desk that never needed them. Drag, name and order it once, hit Save, and that's exactly how it reads on the page. Nothing here changes your filters or your variants - it's only about what a shopper sees written on the product itself.
 
-On the page itself, each section is its own boxed group and they sit three across on a desktop screen, dropping to two on a tablet and one on a phone - the same widths your other responsive layouts collapse at, set under Styles > Spacing & Breakpoints.
+On the page itself, each section is its own boxed group and they sit three across on a desktop screen, dropping to two on a tablet and one on a phone - the same widths your other responsive layouts collapse at, set under Styles > Spacing & Breakpoints. The groups stack tightly down each column, so a short group never leaves a well of empty space beneath it just because its neighbour ran long.
+
+If your sections come in very different sizes - one giant Dimensions group and a handful of two-liners, say - the **Product: Sections** block in the page builder has an **Auto-sort specification groups** option. Switched on, the biggest groups lead and the small ones fill in behind them, keeping the columns close to level; switched off (the default), the groups follow the order you built on the Attributes tab.
 
 ## Putting the filter on your shop
 

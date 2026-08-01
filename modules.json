@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.164"
+      "version": "v0.1.165"
     },
     {
       "name": "address-lookup-for-shop",
@@ -33,7 +33,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.41"
+      "version": "v0.1.42"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
