@@ -21,12 +21,17 @@ beforeAll(() => {
 describe('sequence context token (folder + name carried across the callback)', () => {
   it('round-trips a folder id and name', () => {
     const token = signSequenceContext({ folderId: 'fld_123', name: 'Height Adjustable' })
-    expect(verifySequenceContext(token)).toEqual({ folderId: 'fld_123', name: 'Height Adjustable' })
+    expect(verifySequenceContext(token)).toEqual({ folderId: 'fld_123', name: 'Height Adjustable', machineId: null })
   })
 
   it('round-trips a null folder (library root)', () => {
     const token = signSequenceContext({ folderId: null, name: 'x' })
-    expect(verifySequenceContext(token)).toEqual({ folderId: null, name: 'x' })
+    expect(verifySequenceContext(token)).toEqual({ folderId: null, name: 'x', machineId: null })
+  })
+
+  it('round-trips a per-job machine id', () => {
+    const token = signSequenceContext({ folderId: null, name: 'x', machineId: 'd896d92f759028' })
+    expect(verifySequenceContext(token)).toEqual({ folderId: null, name: 'x', machineId: 'd896d92f759028' })
   })
 
   it('rejects a tampered payload', () => {

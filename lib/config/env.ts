@@ -359,3 +359,13 @@ export function getSequenceWorkerSecret(): string | null {
 export function isSequenceWorkerConfigured(): boolean {
   return !!getSequenceWorkerUrl() && !!getSequenceWorkerSecret()
 }
+
+// Optional Fly.io API token for the sequence worker. When present (or when a
+// token is saved under Media > Scroll sequences, which wins), each conversion
+// runs on its own short-lived Fly machine instead of queueing on the single
+// worker - see lib/media/fly-machines.ts. Unset simply means the shared-worker
+// behaviour, exactly as before.
+export function getSequenceFlyTokenEnv(): string | null {
+  const token = process.env.SEQUENCE_FLY_TOKEN?.trim()
+  return token || null
+}

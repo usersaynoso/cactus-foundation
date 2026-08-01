@@ -22,6 +22,9 @@ export type SequenceContext = {
   folderId: string | null
   // The display name the admin gave the sequence.
   name: string
+  // The per-job Fly machine running this conversion (null in shared-worker
+  // mode). The webhook destroys it once the job's callback lands.
+  machineId?: string | null
 }
 
 function contextKey(): string {
@@ -52,6 +55,7 @@ export function verifySequenceContext(token: string): SequenceContext | null {
     return {
       folderId: typeof rec.folderId === 'string' ? rec.folderId : null,
       name: typeof rec.name === 'string' ? rec.name : '',
+      machineId: typeof rec.machineId === 'string' ? rec.machineId : null,
     }
   } catch {
     return null
@@ -96,6 +100,32 @@ function workerAuth(): string {
   return `Bearer ${secret}`
 }
 
+// ---------------------------------------------------------------------------
+// Job refs
+// ---------------------------------------------------------------------------
+//
+// In per-machine mode the id handed to the browser (and stored on the job's
+// notification) is `<machineId>:<workerJobId>`, so a later status poll knows
+// which machine to ask - the worker keeps jobs in memory only, and with several
+// machines running, an unrouted poll would land on the wrong one. Shared-worker
+// mode uses the bare worker job id, exactly as before.
+
+export function joinJobRef(machineId: string | null, jobId: string): string {
+  return machineId ? `${machineId}:${jobId}` : jobId
+}
+
+export function splitJobRef(ref: string): { machineId: string | null; jobId: string } {
+  const i = ref.indexOf(':')
+  if (i === -1) return { machineId: null, jobId: ref }
+  return { machineId: ref.slice(0, i), jobId: ref.slice(i + 1) }
+}
+
+// Route a request to one specific machine behind the app hostname. Fly's proxy
+// honours this header for machines that carry the app's service config.
+function instanceHeaders(machineId: string | null | undefined): Record<string, string> {
+  return machineId ? { 'fly-force-instance-id': machineId } : {}
+}
+
 export type EnqueueArgs = {
   videoUrl: string
   destPrefix: string
@@ -107,23 +137,51 @@ export type EnqueueArgs = {
   callbackToken: string
 }
 
-export async function enqueueSequenceJob(args: EnqueueArgs): Promise<{ jobId: string }> {
-  const res = await fetch(`${workerBase()}/jobs`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: workerAuth() },
-    body: JSON.stringify(args),
-    // The worker enqueues and returns immediately, so a short ceiling is plenty
-    // and keeps a wedged network from hanging the admin's request.
-    signal: AbortSignal.timeout(20_000),
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new SequenceWorkerError(`The conversion service rejected the job (HTTP ${res.status}). ${detail.slice(0, 200)}`.trim())
+export async function enqueueSequenceJob(
+  args: EnqueueArgs,
+  opts?: { machineId?: string | null },
+): Promise<{ jobId: string }> {
+  // A freshly created job machine reports 'started' a moment before uvicorn has
+  // bound, so the first request can meet a refused connection or a proxy 502/503.
+  // Those retry briefly; any other worker answer is final. In shared-worker mode
+  // a single attempt behaves exactly as before.
+  const attempts = opts?.machineId ? 6 : 1
+  let lastError: Error = new SequenceWorkerError('The conversion service could not be reached.')
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500))
+    let res: Response
+    try {
+      res = await fetch(`${workerBase()}/jobs`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: workerAuth(),
+          ...instanceHeaders(opts?.machineId),
+        },
+        body: JSON.stringify(args),
+        // The worker enqueues and returns immediately, so a short ceiling is
+        // plenty and keeps a wedged network from hanging the admin's request.
+        signal: AbortSignal.timeout(20_000),
+      })
+    } catch (err) {
+      // Network-level failure (refused, reset, timeout) - retryable.
+      lastError = err instanceof Error ? err : new SequenceWorkerError('The conversion service could not be reached.')
+      continue
+    }
+    if (res.status === 502 || res.status === 503) {
+      lastError = new SequenceWorkerError(`The conversion service is still starting (HTTP ${res.status}).`)
+      continue
+    }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      throw new SequenceWorkerError(`The conversion service rejected the job (HTTP ${res.status}). ${detail.slice(0, 200)}`.trim())
+    }
+    const data = (await res.json().catch(() => null)) as { jobId?: unknown } | null
+    const jobId = data && typeof data.jobId === 'string' ? data.jobId : ''
+    if (!jobId) throw new SequenceWorkerError('The conversion service did not return a job id.')
+    return { jobId }
   }
-  const data = (await res.json().catch(() => null)) as { jobId?: unknown } | null
-  const jobId = data && typeof data.jobId === 'string' ? data.jobId : ''
-  if (!jobId) throw new SequenceWorkerError('The conversion service did not return a job id.')
-  return { jobId }
+  throw lastError
 }
 
 export type SequenceJobStatus = {
@@ -148,9 +206,9 @@ export type SequenceManifest = {
   frames: string[]
 }
 
-export async function getSequenceJob(jobId: string): Promise<SequenceJobStatus> {
+export async function getSequenceJob(jobId: string, machineId?: string | null): Promise<SequenceJobStatus> {
   const res = await fetch(`${workerBase()}/jobs/${encodeURIComponent(jobId)}`, {
-    headers: { authorization: workerAuth() },
+    headers: { authorization: workerAuth(), ...instanceHeaders(machineId) },
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new SequenceWorkerError(`The conversion service status check failed (HTTP ${res.status}).`, res.status)

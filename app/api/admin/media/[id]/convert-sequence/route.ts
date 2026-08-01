@@ -6,11 +6,16 @@ import { errorResponse } from '@/lib/utils'
 import { isVideoDirectType } from '@/lib/media/limits'
 import { getSiteUrl, isSequenceWorkerConfigured } from '@/lib/config/env'
 import { requireWorkerUrl } from '@/lib/media/upload'
-import { buildDestPrefix, signSequenceContext, enqueueSequenceJob, SequenceWorkerError } from '@/lib/media/sequence'
+import { buildDestPrefix, signSequenceContext, enqueueSequenceJob, joinJobRef, SequenceWorkerError } from '@/lib/media/sequence'
 import { upsertSequenceNotification } from '@/lib/notifications/alerts'
-import { getSequenceConfig, isSequencePresetKey } from '@/lib/media/sequence-presets'
+import { getSequenceConfig, resolveFlyFromConfig } from '@/lib/media/sequence-presets'
+import { createJobMachine, destroyJobMachine, FlyMachinesError } from '@/lib/media/fly-machines'
 
 type Ctx = { params: Promise<{ id: string }> }
+
+// Creating a per-job Fly machine and waiting for it to boot can take a good
+// twenty seconds - past the default function ceiling.
+export const maxDuration = 60
 
 // Kick off a video -> transparent scroll-sequence conversion on the sequence
 // worker. Returns a jobId the client polls via ../sequence-status; the finished
@@ -38,13 +43,11 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   if (!name) return errorResponse('A sequence name is required.', 400)
 
   // The engine, frame rate and max width are not the browser's to choose: they
-  // come from the admin-tuned preset (Media > Scroll sequences). The client only
-  // names which preset it wants; everything numeric is read server-side, so a
-  // conversion always runs exactly what the settings say.
-  const rawPreset: unknown = body?.preset
-  const presetKey = isSequencePresetKey(rawPreset) ? rawPreset : 'fast'
-  const presets = await getSequenceConfig()
-  const preset = presets[presetKey]
+  // come from the admin-tuned settings (Media > Scroll sequences). Everything
+  // numeric is read server-side, so a conversion always runs exactly what the
+  // settings say.
+  const config = await getSequenceConfig()
+  const settings = config.settings
 
   const destPrefix = buildDestPrefix(path, name)
   if (!destPrefix) return errorResponse('Enter a valid destination path and sequence name.', 400)
@@ -53,22 +56,45 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   // token-protected type, so the plain worker url is fetchable as-is.
   const videoUrl = `${requireWorkerUrl()}/${media.key}`
   const callbackUrl = `${getSiteUrl()}/api/webhooks/sequence`
-  const callbackToken = signSequenceContext({ folderId, name })
+
+  // With a Fly token configured, this job gets its own machine so several
+  // conversions run at once; the machine is destroyed when the job finishes
+  // (webhook, with the worker's own idle self-destruct as the safety net). At
+  // the parallel cap - or with no token at all - the job posts to the shared
+  // worker URL and queues, exactly the old behaviour.
+  const { fly } = resolveFlyFromConfig(config)
+  let machineId: string | null = null
+  if (fly) {
+    try {
+      machineId = await createJobMachine(fly)
+    } catch (err) {
+      if (err instanceof FlyMachinesError) return errorResponse(err.message, 502)
+      throw err
+    }
+  }
+
+  const callbackToken = signSequenceContext({ folderId, name, machineId })
 
   try {
-    const { jobId } = await enqueueSequenceJob({
-      videoUrl,
-      destPrefix,
-      sequenceName: name,
-      fps: preset.fps,
-      maxWidth: preset.maxWidth,
-      engine: preset.engine,
-      callbackUrl,
-      callbackToken,
-    })
-    await upsertSequenceNotification({ jobId, name, state: 'queued', progress: 0 })
-    return NextResponse.json({ jobId, destPrefix })
+    const { jobId } = await enqueueSequenceJob(
+      {
+        videoUrl,
+        destPrefix,
+        sequenceName: name,
+        fps: settings.fps,
+        maxWidth: settings.maxWidth,
+        engine: settings.engine,
+        callbackUrl,
+        callbackToken,
+      },
+      { machineId },
+    )
+    const jobRef = joinJobRef(machineId, jobId)
+    await upsertSequenceNotification({ jobId: jobRef, name, state: 'queued', progress: 0 })
+    return NextResponse.json({ jobId: jobRef, destPrefix })
   } catch (err) {
+    // Never strand a machine the job could not reach.
+    if (fly && machineId) await destroyJobMachine(fly, machineId).catch(() => {})
     if (err instanceof SequenceWorkerError) return errorResponse(err.message, 502)
     throw err
   }

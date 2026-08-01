@@ -15,24 +15,15 @@ import { filenameOf, folderPathOf } from './format'
 
 const POLL_MS = 4000
 
-type PresetKey = 'fast' | 'quality'
 type JobStatus = 'queued' | 'running' | 'done' | 'error'
 
-// Labels mirror lib/media/sequence-presets.ts. Kept inline rather than imported
-// because that module pulls in Prisma and this is a client component.
-const PRESET_LABELS: Record<PresetKey, string> = {
-  fast: 'Fast',
-  quality: 'High quality, slower',
-}
+// The conversion knobs, shown as a one-line summary so the admin knows what
+// will run. Values are read from the settings, never chosen here - the server
+// ignores anything the browser might send for engine/fps/width.
+type SettingsSummary = { fps: number; maxWidth: number }
 
-// The numeric knobs behind each preset, shown as a one-line summary so the admin
-// knows what they're choosing. Values are read from the settings, not chosen here
-// - the server ignores anything the browser might send for engine/fps/width.
-type PresetSummary = { engine: 'isnet'; fps: number; maxWidth: number }
-type PresetSummaries = Record<PresetKey, PresetSummary>
-
-function describePreset(p: PresetSummary): string {
-  return `${p.fps} fps · up to ${p.maxWidth}px wide`
+function describeSettings(s: SettingsSummary): string {
+  return `${s.fps} fps · up to ${s.maxWidth}px wide`
 }
 
 export default function MediaSequenceDialog({
@@ -58,8 +49,7 @@ export default function MediaSequenceDialog({
   // frames land beside their source. Falls back to 'shop/' for a root-level video.
   const [path, setPath] = useState(() => folderPathOf(item) || 'shop/')
   const [name, setName] = useState(defaultName)
-  const [preset, setPreset] = useState<PresetKey>('fast')
-  const [presets, setPresets] = useState<PresetSummaries | null>(null)
+  const [summary, setSummary] = useState<SettingsSummary | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   // Once a job exists the dialog flips from the form to the progress view.
@@ -83,14 +73,14 @@ export default function MediaSequenceDialog({
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [onClose, submitting])
 
-  // Pull the admin-tuned preset knobs so the dialog can show what each choice
-  // does. Purely for display - failing quietly just drops the summary line, the
-  // conversion still runs the stored preset.
+  // Pull the admin-tuned settings so the dialog can say what will run. Purely
+  // for display - failing quietly just drops the summary line, the conversion
+  // still runs the stored settings.
   useEffect(() => {
     let cancelled = false
     fetch('/api/admin/media/sequence-presets')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d?.presets) setPresets(d.presets as PresetSummaries) })
+      .then((d) => { if (!cancelled && d?.settings) setSummary(d.settings as SettingsSummary) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
@@ -144,7 +134,7 @@ export default function MediaSequenceDialog({
       const res = await fetch(`/api/admin/media/${item.id}/convert-sequence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: cleanPath, name: cleanName, folderId, preset }),
+        body: JSON.stringify({ path: cleanPath, name: cleanName, folderId }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not start the conversion.')
@@ -224,17 +214,12 @@ export default function MediaSequenceDialog({
               />
             </div>
 
-            {/* Quality preset */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label htmlFor="seq-preset" style={sectionLabel}>Quality preset</label>
-              <select id="seq-preset" value={preset} onChange={(e) => setPreset(e.target.value as PresetKey)} style={textInput}>
-                <option value="fast">{PRESET_LABELS.fast}</option>
-                <option value="quality">{PRESET_LABELS.quality}</option>
-              </select>
-              <span style={helpText}>
-                {presets ? describePreset(presets[preset]) : 'Set the frame rate and quality of each preset under Media › Scroll sequences.'}
-              </span>
-            </div>
+            {/* Conversion settings summary - tuned under Media > Scroll sequences */}
+            <p style={helpText}>
+              {summary
+                ? `Runs at ${describeSettings(summary)} - change this under Media › Scroll sequences.`
+                : 'Runs at the quality set under Media › Scroll sequences.'}
+            </p>
 
             {error && <div style={errorBox} role="alert">{error}</div>}
 

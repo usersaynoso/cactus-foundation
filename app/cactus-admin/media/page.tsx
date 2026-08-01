@@ -7,7 +7,7 @@ import { computeLibraryStats } from '@/lib/media/library-stats'
 import MediaLibrary from './MediaLibrary'
 import MediaStorageCheck from './MediaStorageCheck'
 import MediaTabs from './MediaTabs'
-import { getSequenceConfig } from '@/lib/media/sequence-presets'
+import { getSequenceConfig, resolveFlyFromConfig } from '@/lib/media/sequence-presets'
 import { listSequenceJobs } from '@/lib/media/sequence-jobs'
 import type { Metadata } from 'next'
 
@@ -63,7 +63,7 @@ export default async function MediaPage({ searchParams }: Props) {
   // Folder and tag lists are sidebar furniture, so they're capped rather than
   // unbounded. A library with more than FOLDER_LIMIT folders or TAG_LIMIT tags is
   // well past the point where a flat sidebar list is the right UI anyway.
-  const [initial, folders, folderCounts, tags, sequencePresets, sequenceJobs] = await Promise.all([
+  const [initial, folders, folderCounts, tags, sequenceConfig, sequenceJobs] = await Promise.all([
     queryMediaLibrary(query),
     prisma.folder.findMany({ orderBy: { name: 'asc' }, take: FOLDER_LIMIT, select: { id: true, name: true, parentId: true } }),
     prisma.media.groupBy({ by: ['folderId'], _count: { _all: true } }),
@@ -79,9 +79,12 @@ export default async function MediaPage({ searchParams }: Props) {
     else rootCount = c._count._all
   }
 
+  const { fly: resolvedFly, source: flySource } = resolveFlyFromConfig(sequenceConfig)
+
   return (
     <MediaTabs
-      presets={sequencePresets}
+      settings={{ fps: sequenceConfig.settings.fps, maxWidth: sequenceConfig.settings.maxWidth }}
+      fly={{ source: flySource, configured: !!resolvedFly, appName: resolvedFly?.appName ?? null }}
       jobs={sequenceJobs}
       canManagePresets={canCheckStorage}
       library={

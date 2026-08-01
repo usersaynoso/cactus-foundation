@@ -9,10 +9,8 @@ import SequenceSettingsPanel from './SequenceSettingsPanel'
 // stateful client tree, so both tabs stay mounted and the inactive one is just
 // hidden - switching tabs never tears the library's selection or scroll down.
 
-type PresetKey = 'fast' | 'quality'
-type Engine = 'isnet' // birefnet removed - OOM-kills the worker box (see lib/media/sequence-presets.ts)
-type Preset = { engine: Engine; fps: number; maxWidth: number }
-type Presets = Record<PresetKey, Preset>
+type Settings = { fps: number; maxWidth: number }
+type FlyMeta = { source: 'saved' | 'env' | null; configured: boolean; appName: string | null }
 
 type JobState = 'queued' | 'running' | 'done' | 'error'
 type Job = {
@@ -30,13 +28,15 @@ type Tab = 'library' | 'sequences'
 
 export default function MediaTabs({
   library,
-  presets,
+  settings,
+  fly,
   jobs,
   canManagePresets,
 }: {
   /** The existing library view (server-rendered), shown on the first tab. */
   library: ReactNode
-  presets: Presets
+  settings: Settings
+  fly: FlyMeta
   jobs: Job[]
   canManagePresets: boolean
 }) {
@@ -52,7 +52,7 @@ export default function MediaTabs({
       />
       <div hidden={tab !== 'library'}>{library}</div>
       {tab === 'sequences' && (
-        <SequenceSettingsPanel initialPresets={presets} initialJobs={jobs} canManage={canManagePresets} />
+        <SequenceSettingsPanel initialSettings={settings} initialFly={fly} initialJobs={jobs} canManage={canManagePresets} />
       )}
     </>
   )

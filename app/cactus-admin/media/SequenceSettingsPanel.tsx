@@ -2,19 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
-// Media > Scroll sequences. Two things live here: the conversion presets ("Fast"
-// and "High quality, slower") an admin tunes once, and a live list of every
-// scroll-sequence job with its status. The presets feed the convert dialog and
-// the enqueue route; the job list is just the job notifications read back, so
-// deleting one deletes its notification (and clears the bell).
+// Media > Scroll sequences. Three things live here: the conversion settings
+// (one set of knobs - every conversion runs high quality), the Fly.io machine
+// key (each conversion gets its own short-lived machine, destroyed when the job
+// finishes), and a live list of every scroll-sequence job with its status. The
+// job list is just the job notifications read back, so deleting one deletes its
+// notification (and clears the bell).
 
-type PresetKey = 'fast' | 'quality'
-// Only isnet is offered now - birefnet needs 3 GB+ and OOM-kills the worker box
-// (see lib/media/sequence-presets.ts). The engine is no longer a per-preset choice
-// in the UI; it is fixed to isnet and the two presets differ by fps and width.
-type Engine = 'isnet'
-type Preset = { engine: Engine; fps: number; maxWidth: number }
-type Presets = Record<PresetKey, Preset>
+type Settings = { fps: number; maxWidth: number }
+type FlyMeta = {
+  /** Where the active token comes from: saved here, the environment, or nowhere. */
+  source: 'saved' | 'env' | null
+  configured: boolean
+  appName: string | null
+}
 
 type JobState = 'queued' | 'running' | 'done' | 'error'
 type Job = {
@@ -26,16 +27,6 @@ type Job = {
   detail: string | null
   updatedAt: string
   createdAt: string
-}
-
-const PRESET_LABELS: Record<PresetKey, string> = {
-  fast: 'Fast',
-  quality: 'High quality, slower',
-}
-
-const PRESET_BLURB: Record<PresetKey, string> = {
-  fast: 'The everyday choice - quicker to build, easily good enough for most product spins.',
-  quality: 'More frames and a wider image, for a smoother, sharper spin - at the cost of a longer wait.',
 }
 
 const JOBS_POLL_MS = 8000
@@ -63,17 +54,30 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(value)))
 }
 
+function describeFlySource(meta: FlyMeta): string {
+  if (meta.source === 'saved') return 'Using the key saved here.'
+  if (meta.source === 'env') return 'Using the key set in the environment - save one here to override it.'
+  return 'No key yet. Without one, conversions queue on the single worker machine one at a time.'
+}
+
 export default function SequenceSettingsPanel({
-  initialPresets,
+  initialSettings,
+  initialFly,
   initialJobs,
   canManage,
 }: {
-  initialPresets: Presets
+  initialSettings: Settings
+  initialFly: FlyMeta
   initialJobs: Job[]
-  /** config.manage - whether the presets can be edited here (vs read-only). */
+  /** config.manage - whether the settings can be edited here (vs read-only). */
   canManage: boolean
 }) {
-  const [presets, setPresets] = useState<Presets>(initialPresets)
+  const [settings, setSettings] = useState<Settings>(initialSettings)
+  const [fly, setFly] = useState<FlyMeta>(initialFly)
+  // The token input is write-only: it never shows a stored value, only takes a
+  // new one ('' = no change on save; the Clear button removes a saved key).
+  const [flyToken, setFlyToken] = useState('')
+  const [clearToken, setClearToken] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -135,9 +139,9 @@ export default function SequenceSettingsPanel({
     }
   }
 
-  function setPresetField(key: PresetKey, field: keyof Preset, value: Engine | number) {
+  function setSettingsField(field: keyof Settings, value: number) {
     setSaved(false)
-    setPresets((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }))
+    setSettings((prev) => ({ ...prev, [field]: value }))
   }
 
   async function save() {
@@ -146,18 +150,18 @@ export default function SequenceSettingsPanel({
     setError(null)
     setSaved(false)
     // Clamp before sending so a stray number never trips the server validation.
-    const payload: Presets = {
-      fast: {
-        engine: presets.fast.engine,
-        fps: clampInt(presets.fast.fps, 1, 60),
-        maxWidth: clampInt(presets.fast.maxWidth, 320, 3840),
-      },
-      quality: {
-        engine: presets.quality.engine,
-        fps: clampInt(presets.quality.fps, 1, 60),
-        maxWidth: clampInt(presets.quality.maxWidth, 320, 3840),
+    const payload: {
+      settings: Settings
+      fly?: { token?: string }
+    } = {
+      settings: {
+        fps: clampInt(settings.fps, 1, 60),
+        maxWidth: clampInt(settings.maxWidth, 320, 3840),
       },
     }
+    const newToken = flyToken.trim()
+    if (clearToken) payload.fly = { token: '' }
+    else if (newToken) payload.fly = { token: newToken }
     try {
       const res = await fetch('/api/admin/media/sequence-presets', {
         method: 'PUT',
@@ -165,11 +169,14 @@ export default function SequenceSettingsPanel({
         body: JSON.stringify(payload),
       })
       const d = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not save the presets.')
-      if (d.presets) setPresets(d.presets as Presets)
+      if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not save the settings.')
+      if (d.settings) setSettings(d.settings as Settings)
+      if (d.fly) setFly(d.fly as FlyMeta)
+      setFlyToken('')
+      setClearToken(false)
       setSaved(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the presets.')
+      setError(err instanceof Error ? err.message : 'Could not save the settings.')
     } finally {
       setSaving(false)
     }
@@ -194,63 +201,91 @@ export default function SequenceSettingsPanel({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      {/* ── Presets ─────────────────────────────────────────────────────── */}
+      {/* ── Conversion settings ─────────────────────────────────────────── */}
       <section>
         <h2 style={{ margin: '0 0 var(--space-1) 0', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
-          Conversion presets
+          Conversion settings
         </h2>
         <p style={{ margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-          These are the two choices offered when you turn a video into a scroll sequence. Tune what each one does here.
+          Every conversion runs at these settings - high quality by default, with the background lifted out cleanly.
         </p>
 
         <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          {(['fast', 'quality'] as PresetKey[]).map((key) => (
-            <div key={key} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>{PRESET_LABELS[key]}</h3>
-                <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{PRESET_BLURB[key]}</p>
-              </div>
-
-              <div style={fieldWrap}>
-                <label htmlFor={`${key}-fps`} style={sectionLabel}>Frames per second</label>
-                <input
-                  id={`${key}-fps`}
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={presets[key].fps}
-                  disabled={!canManage}
-                  onChange={(e) => setPresetField(key, 'fps', Number(e.target.value))}
-                  onBlur={(e) => setPresetField(key, 'fps', clampInt(Number(e.target.value), 1, 60))}
-                  style={{ ...textInput, maxWidth: '8rem' }}
-                />
-                <span style={helpText}>Between 1 and 60. More frames make a smoother scroll but a larger sequence.</span>
-              </div>
-
-              <div style={fieldWrap}>
-                <label htmlFor={`${key}-width`} style={sectionLabel}>Maximum width (px)</label>
-                <input
-                  id={`${key}-width`}
-                  type="number"
-                  min={320}
-                  max={3840}
-                  step={20}
-                  value={presets[key].maxWidth}
-                  disabled={!canManage}
-                  onChange={(e) => setPresetField(key, 'maxWidth', Number(e.target.value))}
-                  onBlur={(e) => setPresetField(key, 'maxWidth', clampInt(Number(e.target.value), 320, 3840))}
-                  style={{ ...textInput, maxWidth: '8rem' }}
-                />
-                <span style={helpText}>Frames are scaled down to this width. Between 320 and 3840.</span>
-              </div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={fieldWrap}>
+              <label htmlFor="seq-fps" style={sectionLabel}>Frames per second</label>
+              <input
+                id="seq-fps"
+                type="number"
+                min={1}
+                max={60}
+                value={settings.fps}
+                disabled={!canManage}
+                onChange={(e) => setSettingsField('fps', Number(e.target.value))}
+                onBlur={(e) => setSettingsField('fps', clampInt(Number(e.target.value), 1, 60))}
+                style={{ ...textInput, maxWidth: '8rem' }}
+              />
+              <span style={helpText}>Between 1 and 60. More frames make a smoother scroll but a larger sequence.</span>
             </div>
-          ))}
+
+            <div style={fieldWrap}>
+              <label htmlFor="seq-width" style={sectionLabel}>Maximum width (px)</label>
+              <input
+                id="seq-width"
+                type="number"
+                min={320}
+                max={3840}
+                step={20}
+                value={settings.maxWidth}
+                disabled={!canManage}
+                onChange={(e) => setSettingsField('maxWidth', Number(e.target.value))}
+                onBlur={(e) => setSettingsField('maxWidth', clampInt(Number(e.target.value), 320, 3840))}
+                style={{ ...textInput, maxWidth: '8rem' }}
+              />
+              <span style={helpText}>Frames are scaled down to this width. Between 320 and 3840.</span>
+            </div>
+          </div>
+
+          {/* ── Fly.io machines ─────────────────────────────────────────── */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>Fly.io machines</h3>
+              <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                With a Fly.io key, each video gets its own conversion machine - several convert at once, and every machine is removed the moment its job finishes so nothing sits around costing money.
+              </p>
+            </div>
+
+            <div style={fieldWrap}>
+              <label htmlFor="seq-fly-token" style={sectionLabel}>Fly.io API key</label>
+              <input
+                id="seq-fly-token"
+                type="password"
+                autoComplete="off"
+                value={flyToken}
+                disabled={!canManage || clearToken}
+                placeholder={fly.source ? '••••••••  (a key is set)' : 'Paste a Fly.io API key'}
+                onChange={(e) => { setFlyToken(e.target.value); setSaved(false) }}
+                style={textInput}
+              />
+              <span style={helpText}>{describeFlySource(fly)}</span>
+              {canManage && fly.source === 'saved' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                  <input
+                    type="checkbox"
+                    checked={clearToken}
+                    onChange={(e) => { setClearToken(e.target.checked); setSaved(false) }}
+                  />
+                  Remove the saved key on save
+                </label>
+              )}
+            </div>
+          </div>
         </div>
 
         {canManage && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={save}>
-              {saving ? 'Saving…' : 'Save presets'}
+              {saving ? 'Saving…' : 'Save settings'}
             </button>
             {saved && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-success)' }}>Saved.</span>}
             {error && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-error)' }} role="alert">{error}</span>}
@@ -258,7 +293,7 @@ export default function SequenceSettingsPanel({
         )}
         {!canManage && (
           <p style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-            You can see the presets but not change them. That needs the settings permission.
+            You can see the settings but not change them. That needs the settings permission.
           </p>
         )}
       </section>
