@@ -83,6 +83,7 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 - [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers with voicemail and opening hours, call and message logs, recording playback, click-to-dial, plus sign-in codes by text message for admins and members.
 - [Gemini Watermark Remover](https://github.com/cactus-foundation-modules/gemini-watermark-remover) - drop in an image from Google Gemini and it comes back watermark-free, straight into your media library.
 - [Ultimate SEO](https://github.com/cactus-foundation-modules/ultimate-seo) - the SEO command centre: site-wide scoring, page-by-page analysis with one-click fixes, a full site crawl audit, sitemap and robots controls, and structured-data blocks for the page builder.
+- [Search](https://github.com/cactus-foundation-modules/search) - one search box for the whole site: pages, products, articles, directory entries, forum threads and member profiles, with live results while typing, a designable results page, and an admin view of what people searched for (including the searches that found nothing).
 
 ### 👥 Members (visitor accounts, kept well away from the controls)
 
