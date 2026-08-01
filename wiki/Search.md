@@ -44,9 +44,13 @@ Members-only content (MEMBERS boards, members-only profiles) is stored at a sepa
 
 Both blocks keep their entire configuration in the page builder sidebar - there is no per-block admin screen. Content-type toggles only offer types this install actually has, and the sidebar trims itself as options change (for example, dropdown settings disappear in results-page mode).
 
-**Search Box** (~35 options): behaviour (mode, minimum characters, debounce, result count, grouping, hotkey, autofocus, results path), per-content-type toggles, appearance (field / field with button / icon button, size, corner style, outlined/filled/minimal, accent colour token, width and alignment), and dropdown options (width, products as rows or cards, card columns, thumbnails, excerpts, type badges, prices, match highlighting, view-all and empty text).
+**Search Box** (~36 options): behaviour (mode, minimum characters, debounce, result count, grouping, hotkey, autofocus, results path), per-content-type toggles, appearance (field / field with button / icon button, size, corner style, outlined/filled/minimal, accent colour token, width and alignment), and dropdown options (width, products as rows or cards, card columns, thumbnails, excerpts, type badges, prices, match highlighting, view-all and empty text).
 
-**Search Results** (~30 options): the same content-type toggles, layout (list/grid/compact, columns, per page, pagination style, grouping, filter tabs, sort control) and result-card anatomy (product card style, thumbnails and their shape, excerpt length, highlighting, badges, prices, dates, authors, URLs, heading/count templates and the empty state).
+**Search Results** (~31 options): the same content-type toggles, layout (list/grid/compact, columns, per page, pagination style, grouping, filter tabs, sort control) and result-card anatomy (product card style, thumbnails and their shape, excerpt length, highlighting, badges, prices, dates, authors, URLs, heading/count templates and the empty state).
+
+**Who can see this** is on both blocks and takes "Everyone" (the default) or "Admins only". On "Admins only" the block renders for a signed-in site admin and is left out of the page entirely for everyone else - handy for trying search on a live site before announcing it. Set it on both blocks and the public gets a search box they cannot see and a results page with nothing on it. The page builder always shows both blocks so they can still be positioned and styled. The check runs per request, so a page carrying an admins-only block is not statically cached; "Everyone" skips the check and stays cacheable.
+
+This hides blocks, it does not lock the door: `/search` stays a reachable URL and the search API still answers, so treat it as "not announced yet" rather than as a security control.
 
 The results page is a **layout type** (`searchResults`) under Appearance → Layouts, with a starter arrangement of a large search box over the results list. Until one is published, `/search` renders that arrangement anyway, so search works out of the box.
 
