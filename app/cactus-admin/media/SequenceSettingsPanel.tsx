@@ -229,9 +229,9 @@ export default function SequenceSettingsPanel({
                 style={{ ...textInput, maxWidth: '16rem' }}
               >
                 <option value="isnet">Standard - quick, fine for most products</option>
-                <option value="birefnet">Detailed - slower, best for mesh and thin frames</option>
+                <option value="birefnet">Detailed - slower, tighter outline</option>
               </select>
-              <span style={helpText}>Detailed takes noticeably longer per video but handles fine structure like mesh chair backs better.</span>
+              <span style={helpText}>Detailed takes noticeably longer per video and draws a tighter, more confident outline round thin frames and trailing cables. It is not the one for mesh: it fills a mesh panel in more solidly than Standard does, so for mesh backs use Standard and tick See-through gaps when you convert.</span>
             </div>
 
             <div style={fieldWrap}>
