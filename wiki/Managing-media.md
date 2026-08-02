@@ -111,6 +111,8 @@ Sequences you've already built keep the look they were built with, so one you're
 
 To show one on your site, add the **Scroll sequence** block to a page or a product description - see [Available blocks](Managing-pages#available-blocks). It plays the frames as visitors scroll down, loops gently once it reaches the end, and fades away as they scroll past.
 
+You don't have to convert anything, mind. The **Feature video** block plays an ordinary uploaded video beside a headline and a paragraph, quietly looping once it scrolls into view - no conversion, no waiting, and the visitor scrolls the page as normal instead of the animation taking the wheel off them. Converting earns you the removed background and the scrub; if you don't need either, the plain video is the shorter road.
+
 > **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded. (Converting a video you've already got needs nothing extra.)
 
 ---
