@@ -369,3 +369,14 @@ export function getSequenceFlyTokenEnv(): string | null {
   const token = process.env.SEQUENCE_FLY_TOKEN?.trim()
   return token || null
 }
+
+// Optional ceiling on how many conversions may run at once in per-job machine
+// mode. Unset (or 0) means no ceiling: every conversion gets its own machine,
+// however many are already going. Set a positive number only to put a lid on
+// spend - a conversion asked for past the lid is refused with a plain message
+// rather than queued, because a queued job has no machine of its own to be
+// polled on.
+export function getSequenceMaxJobMachines(): number {
+  const raw = Number(process.env.SEQUENCE_MAX_JOB_MACHINES?.trim())
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0
+}

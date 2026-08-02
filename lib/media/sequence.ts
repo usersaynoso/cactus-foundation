@@ -152,10 +152,10 @@ export async function enqueueSequenceJob(
   // bound, so the first request can meet a refused connection or a proxy 502/503.
   // Those retry briefly; any other worker answer is final. In shared-worker mode
   // a single attempt behaves exactly as before.
-  const attempts = opts?.machineId ? 6 : 1
+  const attempts = opts?.machineId ? 8 : 1
   let lastError: Error = new SequenceWorkerError('The conversion service could not be reached.')
   for (let attempt = 0; attempt < attempts; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500))
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2000))
     let res: Response
     try {
       res = await fetch(`${workerBase()}/jobs`, {

@@ -82,11 +82,15 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   const videoUrl = `${requireWorkerUrl()}/${media.key}`
   const callbackUrl = `${getSiteUrl()}/api/webhooks/sequence`
 
-  // With a Fly token configured, this job gets its own machine so several
-  // conversions run at once; the machine is destroyed when the job finishes
-  // (webhook, with the worker's own idle self-destruct as the safety net). At
-  // the parallel cap - or with no token at all - the job posts to the shared
-  // worker URL and queues, exactly the old behaviour.
+  // With a Fly token configured, EVERY job gets its own machine, however many
+  // are already running, so conversions are limited only by what Fly will hand
+  // out; the machine is destroyed when the job finishes (webhook, with the
+  // worker's own idle self-destruct as the safety net). There is no fall back to
+  // an unrouted post here on purpose: with job machines up, an unrouted request
+  // is load-balanced across all of them, so the job and its status polls end up
+  // on different machines and the poll 404s. With no token at all, no job
+  // machines exist, and the shared worker URL is the only destination - exactly
+  // the old behaviour.
   const { fly } = resolveFlyFromConfig(config)
   let machineId: string | null = null
   if (fly) {

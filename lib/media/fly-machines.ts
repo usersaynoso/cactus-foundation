@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { getSequenceMaxJobMachines } from '@/lib/config/env'
 import type { ResolvedFly } from '@/lib/media/sequence-presets'
 
 // Per-job Fly.io machines for the sequence worker.
@@ -22,10 +23,18 @@ import type { ResolvedFly } from '@/lib/media/sequence-presets'
 
 const MACHINES_API = 'https://api.machines.dev/v1'
 
-// Ceiling on simultaneous per-job machines. At the cap, a new conversion simply
-// posts to the shared app URL instead (the template machine wakes and queues it)
-// rather than failing - throughput degrades, nothing breaks.
-const MAX_JOB_MACHINES = 5
+// There is deliberately NO built-in ceiling on simultaneous conversions: each
+// one is a machine of its own and dies when it finishes, so ten at once costs
+// the same as ten one after another. The ceiling used to be five, past which a
+// conversion posted to the shared app URL instead - which looked like a graceful
+// fallback and was anything but: an unrouted request is load-balanced across
+// EVERY machine carrying the app's service config (all the job machines
+// included), so the job landed on one machine and its status polls on another,
+// which answered 404 and reported "the conversion service restarted and lost
+// this job". A conversion in per-machine mode now always gets its own machine.
+//
+// SEQUENCE_MAX_JOB_MACHINES puts a lid back on if spend needs one; past that lid
+// a conversion is refused in plain words rather than quietly misrouted.
 
 // Idle seconds before a job machine exits of its own accord (the safety net -
 // generous enough to cover the gap between frames finishing and the callback).
@@ -85,18 +94,23 @@ function findTemplate(machines: FlyMachine[]): FlyMachine | null {
 }
 
 /**
- * Create a dedicated machine for one conversion job. Returns its machine id, or
- * null when the parallel cap is reached (the caller should fall back to the
- * shared app URL - the job still runs, it just queues).
+ * Create a dedicated machine for one conversion job. Returns its machine id.
+ * Throws FlyMachinesError when Fly will not play ball, or when the optional
+ * SEQUENCE_MAX_JOB_MACHINES lid is already reached.
  */
-export async function createJobMachine(fly: ResolvedFly): Promise<string | null> {
+export async function createJobMachine(fly: ResolvedFly): Promise<string> {
   const machines = await listMachines(fly)
   const template = findTemplate(machines)
   if (!template?.config?.image) {
     throw new FlyMachinesError('The Fly app has no deployed worker machine to clone. Deploy the sequence worker once (fly deploy) and try again.')
   }
-  const running = machines.filter((m) => isJobMachine(m) && m.state !== 'destroyed').length
-  if (running >= MAX_JOB_MACHINES) return null
+  const max = getSequenceMaxJobMachines()
+  if (max > 0) {
+    const running = machines.filter((m) => isJobMachine(m) && m.state !== 'destroyed').length
+    if (running >= max) {
+      throw new FlyMachinesError(`${running} conversions are already running, which is the limit this site is set to. Wait for one to finish, then try again.`)
+    }
+  }
 
   const config: FlyMachineConfig = {
     image: template.config.image,
@@ -128,12 +142,28 @@ export async function createJobMachine(fly: ResolvedFly): Promise<string | null>
   if (!created.id) throw new FlyMachinesError('Fly created a machine but returned no id.')
 
   // Wait for it to boot; the worker binds within a few seconds of 'started'.
-  const waitRes = await flyRequest(fly, 'GET', `/machines/${created.id}/wait?state=started&timeout=45`)
+  // Kept well inside the enqueue route's 60s ceiling: several machines booting
+  // at once share the image pull, so a boot that took 19s alone can take longer
+  // in a crowd, and a route that runs out of time strands a live machine.
+  const waitRes = await flyRequest(fly, 'GET', `/machines/${created.id}/wait?state=started&timeout=35`)
   if (!waitRes.ok) {
     await destroyJobMachine(fly, created.id).catch(() => {})
     throw new FlyMachinesError(`The conversion machine did not start in time (HTTP ${waitRes.status}).`)
   }
   return created.id
+}
+
+/**
+ * The Fly state of one machine ('started', 'stopped', 'destroyed', ...), or null
+ * when Fly has no such machine (or will not say). Used by the status poll to
+ * tell a job the worker genuinely lost from a poll that merely landed on the
+ * wrong machine: a 404 from a machine that is still up is not proof of anything.
+ */
+export async function getJobMachineState(fly: ResolvedFly, machineId: string): Promise<string | null> {
+  const res = await flyRequest(fly, 'GET', `/machines/${encodeURIComponent(machineId)}`)
+  if (!res.ok) return null
+  const machine = (await res.json().catch(() => null)) as FlyMachine | null
+  return machine?.state ?? null
 }
 
 /** Destroy a job machine. Idempotent - a machine already gone is a success. */

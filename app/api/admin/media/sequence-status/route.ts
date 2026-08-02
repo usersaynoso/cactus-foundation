@@ -3,6 +3,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getSequenceJob, splitJobRef, SequenceWorkerError } from '@/lib/media/sequence'
+import { getJobMachineState } from '@/lib/media/fly-machines'
+import { resolveSequenceFly } from '@/lib/media/sequence-presets'
 import { upsertSequenceNotification } from '@/lib/notifications/alerts'
 import { prisma } from '@/lib/db/prisma'
 
@@ -73,6 +75,18 @@ export async function GET(request: NextRequest) {
     // so mark the job Failed here rather than leaving it stuck at its last % (and
     // return that as the status, not a bare 502, so the poller reflects it).
     if (err instanceof SequenceWorkerError && err.status === 404) {
+      // ...unless the job has a machine of its own and that machine is still up.
+      // Then the 404 came from somewhere else - a poll the Fly proxy routed past
+      // the forced instance - and failing the job on that evidence would kill a
+      // conversion that is quietly getting on with it. Report it as still
+      // running; the next poll (or the completion webhook) settles it properly.
+      if (machineId) {
+        const fly = await resolveSequenceFly()
+        const state = fly ? await getJobMachineState(fly, machineId).catch(() => null) : null
+        if (state && state !== 'destroyed') {
+          return NextResponse.json({ status: 'running', progress: null, error: null })
+        }
+      }
       const detail = 'The conversion service restarted and lost this job. Convert the video again.'
       const existing = await prisma.notification.findFirst({
         where: { dedupeKey: `sequence-job:${jobRef}` },
