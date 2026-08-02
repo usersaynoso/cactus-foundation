@@ -102,6 +102,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         fps: settings.fps,
         maxWidth: settings.maxWidth,
         engine: settings.engine,
+        seeThrough: settings.seeThrough,
         trimStart,
         trimEnd,
         callbackUrl,

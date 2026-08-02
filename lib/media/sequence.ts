@@ -133,6 +133,9 @@ export type EnqueueArgs = {
   fps?: number
   maxWidth?: number
   engine?: 'isnet' | 'birefnet'
+  // Key the white studio background out of gaps the cut-out called solid (mesh
+  // backs, perforations). Omitted = the worker's own default, which is off.
+  seeThrough?: boolean
   // Optional trim window in seconds - the worker only sequences frames between
   // the two. Omitted = from the start / to the end respectively.
   trimStart?: number

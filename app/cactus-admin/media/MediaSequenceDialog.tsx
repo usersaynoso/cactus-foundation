@@ -20,11 +20,13 @@ type JobStatus = 'queued' | 'running' | 'done' | 'error'
 // The conversion knobs, shown as a one-line summary so the admin knows what
 // will run. Values are read from the settings, never chosen here - the server
 // ignores anything the browser might send for engine/fps/width.
-type SettingsSummary = { engine?: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
+type SettingsSummary = { engine?: 'isnet' | 'birefnet'; fps: number; maxWidth: number; seeThrough?: boolean }
 
 function describeSettings(s: SettingsSummary): string {
   const quality = s.engine === 'birefnet' ? 'detailed cut-out' : 'standard cut-out'
-  return `${s.fps} fps · up to ${s.maxWidth}px wide · ${quality}`
+  const parts = [`${s.fps} fps`, `up to ${s.maxWidth}px wide`, quality]
+  if (s.seeThrough) parts.push('see-through gaps')
+  return parts.join(' · ')
 }
 
 // Parse a user-typed time into seconds. Accepts plain seconds ("12", "12.5"),

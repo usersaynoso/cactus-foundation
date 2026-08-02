@@ -31,6 +31,18 @@ const SettingsSchema = z.object({
   engine: z.enum(SEQUENCE_ENGINES).default('isnet'),
   fps: z.number().int().min(1).max(60).default(30),
   maxWidth: z.number().int().min(320).max(3840).default(1920),
+  // Key the white studio background out of gaps the cut-out treated as solid -
+  // mesh chair backs, perforated seats, thin slots. The cut-out models return a
+  // silhouette, so a mesh panel comes back ~95% opaque when it is physically
+  // about half holes, and the white wall stays baked into every hole.
+  //
+  // OFF by default and deliberately so: a blown-out specular highlight on a dark
+  // glossy surface looks exactly like a mesh hole from one pixel's point of view
+  // and would be keyed away too. Measured on real clips, ordinary products are
+  // barely touched (a cream upholstered chair keeps 99.1% of its alpha, losing
+  // only the outermost anti-aliased rim), but that is a call for whoever knows
+  // the product range, not a silent default.
+  seeThrough: z.boolean().default(false),
 })
 export type SequenceSettings = z.infer<typeof SettingsSchema>
 
