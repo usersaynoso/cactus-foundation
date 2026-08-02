@@ -1,0 +1,33 @@
+{
+  "_readme": [
+    "Template for a sequence-with-text product description_puck. Replace every <PLACEHOLDER> and delete this _readme key before applying.",
+    "textSide: 'right' = animation left / text right (house default). 'left' = animation right / text left. 'above' = text stacked over the animation. That one prop is the whole side swap - nothing else moves.",
+    "scrubScreens is always 1 for Deskwell. topOffset 10.5rem clears the 158px of sticky header + product tab bar on every viewport.",
+    "visibility strings: 'true' HIDES on that device. All 'false' here - the single block serves desktop, tablet and mobile.",
+    "Add any further blocks (Heading, SpecPanel, a second sequence) to `content` after this one."
+  ],
+  "root": { "props": {} },
+  "zones": {},
+  "content": [
+    {
+      "type": "ScrollSequence",
+      "props": {
+        "id": "ScrollSequence-<PRODUCT>-<HASH>",
+        "sequenceUrl": "<MANIFEST_URL>",
+        "scrubScreens": 1,
+        "loop": true,
+        "fade": true,
+        "maxWidth": "600px",
+        "title": "<TITLE>",
+        "body": "<BODY>",
+        "textSide": "right",
+        "topOffset": "10.5rem",
+        "ariaLabel": "<ARIA_LABEL>",
+        "visibility": { "desktop": "false", "tablet": "false", "mobile": "false" },
+        "animationType": "none",
+        "animationDuration": "normal",
+        "animationDelay": "none"
+      }
+    }
+  ]
+}
