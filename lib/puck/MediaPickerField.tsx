@@ -30,7 +30,7 @@ type Folder = {
 function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
   onSelect: (item: MediaItem) => void
   onClose: () => void
-  kind?: 'image' | 'sequence'
+  kind?: 'image' | 'sequence' | 'video'
 }) {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,10 +55,10 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
   const trimmed = query.trim()
   useEffect(() => {
     let cancelled = false
-    // The library has no dedicated "sequence" server filter (only all/image/other),
-    // so sequences are fetched as "other" (non-image) and narrowed client-side by
-    // isSequenceType below.
-    const params = new URLSearchParams({ perPage: '50', type: kind === 'sequence' ? 'other' : 'image' })
+    // The library has no dedicated "sequence" or "video" server filter (only
+    // all/image/other), so both are fetched as "other" (non-image) and narrowed
+    // client-side by isSequenceType / the video mime check below.
+    const params = new URLSearchParams({ perPage: '50', type: kind === 'image' ? 'image' : 'other' })
     if (trimmed) {
       params.set('folder', 'all')
       params.set('q', trimmed)
@@ -117,7 +117,11 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
 
   const filtered = kind === 'sequence'
     ? items.filter((i) => isSequenceType(i.mimeType))
-    : items.filter((i) => i.mimeType.startsWith('image/'))
+    : kind === 'video'
+      ? items.filter((i) => i.mimeType.startsWith('video/'))
+      : items.filter((i) => i.mimeType.startsWith('image/'))
+
+  const kindNoun = kind === 'sequence' ? 'scroll sequence' : kind === 'video' ? 'video' : 'image'
 
   return (
     <div
@@ -134,7 +138,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
         boxShadow: '0 25px 50px -12px rgba(0,0,0,.25)',
       }}>
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{kind === 'sequence' ? 'Select scroll sequence' : 'Select image'}</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>Select {kindNoun}</h3>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -149,7 +153,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'}
                 style={{ display: 'none' }}
                 onChange={(e) => handleUpload(e.target.files)}
               />
@@ -199,7 +203,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
           {uploadError && <p style={{ color: 'var(--color-destructive)', textAlign: 'center', fontSize: '0.8125rem', marginTop: 0 }}>{uploadError}</p>}
           {loading && <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>Loading…</p>}
           {!loading && subfolders.length === 0 && filtered.length === 0 && (
-            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{trimmed ? (kind === 'sequence' ? 'No scroll sequences found' : 'No images found') : 'This folder is empty'}</p>
+            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{trimmed ? `No ${kindNoun}s found` : 'This folder is empty'}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
             {subfolders.map((f) => (
@@ -229,13 +233,26 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
                   cursor: 'pointer', padding: 0, overflow: 'hidden', textAlign: 'left',
                 }}
               >
-                {/* A sequence's own url is its manifest.json; show its poster sibling instead. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={kind === 'sequence' ? sequencePosterUrl(item.url) : item.url}
-                  alt={item.altText ?? ''}
-                  style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
-                />
+                {/* A video has no still to point at, so the browser's own first
+                    frame is the thumbnail (metadata only - the tile must not
+                    pull megabytes per item). */}
+                {kind === 'video' ? (
+                  <video
+                    src={item.url}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block', background: 'var(--color-bg-subtle)' }}
+                  />
+                ) : (
+                  /* A sequence's own url is its manifest.json; show its poster sibling instead. */
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={kind === 'sequence' ? sequencePosterUrl(item.url) : item.url}
+                    alt={item.altText ?? ''}
+                    style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
+                  />
+                )}
                 <div style={{ padding: '0.375rem 0.5rem', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
                   {item.originalName || item.key.split('/').pop()}
                 </div>
@@ -326,6 +343,12 @@ const SEQUENCE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   ScrollSequence: { sequenceUrl: 'Scroll sequence' },
 }
 
+// Same again for fields holding a self-hosted video URL (an mp4/webm in the
+// media library, not a YouTube or Vimeo link - those stay plain text fields).
+const VIDEO_PICKER_FIELDS: Record<string, Record<string, string>> = {
+  FeatureVideo: { videoUrl: 'Video' },
+}
+
 // Swap every known media URL text field in a Puck config for the matching media
 // picker — image fields for the image picker, sequence fields for the sequence
 // picker. Components/fields not present in the given config are skipped, so this
@@ -350,6 +373,7 @@ export function withImagePickerFields<C>(config: C): C {
   }
   swap(IMAGE_PICKER_FIELDS, ImageUrlPickerField)
   swap(SEQUENCE_PICKER_FIELDS, SequenceUrlPickerField)
+  swap(VIDEO_PICKER_FIELDS, VideoUrlPickerField)
   return { ...cfg, components } as C
 }
 
@@ -442,6 +466,54 @@ export const SequenceUrlPickerField: CustomFieldRender<string> = ({ value, onCha
         )}
       </div>
       {open && <MediaPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} kind="sequence" />}
+    </div>
+  )
+}
+
+// For FeatureVideo.videoUrl — the media library picker filtered to videos,
+// storing the picked item's url. The preview is the video's own first frame,
+// loaded metadata-only so the panel stays cheap.
+export const VideoUrlPickerField: CustomFieldRender<string> = ({ value, onChange, field }) => {
+  const [open, setOpen] = useState(false)
+
+  function handleSelect(item: MediaItem) {
+    onChange(item.url)
+    setOpen(false)
+  }
+
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
+        {(field as { label?: string }).label ?? 'Video'}
+      </label>
+      {value && (
+        <video
+          src={value}
+          preload="metadata"
+          muted
+          playsInline
+          style={{ width: '100%', maxHeight: 100, objectFit: 'contain', borderRadius: 4, marginBottom: '0.5rem', display: 'block', border: '1px solid var(--color-border)', background: 'var(--color-bg-subtle)' }}
+        />
+      )}
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
+        >
+          {value ? 'Change video' : 'Select video'}
+        </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-destructive-border)', borderRadius: 6, background: 'var(--color-surface)', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {open && <MediaPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} kind="video" />}
     </div>
   )
 }

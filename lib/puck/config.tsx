@@ -63,6 +63,7 @@ import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
 import ScrollSequence from '@/lib/puck/components/ScrollSequence'
+import FeatureVideo from '@/lib/puck/components/FeatureVideo'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
@@ -2708,7 +2709,7 @@ export const puckConfig = {
     layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                        defaultExpanded: true },
-    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed', 'ScrollSequence'],     defaultExpanded: true },
+    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed', 'ScrollSequence'], defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
@@ -3220,6 +3221,63 @@ export const puckConfig = {
         return rest
       },
       render: VideoEmbed,
+    },
+    FeatureVideo: {
+      label: 'Feature video',
+      fields: {
+        videoUrl: { type: 'text' as const, label: 'Video' },
+        posterUrl: { type: 'text' as const, label: 'Poster image URL (optional)' },
+        title: { type: 'text' as const, label: 'Title (beside the video)' },
+        body: { type: 'textarea' as const, label: 'Text (beside the video)' },
+        textSide: { type: 'select' as const, label: 'Title and text position', options: [{ value: 'above', label: 'Above the video' }, { value: 'left', label: 'Left of the video' }, { value: 'right', label: 'Right of the video' }] },
+        maxWidth: { type: 'text' as const, label: 'Max width (e.g. 600px or 100%)' },
+        radius: { type: 'text' as const, label: 'Corner radius (e.g. 16px)' },
+        frame: { type: 'radio' as const, label: 'Framed like a product image', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
+        loop: { type: 'radio' as const, label: 'Loop', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
+        controls: { type: 'radio' as const, label: 'Show player controls', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
+        ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
+        padding: paddingField, ...STICKY_FIELDS, ...aosFields,
+      },
+      defaultProps: { videoUrl: '', posterUrl: '', title: '', body: '', textSide: 'above' as const, maxWidth: '', radius: '16px', frame: true, loop: true, controls: false, ariaLabel: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Until a video is picked the block is a placeholder, so everything that
+      // describes a video is noise; and text placement only means anything once
+      // there is text to place.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        if (!p.videoUrl) {
+          for (const k of ['posterUrl', 'title', 'body', 'textSide', 'maxWidth', 'radius', 'frame', 'loop', 'controls', 'ariaLabel', 'sticky', 'stickyOffset', 'animationType', 'animationDuration', 'animationDelay']) delete rest[k]
+          return rest
+        }
+        if (!p.title?.trim() && !p.body?.trim()) delete rest.textSide
+        return rest
+      },
+      // The player is a client component (IntersectionObserver, playback), so this
+      // render only hands it props, staying editor-safe like the rest of the file.
+      // The same render is reused on the RSC/published path, which is fine: a
+      // client component renders happily from a server component.
+      render: ({ videoUrl, posterUrl, maxWidth, radius, frame, loop, controls, title, body, textSide, ariaLabel, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck }: any) => (
+        <div
+          className={getPaddingClasses(padding)}
+          style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}
+          {...getAosProps(animationType, animationDuration, animationDelay)}
+        >
+          <FeatureVideo
+            videoUrl={videoUrl}
+            posterUrl={posterUrl}
+            maxWidth={maxWidth}
+            radius={radius}
+            frame={frame}
+            loop={loop}
+            controls={controls}
+            title={title}
+            body={body}
+            textSide={textSide}
+            ariaLabel={ariaLabel}
+            isEditing={puck?.isEditing}
+          />
+        </div>
+      ),
     },
     Embed: {
       label: 'Embed',
