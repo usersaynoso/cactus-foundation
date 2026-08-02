@@ -3247,13 +3247,6 @@ export const puckConfig = {
         ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
       },
       defaultProps: { sequenceUrl: '', scrubScreens: 2, loop: true, fade: true, maxWidth: '', title: '', body: '', topOffset: '', ariaLabel: '' },
-      // Clearance only means anything once there is in-screen text to clear.
-      resolveFields: (data: any, { fields }: any) => {
-        const p = data.props ?? {}
-        if (p.title?.trim() || p.body?.trim()) return fields
-        const { topOffset: _t, ...rest } = fields
-        return rest
-      },
       // The player is a client component (scroll listeners, canvas, rAF) - this
       // render only hands it props, staying editor-safe like the rest of the file.
       // The same render is reused on the RSC/published path (config.rsc.tsx spreads

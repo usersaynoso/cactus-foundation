@@ -31,9 +31,11 @@ type Props = {
   // place copy can stay on screen with the animation is inside the stage.
   title?: string
   body?: string
-  // Room to leave above the in-screen text for a site's sticky header/nav
+  // Room to leave above the stage contents for a site's sticky header/nav
   // (any CSS length, e.g. "10rem"). The stage pins at the viewport top and
-  // knows nothing about chrome overlaying it, so the page has to say.
+  // knows nothing about chrome overlaying it, so the page has to say; without
+  // it the canvas centres in the FULL viewport and its top hides behind the
+  // bar while an equal gap yawns below. Applies with or without text.
   topOffset?: string
   isEditing?: boolean
 }
@@ -372,14 +374,16 @@ export default function ScrollSequence({
   // background and works in light and dark alike.
   const w = manifest?.width && manifest.width > 0 ? manifest.width : undefined
   const h = manifest?.height && manifest.height > 0 ? manifest.height : undefined
+  // With a clearance (or in-screen text) the canvas must fit the space that is
+  // actually visible, so it is capped by the leftover height as well as the
+  // width; the bare block keeps its original width-driven sizing exactly.
+  const contained = hasText || !!pad
   const stage = status === 'ready' ? (
     <canvas
       ref={canvasRef}
       role="img"
       aria-label={label}
-      style={hasText
-        // Sharing the screen with the text: cap by the leftover height as well
-        // as the width so text + canvas always fit the viewport together.
+      style={contained
         ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }
         : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }}
     />
@@ -389,7 +393,7 @@ export default function ScrollSequence({
       src={posterUrl}
       alt={label}
       onError={() => setPosterFailed(true)}
-      style={hasText
+      style={contained
         ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto' }
         : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto' }}
     />
@@ -399,13 +403,16 @@ export default function ScrollSequence({
       ref={spacerRef}
       style={{ position: 'relative', height: `${(1 + Math.max(0, scrubScreens)) * 100}vh` }}
     >
-      <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {/* The clearance pads the pinned stage itself, so everything inside -
+          text and canvas alike - lays out in the band below the site's sticky
+          chrome rather than centring behind it. */}
+      <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', paddingTop: pad || undefined, boxSizing: 'border-box' }}>
         {hasText ? (
-          // Text shares the pinned screen: copy at the top (below any declared
-          // sticky-chrome clearance), canvas centred in whatever height is left.
+          // Text shares the pinned screen: copy at the top of the cleared band,
+          // canvas centred in whatever height is left below it.
           <div
             ref={fadeRef}
-            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: pad ? 'flex-start' : 'center', gap: '0.75rem', paddingTop: pad || undefined, paddingBottom: '1rem', boxSizing: 'border-box', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
+            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: pad ? 'flex-start' : 'center', gap: '0.75rem', paddingBottom: '1rem', boxSizing: 'border-box', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
           >
             {textBlock}
             <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -415,7 +422,7 @@ export default function ScrollSequence({
         ) : (
           <div
             ref={fadeRef}
-            style={{ width: '100%', display: 'flex', justifyContent: 'center', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
+            style={{ width: '100%', height: contained ? '100%' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
           >
             {stage}
           </div>
