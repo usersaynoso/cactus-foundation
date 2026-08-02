@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { mobileMediaQuery } from '@/lib/puck/responsiveValue'
 
 // The shape the sequence worker writes to manifest.json. Everything is optional
 // on the wire because a half-written, older or newer manifest must degrade to
@@ -37,6 +38,14 @@ type Props = {
   // it the canvas centres in the FULL viewport and its top hides behind the
   // bar while an equal gap yawns below. Applies with or without text.
   topOffset?: string
+  // Where the copy sits relative to the canvas on wide screens: stacked above
+  // it (default), or beside it on either side. Beside always collapses back to
+  // stacked below the site's mobile breakpoint, where there is no room for two
+  // columns. Text laid out here rather than in a Grid column beside the block
+  // is what keeps the fade honest: everything inside the stage shares the one
+  // faded element, so copy and animation fade in and out together instead of
+  // the copy sitting stubbornly opaque next to a fading canvas.
+  textSide?: 'above' | 'left' | 'right'
   isEditing?: boolean
 }
 
@@ -93,6 +102,7 @@ export default function ScrollSequence({
   title = '',
   body = '',
   topOffset = '',
+  textSide = 'above',
   isEditing,
 }: Props) {
   const [manifest, setManifest] = useState<Manifest | null>(null)
@@ -109,11 +119,20 @@ export default function ScrollSequence({
   const cap = maxWidth.trim() || '100%'
   const hasText = !!(title.trim() || body.trim())
   const pad = topOffset.trim()
+  // Copy beside the canvas needs two tracks, and two tracks need a media query
+  // to collapse on phones - hence a scoped id. useId keeps editor and RSC
+  // markup identical, which the parity rule requires.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const beside = hasText && (textSide === 'left' || textSide === 'right')
 
   // The in-screen heading/copy block, shared by the editor preview and the
-  // published stage so both paths keep identical markup.
+  // published stage so both paths keep identical markup. Stacked above the
+  // canvas it is centred and capped to the canvas width; beside it, it fills
+  // its own track and the cap would only starve it.
   const textBlock = hasText ? (
-    <div style={{ width: '100%', maxWidth: cap, margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={beside
+      ? { width: '100%', boxSizing: 'border-box' }
+      : { width: '100%', maxWidth: cap, margin: '0 auto', boxSizing: 'border-box' }}>
       {title.trim() && <h2 style={{ margin: '0 0 0.5rem' }}>{title}</h2>}
       {body.trim() && <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>{body}</p>}
     </div>
@@ -320,28 +339,55 @@ export default function ScrollSequence({
     ? frameUrl(originOf(sequenceUrl), manifest.poster)
     : fallbackPosterUrl(sequenceUrl)
 
+  // Beside-the-canvas layout. Explicit track placement (rather than DOM order)
+  // puts the copy on the requested side, so the DOM can stay copy-first and
+  // collapse to copy-above-canvas on a phone simply by dropping to one column.
+  // Both cells are pinned to row 1: grid auto-placement never moves backwards,
+  // so with the copy on the RIGHT (copy in column 2, canvas in column 1) the
+  // canvas would otherwise be bumped onto a second row and sit under the copy.
+  const textCol = textSide === 'left' ? 1 : 2
+  const canvasCol = textSide === 'left' ? 2 : 1
+  const sideCss = beside
+    ? `${mobileMediaQuery()}{[data-seq-split="${uid}"]{grid-template-columns:1fr !important;grid-template-rows:auto minmax(0,1fr) !important;gap:0.75rem !important;align-items:start !important;}`
+      + `[data-seq-split="${uid}"]>*{grid-column:auto !important;grid-row:auto !important;}}`
+    : ''
+
   // Editor: never pin or scrolljack (it breaks the Puck builder). Show a
   // representative still with a small badge so it reads as a builder preview.
   if (isEditing) {
+    const preview = (
+      <div style={{ position: 'relative' }}>
+        {posterFailed ? (
+          <div style={PLACEHOLDER_STYLE}>Scroll sequence (preview unavailable)</div>
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={posterUrl}
+              alt={label}
+              onError={() => setPosterFailed(true)}
+              style={{ display: 'block', width: '100%', height: 'auto' }}
+            />
+            <span style={BADGE_STYLE}>Scroll sequence</span>
+          </>
+        )}
+      </div>
+    )
+    if (beside) {
+      return (
+        <>
+          <style>{sideCss}</style>
+          <div data-seq-split={uid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: '2rem' }}>
+            <div style={{ gridColumn: textCol, gridRow: 1, minWidth: 0 }}>{textBlock}</div>
+            <div style={{ gridColumn: canvasCol, gridRow: 1, minWidth: 0 }}>{preview}</div>
+          </div>
+        </>
+      )
+    }
     return (
       <div style={{ maxWidth: cap, margin: '0 auto' }}>
         {textBlock}
-        <div style={{ position: 'relative' }}>
-          {posterFailed ? (
-            <div style={PLACEHOLDER_STYLE}>Scroll sequence (preview unavailable)</div>
-          ) : (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={posterUrl}
-                alt={label}
-                onError={() => setPosterFailed(true)}
-                style={{ display: 'block', width: '100%', height: 'auto' }}
-              />
-              <span style={BADGE_STYLE}>Scroll sequence</span>
-            </>
-          )}
-        </div>
+        {preview}
       </div>
     )
   }
@@ -350,20 +396,32 @@ export default function ScrollSequence({
   // message. No tall spacer - there are no frames to scrub. Any in-screen copy
   // still renders: the words should not vanish with the animation.
   if (status === 'error') {
+    const still = posterFailed ? (
+      <div style={PLACEHOLDER_STYLE}>Animation unavailable</div>
+    ) : (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        src={posterUrl}
+        alt={label}
+        onError={() => setPosterFailed(true)}
+        style={{ display: 'block', width: '100%', height: 'auto' }}
+      />
+    )
+    if (beside) {
+      return (
+        <>
+          <style>{sideCss}</style>
+          <div data-seq-split={uid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: '2rem' }}>
+            <div style={{ gridColumn: textCol, gridRow: 1, minWidth: 0 }}>{textBlock}</div>
+            <div style={{ gridColumn: canvasCol, gridRow: 1, minWidth: 0 }}>{still}</div>
+          </div>
+        </>
+      )
+    }
     return (
       <div style={{ maxWidth: cap, margin: '0 auto' }}>
         {textBlock}
-        {posterFailed ? (
-          <div style={PLACEHOLDER_STYLE}>Animation unavailable</div>
-        ) : (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={posterUrl}
-            alt={label}
-            onError={() => setPosterFailed(true)}
-            style={{ display: 'block', width: '100%', height: 'auto' }}
-          />
-        )}
+        {still}
       </div>
     )
   }
@@ -412,8 +470,22 @@ export default function ScrollSequence({
           the visible band. top/height rather than padding on a 100vh box,
           because padding is dead space that shows as a bald gap while the
           stage is still scrolling towards its pin position. */}
+      {sideCss && <style>{sideCss}</style>}
       <div style={{ position: 'sticky', top: pad || 0, height: pad ? `calc(100vh - ${pad})` : '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {hasText ? (
+        {beside ? (
+          // Copy beside the canvas, both inside the one faded element so they
+          // fade in and out together. Each track centres its own content, so
+          // the copy sits level with the middle of the animation.
+          <div
+            ref={fadeRef}
+            style={{ width: '100%', height: '100%', boxSizing: 'border-box', paddingBottom: '1rem', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
+          >
+            <div data-seq-split={uid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: '2rem', height: '100%' }}>
+              <div style={{ gridColumn: textCol, gridRow: 1, minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center' }}>{textBlock}</div>
+              <div style={{ gridColumn: canvasCol, gridRow: 1, minWidth: 0, minHeight: 0, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{stage}</div>
+            </div>
+          </div>
+        ) : hasText ? (
           // Text shares the pinned screen: copy at the top of the cleared band,
           // canvas centred in whatever height is left below it.
           <div

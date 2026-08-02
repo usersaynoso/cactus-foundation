@@ -3243,16 +3243,24 @@ export const puckConfig = {
         maxWidth: { type: 'text' as const, label: 'Max width (e.g. 600px or 100%)' },
         title: { type: 'text' as const, label: 'Title (inside the animation screen)' },
         body: { type: 'textarea' as const, label: 'Text (inside the animation screen)' },
+        textSide: { type: 'select' as const, label: 'Title and text position', options: [{ value: 'above', label: 'Above the animation' }, { value: 'left', label: 'Left of the animation' }, { value: 'right', label: 'Right of the animation' }] },
         topOffset: { type: 'text' as const, label: 'Top clearance for sticky headers (e.g. 10rem)' },
         ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
       },
-      defaultProps: { sequenceUrl: '', scrubScreens: 2, loop: true, fade: true, maxWidth: '', title: '', body: '', topOffset: '', ariaLabel: '' },
+      defaultProps: { sequenceUrl: '', scrubScreens: 1, loop: true, fade: true, maxWidth: '', title: '', body: '', textSide: 'above', topOffset: '', ariaLabel: '' },
+      // Text placement only means anything once there is text to place.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        if (p.title?.trim() || p.body?.trim()) return fields
+        const { textSide: _s, ...rest } = fields
+        return rest
+      },
       // The player is a client component (scroll listeners, canvas, rAF) - this
       // render only hands it props, staying editor-safe like the rest of the file.
       // The same render is reused on the RSC/published path (config.rsc.tsx spreads
       // puckConfig.components), which is fine: a client component renders happily
       // from a server component.
-      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, title, body, topOffset, ariaLabel, puck }: any) => (
+      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, title, body, textSide, topOffset, ariaLabel, puck }: any) => (
         <ScrollSequence
           sequenceUrl={sequenceUrl}
           scrubScreens={scrubScreens}
@@ -3261,6 +3269,7 @@ export const puckConfig = {
           maxWidth={maxWidth}
           title={title}
           body={body}
+          textSide={textSide}
           topOffset={topOffset}
           ariaLabel={ariaLabel}
           isEditing={puck?.isEditing}
