@@ -28,8 +28,16 @@ export function parsePaginationParams(
     return Array.isArray(val) ? val[0] : val
   }
 
-  const page = Math.max(1, parseInt(get('page') ?? '1', 10))
-  const perPage = Math.min(100, Math.max(1, parseInt(get('perPage') ?? String(defaultPerPage), 10)))
+  // Unparseable input is substituted BEFORE the clamp, and only when it really
+  // is unparseable. parseInt('abc') is NaN, and Math.max(1, NaN) is NaN rather
+  // than 1 - so the clamp alone let junk through to Prisma as skip: NaN /
+  // take: NaN, which throws, turning a mistyped query string into a 500 on
+  // every list this helper feeds. Tested against NaN rather than falsiness so a
+  // deliberate perPage=0 still clamps up to 1 instead of jumping to the default.
+  const rawPage = parseInt(get('page') ?? '1', 10)
+  const rawPerPage = parseInt(get('perPage') ?? String(defaultPerPage), 10)
+  const page = Math.max(1, Number.isNaN(rawPage) ? 1 : rawPage)
+  const perPage = Math.min(100, Math.max(1, Number.isNaN(rawPerPage) ? defaultPerPage : rawPerPage))
   const skip = (page - 1) * perPage
   return { page, perPage, skip }
 }
