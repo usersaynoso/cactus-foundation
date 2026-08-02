@@ -52,22 +52,30 @@ matches no video, or matches two.
 
 ### Which video goes with which section
 
-Match by filename. The clips live in the product's own media folder and are
-named after the feature, so the section title is the lookup key:
+Match on **`originalName`**, and take the url from the same row. Never build a
+url by hand from a filename, and never reuse one from a previous version of the
+document:
 
 ```sql
 SELECT "originalName", url FROM "Media"
-WHERE url ILIKE '%/<product-slug-or-range-prefix>/%'
+WHERE url ILIKE '%/<product-slug>/%'
   AND (url ILIKE '%.mp4' OR url ILIKE '%.webm')
-ORDER BY url;
+ORDER BY "originalName";
 ```
 
-Slugify the title (lower case, spaces to hyphens, drop punctuation) and match
-it against the filename stem with the product/range prefix stripped:
+`originalName` is the supplier's own filename, whole and readable. The **url is
+not** - re-uploading or moving a clip gives it a nanoid prefix and truncates the
+name to fit the key, so the same video reads as
+`…/video/Qwc646TXZRBE9bWLuMQKU-eclipse-plus-iii-deluxe-mesh-backrest-ti.mp4`.
+Matching on that stem would put the tilt clip and the height clip within two
+characters of each other, which is a coin toss, not a match.
 
-- `Backrest Tilt Adjustment` → `backrest-tilt` → `…-backrest-tilt-adjustable.mp4`
-- `Gas Height Adjustment` → `gas-height` → `…-height-adjustable.mp4`
-- `Optional Height Adjustable Armrests` → `…-arm-height-adjustable.mp4`
+Slugify the title (lower case, spaces to hyphens, drop punctuation) and match
+it against `originalName`:
+
+- `Backrest Tilt Adjustment` → `Eclipse Plus III Deluxe Mesh Backrest Tilt Adjustable.mp4`
+- `Gas Height Adjustment` → `Eclipse Plus III Deluxe Mesh Height Adjustable.mp4`
+- `Optional Height Adjustable Armrests` → `Eclipse Plus III Deluxe Mesh Arm Height Adjustable.mp4`
 
 Filenames use the supplier's adjective form (`adjustable`) where titles use the
 noun (`adjustment`), and words like "Optional" appear in titles only, so match
@@ -78,8 +86,17 @@ on the **distinctive** words - `backrest tilt`, `arm height`, `seat tilt`,
   → stop and ask which one, quoting the candidates. A wrong clip beside the
   right words is worse than a question.
 - Verify each chosen url resolves with a GET - the CDN answers 405 to HEAD.
-- A scroll-sequence `manifest.json` handed over instead is the same path with
-  the trailing folder replaced by `.mp4`; confirm it fetches before using it.
+  `curl -s -o /dev/null -w "%{http_code}" -r 0-1 <url>` on all of them costs a
+  second and catches a moved library before the customer does.
+- After the screenshots, check the clip actually shows the feature its words
+  describe. Names get truncated; eyes don't.
+
+**Moved or re-uploaded clips break the description silently.** The page keeps
+rendering, each block just 404s its video. If sections have gone blank, or the
+owner mentions tidying the media library, re-run the query above and rewrite
+every `videoUrl` from `originalName` - do not patch the paths by hand. A
+`video/` (or any other) subfolder appearing in the middle of the key is exactly
+this, and the old urls will be answering 404.
 
 ### Which side each video sits on
 
