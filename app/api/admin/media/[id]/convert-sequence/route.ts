@@ -13,6 +13,12 @@ import { createJobMachine, destroyJobMachine, FlyMachinesError } from '@/lib/med
 
 type Ctx = { params: Promise<{ id: string }> }
 
+// A finite, non-negative number of seconds, or undefined when absent/invalid.
+function readSeconds(v: unknown): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return undefined
+  return v
+}
+
 // Creating a per-job Fly machine and waiting for it to boot can take a good
 // twenty seconds - past the default function ceiling.
 export const maxDuration = 60
@@ -41,6 +47,18 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const folderId = typeof body?.folderId === 'string' && body.folderId ? body.folderId : null
   if (!name) return errorResponse('A sequence name is required.', 400)
+
+  // Optional trim window (seconds). The browser sends numbers it parsed from
+  // the dialog's time fields; re-validated here so a hand-rolled request can't
+  // hand the worker nonsense.
+  const trimStart = readSeconds(body?.trimStart)
+  const trimEnd = readSeconds(body?.trimEnd)
+  if (body?.trimStart != null && trimStart === undefined) return errorResponse('The start time must be a number of seconds, zero or more.', 400)
+  if (body?.trimEnd != null && trimEnd === undefined) return errorResponse('The end time must be a number of seconds greater than zero.', 400)
+  if (trimEnd !== undefined && trimEnd <= 0) return errorResponse('The end time must be greater than zero.', 400)
+  if (trimStart !== undefined && trimEnd !== undefined && trimEnd <= trimStart) {
+    return errorResponse('The end time must be after the start time.', 400)
+  }
 
   // The engine, frame rate and max width are not the browser's to choose: they
   // come from the admin-tuned settings (Media > Scroll sequences). Everything
@@ -84,6 +102,8 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         fps: settings.fps,
         maxWidth: settings.maxWidth,
         engine: settings.engine,
+        trimStart,
+        trimEnd,
         callbackUrl,
         callbackToken,
       },

@@ -9,7 +9,8 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 // job list is just the job notifications read back, so deleting one deletes its
 // notification (and clears the bell).
 
-type Settings = { fps: number; maxWidth: number }
+type SequenceEngine = 'isnet' | 'birefnet'
+type Settings = { engine: SequenceEngine; fps: number; maxWidth: number }
 type FlyMeta = {
   /** Where the active token comes from: saved here, the environment, or nowhere. */
   source: 'saved' | 'env' | null
@@ -139,9 +140,14 @@ export default function SequenceSettingsPanel({
     }
   }
 
-  function setSettingsField(field: keyof Settings, value: number) {
+  function setSettingsField(field: 'fps' | 'maxWidth', value: number) {
     setSaved(false)
     setSettings((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function setEngine(engine: SequenceEngine) {
+    setSaved(false)
+    setSettings((prev) => ({ ...prev, engine }))
   }
 
   async function save() {
@@ -155,6 +161,7 @@ export default function SequenceSettingsPanel({
       fly?: { token?: string }
     } = {
       settings: {
+        engine: settings.engine,
         fps: clampInt(settings.fps, 1, 60),
         maxWidth: clampInt(settings.maxWidth, 320, 3840),
       },
@@ -212,6 +219,21 @@ export default function SequenceSettingsPanel({
 
         <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={fieldWrap}>
+              <label htmlFor="seq-engine" style={sectionLabel}>Cut-out quality</label>
+              <select
+                id="seq-engine"
+                value={settings.engine}
+                disabled={!canManage}
+                onChange={(e) => setEngine(e.target.value as SequenceEngine)}
+                style={{ ...textInput, maxWidth: '16rem' }}
+              >
+                <option value="isnet">Standard - quick, fine for most products</option>
+                <option value="birefnet">Detailed - slower, best for mesh and thin frames</option>
+              </select>
+              <span style={helpText}>Detailed takes noticeably longer per video but handles fine structure like mesh chair backs better.</span>
+            </div>
+
             <div style={fieldWrap}>
               <label htmlFor="seq-fps" style={sectionLabel}>Frames per second</label>
               <input

@@ -15,11 +15,13 @@ import { getSequenceFlyTokenEnv, getSequenceWorkerUrl } from '@/lib/config/env'
 // {fast, quality} column simply fails the new parse and falls back to these
 // defaults, which are the very values the old 'quality' preset shipped with.
 
-// Only 'isnet' is offered. The sharper 'birefnet' model needs 3 GB+ of RAM even
-// on a small frame and 10-30 minutes per clip on CPU. isnet mattes a product on
-// a white sweep cleanly (with the worker's automatic alpha-matting retry when a
-// frame comes back suspiciously empty or full), so it stays the only engine.
-export const SEQUENCE_ENGINES = ['isnet'] as const
+// 'isnet' is the fast default: it mattes a product on a white sweep cleanly.
+// 'birefnet' resolves fine structure (mesh chair backs, thin frames) noticeably
+// better but is far slower per clip. It used to be banned outright because it
+// needs 3 GB+ of RAM and the worker shared a 3.8 GB box with a live Postgres;
+// conversions now run on per-job Fly machines cloned from a 16 GB performance
+// template, so both engines are safe to offer.
+export const SEQUENCE_ENGINES = ['isnet', 'birefnet'] as const
 export type SequenceEngine = (typeof SEQUENCE_ENGINES)[number]
 
 // The conversion knobs the sequence worker actually reads. The ranges mirror the

@@ -132,7 +132,11 @@ export type EnqueueArgs = {
   sequenceName: string
   fps?: number
   maxWidth?: number
-  engine?: 'isnet'
+  engine?: 'isnet' | 'birefnet'
+  // Optional trim window in seconds - the worker only sequences frames between
+  // the two. Omitted = from the start / to the end respectively.
+  trimStart?: number
+  trimEnd?: number
   callbackUrl: string
   callbackToken: string
 }

@@ -20,10 +20,27 @@ type JobStatus = 'queued' | 'running' | 'done' | 'error'
 // The conversion knobs, shown as a one-line summary so the admin knows what
 // will run. Values are read from the settings, never chosen here - the server
 // ignores anything the browser might send for engine/fps/width.
-type SettingsSummary = { fps: number; maxWidth: number }
+type SettingsSummary = { engine?: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
 
 function describeSettings(s: SettingsSummary): string {
-  return `${s.fps} fps · up to ${s.maxWidth}px wide`
+  const quality = s.engine === 'birefnet' ? 'detailed cut-out' : 'standard cut-out'
+  return `${s.fps} fps · up to ${s.maxWidth}px wide · ${quality}`
+}
+
+// Parse a user-typed time into seconds. Accepts plain seconds ("12", "12.5"),
+// "m:ss" and "h:mm:ss" (fractional last part fine). Returns null for a value
+// that doesn't parse; undefined for an empty field (= no trim on that side).
+function parseTime(raw: string): number | null | undefined {
+  const s = raw.trim()
+  if (!s) return undefined
+  const parts = s.split(':')
+  if (parts.length > 3) return null
+  let total = 0
+  for (const part of parts) {
+    if (!/^\d+(\.\d+)?$/.test(part)) return null
+    total = total * 60 + Number(part)
+  }
+  return Number.isFinite(total) ? total : null
 }
 
 export default function MediaSequenceDialog({
@@ -49,6 +66,9 @@ export default function MediaSequenceDialog({
   // frames land beside their source. Falls back to 'shop/' for a root-level video.
   const [path, setPath] = useState(() => folderPathOf(item) || 'shop/')
   const [name, setName] = useState(defaultName)
+  // Optional trim window, as typed. Parsed to seconds on submit; empty = whole video.
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
   const [summary, setSummary] = useState<SettingsSummary | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -127,14 +147,20 @@ export default function MediaSequenceDialog({
   async function submit() {
     const cleanPath = path.trim()
     const cleanName = name.trim()
-    if (!cleanPath || !cleanName || submitting) return
+    if (!cleanPath || !cleanName || submitting || trimProblem) return
     setSubmitting(true)
     setError(null)
     try {
       const res = await fetch(`/api/admin/media/${item.id}/convert-sequence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: cleanPath, name: cleanName, folderId }),
+        body: JSON.stringify({
+          path: cleanPath,
+          name: cleanName,
+          folderId,
+          ...(typeof trimStart === 'number' ? { trimStart } : {}),
+          ...(typeof trimEnd === 'number' ? { trimEnd } : {}),
+        }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not start the conversion.')
@@ -159,8 +185,18 @@ export default function MediaSequenceDialog({
     setPhase('form')
   }
 
+  // Trim fields, parsed live so a typo is flagged before the submit round-trip.
+  const trimStart = parseTime(startTime)
+  const trimEnd = parseTime(endTime)
+  const trimProblem =
+    trimStart === null || trimEnd === null
+      ? 'Times look like 90, 1:30 or 0:01:30.'
+      : typeof trimEnd === 'number' && trimEnd <= (typeof trimStart === 'number' ? trimStart : 0)
+        ? 'The end time must be after the start time.'
+        : null
+
   const pct = Math.round(progress * 100)
-  const canSubmit = !!path.trim() && !!name.trim() && !submitting
+  const canSubmit = !!path.trim() && !!name.trim() && !submitting && !trimProblem
 
   return (
     <div
@@ -212,6 +248,39 @@ export default function MediaSequenceDialog({
                 placeholder={defaultName}
                 style={textInput}
               />
+            </div>
+
+            {/* Optional trim window - only frames between the two are sequenced */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
+                  <label htmlFor="seq-start" style={sectionLabel}>Start time</label>
+                  <input
+                    id="seq-start"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    placeholder="0:00"
+                    inputMode="numeric"
+                    style={textInput}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
+                  <label htmlFor="seq-end" style={sectionLabel}>End time</label>
+                  <input
+                    id="seq-end"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    placeholder="End of video"
+                    inputMode="numeric"
+                    style={textInput}
+                  />
+                </div>
+              </div>
+              {trimProblem ? (
+                <span style={{ ...helpText, color: 'var(--color-error)' }} role="alert">{trimProblem}</span>
+              ) : (
+                <span style={helpText}>Optional - only frames between these times are sequenced. Leave blank for the whole video. Use seconds or minutes:seconds, e.g. 90 or 1:30.</span>
+              )}
             </div>
 
             {/* Conversion settings summary - tuned under Media > Scroll sequences */}

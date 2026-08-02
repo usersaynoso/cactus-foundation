@@ -9,7 +9,7 @@ import SequenceSettingsPanel from './SequenceSettingsPanel'
 // stateful client tree, so both tabs stay mounted and the inactive one is just
 // hidden - switching tabs never tears the library's selection or scroll down.
 
-type Settings = { fps: number; maxWidth: number }
+type Settings = { engine: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
 type FlyMeta = { source: 'saved' | 'env' | null; configured: boolean; appName: string | null }
 
 type JobState = 'queued' | 'running' | 'done' | 'error'

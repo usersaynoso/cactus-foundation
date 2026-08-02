@@ -42,6 +42,7 @@ export async function GET() {
 // (fall back to the environment one, if any), a string = save it.
 const PutSchema = z.object({
   settings: z.object({
+    engine: z.enum(SEQUENCE_ENGINES).optional(),
     fps: z.number().int().min(1).max(60),
     maxWidth: z.number().int().min(320).max(3840),
   }),
@@ -77,7 +78,8 @@ export async function PUT(request: NextRequest) {
   const current = await getSequenceConfig()
   const next = {
     settings: {
-      engine: SEQUENCE_ENGINES[0],
+      // Absent engine = keep what's stored (older clients don't send one).
+      engine: parsed.data.settings.engine ?? current.settings.engine,
       fps: parsed.data.settings.fps,
       maxWidth: parsed.data.settings.maxWidth,
     },

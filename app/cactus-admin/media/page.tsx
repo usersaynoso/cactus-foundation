@@ -83,7 +83,7 @@ export default async function MediaPage({ searchParams }: Props) {
 
   return (
     <MediaTabs
-      settings={{ fps: sequenceConfig.settings.fps, maxWidth: sequenceConfig.settings.maxWidth }}
+      settings={{ engine: sequenceConfig.settings.engine, fps: sequenceConfig.settings.fps, maxWidth: sequenceConfig.settings.maxWidth }}
       fly={{ source: flySource, configured: !!resolvedFly, appName: resolvedFly?.appName ?? null }}
       jobs={sequenceJobs}
       canManagePresets={canCheckStorage}
