@@ -384,7 +384,10 @@ export default function ScrollSequence({
       role="img"
       aria-label={label}
       style={contained
-        ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }
+        // min() with the container width: a bare max-width length is absolute,
+        // so a 600px cap inside a 420px grid column would overflow and be
+        // clipped on both sides by the stage's overflow:hidden.
+        ? { display: 'block', maxWidth: `min(${cap}, 100%)`, maxHeight: '100%', width: 'auto', height: 'auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }
         : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }}
     />
   ) : posterFailed ? null : (
@@ -394,7 +397,7 @@ export default function ScrollSequence({
       alt={label}
       onError={() => setPosterFailed(true)}
       style={contained
-        ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto' }
+        ? { display: 'block', maxWidth: `min(${cap}, 100%)`, maxHeight: '100%', width: 'auto', height: 'auto' }
         : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto' }}
     />
   )
@@ -403,10 +406,13 @@ export default function ScrollSequence({
       ref={spacerRef}
       style={{ position: 'relative', height: `${(1 + Math.max(0, scrubScreens)) * 100}vh` }}
     >
-      {/* The clearance pads the pinned stage itself, so everything inside -
-          text and canvas alike - lays out in the band below the site's sticky
-          chrome rather than centring behind it. */}
-      <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', paddingTop: pad || undefined, boxSizing: 'border-box' }}>
+      {/* The clearance moves the pinned stage itself below the site's sticky
+          chrome: it pins at `top: clearance` with the viewport's remaining
+          height, so everything inside - text and canvas alike - lays out in
+          the visible band. top/height rather than padding on a 100vh box,
+          because padding is dead space that shows as a bald gap while the
+          stage is still scrolling towards its pin position. */}
+      <div style={{ position: 'sticky', top: pad || 0, height: pad ? `calc(100vh - ${pad})` : '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {hasText ? (
           // Text shares the pinned screen: copy at the top of the cleared band,
           // canvas centred in whatever height is left below it.
