@@ -60,7 +60,14 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     return errorResponse('The end time must be after the start time.', 400)
   }
 
-  // The engine, frame rate and max width are not the browser's to choose: they
+  // See-through gaps IS the browser's to choose, unlike everything below: it
+  // keys the white studio wall out of holes the cut-out treated as solid (mesh
+  // backs, perforated seats), and whether that helps depends on the product in
+  // this particular video rather than on the site. Anything but an explicit true
+  // is off, which is also what a request that omits it gets.
+  const seeThrough = body?.seeThrough === true
+
+  // The engine, frame rate and max width are NOT the browser's to choose: they
   // come from the admin-tuned settings (Media > Scroll sequences). Everything
   // numeric is read server-side, so a conversion always runs exactly what the
   // settings say.
@@ -102,7 +109,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         fps: settings.fps,
         maxWidth: settings.maxWidth,
         engine: settings.engine,
-        seeThrough: settings.seeThrough,
+        seeThrough,
         trimStart,
         trimEnd,
         callbackUrl,

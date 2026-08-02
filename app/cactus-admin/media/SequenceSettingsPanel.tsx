@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 // notification (and clears the bell).
 
 type SequenceEngine = 'isnet' | 'birefnet'
-type Settings = { engine: SequenceEngine; fps: number; maxWidth: number; seeThrough: boolean }
+type Settings = { engine: SequenceEngine; fps: number; maxWidth: number }
 type FlyMeta = {
   /** Where the active token comes from: saved here, the environment, or nowhere. */
   source: 'saved' | 'env' | null
@@ -150,11 +150,6 @@ export default function SequenceSettingsPanel({
     setSettings((prev) => ({ ...prev, engine }))
   }
 
-  function setSeeThrough(seeThrough: boolean) {
-    setSaved(false)
-    setSettings((prev) => ({ ...prev, seeThrough }))
-  }
-
   async function save() {
     if (saving || !canManage) return
     setSaving(true)
@@ -169,7 +164,6 @@ export default function SequenceSettingsPanel({
         engine: settings.engine,
         fps: clampInt(settings.fps, 1, 60),
         maxWidth: clampInt(settings.maxWidth, 320, 3840),
-        seeThrough: settings.seeThrough,
       },
     }
     const newToken = flyToken.trim()
@@ -271,23 +265,6 @@ export default function SequenceSettingsPanel({
                 style={{ ...textInput, maxWidth: '8rem' }}
               />
               <span style={helpText}>Frames are scaled down to this width. Between 320 and 3840.</span>
-            </div>
-
-            <div style={fieldWrap}>
-              <span style={sectionLabel}>See-through gaps</span>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>
-                <input
-                  type="checkbox"
-                  checked={settings.seeThrough}
-                  disabled={!canManage}
-                  onChange={(e) => setSeeThrough(e.target.checked)}
-                  style={{ marginTop: '0.2rem' }}
-                />
-                <span>Let the page show through mesh and other gaps</span>
-              </label>
-              <span style={helpText}>
-                For mesh chair backs and perforated seats. Without this the white studio wall stays filled in behind every hole, so the mesh looks like a pale panel. Leave it off for glossy products with bright highlights, which can be mistaken for holes.
-              </span>
             </div>
           </div>
 

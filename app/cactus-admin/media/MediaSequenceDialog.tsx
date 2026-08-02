@@ -20,13 +20,11 @@ type JobStatus = 'queued' | 'running' | 'done' | 'error'
 // The conversion knobs, shown as a one-line summary so the admin knows what
 // will run. Values are read from the settings, never chosen here - the server
 // ignores anything the browser might send for engine/fps/width.
-type SettingsSummary = { engine?: 'isnet' | 'birefnet'; fps: number; maxWidth: number; seeThrough?: boolean }
+type SettingsSummary = { engine?: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
 
 function describeSettings(s: SettingsSummary): string {
   const quality = s.engine === 'birefnet' ? 'detailed cut-out' : 'standard cut-out'
-  const parts = [`${s.fps} fps`, `up to ${s.maxWidth}px wide`, quality]
-  if (s.seeThrough) parts.push('see-through gaps')
-  return parts.join(' · ')
+  return `${s.fps} fps · up to ${s.maxWidth}px wide · ${quality}`
 }
 
 // Parse a user-typed time into seconds. Accepts plain seconds ("12", "12.5"),
@@ -71,6 +69,11 @@ export default function MediaSequenceDialog({
   // Optional trim window, as typed. Parsed to seconds on submit; empty = whole video.
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
+  // Per-video, not a site setting: whether it helps depends entirely on the
+  // product in this clip. Starts off every time it's opened - it should be a
+  // deliberate choice for the mesh-backed ones, not something that quietly
+  // carries over onto the next glossy chair.
+  const [seeThrough, setSeeThrough] = useState(false)
   const [summary, setSummary] = useState<SettingsSummary | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -160,6 +163,7 @@ export default function MediaSequenceDialog({
           path: cleanPath,
           name: cleanName,
           folderId,
+          seeThrough,
           ...(typeof trimStart === 'number' ? { trimStart } : {}),
           ...(typeof trimEnd === 'number' ? { trimEnd } : {}),
         }),
@@ -283,6 +287,22 @@ export default function MediaSequenceDialog({
               ) : (
                 <span style={helpText}>Optional - only frames between these times are sequenced. Leave blank for the whole video. Use seconds or minutes:seconds, e.g. 90 or 1:30.</span>
               )}
+            </div>
+
+            {/* Per-video: mesh backs and perforated seats want this, glossy products don't */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>
+                <input
+                  type="checkbox"
+                  checked={seeThrough}
+                  onChange={(e) => setSeeThrough(e.target.checked)}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span>Let the page show through mesh and other gaps</span>
+              </label>
+              <span style={helpText}>
+                For mesh chair backs and perforated seats. Without it the white studio wall stays filled in behind every hole, so the mesh looks like a pale panel. Leave it off for glossy products with bright highlights, which can be mistaken for holes.
+              </span>
             </div>
 
             {/* Conversion settings summary - tuned under Media > Scroll sequences */}

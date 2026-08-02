@@ -45,7 +45,6 @@ const PutSchema = z.object({
     engine: z.enum(SEQUENCE_ENGINES).optional(),
     fps: z.number().int().min(1).max(60),
     maxWidth: z.number().int().min(320).max(3840),
-    seeThrough: z.boolean().optional(),
   }),
   fly: z
     .object({
@@ -83,8 +82,6 @@ export async function PUT(request: NextRequest) {
       engine: parsed.data.settings.engine ?? current.settings.engine,
       fps: parsed.data.settings.fps,
       maxWidth: parsed.data.settings.maxWidth,
-      // Same "older clients don't send one" rule as engine.
-      seeThrough: parsed.data.settings.seeThrough ?? current.settings.seeThrough,
     },
     fly: {
       token:
