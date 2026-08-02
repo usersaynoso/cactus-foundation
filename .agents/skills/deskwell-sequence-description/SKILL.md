@@ -3,8 +3,10 @@ name: deskwell-sequence-description
 description: >-
   Build or update a Deskwell / Cactus shop product's designed (Puck) description
   featuring feature videos with a title and supporting text - video on one side,
-  text on the other on desktop (either way round), stacking to text-above-video
-  on phones, with rounded corners matching the product image. Use whenever the
+  text on the other on desktop (sides alternate on their own, video right
+  first), stacking to text-above-video on phones, with rounded corners matching
+  the product image. Works out which clip belongs to each section from the
+  video filenames, so only titles and copy need supplying. Use whenever the
   user asks to add a video / animation to a product description, put text beside
   a video, swap which side the video sits on, add several feature sections to a
   product, or replace a product description with "the same treatment as the
@@ -39,19 +41,62 @@ viewport.
 ## Inputs to collect
 
 1. **Product**: slug or id in `shp_products`.
-2. **Video URL** per section: an mp4/webm in the media library, e.g.
-   `https://media.deskwell.co.uk/media/shop/office-seating/.../eclipse-plus-iii-deluxe-mesh-backrest-tilt-adjustable.mp4`.
-   Verify each resolves with a GET - the CDN answers 405 to HEAD.
-   If the user hands over a scroll-sequence `manifest.json` instead, the source
-   video is almost always the same path with the trailing folder replaced by
-   `.mp4`; confirm it fetches before using it.
+2. **Opening video** (optional, only when asked): one wide clip of the whole
+   product that runs full width at the top, with the product's short
+   description underneath it. See step 1a.
 3. **Title** and **body text** per section (verbatim from the user).
-4. **Side** per section. The user says where the **video** goes; the prop says
-   where the **text** goes, so they are opposites:
-   - user says "sequence/video right" → `"textSide": "left"`
-   - user says "video left" → `"textSide": "right"`
-   Alternate sections unless told otherwise. Swapping sides later is a one-word
-   edit to this single prop; nothing else moves.
+
+That is the lot. The video for each section and the side it sits on are both
+worked out here, not asked for - see below. Only chase the user when a title
+matches no video, or matches two.
+
+### Which video goes with which section
+
+Match by filename. The clips live in the product's own media folder and are
+named after the feature, so the section title is the lookup key:
+
+```sql
+SELECT "originalName", url FROM "Media"
+WHERE url ILIKE '%/<product-slug-or-range-prefix>/%'
+  AND (url ILIKE '%.mp4' OR url ILIKE '%.webm')
+ORDER BY url;
+```
+
+Slugify the title (lower case, spaces to hyphens, drop punctuation) and match
+it against the filename stem with the product/range prefix stripped:
+
+- `Backrest Tilt Adjustment` → `backrest-tilt` → `…-backrest-tilt-adjustable.mp4`
+- `Gas Height Adjustment` → `gas-height` → `…-height-adjustable.mp4`
+- `Optional Height Adjustable Armrests` → `…-arm-height-adjustable.mp4`
+
+Filenames use the supplier's adjective form (`adjustable`) where titles use the
+noun (`adjustment`), and words like "Optional" appear in titles only, so match
+on the **distinctive** words - `backrest tilt`, `arm height`, `seat tilt`,
+`lumbar` - rather than demanding the whole string. Two rules:
+
+- **Never guess.** No confident single match, or two clips look equally likely
+  → stop and ask which one, quoting the candidates. A wrong clip beside the
+  right words is worse than a question.
+- Verify each chosen url resolves with a GET - the CDN answers 405 to HEAD.
+- A scroll-sequence `manifest.json` handed over instead is the same path with
+  the trailing folder replaced by `.mp4`; confirm it fetches before using it.
+
+### Which side each video sits on
+
+Alternate automatically, **video on the right first**:
+
+| Section | 1 | 2 | 3 | 4 | 5 | … |
+|---------|---|---|---|---|---|---|
+| Video   | right | left | right | left | right | … |
+| `textSide` | `left` | `right` | `left` | `right` | `left` | … |
+
+The prop names where the **text** goes, so it is always the opposite of where
+the video goes. A full-width opening video is not part of the alternation and
+does not shift it - section 1 below it still puts its video on the right.
+
+Only depart from this if the user asks for a specific arrangement, in which
+case take their word per section. Swapping sides later is a one-word edit to
+this single prop; nothing else moves.
 
 ## Deskwell constants
 
@@ -122,6 +167,73 @@ Ready-made in `references/description-template.json`. Add further blocks
 Note `visibility` strings: `"true"` means HIDE on that device - all `"false"`
 here, since one block serves every screen.
 
+### 1a. The opening video (when asked for one)
+
+Some products lead with a single wide clip of the whole thing before the
+feature sections start - "a full width video at the top". That is the same
+block with the copy left out and the cap removed, followed by the product's
+own `short_description` as a `TextBlock` sitting underneath it:
+
+```json
+[
+  {
+    "type": "FeatureVideo",
+    "props": {
+      "id": "FeatureVideo-<product>-hero-<hash>",
+      "videoUrl": "<wide mp4 url>",
+      "posterUrl": "",
+      "title": "",
+      "body": "",
+      "textSide": "above",
+      "maxWidth": "",
+      "radius": "16px",
+      "frame": true,
+      "loop": true,
+      "controls": false,
+      "ariaLabel": "<what the video shows>",
+      "padding": "none",
+      "sticky": "off",
+      "stickyOffset": "",
+      "visibility": { "desktop": "false", "tablet": "false", "mobile": "false" },
+      "animationType": "none",
+      "animationDuration": "normal",
+      "animationDelay": "none"
+    }
+  },
+  {
+    "type": "TextBlock",
+    "props": {
+      "id": "TextBlock-<product>-intro-<hash>",
+      "content": "<the product's short_description, verbatim>",
+      "align": "center",
+      "size": "md",
+      "maxWidth": "wide",
+      "color": "",
+      "padding": "default",
+      "sticky": "off",
+      "stickyOffset": "",
+      "visibility": { "desktop": "false", "tablet": "false", "mobile": "false" },
+      "animationType": "none",
+      "animationDuration": "normal",
+      "animationDelay": "none"
+    }
+  }
+]
+```
+
+- Blank `maxWidth` is what makes it full width; the block reads a blank cap as
+  `100%`. Leave `title`/`body` empty so no two-track row is built at all.
+- Read the copy from `shp_products.short_description` and paste it verbatim -
+  it is the same sentence that greets people higher up the page, so it should
+  not be reworded here. Tidy double spaces, nothing else. If the product has
+  no short description, skip the TextBlock rather than inventing copy.
+- Wide hero clips are the heavy ones (16:9 masters run to tens of megabytes
+  against ~4MB for a square feature clip). Check the file size before using
+  one, and say so if it is fat: the block's lazy preload keeps it off the
+  first paint, but it is still a big download for whoever scrolls that far.
+
+### 1b. How playback works
+
 Playback is automatic: muted, inline, looping, played when the section is on
 screen and paused when it leaves. Nothing is fetched until the section is
 within 400px of the viewport, which is what keeps six 4MB clips off the
@@ -177,6 +289,13 @@ What to expect:
   what stops that; do not "helpfully" set `preload="auto"` or add a poster for
   every section without checking weight.
 - iOS only autoplays muted inline video. The block sets both; don't add sound.
+- **Check the first frame before shipping a clip.** A video that fades up from
+  black shows a black rectangle until playback starts - a second on a fast
+  connection, longer on a phone. Test it:
+  `ffmpeg -ss 0.2 -i clip.mp4 -vframes 1 f.png && magick f.png -colorspace gray -format "%[fx:mean]\n" info:`
+  - a mean near 0 means it opens on black. Give that clip a `posterUrl` (grab a
+  representative frame, upload it to the media library, paste its url) rather
+  than leaving visitors a black box.
 - An admin opening the product's pop-out description builder later edits this
   same document. **Feature video** sits in the Media category, and **Title and
   text position** is right there in the sidebar if they want to flip sides by

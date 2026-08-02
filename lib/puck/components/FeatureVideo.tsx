@@ -73,24 +73,55 @@ export default function FeatureVideo({
 
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-    // Near the viewport: start fetching. Actually on screen: play.
+    // Whether the block is currently on screen and therefore ought to be
+    // playing. Kept outside the observers because a play() that loses a race
+    // has to know, later, whether playing is still wanted.
+    let wanted = false
+
+    // play() returns a promise that REJECTS when something interrupts it - most
+    // often the preloader's own load() landing on top of it, which happens when
+    // a block scrolls into view within one frame of crossing the preload
+    // margin. Swallowing that rejection leaves the section paused at 0:00 for
+    // good, so a failed start waits for the next `canplay` and tries once more.
+    const start = () => {
+      if (!wanted || reduced) return
+      el.play().catch(() => {
+        const retry = () => { el.removeEventListener('canplay', retry); start() }
+        el.addEventListener('canplay', retry)
+      })
+    }
+
+    // Near the viewport: start fetching. load() is only needed to kick a
+    // never-loaded element off `preload="none"`; calling it on one that already
+    // holds frames would throw playback back to the start.
     const preloader = new IntersectionObserver(([e]) => {
       if (!e?.isIntersecting) return
-      if (el.preload !== 'auto') { el.preload = 'auto'; el.load() }
+      if (el.preload !== 'auto') {
+        el.preload = 'auto'
+        if (el.readyState === 0) el.load()
+      }
       preloader.disconnect()
     }, { rootMargin: '400px 0px' })
 
+    // Actually on screen: play.
     const player = new IntersectionObserver(([e]) => {
-      if (e?.isIntersecting) {
-        if (!reduced) el.play().catch(() => {})
-      } else if (!el.paused) {
-        el.pause()
-      }
+      wanted = !!e?.isIntersecting
+      if (wanted) start()
+      else if (!el.paused) el.pause()
     }, { threshold: 0.25 })
+
+    // A load() that finishes after the block is already on screen would
+    // otherwise leave it waiting for a scroll that never comes.
+    const onLoaded = () => start()
+    el.addEventListener('loadeddata', onLoaded)
 
     preloader.observe(el)
     player.observe(el)
-    return () => { preloader.disconnect(); player.disconnect() }
+    return () => {
+      preloader.disconnect()
+      player.disconnect()
+      el.removeEventListener('loadeddata', onLoaded)
+    }
   }, [videoUrl, isEditing])
 
   // Nothing picked yet: a neutral placeholder, mirroring the Image block's own

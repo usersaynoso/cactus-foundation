@@ -43,7 +43,10 @@ const MEASURE = (i) => `(() => {
   if (!v) return null
   let row = v.parentElement
   while (row && !(row.matches && row.matches('[data-fv-split]'))) row = row.parentElement
-  const scope = row ?? v.parentElement?.parentElement ?? document.body
+  // Stacked (or captionless) blocks keep video and copy in one wrapper, so the
+  // wrapper is the scope - never the grandparent, which would borrow the NEXT
+  // section's heading and report a wide clip as titled when it isn't.
+  const scope = row ?? v.parentElement ?? document.body
   const h2 = scope.querySelector('h2')
   const c = v.getBoundingClientRect()
   const t = h2 ? (h2.parentElement ?? h2).getBoundingClientRect() : null
@@ -83,11 +86,16 @@ async function run(label, launcher, contextOpts, prefix, mobile) {
       m.paused ? 'PAUSED' : `playing (t=${m.currentTime}s)`,
       `radius ${m.radius}`,
     ]
-    if (mobile) {
-      bits.push(m.text && m.text.bottom <= m.video.top + 2 ? 'TEXT ABOVE VIDEO' : 'OVERLAP')
+    if (!m.text) {
+      // A captionless block is the full-width opening video: there is no column
+      // to fit inside and no copy to sit above, so the two-column checks would
+      // only cry wolf.
+      bits.push('full width, no copy')
+    } else if (mobile) {
+      bits.push(m.text.bottom <= m.video.top + 2 ? 'TEXT ABOVE VIDEO' : 'OVERLAP')
       bits.push(m.video.bottom - m.video.top <= m.vh ? 'FITS SCREEN' : 'TALLER THAN SCREEN')
     } else {
-      bits.push(m.text ? (m.text.left > m.video.left ? 'text RIGHT of video' : 'text LEFT of video') : 'no text')
+      bits.push(m.text.left > m.video.left ? 'text RIGHT of video' : 'text LEFT of video')
       bits.push(midDiff === null ? '' : (midDiff <= 20 ? 'LEVEL' : `OFF by ${Math.round(midDiff)}px`))
       bits.push(m.rowWidth && m.video.width <= m.rowWidth / 2 + 8 ? 'FITS COLUMN' : 'TOO WIDE')
     }

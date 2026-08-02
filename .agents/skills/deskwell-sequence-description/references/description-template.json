@@ -1,11 +1,13 @@
 {
   "_readme": [
     "Template for a feature-video product description_puck. Replace every <PLACEHOLDER> and delete this _readme key before applying.",
-    "textSide is where the TEXT goes: 'left' = text left / video right, 'right' = text right / video left, 'above' = text stacked over the video. The user usually says where the VIDEO goes - that is the opposite value.",
+    "textSide is where the TEXT goes: 'left' = text left / video right, 'right' = text right / video left, 'above' = text stacked over the video.",
+    "Sides alternate automatically, video on the RIGHT first: section 1 textSide 'left', section 2 'right', section 3 'left', and so on. A full-width opening video sits outside the alternation.",
     "radius 16px and frame true match the product image stage, so the description looks like it belongs to the gallery above it.",
     "No topOffset and no scrub length: nothing pins, so the sticky header and tab bar never overlap a section.",
     "visibility strings: 'true' HIDES on that device. All 'false' here - one block serves desktop, tablet and mobile.",
-    "Repeat the block per feature, alternating textSide, and add any other blocks (Heading, SpecPanel) around them."
+    "Repeat the block per feature, alternating textSide, and add any other blocks (Heading, SpecPanel) around them.",
+    "Asked for a full width video at the top: same block with title/body empty and maxWidth blank (blank = 100%), padding none, followed by a TextBlock holding the product's short_description - see step 1a in SKILL.md."
   ],
   "root": { "props": {} },
   "zones": {},
