@@ -3241,21 +3241,34 @@ export const puckConfig = {
         loop: { type: 'radio' as const, label: 'Loop at the end', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
         fade: { type: 'radio' as const, label: 'Fade on enter/exit', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
         maxWidth: { type: 'text' as const, label: 'Max width (e.g. 600px or 100%)' },
+        title: { type: 'text' as const, label: 'Title (inside the animation screen)' },
+        body: { type: 'textarea' as const, label: 'Text (inside the animation screen)' },
+        topOffset: { type: 'text' as const, label: 'Top clearance for sticky headers (e.g. 10rem)' },
         ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
       },
-      defaultProps: { sequenceUrl: '', scrubScreens: 2, loop: true, fade: true, maxWidth: '', ariaLabel: '' },
+      defaultProps: { sequenceUrl: '', scrubScreens: 2, loop: true, fade: true, maxWidth: '', title: '', body: '', topOffset: '', ariaLabel: '' },
+      // Clearance only means anything once there is in-screen text to clear.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data.props ?? {}
+        if (p.title?.trim() || p.body?.trim()) return fields
+        const { topOffset: _t, ...rest } = fields
+        return rest
+      },
       // The player is a client component (scroll listeners, canvas, rAF) - this
       // render only hands it props, staying editor-safe like the rest of the file.
       // The same render is reused on the RSC/published path (config.rsc.tsx spreads
       // puckConfig.components), which is fine: a client component renders happily
       // from a server component.
-      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, ariaLabel, puck }: any) => (
+      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, title, body, topOffset, ariaLabel, puck }: any) => (
         <ScrollSequence
           sequenceUrl={sequenceUrl}
           scrubScreens={scrubScreens}
           loop={loop}
           fade={fade}
           maxWidth={maxWidth}
+          title={title}
+          body={body}
+          topOffset={topOffset}
           ariaLabel={ariaLabel}
           isEditing={puck?.isEditing}
         />

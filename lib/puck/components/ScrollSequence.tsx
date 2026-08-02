@@ -25,6 +25,16 @@ type Props = {
   fade?: boolean
   maxWidth?: string
   ariaLabel?: string
+  // Optional heading/copy rendered INSIDE the pinned screen, above the canvas.
+  // The pinned stage is the whole viewport, so text placed as ordinary blocks
+  // before the sequence scrolls away the moment the scrub starts - the only
+  // place copy can stay on screen with the animation is inside the stage.
+  title?: string
+  body?: string
+  // Room to leave above the in-screen text for a site's sticky header/nav
+  // (any CSS length, e.g. "10rem"). The stage pins at the viewport top and
+  // knows nothing about chrome overlaying it, so the page has to say.
+  topOffset?: string
   isEditing?: boolean
 }
 
@@ -78,6 +88,9 @@ export default function ScrollSequence({
   fade = true,
   maxWidth = '',
   ariaLabel,
+  title = '',
+  body = '',
+  topOffset = '',
   isEditing,
 }: Props) {
   const [manifest, setManifest] = useState<Manifest | null>(null)
@@ -92,6 +105,17 @@ export default function ScrollSequence({
 
   const label = ariaLabel || 'Product animation'
   const cap = maxWidth.trim() || '100%'
+  const hasText = !!(title.trim() || body.trim())
+  const pad = topOffset.trim()
+
+  // The in-screen heading/copy block, shared by the editor preview and the
+  // published stage so both paths keep identical markup.
+  const textBlock = hasText ? (
+    <div style={{ width: '100%', maxWidth: cap, margin: '0 auto', boxSizing: 'border-box' }}>
+      {title.trim() && <h2 style={{ margin: '0 0 0.5rem' }}>{title}</h2>}
+      {body.trim() && <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>{body}</p>}
+    </div>
+  ) : null
 
   // Fetch the manifest once per url. It is tiny, so it loads on mount even when
   // the block is far down the page; the heavy frame preload is what waits for the
@@ -298,38 +322,46 @@ export default function ScrollSequence({
   // representative still with a small badge so it reads as a builder preview.
   if (isEditing) {
     return (
-      <div style={{ position: 'relative', maxWidth: cap, margin: '0 auto' }}>
-        {posterFailed ? (
-          <div style={PLACEHOLDER_STYLE}>Scroll sequence (preview unavailable)</div>
-        ) : (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={posterUrl}
-              alt={label}
-              onError={() => setPosterFailed(true)}
-              style={{ display: 'block', width: '100%', height: 'auto' }}
-            />
-            <span style={BADGE_STYLE}>Scroll sequence</span>
-          </>
-        )}
+      <div style={{ maxWidth: cap, margin: '0 auto' }}>
+        {textBlock}
+        <div style={{ position: 'relative' }}>
+          {posterFailed ? (
+            <div style={PLACEHOLDER_STYLE}>Scroll sequence (preview unavailable)</div>
+          ) : (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={posterUrl}
+                alt={label}
+                onError={() => setPosterFailed(true)}
+                style={{ display: 'block', width: '100%', height: 'auto' }}
+              />
+              <span style={BADGE_STYLE}>Scroll sequence</span>
+            </>
+          )}
+        </div>
       </div>
     )
   }
 
   // Published, but the manifest failed: the poster if it loads, else a small
-  // message. No tall spacer - there are no frames to scrub.
+  // message. No tall spacer - there are no frames to scrub. Any in-screen copy
+  // still renders: the words should not vanish with the animation.
   if (status === 'error') {
-    if (posterFailed) return <div style={PLACEHOLDER_STYLE}>Animation unavailable</div>
     return (
       <div style={{ maxWidth: cap, margin: '0 auto' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={posterUrl}
-          alt={label}
-          onError={() => setPosterFailed(true)}
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
+        {textBlock}
+        {posterFailed ? (
+          <div style={PLACEHOLDER_STYLE}>Animation unavailable</div>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={posterUrl}
+            alt={label}
+            onError={() => setPosterFailed(true)}
+            style={{ display: 'block', width: '100%', height: 'auto' }}
+          />
+        )}
       </div>
     )
   }
@@ -340,33 +372,54 @@ export default function ScrollSequence({
   // background and works in light and dark alike.
   const w = manifest?.width && manifest.width > 0 ? manifest.width : undefined
   const h = manifest?.height && manifest.height > 0 ? manifest.height : undefined
+  const stage = status === 'ready' ? (
+    <canvas
+      ref={canvasRef}
+      role="img"
+      aria-label={label}
+      style={hasText
+        // Sharing the screen with the text: cap by the leftover height as well
+        // as the width so text + canvas always fit the viewport together.
+        ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }
+        : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }}
+    />
+  ) : posterFailed ? null : (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={posterUrl}
+      alt={label}
+      onError={() => setPosterFailed(true)}
+      style={hasText
+        ? { display: 'block', maxWidth: cap, maxHeight: '100%', width: 'auto', height: 'auto' }
+        : { display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto' }}
+    />
+  )
   return (
     <div
       ref={spacerRef}
       style={{ position: 'relative', height: `${(1 + Math.max(0, scrubScreens)) * 100}vh` }}
     >
       <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <div
-          ref={fadeRef}
-          style={{ width: '100%', display: 'flex', justifyContent: 'center', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
-        >
-          {status === 'ready' ? (
-            <canvas
-              ref={canvasRef}
-              role="img"
-              aria-label={label}
-              style={{ display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto', aspectRatio: w && h ? `${w} / ${h}` : undefined }}
-            />
-          ) : posterFailed ? null : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={posterUrl}
-              alt={label}
-              onError={() => setPosterFailed(true)}
-              style={{ display: 'block', width: '100%', maxWidth: cap, height: 'auto', margin: '0 auto' }}
-            />
-          )}
-        </div>
+        {hasText ? (
+          // Text shares the pinned screen: copy at the top (below any declared
+          // sticky-chrome clearance), canvas centred in whatever height is left.
+          <div
+            ref={fadeRef}
+            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: pad ? 'flex-start' : 'center', gap: '0.75rem', paddingTop: pad || undefined, paddingBottom: '1rem', boxSizing: 'border-box', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
+          >
+            {textBlock}
+            <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {stage}
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={fadeRef}
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', opacity: fade ? 0 : 1, transition: 'opacity 0.3s ease' }}
+          >
+            {stage}
+          </div>
+        )}
       </div>
     </div>
   )
