@@ -1,14 +1,14 @@
 // Small shared formatters for the media library UI, so the grid, list, detail
 // panel and stat bar all render sizes, dates and filenames identically.
 
-import { SEQUENCE_MIME, extensionForModelType } from '@/lib/media/limits'
+import { extensionForModelType } from '@/lib/media/limits'
 import { ALL_PROVIDERS } from '@/lib/media/providers'
 
 // The media-library folder path an item lives in, derived from its storage key.
 // Keys are `media/<folderPath>/<file>` (B2) or `media/<PROVIDER>/<folderPath>/<file>`
 // for other proxied providers, so strip the leading `media/`, an optional provider
 // segment, and the filename - what's left mirrors the library's folder tree.
-// Used to prefill the scroll-sequence dialog's destination path with the video's
+// Used to prefill a dialog's destination path with the item's
 // own folder. Returns a trailing-slashed path, or '' when the item sits at the root.
 const PROVIDER_SEGMENTS = new Set<string>(ALL_PROVIDERS.map(String))
 
@@ -37,17 +37,8 @@ export function filenameOf(item: { originalName: string | null; key: string }): 
   return item.originalName || item.key.split('/').pop() || 'Untitled'
 }
 
-// The poster image for a scroll-sequence item. Its `url` points at the
-// manifest.json; the poster is a plain webp sitting beside it that the media
-// Worker serves without a token. Strip any signing query first, then swap the
-// last path segment for poster.webp.
-export function sequencePosterUrl(url: string): string {
-  return url.replace(/\?.*$/, '').replace(/[^/]*$/, 'poster.webp')
-}
-
 /** Short, human label for a MIME type, e.g. "image/svg+xml" -> "SVG". */
 export function fileKind(mimeType: string): string {
-  if (mimeType === SEQUENCE_MIME) return 'Scroll sequence'
   if (mimeType === 'image/svg+xml') return 'SVG'
   // A 3D type's subtype is not what anyone calls the file: "model/gltf-binary"
   // read as "GLTF-BINARY" in the Type column while the file itself was a .glb.

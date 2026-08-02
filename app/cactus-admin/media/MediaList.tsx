@@ -2,8 +2,8 @@
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import type { LibraryItem, Sort } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind, optimiseHint, sequencePosterUrl } from './format'
-import { isModelDirectType, isSequenceType } from '@/lib/media/limits'
+import { formatBytes, formatDate, filenameOf, fileKind, optimiseHint } from './format'
+import { isModelDirectType } from '@/lib/media/limits'
 
 // The dense alternative to the grid: one row per file with sortable columns.
 // Same interaction surface as a card - click a row to open the detail panel,
@@ -107,7 +107,7 @@ export default function MediaList({
                   />
                 </td>
                 <td style={{ width: '3.5rem' }}>
-                  <ListThumb url={item.url} alt={item.altText ?? ''} isImage={isImage} isVideo={item.mimeType.startsWith('video/')} isSequence={isSequenceType(item.mimeType)} isModel={isModelDirectType(item.mimeType)} />
+                  <ListThumb url={item.url} alt={item.altText ?? ''} isImage={isImage} isVideo={item.mimeType.startsWith('video/')} isModel={isModelDirectType(item.mimeType)} />
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
@@ -138,19 +138,15 @@ export default function MediaList({
 
 // Its own component so each row can track its own broken-image state and fall
 // back to a placeholder rather than showing the browser's broken-image glyph.
-function ListThumb({ url, alt, isImage, isVideo, isSequence, isModel }: { url: string; alt: string; isImage: boolean; isVideo: boolean; isSequence: boolean; isModel: boolean }) {
+function ListThumb({ url, alt, isImage, isVideo, isModel }: { url: string; alt: string; isImage: boolean; isVideo: boolean; isModel: boolean }) {
   const [broken, setBroken] = useState(false)
-  const posterUrl = isSequence ? sequencePosterUrl(url) : null
   return (
     <span style={thumbBox}>
       {isImage && !broken ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img src={url} alt={alt} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-      ) : isSequence && posterUrl && !broken ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={posterUrl} alt={alt} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       ) : (
-        <span style={{ fontSize: '1.1rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : isModel ? '3D model - open it to turn it around' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : isModel ? '🧊' : '📄'}</span>
+        <span style={{ fontSize: '1.1rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isModel ? '3D model - open it to turn it around' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isModel ? '🧊' : '📄'}</span>
       )}
     </span>
   )

@@ -79,7 +79,7 @@ export function isModelDirectType(mimeType: string): boolean {
 // left out on purpose - its container is not reliably playable across browsers,
 // and its MIME subtype ("quicktime") would not round-trip to a ".mov" key the way
 // extensionForMimeType (lib/media/upload.ts) needs. Video is both the SOURCE a
-// scroll sequence is built from and a first-class library asset in its own right.
+// first-class library asset in its own right - see lib/media/video-quality.ts.
 export const VIDEO_DIRECT_TYPES = new Set(['video/mp4', 'video/webm'])
 
 export function isVideoDirectType(mimeType: string): boolean {
@@ -89,20 +89,6 @@ export function isVideoDirectType(mimeType: string): boolean {
 // What a file picker's `accept` lists for video. Unlike a 3D file, the browser
 // reports these types reliably from the extension, so they are offered by type.
 export const VIDEO_ACCEPT_TYPES = [...VIDEO_DIRECT_TYPES].join(',')
-
-// The custom type carried by a "scroll sequence" library item. A sequence is a
-// whole folder of alpha-WebP frames plus a manifest.json in object storage,
-// produced by the sequence worker from a video; the library records ONE pointer
-// row (this type, its url -> the manifest.json) so it shows a single tile rather
-// than a hundred near-identical frames. It is never uploaded - the worker writes
-// the frames and a server route records the row - so it stays out of the upload /
-// accept / direct-path / optimisable sets entirely, and exists only so the
-// library and the Puck block have something to point at.
-export const SEQUENCE_MIME = 'application/vnd.cactus.sequence+json'
-
-export function isSequenceType(mimeType: string): boolean {
-  return mimeType === SEQUENCE_MIME
-}
 
 // What a file picker's `accept` must list for 3D files: extensions, not types.
 // Listing "model/gltf-binary" would offer the admin nothing at all, because the

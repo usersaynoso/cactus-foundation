@@ -1,5 +1,6 @@
 import { Prisma, type NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
+import { videoJobTitle } from '@/lib/media/video-job-notification'
 
 // Generic on-demand alert helpers. Unlike deployment notifications (which append
 // reasons to one open record), alerts are keyed by a stable dedupeKey so the same
@@ -110,13 +111,13 @@ export async function recordModuleUpdate({
 
 export type NotificationReason = { label: string; detail?: string; at: string }
 
-function sequenceNotificationTitle(name: string, state: 'queued' | 'running' | 'done' | 'error'): string {
-  if (state === 'done') return `Scroll sequence complete: ${name}`
-  if (state === 'error') return `Scroll sequence failed: ${name}`
-  return `Scroll sequence in progress: ${name}`
-}
-
-export async function upsertSequenceNotification({
+/**
+ * One notification per video-optimise job, keyed `video-job:{jobRef}`: the state
+ * lives in its title and the latest progress in reasons[0], which is what gets
+ * the job a live progress bar in the bell (see components/admin/VideoJobProgress
+ * and lib/media/video-job-notification, the other half of this contract).
+ */
+export async function upsertVideoJobNotification({
   jobId,
   name,
   state,
@@ -130,27 +131,26 @@ export async function upsertSequenceNotification({
   /** The worker's own 0-1 fraction, not a percentage. */
   progress?: number
   detail?: string
-  // The media folder the finished sequence is filed into, so the completed
-  // notification can offer a button straight to it. Omit it (rather than passing
-  // null) when the caller doesn't know - null means "the library root".
+  // The media folder the optimised video sits in, so the finished notification
+  // can offer a button straight to it. Omit it (rather than passing null) when
+  // the caller doesn't know - null means "the library root".
   folderId?: string | null
 }): Promise<void> {
-  // The worker reports progress as a 0-1 fraction, so 1 is finished, not 1%.
   const pct =
     typeof progress === 'number' && Number.isFinite(progress)
       ? Math.max(0, Math.min(100, Math.round(progress * 100)))
       : null
   const reasons: NotificationReason[] = [
     {
-      label: state === 'queued' ? 'Queued' : state === 'running' ? 'Building' : state === 'done' ? 'Finished' : 'Failed',
+      label: state === 'queued' ? 'Queued' : state === 'running' ? 'Encoding' : state === 'done' ? 'Finished' : 'Failed',
       detail: pct === null ? detail : detail ? `${pct}% - ${detail}` : `${pct}%`,
       at: new Date().toISOString(),
     },
   ]
 
-  // Mid-conversion there is nowhere useful to send anyone - the bell shows the
-  // live progress bar instead of a button that just reloads the media page. Once
-  // the frames have landed, the button opens the folder they were filed into.
+  // Mid-encode there is nowhere useful to send anyone - the bell shows the live
+  // progress bar instead of a button that just reloads the media page. Once the
+  // smaller file has landed, the button opens the folder it sits in.
   const done = state === 'done'
   const knowsFolder = folderId !== undefined
   const link = done
@@ -159,8 +159,8 @@ export async function upsertSequenceNotification({
 
   await upsertAlert({
     type: 'message',
-    dedupeKey: `sequence-job:${jobId}`,
-    title: sequenceNotificationTitle(name, state),
+    dedupeKey: `video-job:${jobId}`,
+    title: videoJobTitle(name, state),
     link,
     actionLabel: done ? (knowsFolder ? 'Open media folder' : undefined) : null,
     reasons,

@@ -79,41 +79,21 @@ The same 50 MB ceiling covers 3D model files. They go the same way photos do - b
 
 ---
 
-## Videos and scroll sequences
+## Videos
 
 You can upload **video** to your media library the same way you upload a photo - MP4 and WebM files are both welcome. A video sits in the library as its own tile with a little film-strip marker, and clicking it plays a preview.
 
-The clever bit is what you can do next. Open a video and choose **Convert to scroll sequence**, and Cactus quietly rebuilds it into a *scroll sequence*: a smooth, frame-by-frame animation with the plain studio background - and the drop shadow that usually tags along with it - removed, so it looks right on both light and dark pages. If your product has genuine holes in it - a mesh chair back, a perforated seat - tick **See-through gaps** in the same window and the page will show through them properly; see below. You choose where it's stored and give it a name; every conversion runs at the one quality set under **Media › Scroll sequences** (high quality by default - 30 frames a second, up to 1920px wide).
+The first thing to do with any video you upload is press **Optimise video** - see [Slimming down videos](#slimming-down-videos). Video is the heaviest thing on most sites by a distance, and halving it is a matter of one click and a couple of minutes. You can do a whole folder at once: tick the videos, then press **Optimise videos** in the bar above the library.
 
-If you only want part of the video, fill in the optional **Start time** and **End time** boxes and only the frames between the two are sequenced - handy when a clip has a settle at the front or a fade at the end you'd rather leave out. Type times as plain seconds (`90`) or minutes and seconds (`1:30`); leave either box blank to run from the very start or to the very end.
+To show one on your site, add the **Feature video** block to a page or a product description - see [Available blocks](Managing-pages#available-blocks). It plays your video beside a headline and a paragraph, quietly looping once it scrolls into view.
 
-The work happens quietly in the background and takes the better part of fifteen to twenty minutes for a short clip, so there's no need to sit and watch - close the window and carry on, and the finished sequence turns up in your library on its own, as a single tidy tile rather than a hundred separate frames. Deleting that tile clears the whole thing away in one go.
+### The Video tab
 
-When you set a conversion going, a note appears in your admin notifications (the bell) so you can keep an eye on it while you get on with something else. While it's building, that note carries a **live progress bar** with the actual percentage on it, ticking over as the frames are made - no button, because there's nothing to open yet. The moment it lands, the bar is replaced by an **Open media folder** button that takes you straight to the folder the finished sequence was filed into. If it goes wrong instead, the note says so in plain English. Either way it sticks around until you clear it yourself.
+The **Media** page has a **Video** tab next to your library. It holds two things. First, an optional **Fly.io API key**: with one saved (or supplied by your hosting configuration), each video gets its own short-lived machine, so a selection of twenty optimises in the time one does, and every machine is removed the moment its job finishes - nothing sits around costing money between jobs. Without a key, videos queue on the single service one at a time. Second, a running list of every optimise and where it got to, with a live status while it works and how much it saved when it lands; when one's done with, **Clear** tidies it away (and clears the matching note from the bell).
 
-### The Scroll sequences tab
+> **Scroll sequences have been retired.** Cactus used to be able to rebuild a video into a frame-by-frame "scroll sequence" with the studio background removed, played back as you scrolled. It was slow, fiddly and never quite good enough, so it has gone - along with the Scroll sequence block. Use **Feature video** instead: no conversion, no waiting, and the visitor scrolls the page as normal instead of the animation taking the wheel off them. Any sequence you built before now still sits in your library as a file, and can be deleted like anything else.
 
-The **Media** page has a **Scroll sequences** tab next to your library. It holds three things. First, the conversion settings: the **cut-out quality** (Standard is quick and right for most products; Detailed takes noticeably longer per video and draws a tighter outline round thin frames and trailing cables - but it is not the one for mesh, see below), how many frames a second are captured (smoother scroll versus a larger, slower build) and the widest the frames may be. Whatever you set here is exactly what runs the next time you convert a video. Second, an optional **Fly.io API key**: with one saved (or supplied by your hosting configuration), each video gets its own short-lived conversion machine - as many videos convert at the same time as you care to start, with no limit on how many may be on the go at once, and every machine is removed the moment its job finishes, so nothing sits around costing money between conversions. Without a key, conversions simply queue on the single conversion service one at a time. Third, a running list of every conversion and where it got to, with a live status while it's building; when one's done with, **Clear** tidies it away (and clears the matching note from the bell).
-
-### See-through gaps
-
-Left to itself, the background remover treats a product as one solid outline. That's the right answer nearly all the time, but it goes wrong on anything you can genuinely see through: a mesh chair back is roughly half holes, and every one of those holes gets filled in with a bit of the white studio wall. On a white page nobody notices. On a coloured or dark page the mesh reads as a pale grey slab, and as the chair turns the whole panel drifts brighter and darker.
-
-Tick **See-through gaps**, in the Convert to scroll sequence window, and Cactus works out hole by hole where the wall is showing through and makes those bits properly transparent, so your page colour shows through the weave the way it should. The mesh stops drifting in brightness at the same time.
-
-It sits with the conversion itself rather than in your settings, because whether it helps depends on the product in front of you and not on the site. It starts off each time you open the window, so it's a deliberate choice for the mesh-backed ones rather than something that quietly carries over onto the next glossy chair.
-
-Off is the right answer for most things. A hard white glint on a shiny black surface looks, close up, exactly like a hole in a mesh - so on a very glossy product this can punch out a highlight it shouldn't. Ordinary upholstered and painted products are left almost entirely alone, pale ones included. The sensible approach: tick it for one mesh video, have a look at the result, then do the rest of the range.
-
-**Don't reach for Detailed cut-out quality to fix mesh.** It sounds like it ought to help, and it doesn't - it draws a *more* confident outline, which on a mesh panel means filling the holes in harder rather than finding them. For mesh, leave the quality on Standard and tick See-through gaps.
-
-Sequences you've already built keep the look they were built with, so one you're unhappy with needs converting again.
-
-To show one on your site, add the **Scroll sequence** block to a page or a product description - see [Available blocks](Managing-pages#available-blocks). It plays the frames as visitors scroll down, loops gently once it reaches the end, and fades away as they scroll past.
-
-You don't have to convert anything, mind. The **Feature video** block plays an ordinary uploaded video beside a headline and a paragraph, quietly looping once it scrolls into view - no conversion, no waiting, and the visitor scrolls the page as normal instead of the animation taking the wheel off them. Converting earns you the removed background and the scrub; if you don't need either, the plain video is the shorter road.
-
-> **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded. (Converting a video you've already got needs nothing extra.)
+> **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded.
 
 ---
 
@@ -410,7 +390,7 @@ The Storage check ignores all of that and looks only at the current version of e
 
 ## Optimising images and 3D models
 
-Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you. The same goes for 3D models, which are heavier again - see [Slimming down 3D models](#slimming-down-3d-models) below.
+Photos straight off a phone or a designer's machine are often far heavier than they need to be, and heavy images make pages slow to load. The media library can slim them down for you. The same goes for 3D models, which are heavier again - see [Slimming down 3D models](#slimming-down-3d-models) below - and for video, which is heavier still: see [Slimming down videos](#slimming-down-videos).
 
 Open any un-optimised photo and its details panel has an **Optimise** button (it's on the right-click menu too). Press it and Cactus re-saves the image in a leaner modern format (WebP), keeping the same dimensions and near-identical quality but usually at a fraction of the file size. The original is tidied away and the slimmer version takes its place everywhere it was already being used - pages, layouts, your logo, avatars - so nothing on your site breaks. Your file keeps the name you gave it, too; only the bit after the dot changes, because the picture genuinely is a WebP now. Once done, the image picks up a green **✓ Optimised** badge so you know it's been through the wash.
 
@@ -454,6 +434,31 @@ A few things worth knowing:
 - **A model keeps its place.** Unlike a photo, which changes format and picks up a new extension, a slimmed model is written straight back over itself - so every product and variation pointing at it carries on pointing at it, with nothing to relink.
 - **If it can't be slimmed, nothing is lost.** A model that was already tight, or that the tidy-up couldn't finish, is stored exactly as you uploaded it and simply keeps its **Optimise** button for another day. An upload never fails because of this.
 - **The texture map stays put.** For a while the slimming threw away a model's texture map - the part that says how a flat piece of material wraps round a shape - whenever its surfaces had no picture on them yet. It applied to both routes in: a file being slimmed as it uploaded, and a file you slimmed yourself with the **Optimise** button. Nothing looked wrong afterwards: the model still turned, still took its colours. But the material configurator had lost the one thing it measures the weave against, so every part sat on "not measured" for good. Fixed, with apologies. Models slimmed since then keep it; a model slimmed while that was the case was rewritten in place, so if it has since started reporting "not measured" it wants putting back from your own copy.
+
+### Slimming down videos
+
+Video is the heaviest thing on most sites by a distance. A clip straight out of an editing suite is routinely exported at the quality you would want for a television rather than a product page: our own sample videos arrived at thirty to forty-five megabytes for twenty seconds of a chair going up and down. A shopper on a train pays for every one of those megabytes.
+
+Open any video and its details panel has an **Optimise video** button - or tick several videos and press **Optimise videos** in the bar above the library, which does the lot at once, each on a machine of its own. Press it, choose how careful you want Cactus to be, and it re-saves the clip in the one video format that plays on absolutely everything - every phone, tablet, computer, and the smart TV in the showroom - at a fraction of the weight. Typically about half, and often less, with no difference you can see.
+
+You get two choices:
+
+- **Quality.** *Balanced* is the recommended one and does what it says: roughly half the size, and nobody has ever picked the copy out of a line-up. *Best quality* is barely smaller than the original and is there for a hero video where every stitch matters. *Smallest file* gets you down to about a third, which is the right answer for a background clip or a site with a lot of visitors on thin connections.
+- **Largest size.** Full HD by default, which leaves a normal product video exactly the size it was shot. Videos smaller than the limit are never stretched up to meet it. Drop it below full HD only for clips that never fill more than half the page.
+
+A few things worth knowing:
+
+- **The video keeps its place.** The slimmer version is written straight back over the original, so every page, product description and link already pointing at it carries on working with nothing to relink. Same file, same address, less of it.
+- **A silent soundtrack is dropped.** Product videos are very often exported with an entirely silent audio track riding along for no reason. If there is genuinely nothing on it, Cactus leaves it behind; if there is, it is kept and re-saved properly.
+- **If it cannot do better, it does nothing.** A clip that was already sensibly saved is left exactly as it was and simply ticked off, rather than re-saved into something slightly worse. You are told as much.
+- **It takes a few minutes, not seconds.** Close the window and get on with something else. The bell keeps a live progress bar while it works and tells you how much it saved when it lands, in plain megabytes.
+- **This is a one-way tidy-up** - the heavier original is not kept. Since the video looks the same, that is rarely a thing to want back, but if a particular clip is precious, keep your own master somewhere as you would for any other export.
+
+If you have already compressed a video yourself before uploading it, use **Mark as optimised** to stop being offered it, exactly as you would for a photo. Nothing is touched.
+
+> **Videos are optimised by a background service,** so it needs to be set up for this to appear (see the Video tab). It also needs Backblaze B2 storage, which is what the service writes to.
+
+> **Worth one click while you are at it:** pop to **Settings → Media** and press **Deploy Worker** once. Videos are now told to check back for a newer copy every few minutes rather than being trusted for a year, so a visitor who watched the heavy version picks up the slimmer one almost straight away instead of keeping the old one on their machine.
 
 ---
 

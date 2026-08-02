@@ -2,14 +2,13 @@
 
 import { useState, type ReactNode } from 'react'
 import { TabStrip } from '@/components/admin/TabStrip'
-import SequenceSettingsPanel from './SequenceSettingsPanel'
+import VideoSettingsPanel from './VideoSettingsPanel'
 
-// Thin tab shell over the media page: the existing library on one tab, the
-// scroll-sequence settings (presets + job list) on another. The library is a big
+// Thin tab shell over the media page: the existing library on one tab, the video
+// service settings (the Fly key + the job list) on another. The library is a big
 // stateful client tree, so both tabs stay mounted and the inactive one is just
 // hidden - switching tabs never tears the library's selection or scroll down.
 
-type Settings = { engine: 'isnet' | 'birefnet'; fps: number; maxWidth: number }
 type FlyMeta = { source: 'saved' | 'env' | null; configured: boolean; appName: string | null }
 
 type JobState = 'queued' | 'running' | 'done' | 'error'
@@ -24,21 +23,19 @@ type Job = {
   createdAt: string
 }
 
-type Tab = 'library' | 'sequences'
+type Tab = 'library' | 'video'
 
 export default function MediaTabs({
   library,
-  settings,
   fly,
   jobs,
-  canManagePresets,
+  canManageSettings,
 }: {
   /** The existing library view (server-rendered), shown on the first tab. */
   library: ReactNode
-  settings: Settings
   fly: FlyMeta
   jobs: Job[]
-  canManagePresets: boolean
+  canManageSettings: boolean
 }) {
   const [tab, setTab] = useState<Tab>('library')
 
@@ -47,12 +44,12 @@ export default function MediaTabs({
       <TabStrip
         items={[
           { key: 'library', label: 'Library', active: tab === 'library', onClick: () => setTab('library') },
-          { key: 'sequences', label: 'Scroll sequences', active: tab === 'sequences', onClick: () => setTab('sequences') },
+          { key: 'video', label: 'Video', active: tab === 'video', onClick: () => setTab('video') },
         ]}
       />
       <div hidden={tab !== 'library'}>{library}</div>
-      {tab === 'sequences' && (
-        <SequenceSettingsPanel initialSettings={settings} initialFly={fly} initialJobs={jobs} canManage={canManagePresets} />
+      {tab === 'video' && (
+        <VideoSettingsPanel initialFly={fly} initialJobs={jobs} canManage={canManageSettings} />
       )}
     </>
   )

@@ -142,6 +142,14 @@ function isProtectedKey(key: string): boolean {
   return PROTECTED_EXTENSIONS.has(key.slice(dot + 1).toLowerCase())
 }
 
+// Whether a key holds video, read the same un-forgeable way as its content type:
+// off the extension. Used by the cache rule below - video is the one thing the
+// platform rewrites at its own key regardless of key form.
+function isVideoKey(key: string): boolean {
+  const type = contentTypeForKey(key)
+  return type !== null && SERVABLE_VIDEO_TYPES.has(type)
+}
+
 export interface Env {
   ALLOWED_ORIGIN: string
 
@@ -270,7 +278,16 @@ const worker = {
     // on its own schedule. Downgrading it here would only throw away the
     // immutable caching that scheme was built to keep, for a staleness problem
     // it does not have.
-    const cacheableForever = !isExactFormKey(fullKey) || isProtectedKey(fullKey)
+    //
+    // VIDEO is never cacheable forever, whichever form its key takes. The media
+    // library's video optimiser re-encodes a clip and writes the smaller file
+    // straight back over its own key (that is the whole point - every page and
+    // product description pointing at it keeps working), and a nanoid-form key
+    // would otherwise have been told to cache the pre-optimise bytes for a year.
+    // A five-minute conditional revalidation on a file this size is nothing next
+    // to serving the heavy copy for months.
+    const cacheableForever =
+      (!isExactFormKey(fullKey) || isProtectedKey(fullKey)) && !isVideoKey(fullKey)
     const responseHeaders = new Headers({
       'Cache-Control': cacheableForever
         ? 'public, max-age=31536000, immutable'

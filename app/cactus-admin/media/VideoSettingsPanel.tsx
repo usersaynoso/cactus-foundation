@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
-// Media > Scroll sequences. Three things live here: the conversion settings
-// (one set of knobs - every conversion runs high quality), the Fly.io machine
-// key (each conversion gets its own short-lived machine, destroyed when the job
-// finishes), and a live list of every scroll-sequence job with its status. The
-// job list is just the job notifications read back, so deleting one deletes its
-// notification (and clears the bell).
+// Media > Video. Two things live here: the Fly.io machine key (each video gets
+// its own short-lived machine, destroyed the moment its job finishes) and a live
+// list of every optimise job with its status. The job list is the job
+// notifications read back, so clearing one clears its notification (and the
+// bell) too.
+//
+// There are deliberately no encode settings here. How careful an optimise should
+// be depends on the clip in front of you rather than on the site, so quality and
+// largest-size are chosen per video in the Optimise video window.
 
-type SequenceEngine = 'isnet' | 'birefnet'
-type Settings = { engine: SequenceEngine; fps: number; maxWidth: number }
 type FlyMeta = {
   /** Where the active token comes from: saved here, the environment, or nowhere. */
   source: 'saved' | 'env' | null
@@ -34,8 +35,8 @@ const JOBS_POLL_MS = 8000
 
 const STATE_BADGE: Record<JobState, { cls: string; label: string }> = {
   queued: { cls: 'badge-gray', label: 'Queued' },
-  running: { cls: 'badge-blue', label: 'Building' },
-  done: { cls: 'badge-green', label: 'Complete' },
+  running: { cls: 'badge-blue', label: 'Encoding' },
+  done: { cls: 'badge-green', label: 'Done' },
   error: { cls: 'badge-red', label: 'Failed' },
 }
 
@@ -50,33 +51,25 @@ function relativeTime(iso: string): string {
   return `${days}d ago`
 }
 
-function clampInt(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min
-  return Math.max(min, Math.min(max, Math.round(value)))
-}
-
 function describeFlySource(meta: FlyMeta): string {
   if (meta.source === 'saved') return 'Using the key saved here.'
   if (meta.source === 'env') return 'Using the key set in the environment - save one here to override it.'
-  return 'No key yet. Without one, conversions queue on the single worker machine one at a time.'
+  return 'No key yet. Without one, videos queue on the single service machine one at a time.'
 }
 
-export default function SequenceSettingsPanel({
-  initialSettings,
+export default function VideoSettingsPanel({
   initialFly,
   initialJobs,
   canManage,
 }: {
-  initialSettings: Settings
   initialFly: FlyMeta
   initialJobs: Job[]
   /** config.manage - whether the settings can be edited here (vs read-only). */
   canManage: boolean
 }) {
-  const [settings, setSettings] = useState<Settings>(initialSettings)
   const [fly, setFly] = useState<FlyMeta>(initialFly)
   // The token input is write-only: it never shows a stored value, only takes a
-  // new one ('' = no change on save; the Clear button removes a saved key).
+  // new one ('' = no change on save; the tick box removes a saved key).
   const [flyToken, setFlyToken] = useState('')
   const [clearToken, setClearToken] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -92,22 +85,22 @@ export default function SequenceSettingsPanel({
 
   // Refresh the job list. Shared by the poller and the manual Refresh button.
   //
-  // A job's notification only moves on its own via the convert dialog (while open)
-  // or the worker's final done/error callback. So for any job still in flight we
-  // first poke sequence-status, which proxies the worker's live progress and
-  // rewrites the notification - otherwise a job whose dialog was closed sits
+  // A job's notification only moves on its own via the optimise window (while
+  // open) or the worker's final done/error callback. So for any job still in
+  // flight we first poke video-status, which proxies the worker's live progress
+  // and rewrites the notification - otherwise a job whose window was closed sits
   // frozen at its last-seen % and refreshing would show nothing new. Then we read
-  // the list back. Every fetch is best-effort: a failure leaves the last good list
-  // on screen. Returns whether the list read landed.
+  // the list back. Every fetch is best-effort: a failure leaves the last good
+  // list on screen.
   const loadJobs = useCallback(async (): Promise<boolean> => {
     const active = jobsRef.current.filter((j) => j.state === 'queued' || j.state === 'running')
     if (active.length > 0) {
       await Promise.all(active.map((j) =>
-        fetch(`/api/admin/media/sequence-status?jobId=${encodeURIComponent(j.jobId)}`, { cache: 'no-store' }).catch(() => {})
+        fetch(`/api/admin/media/video-status?jobId=${encodeURIComponent(j.jobId)}`, { cache: 'no-store' }).catch(() => {})
       ))
     }
     try {
-      const res = await fetch('/api/admin/media/sequence-jobs', { cache: 'no-store' })
+      const res = await fetch('/api/admin/media/video-jobs', { cache: 'no-store' })
       if (!res.ok) return false
       const d = await res.json()
       if (Array.isArray(d.jobs)) setJobs(d.jobs as Job[])
@@ -117,7 +110,7 @@ export default function SequenceSettingsPanel({
     }
   }, [])
 
-  // Poll the job list so statuses tick over while a conversion runs.
+  // Poll the job list so statuses tick over while an optimise runs.
   useEffect(() => {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
@@ -140,44 +133,23 @@ export default function SequenceSettingsPanel({
     }
   }
 
-  function setSettingsField(field: 'fps' | 'maxWidth', value: number) {
-    setSaved(false)
-    setSettings((prev) => ({ ...prev, [field]: value }))
-  }
-
-  function setEngine(engine: SequenceEngine) {
-    setSaved(false)
-    setSettings((prev) => ({ ...prev, engine }))
-  }
-
   async function save() {
     if (saving || !canManage) return
     setSaving(true)
     setError(null)
     setSaved(false)
-    // Clamp before sending so a stray number never trips the server validation.
-    const payload: {
-      settings: Settings
-      fly?: { token?: string }
-    } = {
-      settings: {
-        engine: settings.engine,
-        fps: clampInt(settings.fps, 1, 60),
-        maxWidth: clampInt(settings.maxWidth, 320, 3840),
-      },
-    }
+    const payload: { fly?: { token?: string } } = {}
     const newToken = flyToken.trim()
     if (clearToken) payload.fly = { token: '' }
     else if (newToken) payload.fly = { token: newToken }
     try {
-      const res = await fetch('/api/admin/media/sequence-presets', {
+      const res = await fetch('/api/admin/media/video-worker-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(typeof d.error === 'string' && d.error ? d.error : 'Could not save the settings.')
-      if (d.settings) setSettings(d.settings as Settings)
       if (d.fly) setFly(d.fly as FlyMeta)
       setFlyToken('')
       setClearToken(false)
@@ -189,11 +161,9 @@ export default function SequenceSettingsPanel({
     }
   }
 
-  const deletingRef = useRef<Set<string>>(new Set())
+  // The job row IS its notification, so clearing it is the ordinary delete.
+  // Optimistic: drop it now, put it back if the delete fails.
   async function deleteJob(id: string) {
-    if (deletingRef.current.has(id)) return
-    deletingRef.current.add(id)
-    // Optimistic: drop it now, put it back if the delete fails.
     const prev = jobs
     setJobs((list) => list.filter((j) => j.id !== id))
     try {
@@ -201,110 +171,54 @@ export default function SequenceSettingsPanel({
       if (!res.ok) throw new Error('delete failed')
     } catch {
       setJobs(prev)
-    } finally {
-      deletingRef.current.delete(id)
     }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      {/* ── Conversion settings ─────────────────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginTop: 'var(--space-4)' }}>
       <section>
         <h2 style={{ margin: '0 0 var(--space-1) 0', fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
-          Conversion settings
+          Video service
         </h2>
         <p style={{ margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-          Every conversion runs at these settings - high quality by default, with the background lifted out cleanly.
+          Where the heavy lifting happens when you optimise a video. Quality and size are chosen per video, in the Optimise video window.
         </p>
 
-        <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={fieldWrap}>
-              <label htmlFor="seq-engine" style={sectionLabel}>Cut-out quality</label>
-              <select
-                id="seq-engine"
-                value={settings.engine}
-                disabled={!canManage}
-                onChange={(e) => setEngine(e.target.value as SequenceEngine)}
-                style={{ ...textInput, maxWidth: '16rem' }}
-              >
-                <option value="isnet">Standard - quick, fine for most products</option>
-                <option value="birefnet">Detailed - slower, tighter outline</option>
-              </select>
-              <span style={helpText}>Detailed takes noticeably longer per video and draws a tighter, more confident outline round thin frames and trailing cables. It is not the one for mesh: it fills a mesh panel in more solidly than Standard does, so for mesh backs use Standard and tick See-through gaps when you convert.</span>
-            </div>
-
-            <div style={fieldWrap}>
-              <label htmlFor="seq-fps" style={sectionLabel}>Frames per second</label>
-              <input
-                id="seq-fps"
-                type="number"
-                min={1}
-                max={60}
-                value={settings.fps}
-                disabled={!canManage}
-                onChange={(e) => setSettingsField('fps', Number(e.target.value))}
-                onBlur={(e) => setSettingsField('fps', clampInt(Number(e.target.value), 1, 60))}
-                style={{ ...textInput, maxWidth: '8rem' }}
-              />
-              <span style={helpText}>Between 1 and 60. More frames make a smoother scroll but a larger sequence.</span>
-            </div>
-
-            <div style={fieldWrap}>
-              <label htmlFor="seq-width" style={sectionLabel}>Maximum width (px)</label>
-              <input
-                id="seq-width"
-                type="number"
-                min={320}
-                max={3840}
-                step={20}
-                value={settings.maxWidth}
-                disabled={!canManage}
-                onChange={(e) => setSettingsField('maxWidth', Number(e.target.value))}
-                onBlur={(e) => setSettingsField('maxWidth', clampInt(Number(e.target.value), 320, 3840))}
-                style={{ ...textInput, maxWidth: '8rem' }}
-              />
-              <span style={helpText}>Frames are scaled down to this width. Between 320 and 3840.</span>
-            </div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>Fly.io machines</h3>
+            <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              With a Fly.io key, each video gets its own machine - a whole selection optimises at once, and every machine is removed the moment its job finishes so nothing sits around costing money.
+            </p>
           </div>
 
-          {/* ── Fly.io machines ─────────────────────────────────────────── */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>Fly.io machines</h3>
-              <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                With a Fly.io key, each video gets its own conversion machine - several convert at once, and every machine is removed the moment its job finishes so nothing sits around costing money.
-              </p>
-            </div>
-
-            <div style={fieldWrap}>
-              <label htmlFor="seq-fly-token" style={sectionLabel}>Fly.io API key</label>
-              <input
-                id="seq-fly-token"
-                type="password"
-                autoComplete="off"
-                value={flyToken}
-                disabled={!canManage || clearToken}
-                placeholder={fly.source ? '••••••••  (a key is set)' : 'Paste a Fly.io API key'}
-                onChange={(e) => { setFlyToken(e.target.value); setSaved(false) }}
-                style={textInput}
-              />
-              <span style={helpText}>{describeFlySource(fly)}</span>
-              {canManage && fly.source === 'saved' && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                  <input
-                    type="checkbox"
-                    checked={clearToken}
-                    onChange={(e) => { setClearToken(e.target.checked); setSaved(false) }}
-                  />
-                  Remove the saved key on save
-                </label>
-              )}
-            </div>
+          <div style={fieldWrap}>
+            <label htmlFor="video-fly-token" style={sectionLabel}>Fly.io API key</label>
+            <input
+              id="video-fly-token"
+              type="password"
+              autoComplete="off"
+              value={flyToken}
+              disabled={!canManage || clearToken}
+              placeholder={fly.source ? '••••••••  (a key is set)' : 'Paste a Fly.io API key'}
+              onChange={(e) => { setFlyToken(e.target.value); setSaved(false) }}
+              style={textInput}
+            />
+            <span style={helpText}>{describeFlySource(fly)}</span>
+            {canManage && fly.source === 'saved' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+                <input
+                  type="checkbox"
+                  checked={clearToken}
+                  onChange={(e) => { setClearToken(e.target.checked); setSaved(false) }}
+                />
+                Remove the saved key on save
+              </label>
+            )}
           </div>
         </div>
 
-        {canManage && (
+        {canManage ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
             <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={save}>
               {saving ? 'Saving…' : 'Save settings'}
@@ -312,31 +226,27 @@ export default function SequenceSettingsPanel({
             {saved && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-success)' }}>Saved.</span>}
             {error && <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-error)' }} role="alert">{error}</span>}
           </div>
-        )}
-        {!canManage && (
+        ) : (
           <p style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
             You can see the settings but not change them. That needs the settings permission.
           </p>
         )}
       </section>
 
-      {/* ── Jobs ────────────────────────────────────────────────────────── */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', margin: '0 0 var(--space-1) 0' }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
-            Recent jobs
-          </h2>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)' }}>Recent jobs</h2>
           <button type="button" className="btn btn-secondary btn-sm" disabled={refreshing} onClick={refreshJobs}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
         <p style={{ margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-          Every conversion and where it got to. A job stays here until you clear it - the same notice you see on the bell.
+          Every optimise and where it got to. A job stays here until you clear it - the same notice you see on the bell.
         </p>
 
         {jobs.length === 0 ? (
           <div className="card" style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: 'var(--space-6)' }}>
-            No scroll sequences yet. Convert a video from the library to get started.
+            Nothing optimised yet. Open a video in the library and press Optimise video.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -361,6 +271,9 @@ export default function SequenceSettingsPanel({
                     )}
                     {job.state === 'error' && job.detail && (
                       <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-error)' }}>{job.detail}</p>
+                    )}
+                    {job.state === 'done' && job.detail && (
+                      <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{job.detail.replace(/^100%\s*-\s*/, '')}</p>
                     )}
                     <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
                       Updated {relativeTime(job.updatedAt)}

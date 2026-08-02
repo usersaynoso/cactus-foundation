@@ -7,7 +7,7 @@ import MediaDetailPanel from './MediaDetailPanel'
 import MediaImageEditor from './MediaImageEditor'
 import MediaAspectDialog, { type AspectOutcome } from './MediaAspectDialog'
 import MediaResizeDialog, { type ResizeOutcome } from './MediaResizeDialog'
-import MediaSequenceDialog from './MediaSequenceDialog'
+import MediaVideoOptimiseDialog from './MediaVideoOptimiseDialog'
 import MediaUpload from './MediaUpload'
 import MediaStatsBar, { type LibraryStats } from './MediaStatsBar'
 import MediaToolbar from './MediaToolbar'
@@ -18,7 +18,7 @@ import FolderPaneResizer from './FolderPaneResizer'
 import { useFocusTrap } from './useFocusTrap'
 import { uploadOneFile, replaceOneFile, isFileReadable, UNREADABLE_FILE_MESSAGE } from '@/lib/media/upload-client'
 import { type UploadChoice, planUploadJobs, runUploadPool } from '@/lib/media/upload-batch'
-import { preflightUploadError, isAcceptedUploadType, isOptimisableType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
+import { preflightUploadError, isAcceptedUploadType, isOptimisableType, isVideoDirectType, UPLOAD_ACCEPT_ATTR, IMAGE_ACCEPT_ATTR } from '@/lib/media/limits'
 import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
@@ -290,9 +290,9 @@ export default function MediaLibrary({
   const [aspectItems, setAspectItems] = useState<LibraryItem[] | null>(null)
   // Same again for the resize dialog, which is aimed the same three ways.
   const [resizeItems, setResizeItems] = useState<LibraryItem[] | null>(null)
-  // The video the "convert to scroll sequence" dialog is aimed at, or null when
-  // it's closed. One at a time - a conversion is a long, per-video job.
-  const [sequenceItem, setSequenceItem] = useState<LibraryItem | null>(null)
+  // The videos the "optimise video" dialog is aimed at - one from the detail
+  // panel, many from the selection bar - or null when it's closed.
+  const [videoItems, setVideoItems] = useState<LibraryItem[] | null>(null)
   const [collision, setCollision] = useState<CollisionState>(null)
   const [uploadClash, setUploadClash] = useState<UploadClash | null>(null)
 
@@ -490,7 +490,7 @@ export default function MediaLibrary({
   // Library-wide keyboard shortcuts. Suppressed while typing or while any dialog,
   // menu or the detail panel is open (each of those owns its own keys).
   useEffect(() => {
-    const anyOverlayOpen = !!(openId || editItem || aspectItems || resizeItems || sequenceItem || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || uploadClash || menu)
+    const anyOverlayOpen = !!(openId || editItem || aspectItems || resizeItems || videoItems || renameItem || renameFolderNode || deleteFolderNode || moveIds || newFolderOpen || deleteConfirm || collision || uploadClash || menu)
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
@@ -513,7 +513,7 @@ export default function MediaLibrary({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- paste closes over current state; re-bind on the inputs that gate the shortcuts
-  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, aspectItems, resizeItems, sequenceItem, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, uploadClash, menu])
+  }, [items, selected, clipboard, canUpload, canDelete, currentFolderId, openId, editItem, aspectItems, resizeItems, videoItems, renameItem, renameFolderNode, deleteFolderNode, moveIds, newFolderOpen, deleteConfirm, collision, uploadClash, menu])
 
   // --- navigation ---
   const navigateFolder = useCallback((id: string | null) => {
@@ -904,26 +904,38 @@ export default function MediaLibrary({
     }
   }
 
-  // Open the "convert to scroll sequence" dialog for a video, closing the detail
-  // panel behind it as the reshape and resize actions do.
-  function openConvertDialog(it: LibraryItem | null) {
-    if (!it) return
-    setSequenceItem(it)
+
+
+  // Open the "optimise video" dialog for a video, closing the detail panel
+  // behind it as the other per-item jobs do.
+  function openVideoOptimiseDialog(items: LibraryItem[] | LibraryItem | null) {
+    const list = Array.isArray(items) ? items : items ? [items] : []
+    if (list.length === 0) return
+    setVideoItems(list)
     setOpenId(null)
   }
 
-  // The finished sequence's library row is written server-side by a worker
-  // callback that can land a moment after the job reports "done", so the tile may
-  // miss the very next fetch. Refresh now, then a couple more times a few seconds
-  // apart so it turns up even if the first refresh beats the callback.
-  async function onSequenceDone() {
-    setSequenceItem(null)
-    pushToast('success', 'Scroll sequence ready - adding it to your library')
-    await Promise.all([fetchItems(), refetchFolders()])
-    for (let i = 0; i < 2; i++) {
-      await new Promise((r) => setTimeout(r, 3500))
-      await fetchItems()
-    }
+  // The optimised video replaces the original in place, so there is no new tile
+  // to wait for - only the row's size and its "optimised" badge to catch up. The
+  // worker's callback can land a moment after the job says "done", so refresh
+  // once now and once more a few seconds later.
+  async function onVideoOptimiseDone() {
+    const count = videoItems?.length ?? 1
+    setVideoItems(null)
+    clearSelection()
+    pushToast('success', count > 1
+      ? `${count} videos optimised - the smaller versions are in their place`
+      : 'Video optimised - the smaller version is in its place')
+    await fetchItems()
+    await new Promise((r) => setTimeout(r, 3500))
+    await fetchItems()
+  }
+
+  // Closing the dialog by hand (after a partial run, say) still wants the list
+  // re-read: whatever did finish has already been swapped underneath it.
+  function onVideoOptimiseClose() {
+    setVideoItems(null)
+    void fetchItems()
   }
 
   // Copy an item's public URL to the clipboard - the quickest way to reuse an
@@ -1159,11 +1171,18 @@ export default function MediaLibrary({
   const selectionActive = selected.size > 0
   const optimisableSelected = useMemo(() => selectedItems.some((i) => isOptimisable(i)), [selectedItems])
   const rasterSelected = useMemo(() => selectedItems.filter((i) => isRasterImage(i)), [selectedItems])
+  // Videos worth offering an optimise on: the ones not already done. Their own
+  // list rather than a flag, because the dialog takes the items themselves and
+  // shows what it is about to work through.
+  const videoSelected = useMemo(
+    () => selectedItems.filter((i) => isVideoDirectType(i.mimeType) && !i.optimised),
+    [selectedItems],
+  )
   // Which way the "already optimised" button points, and at what. Anything still
   // unmarked gets marked; a selection where everything is marked already offers
   // the way back instead, so the flag is never a door that only opens one way.
   const markTargets = useMemo(() => {
-    const eligible = selectedItems.filter((i) => isOptimisableType(i.mimeType))
+    const eligible = selectedItems.filter((i) => isOptimisableType(i.mimeType) || isVideoDirectType(i.mimeType))
     const unmarked = eligible.filter((i) => !i.optimised)
     return unmarked.length > 0
       ? { optimised: true, ids: unmarked.map((i) => i.id) }
@@ -1332,6 +1351,17 @@ export default function MediaLibrary({
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
+                    disabled={!!busy || videoSelected.length === 0}
+                    title={videoSelected.length > 0
+                      ? `Re-encode ${videoSelected.length} selected video${videoSelected.length === 1 ? '' : 's'} smaller, each on its own machine`
+                      : 'No videos selected that still need optimising'}
+                    onClick={() => openVideoOptimiseDialog(videoSelected)}
+                  >
+                    Optimise videos…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
                     disabled={!!busy || markTargets.ids.length === 0}
                     title={markTargets.ids.length === 0
                       ? 'Nothing selected can be marked'
@@ -1476,7 +1506,7 @@ export default function MediaLibrary({
           onEdit={() => { setEditItem(openItem); setOpenId(null) }}
           onChangeRatio={() => { setAspectItems([openItem]); setOpenId(null) }}
           onResize={() => { setResizeItems([openItem]); setOpenId(null) }}
-          onConvertToSequence={() => openConvertDialog(openItem)}
+          onOptimiseVideo={() => openVideoOptimiseDialog(openItem)}
           onRename={() => setRenameItem(openItem)}
           onMove={() => setMoveIds([openItem.id])}
           onCut={() => { setClipboard({ mode: 'cut', ids: [openItem.id] }); setOpenId(null) }}
@@ -1522,12 +1552,12 @@ export default function MediaLibrary({
         />
       )}
 
-      {sequenceItem && (
-        <MediaSequenceDialog
-          item={sequenceItem}
-          folderId={currentFolderId}
-          onClose={() => setSequenceItem(null)}
-          onDone={onSequenceDone}
+
+      {videoItems && videoItems.length > 0 && (
+        <MediaVideoOptimiseDialog
+          items={videoItems}
+          onClose={onVideoOptimiseClose}
+          onDone={onVideoOptimiseDone}
         />
       )}
 

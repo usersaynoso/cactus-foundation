@@ -95,7 +95,6 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
   }
 
   // Delete from the provider the row actually lives on (not the active selection).
-  // A scroll sequence takes its whole frame folder with it, not just the manifest.
   await deleteMediaBytes(media)
   await prisma.media.delete({ where: { id } })
   return NextResponse.json({ ok: true })

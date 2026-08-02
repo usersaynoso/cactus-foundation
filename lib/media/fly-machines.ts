@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto'
-import { getSequenceMaxJobMachines } from '@/lib/config/env'
-import type { ResolvedFly } from '@/lib/media/sequence-presets'
+import { getMediaWorkerMaxJobMachines } from '@/lib/config/env'
+import type { ResolvedFly } from '@/lib/media/media-worker-config'
 
-// Per-job Fly.io machines for the sequence worker.
+// Per-job Fly.io machines for the media worker.
 //
-// With a Fly token configured (Media > Scroll sequences, or SEQUENCE_FLY_TOKEN),
-// every conversion gets its own short-lived machine cloned from the app's
+// With a Fly token configured (Media > Video, or MEDIA_WORKER_FLY_TOKEN),
+// every job gets its own short-lived machine cloned from the app's
 // deploy-managed "template" machine: several videos convert in parallel instead
 // of queueing, and each machine is destroyed the moment its job finishes so
 // nothing idles on the bill. Two layers make sure of the destruction:
@@ -102,9 +102,9 @@ export async function createJobMachine(fly: ResolvedFly): Promise<string> {
   const machines = await listMachines(fly)
   const template = findTemplate(machines)
   if (!template?.config?.image) {
-    throw new FlyMachinesError('The Fly app has no deployed worker machine to clone. Deploy the sequence worker once (fly deploy) and try again.')
+    throw new FlyMachinesError('The Fly app has no deployed worker machine to clone. Deploy the media worker once (fly deploy) and try again.')
   }
-  const max = getSequenceMaxJobMachines()
+  const max = getMediaWorkerMaxJobMachines()
   if (max > 0) {
     const running = machines.filter((m) => isJobMachine(m) && m.state !== 'destroyed').length
     if (running >= max) {
@@ -130,7 +130,7 @@ export async function createJobMachine(fly: ResolvedFly): Promise<string> {
   }
 
   const createRes = await flyRequest(fly, 'POST', '/machines', {
-    name: `seq-job-${randomBytes(3).toString('hex')}`,
+    name: `media-job-${randomBytes(3).toString('hex')}`,
     region: template.region,
     config,
   })

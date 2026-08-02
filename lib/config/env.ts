@@ -340,43 +340,51 @@ export function getSessionSecret(): string {
   return secret
 }
 
-// The sequence worker (services/sequence-worker) turns a product video into a
-// transparent scroll-sequence of alpha-WebP frames. It runs off-platform (a CPU
-// box, typically beside the database), so the app reaches it over HTTPS with a
-// shared bearer secret. Both are optional: unset simply means the "Convert to
-// scroll sequence" action is unavailable, the same way an unconfigured media
+// The media worker (services/video-worker) re-encodes a video into the one
+// delivery format the platform serves everywhere. It runs off-platform (a CPU
+// box, typically a scale-to-zero Fly machine), so the app reaches it over HTTPS
+// with a shared bearer secret. Both are optional: unset simply means the
+// "Optimise video" action is unavailable, the same way an unconfigured media
 // provider disables uploads rather than breaking the page.
-export function getSequenceWorkerUrl(): string | null {
-  const url = process.env.SEQUENCE_WORKER_URL?.trim().replace(/\/+$/, '')
-  return url || null
+//
+// The SEQUENCE_* names are the ones this started life under, when the same
+// service only built scroll sequences. They are still read, so an install that
+// predates the rename keeps working without anyone touching its environment.
+function readEnv(...names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name]?.trim()
+    if (value) return value
+  }
+  return null
 }
 
-export function getSequenceWorkerSecret(): string | null {
-  const secret = process.env.SEQUENCE_WORKER_SECRET?.trim()
-  return secret || null
+export function getMediaWorkerUrl(): string | null {
+  return readEnv('MEDIA_WORKER_URL', 'SEQUENCE_WORKER_URL')?.replace(/\/+$/, '') || null
 }
 
-export function isSequenceWorkerConfigured(): boolean {
-  return !!getSequenceWorkerUrl() && !!getSequenceWorkerSecret()
+export function getMediaWorkerSecret(): string | null {
+  return readEnv('MEDIA_WORKER_SECRET', 'SEQUENCE_WORKER_SECRET')
 }
 
-// Optional Fly.io API token for the sequence worker. When present (or when a
-// token is saved under Media > Scroll sequences, which wins), each conversion
-// runs on its own short-lived Fly machine instead of queueing on the single
-// worker - see lib/media/fly-machines.ts. Unset simply means the shared-worker
-// behaviour, exactly as before.
-export function getSequenceFlyTokenEnv(): string | null {
-  const token = process.env.SEQUENCE_FLY_TOKEN?.trim()
-  return token || null
+export function isMediaWorkerConfigured(): boolean {
+  return !!getMediaWorkerUrl() && !!getMediaWorkerSecret()
 }
 
-// Optional ceiling on how many conversions may run at once in per-job machine
-// mode. Unset (or 0) means no ceiling: every conversion gets its own machine,
-// however many are already going. Set a positive number only to put a lid on
-// spend - a conversion asked for past the lid is refused with a plain message
-// rather than queued, because a queued job has no machine of its own to be
-// polled on.
-export function getSequenceMaxJobMachines(): number {
-  const raw = Number(process.env.SEQUENCE_MAX_JOB_MACHINES?.trim())
+// Optional Fly.io API token for the media worker. When present (or when a token
+// is saved under Media > Video, which wins), each job runs on its own
+// short-lived Fly machine instead of queueing on the single worker - see
+// lib/media/fly-machines.ts. Unset simply means the shared-worker behaviour.
+export function getMediaWorkerFlyTokenEnv(): string | null {
+  return readEnv('MEDIA_WORKER_FLY_TOKEN', 'SEQUENCE_FLY_TOKEN')
+}
+
+// Optional ceiling on how many jobs may run at once in per-job machine mode.
+// Unset (or 0) means no ceiling: every job gets its own machine, however many
+// are already going - which is the point of per-job machines, since a machine
+// only exists while its own job runs. Set a positive number only to put a lid
+// on spend; a job asked for past the lid is refused with a plain message rather
+// than queued, because a queued job has no machine of its own to be polled on.
+export function getMediaWorkerMaxJobMachines(): number {
+  const raw = Number(readEnv('MEDIA_WORKER_MAX_JOB_MACHINES', 'SEQUENCE_MAX_JOB_MACHINES') ?? '')
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0
 }

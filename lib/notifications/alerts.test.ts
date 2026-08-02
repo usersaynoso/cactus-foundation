@@ -11,7 +11,7 @@ const { notification } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { notification } }))
 
-import { upsertAlert, upsertSequenceNotification } from './alerts'
+import { upsertAlert, upsertVideoJobNotification } from './alerts'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -118,11 +118,11 @@ describe('upsertAlert', () => {
   })
 })
 
-describe('upsertSequenceNotification', () => {
-  it('surfaces queued sequence progress with no button to press', async () => {
+describe('upsertVideoJobNotification', () => {
+  it('surfaces a queued job with no button to press', async () => {
     notification.findFirst.mockResolvedValue(null)
 
-    await upsertSequenceNotification({
+    await upsertVideoJobNotification({
       jobId: 'job-123',
       name: 'Office Chair',
       state: 'queued',
@@ -132,8 +132,8 @@ describe('upsertSequenceNotification', () => {
     expect(notification.create).toHaveBeenCalledWith({
       data: {
         type: 'message',
-        dedupeKey: 'sequence-job:job-123',
-        title: 'Scroll sequence in progress: Office Chair',
+        dedupeKey: 'video-job:job-123',
+        title: 'Optimising video: Office Chair',
         link: null,
         actionLabel: null,
         reasons: [{ label: 'Queued', detail: '0%', at: expect.any(String) }],
@@ -145,7 +145,7 @@ describe('upsertSequenceNotification', () => {
   it('reads the worker progress as a fraction, not a percentage', async () => {
     notification.findFirst.mockResolvedValue(null)
 
-    await upsertSequenceNotification({
+    await upsertVideoJobNotification({
       jobId: 'job-123',
       name: 'Office Chair',
       state: 'running',
@@ -154,15 +154,15 @@ describe('upsertSequenceNotification', () => {
 
     expect(notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        reasons: [{ label: 'Building', detail: '42%', at: expect.any(String) }],
+        reasons: [{ label: 'Encoding', detail: '42%', at: expect.any(String) }],
       }),
     })
   })
 
-  it('finishes at 100%, with a button to the folder the frames landed in', async () => {
+  it('finishes at 100%, with a button to the folder the video sits in', async () => {
     notification.findFirst.mockResolvedValue(null)
 
-    await upsertSequenceNotification({
+    await upsertVideoJobNotification({
       jobId: 'job-123',
       name: 'Office Chair',
       state: 'done',
@@ -172,7 +172,7 @@ describe('upsertSequenceNotification', () => {
 
     expect(notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        title: 'Scroll sequence complete: Office Chair',
+        title: 'Video optimised: Office Chair',
         link: '/media?folder=fld_1',
         actionLabel: 'Open media folder',
         reasons: [{ label: 'Finished', detail: '100%', at: expect.any(String) }],
@@ -180,10 +180,10 @@ describe('upsertSequenceNotification', () => {
     })
   })
 
-  it('points a root-level sequence at the library root', async () => {
+  it('points a root-level video at the library root', async () => {
     notification.findFirst.mockResolvedValue(null)
 
-    await upsertSequenceNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1, folderId: null })
+    await upsertVideoJobNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1, folderId: null })
 
     expect(notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ link: '/media', actionLabel: 'Open media folder' }),
@@ -193,14 +193,14 @@ describe('upsertSequenceNotification', () => {
   it('leaves the finished link alone when the caller does not know the folder', async () => {
     notification.findFirst.mockResolvedValue({
       id: 'n1',
-      title: 'Scroll sequence in progress: Chair',
+      title: 'Optimising video: Chair',
       link: '/media?folder=fld_1',
       actionLabel: 'Open media folder',
       reasons: null,
       readAt: null,
     })
 
-    await upsertSequenceNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1 })
+    await upsertVideoJobNotification({ jobId: 'job-123', name: 'Chair', state: 'done', progress: 1 })
 
     expect(notification.update).toHaveBeenCalledWith({
       where: { id: 'n1' },

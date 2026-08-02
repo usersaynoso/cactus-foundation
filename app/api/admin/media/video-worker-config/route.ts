@@ -3,22 +3,20 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { getSequenceConfig, resolveFlyFromConfig, SEQUENCE_ENGINES } from '@/lib/media/sequence-presets'
+import { getMediaWorkerConfig, resolveFlyFromConfig } from '@/lib/media/media-worker-config'
 
-// Scroll-sequence conversion settings (Media > Scroll sequences). Reading is
-// gated by media.upload - the convert dialog shows what a conversion will run -
-// while saving is gated by config.manage, the same key that guards the rest of
-// the settings surfaces. Stored as one blob on the SiteConfig singleton; see
-// lib/media/sequence-presets.ts.
+// Media worker settings (Media > Video). Reading is gated by media.upload - the
+// panel says whether video optimising is wired up at all - while saving is gated
+// by config.manage, the same key that guards the rest of the settings surfaces.
+// Stored as one blob on the SiteConfig singleton; see lib/media/media-worker-config.ts.
 //
 // The Fly token is a secret: responses only ever say WHERE a token came from
 // ('saved' here, 'env' fallback, or null), never the token itself.
 
 async function describeConfig() {
-  const config = await getSequenceConfig()
+  const config = await getMediaWorkerConfig()
   const { fly, source } = resolveFlyFromConfig(config)
   return {
-    settings: config.settings,
     fly: {
       source,
       configured: !!fly,
@@ -37,15 +35,9 @@ export async function GET() {
   return NextResponse.json(await describeConfig())
 }
 
-// What the settings form may send. The numeric knobs replace in full; the Fly
-// token is three-state: absent = leave as it is, '' = clear the saved token
-// (fall back to the environment one, if any), a string = save it.
+// The Fly fields are three-state: absent = leave as it is, '' = clear the saved
+// value (falling back to the environment one, if any), a string = save it.
 const PutSchema = z.object({
-  settings: z.object({
-    engine: z.enum(SEQUENCE_ENGINES).optional(),
-    fps: z.number().int().min(1).max(60),
-    maxWidth: z.number().int().min(320).max(3840),
-  }),
   fly: z
     .object({
       token: z.string().max(500).optional(),
@@ -75,14 +67,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid settings' }, { status: 400 })
   }
 
-  const current = await getSequenceConfig()
+  const current = await getMediaWorkerConfig()
   const next = {
-    settings: {
-      // Absent engine = keep what's stored (older clients don't send one).
-      engine: parsed.data.settings.engine ?? current.settings.engine,
-      fps: parsed.data.settings.fps,
-      maxWidth: parsed.data.settings.maxWidth,
-    },
     fly: {
       token:
         parsed.data.fly?.token === undefined
@@ -97,7 +83,7 @@ export async function PUT(request: NextRequest) {
 
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
-    data: { sequenceConfig: next },
+    data: { mediaWorkerConfig: next },
   })
 
   return NextResponse.json(await describeConfig())

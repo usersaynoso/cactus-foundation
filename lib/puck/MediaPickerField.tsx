@@ -2,14 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { CustomFieldRender } from '@puckeditor/core'
-import { isSequenceType } from '@/lib/media/limits'
-
-// A scroll-sequence item's url is its manifest.json; its poster sits beside it as
-// "poster.webp". The picker only ever has something displayable to show for a
-// sequence by deriving that sibling (the manifest itself is not an image).
-function sequencePosterUrl(manifestUrl: string): string {
-  return (manifestUrl.split('?')[0] ?? manifestUrl).replace(/[^/]*$/, 'poster.webp')
-}
 
 type MediaItem = {
   id: string
@@ -30,7 +22,7 @@ type Folder = {
 function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
   onSelect: (item: MediaItem) => void
   onClose: () => void
-  kind?: 'image' | 'sequence' | 'video'
+  kind?: 'image' | 'video'
 }) {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,7 +49,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
     let cancelled = false
     // The library has no dedicated "sequence" or "video" server filter (only
     // all/image/other), so both are fetched as "other" (non-image) and narrowed
-    // client-side by isSequenceType / the video mime check below.
+    // client-side by the mime checks below.
     const params = new URLSearchParams({ perPage: '50', type: kind === 'image' ? 'image' : 'other' })
     if (trimmed) {
       params.set('folder', 'all')
@@ -115,13 +107,11 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
     }
   }
 
-  const filtered = kind === 'sequence'
-    ? items.filter((i) => isSequenceType(i.mimeType))
-    : kind === 'video'
-      ? items.filter((i) => i.mimeType.startsWith('video/'))
-      : items.filter((i) => i.mimeType.startsWith('image/'))
+  const filtered = kind === 'video'
+    ? items.filter((i) => i.mimeType.startsWith('video/'))
+    : items.filter((i) => i.mimeType.startsWith('image/'))
 
-  const kindNoun = kind === 'sequence' ? 'scroll sequence' : kind === 'video' ? 'video' : 'image'
+  const kindNoun = kind === 'video' ? 'video' : 'image'
 
   return (
     <div
@@ -146,10 +136,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
             autoFocus
             style={{ flex: 1, padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.875rem', fontFamily: 'inherit', background: 'var(--color-bg)', color: 'var(--color-text)' }}
           />
-          {/* A scroll sequence is produced by the sequence worker, not uploaded,
-              so the upload control has no meaning here and is omitted. */}
-          {kind !== 'sequence' && (
-            <>
+          <>
               <input
                 ref={fileRef}
                 type="file"
@@ -165,8 +152,7 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
               >
                 {uploading ? 'Uploading…' : '+ Upload'}
               </button>
-            </>
-          )}
+          </>
           <button
             type="button"
             aria-label="Close"
@@ -245,10 +231,9 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
                     style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block', background: 'var(--color-bg-subtle)' }}
                   />
                 ) : (
-                  /* A sequence's own url is its manifest.json; show its poster sibling instead. */
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={kind === 'sequence' ? sequencePosterUrl(item.url) : item.url}
+                    src={item.url}
                     alt={item.altText ?? ''}
                     style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
                   />
@@ -336,13 +321,6 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   Section:        { bgImage: 'Background image' },
 }
 
-// Same idea as IMAGE_PICKER_FIELDS, but for fields that hold a scroll sequence's
-// manifest URL: they get the sequence picker (which stores item.url, the manifest)
-// rather than the image picker.
-const SEQUENCE_PICKER_FIELDS: Record<string, Record<string, string>> = {
-  ScrollSequence: { sequenceUrl: 'Scroll sequence' },
-}
-
 // Same again for fields holding a self-hosted video URL (an mp4/webm in the
 // media library, not a YouTube or Vimeo link - those stay plain text fields).
 const VIDEO_PICKER_FIELDS: Record<string, Record<string, string>> = {
@@ -350,8 +328,7 @@ const VIDEO_PICKER_FIELDS: Record<string, Record<string, string>> = {
 }
 
 // Swap every known media URL text field in a Puck config for the matching media
-// picker — image fields for the image picker, sequence fields for the sequence
-// picker. Components/fields not present in the given config are skipped, so this
+// picker — image fields for the image picker, video fields for the video one. Components/fields not present in the given config are skipped, so this
 // is safe on the layout editor's filtered config too.
 export function withImagePickerFields<C>(config: C): C {
   const cfg = config as { components?: Record<string, { fields?: Record<string, unknown> }> }
@@ -372,7 +349,6 @@ export function withImagePickerFields<C>(config: C): C {
     }
   }
   swap(IMAGE_PICKER_FIELDS, ImageUrlPickerField)
-  swap(SEQUENCE_PICKER_FIELDS, SequenceUrlPickerField)
   swap(VIDEO_PICKER_FIELDS, VideoUrlPickerField)
   return { ...cfg, components } as C
 }
@@ -423,52 +399,6 @@ export const ImageUrlPickerField: CustomFieldRender<string> = ({ value, onChange
   )
 }
 
-// For ScrollSequence.sequenceUrl — the same media library picker, filtered to
-// scroll sequences, storing the picked item's url (its manifest.json). The
-// preview shows the sequence's poster sibling, since the manifest is not an image.
-export const SequenceUrlPickerField: CustomFieldRender<string> = ({ value, onChange, field }) => {
-  const [open, setOpen] = useState(false)
-
-  function handleSelect(item: MediaItem) {
-    onChange(item.url)
-    setOpen(false)
-  }
-
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
-        {(field as { label?: string }).label ?? 'Scroll sequence'}
-      </label>
-      {value && (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={sequencePosterUrl(value)}
-          alt=""
-          style={{ width: '100%', maxHeight: 100, objectFit: 'contain', borderRadius: 4, marginBottom: '0.5rem', display: 'block', border: '1px solid var(--color-border)', background: 'var(--color-bg-subtle)' }}
-        />
-      )}
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 6, background: 'var(--color-surface)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
-        >
-          {value ? 'Change sequence' : 'Select scroll sequence'}
-        </button>
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange('')}
-            style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--color-destructive-border)', borderRadius: 6, background: 'var(--color-surface)', color: 'var(--color-destructive)', cursor: 'pointer', fontSize: '0.8125rem', fontFamily: 'inherit' }}
-          >
-            Remove
-          </button>
-        )}
-      </div>
-      {open && <MediaPickerModal onSelect={handleSelect} onClose={() => setOpen(false)} kind="sequence" />}
-    </div>
-  )
-}
 
 // For FeatureVideo.videoUrl — the media library picker filtered to videos,
 // storing the picked item's url. The preview is the video's own first frame,

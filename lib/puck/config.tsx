@@ -62,7 +62,6 @@ import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
-import ScrollSequence from '@/lib/puck/components/ScrollSequence'
 import FeatureVideo from '@/lib/puck/components/FeatureVideo'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
@@ -2709,7 +2708,7 @@ export const puckConfig = {
     layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                        defaultExpanded: true },
-    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed', 'ScrollSequence'], defaultExpanded: true },
+    media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed'], defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
     members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
@@ -3291,50 +3290,6 @@ export const puckConfig = {
       },
       render: Embed,
     },
-    ScrollSequence: {
-      label: 'Scroll sequence',
-      fields: {
-        sequenceUrl: { type: 'text' as const, label: 'Scroll sequence' },
-        scrubScreens: { type: 'number' as const, label: 'Scroll length (screens)', min: 1 },
-        loop: { type: 'radio' as const, label: 'Loop at the end', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
-        fade: { type: 'radio' as const, label: 'Fade on enter/exit', options: [{ label: 'Yes', value: true }, { label: 'No', value: false }] },
-        maxWidth: { type: 'text' as const, label: 'Max width (e.g. 600px or 100%)' },
-        title: { type: 'text' as const, label: 'Title (inside the animation screen)' },
-        body: { type: 'textarea' as const, label: 'Text (inside the animation screen)' },
-        textSide: { type: 'select' as const, label: 'Title and text position', options: [{ value: 'above', label: 'Above the animation' }, { value: 'left', label: 'Left of the animation' }, { value: 'right', label: 'Right of the animation' }] },
-        topOffset: { type: 'text' as const, label: 'Top clearance for sticky headers (e.g. 10rem)' },
-        ariaLabel: { type: 'text' as const, label: 'Description (accessibility)' },
-      },
-      defaultProps: { sequenceUrl: '', scrubScreens: 1, loop: true, fade: true, maxWidth: '', title: '', body: '', textSide: 'above', topOffset: '', ariaLabel: '' },
-      // Text placement only means anything once there is text to place.
-      resolveFields: (data: any, { fields }: any) => {
-        const p = data.props ?? {}
-        if (p.title?.trim() || p.body?.trim()) return fields
-        const { textSide: _s, ...rest } = fields
-        return rest
-      },
-      // The player is a client component (scroll listeners, canvas, rAF) - this
-      // render only hands it props, staying editor-safe like the rest of the file.
-      // The same render is reused on the RSC/published path (config.rsc.tsx spreads
-      // puckConfig.components), which is fine: a client component renders happily
-      // from a server component.
-      render: ({ sequenceUrl, scrubScreens, loop, fade, maxWidth, title, body, textSide, topOffset, ariaLabel, puck }: any) => (
-        <ScrollSequence
-          sequenceUrl={sequenceUrl}
-          scrubScreens={scrubScreens}
-          loop={loop}
-          fade={fade}
-          maxWidth={maxWidth}
-          title={title}
-          body={body}
-          textSide={textSide}
-          topOffset={topOffset}
-          ariaLabel={ariaLabel}
-          isEditing={puck?.isEditing}
-        />
-      ),
-    },
-
     // ── Content ──────────────────────────────────────────────────────────────
     Hero: {
       label: 'Hero',

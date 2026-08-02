@@ -7,8 +7,8 @@ import { computeLibraryStats } from '@/lib/media/library-stats'
 import MediaLibrary from './MediaLibrary'
 import MediaStorageCheck from './MediaStorageCheck'
 import MediaTabs from './MediaTabs'
-import { getSequenceConfig, resolveFlyFromConfig } from '@/lib/media/sequence-presets'
-import { listSequenceJobs } from '@/lib/media/sequence-jobs'
+import { getMediaWorkerConfig, resolveFlyFromConfig } from '@/lib/media/media-worker-config'
+import { listVideoJobs } from '@/lib/media/video-jobs'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Media — Admin' }
@@ -63,13 +63,13 @@ export default async function MediaPage({ searchParams }: Props) {
   // Folder and tag lists are sidebar furniture, so they're capped rather than
   // unbounded. A library with more than FOLDER_LIMIT folders or TAG_LIMIT tags is
   // well past the point where a flat sidebar list is the right UI anyway.
-  const [initial, folders, folderCounts, tags, sequenceConfig, sequenceJobs] = await Promise.all([
+  const [initial, folders, folderCounts, tags, workerConfig, videoJobs] = await Promise.all([
     queryMediaLibrary(query),
     prisma.folder.findMany({ orderBy: { name: 'asc' }, take: FOLDER_LIMIT, select: { id: true, name: true, parentId: true } }),
     prisma.media.groupBy({ by: ['folderId'], _count: { _all: true } }),
     prisma.tag.findMany({ orderBy: { name: 'asc' }, take: TAG_LIMIT, select: { id: true, name: true, _count: { select: { media: true } } } }),
-    getSequenceConfig(),
-    listSequenceJobs(),
+    getMediaWorkerConfig(),
+    listVideoJobs(),
   ])
 
   const countByFolder = new Map<string, number>()
@@ -79,14 +79,13 @@ export default async function MediaPage({ searchParams }: Props) {
     else rootCount = c._count._all
   }
 
-  const { fly: resolvedFly, source: flySource } = resolveFlyFromConfig(sequenceConfig)
+  const { fly: resolvedFly, source: flySource } = resolveFlyFromConfig(workerConfig)
 
   return (
     <MediaTabs
-      settings={{ engine: sequenceConfig.settings.engine, fps: sequenceConfig.settings.fps, maxWidth: sequenceConfig.settings.maxWidth }}
       fly={{ source: flySource, configured: !!resolvedFly, appName: resolvedFly?.appName ?? null }}
-      jobs={sequenceJobs}
-      canManagePresets={canCheckStorage}
+      jobs={videoJobs}
+      canManageSettings={canCheckStorage}
       library={
         <>
           <MediaLibrary

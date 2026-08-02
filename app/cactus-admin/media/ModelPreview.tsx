@@ -1,7 +1,7 @@
 'use client'
 
 // The media library's preview for a 3D file. Every other type in the library
-// shows what it is - an image draws itself, a video plays, a scroll sequence
+// shows what it is - an image draws itself, a video plays, a 3D model
 // shows its poster - and a model showed a grey document icon, which is the one
 // case where the admin cannot tell two files apart without downloading both.
 // A folder of a dozen chair GLBs is exactly where that matters.

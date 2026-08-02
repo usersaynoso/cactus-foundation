@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isSequenceType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -617,11 +617,9 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
   throw new Error(`Unsupported media provider: ${provider}`)
 }
 
-// Delete every object under a key prefix (S3-compatible providers only). A scroll
-// sequence is a whole folder - a hundred-odd frames, a poster and a manifest - so
-// removing its single pointer row has to take the lot with it. Non-S3 providers
-// never host a sequence (the sequence worker writes only to the S3/B2 bucket), so
-// there is nothing to delete for them.
+// Delete every object under a key prefix (S3-compatible providers only). Kept for
+// the callers that own a whole folder of objects rather than a single file; a
+// non-S3 provider is a no-op because none of them are ever handed one.
 export async function deleteMediaTree(provider: MediaProviderType, prefix: string): Promise<void> {
   if (!prefix || !isS3Provider(provider)) return
   const { client, bucket } = getS3Config(provider)
@@ -641,17 +639,10 @@ export async function deleteMediaTree(provider: MediaProviderType, prefix: strin
   } while (token)
 }
 
-// Delete the storage bytes behind a Media row: a single object for an ordinary
-// item, or the whole frame folder for a scroll sequence (whose key is the
-// manifest.json sitting alongside its frames). The one place both delete routes
-// call, so the sequence rule can't be applied in one and forgotten in the other.
+// Delete the storage bytes behind a Media row. The one place both delete routes
+// call, so a rule about what "the bytes" means can't be applied in one and
+// forgotten in the other.
 export async function deleteMediaBytes(media: { provider: MediaProviderType; key: string; mimeType: string }): Promise<void> {
-  if (isSequenceType(media.mimeType)) {
-    const i = media.key.lastIndexOf('/')
-    const prefix = i === -1 ? '' : media.key.slice(0, i + 1)
-    await deleteMediaTree(media.provider, prefix)
-    return
-  }
   await deleteMedia(media.provider, media.key)
 }
 
@@ -1235,7 +1226,11 @@ export async function markMediaOptimised(ids: string[], optimised: boolean): Pro
     const row = found.get(id)
     if (!row) {
       skipped.push({ id, reason: 'Media item not found' })
-    } else if (!isOptimisableType(row.mimeType)) {
+    } else if (!isOptimisableType(row.mimeType) && !isVideoDirectType(row.mimeType)) {
+      // Video is optimised off-platform by the media worker rather than in this
+      // process, so it is not in isOptimisableType - but the flag means exactly
+      // the same thing for a video, and an admin who compressed a clip in their
+      // own editor before uploading it should be able to say so.
       skipped.push({ id, reason: 'Not a file the optimiser handles' })
     } else if (row.optimised === optimised) {
       skipped.push({ id, reason: optimised ? 'Already marked as optimised' : 'Not marked as optimised' })
@@ -1407,6 +1402,49 @@ async function repointMediaToBlob(
   }
 
   return updated
+}
+
+// ---------------------------------------------------------------------------
+// Video optimise — the platform half of a job the media worker did the work for.
+//
+// Unlike every other in-place rewrite in this file, the new bytes were never in
+// this process: the worker downloaded the source, re-encoded it and wrote the
+// MP4 into the bucket itself (a 40 MB video is not something to pull through a
+// serverless function twice). All that is left here is to point the row at what
+// is already in storage.
+//
+// An MP4 source is re-encoded straight over its own key, so `key` matches and
+// nothing anywhere has to learn a new address — the same reasoning that makes
+// optimiseModelInPlace write back over itself. A WebM source becomes an MP4 and
+// therefore moves, so the reference rewrite and the old-blob delete matter; both
+// are repointMediaToBlob's job.
+// ---------------------------------------------------------------------------
+export async function applyOptimisedVideo(
+  mediaId: string,
+  written: { key: string; sizeBytes: number },
+): Promise<Media | null> {
+  const media = await prisma.media.findUnique({ where: { id: mediaId } })
+  if (!media) return null
+
+  const url = isProxied(media.provider) ? `${requireWorkerUrl()}/${written.key}` : media.url
+  // The display name follows the bytes: a "demo.webm" that is now MP4 would
+  // otherwise download as a .webm that isn't one.
+  const originalName = written.key !== media.key && media.originalName
+    ? media.originalName.replace(/\.[^./]+$/, '') + '.mp4'
+    : undefined
+
+  return repointMediaToBlob(
+    media,
+    { key: written.key, url, mimeType: 'video/mp4', sizeBytes: written.sizeBytes },
+    { optimised: true, ...(originalName !== undefined ? { originalName } : {}) },
+  )
+}
+
+/** Mark a video done without touching its bytes — the worker could not beat the
+ *  source, so re-encoding it again next week would only cost another generation
+ *  of quality for nothing. */
+export async function markVideoAlreadyOptimised(mediaId: string): Promise<void> {
+  await prisma.media.updateMany({ where: { id: mediaId }, data: { optimised: true } })
 }
 
 // ---------------------------------------------------------------------------

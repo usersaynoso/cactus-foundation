@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { isSequenceInFlight, type SequenceJobState } from '@/lib/media/sequence-notification'
+import { isVideoJobInFlight, type VideoJobState } from '@/lib/media/video-job-notification'
 
-// The live progress of one scroll-sequence conversion, as shown on its
-// notification (both in the bell and on the notifications page).
+// The live progress of one video optimise, as shown on its notification (both in
+// the bell and on the notifications page).
 //
-// A conversion takes the better part of twenty minutes and the admin is expressly
-// invited to walk away, so the notification is the only place the progress lives
-// once the convert dialog is closed. The job's notification only moves on its own
-// via the worker's final callback, so - exactly as the Media > Scroll sequences
-// panel does - this pokes sequence-status, which proxies the worker's live figure
+// An encode takes a few minutes and the admin is expressly invited to walk away,
+// so the notification is the only place the progress lives once the dialog is
+// closed. The job's notification only moves on its own via the worker's final
+// callback, so this pokes video-status, which proxies the worker's live figure
 // and rewrites the notification. Otherwise the bar would sit frozen at whatever
 // the last open dialog happened to see.
 
@@ -20,7 +19,7 @@ const POLL_MS = 5000
 type Props = {
   /** The job ref the notification is keyed on (`<machineId>:<jobId>` in per-machine mode). */
   jobId: string
-  state: SequenceJobState
+  state: VideoJobState
   /** 0-100, or null when nothing has been reported yet. */
   progress: number | null
   detail: string | null
@@ -36,14 +35,14 @@ function noteFrom(detail: string | null): string | null {
   return rest || null
 }
 
-export default function SequenceProgress({ jobId, state, progress, detail, onSettled }: Props) {
+export default function VideoJobProgress({ jobId, state, progress, detail, onSettled }: Props) {
   const router = useRouter()
 
   // What our own polling has learnt since the server last rendered this. Once we
   // are polling, ours is the fresher figure - the server's only moves because our
   // poll persists it - so a live value stands until the job's state itself changes
   // underneath us (the worker's callback landing, say), which clears it.
-  type Live = { state: SequenceJobState; progress: number | null; detail: string | null }
+  type Live = { state: VideoJobState; progress: number | null; detail: string | null }
   const [live, setLive] = useState<Live | null>(null)
   const [seenState, setSeenState] = useState(state)
   if (seenState !== state) {
@@ -52,7 +51,7 @@ export default function SequenceProgress({ jobId, state, progress, detail, onSet
   }
 
   const shown: Live = live ?? { state, progress, detail }
-  const inFlight = isSequenceInFlight(shown.state)
+  const inFlight = isVideoJobInFlight(shown.state)
 
   const onSettledRef = useRef(onSettled)
   useEffect(() => { onSettledRef.current = onSettled }, [onSettled])
@@ -75,12 +74,12 @@ export default function SequenceProgress({ jobId, state, progress, detail, onSet
 
     async function poll() {
       try {
-        const res = await fetch(`/api/admin/media/sequence-status?jobId=${encodeURIComponent(jobId)}`, { cache: 'no-store' })
+        const res = await fetch(`/api/admin/media/video-status?jobId=${encodeURIComponent(jobId)}`, { cache: 'no-store' })
         if (cancelled) return
         if (res.ok) {
           const d = await res.json()
           if (cancelled) return
-          const status = typeof d.status === 'string' ? (d.status as SequenceJobState) : null
+          const status = typeof d.status === 'string' ? (d.status as VideoJobState) : null
           if (status) {
             const pct = typeof d.progress === 'number' && Number.isFinite(d.progress)
               ? Math.max(0, Math.min(100, Math.round(d.progress * 100)))
@@ -88,11 +87,11 @@ export default function SequenceProgress({ jobId, state, progress, detail, onSet
             setLive({ state: status, progress: pct, detail: typeof d.error === 'string' ? d.error : null })
             // Settled: stop polling and let the parent re-read the notification,
             // which by now carries the button through to the finished frames.
-            if (!isSequenceInFlight(status)) { settle(); return }
+            if (!isVideoJobInFlight(status)) { settle(); return }
           }
         }
       } catch {
-        // A blip on a twenty-minute job is not worth reporting - the last known
+        // A blip on a job of this length is not worth reporting - the last known
         // figure stays on screen and the next tick tries again.
       }
       if (!cancelled) schedule()
@@ -105,12 +104,12 @@ export default function SequenceProgress({ jobId, state, progress, detail, onSet
   const pct = shown.progress ?? 0
   const failed = shown.state === 'error'
   const label = failed
-    ? 'Conversion failed'
+    ? 'Optimise failed'
     : shown.state === 'done'
       ? 'Finished'
       : shown.state === 'queued'
         ? 'Waiting to start…'
-        : 'Building the sequence…'
+        : 'Re-encoding the video…'
   const note = noteFrom(shown.detail)
 
   return (

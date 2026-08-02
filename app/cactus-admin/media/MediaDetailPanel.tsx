@@ -3,9 +3,9 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { LibraryItem, TagInfo } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind, sequencePosterUrl } from './format'
+import { formatBytes, formatDate, filenameOf, fileKind } from './format'
 import { useFocusTrap } from './useFocusTrap'
-import { isModelDirectType, isOptimisableType, isSequenceType } from '@/lib/media/limits'
+import { isModelDirectType, isOptimisableType } from '@/lib/media/limits'
 
 // The 3D viewer is loaded only when a model is actually opened. It pulls three
 // and a loader behind it - the better part of a megabyte - and the media library
@@ -36,7 +36,7 @@ export default function MediaDetailPanel({
   onEdit,
   onChangeRatio,
   onResize,
-  onConvertToSequence,
+  onOptimiseVideo,
   onRename,
   onMove,
   onCut,
@@ -70,8 +70,8 @@ export default function MediaDetailPanel({
   onEdit: () => void
   onChangeRatio: () => void
   onResize: () => void
-  /** Build a scroll sequence from this video. Only shown for video items. */
-  onConvertToSequence: () => void
+  /** Re-encode this video smaller, in place. Only shown for video items. */
+  onOptimiseVideo: () => void
   onRename: () => void
   onMove: () => void
   onCut: () => void
@@ -89,9 +89,7 @@ export default function MediaDetailPanel({
   const isImage = item.mimeType.startsWith('image/')
   const isVideo = item.mimeType.startsWith('video/')
   const isSvg = item.mimeType === 'image/svg+xml'
-  const isSequence = isSequenceType(item.mimeType)
   const isModel = isModelDirectType(item.mimeType)
-  const posterUrl = isSequence ? sequencePosterUrl(item.url) : null
   const canEdit = isImage && !isSvg
   // Not the same question as canEdit any more: a 3D model has nothing to crop or
   // resize, but it very much can be optimised. See isOptimisableType.
@@ -99,8 +97,12 @@ export default function MediaDetailPanel({
   // button there; "would the optimiser ever have taken it" is what allows the
   // claim that it already has been - and that one stays true afterwards, because
   // taking the claim back is how a wrong one gets fixed.
-  const canMarkOptimised = isOptimisableType(item.mimeType)
-  const canOptimise = canMarkOptimised && !item.optimised
+  // A video is optimised by the worker rather than in this process, so it is not
+  // in isOptimisableType (which gates the in-process image/model optimiser and
+  // its bulk companion) - but it can still be claimed as already done, and the
+  // claim means the same thing: stop offering to re-encode it.
+  const canMarkOptimised = isOptimisableType(item.mimeType) || isVideo
+  const canOptimise = isOptimisableType(item.mimeType) && !item.optimised
   const filename = filenameOf(item)
   const asideRef = useRef<HTMLElement>(null)
   useFocusTrap(asideRef)
@@ -201,11 +203,8 @@ export default function MediaDetailPanel({
               <img src={item.url} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : isVideo && !broken ? (
               <video src={item.url} controls playsInline preload="metadata" onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, display: 'block' }} />
-            ) : isSequence && posterUrl && !broken ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={posterUrl} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : (
-              <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isSequence ? 'Scroll sequence' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isSequence ? '🎞️' : '📄'}</span>
+              <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : '📄'}</span>
             )}
           </div>
 
@@ -318,7 +317,7 @@ export default function MediaDetailPanel({
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}>Edit image…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onChangeRatio}>Change ratio…</button>}
           {canManage && canEdit && <button type="button" className="btn btn-secondary btn-sm" onClick={onResize}>Resize…</button>}
-          {canManage && isVideo && <button type="button" className="btn btn-secondary btn-sm" title="Turn this video into a scroll-through sequence with the background removed" onClick={onConvertToSequence}>Convert to scroll sequence…</button>}
+          {canManage && isVideo && !item.optimised && <button type="button" className="btn btn-secondary btn-sm" title="Re-encode this video smaller, in the one format every device plays. It keeps its place, so anything using it carries on working." onClick={onOptimiseVideo}>Optimise video…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onRename}>Rename…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onMove}>Move…</button>}
           {canManage && <button type="button" className="btn btn-secondary btn-sm" onClick={onCut}>Cut</button>}

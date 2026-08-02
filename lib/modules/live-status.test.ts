@@ -19,7 +19,9 @@ import { INSTALLED_MODULE_STATUSES } from '@/lib/modules/live-status'
 // future copy-paste and the same invisible outage.
 
 const ROOT = join(__dirname, '..', '..')
-const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'dist', 'build', '.vercel', 'wiki'])
+// '.claude' holds agents' git worktrees of this very repo - other people's
+// checkouts, whose copies of these files are not this branch's business.
+const SKIP_DIRS = new Set(['node_modules', '.next', '.git', 'dist', 'build', '.vercel', 'wiki', '.claude'])
 const RAW_FILTER = /status:\s*\{\s*in:\s*\[\s*'active',\s*'update_available'\s*\]/
 
 // The one legitimate holdout: the update checker must exclude in-flight deploys or
