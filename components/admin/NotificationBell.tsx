@@ -49,6 +49,10 @@ type Notification = {
 // front. Every open admin tab polls, so this is deliberately unhurried.
 const POLL_INTERVAL_MS = 60_000
 
+// Sentinel key for the whole-list actions in the same loading/error maps the
+// per-notification buttons use. No notification id can collide with it.
+const BULK_ACTION_ID = '__bulk__'
+
 const ICON_BY_TYPE: Record<string, string> = {
   deployment: '🚀',
   core_update: '⬆️',
@@ -60,6 +64,13 @@ const VIEW_LABEL_BY_TYPE: Record<string, string> = {
   core_update: 'View Update',
   module_update: 'View Update',
   message: 'View Messages',
+}
+
+// Everything except an "open" deployment notification, which Delete all leaves
+// alone - it is the only record of changes saved but not yet live, and nothing
+// re-creates it. Mirrors the guard in the DELETE handler.
+function isDeletable(n: Notification): boolean {
+  return !(n.type === 'deployment' && !n.deployInitiatedAt)
 }
 
 function relativeTime(iso: string): string {
@@ -442,6 +453,51 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     }
   }
 
+  // Bulk actions hit the collection route, which covers the whole table rather
+  // than the twenty rows the bell happens to be holding - so the badge and the
+  // notifications page agree with the dropdown afterwards.
+  async function handleMarkAllRead() {
+    setActionLoading(BULK_ACTION_ID)
+    clearErr(BULK_ACTION_ID)
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read: true }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Action failed')
+      const readAt = new Date().toISOString()
+      setNotifications(prev => prev?.map(n => n.readAt ? n : { ...n, readAt }) ?? null)
+      setCount(0)
+      router.refresh()
+    } catch (err: unknown) {
+      setErr(BULK_ACTION_ID, err instanceof Error ? err.message : 'Action failed')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (!confirm('Delete every notification? Changes still awaiting deployment are kept. This cannot be undone.')) return
+    setActionLoading(BULK_ACTION_ID)
+    clearErr(BULK_ACTION_ID)
+    try {
+      const res = await fetch('/api/admin/notifications', { method: 'DELETE' })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Delete failed')
+      // Re-reads rather than assuming an empty list: the endpoint keeps any open
+      // deployment notification, which may well be outside the twenty rows held
+      // here, and its unread state still has to count towards the badge.
+      fetchNotifications()
+      router.refresh()
+    } catch (err: unknown) {
+      setErr(BULK_ACTION_ID, err instanceof Error ? err.message : 'Delete failed')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Delete this notification? This cannot be undone.')) return
     setActionLoading(id)
@@ -472,7 +528,32 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
     >
       <div className="admin-bell-dropdown-header">
         <span className="admin-bell-dropdown-title">Notifications</span>
+        {notifications !== null && notifications.length > 0 && (
+          <div className="admin-bell-dropdown-header-actions">
+            <button
+              type="button"
+              className="admin-bell-dropdown-headaction"
+              disabled={actionLoading === BULK_ACTION_ID || count === 0}
+              onClick={handleMarkAllRead}
+            >
+              Mark all read
+            </button>
+            <button
+              type="button"
+              className="admin-bell-dropdown-headaction admin-bell-dropdown-headaction--danger"
+              // Nothing to do when the only thing here is the deployment
+              // notification the endpoint refuses to delete.
+              disabled={actionLoading === BULK_ACTION_ID || !notifications.some(isDeletable)}
+              onClick={handleDeleteAll}
+            >
+              Delete all
+            </button>
+          </div>
+        )}
       </div>
+      {actionError[BULK_ACTION_ID] && (
+        <p className="admin-bell-dropdown-action-error admin-bell-dropdown-bulk-error">{actionError[BULK_ACTION_ID]}</p>
+      )}
 
       <DeployStatusLive />
 

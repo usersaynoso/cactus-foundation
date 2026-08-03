@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import NotificationActions from './NotificationActions'
+import NotificationBulkActions from './NotificationBulkActions'
 import DeployStatusLive from '@/components/admin/DeployStatusLive'
 import VideoJobProgress from '@/components/admin/VideoJobProgress'
 import { isVideoJobInFlight, parseVideoJobNotification } from '@/lib/media/video-job-notification'
@@ -52,7 +53,7 @@ export default async function NotificationsPage() {
 
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
 
-  const [notifications, total, unread] = await Promise.all([
+  const [notifications, total, unread, pendingDeploy] = await Promise.all([
     prisma.notification.findMany({
       orderBy: { createdAt: 'desc' },
       take: NOTIFICATION_LIMIT,
@@ -71,15 +72,22 @@ export default async function NotificationsPage() {
     }),
     prisma.notification.count(),
     prisma.notification.count({ where: { readAt: null } }),
+    // Delete all leaves open deployment notifications behind (they are the only
+    // record of changes saved but not yet live), so the button has to know how
+    // many it would really be removing.
+    prisma.notification.count({ where: { type: 'deployment', deployInitiatedAt: null } }),
   ])
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Notifications</h1>
-        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
-          {total} total{unread > 0 ? `, ${unread} unread` : ''}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
+            {total} total{unread > 0 ? `, ${unread} unread` : ''}
+          </span>
+          <NotificationBulkActions total={total} unread={unread} pendingDeploy={pendingDeploy} />
+        </div>
       </div>
 
       <DeployStatusLive />
