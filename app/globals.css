@@ -2046,6 +2046,20 @@ a:hover {
   cursor: not-allowed;
   opacity: 0.7;
 }
+/* A field that carries something the visitor has already given - the email
+   address on the second step of sign-in, say. It should read as settled, not
+   broken: filled in like a disabled field, but legible and without the
+   not-allowed cursor. Matched on the attribute rather than :read-only, which
+   also matches disabled inputs and every checkbox. */
+.field input[readonly] {
+  background: var(--color-bg-subtle);
+  cursor: default;
+}
+.field input[readonly]:hover,
+.field input[readonly]:focus {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
 .field input[type="checkbox"],
 .field input[type="radio"] {
   height: auto;

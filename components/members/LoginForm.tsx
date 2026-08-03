@@ -2,8 +2,17 @@
 
 import { useEffect, useState } from 'react'
 
-type Step = 'email' | 'no-passkey' | 'magic-sent' | 'consuming' | 'password' | '2fa' | 'recovery-code'
+type Step = 'email' | 'methods' | 'magic-sent' | 'consuming' | 'password' | '2fa' | 'recovery-code'
 type TwoFactorMethod = 'EMAIL' | 'AUTHENTICATOR_APP' | 'SMS'
+
+// Which sign-in methods the address typed on the first step can actually use,
+// from /api/members/auth/methods.
+type AuthMethods = { passkey: boolean; password: boolean; magicLink: boolean }
+
+// Enough of a check to stop "Continue" firing on an obvious typo, which would
+// otherwise end in a cheerful "check your inbox" for an address that can never
+// receive anything. Real validation is the API's job.
+const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 
 type Props = {
   redirectTo: string
@@ -29,14 +38,25 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
   const [memberId, setMemberId] = useState('')
   const [twoFactorMethod, setTwoFactorMethod] = useState<TwoFactorMethod>('EMAIL')
   const [twoFactorDestination, setTwoFactorDestination] = useState('')
-  const [passwordsEnabled, setPasswordsEnabled] = useState(false)
+  const [siteMethods, setSiteMethods] = useState<AuthMethods>({ passkey: false, password: false, magicLink: false })
+  const [methods, setMethods] = useState<AuthMethods | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Which of the second step's buttons is the one currently working, so only
+  // that button swaps to a busy label while the rest simply grey out.
+  const [pendingMethod, setPendingMethod] = useState<'passkey' | 'magicLink' | null>(null)
 
   useEffect(() => {
     fetch('/api/members/auth/config')
       .then((r) => r.json())
-      .then((d: { passwordsEnabled: boolean }) => setPasswordsEnabled(d.passwordsEnabled))
+      .then((d: { allowedAuthMethods?: string[]; passwordsEnabled?: boolean }) => {
+        const allowed = d.allowedAuthMethods ?? []
+        setSiteMethods({
+          passkey: allowed.includes('PASSKEY'),
+          password: Boolean(d.passwordsEnabled) && allowed.includes('PASSWORD'),
+          magicLink: allowed.includes('MAGIC_LINK'),
+        })
+      })
       .catch(() => {})
   }, [])
 
@@ -82,9 +102,37 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       : redirectTo
   }
 
+  // First step: work out which methods this address has before offering any.
+  // A lookup that fails falls back to everything the site allows - a network
+  // blip must not hide the passkey button from someone who has a passkey.
+  async function handleContinue() {
+    setError('')
+    setLoading(true)
+    // Normalise once here so every later step - passkey, password, link -
+    // works from the same address the lookup was answered for.
+    const address = email.trim()
+    setEmail(address)
+    try {
+      const res = await fetch('/api/members/auth/methods', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: address }),
+      })
+      if (!res.ok) throw new Error('lookup failed')
+      const d: AuthMethods = await res.json()
+      setMethods({ passkey: Boolean(d.passkey), password: Boolean(d.password), magicLink: Boolean(d.magicLink) })
+    } catch {
+      setMethods(siteMethods)
+    } finally {
+      setLoading(false)
+      setStep('methods')
+    }
+  }
+
   async function handlePasskeyLogin() {
     setError('')
     setLoading(true)
+    setPendingMethod('passkey')
     try {
       const { startAuthentication } = await import('@simplewebauthn/browser')
 
@@ -95,10 +143,6 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       })
       const opts = await optRes.json()
       if (!optRes.ok) throw new Error(opts.error ?? 'Failed to start passkey sign-in')
-      if (opts.noPasskeys) {
-        setStep('no-passkey')
-        return
-      }
 
       const assertion = await startAuthentication({ optionsJSON: opts })
 
@@ -117,12 +161,14 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       setError(err instanceof Error ? err.message : 'Passkey sign-in failed')
     } finally {
       setLoading(false)
+      setPendingMethod(null)
     }
   }
 
   async function handleMagicLink() {
     setError('')
     setLoading(true)
+    setPendingMethod('magicLink')
     try {
       await fetch('/api/members/auth/magic-link/request', {
         method: 'POST',
@@ -134,6 +180,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       setError('Failed to send sign-in link')
     } finally {
       setLoading(false)
+      setPendingMethod(null)
     }
   }
 
@@ -293,15 +340,22 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
     )
   }
 
+  // The address is settled by this point, so it's shown rather than asked for
+  // again - but as a real (read-only) field, so password managers still see a
+  // username to match the saved credential against.
+  const settledEmailField = (
+    <div className="field">
+      <label>Email address</label>
+      <input type="email" value={email} autoComplete="username" readOnly />
+    </div>
+  )
+
   if (step === 'password') {
     return (
       <div>
         {heading}
         {error && <div className="alert alert-danger">{error}</div>}
-        <div className="field">
-          <label>Email address</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-        </div>
+        {settledEmailField}
         <div className="field">
           <label>Password</label>
           <input
@@ -310,13 +364,82 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && email && password && !loading) handlePasswordSubmit() }}
             autoComplete="current-password"
+            autoFocus
           />
         </div>
         <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!email || !password || loading} onClick={handlePasswordSubmit}>
-          {loading ? 'Signing in…' : 'Continue'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </button>
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setStep('email'); setError('') }}>
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 'var(--space-2)' }} onClick={() => { setStep('methods'); setPassword(''); setError('') }}>
           Back
+        </button>
+      </div>
+    )
+  }
+
+  // Second step: only the methods this account can actually use. A member who
+  // has never set a password or added a passkey sees the sign-in link alone,
+  // rather than two buttons that could only ever fail. The first one offered is
+  // the primary: passkey if they have one, else password, else the link.
+  if (step === 'methods') {
+    const m = methods ?? siteMethods
+    const primary = m.passkey ? 'passkey' : m.password ? 'password' : 'magicLink'
+    const buttonClass = (name: string) =>
+      name === primary ? 'btn btn-primary btn-lg' : 'btn btn-secondary'
+
+    return (
+      <div>
+        {heading}
+
+        {error && <div className="alert alert-danger">{error}</div>}
+
+        {settledEmailField}
+
+        {m.passkey && (
+          <button
+            className={buttonClass('passkey')}
+            style={{ width: '100%', marginBottom: 'var(--space-3)' }}
+            disabled={loading}
+            onClick={handlePasskeyLogin}
+          >
+            {pendingMethod === 'passkey' ? 'Waiting for passkey…' : '🔑 Sign in with passkey'}
+          </button>
+        )}
+
+        {m.password && (
+          <button
+            className={buttonClass('password')}
+            style={{ width: '100%', marginBottom: 'var(--space-3)' }}
+            disabled={loading}
+            onClick={() => { setStep('password'); setError('') }}
+          >
+            Sign in with a password
+          </button>
+        )}
+
+        {m.magicLink && (
+          <button
+            className={buttonClass('magicLink')}
+            style={{ width: '100%', marginBottom: 'var(--space-3)' }}
+            disabled={loading}
+            onClick={handleMagicLink}
+          >
+            {pendingMethod === 'magicLink' ? 'Sending…' : 'Email me a sign-in link'}
+          </button>
+        )}
+
+        {!m.passkey && !m.password && !m.magicLink && (
+          <p className="field-hint" style={{ marginBottom: 'var(--space-3)' }}>
+            No sign-in method is available at the moment. Please try again later.
+          </p>
+        )}
+
+        <button
+          className="btn btn-link"
+          disabled={loading}
+          onClick={() => { setStep('email'); setMethods(null); setError('') }}
+        >
+          Use a different email address
         </button>
       </div>
     )
@@ -334,38 +457,20 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && email && !loading) handlePasskeyLogin() }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && looksLikeEmail(email) && !loading) handleContinue() }}
           autoComplete="email"
           autoFocus
         />
       </div>
 
-      {step === 'no-passkey' && (
-        <p className="field-hint" style={{ marginBottom: 'var(--space-3)' }}>
-          No passkey found for this email. Use a sign-in link instead.
-        </p>
-      )}
-
-      <button className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={!email || loading} onClick={handlePasskeyLogin}>
-        {loading ? 'Waiting for passkey…' : '🔑 Sign in with passkey'}
-      </button>
       <button
-        className="btn btn-secondary"
-        style={{ width: '100%', marginTop: 'var(--space-3)' }}
-        disabled={!email || loading}
-        onClick={handleMagicLink}
+        className="btn btn-primary btn-lg"
+        style={{ width: '100%' }}
+        disabled={!looksLikeEmail(email) || loading}
+        onClick={handleContinue}
       >
-        Email me a sign-in link
+        {loading ? 'Checking…' : 'Continue'}
       </button>
-      {passwordsEnabled && (
-        <button
-          className="btn btn-link"
-          style={{ marginTop: 'var(--space-3)' }}
-          onClick={() => { setStep('password'); setError('') }}
-        >
-          Use password instead
-        </button>
-      )}
     </div>
   )
 }

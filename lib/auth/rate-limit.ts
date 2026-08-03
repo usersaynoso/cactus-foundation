@@ -19,6 +19,7 @@ type RateLimitAction =
   | 'member_2fa'
   | 'member_verify'
   | 'member_username'
+  | 'member_auth_methods'
 
 type RateLimitConfig = {
   windowMs: number
@@ -42,6 +43,10 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   member_2fa: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   member_verify: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
   member_username: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },
+  // The identifier step of member sign-in. Loose enough that a shared office
+  // address doesn't trip it in normal use, and tripping it costs nothing but
+  // the passkey/password shortcuts - the sign-in link is still offered.
+  member_auth_methods: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
 }
 
 // The client IP a rate limit can actually be keyed on.

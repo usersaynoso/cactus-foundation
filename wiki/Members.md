@@ -28,6 +28,18 @@ Members can sign in three ways, and you choose which are switched on (**Settings
 
 Members can add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member.
 
+### What the sign-in form actually shows
+
+It asks for the email address first, and nothing else. Once they press **Continue**, it offers only the ways that particular account can sign in:
+
+- Added a passkey? They get the passkey button, offered first.
+- Set a password? They get the password button.
+- Done neither - which is everyone on day one - they get "email me a sign-in link" and that's it.
+
+The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath for the inevitable typo.
+
+If the site can't reach its own settings for a moment - a wobbly connection at their end - the form quietly offers every method you've switched on rather than hiding one, so a passkey holder is never stuck looking at a form that won't take their passkey.
+
 ### Sign-in codes by text message
 
 If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Settings → Users → Access control → Mobile number for sign-in codes** controls whether that's their choice:
