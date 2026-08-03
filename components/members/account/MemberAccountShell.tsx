@@ -20,6 +20,11 @@ import DeletionBanner from '@/components/members/account/DeletionBanner'
 // out visitor back to, and core does not. Passing `member` avoids a second
 // session lookup when the page has already done one.
 
+/** One width for every page in the member area, core tab or module tab alike.
+ * Shop's order history set its own and the account visibly changed size between
+ * tabs; the widest page is the one that has to fit, so it sets the number. */
+export const ACCOUNT_MAX_WIDTH = 880
+
 type ShellMember = MemberAccountNavContext & { deletionScheduledAt?: Date | null }
 
 type Props = {
@@ -28,10 +33,13 @@ type Props = {
   member?: ShellMember
   /** Rendered between the banner and the tab bar, for a page-level notice. */
   notice?: React.ReactNode
+  /** Only override this for a page that genuinely cannot live at the shared
+   * width - the tab bar sits inside it, so a different number makes the whole
+   * account jump sideways when a member changes tab. */
   maxWidth?: number
 }
 
-export default async function MemberAccountShell({ children, member, notice, maxWidth = 720 }: Props) {
+export default async function MemberAccountShell({ children, member, notice, maxWidth = ACCOUNT_MAX_WIDTH }: Props) {
   const current: ShellMember | null = member ?? (await getMemberFromCookie())
   // No session is the caller's business, not ours: render the page as it is
   // rather than dressing it in an account nav nobody can use.
