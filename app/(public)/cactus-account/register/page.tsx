@@ -5,11 +5,16 @@ import RegisterForm from '@/components/members/RegisterForm'
 
 export const dynamic = 'force-dynamic'
 
-type Props = { searchParams: Promise<{ invite?: string }> }
+type Props = { searchParams: Promise<{ invite?: string; email?: string }> }
 
 export default async function MemberRegisterPage({ searchParams }: Props) {
   const config = await getMembersConfig()
-  const { invite: inviteToken } = await searchParams
+  // `email` prefills the form for anyone sent here from somewhere that already
+  // knows their address - a shop's post-purchase prompt, say, where signing up
+  // under a different address quietly costs them the order they just placed.
+  // It is a convenience only: the address is still theirs to change, and
+  // whatever is typed still has to survive verification.
+  const { invite: inviteToken, email: prefillEmail } = await searchParams
 
   if (!config.enabled) {
     return (
@@ -51,6 +56,7 @@ export default async function MemberRegisterPage({ searchParams }: Props) {
         registrationMode={config.registrationMode}
         inviteToken={config.registrationMode === 'INVITE_ONLY' ? inviteToken : undefined}
         privacyPolicyUrl={privacyPage?.slug ? `/${privacyPage.slug}` : undefined}
+        initialEmail={prefillEmail}
       />
     </div>
   )

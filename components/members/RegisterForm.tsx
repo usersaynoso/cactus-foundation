@@ -8,12 +8,16 @@ type Props = {
   registrationMode: MembersConfig['registrationMode']
   inviteToken?: string
   privacyPolicyUrl?: string
+  // Prefilled from the ?email= query param for anyone arriving from somewhere
+  // that already knows their address. A starting value only - it is an ordinary
+  // editable field, and the address still has to be verified.
+  initialEmail?: string
 }
 
 type RegisterResult = { status: string; verifyEmailRequired: boolean }
 
-export default function RegisterForm({ registrationMode, inviteToken, privacyPolicyUrl }: Props) {
-  const [email, setEmail] = useState('')
+export default function RegisterForm({ registrationMode, inviteToken, privacyPolicyUrl, initialEmail }: Props) {
+  const [email, setEmail] = useState(initialEmail ?? '')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [agreedToPolicy, setAgreedToPolicy] = useState(false)
