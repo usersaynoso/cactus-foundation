@@ -283,7 +283,7 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 | Profile visibility | `Public`, `Members only`, or `Hidden` | `Public` |
 | Member directory enabled | Whether a page listing all members is available | Off |
 | Avatar uploads enabled | Whether members can upload their own avatar photo | On |
-| Gravatar enabled | Whether Gravatar is checked as a fallback avatar source | On |
+| Gravatar enabled | Whether members can show the picture attached to their email address at gravatar.com. On, it is also what new members start on, falling through to their initials if they haven't got one | On |
 | Username changes enabled | Whether members can change their own username | Off |
 | Username change cooldown (days) | Minimum gap between username changes, once enabled | `90` |
 | Old username redirect (days) | How long a changed-from username keeps redirecting to the profile | `30` |

@@ -3,15 +3,25 @@
 import { useEffect, useState } from 'react'
 import MemberAvatar from '@/components/members/MemberAvatar'
 
+type AvatarChoice = 'UPLOAD' | 'GRAVATAR' | 'GENERATED'
+
+const AVATAR_CHOICE_LABELS: Record<AvatarChoice, string> = {
+  UPLOAD: 'Uploaded photo',
+  GRAVATAR: 'Gravatar',
+  GENERATED: 'Initials',
+}
+
 type Profile = {
   id: string
   username: string
   displayName: string | null
   bio: string | null
   websiteUrl: string | null
-  avatarChoice: 'UPLOAD' | 'GRAVATAR' | 'GENERATED'
+  avatarChoice: AvatarChoice
   avatarUrl: string | null
   avatarUploadsEnabled: boolean
+  gravatarEnabled: boolean
+  hasUploadedAvatar: boolean
   usernameEnabled: boolean
   displayNameEnabled: boolean
   usernameChangesEnabled: boolean
@@ -74,7 +84,7 @@ export default function ProfileSection() {
       const res = await fetch('/api/members/avatar', { method: 'POST', body: formData })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Upload failed')
-      setProfile((p) => (p ? { ...p, avatarChoice: 'UPLOAD', avatarUrl: d.url } : p))
+      setProfile((p) => (p ? { ...p, avatarChoice: 'UPLOAD', avatarUrl: d.url, hasUploadedAvatar: true } : p))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -87,10 +97,29 @@ export default function ProfileSection() {
     try {
       const res = await fetch('/api/members/avatar', { method: 'DELETE' })
       const d = await res.json()
-      if (res.ok) setProfile((p) => (p ? { ...p, avatarChoice: 'GENERATED', avatarUrl: null } : p))
+      // The server decides what replaces it - Gravatar where the site allows
+      // it, initials otherwise - so the preview follows its answer rather than
+      // assuming initials and disagreeing until the next reload.
+      if (res.ok) setProfile((p) => (p ? { ...p, avatarChoice: d.avatarChoice ?? 'GENERATED', avatarUrl: null, hasUploadedAvatar: false } : p))
       else setError(d.error ?? 'Failed to remove avatar')
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function handleAvatarChoice(avatarChoice: AvatarChoice) {
+    const previous = profile?.avatarChoice
+    setError('')
+    setProfile((p) => (p ? { ...p, avatarChoice } : p))
+    const res = await fetch('/api/members/avatar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatarChoice }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error ?? 'Failed to change picture')
+      if (previous) setProfile((p) => (p ? { ...p, avatarChoice: previous } : p))
     }
   }
 
@@ -129,6 +158,14 @@ export default function ProfileSection() {
     return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
   }
 
+  // Only the sources actually available to this member: an upload they haven't
+  // made isn't a choice, and neither is a Gravatar the site has switched off.
+  const avatarChoices: AvatarChoice[] = [
+    ...(profile.hasUploadedAvatar && profile.avatarUploadsEnabled ? (['UPLOAD'] as const) : []),
+    ...(profile.gravatarEnabled ? (['GRAVATAR'] as const) : []),
+    'GENERATED',
+  ]
+
   return (
     <div>
       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>
@@ -157,13 +194,36 @@ export default function ProfileSection() {
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f) }}
             />
           )}
-          {profile.avatarChoice === 'UPLOAD' && (
+          {profile.hasUploadedAvatar && (
             <button className="btn btn-secondary btn-sm" disabled={uploading} onClick={handleAvatarRemove}>
               Remove
             </button>
           )}
         </div>
-        <span className="field-hint">Current: {profile.avatarChoice.toLowerCase()}</span>
+        {/* Without this the Gravatar setting was unreachable: nothing else in
+            the account area ever moved a member off the initials they were
+            created with, so a site could switch Gravatar on and never see one. */}
+        {avatarChoices.length > 1 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
+            {avatarChoices.map((choice) => (
+              <label key={choice} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', color: 'var(--color-text)' }}>
+                <input
+                  type="radio"
+                  name="avatarChoice"
+                  value={choice}
+                  checked={profile.avatarChoice === choice}
+                  onChange={() => handleAvatarChoice(choice)}
+                />
+                {AVATAR_CHOICE_LABELS[choice]}
+              </label>
+            ))}
+          </div>
+        )}
+        {profile.gravatarEnabled && (
+          <span className="field-hint">
+            Gravatar shows the picture attached to your email address at gravatar.com. Haven&apos;t got one? You&apos;ll get your initials instead.
+          </span>
+        )}
       </div>
 
       {/* Both blocks follow the sign-up switches. A site that never asked for a

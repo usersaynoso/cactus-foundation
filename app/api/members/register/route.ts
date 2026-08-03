@@ -191,6 +191,11 @@ export async function POST(request: NextRequest) {
       displayName: displayName || null,
       status,
       roleId,
+      // Matches what removing an uploaded picture falls back to. A site with
+      // Gravatar switched on means it for new members too, and one without a
+      // Gravatar simply gets their initials - the proxy 404s and the avatar
+      // falls through - so nobody ends up with a broken image either way.
+      avatarChoice: config.gravatarEnabled ? 'GRAVATAR' : 'GENERATED',
       // Password sign-in also needs a second factor, which can only be enrolled
       // from inside the account - the setup gate asks for it on the way in.
       ...(passwordHash ? { password: { create: { hash: passwordHash } } } : {}),

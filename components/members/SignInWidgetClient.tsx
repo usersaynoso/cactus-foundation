@@ -176,6 +176,11 @@ export function SignInWidgetClient(
               avatarChoice={o.avatar.avatarChoice}
               uploadedUrl={o.avatar.uploadedUrl}
               size={o.iconSize + 8}
+              // The field is called "Show their picture instead of the icon",
+              // so a member with no picture - no upload, or no Gravatar
+              // registered against their address - keeps the icon. Initials in
+              // a header are a third thing nobody asked for.
+              fallback={<SignInIcon name={o.icon} size={o.iconSize} colour={o.iconColour} />}
             />
           )
           : <SignInIcon name={o.icon} size={o.iconSize} colour={o.iconColour} />}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import GeneratedAvatar from '@/components/members/GeneratedAvatar'
 
 type Props = {
@@ -10,12 +10,18 @@ type Props = {
   avatarChoice: 'UPLOAD' | 'GRAVATAR' | 'GENERATED'
   uploadedUrl?: string | null
   size?: number
+  // What to draw when there is no actual picture - no upload, or a Gravatar
+  // the member hasn't got. Defaults to the initials avatar, which is right for
+  // a profile page. Somewhere that already has an icon standing in for the
+  // member (the sign-in widget) passes that icon instead, so a member with no
+  // picture keeps the icon rather than being given initials they never chose.
+  fallback?: ReactNode
 }
 
 // Single renderer for all three avatar choices - one place any page/component
 // picks to always get the right one, so no page has to re-implement the
 // upload/gravatar/generated switch itself.
-export default function MemberAvatar({ memberId, username, displayName, avatarChoice, uploadedUrl, size = 40 }: Props) {
+export default function MemberAvatar({ memberId, username, displayName, avatarChoice, uploadedUrl, size = 40, fallback }: Props) {
   const [gravatarFailed, setGravatarFailed] = useState(false)
   const label = displayName || username
 
@@ -46,5 +52,5 @@ export default function MemberAvatar({ memberId, username, displayName, avatarCh
     )
   }
 
-  return <GeneratedAvatar label={label} size={size} />
+  return <>{fallback ?? <GeneratedAvatar label={label} size={size} />}</>
 }

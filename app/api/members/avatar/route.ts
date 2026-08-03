@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
@@ -64,6 +65,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const ChoiceBody = z.object({ avatarChoice: z.enum(['UPLOAD', 'GRAVATAR', 'GENERATED']) })
+
+// Picking which of the three sources to show. Uploading a file implies UPLOAD
+// and is handled by POST above; this is the only way to reach GRAVATAR, which
+// otherwise no member could ever be on however keen the site is on it.
+export async function PATCH(request: NextRequest) {
+  const member = await getMemberFromCookie()
+  if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const config = await getMembersConfig()
+  if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
+
+  const parsed = ChoiceBody.safeParse(await request.json())
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  const { avatarChoice } = parsed.data
+
+  // The same switches that decide whether each option is offered, re-checked
+  // here so a crafted PATCH can't park a member on a source the site has
+  // turned off - resolveEffectiveAvatarChoice would only mask it on read.
+  if (avatarChoice === 'GRAVATAR' && !config.gravatarEnabled) {
+    return NextResponse.json({ error: 'Gravatar is not available on this site' }, { status: 403 })
+  }
+  if (avatarChoice === 'UPLOAD' && (!config.avatarUploadsEnabled || !member.avatarMediaId)) {
+    return NextResponse.json({ error: 'There is no uploaded picture to use' }, { status: 400 })
+  }
+
+  await prisma.member.update({ where: { id: member.id }, data: { avatarChoice } })
+  return NextResponse.json({ avatarChoice })
+}
+
 export async function DELETE() {
   const member = await getMemberFromCookie()
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -73,7 +104,10 @@ export async function DELETE() {
   const config = await getMembersConfig()
   if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
 
-  if (member.avatarChoice === 'UPLOAD' && member.avatarMediaId) {
+  // Keyed on the stored file, not on the active choice: since the picker lets
+  // a member keep an upload while showing Gravatar, gating on UPLOAD here left
+  // the file on the storage provider and its Media row behind for ever.
+  if (member.avatarMediaId) {
     const media = await prisma.media.findUnique({ where: { id: member.avatarMediaId } })
     if (media) {
       await deleteMedia(media.provider, media.key).catch(() => {})
@@ -81,10 +115,18 @@ export async function DELETE() {
     }
   }
 
+  // Only the choice that just lost its picture needs replacing. A member
+  // sitting on initials who tidies away an old upload asked to delete a file,
+  // not to be moved onto Gravatar.
+  const avatarChoice =
+    member.avatarChoice === 'UPLOAD' ? (config.gravatarEnabled ? 'GRAVATAR' : 'GENERATED') : member.avatarChoice
   await prisma.member.update({
     where: { id: member.id },
-    data: { avatarMediaId: null, avatarChoice: config.gravatarEnabled ? 'GRAVATAR' : 'GENERATED' },
+    data: { avatarMediaId: null, avatarChoice },
   })
 
-  return NextResponse.json({ ok: true })
+  // Returned rather than assumed by the caller: the fallback depends on a
+  // config switch the browser has no view of, and guessing GENERATED here left
+  // the profile preview claiming initials while the server had said Gravatar.
+  return NextResponse.json({ ok: true, avatarChoice })
 }

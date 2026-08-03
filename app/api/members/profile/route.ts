@@ -19,8 +19,12 @@ export async function GET() {
   // untouched, so re-enabling the toggle restores it with no action needed.
   const avatarChoice = resolveEffectiveAvatarChoice(member.avatarChoice, config)
 
+  // Sent whenever there is a file, not only while it is the active choice, so
+  // switching the picker back to the upload shows it straight away instead of
+  // falling through to initials until the page is reloaded. MemberAvatar only
+  // reads it when the choice is UPLOAD, so an unused URL renders nothing.
   let avatarUrl: string | null = null
-  if (avatarChoice === 'UPLOAD' && member.avatarMediaId) {
+  if (member.avatarMediaId && config.avatarUploadsEnabled) {
     const media = await prisma.media.findUnique({ where: { id: member.avatarMediaId }, select: { url: true } })
     avatarUrl = media?.url ?? null
   }
@@ -35,6 +39,11 @@ export async function GET() {
     avatarChoice,
     avatarUrl,
     avatarUploadsEnabled: config.avatarUploadsEnabled,
+    gravatarEnabled: config.gravatarEnabled,
+    // Whether "Uploaded photo" is still an option to come back to after the
+    // member has switched away from it. The file survives the switch, so the
+    // choice should too - only removing it actually throws the picture away.
+    hasUploadedAvatar: member.avatarMediaId !== null,
     // Same two switches that decide whether sign-up asks for these. A site that
     // never asked for a handle or a display name has no business showing the
     // member fields for them afterwards either - the generated username in

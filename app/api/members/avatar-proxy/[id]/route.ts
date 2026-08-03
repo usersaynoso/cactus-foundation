@@ -30,7 +30,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const gravatarRes = await fetch(`https://www.gravatar.com/avatar/${hash}?d=404&s=200`, {
       next: { revalidate: 86400 },
     })
-    if (!gravatarRes.ok) return new NextResponse(null, { status: 404 })
+    // Cached, unlike the gate 404s above: with GRAVATAR as the default choice
+    // most members won't have one, and an uncached miss means a request on
+    // every avatar on every page load for the rest of the site's life. Short
+    // enough that a member who signs up at gravatar.com sees it the same hour.
+    if (!gravatarRes.ok) {
+      return new NextResponse(null, { status: 404, headers: { 'Cache-Control': 'public, max-age=3600' } })
+    }
 
     const buffer = await gravatarRes.arrayBuffer()
     return new NextResponse(buffer, {
