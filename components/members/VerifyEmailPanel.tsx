@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { setMemberFlash } from '@/lib/members/flash'
 
 type State = 'checking' | 'success' | 'error' | 'pending'
@@ -32,7 +32,6 @@ export default function VerifyEmailPanel({ registerHref, accountHref }: Props) {
 }
 
 function VerifyEmailContent({ registerHref, accountHref }: Props) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const emailParam = searchParams.get('email') ?? ''
@@ -88,13 +87,21 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
               ? 'Your email is verified and you are signed in. Welcome.'
               : 'Your email is verified. You can now sign in.'
         )
-        router.replace(accountHref)
+        // A full document load, not router.replace. Verifying hands out a
+        // session cookie, and the member area's chrome (nav tabs, the width it
+        // sits in) is decided by the *layout* this page already shares - which
+        // rendered bare for a visitor who had no session a moment ago. A client
+        // navigation between two pages under the same layout reuses it as-is,
+        // so the account page arrived wearing the signed-out shell until the
+        // visitor happened to refresh. Every other place a member session
+        // changes hands (LoginForm, RegisterForm) reloads for the same reason.
+        window.location.replace(accountHref)
       })
       .catch((err: unknown) => {
         setState('error')
         setMessage(err instanceof Error ? err.message : 'Verification failed')
       })
-  }, [token, router, accountHref])
+  }, [token, accountHref])
 
   useEffect(() => {
     if (resendCooldown <= 0) return
