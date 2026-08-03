@@ -64,6 +64,16 @@ If your site's outgoing email is misconfigured, the account is still created, an
 
 A registration link can arrive with the email address already filled in - add `?email=someone@example.com` to the sign-up link and the box starts with it typed. It's a convenience, nothing more: the address is still theirs to change, and it still has to be verified. The [Shop](Shop)'s post-purchase "create an account" prompt uses this, so the customer signs up under the address they ordered with and the order they just placed joins the new account.
 
+### The "check your inbox" page
+
+Once they've signed up, people wait on a page that names the address the link went to and offers a **Send it again** button, limited to one send a minute so your mail provider stays friendly.
+
+It shows that address as plain text rather than in an editable box. Re-sending is the only thing the page can do, so a box invited people to "correct" a typo there, and the correction would have gone quietly nowhere while still looking like it had worked.
+
+For a genuine typo the page offers a **sign up again** link instead, which is the only real fix - the half-finished account left behind stays unverified and out of everyone's way. That link is hidden on invite-only sites, where signing up again would need an invite they haven't got.
+
+Someone arriving at that page cold, from a bookmark or a link they dug up weeks later, is asked for their address instead, since nothing in the link says whose account it is.
+
 ---
 
 ## The member account area
