@@ -6,9 +6,8 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
-import AccountNav from '@/components/members/account/AccountNav'
 import AccountFlash from '@/components/members/account/AccountFlash'
-import DeletionBanner from '@/components/members/account/DeletionBanner'
+import MemberAccountShell from '@/components/members/account/MemberAccountShell'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,20 +56,22 @@ export default async function AccountLayout({ children }: { children: React.Reac
     smsEnrolmentDue = !!record?.password && (await memberNeedsSmsEnrolment(config, record.twoFactorConfigs))
   }
 
+  // The chrome itself lives in MemberAccountShell so a module's member pages
+  // (shop's /shop/account/*) can wear exactly the same thing - they are outside
+  // this route group and would otherwise render bare.
   return (
-    <div style={{ maxWidth: 720, margin: '3rem auto', padding: '0 1.5rem' }}>
-      <AccountFlash />
-      {member.deletionScheduledAt && (
-        <DeletionBanner scheduledAt={member.deletionScheduledAt.toISOString()} />
-      )}
-      {smsEnrolmentDue && (
-        <div className="alert alert-warning" style={{ marginBottom: 'var(--space-4)' }}>
-          This site requires a mobile number for your sign-in codes.{' '}
-          <Link href={basePath}>Add yours here</Link> to keep signing in smoothly.
-        </div>
-      )}
-      <AccountNav basePath={basePath} sections={config.accountSectionsEnabled} />
+    <MemberAccountShell
+      member={member}
+      notice={
+        smsEnrolmentDue ? (
+          <div className="alert alert-warning" style={{ marginBottom: 'var(--space-4)' }}>
+            This site requires a mobile number for your sign-in codes.{' '}
+            <Link href={basePath}>Add yours here</Link> to keep signing in smoothly.
+          </div>
+        ) : null
+      }
+    >
       {children}
-    </div>
+    </MemberAccountShell>
   )
 }
