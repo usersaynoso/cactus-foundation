@@ -37,6 +37,35 @@ If a text-message module (such as [Twilio](Twilio)) is installed and configured,
 
 Without a text-message module installed, the setting quietly does nothing - there's no way to send the texts.
 
+### Putting a sign-in button on your site
+
+Knowing how people sign in is no use if they can't find where. The **Members: Sign In** block is the one control you drop into a header, a footer bar, or any page, and it looks after the rest.
+
+Find it in the page builder under **Members**, or in the header editor under **Site**. It's built to sit happily next to a shop basket icon, so a header with both doesn't look like two people designed it.
+
+**What it looks like**
+
+- **Icon** - a person, a person in a circle, a padlock, a key, an arrow through a door, or no icon at all.
+- **Text label** - "Sign in" by default. Clear the box and you get a bare icon, the way the basket does it.
+- **Style** - a bordered pill, a filled block, or plain text with no box, plus colours and corner rounding to match your header.
+
+**What happens when someone clicks it**
+
+- **Go to the sign-in page** - the ordinary route. They're brought back to the page they were reading once they're in.
+- **Open a sign-in panel over the page** - the form floats over whatever they were looking at, so they never lose their place. It's the same sign-in form as the real page, so passkeys, sign-in links, passwords and codes all behave identically. You can set the panel's heading, its width, its corner rounding, and whether it offers a "create an account" link underneath. That link stays hidden if you've set registration to invite-only, since there'd be nothing behind it.
+
+You can also name a specific page to send people to after they sign in. Leave it blank and they simply carry on from where they were.
+
+**Once they're signed in**
+
+The block doesn't just sit there saying "Sign in" at someone who already has. Choose whether it becomes an account link, an account link with a sign-out button beside it, or nothing at all. It can show the member's own picture in place of the icon, and it takes itself off the sign-in page entirely, on the grounds that the form is already right there.
+
+**Trying it out first**
+
+Set **Who can see this** to **Admins only** and the block appears for you and nobody else while you're signed into the admin. Handy for having a look at it on the real site before your visitors do. Set it back to **Everyone** when you're happy.
+
+The block only appears on your site at all when members are switched on. Turn members off and it politely vanishes rather than offering a door to nowhere.
+
 ---
 
 ## Registration modes

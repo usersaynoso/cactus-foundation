@@ -8,9 +8,19 @@ type TwoFactorMethod = 'EMAIL' | 'AUTHENTICATOR_APP' | 'SMS'
 type Props = {
   redirectTo: string
   magicToken?: string
+  // Where the member area lives ("/account"). The sign-in page leaves this off:
+  // it already sits inside the member area, so its own detours resolve
+  // correctly against the current URL. Anywhere else the form is shown - the
+  // Members: Sign In block's modal, floating over an arbitrary page - has to be
+  // told, or "verify your email" would send the visitor to /verify-email off
+  // whatever page they happened to be reading.
+  basePath?: string
+  // The sign-in page wants the form's own "Sign in" heading; a dialog that
+  // already carries one does not.
+  showHeading?: boolean
 }
 
-export default function LoginForm({ redirectTo, magicToken }: Props) {
+export default function LoginForm({ redirectTo, magicToken, basePath, showHeading = true }: Props) {
   const [step, setStep] = useState<Step>(magicToken ? 'consuming' : 'email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -41,7 +51,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
         const d = await res.json()
         if (!res.ok) {
           if (d.redirectToVerify) {
-            window.location.href = `verify-email?email=${encodeURIComponent(d.email ?? '')}`
+            handleRedirectToVerify(d.email ?? '')
             return
           }
           throw new Error(d.error ?? 'This sign-in link is invalid or has expired')
@@ -56,8 +66,11 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectTo/magicToken are stable for the page's lifetime
   }, [])
 
+  // Relative when no basePath is given, so the sign-in page keeps resolving it
+  // against its own URL exactly as it always has.
   function handleRedirectToVerify(emailForVerify: string) {
-    window.location.href = `verify-email?email=${encodeURIComponent(emailForVerify)}`
+    const query = `verify-email?email=${encodeURIComponent(emailForVerify)}`
+    window.location.href = basePath ? `${basePath}/${query}` : query
   }
 
   // When the site requires a mobile number for sign-in codes and this member
@@ -65,7 +78,7 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
   // enrolment card lives) instead of wherever they were headed.
   function finishLogin(smsEnrolmentRequired?: boolean) {
     window.location.href = smsEnrolmentRequired
-      ? window.location.pathname.replace(/\/login$/, '') || '/'
+      ? (basePath || window.location.pathname.replace(/\/login$/, '') || '/')
       : redirectTo
   }
 
@@ -209,11 +222,13 @@ export default function LoginForm({ redirectTo, magicToken }: Props) {
     )
   }
 
-  const heading = (
-    <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-5)', color: 'var(--color-text)' }}>
-      Sign in
-    </h1>
-  )
+  const heading = showHeading
+    ? (
+      <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-5)', color: 'var(--color-text)' }}>
+        Sign in
+      </h1>
+    )
+    : null
 
   if (step === '2fa') {
     return (

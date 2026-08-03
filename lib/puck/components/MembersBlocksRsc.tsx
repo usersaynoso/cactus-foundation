@@ -6,13 +6,16 @@
 // bundle, so config.tsx only ever imports this file into `rscComponents`.
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { getMembersConfig } from '@/lib/members/config'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import MemberAvatar from '@/components/members/MemberAvatar'
+import { SignInWidgetClient, type SignInWidgetOptions, type SignInWidgetState } from '@/components/members/SignInWidgetClient'
 
 const LINK_STYLE: React.CSSProperties = { padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-text-secondary, var(--color-fg-secondary))', fontSize: '0.875rem', fontWeight: 500 }
 const PRIMARY_LINK_STYLE: React.CSSProperties = { ...LINK_STYLE, background: 'var(--color-primary)', border: '1px solid var(--color-primary)', color: 'var(--color-bg)' }
@@ -87,6 +90,78 @@ export async function MembersAccountLinkRsc(props: { loginLabel?: string; regist
       <a href={`${base}/login`} style={LINK_STYLE}>{props.loginLabel || 'Sign in'}</a>
       <a href={`${base}/register`} style={PRIMARY_LINK_STYLE}>{props.registerLabel || 'Register'}</a>
     </div>
+  )
+}
+
+// Server half of the Members: Sign In block. Everything the widget cannot work
+// out for itself is decided here, per request: whether the visitor is a member
+// already, whether registration is even open, and whether an "admins only"
+// widget is allowed to appear at all. The client island (SignInWidgetClient)
+// only ever receives plain props.
+export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
+  // Opts this render out of static caching so the cookie checks run per
+  // request - otherwise a signed-in member's view could be cached and served
+  // to the public, or an admin-only widget served to everyone.
+  await connection()
+
+  // 'Admins only' is the try-it-on-a-live-page setting: the widget is withheld
+  // from the public and only rendered for a signed-in site admin. Field is
+  // `audience`, not `visibility` - core strips a same-named responsive field
+  // from render props, which would swallow the gate entirely.
+  if (props.audience === 'admin') {
+    const admin = await getSessionFromCookie()
+    if (!admin) return null
+  }
+
+  // A sign-in button for a members system that is switched off is a button to
+  // nowhere, so it simply isn't drawn.
+  const config = await getMembersConfig()
+  if (!config.enabled) return null
+
+  const member = await getMemberFromCookie()
+  if (member && props.whenSignedIn === 'hide') return null
+
+  const base = `/${getMemberAreaPath()}`
+
+  let avatar: SignInWidgetState['avatar'] = null
+  if (member && props.showAvatarWhenSignedIn !== 'no') {
+    const avatarChoice = resolveEffectiveAvatarChoice(member.avatarChoice, config)
+    let uploadedUrl: string | null = null
+    if (avatarChoice === 'UPLOAD' && member.avatarMediaId) {
+      const media = await prisma.media.findUnique({ where: { id: member.avatarMediaId }, select: { url: true } })
+      uploadedUrl = media?.url ?? null
+    }
+    avatar = {
+      memberId: member.id,
+      username: member.username,
+      displayName: member.displayName,
+      avatarChoice,
+      uploadedUrl,
+    }
+  }
+
+  // Strip Puck's injected `puck`/`editMode` bag (live functions) before crossing
+  // the client boundary - spreading it would trip React's "Functions cannot be
+  // passed directly to Client Components" the moment this block lands in a
+  // published header layout.
+  const options = { ...props } as Record<string, unknown>
+  delete options.puck
+  delete options.editMode
+
+  return (
+    <SignInWidgetClient
+      {...(options as Partial<SignInWidgetOptions>)}
+      // The "after sign-in" destination becomes a location assignment inside
+      // the form, so an off-site value would be an open redirect. Blank stays
+      // blank: the island reads the current path for that case.
+      redirectTo={props.redirectTo ? sanitizeRedirect(props.redirectTo, '') : ''}
+      signedIn={member !== null}
+      loginHref={`${base}/login`}
+      registerHref={`${base}/register`}
+      accountHref={base}
+      registerAllowed={config.registrationMode !== 'INVITE_ONLY'}
+      avatar={avatar}
+    />
   )
 }
 

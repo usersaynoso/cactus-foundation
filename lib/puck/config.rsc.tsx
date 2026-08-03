@@ -29,6 +29,7 @@ import {
   MembersLoginRsc,
   MembersRegisterRsc,
   MembersAccountLinkRsc,
+  MembersSignInRsc,
   MemberGateRsc,
   TrustedMemberGateRsc,
   MembersProfileRsc,
@@ -111,6 +112,7 @@ const rscComponents = withSafeRichText({
   MembersLogin: { ...puckConfig.components.MembersLogin, render: wrapResponsiveRender(MembersLoginRsc) },
   MembersRegister: { ...puckConfig.components.MembersRegister, render: wrapResponsiveRender(MembersRegisterRsc) },
   MembersAccountLink: { ...puckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
+  MembersSignIn: { ...puckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
   MemberGate: { ...puckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
   TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
   MembersProfile: { ...puckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
@@ -136,6 +138,7 @@ export const layoutPuckRscConfig = {
     MembersLogin: { ...layoutPuckConfig.components.MembersLogin, render: wrapResponsiveRender(MembersLoginRsc) },
     MembersRegister: { ...layoutPuckConfig.components.MembersRegister, render: wrapResponsiveRender(MembersRegisterRsc) },
     MembersAccountLink: { ...layoutPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
+    MembersSignIn: { ...layoutPuckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
     MemberGate: { ...layoutPuckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
     TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
     MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
@@ -149,6 +152,7 @@ export const headerPuckRscConfig = {
     ...headerPuckConfig.components,
     SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
     MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
+    MembersSignIn: { ...headerPuckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
     ...(moduleRscByLayoutTypeWrapped['header'] ?? {}),

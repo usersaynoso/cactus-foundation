@@ -61,6 +61,7 @@ import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/modul
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
+import { SignInWidgetClient } from '@/components/members/SignInWidgetClient'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
 import FeatureVideo from '@/lib/puck/components/FeatureVideo'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
@@ -2615,6 +2616,41 @@ function MembersProfileBlock() {
   )
 }
 
+const yesNoOptions = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]
+
+const signInColourField = (label: string) => ({
+  type: 'custom' as const,
+  label,
+  render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} />,
+})
+
+// Editor preview for the Members: Sign In block. Always the signed-out state:
+// the editor runs under an admin session, never a member one, so there is no
+// member state to reflect — and the block's signed-in look is decided
+// server-side (MembersSignInRsc) anyway. `preview` also keeps the modal shut,
+// since it portals to document.body and would cover the whole canvas rather
+// than the page it belongs to.
+function MembersSignInBlock(props: any) {
+  // Built from a variable rather than a "/account/..." literal, same as
+  // MembersAccountLinkBlock above — these are only editor previews, never real
+  // navigation, and a literal internal-looking path trips the Next.js
+  // no-html-link-for-pages lint rule that a computed one doesn't. The live
+  // hrefs come from MEMBER_AREA_PATH server-side.
+  const base = '/account'
+  return (
+    <SignInWidgetClient
+      {...props}
+      preview
+      signedIn={false}
+      loginHref={`${base}/login`}
+      registerHref={`${base}/register`}
+      accountHref={base}
+      registerAllowed
+      avatar={null}
+    />
+  )
+}
+
 // RSC-safe SiteLogo (no client hooks). Plain function, no server-only APIs —
 // safe to live in the client-reachable base config (SiteHeaderBlock below
 // renders it directly, in both the editor and the real page).
@@ -2711,7 +2747,7 @@ export const puckConfig = {
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed'], defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
-    members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
+    members:    { title: 'Members',    components: ['MembersSignIn', 'MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     embed:      { title: 'Embed',      components: ['LayoutEmbed'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
@@ -3654,6 +3690,97 @@ export const puckConfig = {
       defaultProps: { loginLabel: 'Sign in', registerLabel: 'Register' },
       render: MembersAccountLinkBlock,
     },
+    // One control a visitor clicks to sign in — text, icon, or both. Sized and
+    // dressed like the shop's cart widget on purpose: the two of them usually
+    // sit side by side in a header, and a header where one is a pill and the
+    // other is a bare word looks like an accident.
+    MembersSignIn: {
+      label: 'Members: Sign In',
+      fields: {
+        // Appearance
+        icon: { type: 'select' as const, label: 'Icon', options: [
+          { value: 'person', label: 'Person' },
+          { value: 'person-circle', label: 'Person in a circle' },
+          { value: 'lock', label: 'Padlock' },
+          { value: 'key', label: 'Key' },
+          { value: 'login', label: 'Arrow through a door' },
+          { value: 'none', label: 'No icon' },
+        ] },
+        iconSize: { type: 'number' as const, label: 'Icon size (px)' },
+        iconColour: signInColourField('Icon colour'),
+        label: { type: 'text' as const, label: 'Text label (blank = icon only)' },
+        variant: { type: 'select' as const, label: 'Style', options: [
+          { value: 'bordered', label: 'Bordered pill' },
+          { value: 'filled', label: 'Filled' },
+          { value: 'plain', label: 'Plain (no box)' },
+        ] },
+        bgColour: signInColourField('Background colour'),
+        borderColour: signInColourField('Border colour'),
+        textColour: signInColourField('Text colour'),
+        borderRadius: { type: 'number' as const, label: 'Corner radius (px)' },
+        // Behaviour
+        clickAction: { type: 'select' as const, label: 'When clicked', options: [
+          { value: 'link', label: 'Go to the sign-in page' },
+          { value: 'modal', label: 'Open a sign-in panel over the page' },
+        ] },
+        redirectTo: { type: 'text' as const, label: 'After signing in, go to (blank = the page they were on)' },
+        modalHeading: { type: 'text' as const, label: 'Panel: heading' },
+        modalWidth: { type: 'number' as const, label: 'Panel: width (px)' },
+        modalRadius: { type: 'number' as const, label: 'Panel: corner radius (px)' },
+        showRegisterLink: { type: 'select' as const, label: 'Panel: offer a sign-up link', options: yesNoOptions },
+        registerLabel: { type: 'text' as const, label: 'Panel: sign-up link text' },
+        // Once they are signed in
+        whenSignedIn: { type: 'select' as const, label: 'Once signed in', options: [
+          { value: 'account', label: 'Show an account link' },
+          { value: 'accountSignOut', label: 'Show an account link and a sign-out button' },
+          { value: 'hide', label: 'Hide the block' },
+        ] },
+        signedInLabel: { type: 'text' as const, label: 'Account link text' },
+        signOutLabel: { type: 'text' as const, label: 'Sign-out button text' },
+        showAvatarWhenSignedIn: { type: 'select' as const, label: 'Show their picture instead of the icon', options: yesNoOptions },
+        // Audience. NB: keep this key as `audience`, never `visibility` — core
+        // owns a responsive-visibility field of that exact name on every block
+        // and strips it from render props, which would silently disable this
+        // gate. Same trap the shop cart widget hit.
+        audience: { type: 'select' as const, label: 'Who can see this', options: [
+          { value: 'everyone', label: 'Everyone' },
+          { value: 'admin', label: 'Admins only (for testing)' },
+        ] },
+      },
+      defaultProps: {
+        icon: 'person', iconSize: 20, iconColour: '', label: 'Sign in',
+        variant: 'bordered', bgColour: '', borderColour: '', textColour: '', borderRadius: 8,
+        clickAction: 'link', redirectTo: '',
+        modalHeading: 'Sign in', modalWidth: 420, modalRadius: 12,
+        showRegisterLink: 'yes', registerLabel: 'Create an account',
+        whenSignedIn: 'account', signedInLabel: 'My account', signOutLabel: 'Sign out',
+        showAvatarWhenSignedIn: 'yes',
+        audience: 'everyone',
+      },
+      // Only ever show the settings that can do something: panel options on a
+      // block that links straight to the sign-in page are just noise, and so is
+      // an account link's wording on a block set to hide itself.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data?.props ?? {}
+        const out = { ...fields }
+        if (p.icon === 'none') { delete out.iconSize; delete out.iconColour }
+        if (p.variant === 'plain') { delete out.bgColour; delete out.borderColour; delete out.borderRadius }
+        if (p.variant === 'filled') delete out.borderColour
+        if (p.clickAction !== 'modal') {
+          delete out.modalHeading; delete out.modalWidth; delete out.modalRadius
+          delete out.showRegisterLink; delete out.registerLabel
+        } else if (p.showRegisterLink === 'no') {
+          delete out.registerLabel
+        }
+        if (p.whenSignedIn === 'hide') {
+          delete out.signedInLabel; delete out.signOutLabel; delete out.showAvatarWhenSignedIn
+        } else if (p.whenSignedIn !== 'accountSignOut') {
+          delete out.signOutLabel
+        }
+        return out
+      },
+      render: MembersSignInBlock,
+    },
     MemberGate: {
       label: 'Member Gate',
       fields: {
@@ -3835,7 +3962,7 @@ export const layoutPuckConfig = {
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
-    members:    { title: 'Members',    components: ['MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
+    members:    { title: 'Members',    components: ['MembersSignIn', 'MembersLogin', 'MembersRegister', 'MembersAccountLink', 'MemberGate', 'TrustedMemberGate', 'MembersProfile'], defaultExpanded: false },
     modules:    { title: 'Modules',    components: Object.keys(moduleComponents), defaultExpanded: true },
   },
   root: {
@@ -3890,6 +4017,7 @@ export const layoutPuckConfig = {
     LoginButton:        puckConfig.components.LoginButton,
     ThemeToggle:        puckConfig.components.ThemeToggle,
     CookieSettingsLink: puckConfig.components.CookieSettingsLink,
+    MembersSignIn:      puckConfig.components.MembersSignIn,
     MembersLogin:       puckConfig.components.MembersLogin,
     MembersRegister:    puckConfig.components.MembersRegister,
     MembersAccountLink: puckConfig.components.MembersAccountLink,
@@ -3979,7 +4107,7 @@ const headerModuleBlocks = moduleComponentsByLayoutType['header'] ?? {}
 
 export const headerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersAccountLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersSignIn', 'MembersAccountLink'], defaultExpanded: true },
     layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone'], defaultExpanded: false },
@@ -4011,6 +4139,7 @@ export const headerPuckConfig = {
     MenuBlock:    puckConfig.components.MenuBlock,
     LoginButton:  puckConfig.components.LoginButton,
     ThemeToggle:  puckConfig.components.ThemeToggle,
+    MembersSignIn: puckConfig.components.MembersSignIn,
     MembersAccountLink: puckConfig.components.MembersAccountLink,
     Grid:         puckConfig.components.Grid,
     Grid2:        puckConfig.components.Grid2,
