@@ -586,6 +586,7 @@ CREATE TABLE "Member" (
     "usernameChangedAt" TIMESTAMP(3),
     "previousUsername" TEXT,
     "previousUsernameExpiresAt" TIMESTAMP(3),
+    "userId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Member_pkey" PRIMARY KEY ("id")
@@ -792,6 +793,7 @@ CREATE TABLE "EmailTemplate" (
 
 CREATE UNIQUE INDEX "Member_email_key" ON "Member"("email");
 CREATE UNIQUE INDEX "Member_username_key" ON "Member"("username");
+CREATE UNIQUE INDEX "Member_userId_key" ON "Member"("userId");
 CREATE INDEX "Member_status_idx" ON "Member"("status");
 CREATE INDEX "Member_previousUsername_idx" ON "Member"("previousUsername");
 CREATE INDEX "Member_deletionScheduledAt_idx" ON "Member"("deletionScheduledAt");
@@ -850,6 +852,7 @@ CREATE UNIQUE INDEX "EmailTemplate_key_key" ON "EmailTemplate"("key");
 -- Members foreign keys
 
 ALTER TABLE "Member" ADD CONSTRAINT "Member_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Member" ADD CONSTRAINT "Member_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "MemberPasskey" ADD CONSTRAINT "MemberPasskey_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MemberPassword" ADD CONSTRAINT "MemberPassword_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MemberTwoFactor" ADD CONSTRAINT "MemberTwoFactor_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;

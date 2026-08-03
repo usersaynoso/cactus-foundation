@@ -39,19 +39,34 @@ export {
   revokeMemberTrustedBrowserById,
 }
 
-const SESSION_COOKIE = 'cactus_member_session'
+export const MEMBER_SESSION_COOKIE = 'cactus_member_session'
+const SESSION_COOKIE = MEMBER_SESSION_COOKIE
 const TRUSTED_BROWSER_COOKIE = 'cactus_member_trusted'
 
-export async function setMemberSessionCookie(token: string): Promise<void> {
+// Split out from the setter below because a route that answers with a redirect
+// has to stamp the cookie onto the response it built itself, and then needs the
+// exact same attributes - a session cookie that differs by one flag from the
+// one every other sign-in path sets is a bug waiting for a quiet afternoon.
+export async function memberSessionCookieOptions(): Promise<{
+  httpOnly: true
+  secure: boolean
+  sameSite: 'lax'
+  maxAge: number
+  path: string
+}> {
   const config = await getMembersConfigCached()
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, token, {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: config.sessionDays * 24 * 60 * 60,
     path: '/',
-  })
+  }
+}
+
+export async function setMemberSessionCookie(token: string): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, token, await memberSessionCookieOptions())
 }
 
 export async function clearMemberSessionCookie(): Promise<void> {

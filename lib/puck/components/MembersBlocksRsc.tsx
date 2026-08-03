@@ -5,9 +5,11 @@
 // (puckRscConfig), but must never end up in puckConfig's shared editor
 // bundle, so config.tsx only ever imports this file into `rscComponents`.
 import { connection } from 'next/server'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
+import { MEMBER_ADMIN_OPTOUT_COOKIE } from '@/lib/members/admin-link'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { getMembersConfig, registrationPasswordPolicy } from '@/lib/members/config'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
@@ -75,7 +77,12 @@ export async function MembersAccountLinkRsc(props: { loginLabel?: string; regist
   const member = await getMemberFromCookie()
   const base = `/${getMemberAreaPath()}`
 
-  if (member) {
+  // Same rule as the sign-in block: a signed-in admin is shown the way in, not
+  // asked to sign in again, because the account page now admits them.
+  const admin = member ? null : await getSessionFromCookie()
+  const adminWelcome = admin !== null && !(await cookies()).has(MEMBER_ADMIN_OPTOUT_COOKIE)
+
+  if (member || adminWelcome) {
     return (
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
         <a href={base} style={LINK_STYLE}>My Account</a>
@@ -109,10 +116,8 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
   // from the public and only rendered for a signed-in site admin. Field is
   // `audience`, not `visibility` - core strips a same-named responsive field
   // from render props, which would swallow the gate entirely.
-  if (props.audience === 'admin') {
-    const admin = await getSessionFromCookie()
-    if (!admin) return null
-  }
+  const admin = await getSessionFromCookie()
+  if (props.audience === 'admin' && !admin) return null
 
   // A sign-in button for a members system that is switched off is a button to
   // nowhere, so it simply isn't drawn.
@@ -120,7 +125,16 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
   if (!config.enabled) return null
 
   const member = await getMemberFromCookie()
-  if (member && props.whenSignedIn === 'hide') return null
+
+  // A site admin without a member session still gets the signed-in face of the
+  // block: the account page signs them in on arrival now (see
+  // lib/members/admin-link.ts), so offering them a sign-in form would be asking
+  // for credentials the click doesn't need. Unless they have signed out of the
+  // member area on purpose, in which case they are treated as any other
+  // signed-out visitor until they say otherwise.
+  const adminOptedOut = (await cookies()).has(MEMBER_ADMIN_OPTOUT_COOKIE)
+  const signedIn = member !== null || (admin !== null && !adminOptedOut)
+  if (signedIn && props.whenSignedIn === 'hide') return null
 
   const base = `/${getMemberAreaPath()}`
 
@@ -156,7 +170,7 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
       // the form, so an off-site value would be an open redirect. Blank stays
       // blank: the island reads the current path for that case.
       redirectTo={props.redirectTo ? sanitizeRedirect(props.redirectTo, '') : ''}
-      signedIn={member !== null}
+      signedIn={signedIn}
       loginHref={`${base}/login`}
       registerHref={`${base}/register`}
       accountHref={base}

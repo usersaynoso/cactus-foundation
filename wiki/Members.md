@@ -162,6 +162,19 @@ Once signed in, members land on an **overview** page that tries to answer the ob
 
 Installed modules can add tabs of their own here, and they slot in after **Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
 
+### If you're a site admin
+
+Signing in to your admin and signing in as a member are two different things - deliberately, since members have no business holding admin credentials and vice versa. That used to mean that opening `/account` while signed in to your own admin asked you to sign in again, which is a fair impression of a broken website.
+
+Now it doesn't. The first time you open the member area while signed in as an admin, the site quietly gives you a member account of your own - same email address, ready to use - and lets you in. Your admin sign-in is what it goes on, so there's no second password to remember and no code to wait for. If you already had a member account on the same address, that one is used rather than a second one being invented.
+
+Two things worth knowing:
+
+- Your member account shows up in the **Users** list marked **Staff account**, so seeing yourself twice there is expected, not a duplicate to tidy away.
+- **Sign out** in the member area still signs you out of it, and stays signed out, even though your admin session is still live. When you want back in, the sign-in page offers you a **Continue to your account** button - one click, no password.
+
+You can't delete this member account from the member area's Danger Zone, since removing your admin account is what actually removes it.
+
 ### Data export and account deletion
 
 Members can request a copy of all their data at any time - it's bundled up and available to download for 48 hours. If they delete their account, it's not removed immediately: there's a grace period (you choose how long, default 14 days) during which they can change their mind, before it's permanently deleted.

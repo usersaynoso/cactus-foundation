@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 
 type ExportRequest = { id: string; status: 'PENDING' | 'PROCESSING' | 'READY' | 'EXPIRED'; createdAt: string; expiresAt: string | null } | null
 
-export default function DangerZoneSection() {
+// linkedToStaff: this account is the member half of a staff sign-in, so there
+// is nothing here to delete - the staff account would only mint another one.
+// Said up front rather than left to the API's 403, which arrives after someone
+// has already worked themselves up to pressing a red button twice.
+export default function DangerZoneSection({ linkedToStaff = false }: { linkedToStaff?: boolean }) {
   const [exportRequest, setExportRequest] = useState<ExportRequest>(null)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
@@ -87,7 +91,11 @@ export default function DangerZoneSection() {
       </button>
 
       <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Delete account</h3>
-      {scheduledAt ? (
+      {linkedToStaff ? (
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          This account belongs to your admin sign-in, so it cannot be deleted from here. Removing the admin account is what removes it.
+        </p>
+      ) : scheduledAt ? (
         <div className="alert alert-success">
           Your account is scheduled for deletion on {new Date(scheduledAt).toLocaleDateString()}. You can cancel this any time before then from the banner at the top of your account.
         </div>

@@ -19,6 +19,9 @@ type PersonRow = {
   roleProtected: boolean
   status: string
   suspended: boolean
+  // Member rows only: this account belongs to a staff sign-in, so the same
+  // person is in this list twice by design rather than by accident.
+  linkedToStaff: boolean
   createdAt: Date
 }
 
@@ -49,6 +52,7 @@ export async function GET(request: NextRequest) {
         u."roleId" AS "roleId", r.name AS "roleName", r."isProtected" AS "roleProtected",
         CASE WHEN u."suspendedAt" IS NOT NULL THEN 'SUSPENDED' WHEN u."emailVerifiedAt" IS NULL THEN 'UNVERIFIED' ELSE 'ACTIVE' END AS status,
         (u."suspendedAt" IS NOT NULL) AS suspended,
+        false AS "linkedToStaff",
         u."createdAt"
       FROM "User" u JOIN "Role" r ON r.id = u."roleId"
     `)
@@ -59,6 +63,7 @@ export async function GET(request: NextRequest) {
         m."roleId" AS "roleId", COALESCE(mr.name, 'Members') AS "roleName", COALESCE(mr."isProtected", true) AS "roleProtected",
         m.status::text AS status,
         (m.status = 'SUSPENDED') AS suspended,
+        (m."userId" IS NOT NULL) AS "linkedToStaff",
         m."createdAt"
       FROM "Member" m LEFT JOIN "Role" mr ON mr.id = m."roleId"
     `)

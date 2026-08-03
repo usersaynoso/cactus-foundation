@@ -50,6 +50,8 @@ model User {
   infoPages       InfoPage[]
   mediaItems      Media[]
   consentRecords  ConsentRecord[]
+  // This staff member's own account in the member area, once they've used it.
+  member          Member?
 
   // email and username are already @unique, which builds a unique index that serves
   // every lookup. A second plain index on the same column bought nothing and cost a
@@ -807,6 +809,15 @@ model Member {
   usernameChangedAt         DateTime?
   previousUsername          String?
   previousUsernameExpiresAt DateTime?
+  // The staff account this member belongs to, when a site admin uses the
+  // member area with their own admin identity. The member area is Member-shaped
+  // all the way down (passkeys, notifications, activity), so an admin gets a
+  // Member of their own rather than the admin session being given a second
+  // meaning. Unique: one member per staff user at most, none for the rest.
+  // SetNull on delete keeps their member-side history (orders, activity) when
+  // the staff account goes - the row simply stops being an admin's.
+  userId                    String?      @unique
+  user                      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt                 DateTime     @default(now())
   updatedAt                 DateTime     @updatedAt
 

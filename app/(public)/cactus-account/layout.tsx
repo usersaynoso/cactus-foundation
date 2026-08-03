@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
+import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
+import { MEMBER_ADMIN_OPTOUT_COOKIE } from '@/lib/members/admin-link'
 import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { memberOutstandingAuthSetup } from '@/lib/members/auth-policy'
@@ -45,6 +47,18 @@ export default async function AccountLayout({ children }: { children: React.Reac
         </>
       )
     }
+
+    // A signed-in site admin has already proved who they are; they simply have
+    // no Member row, because staff sign-in and member sign-in are separate
+    // identities by design. Rather than ask them to sign in to their own site,
+    // hand them to the route that makes them one and issues a member session.
+    // The opt-out cookie is how signing out of the member area survives being
+    // an admin - without it the next page view would sign them back in.
+    const optedOut = (await cookies()).get(MEMBER_ADMIN_OPTOUT_COOKIE)
+    if (!optedOut && (await getSessionFromCookie())) {
+      redirect(`/api/members/auth/admin-continue?auto=1&redirect=${encodeURIComponent(fullPath)}`)
+    }
+
     redirect(`${basePath}/login?redirect=${encodeURIComponent(fullPath)}`)
   }
 
@@ -59,7 +73,12 @@ export default async function AccountLayout({ children }: { children: React.Reac
   // here came through the rewrite and carries the header. Treating an absent
   // one as "no gate" rather than "redirect" is the loop-safe way round: a
   // redirect on a path we cannot identify would point the setup page at itself.
-  const outstandingSetup = await memberOutstandingAuthSetup(config, member.id)
+  //
+  // Admin-linked members are exempt: they get in on staff credentials, which
+  // carry the site's own admin sign-in requirements already. Asking them to
+  // enrol a *second* passkey against a member account they never sign into
+  // directly would be a gate in front of a door they came through the wall of.
+  const outstandingSetup = member.userId ? [] : await memberOutstandingAuthSetup(config, member.id)
   if (outstandingSetup.length > 0) {
     const setupHeaders = await headers()
     const currentPath = setupHeaders.get('x-cactus-member-full-path')

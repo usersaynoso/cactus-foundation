@@ -18,6 +18,7 @@ type Person = {
   roleProtected: boolean
   status: string
   suspended: boolean
+  linkedToStaff: boolean
   createdAt: string
 }
 
@@ -120,6 +121,12 @@ export default function PeopleListClient({ roles, currentUserId, currentUserIsAd
                   <span className={`badge ${p.kind === 'staff' ? 'badge-blue' : 'badge-gray'}`}>
                     {p.kind === 'staff' ? 'Staff' : 'Member'}
                   </span>
+                  {/* The member half of a staff account. Without this the same
+                      person appears twice with no explanation, which reads as a
+                      duplicate somebody ought to tidy up - they shouldn't. */}
+                  {p.linkedToStaff && (
+                    <span className="badge badge-blue" style={{ marginLeft: 'var(--space-1)' }}>Staff account</span>
+                  )}
                 </td>
                 <td>
                   {p.kind === 'staff' ? (
