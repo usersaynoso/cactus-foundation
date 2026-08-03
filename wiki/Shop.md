@@ -33,6 +33,16 @@ Shop supports four ways to take payment, each switched on independently from **S
 
 You can offer as many or as few of these as you like.
 
+Underneath the box where you write those bank details (and the collection details
+for cash) there is a switch: **Show this on the checkout page too**. Leave it on
+and the shopper reads them the moment they pick the method, which is what Shop has
+always done. Turn it off and they wait until the order is actually placed - handy
+if you would rather your account number only went to someone who has committed to
+buying something. Either way the thank-you page and the shopper's own order page
+still show them, so nobody is ever left wondering where to send the money. The two
+methods have a switch each, so you can be cagey about the bank details and still
+tell people where to come and collect.
+
 Bank transfer and cash are the two methods where the shopper leaves with an order
 nobody has been paid for yet, and an installed module is allowed to say what that
 means for them: picking one of those at the checkout can add a short line
