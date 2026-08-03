@@ -61,11 +61,11 @@
   --radius-xl:   16px;
   --radius-full: 9999px;
   /* Admin-chrome radius, immune to site theme injection. buildTokenStyles
-     overrides :root --radius-lg (to 9999px) whenever the Puck/layout editor
-     mounts the site's design tokens into document.head; admin chrome that
-     portals to document.body (e.g. the notification bell dropdown) would then
-     inherit that pill radius and render as a circle. This var is never emitted
-     by the token injector, so it stays put. */
+     redefines :root --radius-lg whenever the Puck/layout editor mounts the
+     site's design tokens into document.head; admin chrome that portals to
+     document.body (e.g. the notification bell dropdown) then inherits the
+     site's value rather than the admin design system's. This var is never
+     emitted by the token injector, so it stays put. */
   --admin-radius-lg: 12px;
 
   /* Shadow tokens */

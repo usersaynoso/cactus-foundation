@@ -464,7 +464,13 @@ export function buildTokenStyles(tokens: unknown): string {
   // configurable, since it's the only one with a real per-site styling need
   // seen so far; the fixed sm/md/lg steps below are shared internal defaults.
   const pillRadius = cssValue(ts?.pillRadius) || '9999px'
-  const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 9999px; --radius-pill: ${pillRadius}; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
+  // --radius-lg is a corner, not a pill. It used to be emitted as 9999px, from
+  // back when Badge and Eyebrow borrowed it for their pill shape and no
+  // --radius-pill existed to borrow instead. The pill moved out; the 9999px
+  // stayed, so anything on the site that asked for a large corner - the whole
+  // order-confirmation screen, most obviously - came out as a lozenge. 12px
+  // matches globals.css, which had the honest value all along.
+  const fixed = `${spacing} --radius-sm: 2px; --radius-md: 6px; --radius-lg: 12px; --radius-pill: ${pillRadius}; --shadow-subtle: 0 2px 8px rgba(0,0,0,0.08); --shadow-elevated: 0 4px 24px rgba(0,0,0,0.15);`
 
   const vars: string[] = []
   // Dark-mode overrides. Each colour is emitted as a CSS var in the light `:root`

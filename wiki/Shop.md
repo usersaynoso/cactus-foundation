@@ -33,7 +33,20 @@ Shop supports four ways to take payment, each switched on independently from **S
 
 You can offer as many or as few of these as you like.
 
+Bank transfer and cash are the two methods where the shopper leaves with an order
+nobody has been paid for yet, and an installed module is allowed to say what that
+means for them: picking one of those at the checkout can add a short line
+underneath it, and the order's own lines can read differently until you mark the
+payment received. [Advanced Shipping](Advanced-Shipping) uses this to stop the
+shop promising a delivery date counted from a day the money had not arrived - see
+"Orders that are paid for later" there. With no such module installed, nothing
+changes.
+
 **Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it's set up on its own **Settings → Instant Bank Pay** tab (add your GoCardless access token and webhook secret, choose sandbox or live, then switch it on) rather than the Shop → Payments tab. Refunds and confirmation work the same as any other method.
+
+**Direct bank payment (Crezco)** is another pay-by-bank option, added by installing the separate [Crezco Direct Bank Payments for Shop](https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop) module. Shoppers pick their bank on Crezco's hosted page and authorise the payment there - no card, no card fees. It is set up on the **Shop → Payments** tab (Crezco Bank Payments panel: add your Crezco API key and user ID, choose sandbox or production, register the webhook with one click, then switch it on). Confirmation works like any other method, with one honest difference: **refunds are manual**. Open banking has no refund rail, so the Refund button will tell you to send the money back by bank transfer yourself and record it against the order.
+
+**Card payment (Square)** is another card option, added by installing the separate [Square Payments for Shop](https://github.com/cactus-foundation-modules/square-payment-for-shop) module. Shoppers pay by card on Square's hosted checkout page, so card details never touch your site. It is set up on the **Shop → Payments** tab (Square panel: add your Square access token, location ID and webhook signature key, choose sandbox or production, add the webhook URL shown there to your Square developer dashboard, then switch it on). Refunds and confirmation work the same as any other method.
 
 ---
 
@@ -204,7 +217,13 @@ Nothing is deleted. Weights you've already recorded stay on your products and co
 
 ## Customer accounts
 
-Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop** if you'd rather not).
+Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop → Checkout** if you'd rather not).
+
+That nudge appears on the confirmation page, once the order is safely placed rather than in the middle of paying, and only to guests - a customer who was already signed in doesn't need telling. It stays out of the way entirely if you've got Members switched off, or if your site is invite-only, since sending someone to a page that will only turn them away is worse than not asking at all.
+
+Which does mean the shop's own tickbox is not the whole story: with accounts switched off site-wide, it can be ticked and still show nothing, because there is no account to create. The Checkout settings say so underneath the tickbox when that is the case, and point you at **Settings → Users → Registration**, which is where accounts are turned on.
+
+The useful part is what happens next: sign up with the same email address and the order they just placed joins the new account by itself, so their order history isn't empty on the day they make it. Orders are claimed this way only once the customer has confirmed their email address, for the obvious reason - anyone can type someone else's address into a sign-up form, and an unconfirmed match would hand over that person's order history and delivery addresses along with it. If you've turned email confirmation off in the Members settings, nothing is claimed.
 
 Anyone can look up an order's status without an account too, using their order number and the email address it was placed under.
 
@@ -291,6 +310,34 @@ The last step earns some trust as well. The place-order button now says exactly 
 Picking a payment method is now just that - picking one. The methods that finish somewhere else (PayPal, Instant Bank Pay) used to whisk the shopper off the moment they touched the radio button, before they'd so much as glanced at the total. Now nothing happens until **Place order** is pressed, and that button is the only thing that hands anyone over. Coming back afterwards without having paid starts the payment again properly rather than quietly waving the order through to the thank-you page, which is the sort of tidiness you only notice when it's missing. And paying that way now empties the basket on the way through, so nobody is thanked for an order they're apparently still carrying.
 
 The thank-you page is straighter about what happens next, too. Pay by bank and the money is authorised on the spot but takes a few minutes to actually clear, which used to leave the page saying only that the order was "awaiting payment confirmation" - the same wording someone gets when they've been asked to go and make a bank transfer themselves, and quite the opposite meaning. It now says the payment has gone through and that clearing usually takes a few minutes, and then the page waits with them: it checks quietly in the background and announces the moment the payment clears, so nobody sits there jabbing refresh. It checks briskly for the first minute, eases off, and after five minutes stops and says so, since the confirmation email is coming either way. Wander off to another tab and it picks the thread back up when you return. If the payment doesn't clear, the page says so plainly, points out that nothing has been charged, and sends the shopper back to checkout with their basket still intact rather than thanking them for an order that never happened. Behind the scenes those failures now actually land: a bank payment that fell over after being authorised used to sit in your orders list looking like money still on its way, forever, and now shows as failed like it should.
+
+### Asking for a business name
+
+Sell to businesses and you'll want their company name on the delivery label. **Settings → Shop → Checkout → Business name** adds a box for it, sitting directly above the first line of the delivery address where a business address expects to find it (and where the browser's own autofill will happily fill it in).
+
+Two switches go with it. One makes the box compulsory, so an order can't be placed without one. The other lets you call it whatever your customers call themselves - Company name, Practice name, School, Department - and the wording follows through to the message they see if they leave it blank. Left off, nothing changes and nobody sees an extra box.
+
+The business name shows up on the order in the admin, above the address, and on the customer's own confirmation.
+
+### Tickboxes at checkout
+
+Under **Settings → Shop → Checkout → Tickboxes at checkout** you can put tickboxes just above the Place order button.
+
+The first one is ready-made: **agree to your terms and conditions**. Switch it on and it appears; mark it required and no order goes through until it's ticked. Leave the link box empty and it points at whichever page you've set as your terms page, so moving that page around never leaves a dead link behind at the one moment it matters. Want your own wording? Put square brackets round the words that should be the link - `I have read and agree to the [terms and conditions]` - and those words become it.
+
+Below that you can add as many of your own as you like: age confirmations, a note about bespoke items being non-returnable, permission to be contacted about the order. Each one has its own wording, its own optional link, and its own required-or-not switch. A tickbox you've written nothing beside is quietly left out rather than presented as an unanswerable question.
+
+What matters most is what happens afterwards. Every tickbox the shopper was shown is recorded on the order **in the wording they saw on the day**, along with whether they ticked it and when. Rewrite your terms next month and past orders still show what was actually agreed to - which is rather the point of asking. It's all on the order in the admin, under **Agreed at checkout**.
+
+And because a tickbox in a browser is only ever a suggestion, the order won't be created without the required ones ticked even if someone tries to go round the form.
+
+### The order confirmation
+
+The thank-you page used to be a heading, a bare list of items and a couple of grey paragraphs. It's the last page of the whole shop, the one people screenshot, forward to whoever does the accounts and come back to a week later wondering where their parcel is - so it now behaves like a receipt.
+
+It opens with the answer: a tick and a thank you by name, and one line saying where the confirmation email is going - which is the last moment anyone can spot a typo in their own email address. Then the order itself: every item with its picture, quantity, unit price and any choices made at the time, followed by a proper totals block that shows the discount and the coupon that earned it, the delivery charge and which service it was (free delivery says so out loud, rather than leaving a row missing), and the VAT. Underneath sit the delivery address, the delivery method and how it was paid - side by side on a computer, stacked on a phone. It prints sensibly too, since a receipt is one of the few web pages people genuinely do print.
+
+The page still says the right thing for every ending: paid, still clearing at the bank, waiting on a bank transfer you've asked them to make, or a payment that fell over. And it still waits with the shopper while a bank payment clears, announcing the moment it does.
 
 ### The slide-out basket
 
