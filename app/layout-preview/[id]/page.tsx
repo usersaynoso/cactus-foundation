@@ -87,6 +87,30 @@ export default async function LayoutPreviewPage({ params }: Props) {
   const config = getConfig(layout.type)
   const typeLabel = getLayoutTypeLabel(layout.type)
 
+  // An email wrapper has no Puck RSC config at all: its blocks emit inline-styled
+  // table HTML rather than React, because that is the only thing an inbox will
+  // render. Preview it the way it will actually be sent, in an isolated frame -
+  // dropping an entire email document into this page would let its own styles
+  // and the admin's fight each other.
+  let emailPreviewHtml: string | null = null
+  if (layout.type === 'emailWrapper') {
+    const { wrapEmailHtml } = await import('@/lib/email/wrapper')
+    const { paletteFromTokens } = await import('@/lib/email/palette')
+    emailPreviewHtml = wrapEmailHtml({
+      bodyHtml:
+        '<p>This is where the message goes. Each email brings its own words - a sign-in link, an order confirmation, a welcome note - and they all land here, inside whatever you have built around them.</p><p><a href="#">A link, for illustration</a></p>',
+      subject: layout.name,
+      vars: {
+        siteName: ctx.siteName,
+        siteUrl: process.env.SITE_URL ?? '',
+        logoUrl: ctx.logoUrl ?? '',
+        year: String(new Date().getFullYear()),
+      },
+      palette: paletteFromTokens(previewTokens),
+      layout: { id: layout.id, name: layout.name, builderData, publishedData: null },
+    })
+  }
+
   const infoBar = (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
@@ -132,7 +156,15 @@ export default async function LayoutPreviewPage({ params }: Props) {
             <Render config={config} data={builderData as Data} metadata={puckMetadata} />
           </>
         )}
-        {layout.type !== 'header' && layout.type !== 'footer' && (
+        {emailPreviewHtml && (
+          <iframe
+            title={`${layout.name} preview`}
+            srcDoc={emailPreviewHtml}
+            sandbox=""
+            style={{ width: '100%', height: 'calc(100vh - 4rem)', border: 'none', display: 'block' }}
+          />
+        )}
+        {!emailPreviewHtml && layout.type !== 'header' && layout.type !== 'footer' && (
           <Render config={config} data={builderData as Data} metadata={puckMetadata} />
         )}
       </div>

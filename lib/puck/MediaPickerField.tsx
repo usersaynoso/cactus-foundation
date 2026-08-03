@@ -319,6 +319,10 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   ImageChipPanel: { mediaUrl: 'Image' },
   Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)' },
   Section:        { bgImage: 'Background image' },
+  // Email wrapper blocks. An email cannot reach a relative path, so what these
+  // store has to be the absolute media URL the picker already hands back.
+  EmailLogo:      { src: 'Logo image (leave blank for the site logo)' },
+  EmailImage:     { src: 'Image' },
 }
 
 // Same again for fields holding a self-hosted video URL (an mp4/webm in the

@@ -778,8 +778,10 @@ CREATE TABLE "MemberAdminActionLog" (
 CREATE TABLE "EmailTemplate" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
-    "subject" TEXT NOT NULL,
-    "bodyHtml" TEXT NOT NULL,
+    "subject" TEXT,
+    "bodyHtml" TEXT,
+    "wrapperLayoutId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "updatedById" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

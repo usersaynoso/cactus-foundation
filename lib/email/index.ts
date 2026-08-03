@@ -93,16 +93,32 @@ async function getEmailConfig() {
 }
 
 // ---------------------------------------------------------------------------
-// Typed email helpers
+// Template-driven sending
 // ---------------------------------------------------------------------------
 
+// Everything below goes through the registry in lib/email/registry.ts, so every
+// one of these is editable in Settings › Emails and arrives inside whatever
+// wrapper design the site has. The helpers keep their original signatures -
+// their callers neither know nor care that the copy moved.
+//
+// Returns false when the template is switched off (non-transactional only), so
+// a caller that wants to log "sent" can tell the difference between sent and
+// deliberately skipped.
+export async function sendTemplateEmail(
+  to: string,
+  key: string,
+  vars: Record<string, string> = {},
+  opts?: { replyTo?: string; cc?: string[] },
+): Promise<boolean> {
+  const { renderEmailTemplate } = await import('@/lib/email/render')
+  const rendered = await renderEmailTemplate(key, vars)
+  if (!rendered) return false
+  await sendEmail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text, ...opts })
+  return true
+}
+
 export async function sendLoginOtp(to: string, code: string, siteName: string) {
-  await sendEmail({
-    to,
-    subject: `Your ${siteName} login code: ${code}`,
-    html: `<p>Your one-time login code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
-    text: `Your one-time login code is: ${code}\n\nThis code expires in 10 minutes.`,
-  })
+  await sendTemplateEmail(to, 'auth.login-code', { code, siteName })
 }
 
 export async function sendEmailVerification(
@@ -110,12 +126,7 @@ export async function sendEmailVerification(
   code: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `Verify your ${siteName} email address`,
-    html: `<p>Your email verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
-    text: `Your email verification code is: ${code}\n\nThis code expires in 10 minutes.`,
-  })
+  await sendTemplateEmail(to, 'auth.verify-email', { code, siteName })
 }
 
 // Sent to the address the account is being moved TO. Until this code comes back,
@@ -125,12 +136,7 @@ export async function sendEmailChangeCode(
   code: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `Confirm your new ${siteName} email address`,
-    html: `<p>Your confirmation code is: <strong>${code}</strong></p><p>Enter it on the account page to finish moving your ${siteName} sign-in to this address.</p><p>This code expires in 10 minutes. If you were not expecting this, you can ignore it - nothing has changed yet.</p>`,
-    text: `Your confirmation code is: ${code}\n\nEnter it on the account page to finish moving your ${siteName} sign-in to this address.\n\nThis code expires in 10 minutes. If you were not expecting this, you can ignore it - nothing has changed yet.`,
-  })
+  await sendTemplateEmail(to, 'auth.email-change-code', { code, siteName })
 }
 
 // Sent to the address the account is moving AWAY from, so an owner whose session
@@ -140,12 +146,7 @@ export async function sendEmailChangeNotice(
   newEmail: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `Someone asked to change your ${siteName} email address`,
-    html: `<p>A request was made to move your ${siteName} sign-in to <strong>${newEmail}</strong>.</p><p>It will not take effect until that address is confirmed.</p><p>If this was not you, sign in and change your password now - whoever asked for this has access to your account.</p>`,
-    text: `A request was made to move your ${siteName} sign-in to ${newEmail}.\n\nIt will not take effect until that address is confirmed.\n\nIf this was not you, sign in and change your password now - whoever asked for this has access to your account.`,
-  })
+  await sendTemplateEmail(to, 'auth.email-change-notice', { newEmail, siteName })
 }
 
 export async function sendRecoveryLink(
@@ -153,46 +154,32 @@ export async function sendRecoveryLink(
   recoveryUrl: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `${siteName} account recovery`,
-    html: `<p>You requested account recovery. Use the link below to regain access:</p><p><a href="${recoveryUrl}">${recoveryUrl}</a></p><p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>`,
-    text: `You requested account recovery.\n\nVisit this link to regain access:\n${recoveryUrl}\n\nThis link expires in 30 minutes. If you did not request this, you can ignore this email.`,
-  })
+  await sendTemplateEmail(to, 'auth.recovery-link', { recoveryUrl, siteName })
 }
 
 export async function sendRecoveryNotification(to: string, siteName: string) {
-  await sendEmail({
-    to,
-    subject: `${siteName} account recovery completed`,
-    html: `<p>A recovery action was just completed on your account. If this was not you, please contact support immediately.</p>`,
-    text: `A recovery action was just completed on your account. If this was not you, please contact support immediately.`,
-  })
+  await sendTemplateEmail(to, 'auth.recovery-completed', { siteName })
 }
 
 export async function sendPasswordChangedNotification(
   to: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `${siteName} password changed`,
-    html: `<p>The password on your account was just added or changed. If this was you, no further action is needed.</p><p>If this was not you, please secure your account and contact support straight away.</p>`,
-    text: `The password on your account was just added or changed. If this was you, no further action is needed.\n\nIf this was not you, please secure your account and contact support straight away.`,
-  })
+  await sendTemplateEmail(to, 'auth.password-changed', { siteName })
 }
 
-function testEmailPayload(to: string, siteName: string): EmailPayload {
-  return {
-    to,
-    subject: `${siteName} test email`,
-    html: `<p>This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.</p>`,
-    text: `This is a test email from your ${siteName} admin settings. If you received this, outgoing email is working.`,
-  }
+async function testEmailPayload(to: string, siteName: string): Promise<EmailPayload> {
+  const { renderEmailTemplate } = await import('@/lib/email/render')
+  const rendered = await renderEmailTemplate('system.test-email', { siteName })
+  // system.test-email is transactional, so renderEmailTemplate cannot return
+  // null here; the fallback exists only so a future edit to that flag can't
+  // turn "test your email settings" into a silent no-op.
+  if (!rendered) throw new Error('The test email template is switched off.')
+  return { to, subject: rendered.subject, html: rendered.html, text: rendered.text }
 }
 
 export async function sendTestEmail(to: string, siteName: string) {
-  await sendEmail(testEmailPayload(to, siteName))
+  await sendEmail(await testEmailPayload(to, siteName))
 }
 
 export type TestEmailCredentials = {
@@ -213,7 +200,7 @@ export async function sendTestEmailWithCredentials(
   siteName: string,
   creds: TestEmailCredentials
 ) {
-  const payload = testEmailPayload(to, siteName)
+  const payload = await testEmailPayload(to, siteName)
   if (creds.provider === 'brevo') {
     const apiKey = creds.brevoApiKey || process.env.BREVO_API_KEY
     if (!apiKey) throw new Error('Enter a Brevo API key first.')
@@ -234,10 +221,5 @@ export async function sendRecoveryRequestNotification(
   to: string,
   siteName: string
 ) {
-  await sendEmail({
-    to,
-    subject: `${siteName} account recovery requested`,
-    html: `<p>A recovery link was just requested for your account. If this was not you, you can safely ignore this email — no changes have been made.</p>`,
-    text: `A recovery link was just requested for your account. If this was not you, you can safely ignore this email — no changes have been made.`,
-  })
+  await sendTemplateEmail(to, 'auth.recovery-requested', { siteName })
 }

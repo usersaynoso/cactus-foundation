@@ -625,12 +625,84 @@ const statusTemplates: StarterTemplate[] = [
 // Catalogue
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Email wrapper templates
+//
+// The design wrapped around every email the site sends. `starter-email-wrapper`
+// is seeded published on a fresh install, so an install has a tidy branded email
+// on day one rather than a bare paragraph on a white page.
+//
+// Colours are token ids, not hex: the email renderer resolves them to the site's
+// own light-mode values at send time, because no mail client can read a CSS
+// variable. See lib/email/blocks.ts.
+// ---------------------------------------------------------------------------
+
+const emailRoot = (overrides?: Record<string, unknown>) => ({
+  props: {
+    preheader: '', pageBackground: '', cardBackground: '#ffffff', cardBorderColour: '',
+    contentWidth: 600, cardRadius: 8, outerPadding: 24, fontFamily: '',
+    ...overrides,
+  },
+})
+
+const emailWrapperTemplates: StarterTemplate[] = [
+  {
+    id: 'starter-email-wrapper',
+    name: 'Default Email',
+    description: 'Your logo at the top, the message in the middle, a quiet footer underneath.',
+    publishByDefault: true,
+    defaultConditions: ENTIRE_SITE_CONDITIONS,
+    data: {
+      root: emailRoot(),
+      content: [
+        { type: 'EmailLogo', props: { id: 'email-logo-1', src: '', href: '{{siteUrl}}', alt: '', width: 160, align: 'center', textColour: '', paddingY: 28, paddingX: 24 } },
+        { type: 'EmailBodySlot', props: { id: 'email-body-1', textColour: '', fontSize: 16, paddingY: 8, paddingX: 32 } },
+        { type: 'EmailDivider', props: { id: 'email-divider-1', colour: '', thickness: 1, paddingY: 8, paddingX: 32 } },
+        { type: 'EmailFooterText', props: { id: 'email-footer-1', html: '&copy; {{year}} {{siteName}}', fontSize: 12, textColour: '', align: 'center', paddingY: 20, paddingX: 24 } },
+      ],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-email-wrapper-plain',
+    name: 'Plain Email',
+    description: 'Just the message, on a plain white page. Nothing to distract from what it says.',
+    data: {
+      root: emailRoot({ pageBackground: '#ffffff', cardRadius: 0, outerPadding: 8 }),
+      content: [
+        { type: 'EmailBodySlot', props: { id: 'email-body-1', textColour: '', fontSize: 16, paddingY: 16, paddingX: 24 } },
+        { type: 'EmailFooterText', props: { id: 'email-footer-1', html: '{{siteName}}', fontSize: 12, textColour: '', align: 'left', paddingY: 16, paddingX: 24 } },
+      ],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-email-wrapper-branded',
+    name: 'Branded Email',
+    description: 'Logo, a heading you set, the message, a button and social links.',
+    data: {
+      root: emailRoot({ pageBackground: 'primary', cardRadius: 12 }),
+      content: [
+        { type: 'EmailLogo', props: { id: 'email-logo-1', src: '', href: '{{siteUrl}}', alt: '', width: 180, align: 'left', textColour: '', paddingY: 28, paddingX: 32 } },
+        { type: 'EmailHeading', props: { id: 'email-heading-1', text: '', level: 'h2', fontSize: 24, textColour: '', align: 'left', paddingY: 4, paddingX: 32 } },
+        { type: 'EmailBodySlot', props: { id: 'email-body-1', textColour: '', fontSize: 16, paddingY: 8, paddingX: 32 } },
+        { type: 'EmailDivider', props: { id: 'email-divider-1', colour: '', thickness: 1, paddingY: 16, paddingX: 32 } },
+        { type: 'EmailSocialRow', props: { id: 'email-social-1', links: [], fontSize: 14, textColour: '', align: 'center', paddingY: 4, paddingX: 24 } },
+        { type: 'EmailFooterText', props: { id: 'email-footer-1', html: '&copy; {{year}} {{siteName}}', fontSize: 12, textColour: '', align: 'center', paddingY: 20, paddingX: 24 } },
+      ],
+      zones: {},
+    },
+  },
+  blank('starter-email-wrapper-blank', 'Blank', 'An empty canvas. Do not forget the Message block.'),
+]
+
 export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
   header:     headerTemplates,
   footer:     footerTemplates,
   infoPage:   pageTemplates,
   notFound:   notFoundTemplates,
   statusPage: statusTemplates,
+  emailWrapper: emailWrapperTemplates,
 }
 
 // Module starter templates come from each module's own lib/starterLayouts.ts,

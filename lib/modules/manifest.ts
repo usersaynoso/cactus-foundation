@@ -127,6 +127,22 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     export: z.string().min(1),
   })).default([]),
+  // Emails this module sends, surfaced in core's single Settings > Emails
+  // editor alongside core's own. `import`/`export` name a module file exporting
+  // an EmailTemplateDef[] (lib/email/registry.ts); every key in it must be
+  // namespaced with this module's own name (`shop.order-confirmed`), which is
+  // what stops two modules claiming the same email. `groupLabel` is the heading
+  // they sit under in that editor.
+  //
+  // Collected by scripts/generate-module-email-templates.mjs into
+  // lib/modules/email-templates.ts. Modules send through core's
+  // sendTemplateEmail(), so an owner's copy edits and the site's wrapper design
+  // both apply with nothing further for the module to do.
+  emailTemplates: z.object({
+    groupLabel: z.string().min(1),
+    import: z.string().min(1),
+    export: z.string().min(1),
+  }).optional(),
   // Declarative contributions to the core Members system (see MEMBERS_SPEC.md
   // amendment 5). Pure data, read live from this manifest at request time by
   // core Members code (lib/modules/member-extensions.ts) - no codegen step,

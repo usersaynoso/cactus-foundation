@@ -554,13 +554,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Baseline admin path to detect a change on save, so we can follow the admin to the new URL.
   const savedAdminPath = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
-  const showUsersTab = canManageMembersSettings || canManageRoles || canManageEmailTemplates
+  const showUsersTab = canManageMembersSettings || canManageRoles
   const showNavTab = canManageNav && !!navEditorData
   const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') || (showNavTab && tabParam === 'navigation') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
-  const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles' | 'email-templates'>(
-    canManageMembersSettings ? 'registration' : canManageRoles ? 'roles' : 'email-templates'
+  const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles'>(
+    canManageMembersSettings ? 'registration' : 'roles'
   )
+  // Email tab sub-tabs. "Delivery" is the from-address and provider settings
+  // that have always lived here; "Templates" is every email the site sends,
+  // core and module alike.
+  const [emailSubTab, setEmailSubTab] = useState<'delivery' | 'templates'>('delivery')
 
   // Follow the ?tab= / ?sub= query params so command-palette deep links (and the
   // browser back button) land on the right tab, not just the one chosen at mount.
@@ -581,12 +585,22 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     if (sub && showUsersTab) {
       const validSub =
         ((sub === 'registration' || sub === 'avatars' || sub === 'usernames' || sub === 'sections' || sub === 'access') && canManageMembersSettings) ||
-        (sub === 'roles' && canManageRoles) ||
-        (sub === 'email-templates' && canManageEmailTemplates)
+        (sub === 'roles' && canManageRoles)
       if (validSub) {
         setTab('users')
-        setUsersSubTab(sub as MembersSettingsTabKey | 'roles' | 'email-templates')
+        setUsersSubTab(sub as MembersSettingsTabKey | 'roles')
       }
+    }
+    // The email templates editor used to hang off the Users tab; the old
+    // ?sub=email-templates deep link still lands on it, wherever it moves to.
+    if (sub === 'templates' || sub === 'email-templates') {
+      if (canManageEmailTemplates) {
+        setTab('email')
+        setEmailSubTab('templates')
+      }
+    } else if (sub === 'delivery') {
+      setTab('email')
+      setEmailSubTab('delivery')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react only to URL changes; the permission flags/tab lists are stable for a session
   }, [searchParams])
@@ -1479,7 +1493,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     <div>
       <div className="page-header">
         <h1 className="page-title">Settings</h1>
-        {TABS.includes(tab as Tab) && (
+        {/* The templates sub-tab saves each email on its own, so the page-level
+            Save button would be a second button that does something else. */}
+        {TABS.includes(tab as Tab) && !(tab === 'email' && emailSubTab === 'templates') && (
           <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
           </button>
@@ -1856,7 +1872,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 { key: 'access', label: 'Access control', active: usersSubTab === 'access', onClick: () => setUsersSubTab('access') },
               ] : []),
               ...(canManageRoles ? [{ key: 'roles', label: 'Roles', active: usersSubTab === 'roles', onClick: () => setUsersSubTab('roles') }] : []),
-              ...(canManageEmailTemplates ? [{ key: 'email-templates', label: 'Email templates', active: usersSubTab === 'email-templates', onClick: () => setUsersSubTab('email-templates') }] : []),
             ]}
           />
 
@@ -1874,11 +1889,21 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </>
           )}
 
-          {usersSubTab === 'email-templates' && canManageEmailTemplates && <EmailTemplatesClient />}
         </div>
       )}
 
-      {tab === 'email' && (
+      {tab === 'email' && canManageEmailTemplates && (
+        <TabStrip
+          items={[
+            { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => setEmailSubTab('delivery') },
+            { key: 'templates', label: 'Templates', active: emailSubTab === 'templates', onClick: () => setEmailSubTab('templates') },
+          ]}
+        />
+      )}
+
+      {tab === 'email' && emailSubTab === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
+
+      {tab === 'email' && emailSubTab === 'delivery' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>

@@ -11,7 +11,7 @@ The shop lives at `/shop` on your site (`/shop/products/your-product` for a prod
 Shop has seven permissions, set on your core roles from **Settings → Users → Roles**:
 
 - `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
-- `shop.manage` - full run of the shop: settings, email templates, tax and shipping setup. Overrides every other Shop permission below.
+- `shop.manage` - full run of the shop: settings, tax and shipping setup. (Editing what the shop's emails say needs `emails.templates` instead - they live on the site-wide Emails tab now.) Overrides every other Shop permission below.
 - `shop.products` - create, edit and delete products, categories, tags and collections; run CSV imports and exports.
 - `shop.orders` - view and manage orders and refunds.
 - `shop.customers` - view customer records.
@@ -161,7 +161,7 @@ Open the order and press **Dispatch items**. You get a line for every item with 
 
 Once recorded, each item shows how many have gone and how many are still to follow, a **Parcels** list appears with every parcel so far, and the badges at the top of the order read **Partly dispatched** or **All dispatched**. That badge is worked out from what's actually left the building rather than being a status you set, so it can't drift out of step with reality and there's no extra status to remember to change. The same badge shows on the orders list, and you can filter the whole list by it.
 
-Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Shop → Email templates**.
+Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Email → Templates**.
 
 Recorded a dispatch that never happened? Press **Undo** beside it in the Parcels list and the items go straight back to being outstanding. Nothing else needs correcting, because the totals are counted from the parcels rather than kept in a separate tally that could disagree with them.
 
@@ -410,7 +410,7 @@ It works two ways. Leave your checkout exactly as it is and add a "Save cart as 
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments, Notifications and Email templates tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments covers which payment methods are switched on and their instructions text. Notifications covers alert addresses for new orders and low stock. Email templates gives you an editable copy of every transactional email Shop sends (order confirmed, shipped, back in stock, and so on).
+**Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
 
 ### Recording who supplied something
 

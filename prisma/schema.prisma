@@ -1069,14 +1069,22 @@ model MemberAdminActionLog {
   @@index([memberId, createdAt(sort: Desc)])
 }
 
-// Admin overrides for member email templates; absence of a row = code default
-// (registry in lib/email/templates.ts). Reset-to-default deletes the row.
+// Admin overrides for any registered email - core's own (member.*, auth.*,
+// system.*) and every module's. Absence of a row, or a null column, means "use
+// the code default" from lib/email/registry.ts, so reset-to-default nulls the
+// two copy columns without discarding the wrapper choice or the on/off state.
 model EmailTemplate {
   id          String   @id @default(cuid())
-  // e.g. "member.verify-email"
+  // e.g. "member.verify-email", "shop.order-confirmed"
   key         String   @unique
-  subject     String
-  bodyHtml    String   @db.Text
+  subject     String?
+  bodyHtml    String?  @db.Text
+  // Which emailWrapper Layout dresses this email. Null = whichever wrapper is
+  // the site default. Deliberately not a relation: a deleted wrapper must fall
+  // back to the default rather than cascade-delete the admin's copy edits.
+  wrapperLayoutId String?
+  // Non-transactional emails only; the renderer ignores it for the rest.
+  isActive    Boolean  @default(true)
   updatedById String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())

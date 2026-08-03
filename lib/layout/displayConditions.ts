@@ -72,6 +72,12 @@ export const CONDITION_TYPES_BY_LAYOUT: Record<string, ConditionType[]> = {
   footer:     ['entire_site', 'homepage', 'path_prefix'],
   notFound:   ['not_found', 'entire_site'],
   statusPage: ['coming_soon', 'maintenance', 'entire_site'],
+  // An email wrapper is never matched against a URL - which one an email uses
+  // is set per email in Settings › Emails, and the default is whichever
+  // published wrapper has the highest priority. It gets the site-wide rule so
+  // it can be saved and published like any other layout, and its editor hides
+  // the Conditions tab entirely.
+  emailWrapper: ['entire_site'],
 }
 
 /** Module layout types are resolved by type alone, so site-wide is the only rule they need. */
@@ -94,6 +100,10 @@ export function conditionTypesForLayout(layoutType: string): ConditionType[] {
  */
 export function defaultConditionsForLayout(layoutType: string): DisplayConditions | null {
   if (layoutType === 'notFound') return { include: [{ type: 'not_found' }], exclude: [] }
+  // Email wrappers are chosen per email, not per URL, so there is no decision
+  // to pre-answer here - and no Conditions tab in which to answer it. Without a
+  // rule the layout could never be published.
+  if (layoutType === 'emailWrapper') return { include: [{ type: 'entire_site' }], exclude: [] }
   if (!CONDITION_TYPES_BY_LAYOUT[layoutType]) return { include: [{ type: 'entire_site' }], exclude: [] }
   return null
 }

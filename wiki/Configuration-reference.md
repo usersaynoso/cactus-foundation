@@ -59,6 +59,10 @@ Branding - your logo, favicon, app icons, and app identity - has **moved to Appe
 
 ## Email tab
 
+Two sub-tabs: **Delivery** (who your email comes from and how it gets out) and **Templates** (what every email actually says, and what it looks like).
+
+### Delivery
+
 | Field | Description |
 |-------|-------------|
 | From name | The display name on outgoing emails (e.g. "My Site") |
@@ -73,6 +77,30 @@ If the rebuild takes longer than expected, a **Dismiss and continue** button app
 A **Send a test email** button sends a one-off email using the current From name/address and provider credentials, to a chosen address (or your own admin address if left blank). Use it to confirm outgoing mail actually reaches an inbox - a saved config with no errors doesn't guarantee your provider accepts the From address; some providers reject unverified sender addresses at send time.
 
 When you type new credentials into the Brevo or SMTP card, a second **Send a test email** button appears next to **Save credentials**. It tests the values you've just typed (before saving, so no redeploy) by sending a test email to your own admin address. Any field you leave blank falls back to the value already saved in your environment, so you can test a changed password against an unchanged host. If the test fails, the provider's error appears in the card.
+
+### Templates
+
+Every email your site sends, in one list: the member ones (welcome, verification, magic sign-in link, digests, security alerts), the account and security ones (login code, password changed, account recovery), and one group per module you have installed - Shop's order emails, Boards digests, contact form notifications, and so on. Only modules you actually have installed appear.
+
+Pick an email on the left and you get:
+
+- **Subject** and **Message**. The message is just the words - the header, footer and colours come from the wrapper design, so you are not editing the same logo eleven times.
+- **The wording you can drop in**, listed as chips. `{{siteName}}`, `{{orderNumber}}`, and so on. Anything marked with a `*` has to stay in: a sign-in email with the code taken out is no use to whoever receives it, so saving one is refused rather than allowed and regretted.
+- **Wrapper design** - the design wrapped around this particular email. Leave it on **Site default** unless one email wants a look of its own.
+- **Send this email** - a tick you can clear to stop one going out entirely. Emails people need in order to get into their account do not have this tick; they always send.
+- **Preview** shows the finished email, wrapper and all, with stand-in values in place of real ones.
+- **Send test to myself** posts it to your own address and nobody else's, subject marked `[Test]`.
+- **Put the original wording back** appears once you have edited something. It restores the wording only - your wrapper choice and on/off tick stay as you set them.
+
+### Email wrapper designs
+
+The design around your emails is a layout like any other. **Layouts → Email Wrapper** lists them, and the page builder edits them, with a block set made for email: Message (where the words land), Logo, Heading, Text, Button, Image, Two columns, Social links, Small print, Divider and Space. Site blocks are deliberately not offered - they lean on styling that email programs throw away, so they would look right in the builder and wrong in the inbox.
+
+A fresh site starts with three to choose from - **Default Email** (logo, message, quiet footer), **Plain Email** and **Branded Email** - plus a blank one. Whichever published wrapper sits highest in the priority order is the site default, and every email uses it unless told otherwise.
+
+Colour boxes take either a colour name from your Styles page (`primary`, `text`) or a plain hex code. The first is the better habit: change your site's colours and your emails follow.
+
+There is no Conditions tab on an email wrapper. Which email uses which design is set per email on the Templates tab, not by a page rule.
 
 ---
 
@@ -218,7 +246,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 
 ## Users tab
 
-Only shown once you (or someone) holds at least one of the permissions below - see [Managing users](Managing-users). The member-settings sub-tabs below (Registration through Data & deletion) sit directly on the Users tab, alongside Roles and Email templates - see [Members](Members) for a plain-English walkthrough.
+Only shown once you (or someone) holds at least one of the permissions below - see [Managing users](Managing-users). The member-settings sub-tabs below (Registration through Data & deletion) sit directly on the Users tab, alongside Roles - see [Members](Members) for a plain-English walkthrough. Email wording moved off this tab: it is on the **Email** tab now, covering every email the site sends rather than only the member ones.
 
 ### Registration
 
@@ -270,9 +298,6 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 
 Manage roles and permissions - see [Managing users](Managing-users).
 
-### Email templates
-
-Customise the wording of every email members receive, with a merge-tag list and a test-send button - see [Members](Members#admin-tools).
 
 ---
 

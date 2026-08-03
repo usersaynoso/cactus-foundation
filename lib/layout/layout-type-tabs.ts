@@ -17,6 +17,7 @@ export const CORE_LAYOUT_TYPES: CoreLayoutType[] = [
   { key: 'infoPage',   label: 'Page Layout',  description: 'The shell your pages sit inside. Where the page content goes, and what sits around it.' },
   { key: 'notFound',   label: '404',          description: 'What a visitor sees when they ask for a page that is not there.' },
   { key: 'statusPage', label: 'Status Page',  description: 'The standalone screen shown before launch, or while the site is down for maintenance.' },
+  { key: 'emailWrapper', label: 'Email Wrapper', description: 'The design wrapped around the emails your site sends: logo, colours, footer. The message itself drops into the Message block.' },
 ]
 
 export const TYPE_LABELS: Record<string, string> = Object.fromEntries(

@@ -7,6 +7,8 @@ import '@puckeditor/core/no-external.css'
 import '@/lib/puck/tabs/sidebarOverrides.css'
 import '@/lib/puck/tabs/gridColumnOutline.css'
 import { layoutPuckConfig, headerPuckConfig, footerPuckConfig, fullPagePuckConfig, getModuleLayoutPuckConfig, wrapResponsiveRender } from '@/lib/puck/config'
+import { emailPuckConfig, setEmailEditorPalette } from '@/lib/puck/email-config'
+import { paletteFromTokens } from '@/lib/email/palette'
 import { registerEditorFields } from '@/lib/puck/fields/editor'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
@@ -80,6 +82,9 @@ function getConfig(type: string | undefined) {
     case 'notFound':
     case 'statusPage': return fullPagePuckConfig
     case 'infoPage': return layoutPuckConfig
+    // Its own config entirely: none of the site blocks survive an email client,
+    // so none of them are offered. See lib/puck/email-config.tsx.
+    case 'emailWrapper': return emailPuckConfig
     default:
       if (type && moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckConfig(type)
       return layoutPuckConfig
@@ -126,6 +131,10 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
       .then(async d => {
         if (!mounted || !d.designTokens) return
         setDesignTokens(d.designTokens)
+        // The email blocks resolve token ids to flat colours themselves (an
+        // inbox cannot read a CSS variable), so the canvas needs the same
+        // lookup the send-time renderer builds server-side.
+        setEmailEditorPalette(paletteFromTokens(d.designTokens))
         const { buildTokenStyles, buildFontHref } = await import('@/lib/design/tokens')
         const css = buildTokenStyles(d.designTokens)
         const href = buildFontHref(d.designTokens)
@@ -266,7 +275,10 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
         />
       ),
     }),
-    createPanelPlugin({
+    // Email wrappers are picked per email over in Settings › Emails, never by a
+    // URL rule, so the Conditions tab would be a panel with one meaningless
+    // answer in it.
+    ...(layoutType === 'emailWrapper' ? [] : [createPanelPlugin({
       name: 'conditions', label: 'Conditions', icon: conditionsTabIcon,
       content: (
         <DisplayConditionsPanel
@@ -278,7 +290,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
           saved={saved}
         />
       ),
-    }),
+    })]),
     createPanelPlugin({
       name: 'history', label: 'History', icon: historyTabIcon,
       content: (

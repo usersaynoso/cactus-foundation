@@ -29,7 +29,11 @@ export const CORE_PERMISSIONS = [
   { key: 'members.notes', description: 'Add internal admin notes on members' },
   { key: 'members.settings', description: 'Edit Members system settings' },
   { key: 'members.gdpr', description: 'Access the members GDPR dashboard' },
-  { key: 'members.email-templates', description: 'Edit member email templates' },
+  // Covers every email the site sends - core, auth and module - plus the
+  // wrapper designs they are dressed in. Was 'members.email-templates' back
+  // when the editor only reached the member emails; core-reconcile 015 moves
+  // existing grants across.
+  { key: 'emails.templates', description: 'Edit email templates and wrapper designs' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']

@@ -36,7 +36,7 @@ export default async function ConfigPage() {
       [
         'members.settings',
         'roles.manage',
-        'members.email-templates',
+        'emails.templates',
         'members.gdpr',
         'config.manage',
         ...manifests.flatMap((m) => (m?.settingsTabs ?? []).map((t) => t.permission)),
@@ -77,12 +77,14 @@ export default async function ConfigPage() {
     hostedSettingsSlots[host] = <>{panels.map((p) => p.node)}</>
   }
 
-  // "Users" tab (Members settings / Roles / Email templates) - a merge of what
-  // used to be standalone /members/settings, /roles and /members/email-templates
-  // pages, each still gated by its own original permission.
+  // "Users" tab (Members settings / Roles) - a merge of what used to be
+  // standalone /members/settings and /roles pages, each still gated by its own
+  // original permission. The email templates editor started life here too; it
+  // moved to the Email tab once it covered every email on the site rather than
+  // only the member ones.
   const canManageMembersSettings = granted['members.settings'] === true
   const canManageRoles = granted['roles.manage'] === true
-  const canManageEmailTemplates = granted['members.email-templates'] === true
+  const canManageEmailTemplates = granted['emails.templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
   const canManageNav = granted['config.manage'] === true
 

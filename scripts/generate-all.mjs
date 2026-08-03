@@ -23,6 +23,7 @@ const GENERATORS = [
   './generate-module-extension-points.mjs',
   './generate-module-layout-types.mjs',
   './generate-media-worker.mjs',
+  './generate-module-email-templates.mjs',
 ]
 
 for (const generator of GENERATORS) {

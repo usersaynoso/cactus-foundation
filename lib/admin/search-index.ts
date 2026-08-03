@@ -81,6 +81,8 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   // ── Email tab sections ─────────────────────────────────────────────────────
   { id: 'email-provider', label: 'Email provider (Brevo / SMTP) credentials', section: S.email, path: '/config?tab=email#email-provider', requires: '/config', keywords: ['brevo', 'smtp', 'mail server', 'from address', 'sender'] },
   { id: 'email-test', label: 'Send a test email', section: S.email, path: '/config?tab=email#email-test', requires: '/config', keywords: ['test email', 'check email', 'try email'] },
+  { id: 'email-templates', label: 'Email templates', section: S.email, path: '/config?tab=email&sub=templates', requires: '/config', keywords: ['email template', 'welcome email', 'verification email', 'notification email', 'order email', 'wording', 'email copy'] },
+  { id: 'email-wrappers', label: 'Email wrapper designs', section: 'Layouts', path: '/layouts?type=emailWrapper', requires: '/layouts', keywords: ['email design', 'email header', 'email footer', 'email branding', 'email wrapper', 'email layout'] },
 
   // ── Media tab sections ─────────────────────────────────────────────────────
   { id: 'media-provider', label: 'Storage provider', section: S.media, path: '/config?tab=media#media-provider', requires: '/config', keywords: ['s3', 'r2', 'cloudflare', 'bunny', 'vercel blob', 'bucket', 'cdn', 'switch provider', 'migrate media'] },
@@ -106,7 +108,6 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'users-account-sections', label: 'Account sections', section: S.users, path: '/config?tab=users&sub=sections', requires: '/config', keywords: ['account page', 'profile sections'] },
   { id: 'users-access', label: 'Access control', section: S.users, path: '/config?tab=users&sub=access', requires: '/config', keywords: ['access', 'restrict', 'membership'] },
   { id: 'users-roles', label: 'Roles & permissions', section: S.users, path: '/config?tab=users&sub=roles', requires: '/config', keywords: ['roles', 'permissions', 'capabilities', 'access rights'] },
-  { id: 'users-email-templates', label: 'Email templates', section: S.users, path: '/config?tab=users&sub=email-templates', requires: '/config', keywords: ['email template', 'welcome email', 'verification email', 'notification email'] },
 
   // ── Appearance / Styles ────────────────────────────────────────────────────
   { id: 'appearance-design', label: 'Header & footer design', section: S.appearance, path: '/appearance', requires: '/appearance', keywords: ['header', 'footer', 'layout', 'design', 'site chrome'] },

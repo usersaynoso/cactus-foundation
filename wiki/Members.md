@@ -155,7 +155,7 @@ Member management lives alongside your ordinary admin Users, rather than in a se
 - A **member detail page** for each person (click their row in Users) - edit their profile, suspend or approve them, mark them as trusted, revoke their sign-in sessions, reset their password and two-factor setup, trigger a data export on their behalf, leave internal notes, and see a full history of admin actions taken on their account. This is also where you suspend/approve/trust/delete an individual member - the old bulk multi-select list is gone now that Members lives inside the combined Users table.
 - Your **Settings** page gains:
   - A **GDPR & Legal** section covering consent records, data export requests, and pending deletions, all in one place.
-  - A **Users** tab holding **Registration**, **Avatars**, **Usernames**, **Account sections** and **Access control** (all the member settings covered on this page), plus **Roles** (who can do what - see [Managing users](Managing-users)) and **Email templates** - customise the wording of every email members receive (welcome, verification, security alerts, and so on), with a merge-tag list and a test-send button. Reset any template back to the default whenever you like.
+  - A **Users** tab holding **Registration**, **Avatars**, **Usernames**, **Account sections** and **Access control** (all the member settings covered on this page), plus **Roles** (who can do what - see [Managing users](Managing-users)). The wording of member emails is no longer edited here: it lives on **Settings → Email → Templates** with every other email the site sends - see [Configuration reference](Configuration-reference#templates).
 
 ---
 

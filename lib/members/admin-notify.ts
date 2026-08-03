@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { upsertAlert } from '@/lib/notifications/alerts'
 import { sendEmail } from '@/lib/email/index'
-import { renderEmailTemplate } from '@/lib/email/templates'
+import { renderEmailTemplate } from '@/lib/email/render'
 import { isEmailConfigured } from '@/lib/config/env'
 
 // Both send an in-app admin notification (reusing the generic 'message' type
@@ -31,15 +31,11 @@ export async function notifyAdminMemberPendingApproval(memberId: string, usernam
 
   if (!isEmailConfigured()) return
   const [emails, siteName] = await Promise.all([getAdminEmails(), getSiteName()])
+  const rendered = await renderEmailTemplate('member.pending-approval-admin-notify', { siteName, username })
+  if (!rendered) return
+  const { subject, html, text } = rendered
   await Promise.all(
-    emails.map((to) =>
-      sendEmail({
-        to,
-        subject: `${siteName}: new member awaiting approval`,
-        html: `<p><strong>${username}</strong> has registered and is awaiting approval.</p>`,
-        text: `${username} has registered and is awaiting approval.`,
-      }).catch(() => {})
-    )
+    emails.map((to) => sendEmail({ to, subject, html, text }).catch(() => {}))
   )
 }
 
@@ -53,7 +49,9 @@ export async function notifyAdminMemberDeletionRequested(memberId: string, usern
 
   if (!isEmailConfigured()) return
   const [emails, siteName] = await Promise.all([getAdminEmails(), getSiteName()])
-  const { subject, html, text } = await renderEmailTemplate('member.deletion-admin-notify', { siteName, username })
+  const deletionEmail = await renderEmailTemplate('member.deletion-admin-notify', { siteName, username })
+  if (!deletionEmail) return
+  const { subject, html, text } = deletionEmail
   await Promise.all(
     emails.map((to) => sendEmail({ to, subject, html, text }).catch(() => {}))
   )

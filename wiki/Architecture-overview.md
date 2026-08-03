@@ -127,7 +127,7 @@ A member's **website** field goes straight into an `href` on that public profile
 
 ### GDPR and email
 
-Members can request a full data export (assembled server-side, downloadable for 48 hours, `lib/members/export.ts`) or delete their account (soft-deleted with a config-driven grace period before a cron job purges it, `lib/members/deletion.ts`). Every member-facing email (verification, magic link, security alerts, digests, and any module-contributed notification) flows through a single template registry (`lib/email/templates.ts`, `MEMBER_EMAIL_TEMPLATES`) that admins can customise per-key from **Settings → Users → Email templates**, with a merge-tag list, test-send, and reset-to-default.
+Members can request a full data export (assembled server-side, downloadable for 48 hours, `lib/members/export.ts`) or delete their account (soft-deleted with a config-driven grace period before a cron job purges it, `lib/members/deletion.ts`). Every email the site sends - member-facing (verification, magic link, security alerts, digests), account and security (login codes, recovery, password changed), and every installed module's - flows through a single template registry (`lib/email/registry.ts`) that admins customise per-key from **Settings → Email → Templates**, with a merge-tag list, preview, test-send and reset-to-default. Modules contribute their own through the manifest `emailTemplates` seam (collected by `scripts/generate-module-email-templates.mjs` into `lib/modules/email-templates.ts`); a module may only claim keys prefixed with its own name. Rendering (`lib/email/render.ts`) applies the override, interpolates, then drops the message into an `emailWrapper` Layout - a core layout type with its own Puck config and its own email-safe block set (`lib/puck/email-config.tsx`, `lib/email/blocks.ts`), chosen per email or defaulted to the highest-priority published wrapper.
 
 ### Puck blocks
 
@@ -272,6 +272,23 @@ Wrappers `recordCoreUpdate(latestVersion)` and `recordModuleUpdate({ moduleId, n
 All triggers are wrapped in try/catch (or fire-and-forget `.catch`) so a notification failure never breaks the endpoint. The contact-form helper is called after every mutation that changes the unread count: submit, the bulk status/delete PATCH, the single-submission status PATCH / DELETE / open-marks-read, and reply (which marks read).
 
 On the Notifications page, alerts render a leading icon by type (⬆️ core, 📦 module, ✉️ message, 🚀 deployment) and a primary "View Update" / "View Messages" button. Clicking it PATCHes the notification `read: true` then navigates to `link` - viewing marks it read. Deployment notifications keep their `canRedeploy`-gated "Redeploy now" action instead.
+
+### Clearing the list
+
+Both places notifications appear - the Notifications page header and the bell dropdown header - offer **Mark all as read** and **Delete all**, backed by two collection-level handlers:
+
+| Endpoint | Effect |
+|---|---|
+| `PATCH /api/admin/notifications` `{ read: boolean }` | `updateMany` - `true` stamps `readAt` on every unread row, `false` clears `readAt` on every read one. Returns `{ ok, updated }`. |
+| `DELETE /api/admin/notifications` | `deleteMany` over everything **except** open deployment notifications (see below). Returns `{ ok, deleted, kept }`. |
+
+Both require `config.manage`, like the rest of the notification routes.
+
+They act on the **whole table**, not on the rows the caller happens to be holding: the page renders the 100 most recent and the bell 20, so a "mark all as read" scoped to what was on screen would leave the badge stubbornly non-zero. Mark-all is disabled at zero unread; both are hidden when there is nothing to act on.
+
+**Delete all spares the open deployment notification.** Everything else on the list is history, or re-derivable state that writes itself back: a video-optimise job mid-encode re-creates its notification on the next progress tick, and the core/module update alerts are re-raised by the next update check (all of them upsert by `dedupeKey`). An open deployment notification is neither. It is the only record of changes that are saved but not yet live, the only route to the "Redeploy now" button, and nothing re-creates it - `recordDeploymentNeeded` writes only when the *next* change comes in. Deleting it would leave the site quietly serving stale config with no reminder that anything was pending, so the endpoint excludes it and reports it back as `kept`.
+
+Both UIs say so before they act, and disable Delete all when the spared notification is all that is left. The page's confirmation names the number that will really go (total minus pending), which can still be larger than the hundred rows on screen. To clear a pending deployment notification, deploy - or delete that one on its own, which is still allowed.
 
 ### Deferred deploy flow (env vars; core-update fallback)
 
@@ -567,7 +584,7 @@ The magnifying-glass button in the sidebar toolbar - and the **Cmd/Ctrl+K** shor
 
 1. **Pages** - every item in the sidebar the current role can see (Dashboard, Pages, Media, Modules, and so on), plus their "New…" shortcuts.
 2. **Settings sections** - every tab on the Settings and Appearance screens (General, Email, Media, GDPR & Legal, Integrations, Users, Navigation; Styles' Branding/Colours/Typography/Headings/Buttons/Images/Form fields/Spacing), including the Settings tabs added by installed modules (e.g. Shop, Gazette).
-3. **Individual settings** - the specific controls a site owner actually goes looking for: backup, restore, reset database, email provider (Brevo/SMTP), send a test email, storage provider, cookie consent banner, GitHub App, Turnstile, Sentry, roles & permissions, email templates, and more.
+3. **Individual settings** - the specific controls a site owner actually goes looking for: backup, restore, reset database, email provider (Brevo/SMTP), send a test email, storage provider, cookie consent banner, GitHub App, Turnstile, Sentry, roles & permissions, email templates, email wrapper designs, and more.
 
 Results match on plain-English synonyms as well as the exact wording, so "captcha" finds Turnstile, "color" finds Colours, and "sign up" finds Registration. Choosing a result doesn't just open the page - it switches to the right tab and scrolls the exact section into view, giving it a brief highlight so it's easy to spot. Search only ever offers destinations the signed-in role is allowed to open, so it never links someone to a screen they can't reach.
 
