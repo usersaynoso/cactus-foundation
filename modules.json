@@ -31,6 +31,11 @@
       "version": "v0.1.4"
     },
     {
+      "name": "filters-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
+      "version": "v0.1.0"
+    },
+    {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
       "version": "v0.1.43"

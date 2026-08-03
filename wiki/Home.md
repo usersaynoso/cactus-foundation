@@ -27,6 +27,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Boards](Boards) | Running a discussion forum, with polls, moderation and a phpBB/Discourse importer |
 | [Directory](Directory) | Map-based listings with categories, featured entries, geocoding and a CSV importer |
 | [Product Attributes](Product-attributes) | Letting shoppers filter your shop by material, colour, room or anything else you choose |
+| [Shop Filters](Shop-filters) | Grouped filters for big catalogues: one Blue covers every blue-ish upholstery colour, and filtered cards show and open the blue version of each product |
 | [Product 3D views](Product-3D-views) | Letting shoppers turn a product round in 3D instead of squinting at one photograph |
 | [Product downloads](Product-downloads) | Putting the manual, the spec sheet and the drawing on the product page for anyone to take |
 | [Reviews](Reviews) | Customer reviews on your product pages, moderated by you, with replies, verified-purchase badges and optional invitation emails |
