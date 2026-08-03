@@ -47,9 +47,12 @@ So this module separates the two:
 - The selection is mirrored into the page address, so a filtered view can be shared,
   bookmarked, or returned to with the back button.
 - **The cards dress for the occasion.** With Blue ticked, a product that comes in blue
-  swaps its card photo to the blue variation's own picture - and clicking through opens
-  the product with the blue options already chosen, ready to add to the basket. (Both
-  behaviours can be switched off in settings.)
+  shows the blue variation's own picture - and clicking through opens the product with
+  the blue options already chosen, ready to add to the basket. (Both behaviours can be
+  switched off in settings.)
+- On cards with the little photo arrows, the filter and the arrows cooperate: tick two
+  colours and the arrows flick between exactly those two colours' pictures, and hovering
+  the card no longer snaps back to an unfiltered photo - the chosen colour stays put.
 
 ## Setting it up
 
@@ -100,7 +103,9 @@ you re-tick the new name in the picker.
 - Products with no variations can't match variation filters, so they hide once any filter
   is ticked. Rather the point, but worth knowing. Price bands and spec rules read the
   product itself too, so those still work for variation-less products.
-- Filtering, photo-swapping and pre-selection need no changes to Shop or Shop Variations;
-  the module reads their data and uses the existing variation deep links.
+- Filtering and pre-selection read Shop and Shop Variations' existing data and deep
+  links. The photo behaviour uses a small contract the Shop module's card carousel
+  offers for exactly this: the filter names which variations' pictures are allowed and
+  the carousel does the showing, so the two never fight over the same image.
 
 **Wiki:** [Home](Home) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Product Attributes](Product-attributes) · [Modules](Modules)
