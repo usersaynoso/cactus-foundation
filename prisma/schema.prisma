@@ -941,13 +941,18 @@ model MemberVerificationToken {
 }
 
 // 2FA email codes for members (mirrors EmailChallenge, which FKs User)
-// Purpose values: 'login_2fa' | 'setup_2fa'
+// Purpose values: 'login_2fa' | 'setup_2fa' | 'email_change'
 model MemberEmailChallenge {
   id        String   @id @default(cuid())
   memberId  String
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   codeHash  String
   purpose   String
+  // Set only for the email_change purpose: the address being moved TO. The
+  // change is held here and applied to Member.email only once a code sent to
+  // that address comes back, so a mistyped address never inherits the account
+  // (or its emailVerified marker). Mirrors EmailChallenge.pendingEmail.
+  pendingEmail String?
   expiresAt DateTime
   attempts  Int      @default(0)
   createdAt DateTime @default(now())

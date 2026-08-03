@@ -10,6 +10,8 @@ import { renderEmailTemplate, type RenderedEmail } from '@/lib/email/render'
 
 export type MemberEmailTemplateKey =
   | 'member.verify-email'
+  | 'member.email-change-code'
+  | 'member.email-change-notice'
   | 'member.welcome'
   | 'member.magic-link'
   | 'member.suspended'
@@ -26,6 +28,8 @@ export type { RenderedEmail }
 export function listMemberEmailTemplateKeys(): MemberEmailTemplateKey[] {
   return [
     'member.verify-email',
+    'member.email-change-code',
+    'member.email-change-notice',
     'member.welcome',
     'member.magic-link',
     'member.suspended',

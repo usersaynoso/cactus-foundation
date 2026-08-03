@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from 'react'
 
+type EmailInfo = {
+  email: string
+  emailVerified: boolean
+  canChange: boolean
+  reason: string | null
+  requiresPassword: boolean
+  pendingEmail: string | null
+}
 type Passkey = { id: string; deviceName: string | null; createdAt: string; lastUsedAt: string | null }
 type Session = { id: string; ipAddress: string | null; userAgent: string | null; lastActiveAt: string; isCurrent: boolean }
 type TrustedBrowser = { id: string; deviceInfo: string | null; expiresAt: string; isCurrent: boolean }
 
 export default function SecuritySection() {
+  const [emailInfo, setEmailInfo] = useState<EmailInfo | null>(null)
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
   const [sessions, setSessions] = useState<Session[] | null>(null)
   const [trustedBrowsers, setTrustedBrowsers] = useState<TrustedBrowser[] | null>(null)
@@ -16,6 +25,16 @@ export default function SecuritySection() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const [newEmail, setNewEmail] = useState('')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  // The address a code is currently out for. Seeded from the server on load so
+  // a member who closed the tab while the code was in flight comes back to the
+  // box that finishes the job, rather than starting again.
+  const [emailPendingFor, setEmailPendingFor] = useState('')
+  const [emailNotice, setEmailNotice] = useState('')
+  const [emailBusy, setEmailBusy] = useState(false)
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [totpSetup, setTotpSetup] = useState<{ qrDataUrl: string; secret: string } | null>(null)
@@ -23,6 +42,11 @@ export default function SecuritySection() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   function refreshAll() {
+    fetch('/api/members/email').then((r) => r.json()).then((d: EmailInfo) => {
+      if (!d?.email) return
+      setEmailInfo(d)
+      setEmailPendingFor((current) => current || d.pendingEmail || '')
+    })
     fetch('/api/members/passkeys').then((r) => r.json()).then((d) => setPasskeys(d.passkeys))
     fetch('/api/members/sessions').then((r) => r.json()).then((d) => setSessions(d.sessions))
     fetch('/api/members/trusted-browsers').then((r) => r.json()).then((d) => setTrustedBrowsers(d.trustedBrowsers))
@@ -32,6 +56,53 @@ export default function SecuritySection() {
   }
 
   useEffect(refreshAll, [])
+
+  async function requestEmailChange() {
+    setEmailBusy(true)
+    setError('')
+    setEmailNotice('')
+    try {
+      const res = await fetch('/api/members/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail: newEmail.trim(), currentPassword: emailPassword || undefined }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Failed to start the email change')
+      setEmailPendingFor(d.sentTo ?? newEmail.trim())
+      setEmailPassword('')
+      setEmailCode('')
+      setEmailNotice(`We have sent a code to ${d.sentTo ?? newEmail.trim()}. Enter it below to finish.`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to start the email change')
+    } finally {
+      setEmailBusy(false)
+    }
+  }
+
+  async function confirmEmailChange() {
+    setEmailBusy(true)
+    setError('')
+    setEmailNotice('')
+    try {
+      const res = await fetch('/api/members/email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: emailCode.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? 'Failed to confirm the new address')
+      setEmailPendingFor('')
+      setNewEmail('')
+      setEmailCode('')
+      setEmailNotice(`Your email address is now ${d.email}.`)
+      refreshAll()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to confirm the new address')
+    } finally {
+      setEmailBusy(false)
+    }
+  }
 
   async function addPasskey() {
     setBusy(true)
@@ -153,7 +224,7 @@ export default function SecuritySection() {
   return (
     <div>
       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>
-        Security
+        Account &amp; Security
       </h2>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -167,7 +238,83 @@ export default function SecuritySection() {
         </div>
       )}
 
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-5) 0 var(--space-2)', color: 'var(--color-text)' }}>Passkeys</h3>
+      {/* The whole block waits on the fetch, heading included: a site with this
+          section switched off answers 403 here, and half an email panel with a
+          "Current: …" that never resolves is worse than no panel at all. */}
+      {emailInfo && (
+        <>
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-5) 0 var(--space-2)', color: 'var(--color-text)' }}>Email address</h3>
+          {emailNotice && <div className="alert alert-success">{emailNotice}</div>}
+          <p style={{ margin: '0 0 var(--space-3)' }}>
+            Current: <strong>{emailInfo.email}</strong>
+            {!emailInfo.emailVerified && <span className="field-hint"> (not verified yet)</span>}
+          </p>
+          {!emailInfo.canChange ? (
+            <p className="field-hint">{emailInfo.reason}</p>
+          ) : (
+            <>
+              <div className="field">
+                <label htmlFor="member-new-email">New email address</label>
+                <input
+                  id="member-new-email"
+                  type="email"
+                  autoComplete="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+              {emailInfo.requiresPassword && (
+                <div className="field">
+                  <label htmlFor="member-email-password">Current password</label>
+                  <input
+                    id="member-email-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={emailPassword}
+                    onChange={(e) => setEmailPassword(e.target.value)}
+                  />
+                </div>
+              )}
+              <button
+                className="btn btn-secondary"
+                disabled={emailBusy || !newEmail.trim() || (emailInfo.requiresPassword && !emailPassword)}
+                onClick={requestEmailChange}
+              >
+                {emailBusy ? 'Sending…' : emailPendingFor ? 'Send a new code' : 'Change email address'}
+              </button>
+              <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                We send a code to the new address and only move your sign-in once it comes back, so a
+                typo costs you nothing.
+              </p>
+              {emailPendingFor && (
+                <div style={{ marginTop: 'var(--space-3)' }}>
+                  <div className="field">
+                    <label htmlFor="member-email-code">Code sent to {emailPendingFor}</label>
+                    <input
+                      id="member-email-code"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                      value={emailCode}
+                      onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    disabled={emailBusy || emailCode.length !== 6}
+                    onClick={confirmEmailChange}
+                  >
+                    Confirm new address
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Passkeys</h3>
       {passkeys?.map((pk) => (
         <div key={pk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
           <span>{pk.deviceName ?? 'Passkey'} - added {new Date(pk.createdAt).toLocaleDateString()}</span>

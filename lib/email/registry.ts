@@ -73,6 +73,29 @@ const MEMBER_TEMPLATES: CoreTemplate[] = [
     transactional: false,
   },
   {
+    // Sent to the address the account is being moved TO. Until this code comes
+    // back the member keeps their current address, so a typo costs nothing.
+    key: 'member.email-change-code',
+    groupLabel: 'Members',
+    label: 'Confirm new email address',
+    subject: 'Confirm your new {{siteName}} email address',
+    bodyHtml: '<p>Your confirmation code is: <strong>{{code}}</strong></p><p>Enter it on your account page to finish moving your {{siteName}} sign-in to this address.</p><p>This code expires in 10 minutes. If you were not expecting this, you can ignore it - nothing has changed yet.</p>',
+    mergeTags: ['siteName', 'code'],
+    requiredTags: ['code'],
+    transactional: true,
+  },
+  {
+    // Sent to the address the account is moving AWAY from, so a member whose
+    // session has been taken finds out while they can still do something.
+    key: 'member.email-change-notice',
+    groupLabel: 'Members',
+    label: 'Email address change requested',
+    subject: 'Someone asked to change your {{siteName}} email address',
+    bodyHtml: '<p>A request was made to move your {{siteName}} sign-in to <strong>{{newEmail}}</strong>.</p><p>It will not take effect until that address is confirmed.</p><p>If this was not you, sign in and change your password now - whoever asked for this has access to your account.</p>',
+    mergeTags: ['siteName', 'newEmail'],
+    transactional: true,
+  },
+  {
     key: 'member.magic-link',
     groupLabel: 'Members',
     label: 'Magic sign-in link',

@@ -38,9 +38,9 @@ The email sign-in link has no **Required** option, and that's deliberate rather 
 
 Setting **Password** to Required also puts a password box on the sign-up form, so new members choose one as they join. The second step can't be done until they're actually signed in, so they're asked for that the first time they arrive.
 
-With **Password** set to Optional the sign-up form offers a password box too, which you can turn off with **Ask new members to set a password** under [Registration](#shortening-the-sign-up-form). Passwords stay available either way - members just add one from their own Security page rather than being asked for one before they've so much as looked round.
+With **Password** set to Optional the sign-up form offers a password box too, which you can turn off with **Ask new members to set a password** under [Registration](#shortening-the-sign-up-form). Passwords stay available either way - members just add one from their own Account & Security page rather than being asked for one before they've so much as looked round.
 
-Members can still add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member. What they can't do is remove something you've marked Required; the site says so plainly rather than letting them delete it and immediately asking for it back.
+Members can still add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Account & Security** page - you don't need to do anything per-member. What they can't do is remove something you've marked Required; the site says so plainly rather than letting them delete it and immediately asking for it back.
 
 ### A word of caution about the sign-in link
 
@@ -118,7 +118,7 @@ The sign-up form asks for an email address, a username and an optional display n
 - **Ask new members for a display name** - turn it off and the optional display-name box disappears too.
 - **Ask new members to set a password** - turn it off and signing up asks for nothing to remember. This one only appears while passwords are set to optional: with passwords off there is nothing to ask about, and with them required the form has to ask.
 
-Turning the password box off doesn't take passwords away. Members can add one whenever they like from **Security** in their account, which is where they'd set up the short code that goes with it anyway. It's often the kinder order of events: signing up takes one box and a click on an emailed link, and the password conversation waits until they've decided they're staying.
+Turning the password box off doesn't take passwords away. Members can add one whenever they like from **Account & Security** in their account, which is where they'd set up the short code that goes with it anyway. It's often the kinder order of events: signing up takes one box and a click on an emailed link, and the password conversation waits until they've decided they're staying.
 
 Hiding a box genuinely removes it rather than tucking it out of sight, so nobody can fill it in by being clever with the form.
 
@@ -158,7 +158,7 @@ Once signed in, members land on an **overview** page that tries to answer the ob
 
 - **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
   Switch this one off and the page genuinely goes: the tab disappears, the card on the overview disappears, and typing the address in by hand gets a **Not found** rather than the page. Nothing on it can be saved either, so a member with it already open in an old tab is told it's been switched off instead of quietly getting their changes dropped. Worth doing on a site where an account is only ever a way to sign in and pay, and a bio nobody will read is just another empty box to look at. Their existing details aren't deleted - switch it back on and everything is where they left it.
-- **Security** - passkeys, password, two-factor authentication, active sessions, and trusted browsers.
+- **Account & Security** - their email address, passkeys, password, two-factor authentication, active sessions, and trusted browsers. See [Changing their email address](#changing-their-email-address) just below.
 - **Notifications** - email preferences for anything your installed modules notify members about. Nothing installed offers any yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose.
 - **Activity** - a simple history of their sign-ins and other account activity.
 - **Danger Zone** - requesting a copy of their data, or deleting their account.
@@ -167,7 +167,21 @@ Switching any of the other four off takes its tab away, and its card off the ove
 
 Turning the Profile tab off is not the same as hiding members from the public side of your site - that's [Public profile visibility](#public-profiles-and-directory), a few lines further down, and the two work independently.
 
-Installed modules can add tabs of their own here, and they slot in after **Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
+Installed modules can add tabs of their own here, and they slot in after **Account & Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
+
+### Changing their email address
+
+Members can move their account to a new email address themselves, from **Account & Security**. It takes two steps, and on purpose: the site emails a six-digit code to the new address, and only moves their sign-in across once that code comes back. Until then everything carries on going to the old address, so a mistyped one costs a wasted email and nothing else - rather than quietly sending every future sign-in link to a mailbox nobody can read.
+
+A few things happen around it without anyone having to ask:
+
+- If they have a password, they're asked for it first. It's the one thing somebody who has wandered up to an unlocked laptop hasn't got.
+- The old address is told a change has been requested, and told again once it goes through. If it wasn't them, that's their cue to change their password while they still can.
+- The new address counts as confirmed the moment the code is used - they've just proved they can read it - so nobody is asked to verify the same mailbox twice.
+- Your domain rules still apply. An address on a blocked domain, or off an allow-list, is refused here exactly as it would be at sign-up.
+- The change shows up in their **Activity** list, and the code expires after ten minutes.
+
+Two cases where the option isn't offered: a site with no email sending set up yet (there'd be no way to send the code), and admins using the member area with their staff sign-in - their address belongs to the admin account, so it's changed from the admin account page instead.
 
 ### If you're a site admin
 

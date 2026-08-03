@@ -6,6 +6,7 @@ type ActivityEvent = { id: string; type: string; source: string | null; createdA
 
 const CORE_LABELS: Record<string, string> = {
   login: 'Signed in',
+  email_changed: 'Email address changed',
 }
 
 function labelFor(event: ActivityEvent): string {

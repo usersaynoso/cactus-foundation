@@ -13,7 +13,10 @@ export const dynamic = 'force-dynamic'
 
 type ExtensionPointEntry = { point: string; id: string }
 
-const CORE_ACTIVITY_LABELS: Record<string, string> = { login: 'Signed in' }
+const CORE_ACTIVITY_LABELS: Record<string, string> = {
+  login: 'Signed in',
+  email_changed: 'Email address changed',
+}
 
 // Who to greet. The username is only a name the member recognises if the site
 // asked them to pick one - with that switch off it was invented from their email
@@ -142,7 +145,7 @@ export default async function AccountIndexPage() {
 
       <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
         {sections.security && (
-          <SummaryCard title="Sign-in & security" href={`${basePath}/security`} linkLabel="Manage security">
+          <SummaryCard title="Account & Security" href={`${basePath}/security`} linkLabel="Manage account">
             <span>{passkeyCount === 0 ? 'No passkeys yet' : `${passkeyCount} passkey${passkeyCount === 1 ? '' : 's'}`}</span>
             <span>{record?.password ? 'Password set' : 'No password set'}</span>
             <span>{twoFactorCount > 0 ? 'Two-factor on' : 'Two-factor off'}</span>

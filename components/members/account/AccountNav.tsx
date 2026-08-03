@@ -9,7 +9,7 @@ type SectionKey = 'profile' | 'security' | 'notifications' | 'activity' | 'dange
 
 const SECTION_DEFS: Array<{ key: SectionKey; label: string; path: string }> = [
   { key: 'profile', label: 'Profile', path: '/profile' },
-  { key: 'security', label: 'Security', path: '/security' },
+  { key: 'security', label: 'Account & Security', path: '/security' },
   { key: 'notifications', label: 'Notifications', path: '/notifications' },
   { key: 'activity', label: 'Activity', path: '/activity' },
   { key: 'dangerZone', label: 'Danger Zone', path: '/danger-zone' },
