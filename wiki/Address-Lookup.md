@@ -25,6 +25,7 @@ Under **Shop → Settings → Address lookup**:
 Ideal Postcodes bills per lookup, so the module is careful with them:
 
 - Nothing is looked up until the shopper has typed at least three characters, and a pause in typing is waited for before asking.
+- Only actual typing counts. If the shopper lets their browser fill the address in for them - Safari's AutoFill, a password manager, a saved address - the whole form arrives at once, already correct, so no suggestions appear and nothing is billed. Any suggestions already showing are cleared away.
 - Lookups are rate-limited per visitor, so a stuck key or a script can't run up a bill.
 - If no key is set or lookups are switched off, the checkout makes no requests at all.
 
