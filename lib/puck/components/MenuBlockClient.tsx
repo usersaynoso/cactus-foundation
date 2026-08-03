@@ -605,6 +605,36 @@ export default function MenuBlockClient({
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  // Where the drawer's top edge goes. It is absolutely positioned inside the
+  // header's content box, which is centred in the header - so `top: 100%` lands
+  // on the bottom of the ROW, not the bottom of the header, and the difference
+  // is however much spare height the header has. That was 0 at the one height
+  // every header used to be, and is 6px at 42, 8px at 48: enough for the drawer
+  // to paint over the header's own bottom rule. Measured from the toggle (its
+  // offset parent IS that content box) at the moment of opening, so there is no
+  // first-frame flicker, and null falls back to the old `100%`.
+  const toggleRef = useRef<HTMLButtonElement | null>(null)
+  const [drawerTop, setDrawerTop] = useState<number | null>(null)
+  const measureDrawerTop = useCallback(() => {
+    const el = toggleRef.current
+    const header = el?.closest('header')
+    const parent = el?.offsetParent
+    if (!header || !parent) return
+    setDrawerTop(header.getBoundingClientRect().bottom - parent.getBoundingClientRect().top)
+  }, [])
+  // A sticky header holds still while the page scrolls and a static one does
+  // not; either way the gap between the two boxes only moves on a resize, but
+  // re-measuring on both is cheap and cannot go stale.
+  useEffect(() => {
+    if (!mobileOpen) return
+    window.addEventListener('resize', measureDrawerTop)
+    window.addEventListener('scroll', measureDrawerTop, true)
+    return () => {
+      window.removeEventListener('resize', measureDrawerTop)
+      window.removeEventListener('scroll', measureDrawerTop, true)
+    }
+  }, [mobileOpen, measureDrawerTop])
+
   // "Keep on one line": measure what the items need on a single line against the
   // room the list has actually been given, and scale the difference away.
   //
@@ -828,10 +858,11 @@ export default function MenuBlockClient({
 
       {showHamburger && (
         <button
+          ref={toggleRef}
           className={[toggleBtnClasses, scaleClass].filter(Boolean).join(' ')}
           aria-label="Toggle menu"
           aria-expanded={mobileOpen}
-          onClick={() => setMobileOpen((o) => !o)}
+          onClick={() => { measureDrawerTop(); setMobileOpen((o) => !o) }}
           style={{
             background: 'none',
             border: 'none',
@@ -874,12 +905,11 @@ export default function MenuBlockClient({
       {showHamburger && mobileOpen && (
         <div style={{
           position: 'absolute',
-          // Bottom of the row this menu sits in, not a fixed 64px. The offset
-          // parent is the header's own content box, which is centred in the
-          // header, so 100% landed on the same 64px back when every header was
-          // 96px tall - and drifted the moment one wasn't. A short phone header
-          // used to hang its drawer in mid-air below itself.
-          top: '100%',
+          // Bottom edge of the header, measured (see measureDrawerTop). Was a
+          // hardcoded 64, which only ever lined up because every header was
+          // 96px tall with a 32px row; `100%` is the row's bottom, which is
+          // right only when the header has no spare height.
+          top: drawerTop ?? '100%',
           left: 0,
           right: 0,
           borderTop: '1px solid var(--color-border)',
