@@ -874,7 +874,12 @@ export default function MenuBlockClient({
       {showHamburger && mobileOpen && (
         <div style={{
           position: 'absolute',
-          top: 64,
+          // Bottom of the row this menu sits in, not a fixed 64px. The offset
+          // parent is the header's own content box, which is centred in the
+          // header, so 100% landed on the same 64px back when every header was
+          // 96px tall - and drifted the moment one wasn't. A short phone header
+          // used to hang its drawer in mid-air below itself.
+          top: '100%',
           left: 0,
           right: 0,
           borderTop: '1px solid var(--color-border)',

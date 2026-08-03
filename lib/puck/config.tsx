@@ -4112,6 +4112,23 @@ const headerRootRender = ({
   // One header per page, so the bare attribute selector is specific enough - the
   // root render has no id of its own to hang it off.
   const headerPxCss = responsiveMediaCssFor('[data-header-inner]', (d) => `padding-left:${headerPxAt(d)};padding-right:${headerPxAt(d)};`)
+  // Height, per breakpoint, same shape as the gutter above: a phone header
+  // holding one row of 20px icons does not need the height a desktop one with a
+  // logo, a menu and a phone number does. Blank falls back to 64px, the value
+  // the field has defaulted to since it was a fixed list, and 'auto' keeps its
+  // old meaning (content height, floored at 48) at whichever breakpoint asks
+  // for it. Stored values were plain strings ('96px') and still normalise, so
+  // every header saved before this renders byte-identically.
+  const heightRv = normalizeResponsiveValue<string>(height)
+  const heightAt = (d: Device) => (pickResponsive(heightRv, d) ?? '').trim() || '64px'
+  const desktopHeight = heightAt('desktop')
+  const heightDecl = (d: Device) => (heightAt(d) === 'auto'
+    ? 'height:auto;min-height:48px;'
+    : `height:${heightAt(d)};min-height:0;`)
+  // Specificity note: this is header[data-header-root] (0,1,1) while the
+  // shrink-on-scroll override is header[data-shrink-root][data-shrunk] (0,2,1),
+  // so a shrunk header still wins on scroll even though both carry !important.
+  const headerHeightCss = responsiveMediaCssFor('header[data-header-root]', heightDecl)
   // data-header-root is unconditional (unlike data-shrink-root, which only
   // appears when shrink-on-scroll is on): it scopes the header-only true-
   // centering CSS that GridBlock/GroupBlock emit, so those rules are inert
@@ -4122,8 +4139,8 @@ const headerRootRender = ({
       data-header-root=""
       data-shrink-root={shrinking ? '' : undefined}
       style={{
-        height: height === 'auto' ? undefined : height,
-        minHeight: height === 'auto' ? 48 : undefined,
+        height: desktopHeight === 'auto' ? undefined : desktopHeight,
+        minHeight: desktopHeight === 'auto' ? 48 : undefined,
         background,
         borderBottom: border?.show === 'show' ? `1px solid ${border?.color || 'var(--color-border, #e5e7eb)'}` : 'none',
         position: sticky === 'yes' ? 'sticky' : 'relative',
@@ -4133,6 +4150,7 @@ const headerRootRender = ({
       }}
     >
       {headerPxCss && <style>{headerPxCss}</style>}
+      {headerHeightCss && <style>{headerHeightCss}</style>}
       <div data-header-inner style={{
         maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
         margin: '0 auto',
@@ -4183,7 +4201,12 @@ export const headerPuckConfig = {
   root: {
     fields: {
       bg:           { type: 'custom' as const, label: 'Background', render: HeaderBgColorField },
-      height:       { type: 'select' as const, label: 'Height', options: [{ value: 'auto', label: 'Auto' }, { value: '48px', label: '48px' }, { value: '64px', label: '64px (default)' }, { value: '72px', label: '72px' }, { value: '80px', label: '80px' }, { value: '96px', label: '96px' }] },
+      // Per breakpoint and free-typed, rather than the old fixed list: a phone
+      // header carrying one row of icons wants a height no preset offered, and
+      // wanted it without touching the desktop one. 'auto' still works typed in
+      // (splitUnitValue shows a keyword as-is rather than blanking it), which is
+      // what keeps every header saved against the old select intact.
+      height:       { type: 'custom' as const, label: 'Height (blank = 64px, or type auto)', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
       sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
       border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
