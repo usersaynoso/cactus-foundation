@@ -229,7 +229,9 @@ Advanced Shipping handles that on its own, with nothing to switch on:
 
 - **At the checkout**, choosing a pay-later method puts a line under it saying so:
   delivery dates start from the day the payment clears rather than today, and
-  here is what the lead time on this basket actually is.
+  here is what the lead time on this basket actually is. It appears the moment
+  the method is picked - which is when the shopper is deciding - rather than
+  waiting until the rest of the form is filled in and the boxes are ticked.
 - **Until the money arrives**, the order shows each item's delivery as a lead
   time instead of a date - "Standard Delivery - 5 working days from when your
   payment reaches us" - on the thank-you page, in the customer's account, and in
