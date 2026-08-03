@@ -62,7 +62,7 @@ Hiding a box genuinely removes it rather than tucking it out of sight, so nobody
 
 If your site's outgoing email is misconfigured, the account is still created, and the person signing up is told plainly that the email couldn't be sent rather than being parked on a page waiting for a link that will never arrive. The reason lands in your deployment logs. The quickest way to see it for yourself is **Settings → Configuration → Email → Send test email**, which reports whatever your mail provider said back. A common culprit is a **from** address your mail provider doesn't consider yours: most of them, iCloud especially, refuse to send on behalf of an address that isn't the account you're signing in as or one of its verified aliases.
 
-A registration link can arrive with the email address already filled in - add `?email=someone@example.com` to the sign-up link and the box starts with it typed. It's a convenience, nothing more: the address is still theirs to change, and it still has to be verified. The [Shop](Shop)'s post-purchase "create an account" prompt uses this, so the customer signs up under the address they ordered with and the order they just placed joins the new account.
+A registration link can arrive with the email address already filled in - add `?email=someone@example.com` to the sign-up link and the box starts with it typed. It's a convenience, nothing more: the address is still theirs to change, and it still has to be verified. The [Shop](Shop)'s post-purchase "create an account" prompt does the same thing without the link: it puts the sign-up form on the order confirmation itself, already holding the address they ordered with, so the order they just placed joins the new account.
 
 ### The "check your inbox" page
 

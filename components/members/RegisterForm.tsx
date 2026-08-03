@@ -18,6 +18,15 @@ type Props = {
   // full form rather than silently losing fields.
   collectUsername?: boolean
   collectDisplayName?: boolean
+  // Embedded uses - a shop's post-purchase prompt, say - already sit under a
+  // heading of their own, and the form's own title would be the second "Create
+  // an account" on the same screen.
+  showHeading?: boolean
+  // Where someone whose address still needs verifying is sent next. Derived
+  // from the current path by default, which only ever works on the register
+  // page itself: an embedded form is on some other URL entirely, and the
+  // derivation quietly reloaded that page with an ?email= on it instead.
+  verifyEmailUrl?: string
 }
 
 type RegisterResult = { status: string; verifyEmailRequired: boolean; verificationEmailSent?: boolean }
@@ -29,6 +38,8 @@ export default function RegisterForm({
   initialEmail,
   collectUsername = true,
   collectDisplayName = true,
+  showHeading = true,
+  verifyEmailUrl,
 }: Props) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [username, setUsername] = useState('')
@@ -78,7 +89,7 @@ export default function RegisterForm({
       // never sent helps nobody, so a failed send keeps them here with the
       // truth instead.
       if (registerResult.verifyEmailRequired && registerResult.verificationEmailSent !== false) {
-        const target = window.location.pathname.replace(/\/register$/, '/verify-email')
+        const target = verifyEmailUrl ?? window.location.pathname.replace(/\/register$/, '/verify-email')
         window.location.href = `${target}?email=${encodeURIComponent(email)}`
       }
     } catch (err: unknown) {
@@ -110,9 +121,11 @@ export default function RegisterForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-5)', color: 'var(--color-text)' }}>
-        Create an account
-      </h1>
+      {showHeading && (
+        <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-5)', color: 'var(--color-text)' }}>
+          Create an account
+        </h1>
+      )}
 
       {error && <div className="alert alert-danger">{error}</div>}
 
