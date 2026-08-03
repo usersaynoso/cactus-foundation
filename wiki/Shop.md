@@ -268,6 +268,30 @@ The useful part is what happens next: sign up with the same email address and th
 
 Anyone can look up an order's status without an account too, using their order number and the email address it was placed under.
 
+### What a signed-in customer actually sees
+
+**Orders** and **Addresses** are tabs in the customer's account, next to Profile and Security, and those pages carry the same tabs across the top - so nobody clicks "order history" and finds themselves stranded on a page with no way back.
+
+The order list shows each order with its date, a photo of what's in it, how many items, what it cost, and where it's got to - being prepared, on its way, complete. Four filters across the top narrow it to orders in progress, completed or cancelled. Opening one shows the lot: every line with its picture and any options they chose, what's been dispatched and what hasn't, each parcel with the courier and tracking number, any refunds, the full breakdown of what they paid (items, discount and the code they used, delivery, VAT), both addresses, and any downloads. There's a **Buy again** button on each line, and a **printable receipt** on its own tidy page.
+
+A line with options on it doesn't get a Buy again button - it gets **Choose options again**, which takes them back to the product. What the order stores is a record of what they chose for reading, not the recipe for rebuilding it, and guessing wrong means sending somebody a desk in the wrong finish.
+
+### Cancellations and returns
+
+Customers can ask to call an order off or send something back from the order page itself, rather than hunting for your email address. They pick a reason from a short list and can add a note.
+
+The rules are the sensible ones and you don't have to police them: **cancelling** is only offered while nothing has been dispatched (once part of it is in a van, it's a return), and **returning** is only offered after something has actually gone out, within a window you set. That window is counted from the day the last parcel left, not the day they ordered - an order that sat on your shelf for three weeks shouldn't eat the customer's return window. One open request per order, and they can withdraw it if they change their mind.
+
+Both are on by default and can be switched off in **Settings → Shop**, along with the length of the return window (30 days out of the box). Off means the pages say to get in touch instead, rather than pretending the option was never there.
+
+Requests land in **Shop → Cancellations & returns** in your admin, waiting ones first and the oldest at the top. Each shows who asked, for what, why, in their own words, and what the order was worth. You approve or decline, and either way you can add a line that goes in the email to them. Approving offers a tickbox to send the money back at the same time - it's a second, deliberate step, because a refund is money leaving the business and shouldn't be one stray click away. Leave it unticked to approve now and refund when the goods are actually back in your hands.
+
+Nothing is ever decided automatically. There is no auto-approve, by design: money going out on a timer is not a setting anyone should inherit without noticing.
+
+Approving a cancellation also closes the order, so it can't be picked and packed by mistake while you're sorting out the refund. If the refund itself fails - a card processor having a bad minute - you're told plainly, the request still counts as approved, and you can retry the refund from the order page where the refund tools already live.
+
+Customers get an email when their request arrives, and another when you've decided. You get one too, at whichever address takes your new-order alerts. All four are editable like every other email the site sends, in **Settings → Email → Templates**.
+
 ---
 
 ## Designing your shop pages

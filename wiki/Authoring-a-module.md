@@ -450,7 +450,54 @@ The slot name (`shop.payments`) is a free string owned by the hosting module - c
 | `core.media-reference-rewriters` | Nowhere visible - runs on media edits | Data contract, not a component. A module that stores media urls in its **own** tables registers one async rewriter `({oldUrl,newUrl,oldKey,newKey}) => Promise<void>`; core runs every registered one as the final step of a media reference rewrite, so when the library moves a blob (optimise to WebP, rename, resize, crop, replace) the module's url columns follow it instead of 404ing. Shop uses it for product images (`shp_product_media`), shop-variations for image swatches (`svr_option_values`). Contract in `lib/media/reference-rewriters.ts`. A rewriter may throw: it runs **before** the old blob is deleted, so a failure aborts with the old url still serving. |
 | `core.media-usage-providers` | Nowhere visible - feeds the media library's **Unused** count | Data contract, not a component. A module that references media from its **own** tables registers one async provider `() => Promise<string[]>` returning the raw reference strings those columns hold - media urls, storage keys or `Media` ids, in any mixture, and JSON columns can be returned whole as text. Core folds them into the same haystack it scans page and layout builder JSON with, so the item counts as in use. Register one whenever your module stores a media reference anywhere, or every image your module owns is counted as unused and offered up for bulk deletion. Contract in `lib/media/usage-providers.ts`. If a provider throws, core logs it and treats the **entire** library as in use rather than trusting a half-built index. |
 | `admins.account-section` | Admin **Account settings** page | Per-admin self-service sections, rendered above the Delete account card (e.g. Twilio's SMS login codes card). Omit `permission` for self-service features every admin should see. |
-| `members.account-section` | Member account overview page | Per-member sections (e.g. Shop's order history, Twilio's text-message sign-in codes). No permission filtering - members have no permission keys. |
+| `members.account-section` | Member account overview page | Per-member sections (e.g. Shop's latest-order card, Twilio's text-message sign-in codes). No permission filtering - members have no permission keys. |
+| `members.account-nav` | Member account **tab bar** | A **data contract**, not a component: export an async function `(member: {id, email, emailVerified}) => MemberAccountNavItem[]`, where an item is `{ key, label, href, badge? }`. `href` is a full public path, because the pages belong to your module and live under your own routes (Shop contributes `/shop/account/orders` and `/shop/account/addresses`). `badge` is a small count pill - use it for things waiting on the member, not for a total. Contract in `lib/members/account-nav.ts`. Return `[]` when your module has nothing to offer this member (switched off, gated, not applicable): a tab that leads to a "not available" notice is worse than no tab. A provider that throws is logged and dropped rather than taking the account area down, but do not rely on that - a member locked out of their own security settings by your bad day is not a good look. |
+
+**Member pages your module owns.** A tab from `members.account-nav` points at a page under your own routes, and that page is *not* inside `app/(public)/cactus-account`, so it never sees the member area's layout - left alone it renders bare, with no tabs and no way back to the account. Wrap it in core's shell instead:
+
+```tsx
+// modules/<you>/app/public/<you>/account/things/page.tsx
+import MemberAccountShell from '@/components/members/account/MemberAccountShell'
+import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberAreaPath } from '@/lib/members/paths'
+
+export default async function ThingsPage() {
+  const member = await getMemberFromCookie()
+  // Your gate, not core's: only you know where to send them back to.
+  if (!member) redirect(`/${getMemberAreaPath()}/login?redirect=/<you>/account/things`)
+
+  return (
+    <MemberAccountShell member={member} maxWidth={880}>
+      {/* your page */}
+    </MemberAccountShell>
+  )
+}
+```
+
+Pass `member` when you have already loaded it (you will have, for the gate) and the shell skips a second session lookup. `notice` takes a page-level banner rendered above the tab bar; `maxWidth` defaults to 720. The shell deliberately does **not** redirect - a signed-out visitor gets your children rendered bare, because core does not know which of your paths to send them back to afterwards.
+
+**Member pages your module owns.** A tab from `members.account-nav` points at a page under your own routes, and that page is *not* inside `app/(public)/cactus-account`, so it never sees the member area's layout - left alone it renders bare, with no tabs and no way back to the account. Wrap it in core's shell instead:
+
+```tsx
+// modules/<you>/app/public/<you>/account/things/page.tsx
+import MemberAccountShell from '@/components/members/account/MemberAccountShell'
+import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberAreaPath } from '@/lib/members/paths'
+
+export default async function ThingsPage() {
+  const member = await getMemberFromCookie()
+  // Your gate, not core's: only you know where to send them back to.
+  if (!member) redirect(`/${getMemberAreaPath()}/login?redirect=/<you>/account/things`)
+
+  return (
+    <MemberAccountShell member={member} maxWidth={880}>
+      {/* your page */}
+    </MemberAccountShell>
+  )
+}
+```
+
+Pass `member` when you have already loaded it (you will have, for the gate) and the shell skips a second session lookup. `notice` takes a page-level banner rendered above the tab bar; `maxWidth` defaults to 720. The shell deliberately does **not** redirect - a signed-out visitor gets your children rendered bare, because core does not know which of your paths to send them back to afterwards.
 
 A module can publish its own extension points too, for other modules to contribute to - most commonly a module extending the pages of a hard dependency it declares in `requiresModules`. Core never learns the point's name; it only runs the generic collection mechanism described below.
 
