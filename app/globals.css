@@ -1048,6 +1048,26 @@ a:hover {
   background: var(--color-border);
 }
 
+/* ── Pinned nav block: the tools row plus Favourites hold the top of the
+   scrolling nav so the shortcuts you use most never scroll out of reach. The
+   z-index is needed because the nav rows below are positioned too. ── */
+.admin-nav-pinned {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--admin-sidebar-bg);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* A long favourites list scrolls inside the pinned block rather than pushing
+   the rest of the menu off the bottom of the rail. */
+.admin-nav-pinned-favs {
+  max-height: 40vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ── Sidebar tools: filter, quick-create, expand/collapse-all ── */
 .admin-nav-tools {
   display: flex;

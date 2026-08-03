@@ -113,6 +113,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   const pathname = usePathname()
   const base = `/${adminPath}`
   const navRef = useRef<HTMLElement>(null)
+  const pinnedRef = useRef<HTMLDivElement>(null)
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const [favourites, setFavourites] = useState<string[]>([])
@@ -177,6 +178,27 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync with the router: drop the pending marker when the navigation lands
     setPendingPath((p) => (p === null ? p : null))
   }, [pathname])
+
+  // The pinned toolbar/favourites block overlays the top of the scroller, so keep
+  // the scroller's padding matched to its height - otherwise scrolling the active
+  // item into view parks it underneath the pinned block.
+  useEffect(() => {
+    const scroller = navRef.current?.closest<HTMLElement>('.admin-sidebar-nav-scroll')
+    if (!scroller) return
+    const pinned = pinnedRef.current
+    if (!pinned) {
+      scroller.style.scrollPaddingTop = ''
+      return
+    }
+    const sync = () => { scroller.style.scrollPaddingTop = `${pinned.offsetHeight}px` }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(pinned)
+    return () => {
+      observer.disconnect()
+      scroller.style.scrollPaddingTop = ''
+    }
+  }, [collapsed])
 
   // Record the visited top-level destination for the Recent list, and make sure
   // the section holding the active item is expanded + scrolled into view.
@@ -355,64 +377,76 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
 
   return (
     <nav ref={navRef} onKeyDown={onNavKeyDown}>
-      {/* Toolbar: filter, quick-create, expand/collapse-all. Hidden on the icon rail. */}
+      {/* Pinned block: toolbar + Favourites stay put while the rest of the tree
+          scrolls under them. Hidden on the icon rail, where neither renders. */}
       {!collapsed && (
-        <div className="admin-nav-tools">
-          <div className="admin-nav-filter-wrap">
-            <span className="admin-nav-filter-icon">{SEARCH_ICON}</span>
-            <input
-              type="text"
-              className="admin-nav-filter"
-              placeholder="Filter menu…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              aria-label="Filter the admin menu"
-            />
-            {filter && (
-              <button type="button" className="admin-nav-filter-clear" onClick={() => setFilter('')} aria-label="Clear filter">×</button>
-            )}
-          </div>
-          {createActions.length > 0 && (
-            <div className="admin-nav-new-wrap">
-              <button
-                type="button"
-                className="admin-nav-tool-btn admin-nav-new-btn"
-                onClick={() => setNewOpen((o) => !o)}
-                aria-haspopup="menu"
-                aria-expanded={newOpen}
-                title="Create something new"
-              >
-                {PLUS_ICON}<span>New</span>
-              </button>
-              {newOpen && (
-                <>
-                  <div className="admin-nav-new-backdrop" onClick={() => setNewOpen(false)} aria-hidden="true" />
-                  <div className="admin-nav-new-menu" role="menu">
-                    {createActions.map((action) => (
-                      <Link
-                        key={action.path}
-                        href={`${base}${action.path}`}
-                        role="menuitem"
-                        className="admin-nav-new-item"
-                        onClick={() => { setNewOpen(false); handleNavClick(action.path) }}
-                      >
-                        {PLUS_ICON}<span>{action.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </>
+        <div className="admin-nav-pinned" ref={pinnedRef}>
+          <div className="admin-nav-tools">
+            <div className="admin-nav-filter-wrap">
+              <span className="admin-nav-filter-icon">{SEARCH_ICON}</span>
+              <input
+                type="text"
+                className="admin-nav-filter"
+                placeholder="Filter menu…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                aria-label="Filter the admin menu"
+              />
+              {filter && (
+                <button type="button" className="admin-nav-filter-clear" onClick={() => setFilter('')} aria-label="Clear filter">×</button>
               )}
             </div>
+            {createActions.length > 0 && (
+              <div className="admin-nav-new-wrap">
+                <button
+                  type="button"
+                  className="admin-nav-tool-btn admin-nav-new-btn"
+                  onClick={() => setNewOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={newOpen}
+                  title="Create something new"
+                >
+                  {PLUS_ICON}<span>New</span>
+                </button>
+                {newOpen && (
+                  <>
+                    <div className="admin-nav-new-backdrop" onClick={() => setNewOpen(false)} aria-hidden="true" />
+                    <div className="admin-nav-new-menu" role="menu">
+                      {createActions.map((action) => (
+                        <Link
+                          key={action.path}
+                          href={`${base}${action.path}`}
+                          role="menuitem"
+                          className="admin-nav-new-item"
+                          onClick={() => { setNewOpen(false); handleNavClick(action.path) }}
+                        >
+                          {PLUS_ICON}<span>{action.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              className="admin-nav-tool-btn"
+              onClick={toggleAll}
+              title={anyExpanded ? 'Collapse all sections' : 'Expand all sections'}
+              aria-label={anyExpanded ? 'Collapse all sections' : 'Expand all sections'}
+            >
+              {anyExpanded ? '⊟' : '⊞'}
+            </button>
+          </div>
+
+          {/* Favourites - pinned with the toolbar, and given its own scrollbar so a
+              long list can never swallow the whole rail. */}
+          {!filterQuery && favouriteItems.length > 0 && (
+            <div className="admin-nav-pinned-favs">
+              {renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
+              {!collapsedSections[FAV_SECTION] && favouriteItems.map((item) => renderItem(item, 'fav'))}
+            </div>
           )}
-          <button
-            type="button"
-            className="admin-nav-tool-btn"
-            onClick={toggleAll}
-            title={anyExpanded ? 'Collapse all sections' : 'Expand all sections'}
-            aria-label={anyExpanded ? 'Collapse all sections' : 'Expand all sections'}
-          >
-            {anyExpanded ? '⊟' : '⊞'}
-          </button>
         </div>
       )}
 
@@ -427,14 +461,6 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
         </div>
       ) : (
         <>
-          {/* Favourites */}
-          {!collapsed && favouriteItems.length > 0 && (
-            <div>
-              {renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
-              {!collapsedSections[FAV_SECTION] && favouriteItems.map((item) => renderItem(item, 'fav'))}
-            </div>
-          )}
-
           {/* Recently visited */}
           {!collapsed && recents.length > 0 && (
             <div>

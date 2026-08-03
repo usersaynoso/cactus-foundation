@@ -129,7 +129,7 @@ Click **Save menu** and the change appears straight away. **Reset to defaults** 
 
 Administrators always see every item, hidden ones included (marked with a small padlock), so you can never lock yourself out of your own settings.
 
-A few handy touches in the menu itself: a filter box to find a link quickly, a star to pin favourites to the top, a list of your recently visited pages, and a search box (or press **Cmd/Ctrl + K**) to jump straight to any screen.
+A few handy touches in the menu itself: a filter box to find a link quickly, a star to pin favourites to the top, a list of your recently visited pages, and a search box (or press **Cmd/Ctrl + K**) to jump straight to any screen. The filter box and your favourites stay put at the top while the rest of the menu scrolls, so your pinned links are always where you left them. Pin a great many and the favourites list gets its own scrollbar rather than pushing everything else out of sight.
 
 ## Access settings
 
