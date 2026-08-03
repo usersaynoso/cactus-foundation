@@ -1619,12 +1619,22 @@ function PhoneBlock(props: any) {
   // text under the mobile breakpoint so just the dial glyph remains (the tel:
   // link and its aria-label still carry the number for taps and screen readers).
   const iconShowsOnMobile = showIcon === 'always' || showIcon === 'mobile'
-  const mobileTextCss = mobileIconOnly === 'yes' && iconShowsOnMobile
-    ? `${mobileMediaQuery()}{[data-phone-id="${id}"] [data-phone-text]{display:none;}}`
-    : ''
 
   const alignRv = normalizeResponsiveValue<string>(align)
   const alignAt = (d: Device) => pickResponsive(alignRv, d) || 'left'
+
+  // The link is an inline box, so with the number hidden the lone glyph still
+  // sits on the text baseline and the line box's descender space pushes it
+  // below the centre line - measured 2.3px low against the other 20px icons in
+  // a header row. Flexing the link for the icon-only case takes the baseline
+  // out of it; `line-height:0` stops the inherited line box adding height of
+  // its own, and the row's justification restates the wrapper's text-align,
+  // which a flex container would otherwise ignore. Scoped to the same media
+  // query and the same block, so a Phone showing its number is untouched.
+  const PHONE_ICON_JUSTIFY: Record<string, string> = { left: 'flex-start', center: 'center', right: 'flex-end' }
+  const mobileTextCss = mobileIconOnly === 'yes' && iconShowsOnMobile
+    ? `${mobileMediaQuery()}{[data-phone-id="${id}"] [data-phone-text]{display:none;}a[data-phone-link="${id}"]{display:flex;align-items:center;justify-content:${PHONE_ICON_JUSTIFY[alignAt('mobile')] ?? 'flex-start'};line-height:0;}}`
+    : ''
 
   // Vertical positioning, mirroring the Heading block: a block height turns the
   // wrapper into a flex column so the number can sit top / middle / bottom; auto
