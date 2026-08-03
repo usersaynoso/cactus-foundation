@@ -127,9 +127,31 @@ Every category also gets a thumbnail beside its name in the list, so the ones st
 
 ## Orders
 
-**Shop → Orders** lists everything, with tabs for each status and a dedicated **Pre-orders** tab sorted by expected dispatch date. Open an order to see its items, refund individual items (not just the whole order), update its status (optionally emailing the customer automatically), add internal notes, and - for bank transfer or cash orders - confirm payment once it's actually landed.
+**Shop → Orders** is the screen you'll live on. Across the top sit four counters: how many orders are waiting on money, how many are paid and haven't gone out yet, how many are waiting on pre-order stock, and what you've taken in the last thirty days. The first three are buttons: click one and the list below shows exactly those orders, so "three to send" always turns into three orders and never four.
 
 Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are a manual job outside Cactus, since there's no card or account to refund back to automatically.
+
+### Finding the orders you need
+
+Search by order number, name or email, then narrow it down: by status, by whether the money has arrived, by how much of the order has gone out, by date (last week, last month, or a range you pick), pre-orders only, or hiding cancelled ones. Sort by newest, oldest, biggest, smallest, customer name or status, and show 25, 50 or 100 at a time.
+
+Whatever you pick ends up in the web address, so a filtered list can be bookmarked, sent to someone else, or come back exactly as you left it with the back button.
+
+Each row tells you the lot at a glance: how old the order is, how many items, whether it's paid, how much of it has been dispatched, its status, the total, and whether the buyer has an account with you or checked out as a guest. The **⋯** button on the right opens the order, jumps to that customer's other orders, starts an email, copies the address, or changes the status there and then.
+
+**Doing several at once.** Tick a few rows and a bar appears: pick a status, decide whether the customers should be emailed about it, and apply. If one of them can't be changed - an order being held back by a pre-order, say - the others still go through and Cactus tells you which one was left alone and why, by order number.
+
+**Export CSV** hands you the orders you're currently looking at, filters and all, one row each. Handy for the accountant, and rather easier than copying numbers off the screen by hand.
+
+### The order page
+
+Open an order and everything sits in two columns. Down the left: what was bought, the parcels that have gone out, any downloads, anything ticked at checkout, and the order's whole history. Down the right: the customer, where it's going, how it was paid for, and the money.
+
+**History** is the useful bit. Placed, paid, every email sent, every parcel, every refund and every note you've written, all in one list with the newest at the top. No more reading four separate lists and working out the order of events in your head. Notes go in at the top of it, and are only ever seen by you and your team.
+
+Also on the page: a note of how many orders this customer has placed and what they've spent, copy buttons for the email address and the delivery address, a link to everything else they've bought, and a **Print** button that turns the page into a tidy packing slip with the admin furniture stripped out.
+
+**Emailing a customer.** Press **Email customer** to send a one-off message about this order - the "your sofa is stuck in Dover" sort of message that no automatic email covers. It goes out from your usual sending address and is added to the order's history, so the record stays complete.
 
 ### Sending an order out in more than one parcel
 
@@ -137,11 +159,11 @@ Orders rarely leave in one tidy box. Two of the four items are on the shelf, the
 
 Open the order and press **Dispatch items**. You get a line for every item with anything still owed, each capped at the number still to go out, so you can send two of the five today and the rest on Friday. Optionally add the courier, a tracking number, a note, and the date the parcel actually went out - handy on a Monday morning, when you're recording something that left on Friday afternoon.
 
-Once recorded, the order picks up a **Dispatched** column showing how many of each item have gone, a **Dispatches** list of every parcel so far, and a small marker next to the status reading **Partly dispatched** or **All dispatched**. That marker is worked out from what's actually left the building rather than being a status you set, so it can't drift out of step with reality and there's no extra status to remember to change.
+Once recorded, each item shows how many have gone and how many are still to follow, a **Parcels** list appears with every parcel so far, and the badges at the top of the order read **Partly dispatched** or **All dispatched**. That badge is worked out from what's actually left the building rather than being a status you set, so it can't drift out of step with reality and there's no extra status to remember to change. The same badge shows on the orders list, and you can filter the whole list by it.
 
 Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Shop → Email templates**.
 
-Recorded a dispatch that never happened? Undo it from the Dispatches list and the items go straight back to being outstanding. Nothing else needs correcting, because the totals are counted from the parcels rather than kept in a separate tally that could disagree with them.
+Recorded a dispatch that never happened? Press **Undo** beside it in the Parcels list and the items go straight back to being outstanding. Nothing else needs correcting, because the totals are counted from the parcels rather than kept in a separate tally that could disagree with them.
 
 Two sensible limits: you can't dispatch more of something than was bought, and you can't dispatch something you've already refunded. If a refund and a dispatch are attempted at the same moment, one of them waits its turn rather than both squeezing past the check.
 
