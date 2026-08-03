@@ -279,6 +279,8 @@ The order list shows each order with its date, a photo of what's in it, how many
 
 A line with options on it doesn't get a Buy again button - it gets **Choose options again**, which takes them back to the product. What the order stores is a record of what they chose for reading, not the recipe for rebuilding it, and guessing wrong means sending somebody a desk in the wrong finish.
 
+Re-ordering is on by default and switches off in **Settings → Shop → Checkout → Order history**, which takes both buttons away together. Worth doing if your range moves faster than your order history - made-to-order work, one-offs, anything where pointing somebody at a year-old product page is more likely to disappoint than to sell.
+
 ### Cancellations and returns
 
 Customers can ask to call an order off or send something back from the order page itself, rather than hunting for your email address. They pick a reason from a short list and can add a note.
