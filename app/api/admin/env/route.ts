@@ -157,18 +157,31 @@ export async function POST(req: NextRequest) {
   // surrounding whitespace, so trimming on write is always safe - and never trust
   // the client to have done it.
   const managedKeys = await getManagedKeys()
-  const toWrite = body.vars
-    .filter(({ key, value }) => managedKeys.has(key) && typeof value === 'string' && value.trim() !== '')
+  const supplied = body.vars.filter(({ value }) => typeof value === 'string' && value.trim() !== '')
+  const toWrite = supplied
+    .filter(({ key }) => managedKeys.has(key))
     .map(({ key, value }) => ({ key, value: value.trim() }))
 
+  // Anything filled in but not managed is reported rather than dropped in
+  // silence - a "Saved" message over a write that never happened is how a
+  // credential ends up looking set when it is not. Usually means the module
+  // declaring the key is a version behind what the panel expects.
+  const skipped = supplied.filter(({ key }) => !managedKeys.has(key)).map(({ key }) => key)
+
   if (toWrite.length === 0) {
+    if (skipped.length > 0) {
+      return errorResponse(
+        `These settings are not managed by this site: ${skipped.join(', ')}. If they belong to a module, update the module first.`,
+        400
+      )
+    }
     return NextResponse.json({ ok: true, written: 0 })
   }
 
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
     await recordDeploymentNeeded({ label: labelForEnvKeys(toWrite.map((v) => v.key)) })
-    return NextResponse.json({ ok: true, written: toWrite.length })
+    return NextResponse.json({ ok: true, written: toWrite.length, skipped })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return errorResponse(`Failed to write env vars: ${message}`, 502)

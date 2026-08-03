@@ -165,9 +165,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       // admin sees live deploy status in the shell. The module ships as 'deploying' with the
       // new tag held in pendingVersion - the confirmed `version` only moves once the deploy
       // succeeds (markModulesDeploySucceeded), so a failed deploy doesn't masquerade as done.
+      // Refresh the stored manifest to the one at the tag being installed.
+      // Without this the row keeps the manifest recorded at INSTALL time, so a
+      // module that declares a new requiredEnvVars entry in a later version can
+      // never have that variable managed - /api/admin/env derives its allowed
+      // keys from these stored manifests and silently drops anything else, which
+      // reads to the admin as "saved" while nothing was written. Written at
+      // update time rather than on deploy success on purpose: the env vars have
+      // to be settable while the new code is going out, not after.
       await prisma.module.update({
         where: { id },
-        data: { status: 'deploying', pendingVersion: release.tag, updateAvailable: null, updateNotes: null },
+        data: {
+          status: 'deploying',
+          pendingVersion: release.tag,
+          updateAvailable: null,
+          updateNotes: null,
+          ...(incoming ? { manifest: incoming as object } : {}),
+        },
       })
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
