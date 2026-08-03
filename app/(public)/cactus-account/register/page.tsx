@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, authMethodPolicy } from '@/lib/members/config'
 import { validateInviteToken } from '@/lib/members/registration'
 import RegisterForm from '@/components/members/RegisterForm'
 
@@ -59,6 +59,7 @@ export default async function MemberRegisterPage({ searchParams }: Props) {
         initialEmail={prefillEmail}
         collectUsername={config.registrationCollectUsername}
         collectDisplayName={config.registrationCollectDisplayName}
+        passwordPolicy={authMethodPolicy(config, 'PASSWORD')}
       />
     </div>
   )

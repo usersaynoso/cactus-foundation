@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { sendMagicLink } from '@/lib/members/magic-link'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   const config = await getMembersConfig()
-  if (!config.enabled || !config.allowedAuthMethods.includes('MAGIC_LINK')) {
+  if (!config.enabled || !isAuthMethodEnabled(config, 'MAGIC_LINK')) {
     return NextResponse.json({ ok: true })
   }
 

@@ -9,7 +9,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMemberAreaPath } from '@/lib/members/paths'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, authMethodPolicy } from '@/lib/members/config'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { sanitizeRedirect } from '@/lib/auth/redirect'
 import LoginForm from '@/components/members/LoginForm'
@@ -65,6 +65,7 @@ export async function MembersRegisterRsc() {
       privacyPolicyUrl={privacyPolicyUrl}
       collectUsername={config.registrationCollectUsername}
       collectDisplayName={config.registrationCollectDisplayName}
+      passwordPolicy={authMethodPolicy(config, 'PASSWORD')}
     />
   )
 }

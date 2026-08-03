@@ -5,7 +5,13 @@ import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
-import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
+import { memberOutstandingAuthSetup } from '@/lib/members/auth-policy'
+import {
+  getMemberAreaPath,
+  isPublicMemberPath,
+  isSetupSignInPath,
+  MEMBER_SETUP_SIGNIN_SUBPATH,
+} from '@/lib/members/paths'
 import AccountFlash from '@/components/members/account/AccountFlash'
 import MemberAccountShell from '@/components/members/account/MemberAccountShell'
 
@@ -43,6 +49,24 @@ export default async function AccountLayout({ children }: { children: React.Reac
   }
 
   const config = await getMembersConfig()
+
+  // A sign-in method marked Required has to actually get set up, or "required"
+  // is just a strongly worded suggestion. Everything in the member area waits
+  // behind the setup step until it is - including this layout's own children,
+  // which is why the check sits above them rather than on each page.
+  //
+  // proxy.ts 404s direct hits on /cactus-account, so every request that gets
+  // here came through the rewrite and carries the header. Treating an absent
+  // one as "no gate" rather than "redirect" is the loop-safe way round: a
+  // redirect on a path we cannot identify would point the setup page at itself.
+  const outstandingSetup = await memberOutstandingAuthSetup(config, member.id)
+  if (outstandingSetup.length > 0) {
+    const setupHeaders = await headers()
+    const currentPath = setupHeaders.get('x-cactus-member-full-path')
+    if (currentPath && !isSetupSignInPath(currentPath, basePath)) {
+      redirect(`${basePath}${MEMBER_SETUP_SIGNIN_SUBPATH}`)
+    }
+  }
 
   // Nag members who sign in with a password until they add the mobile number
   // the site requires for sign-in codes. Members without a password never see

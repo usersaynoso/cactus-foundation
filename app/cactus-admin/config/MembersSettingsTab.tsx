@@ -2,14 +2,21 @@
 
 import { useEffect, useState } from 'react'
 
+type MethodPolicy = 'OFF' | 'OPTIONAL' | 'REQUIRED'
+
 type Config = {
   enabled: boolean
   registrationMode: 'OPEN' | 'INVITE_ONLY' | 'APPROVAL_REQUIRED'
   emailVerificationRequired: boolean
   registrationCollectUsername: boolean
   registrationCollectDisplayName: boolean
-  allowedAuthMethods: string[]
-  passwordsEnabled: boolean
+  authMethodPolicies: {
+    PASSKEY: MethodPolicy
+    // Two states: there is nothing for a member to enrol, so "required" would
+    // behave identically to "optional".
+    MAGIC_LINK: 'OFF' | 'OPTIONAL'
+    PASSWORD: MethodPolicy
+  }
   smsTwoFactorPolicy: 'OPTIONAL' | 'REQUIRED'
   trustedBrowserDays: number
   sessionDays: number
@@ -41,7 +48,31 @@ type Config = {
 export type MembersSettingsTabKey = 'registration' | 'avatars' | 'usernames' | 'sections' | 'access'
 type Tab = MembersSettingsTabKey
 
-const AUTH_METHODS = ['PASSKEY', 'MAGIC_LINK', 'PASSWORD'] as const
+// Copy is written for a site owner, so each option says what the member ends up
+// doing rather than naming the mechanism.
+const AUTH_METHOD_FIELDS = [
+  {
+    key: 'PASSKEY',
+    label: 'Passkey',
+    hint: 'Face, fingerprint or screen lock. Nothing to remember and nothing to type.',
+    requiredHint: 'Required members are asked to add one the first time they sign in, before anything else.',
+    allowRequired: true,
+  },
+  {
+    key: 'MAGIC_LINK',
+    label: 'Email sign-in link',
+    hint: 'A one-time link to their inbox. Needs no setup, which is why it has no "required" option - the mailbox is the credential.',
+    requiredHint: null,
+    allowRequired: false,
+  },
+  {
+    key: 'PASSWORD',
+    label: 'Password',
+    hint: 'Always paired with a short code, so a stolen password on its own is no use to anyone.',
+    requiredHint: 'Required members choose one when they sign up, and set up their second step on first sign-in.',
+    allowRequired: true,
+  },
+] as const
 
 function listToText(list: string[]): string {
   return list.join('\n')
@@ -91,6 +122,8 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
   }
 
   if (!config) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
+
+  const noMethodsEnabled = AUTH_METHOD_FIELDS.every((m) => config.authMethodPolicies[m.key] === 'OFF')
 
   return (
     <div>
@@ -215,26 +248,45 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="text" value={`/${memberAreaPath}`} disabled />
             <span className="field-hint">Set via the MEMBER_AREA_PATH environment variable - deploy-time only.</span>
           </div>
-          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }}>Allowed sign-in methods</p>
-          {AUTH_METHODS.map((method) => (
-            <label key={method} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.allowedAuthMethods.includes(method)}
-                onChange={(e) => update(
-                  'allowedAuthMethods',
-                  e.target.checked
-                    ? [...config.allowedAuthMethods, method]
-                    : config.allowedAuthMethods.filter((m) => m !== method)
+          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Sign-in methods</p>
+          <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+            Optional means members may set it up. Required means they must, and are walked through it on
+            their way in.
+          </p>
+          {AUTH_METHOD_FIELDS.map((method) => (
+            <div className="field" key={method.key}>
+              <label>{method.label}</label>
+              <select
+                value={config.authMethodPolicies[method.key]}
+                onChange={(e) => update('authMethodPolicies', {
+                  ...config.authMethodPolicies,
+                  [method.key]: e.target.value as MethodPolicy,
+                })}
+              >
+                <option value="OFF">Off - never offered</option>
+                <option value="OPTIONAL">Optional - members may use it</option>
+                {method.allowRequired && <option value="REQUIRED">Required - every member must set it up</option>}
+              </select>
+              <span className="field-hint">
+                {method.hint}
+                {method.requiredHint && config.authMethodPolicies[method.key] === 'REQUIRED' && (
+                  <> {method.requiredHint}</>
                 )}
-              />
-              {method === 'PASSKEY' ? 'Passkey' : method === 'MAGIC_LINK' ? 'Magic link' : 'Password'}
-            </label>
+              </span>
+            </div>
           ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-3) 0', cursor: 'pointer' }}>
-            <input type="checkbox" checked={config.passwordsEnabled} onChange={(e) => update('passwordsEnabled', e.target.checked)} />
-            Enable password sign-in (2FA becomes mandatory)
-          </label>
+          {noMethodsEnabled && (
+            <div className="alert alert-danger">
+              Every method is off, which leaves nobody - members or you - able to sign in. Turn at least one
+              back on before saving.
+            </div>
+          )}
+          {!noMethodsEnabled && config.authMethodPolicies.MAGIC_LINK === 'OFF' && (
+            <div className="alert alert-warning">
+              With the email sign-in link off, brand-new members have no way in: passkeys and passwords are
+              both set up from inside an account they can&apos;t reach yet. Existing members are unaffected.
+            </div>
+          )}
           <div className="field">
             <label>Mobile number for sign-in codes</label>
             <select value={config.smsTwoFactorPolicy} onChange={(e) => update('smsTwoFactorPolicy', e.target.value as Config['smsTwoFactorPolicy'])}>

@@ -29,13 +29,32 @@ export function getMemberAreaPath(): string {
 // mirrors proxy.ts skipping its own gate for the admin area's /login sub-path.
 export const MEMBER_PUBLIC_SUBPATHS = ['/login', '/register', '/verify-email']
 
-// True only for those pages under the member area itself. `full` is the public
-// path, query optional (e.g. "/account/login?redirect=/x"); `basePath` is
-// "/" + getMemberAreaPath(). Anything outside the member area is not this
-// function's business - a site could have its own page at /login.
-export function isPublicMemberPath(full: string, basePath: string): boolean {
+// Where a member is sent to set up any sign-in method the site marks Required.
+// Needs a session, so unlike the paths above it is not public.
+export const MEMBER_SETUP_SIGNIN_SUBPATH = '/setup-signin'
+
+// The part of a member-area URL after the base, or null when the URL isn't in
+// the member area at all. `full` is the public path, query optional (e.g.
+// "/account/login?redirect=/x"); `basePath` is "/" + getMemberAreaPath().
+function memberSubPath(full: string, basePath: string): string | null {
   const path = full.split('?')[0] ?? ''
-  if (path !== basePath && !path.startsWith(basePath + '/')) return false
-  const sub = path.slice(basePath.length).replace(/\/+$/, '') || '/'
+  if (path !== basePath && !path.startsWith(basePath + '/')) return null
+  return path.slice(basePath.length).replace(/\/+$/, '') || '/'
+}
+
+// True only for those pages under the member area itself. Anything outside the
+// member area is not this function's business - a site could have its own page
+// at /login.
+export function isPublicMemberPath(full: string, basePath: string): boolean {
+  const sub = memberSubPath(full, basePath)
+  if (sub === null) return false
   return MEMBER_PUBLIC_SUBPATHS.some((p) => sub === p || sub.startsWith(p + '/'))
+}
+
+// The one member-area page the required-setup gate must not bounce away from,
+// or it would be redirecting to itself for ever.
+export function isSetupSignInPath(full: string, basePath: string): boolean {
+  const sub = memberSubPath(full, basePath)
+  if (sub === null) return false
+  return sub === MEMBER_SETUP_SIGNIN_SUBPATH || sub.startsWith(MEMBER_SETUP_SIGNIN_SUBPATH + '/')
 }

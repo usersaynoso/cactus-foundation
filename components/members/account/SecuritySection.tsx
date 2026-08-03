@@ -10,7 +10,7 @@ export default function SecuritySection() {
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
   const [sessions, setSessions] = useState<Session[] | null>(null)
   const [trustedBrowsers, setTrustedBrowsers] = useState<TrustedBrowser[] | null>(null)
-  const [passwordStatus, setPasswordStatus] = useState<{ hasPassword: boolean; hasTwoFactor: boolean; passwordsEnabled: boolean } | null>(null)
+  const [passwordStatus, setPasswordStatus] = useState<{ hasPassword: boolean; hasTwoFactor: boolean; passwordsEnabled: boolean; passwordRequired: boolean } | null>(null)
   const [twoFactorStatus, setTwoFactorStatus] = useState<{ enabled: boolean; method: string | null } | null>(null)
   const [recoveryRemaining, setRecoveryRemaining] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -197,6 +197,11 @@ export default function SecuritySection() {
           {passwordStatus.hasPassword && !twoFactorStatus?.enabled && (
             <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
               Set up two-factor authentication below to be able to sign in with your password.
+            </p>
+          )}
+          {passwordStatus.passwordRequired && (
+            <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
+              This site asks every member for a password, so this one can be changed but not removed.
             </p>
           )}
         </>

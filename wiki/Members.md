@@ -20,13 +20,29 @@ Once it's on, your site gets:
 
 ## How people sign in
 
-Members can sign in three ways, and you choose which are switched on (**Settings → Users → Access control**):
+Members can sign in three ways, and each one has its own setting (**Settings → Users → Access control**):
 
-- **Passkey** - fingerprint, face unlock, or a security key. The quickest and most secure option, and switched on by default.
-- **Magic link** - a one-time sign-in link emailed to them. No password to remember. Switched on by default alongside passkeys, and it's what a brand-new member uses the very first time, before they've set anything else up.
-- **Password** - the traditional option, switched off by default. If you turn it on, members must also set up a second sign-in step (an email code or an authenticator app) - a password alone is never enough.
+- **Passkey** - fingerprint, face unlock, or a security key. The quickest and most secure option. **Optional** by default.
+- **Email sign-in link** - a one-time link emailed to them. No password to remember. **Optional** by default, and it's what a brand-new member uses the very first time, before they've set anything else up.
+- **Password** - the traditional option, **off** by default. If you turn it on, members must also set up a second sign-in step (an email code or an authenticator app) - a password alone is never enough.
 
-Members can add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member.
+### Off, Optional, Required
+
+Each method is one of three things:
+
+- **Off** - never offered to anybody.
+- **Optional** - offered, and members set it up if they fancy it. This is how the site has always behaved.
+- **Required** - every member must have it. They're walked through setting it up on their way in, and nothing else in their account opens until they have.
+
+The email sign-in link has no **Required** option, and that's deliberate rather than an oversight: there's nothing for a member to set up. Their inbox is the credential, and they proved they have it when they verified their address.
+
+Setting **Password** to Required also puts a password box on the sign-up form, so new members choose one as they join. The second step can't be done until they're actually signed in, so they're asked for that the first time they arrive.
+
+Members can still add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member. What they can't do is remove something you've marked Required; the site says so plainly rather than letting them delete it and immediately asking for it back.
+
+### A word of caution about the sign-in link
+
+Turning the **email sign-in link** off is the one setting that can strand people. Passkeys and passwords are both set up from inside an account, and a member who has only just registered can't get inside one yet - so with the link off, a brand-new member has nothing they can use. Existing members with a passkey or a password carry on perfectly happily. The settings page says as much when you switch it off, and refuses outright to save with all three methods off, which would lock the doors on everybody.
 
 ### What the sign-in form actually shows
 

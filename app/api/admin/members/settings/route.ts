@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { MembersConfigSchema, getMembersConfig, invalidateMembersConfigCache } from '@/lib/members/config'
+import { hasAnyAuthMethod } from '@/lib/members/auth-policy'
 import { getMemberAreaPath } from '@/lib/members/paths'
 
 export async function GET() {
@@ -39,6 +40,16 @@ export async function PATCH(request: NextRequest) {
   const merged = MembersConfigSchema.safeParse({ ...current, ...body })
   if (!merged.success) {
     return NextResponse.json({ error: merged.error.issues[0]?.message ?? 'Invalid settings' }, { status: 400 })
+  }
+
+  // Turning every sign-in method off locks the members system shut with no
+  // screen left to undo it from. Refused here rather than in the schema so the
+  // message can say what to do about it.
+  if (!hasAnyAuthMethod(merged.data)) {
+    return NextResponse.json(
+      { error: 'At least one sign-in method must stay switched on, or no member could ever sign in.' },
+      { status: 400 }
+    )
   }
 
   await prisma.siteConfig.update({

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled, isAuthMethodRequired } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,12 +16,23 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const remaining = await prisma.memberPasskey.count({ where: { memberId: member.id, NOT: { id } } })
   if (remaining === 0) {
+    const config = await getMembersConfig()
+
+    // A site that requires passkeys would only bounce them straight back to the
+    // setup step, so refuse here with the actual reason rather than letting the
+    // removal succeed and the gate undo it.
+    if (isAuthMethodRequired(config, 'PASSKEY')) {
+      return NextResponse.json(
+        { error: 'This site requires a passkey on every account, so your last one cannot be removed. Add another first.' },
+        { status: 400 }
+      )
+    }
+
     // Unlike admin (where password is the only fallback), members always have
     // magic link as a fallback so long as it's an allowed method - only block
     // the deletion when NEITHER a magic-link path NOR a working password
     // exists, since that would leave zero ways to sign back in.
-    const config = await getMembersConfig()
-    const hasMagicLinkFallback = config.allowedAuthMethods.includes('MAGIC_LINK')
+    const hasMagicLinkFallback = isAuthMethodEnabled(config, 'MAGIC_LINK')
     if (!hasMagicLinkFallback) {
       const password = await prisma.memberPassword.findUnique({ where: { memberId: member.id } })
       if (!password) {

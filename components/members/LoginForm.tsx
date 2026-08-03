@@ -49,12 +49,12 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
   useEffect(() => {
     fetch('/api/members/auth/config')
       .then((r) => r.json())
-      .then((d: { allowedAuthMethods?: string[]; passwordsEnabled?: boolean }) => {
-        const allowed = d.allowedAuthMethods ?? []
+      .then((d: { enabledAuthMethods?: string[] }) => {
+        const enabled = d.enabledAuthMethods ?? []
         setSiteMethods({
-          passkey: allowed.includes('PASSKEY'),
-          password: Boolean(d.passwordsEnabled) && allowed.includes('PASSWORD'),
-          magicLink: allowed.includes('MAGIC_LINK'),
+          passkey: enabled.includes('PASSKEY'),
+          password: enabled.includes('PASSWORD'),
+          magicLink: enabled.includes('MAGIC_LINK'),
         })
       })
       .catch(() => {})

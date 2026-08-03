@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, authMethodPolicy } from '@/lib/members/config'
+import { hashPassword, validateNewPassword } from '@/lib/auth/password'
 import {
   isUsernameFormatValid,
   isUsernameAvailable,
@@ -28,6 +29,9 @@ const Body = z.object({
   // whether a supplied value is required, honoured, or ignored outright.
   username: z.string().min(2).max(32).optional(),
   displayName: z.string().trim().max(80).optional(),
+  // Same story: whether a password is asked for, insisted on, or ignored is
+  // the PASSWORD sign-in method's policy, checked below.
+  password: z.string().optional(),
   turnstileToken: z.string().optional(),
   inviteToken: z.string().optional(),
   agreedToPolicy: z.boolean(),
@@ -51,6 +55,8 @@ export async function POST(request: NextRequest) {
   const suppliedUsername = config.registrationCollectUsername
     ? parsed.data.username?.toLowerCase()
     : undefined
+  const passwordPolicy = authMethodPolicy(config, 'PASSWORD')
+  const suppliedPassword = passwordPolicy === 'OFF' ? undefined : parsed.data.password
   const inviteToken = parsed.data.inviteToken?.trim()
 
   if (!agreedToPolicy) {
@@ -97,6 +103,22 @@ export async function POST(request: NextRequest) {
     if (!(await isUsernameAvailable(suppliedUsername))) {
       return NextResponse.json({ error: `Username "${suppliedUsername}" is not available` }, { status: 409 })
     }
+  }
+
+  // Deliberately settled before the existing-email lookup below. That branch
+  // answers identically to a fresh registration so an address can't be probed
+  // for; rejecting a weak password only on the fresh path would hand back the
+  // difference the branch exists to hide.
+  let passwordHash: string | null = null
+  if (passwordPolicy === 'REQUIRED' && !suppliedPassword) {
+    return NextResponse.json({ error: 'Choose a password' }, { status: 400 })
+  }
+  if (suppliedPassword) {
+    const pwResult = await validateNewPassword(suppliedPassword)
+    if (!pwResult.valid) {
+      return NextResponse.json({ error: pwResult.reason ?? 'Password is not strong enough' }, { status: 400 })
+    }
+    passwordHash = await hashPassword(suppliedPassword)
   }
 
   // Enumeration-safe: an existing email doesn't get a distinguishable error -
@@ -166,6 +188,9 @@ export async function POST(request: NextRequest) {
       displayName: displayName || null,
       status,
       roleId,
+      // Password sign-in also needs a second factor, which can only be enrolled
+      // from inside the account - the setup gate asks for it on the way in.
+      ...(passwordHash ? { password: { create: { hash: passwordHash } } } : {}),
     },
   })
 

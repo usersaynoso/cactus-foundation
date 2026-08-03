@@ -18,6 +18,11 @@ type Props = {
   // full form rather than silently losing fields.
   collectUsername?: boolean
   collectDisplayName?: boolean
+  // The site's PASSWORD sign-in policy. Off keeps the field away entirely,
+  // optional offers it, required insists on one before the account is made.
+  // Left undefined it is fetched, so the Puck editor preview and any embedded
+  // use show the same form the live page would without having to be told.
+  passwordPolicy?: 'OFF' | 'OPTIONAL' | 'REQUIRED'
   // Embedded uses - a shop's post-purchase prompt, say - already sit under a
   // heading of their own, and the form's own title would be the second "Create
   // an account" on the same screen.
@@ -40,10 +45,13 @@ export default function RegisterForm({
   collectDisplayName = true,
   showHeading = true,
   verifyEmailUrl,
+  passwordPolicy,
 }: Props) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [password, setPassword] = useState('')
+  const [fetchedPasswordPolicy, setFetchedPasswordPolicy] = useState<Props['passwordPolicy']>()
   const [agreedToPolicy, setAgreedToPolicy] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState('')
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null)
@@ -58,6 +66,25 @@ export default function RegisterForm({
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (passwordPolicy) return
+    fetch('/api/members/auth/config')
+      .then((r) => r.json())
+      .then((d: { authMethodPolicies?: { PASSWORD?: Props['passwordPolicy'] } }) =>
+        setFetchedPasswordPolicy(d.authMethodPolicies?.PASSWORD ?? 'OFF')
+      )
+      // A failed lookup leaves the field hidden: the API rejects a registration
+      // missing a required password anyway, which is a far better outcome than
+      // guessing a password is wanted and asking for one the site never stores.
+      .catch(() => setFetchedPasswordPolicy('OFF'))
+  }, [passwordPolicy])
+
+  // Undefined only for the first render before the lookup lands - treated as
+  // off so the field never flashes in and out.
+  const effectivePasswordPolicy = passwordPolicy ?? fetchedPasswordPolicy ?? 'OFF'
+  const collectPassword = effectivePasswordPolicy !== 'OFF'
+  const passwordRequired = effectivePasswordPolicy === 'REQUIRED'
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -70,6 +97,7 @@ export default function RegisterForm({
           email,
           username: collectUsername ? username : undefined,
           displayName: collectDisplayName ? displayName || undefined : undefined,
+          password: collectPassword ? password || undefined : undefined,
           agreedToPolicy,
           turnstileToken: turnstileToken || undefined,
           inviteToken,
@@ -160,6 +188,23 @@ export default function RegisterForm({
         </div>
       )}
 
+      {collectPassword && (
+        <div className="field">
+          <label>{passwordRequired ? 'Password' : 'Password (optional)'}</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required={passwordRequired}
+            autoComplete="new-password"
+          />
+          <span className="field-hint">
+            You&apos;ll also need to set up a second step - a code from an app or your inbox - before
+            you can sign in with it. We&apos;ll walk you through that the first time you sign in.
+          </span>
+        </div>
+      )}
+
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 'var(--text-sm)', margin: '0 0 var(--space-4)', cursor: 'pointer', color: 'var(--color-text)' }}>
         <input
           type="checkbox"
@@ -187,6 +232,7 @@ export default function RegisterForm({
           loading ||
           !email ||
           (collectUsername && !username) ||
+          (passwordRequired && !password) ||
           !agreedToPolicy ||
           (!!turnstileSiteKey && !turnstileToken)
         }

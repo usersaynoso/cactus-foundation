@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 
@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
   // What the site allows at all. A method the owner has switched off is never
   // offered, however the member's own account is set up.
   const siteAllows = {
-    passkey: config.enabled && config.allowedAuthMethods.includes('PASSKEY'),
-    password: config.enabled && config.passwordsEnabled && config.allowedAuthMethods.includes('PASSWORD'),
+    passkey: config.enabled && isAuthMethodEnabled(config, 'PASSKEY'),
+    password: config.enabled && isAuthMethodEnabled(config, 'PASSWORD'),
     // Without mail configured the link would be requested, cheerfully
     // confirmed, and never arrive.
-    magicLink: config.enabled && config.allowedAuthMethods.includes('MAGIC_LINK') && isEmailConfigured(),
+    magicLink: config.enabled && isAuthMethodEnabled(config, 'MAGIC_LINK') && isEmailConfigured(),
   }
 
   // The answer for a member with nothing set up, and therefore also the answer

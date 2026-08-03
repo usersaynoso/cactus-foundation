@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie, deleteAllMemberSessions, getCurrentMemberSessionTokenHash, revokeAllMemberTrustedBrowsers } from '@/lib/members/session'
 import { hashPassword, verifyPassword, validateNewPassword } from '@/lib/auth/password'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled, isAuthMethodRequired } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 
 export async function GET() {
@@ -19,7 +19,8 @@ export async function GET() {
   return NextResponse.json({
     hasPassword: !!password,
     hasTwoFactor: !!twoFactor,
-    passwordsEnabled: config.passwordsEnabled,
+    passwordsEnabled: isAuthMethodEnabled(config, 'PASSWORD'),
+    passwordRequired: isAuthMethodRequired(config, 'PASSWORD'),
   })
 }
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
-  if (!config.passwordsEnabled) {
+  if (!isAuthMethodEnabled(config, 'PASSWORD')) {
     return NextResponse.json({ error: 'Password sign-in is not enabled for this site' }, { status: 403 })
   }
 
@@ -84,6 +85,16 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   const member = await getMemberFromCookie()
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  // Same reasoning as removing a last passkey on a passkey-required site: the
+  // setup gate would only ask for it straight back, so say why instead.
+  const config = await getMembersConfig()
+  if (isAuthMethodRequired(config, 'PASSWORD')) {
+    return NextResponse.json(
+      { error: 'This site requires a password on every account, so yours cannot be removed.' },
+      { status: 400 }
+    )
+  }
 
   await prisma.memberPassword.deleteMany({ where: { memberId: member.id } })
   return NextResponse.json({ ok: true })

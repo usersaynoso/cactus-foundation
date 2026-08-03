@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { verifyPassword } from '@/lib/auth/password'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { loginRejectionForStatus } from '@/lib/members/registration'
 import { createMemberEmailChallenge } from '@/lib/members/email-challenge'
 import { getActiveSmsProvider, sendLoginCodeSms, maskPhone } from '@/lib/auth/sms'
@@ -25,7 +25,7 @@ const Body = z.object({
 
 export async function POST(request: NextRequest) {
   const config = await getMembersConfig()
-  if (!config.enabled || !config.passwordsEnabled) {
+  if (!config.enabled || !isAuthMethodEnabled(config, 'PASSWORD')) {
     return NextResponse.json({ error: 'Password sign-in is not available' }, { status: 403 })
   }
 

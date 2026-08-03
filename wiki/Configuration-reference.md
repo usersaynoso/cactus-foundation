@@ -266,8 +266,9 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Allowed sign-in methods | Which of Passkey, Magic link, Password are offered | Passkey, Magic link |
-| Passwords enabled | Whether password sign-in is offered (mirrors the toggle above; two-factor is compulsory whenever this is on) | Off |
+| Passkey | Off, Optional or Required. Required members are asked to add one the first time they sign in, before they can go anywhere else in their account | Optional |
+| Email sign-in link | Off or Optional. No Required option: there is nothing for a member to set up, the mailbox they have already verified is the credential | Optional |
+| Password | Off, Optional or Required. Required members choose one on the sign-up form, and set up their second step the first time they sign in. A short code is always compulsory alongside a password | Off |
 | Trust this browser (days) | How long a member's "trust this browser" cookie lasts before a two-factor code is required again | `30` |
 | Session length (days) | How long a member stays signed in (sliding expiry) | `30` |
 | Site-wide members-only mode | Locks the entire public site behind member sign-in | Off |
