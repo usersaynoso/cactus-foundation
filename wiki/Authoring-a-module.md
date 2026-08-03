@@ -57,7 +57,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `tablePrefix` | `string` (required) | Short unique namespace for this module's tables. Must end with underscore (`^[a-z][a-z0-9_]*_$`). Example: `forum_`. **Two modules cannot share a prefix.** |
 | `description` | `string` | Short description shown in the admin. |
 | `requiresCoreVersion` | `string` | Optional. Minimum Cactus core version (semver, no leading `v`) this module needs. Install and update are refused with an "update Cactus first" message when the running core is older. Set this whenever your module imports a core helper introduced in a specific core release - without it, installing on an older core commits the module and breaks the site's next build. |
-| `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. |
+| `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. Declaring a var here is also what lets your settings tab write it through `/api/admin/env` - that route only accepts keys the installed modules have declared. Adding a new one in a later version of your module works from Cactus 0.5.875 onwards, which refreshes the stored manifest when a module updates; before that the manifest was frozen at install time and the new key was silently ignored. If a site's copy of your module is behind, `/api/admin/env` answers with the unaccepted keys in `skipped` (or a 400 if it accepted none), so surface that rather than showing a bare "Saved". |
 | `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. |
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. |
 | `navGroupOrder` | `number` | Optional, only meaningful alongside `navGroupLabel`. Lower numbers sort earlier among labelled module sections; modules that omit it sort after any that set it, in their existing order. Use this if your module's section should appear above another module's, rather than wherever install order happens to put it. |
@@ -425,16 +425,30 @@ Sometimes a settings panel belongs *inside another module's* settings, not as it
 ]
 ```
 
-The core settings page (`app/cactus-admin/config/page.tsx`) renders every hosted panel server-side and groups them by `host` into a `hostedSettingsSlots: Record<slotName, ReactNode>` map, permission-filtered exactly like top-level tabs. That map is threaded through `ConfigPageClient` to **every** module settings tab as an optional `hostedSettingsSlots` prop. The panel component itself is unchanged - it still receives no props of its own and manages its own fetching.
+The core settings page (`app/cactus-admin/config/page.tsx`) renders every hosted panel server-side, permission-filtered exactly like top-level tabs, and groups them by `host` into **two** shapes (both in `lib/modules/hosted-settings.ts`), threaded through `ConfigPageClient` to **every** module settings tab as optional props:
 
-**To expose a slot from your own settings tab** (i.e. become a *host*), accept the prop and drop the node in wherever it belongs:
+- `hostedSettingsSlots: Record<slotName, ReactNode>` - the slot's panels merged into one node. For a host that just drops them into a section of its own UI and needs nothing else about them.
+- `hostedSettingsPanels: Record<slotName, { id, label, node }[]>` - the same panels kept separate, each still carrying the `id` and `label` from its manifest entry. For a host that has to say something *about* each panel first, which in practice means giving each one a tab, since a tab strip needs the labels up front and cannot recover them from a merged node.
+
+Both are always passed, so a host can change its mind without a core change. The panel component itself is unchanged either way - it still receives no props of its own and manages its own fetching, saving and permission checks.
+
+**To expose a slot from your own settings tab** (i.e. become a *host*), accept whichever prop suits and drop the nodes in where they belong:
 
 ```tsx
-export function ShopSettingsTab({ hostedSettingsSlots }: { hostedSettingsSlots?: Record<string, ReactNode> } = {}) {
-  // ...inside the Payments sub-tab, after the built-in provider cards:
-  {hostedSettingsSlots?.['shop.payments'] && <>{hostedSettingsSlots['shop.payments']}</>}
+// Merged: everything contributed to the slot, under a heading the host wrote.
+export function SomeSettingsTab({ hostedSettingsSlots }: ModuleSettingsTabProps = {}) {
+  return <>{hostedSettingsSlots?.['some.slot']}</>
+}
+
+// Labelled: one tab per contributed panel. Shop's Payments tab does this - each
+// payment method a module adds gets a button of its own beside the built-in ones.
+export function ShopSettingsTab({ hostedSettingsPanels }: ModuleSettingsTabProps = {}) {
+  const panels = hostedSettingsPanels?.['shop.payments'] ?? []
+  // ...one tab per panel, labelled panel.label, rendering panel.node when active
 }
 ```
+
+A hosted panel saves through its own module's API, so a host showing one should stand its own Save button down while it is on screen - otherwise the button is there to be pressed and does nothing to what is under it.
 
 The slot name (`shop.payments`) is a free string owned by the hosting module - core never knows or checks it, so a contributing module and a hosting module simply have to agree on the name (document your slot names in the host module's README). A hosted panel that targets a slot no host renders is silently invisible, so keep the contributing module's `requiresModules` / `requiresCoreVersion` in step with the version that introduced the slot.
 
@@ -452,29 +466,6 @@ The slot name (`shop.payments`) is a free string owned by the hosting module - c
 | `admins.account-section` | Admin **Account settings** page | Per-admin self-service sections, rendered above the Delete account card (e.g. Twilio's SMS login codes card). Omit `permission` for self-service features every admin should see. |
 | `members.account-section` | Member account overview page | Per-member sections (e.g. Shop's latest-order card, Twilio's text-message sign-in codes). No permission filtering - members have no permission keys. |
 | `members.account-nav` | Member account **tab bar** | A **data contract**, not a component: export an async function `(member: {id, email, emailVerified}) => MemberAccountNavItem[]`, where an item is `{ key, label, href, badge? }`. `href` is a full public path, because the pages belong to your module and live under your own routes (Shop contributes `/shop/account/orders` and `/shop/account/addresses`). `badge` is a small count pill - use it for things waiting on the member, not for a total. Contract in `lib/members/account-nav.ts`. Return `[]` when your module has nothing to offer this member (switched off, gated, not applicable): a tab that leads to a "not available" notice is worse than no tab. A provider that throws is logged and dropped rather than taking the account area down, but do not rely on that - a member locked out of their own security settings by your bad day is not a good look. |
-
-**Member pages your module owns.** A tab from `members.account-nav` points at a page under your own routes, and that page is *not* inside `app/(public)/cactus-account`, so it never sees the member area's layout - left alone it renders bare, with no tabs and no way back to the account. Wrap it in core's shell instead:
-
-```tsx
-// modules/<you>/app/public/<you>/account/things/page.tsx
-import MemberAccountShell from '@/components/members/account/MemberAccountShell'
-import { getMemberFromCookie } from '@/lib/members/session'
-import { getMemberAreaPath } from '@/lib/members/paths'
-
-export default async function ThingsPage() {
-  const member = await getMemberFromCookie()
-  // Your gate, not core's: only you know where to send them back to.
-  if (!member) redirect(`/${getMemberAreaPath()}/login?redirect=/<you>/account/things`)
-
-  return (
-    <MemberAccountShell member={member} maxWidth={880}>
-      {/* your page */}
-    </MemberAccountShell>
-  )
-}
-```
-
-Pass `member` when you have already loaded it (you will have, for the gate) and the shell skips a second session lookup. `notice` takes a page-level banner rendered above the tab bar; `maxWidth` defaults to 720. The shell deliberately does **not** redirect - a signed-out visitor gets your children rendered bare, because core does not know which of your paths to send them back to afterwards.
 
 **Member pages your module owns.** A tab from `members.account-nav` points at a page under your own routes, and that page is *not* inside `app/(public)/cactus-account`, so it never sees the member area's layout - left alone it renders bare, with no tabs and no way back to the account. Wrap it in core's shell instead:
 
@@ -580,6 +571,16 @@ A cart-line resolver writes its line snapshot once, at the moment the order is p
 Two supporting details make it work. `LineMeta` carries an optional `data` bag - opaque, namespaced per module, never read by shop - so a resolver can stash the machine-readable version of its promise (a service key, a working-day count) rather than having to parse its own sentence back apart later. And a provider that throws is caught and skipped: the order is already written and the payment is the next thing to happen, so a module having a bad day must not cost the shopper their checkout.
 
 `advanced-shipping-for-shop`'s `restateDeliveryForPayment` is the worked example. It keys purely on the payment provider's own `confirmMode: 'manual'` - never on a method id - because the thing it cares about is "the money has not moved yet", which is as true of cash as of bank transfer. While the order is unpaid every delivery line states a lead time instead of a date; the moment it is paid, each line is re-dated from `order.paidAt` using the service the shopper actually bought.
+
+### Keeping your own rows in step with a product: `shop.product-saved`
+
+A module that mirrors part of a product into rows of its own has a standing problem: it hears about the copy it makes, and never about the original changing afterwards. `shop.product-saved` (`modules/shop/lib/product-saved.ts`) is the seam for that. A hook is `(productId: string, changed: readonly string[]) => Promise<void> | void`, where `changed` names only the fields that write actually carried - so the usual answer is to look at the array and return.
+
+The important part is **where it fires**: at the end of `updateProduct` in shop's own `lib/db`, not in the admin route. A product is written from at least three places that never meet a route handler - the editor's PUT, the CSV upload, and the Google-Sheet Pull, the last two by the hundred in a loop - and hooking the route would have covered one of them. The registry read is memoised for the same reason, and skipped altogether when the build carries no module that declares the point, so a shop-only site pays nothing.
+
+Two rules. The hook is awaited, so whatever it writes has landed before the caller reads the product back - but every hook is also try/caught and its failure logged rather than raised, because a listener falling over must never lose the owner's edit. And a hook should be cheap on the fields it does not care about: it runs on every save, of every product, including the middle of an import.
+
+`shop-variations`' `syncVariationsOnProductSaved` is the worked example, and shows what the point is for. Each variation is a hidden child product row of its own, so shop rates a basket line from the **child's** tax class while the product page prices from the **parent's**. The children copied the class when they were created and nothing put them back in step, so a shop that set up VAT after generating its matrices quoted the same chair with tax on the page and without it in the basket. The listener gates on `changed.includes('taxClassId')` and runs one `UPDATE` that moves only the children that disagree.
 
 ### Enhancing one field the host owns: `shop.checkout-address-lookup`
 

@@ -24,14 +24,20 @@ Core admins always have full run of Shop, permissions or no permissions.
 
 ## Setting up payments
 
-Shop supports four ways to take payment, each switched on independently from **Settings → Shop → Payments**:
+**Settings → Shop → Payments** opens on a list of every way this shop can take money - the four Shop comes with, plus anything an installed module has added. Each row has a switch, a plain-English line saying whether it is actually working, and a handle for dragging it up or down. That order is the order shoppers meet the methods at checkout, and the top one is the one already selected when they get there. Arrow buttons do the same job if you would rather not drag. Underneath, a sentence spells out exactly what a shopper will be offered, so there is no guessing.
+
+Along the top is a row of buttons - the list, then one for each method. Everything to do with a method lives on its own button: its switch, its instructions, its keys. Nothing to scroll past to reach the thing you came for.
+
+A row can be switched on and still not be working, and it will say so rather than leaving you to find out at checkout. Switching a method off changes nothing else about it - your keys, your bank details and your wording all stay exactly where they were, ready for whenever you switch it back on.
+
+The four Shop comes with:
 
 - **Card payments (Stripe)** - needs a Stripe account. Enter your publishable key, secret key and webhook signing secret right there on the Payments tab (full admins only - a Shop Manager without full admin access will be told to ask one). Saving triggers the usual "changes awaiting deployment" notice - redeploy your site for the new keys to take effect. Until all three are set, Stripe won't be offered at checkout even if you've ticked it on.
 - **PayPal** - same screen: Client ID, Client secret, Webhook ID, plus a Mode switch (sandbox for testing, live once you're ready to take real payments). Same rule - missing keys mean it's silently hidden at checkout.
 - **Bank transfer** - no keys needed. Write your account details on the same tab and orders sit as "awaiting confirmation" until you mark them paid by hand once the money lands.
 - **Cash** - for in-person or over-the-phone sales. Same manual confirmation as bank transfer.
 
-You can offer as many or as few of these as you like.
+You can offer as many or as few of these as you like, in whatever order suits you.
 
 Underneath the box where you write those bank details (and the collection details
 for cash) there is a switch: **Show this on the checkout page too**. Leave it on
@@ -52,20 +58,13 @@ shop promising a delivery date counted from a day the money had not arrived - se
 "Orders that are paid for later" there. With no such module installed, nothing
 changes.
 
-Bank transfer and cash are the two methods where the shopper leaves with an order
-nobody has been paid for yet, and an installed module is allowed to say what that
-means for them: picking one of those at the checkout can add a short line
-underneath it, and the order's own lines can read differently until you mark the
-payment received. [Advanced Shipping](Advanced-Shipping) uses this to stop the
-shop promising a delivery date counted from a day the money had not arrived - see
-"Orders that are paid for later" there. With no such module installed, nothing
-changes.
+**Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it joins the list on the **Shop → Payments** tab like any other method, with a button of its own along the top for its settings (add your GoCardless access token and webhook secret, choose sandbox or live). Switch it on, and drag it where you want it, on the list itself. Refunds and confirmation work the same as any other method.
 
-**Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it's set up on its own **Settings → Instant Bank Pay** tab (add your GoCardless access token and webhook secret, choose sandbox or live, then switch it on) rather than the Shop → Payments tab. Refunds and confirmation work the same as any other method.
+**Direct bank payment (Crezco)** is another pay-by-bank option, added by installing the separate [Crezco Direct Bank Payments for Shop](https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop) module. Shoppers pick their bank on Crezco's hosted page and authorise the payment there - no card, no card fees. It joins the list on the **Shop → Payments** tab, with a button of its own along the top for its settings: add your Crezco API key and user ID, choose sandbox or production, and register the webhook with one click. Switching it on and placing it in the order both happen on the list. Confirmation works like any other method, with one honest difference: **refunds are manual**. Open banking has no refund rail, so the Refund button will tell you to send the money back by bank transfer yourself and record it against the order.
 
-**Direct bank payment (Crezco)** is another pay-by-bank option, added by installing the separate [Crezco Direct Bank Payments for Shop](https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop) module. Shoppers pick their bank on Crezco's hosted page and authorise the payment there - no card, no card fees. It is set up on the **Shop → Payments** tab (Crezco Bank Payments panel: add your Crezco API key and user ID, choose sandbox or production, register the webhook with one click, then switch it on). Confirmation works like any other method, with one honest difference: **refunds are manual**. Open banking has no refund rail, so the Refund button will tell you to send the money back by bank transfer yourself and record it against the order.
+**Card payment (Square)** is another card option, added by installing the separate [Square Payments for Shop](https://github.com/cactus-foundation-modules/square-payment-for-shop) module. Shoppers pay by card on Square's hosted checkout page, so card details never touch your site. It joins the list on the **Shop → Payments** tab, with a button of its own along the top for its settings. Sandbox and production get their own boxes, so both sets of credentials can be held at once and choosing which one the shop uses is a single dropdown. That dropdown saves itself the moment you change it and takes effect at once - there is nothing to deploy and no Save to press for it. The credentials in the boxes below are a different matter: those are stored with your hosting, so a token you have only just pasted in needs the site to redeploy before it will work. Paste in the access token from your Square developer dashboard - the Application ID shown next to it is not needed - then press **Look up locations** to fill the location ID in rather than hunting for it. Add the webhook URL shown on the page to your Square developer dashboard, paste back the signature key it gives you, then switch the method on. The signature key is optional: without it payments are still confirmed when the shopper comes back from Square, but a shopper who pays and then closes the tab has to be confirmed by hand. Refunds and confirmation work the same as any other method.
 
-**Card payment (Square)** is another card option, added by installing the separate [Square Payments for Shop](https://github.com/cactus-foundation-modules/square-payment-for-shop) module. Shoppers pay by card on Square's hosted checkout page, so card details never touch your site. It is set up on the **Shop → Payments** tab (Square panel: add your Square access token, location ID and webhook signature key, choose sandbox or production, add the webhook URL shown there to your Square developer dashboard, then switch it on). Refunds and confirmation work the same as any other method.
+**Payment description** on that tab decides what the method is called: fill it in with "Card payment" and that is what shoppers pick at checkout, what the Payments tab calls it, and what shows on the order. The same wording goes to Square for the shopper to see on their page, with the order number added on the end. Leave the box empty and the method keeps its default name, **Card payment (Square)**.
 
 ---
 
@@ -262,7 +261,9 @@ Nothing is deleted. Weights you've already recorded stay on your products and co
 
 Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop → Checkout** if you'd rather not).
 
-That nudge appears on the confirmation page, once the order is safely placed rather than in the middle of paying, and only to guests - a customer who was already signed in doesn't need telling. It stays out of the way entirely if you've got Members switched off, or if your site is invite-only, since sending someone to a page that will only turn them away is worse than not asking at all.
+That nudge appears on the confirmation page, once the order is safely placed rather than in the middle of paying, and only to guests - a customer who was already signed in doesn't need telling. It sits below anything the customer still has to do about the money (bank transfer details, say) and above the list of what they've bought, so it's in plain sight rather than stranded at the bottom of a long receipt. It stays out of the way entirely if you've got Members switched off, or if your site is invite-only, since sending someone to a page that will only turn them away is worse than not asking at all.
+
+The nudge is the sign-up form itself, sitting right there on the confirmation with the address they ordered with already typed in - not a button that carries them off somewhere else to start again. It's the same form as the one on your sign-up page, so it asks for exactly the fields you've chosen in **Settings → Members** and holds them to the same privacy policy. Someone who just spent five minutes paying you is unlikely to go looking for a second form.
 
 Which does mean the shop's own tickbox is not the whole story: with accounts switched off site-wide, it can be ticked and still show nothing, because there is no account to create. The Checkout settings say so underneath the tickbox when that is the case, and point you at **Settings → Users → Registration**, which is where accounts are turned on.
 
@@ -376,6 +377,8 @@ The last step earns some trust as well. The place-order button now says exactly 
 
 Picking a payment method is now just that - picking one. The methods that finish somewhere else (PayPal, Instant Bank Pay) used to whisk the shopper off the moment they touched the radio button, before they'd so much as glanced at the total. Now nothing happens until **Place order** is pressed, and that button is the only thing that hands anyone over. Coming back afterwards without having paid starts the payment again properly rather than quietly waving the order through to the thank-you page, which is the sort of tidiness you only notice when it's missing. And paying that way now empties the basket on the way through, so nobody is thanked for an order they're apparently still carrying.
 
+And the payment methods no longer insist on being last. A shopper who fancies choosing how they'll pay before they've finished typing their address can now do exactly that: the choice is remembered, a line underneath says what's still needed, and the card fields (or the bank details) appear on their own the moment the rest is done. What holds the order back instead is the **Place order** button, which stays greyed out until everything is genuinely finished and tells you which bit is missing - a payment method, or a tickbox further down. Rather better than being told off for doing things in the wrong order by a page that put them in that order in the first place.
+
 The thank-you page is straighter about what happens next, too. Pay by bank and the money is authorised on the spot but takes a few minutes to actually clear, which used to leave the page saying only that the order was "awaiting payment confirmation" - the same wording someone gets when they've been asked to go and make a bank transfer themselves, and quite the opposite meaning. It now says the payment has gone through and that clearing usually takes a few minutes, and then the page waits with them: it checks quietly in the background and announces the moment the payment clears, so nobody sits there jabbing refresh. It checks briskly for the first minute, eases off, and after five minutes stops and says so, since the confirmation email is coming either way. Wander off to another tab and it picks the thread back up when you return. If the payment doesn't clear, the page says so plainly, points out that nothing has been charged, and sends the shopper back to checkout with their basket still intact rather than thanking them for an order that never happened. Behind the scenes those failures now actually land: a bank payment that fell over after being authorised used to sit in your orders list looking like money still on its way, forever, and now shows as failed like it should.
 
 ### Asking for a business name
@@ -396,7 +399,7 @@ Below that you can add as many of your own as you like: age confirmations, a not
 
 What matters most is what happens afterwards. Every tickbox the shopper was shown is recorded on the order **in the wording they saw on the day**, along with whether they ticked it and when. Rewrite your terms next month and past orders still show what was actually agreed to - which is rather the point of asking. It's all on the order in the admin, under **Agreed at checkout**.
 
-And because a tickbox in a browser is only ever a suggestion, the order won't be created without the required ones ticked even if someone tries to go round the form.
+A required box that hasn't been ticked simply leaves the **Place order** button greyed out, with a line above it saying which boxes are wanted - no clicking a button to find out it wasn't going to work. And because a tickbox in a browser is only ever a suggestion, the order won't be created without the required ones ticked even if someone tries to go round the form.
 
 ### The order confirmation
 
