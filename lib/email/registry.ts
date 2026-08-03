@@ -276,10 +276,24 @@ export const CORE_EMAIL_TEMPLATES: CoreTemplate[] = [
 // Merged view
 // ---------------------------------------------------------------------------
 
+/**
+ * Every email opens with its own subject as a heading, so the message reads as
+ * a titled thing rather than starting mid-sentence under the logo. Done here
+ * rather than typed into each default so it also covers the templates modules
+ * declare, and so the heading tracks the subject instead of drifting from it.
+ *
+ * It lands in the default body, which means it shows up in the editor as
+ * ordinary copy: an admin can reword it, move it, or delete it per email, and
+ * "put the original wording back" brings it back.
+ */
+function withSubjectHeading<T extends EmailTemplateDef>(t: T): T {
+  return { ...t, bodyHtml: `<h3>${t.subject}</h3>\n${t.bodyHtml}` }
+}
+
 function buildRegistry(): Map<string, RegisteredEmailTemplate> {
   const map = new Map<string, RegisteredEmailTemplate>()
   for (const t of CORE_EMAIL_TEMPLATES) {
-    map.set(t.key, { ...t, source: 'core' })
+    map.set(t.key, withSubjectHeading({ ...t, source: 'core' }))
   }
   for (const [moduleName, group] of Object.entries(moduleEmailTemplates)) {
     for (const t of group.templates) {
@@ -288,7 +302,7 @@ function buildRegistry(): Map<string, RegisteredEmailTemplate> {
       // under its own name, and first registration wins.
       if (!t.key.startsWith(`${moduleName}.`)) continue
       if (map.has(t.key)) continue
-      map.set(t.key, { ...t, source: moduleName, groupLabel: group.groupLabel })
+      map.set(t.key, withSubjectHeading({ ...t, source: moduleName, groupLabel: group.groupLabel }))
     }
   }
   return map

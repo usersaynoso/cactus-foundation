@@ -49,6 +49,10 @@ export type SiteEmailContext = {
   year: string
 }
 
+/** The merge tags every render fills in from the site record itself, whoever
+ * the caller is. Kept as a set because a preview has to leave them alone. */
+const SITE_CONTEXT_TAGS: ReadonlySet<string> = new Set(['siteName', 'siteUrl', 'logoUrl', 'year'])
+
 function absolutise(url: string | null | undefined, siteUrl: string): string {
   if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
@@ -158,7 +162,18 @@ export async function previewEmailTemplate(
   const override = await getTemplateOverride(key)
 
   const sample: Record<string, string> = {}
-  for (const tag of def.mergeTags) sample[tag] = vars[tag] ?? sampleValueFor(tag)
+  for (const tag of def.mergeTags) {
+    if (vars[tag] !== undefined) {
+      sample[tag] = vars[tag]
+      continue
+    }
+    // Site-level tags are real, known values, so a preview shows the real ones.
+    // Stamping "[siteName]" over the site's own name is how an admin comes to
+    // believe the tag is broken and types the name in by hand instead - which
+    // then survives every rename the site ever has.
+    if (SITE_CONTEXT_TAGS.has(tag)) continue
+    sample[tag] = sampleValueFor(tag)
+  }
 
   return renderResolved({
     def,
