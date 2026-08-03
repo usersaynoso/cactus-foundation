@@ -15,6 +15,18 @@ type ExtensionPointEntry = { point: string; id: string }
 
 const CORE_ACTIVITY_LABELS: Record<string, string> = { login: 'Signed in' }
 
+// Who to greet. The username is only a name the member recognises if the site
+// asked them to pick one - with that switch off it was invented from their email
+// address with random digits stuck on the end, and greeting someone by a handle
+// they have never seen is worse than not using their name at all. The email's
+// local part is what that handle was built from anyway, and the full address is
+// printed directly underneath, so it gives nothing away.
+function greetingName(member: { displayName: string | null; username: string; email: string }, usernameCollected: boolean): string {
+  if (member.displayName) return member.displayName
+  if (usernameCollected) return member.username
+  return member.email.split('@')[0] || 'there'
+}
+
 function activityLabel(event: { type: string; source: string | null }): string {
   if (!event.source) return CORE_ACTIVITY_LABELS[event.type] ?? event.type
   return `${event.source}: ${event.type}`
@@ -94,8 +106,10 @@ export default async function AccountIndexPage() {
       : null
 
   const sections = config.accountSectionsEnabled
+  // Nagging for a display name the site never asks for, and gives the member no
+  // field to fill in, is a to-do item they cannot tick off.
   const profileGaps = [
-    !member.displayName && 'a display name',
+    config.registrationCollectDisplayName && !member.displayName && 'a display name',
     !record?.bio && 'a short bio',
     record?.avatarChoice === 'GENERATED' && 'a picture',
   ].filter((v): v is string => typeof v === 'string')
@@ -113,7 +127,7 @@ export default async function AccountIndexPage() {
         />
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: 0, color: 'var(--color-text)' }}>
-            Hi, {member.displayName || member.username}
+            Hi, {greetingName(member, config.registrationCollectUsername)}
           </h1>
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-sm)' }}>
             {member.email}

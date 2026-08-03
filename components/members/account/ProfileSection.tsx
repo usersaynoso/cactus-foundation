@@ -12,6 +12,9 @@ type Profile = {
   avatarChoice: 'UPLOAD' | 'GRAVATAR' | 'GENERATED'
   avatarUrl: string | null
   avatarUploadsEnabled: boolean
+  usernameEnabled: boolean
+  displayNameEnabled: boolean
+  usernameChangesEnabled: boolean
 }
 
 type Visibility = { showBio: boolean; showJoinDate: boolean; showWebsite: boolean }
@@ -47,7 +50,10 @@ export default function ProfileSection() {
       const res = await fetch('/api/members/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, bio, websiteUrl }),
+        // Left out entirely rather than sent empty when the site doesn't ask
+        // for one: a member who had a display name before the switch went off
+        // keeps it, instead of a hidden field quietly blanking it on first save.
+        body: JSON.stringify({ ...(profile?.displayNameEnabled ? { displayName } : {}), bio, websiteUrl }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to save')
@@ -160,27 +166,44 @@ export default function ProfileSection() {
         <span className="field-hint">Current: {profile.avatarChoice.toLowerCase()}</span>
       </div>
 
-      <div className="field">
-        <label>Username</label>
-        <input type="text" value={profile.username} disabled />
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-          <input
-            type="text"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
-            placeholder="New username"
-          />
-          <button className="btn btn-secondary btn-sm" disabled={!newUsername || savingUsername} onClick={handleUsernameSave}>
-            {savingUsername ? 'Saving…' : 'Change'}
-          </button>
+      {/* Both blocks follow the sign-up switches. A site that never asked for a
+          handle generated one from the email address, and putting that in front
+          of the member - let alone offering to change it - is showing them a
+          field the site decided it didn't want. Same for a display name. */}
+      {profile.usernameEnabled && (
+        <div className="field">
+          <label>Username</label>
+          <input type="text" value={profile.username} disabled />
+          {/* The change form only exists where the change can succeed. Username
+              changes are off by default, and POST /api/members/username 403s on
+              that, so the button spent its life being a promise the site had no
+              intention of keeping. The read-only box stays either way - members
+              are entitled to know their own handle. */}
+          {profile.usernameChangesEnabled && (
+            <>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
+                  placeholder="New username"
+                />
+                <button className="btn btn-secondary btn-sm" disabled={!newUsername || savingUsername} onClick={handleUsernameSave}>
+                  {savingUsername ? 'Saving…' : 'Change'}
+                </button>
+              </div>
+              <span className="field-hint">Your public profile stays reachable at your old address for a while after changing.</span>
+            </>
+          )}
         </div>
-        <span className="field-hint">Your public profile stays reachable at your old address for a while after changing.</span>
-      </div>
+      )}
 
-      <div className="field">
-        <label>Display name</label>
-        <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} />
-      </div>
+      {profile.displayNameEnabled && (
+        <div className="field">
+          <label>Display name</label>
+          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} />
+        </div>
+      )}
 
       <div className="field">
         <label>Bio</label>

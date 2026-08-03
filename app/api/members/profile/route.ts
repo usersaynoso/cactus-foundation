@@ -34,6 +34,16 @@ export async function GET() {
     avatarChoice,
     avatarUrl,
     avatarUploadsEnabled: config.avatarUploadsEnabled,
+    // Same two switches that decide whether sign-up asks for these. A site that
+    // never asked for a handle or a display name has no business showing the
+    // member fields for them afterwards either - the generated username in
+    // particular is an implementation detail they never chose.
+    usernameEnabled: config.registrationCollectUsername,
+    displayNameEnabled: config.registrationCollectDisplayName,
+    // Whether to offer the change form at all. POST /api/members/username 403s
+    // when this is off - and it is off by default - so the button was a control
+    // that could only ever fail.
+    usernameChangesEnabled: config.usernameChangesEnabled,
     createdAt: member.createdAt,
   })
 }
@@ -54,7 +64,13 @@ export async function PATCH(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
-  const { displayName, bio, websiteUrl } = parsed.data
+  const { bio, websiteUrl } = parsed.data
+
+  // Dropped rather than rejected, exactly as the registration route does with
+  // the same switch off: the field isn't on the form, so a value arriving here
+  // is a crafted POST filling in something the site chose not to offer.
+  const config = await getMembersConfig()
+  const displayName = config.registrationCollectDisplayName ? parsed.data.displayName : undefined
 
   const updated = await prisma.member.update({
     where: { id: member.id },
