@@ -12,7 +12,10 @@ export default async function MemberLoginPage({ searchParams }: Props) {
 
   // Signing in only to land back on the sign-in page is a loop, so a redirect
   // aimed at one of the signed-out pages is dropped for the account overview.
-  const target = sanitizeRedirect(redirect)
+  // The overview is also the fallback when there is no ?redirect= at all: a
+  // sign-in link arrives from an email carrying nothing but its token, and
+  // somebody who has just signed in wants their account, not the homepage.
+  const target = sanitizeRedirect(redirect, basePath)
   const safeTarget = isPublicMemberPath(target, basePath) ? basePath : target
 
   return (

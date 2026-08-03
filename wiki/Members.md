@@ -56,6 +56,8 @@ It asks for the email address first, and nothing else. Once they press **Continu
 
 The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath - on the choice of methods and on the "check your inbox" message alike - for the inevitable typo.
 
+Clicking the link out of the inbox signs them in and drops them on their account. If they were part-way through something when they were asked to sign in - checking out, say, or opening a page only members can see - they carry on from there instead.
+
 If the site can't reach its own settings for a moment - a wobbly connection at their end - the form quietly offers every method you've switched on rather than hiding one, so a passkey holder is never stuck looking at a form that won't take their passkey.
 
 ### Sign-in codes by text message
