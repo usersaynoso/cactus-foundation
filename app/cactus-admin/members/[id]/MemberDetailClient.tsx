@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAdminPath } from '@/components/admin/AdminPathContext'
 
 type Member = {
   id: string
@@ -49,6 +50,7 @@ export default function MemberDetailClient({
   children?: ReactNode
 }) {
   const router = useRouter()
+  const adminPath = useAdminPath()
   const [member, setMember] = useState(initialMember)
   const [displayName, setDisplayName] = useState(initialMember.displayName ?? '')
   const [bio, setBio] = useState(initialMember.bio ?? '')
@@ -115,7 +117,7 @@ export default function MemberDetailClient({
 
   async function handleReject() {
     const res = await fetch(`/api/admin/members/${member.id}/reject`, { method: 'POST' })
-    if (res.ok) router.push('../pending-approval')
+    if (res.ok) router.push(`/${adminPath}/users?tab=pending-approval`)
   }
 
   async function toggleTrust() {
@@ -161,7 +163,7 @@ export default function MemberDetailClient({
 
   async function handleDelete() {
     const res = await fetch(`/api/admin/members/${member.id}`, { method: 'DELETE' })
-    if (res.ok) router.push('../list')
+    if (res.ok) router.push(`/${adminPath}/users`)
     else setError('Failed to delete member')
   }
 
