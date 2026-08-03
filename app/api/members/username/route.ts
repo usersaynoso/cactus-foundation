@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
+import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { isUsernameFormatValid, isUsernameAvailable } from '@/lib/members/registration'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
   }
 
   const config = await getMembersConfig()
+  // The change form is on the profile page and nowhere else, so the section
+  // switch gates this ahead of the username-specific one.
+  if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
   if (!config.usernameChangesEnabled) {
     return NextResponse.json({ error: 'Username changes are not enabled for this site' }, { status: 403 })
   }

@@ -75,6 +75,37 @@ const AUTH_METHOD_FIELDS = [
   },
 ] as const
 
+// The tabs a member sees in their account area. Listed rather than derived from
+// Object.keys so the order is the order of the tabs themselves, and so each one
+// can say what switching it off actually takes away.
+const ACCOUNT_SECTION_FIELDS = [
+  {
+    key: 'profile',
+    label: 'Profile',
+    hint: 'Display name, bio, website, picture and what shows on their public profile. Off, the page is gone and nothing on it can be saved - which is what you want if an account here is only ever a way to sign in.',
+  },
+  {
+    key: 'security',
+    label: 'Account & Security',
+    hint: 'Their email address, passkeys, password, sign-in codes, active sessions and trusted browsers.',
+  },
+  {
+    key: 'notifications',
+    label: 'Notifications',
+    hint: 'Which emails a member chooses to get. Stays hidden anyway until something on the site offers a choice.',
+  },
+  {
+    key: 'activity',
+    label: 'Activity',
+    hint: 'A member\'s own history of sign-ins and changes to their account.',
+  },
+  {
+    key: 'dangerZone',
+    label: 'Danger zone',
+    hint: 'Downloading their data and closing their account.',
+  },
+] as const
+
 function listToText(list: string[]): string {
   return list.join('\n')
 }
@@ -248,16 +279,23 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="checkbox" checked={config.directoryEnabled} onChange={(e) => update('directoryEnabled', e.target.checked)} />
             Enable public member directory
           </label>
-          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-2)' }}>Account area sections</p>
-          {(Object.keys(config.accountSectionsEnabled) as Array<keyof Config['accountSectionsEnabled']>).map((key) => (
-            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.accountSectionsEnabled[key]}
-                onChange={(e) => update('accountSectionsEnabled', { ...config.accountSectionsEnabled, [key]: e.target.checked })}
-              />
-              {key}
-            </label>
+          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area sections</p>
+          <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+            Which tabs members get inside their account. Switching one off takes its tab and its summary card
+            off the overview too.
+          </p>
+          {ACCOUNT_SECTION_FIELDS.map((section) => (
+            <div key={section.key} style={{ marginBottom: 'var(--space-3)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={config.accountSectionsEnabled[section.key]}
+                  onChange={(e) => update('accountSectionsEnabled', { ...config.accountSectionsEnabled, [section.key]: e.target.checked })}
+                />
+                {section.label}
+              </label>
+              <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>{section.hint}</p>
+            </div>
           ))}
         </div>
       )}

@@ -92,7 +92,18 @@ export const MembersConfigSchema = z.object({
 
 export type MembersConfig = z.infer<typeof MembersConfigSchema>
 
+export type AccountSectionKey = keyof MembersConfig['accountSectionsEnabled']
+
 export const MEMBERS_CONFIG_DEFAULTS: MembersConfig = MembersConfigSchema.parse({})
+
+// Whether a member-area section is switched on. The tab bar and the overview
+// cards have always read this; the section's own page and the routes it saves
+// through must read it too. Hiding a link is a suggestion - the page it points
+// at answered a typed-in address perfectly happily, and its save endpoints
+// answered a crafted request the same way.
+export function isAccountSectionEnabled(config: MembersConfig, key: AccountSectionKey): boolean {
+  return config.accountSectionsEnabled[key]
+}
 
 // Rows written before sign-in methods became one three-state control each.
 // The old shape was an allowedAuthMethods array plus a separate passwordsEnabled

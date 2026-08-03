@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
+import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { validateUpload, uploadMedia, deleteMedia, saveMediaRecord } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 
@@ -10,6 +11,9 @@ export async function POST(request: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
+  // The picture controls live on the profile page, so the section switch gates
+  // this ahead of the uploads-specific one.
+  if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
   if (!config.avatarUploadsEnabled) {
     return NextResponse.json({ error: 'Avatar uploads are disabled' }, { status: 403 })
   }
@@ -64,6 +68,11 @@ export async function DELETE() {
   const member = await getMemberFromCookie()
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+  // Read before anything is destroyed: refusing after the file has already gone
+  // would be a refusal in name only.
+  const config = await getMembersConfig()
+  if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
+
   if (member.avatarChoice === 'UPLOAD' && member.avatarMediaId) {
     const media = await prisma.media.findUnique({ where: { id: member.avatarMediaId } })
     if (media) {
@@ -72,7 +81,6 @@ export async function DELETE() {
     }
   }
 
-  const config = await getMembersConfig()
   await prisma.member.update({
     where: { id: member.id },
     data: { avatarMediaId: null, avatarChoice: config.gravatarEnabled ? 'GRAVATAR' : 'GENERATED' },

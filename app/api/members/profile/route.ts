@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
+import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { isHttpUrl } from '@/lib/utils'
 
@@ -60,6 +61,11 @@ export async function PATCH(request: NextRequest) {
   const member = await getMemberFromCookie()
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
+  // Rejected rather than dropped, unlike the per-field switches below: with the
+  // whole section off there is no form this request could have come from.
+  const config = await getMembersConfig()
+  if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
+
   const parsed = Body.safeParse(await request.json())
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
@@ -69,7 +75,6 @@ export async function PATCH(request: NextRequest) {
   // Dropped rather than rejected, exactly as the registration route does with
   // the same switch off: the field isn't on the form, so a value arriving here
   // is a crafted POST filling in something the site chose not to offer.
-  const config = await getMembersConfig()
   const displayName = config.registrationCollectDisplayName ? parsed.data.displayName : undefined
 
   const updated = await prisma.member.update({

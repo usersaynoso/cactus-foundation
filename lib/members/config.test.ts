@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseMembersConfig, registrationPasswordPolicy, type MembersConfig } from './config'
+import { isAccountSectionEnabled, parseMembersConfig, registrationPasswordPolicy, type MembersConfig } from './config'
 
 function configWith(raw: Record<string, unknown>): MembersConfig {
   return parseMembersConfig(raw)
@@ -46,5 +46,22 @@ describe('registrationPasswordPolicy', () => {
     const config = configWith({ authMethodPolicies: { PASSWORD: 'OPTIONAL' } })
     expect(config.registrationCollectPassword).toBe(true)
     expect(registrationPasswordPolicy(config)).toBe('OPTIONAL')
+  })
+})
+
+describe('isAccountSectionEnabled', () => {
+  it('is on by default, so no stored row loses a tab it already had', () => {
+    const config = configWith({})
+    expect(isAccountSectionEnabled(config, 'profile')).toBe(true)
+    expect(isAccountSectionEnabled(config, 'dangerZone')).toBe(true)
+  })
+
+  // Switching one off must not take the others with it - the object has its own
+  // per-key defaults, and a partial stored value is the normal case.
+  it('switches off only the section named', () => {
+    const config = configWith({ accountSectionsEnabled: { profile: false } })
+    expect(isAccountSectionEnabled(config, 'profile')).toBe(false)
+    expect(isAccountSectionEnabled(config, 'security')).toBe(true)
+    expect(isAccountSectionEnabled(config, 'activity')).toBe(true)
   })
 })

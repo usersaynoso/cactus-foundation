@@ -157,10 +157,15 @@ A link that has expired, or has already been used, still says so on the verifica
 Once signed in, members land on an **overview** page that tries to answer the obvious questions before they have to go looking: who they're signed in as, when they joined, whether their email address still needs confirming (with a button to send the link again), how their sign-in is set up, what's still blank on their profile, and the last few things that happened on their account. Everything else lives behind the tabs above it, which you can individually switch on or off (**Settings → Users → Account sections**):
 
 - **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
+  Switch this one off and the page genuinely goes: the tab disappears, the card on the overview disappears, and typing the address in by hand gets a **Not found** rather than the page. Nothing on it can be saved either, so a member with it already open in an old tab is told it's been switched off instead of quietly getting their changes dropped. Worth doing on a site where an account is only ever a way to sign in and pay, and a bio nobody will read is just another empty box to look at. Their existing details aren't deleted - switch it back on and everything is where they left it.
 - **Security** - passkeys, password, two-factor authentication, active sessions, and trusted browsers.
 - **Notifications** - email preferences for anything your installed modules notify members about. Nothing installed offers any yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose.
 - **Activity** - a simple history of their sign-ins and other account activity.
 - **Danger Zone** - requesting a copy of their data, or deleting their account.
+
+Switching any of the other four off takes its tab away, and its card off the overview with it. Profile is the one that goes further and shuts the page itself, because it's the one people most often don't want offered at all.
+
+Turning the Profile tab off is not the same as hiding members from the public side of your site - that's [Public profile visibility](#public-profiles-and-directory), a few lines further down, and the two work independently.
 
 Installed modules can add tabs of their own here, and they slot in after **Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
 
