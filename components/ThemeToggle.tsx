@@ -12,6 +12,49 @@ export type ThemeToggleStyle =
   | 'switch'
   | 'cycle'
 
+/** Box + icon appearance, mirroring the fields the Members: Sign In and shop
+ *  basket blocks already offer, so the three can be dressed identically when
+ *  they sit next to each other in a header. */
+export type ThemeToggleAppearance = {
+  variant?: 'default' | 'bordered' | 'filled' | 'plain'
+  iconSize?: number
+  iconColour?: string
+  bgColour?: string
+  borderColour?: string
+  borderRadius?: number
+}
+
+/** Appearance → CSS custom properties for the .theme-toggle-cycle rules.
+ *  Returns undefined when nothing is set (the admin sidebar, and every block
+ *  saved before these fields existed) so the stylesheet's own values stand.
+ *  'default' is the same escape hatch by choice rather than by omission: it
+ *  keeps the round icon button, and only the icon knobs apply. */
+export function themeToggleVars(a?: ThemeToggleAppearance): React.CSSProperties | undefined {
+  if (!a) return undefined
+  const vars: Record<string, string> = {}
+  if (a.iconSize) vars['--tt-icon'] = `${a.iconSize}px`
+  if (a.iconColour) { vars['--tt-fg'] = a.iconColour; vars['--tt-fg-hover'] = a.iconColour }
+  if (a.variant && a.variant !== 'default') {
+    // Once it is dressed as a box rather than the sidebar's grey rail button,
+    // the icon takes the same resting colour its neighbours use. The hover
+    // colour is left to the stylesheet unless one was picked outright.
+    if (!a.iconColour) vars['--tt-fg'] = 'var(--color-text)'
+    const bg = a.variant === 'filled'
+      ? (a.bgColour || 'var(--color-surface)')
+      : (a.variant === 'bordered' ? (a.bgColour || 'transparent') : 'transparent')
+    vars['--tt-box'] = 'auto'
+    vars['--tt-pad'] = a.variant === 'plain' ? '0' : '0.5rem 0.875rem'
+    vars['--tt-radius'] = a.variant === 'plain' ? '0' : `${a.borderRadius ?? 8}px`
+    vars['--tt-bg'] = bg
+    // Hover keeps the chosen background - the stylesheet's default swap to a
+    // raised surface would undo a plain or brand-coloured box on hover.
+    vars['--tt-bg-hover'] = bg
+    vars['--tt-border'] = a.variant === 'bordered' ? `1px solid ${a.borderColour || 'var(--color-border)'}` : 'none'
+    vars['--tt-shadow'] = 'none'
+  }
+  return Object.keys(vars).length ? (vars as React.CSSProperties) : undefined
+}
+
 function systemPrefersDark() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
 }
@@ -103,12 +146,15 @@ export function ThemeToggle({
   compact = false,
   collapsed = false,
   style = 'segmented',
+  appearance,
 }: {
   compact?: boolean
   collapsed?: boolean
   style?: ThemeToggleStyle
+  appearance?: ThemeToggleAppearance
 }) {
   const [mode, apply] = useThemeMode()
+  const appearanceStyle = themeToggleVars(appearance)
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -139,6 +185,7 @@ export function ThemeToggle({
       <button
         type="button"
         className="theme-toggle-cycle"
+        style={appearanceStyle}
         onClick={() => apply(next)}
         title={collapsed ? `Colour scheme: ${LABELS[mode]}` : undefined}
         aria-label={`Colour scheme: ${LABELS[mode]}. Switch to ${LABELS[next]}.`}
@@ -180,6 +227,7 @@ export function ThemeToggle({
         ref={rootRef}
         className={`theme-menu-wrap theme-menu-wrap--${effectiveStyle}${compact ? ' theme-menu-wrap--compact' : ''}`}
         data-open={isDropdown && open ? 'true' : 'false'}
+        style={appearanceStyle}
       >
         <button
           type="button"

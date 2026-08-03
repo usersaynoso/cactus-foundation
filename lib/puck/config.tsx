@@ -3809,7 +3809,7 @@ export const puckConfig = {
       label: 'Theme Toggle',
       fields: {
         style: {
-          type: 'select' as const, label: 'Style',
+          type: 'select' as const, label: 'Control type',
           options: [
             { value: 'segmented', label: 'Segmented pill (icons)' },
             { value: 'expand', label: 'Icon, expand on hover' },
@@ -3819,10 +3819,48 @@ export const puckConfig = {
             { value: 'cycle', label: 'Single icon, click to cycle' },
           ],
         },
+        // Same keys, labels and order as Members: Sign In (and the shop basket,
+        // which copied them) so the three read as one set of controls when they
+        // sit side by side in a header - previously this block offered none of
+        // them and could not be made to match its neighbours.
+        iconSize: { type: 'number' as const, label: 'Icon size (px)' },
+        iconColour: signInColourField('Icon colour'),
+        variant: { type: 'select' as const, label: 'Style', options: [
+          { value: 'default', label: 'Default (round icon button)' },
+          { value: 'bordered', label: 'Bordered pill' },
+          { value: 'filled', label: 'Filled' },
+          { value: 'plain', label: 'Plain (no box)' },
+        ] },
+        bgColour: signInColourField('Background colour'),
+        borderColour: signInColourField('Border colour'),
+        borderRadius: { type: 'number' as const, label: 'Corner radius (px)' },
       },
-      defaultProps: { style: 'segmented' },
-      render: ({ style }: { style?: 'segmented' | 'expand' | 'dropdown' | 'text' | 'switch' | 'cycle' }) => (
-        <ThemeToggleClient style={style} />
+      // 'default' keeps the round icon button this block has always drawn, so
+      // filling these defaults into a block saved before they existed changes
+      // nothing on any site that has not opted in.
+      defaultProps: { style: 'segmented', iconSize: 18, iconColour: '', variant: 'default', bgColour: '', borderColour: '', borderRadius: 8 },
+      // Keep the panel to what applies: only the single-icon styles draw the box
+      // these fields describe (the segmented pill and the sun/moon switch are
+      // multi-part controls with their own geometry), and the box colours mean
+      // nothing while the default round button is in force.
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data?.props ?? {}
+        const rest: Record<string, any> = { ...fields }
+        // Trim by deletion, never by whitelist - the panel also carries fields
+        // injected centrally (Visibility), which a whitelist would throw away.
+        if (!['cycle', 'expand', 'dropdown'].includes(p.style)) {
+          for (const k of ['iconSize', 'iconColour', 'variant', 'bgColour', 'borderColour', 'borderRadius']) delete rest[k]
+          return rest
+        }
+        if (!p.variant || p.variant === 'default' || p.variant === 'plain') {
+          delete rest.bgColour; delete rest.borderColour; delete rest.borderRadius
+        } else if (p.variant === 'filled') {
+          delete rest.borderColour
+        }
+        return rest
+      },
+      render: ({ style, iconSize, iconColour, variant, bgColour, borderColour, borderRadius }: any) => (
+        <ThemeToggleClient style={style} appearance={{ iconSize, iconColour, variant, bgColour, borderColour, borderRadius }} />
       ),
     },
     CookieSettingsLink: {

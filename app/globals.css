@@ -1420,26 +1420,37 @@ a:hover {
   padding-bottom: var(--space-2);
 }
 
-/* Single cycling button shown when the sidebar is collapsed */
+/* Single cycling button shown when the sidebar is collapsed - and the trigger
+   for the expand / dropdown styles. Every box property reads a --tt-* variable
+   whose fallback is the value it always had, so the admin rail and any saved
+   block that sets none of them render exactly as before; the Puck ThemeToggle
+   block sets the variables when its appearance fields are used, which is what
+   lets it sit alongside the sign-in and basket icons without looking bolted on. */
 .theme-toggle-cycle {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: var(--radius-full);
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm) inset;
-  color: var(--color-text-muted);
+  width: var(--tt-box, 32px);
+  height: var(--tt-box, 32px);
+  padding: var(--tt-pad, 0);
+  border-radius: var(--tt-radius, var(--radius-full));
+  background: var(--tt-bg, var(--color-bg-subtle));
+  border: var(--tt-border, 1px solid var(--color-border));
+  box-shadow: var(--tt-shadow, var(--shadow-sm) inset);
+  color: var(--tt-fg, var(--color-text-muted));
   cursor: pointer;
   transition: color var(--dur-base) var(--ease-in-out), background var(--dur-base);
 }
+/* Beats the svg's own width/height attributes, so the icon can match whatever
+   size the neighbouring icon blocks are set to. */
+.theme-toggle-cycle > svg {
+  width: var(--tt-icon, 18px);
+  height: var(--tt-icon, 18px);
+}
 .theme-toggle-cycle:hover {
-  color: var(--color-primary);
-  background: var(--color-surface-raised);
+  color: var(--tt-fg-hover, var(--color-primary));
+  background: var(--tt-bg-hover, var(--color-surface-raised));
 }
 .theme-toggle-cycle:focus-visible {
   outline: 2px solid var(--color-border-focus);
