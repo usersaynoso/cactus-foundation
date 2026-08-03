@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig, authMethodPolicy } from '@/lib/members/config'
+import { getMembersConfig, registrationPasswordPolicy } from '@/lib/members/config'
 import { hashPassword, validateNewPassword } from '@/lib/auth/password'
 import {
   isUsernameFormatValid,
@@ -30,7 +30,7 @@ const Body = z.object({
   username: z.string().min(2).max(32).optional(),
   displayName: z.string().trim().max(80).optional(),
   // Same story: whether a password is asked for, insisted on, or ignored is
-  // the PASSWORD sign-in method's policy, checked below.
+  // the registration form's password policy, checked below.
   password: z.string().optional(),
   turnstileToken: z.string().optional(),
   inviteToken: z.string().optional(),
@@ -55,7 +55,10 @@ export async function POST(request: NextRequest) {
   const suppliedUsername = config.registrationCollectUsername
     ? parsed.data.username?.toLowerCase()
     : undefined
-  const passwordPolicy = authMethodPolicy(config, 'PASSWORD')
+  // The registration form's policy, not the site's: with the password box
+  // switched off, a password sent anyway is dropped like any other hidden
+  // field rather than quietly honoured.
+  const passwordPolicy = registrationPasswordPolicy(config)
   const suppliedPassword = passwordPolicy === 'OFF' ? undefined : parsed.data.password
   const inviteToken = parsed.data.inviteToken?.trim()
 

@@ -10,6 +10,7 @@ type Config = {
   emailVerificationRequired: boolean
   registrationCollectUsername: boolean
   registrationCollectDisplayName: boolean
+  registrationCollectPassword: boolean
   authMethodPolicies: {
     PASSKEY: MethodPolicy
     // Two states: there is nothing for a member to enrol, so "required" would
@@ -163,6 +164,26 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="checkbox" checked={config.registrationCollectDisplayName} onChange={(e) => update('registrationCollectDisplayName', e.target.checked)} />
             Ask new members for a display name
           </label>
+          {/* Only shown while passwords are optional. Off, there is no password
+              to ask about; required, the sign-up form has to ask, so a switch
+              that changed nothing would be worse than no switch at all. */}
+          {config.authMethodPolicies.PASSWORD === 'OPTIONAL' && (
+            <>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={config.registrationCollectPassword} onChange={(e) => update('registrationCollectPassword', e.target.checked)} />
+                Ask new members to set a password
+              </label>
+              <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+                Off hides the box and signing up asks for nothing to remember. Members can still add a
+                password whenever they like, from the security page in their account.
+              </p>
+            </>
+          )}
+          {config.authMethodPolicies.PASSWORD === 'REQUIRED' && (
+            <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+              Passwords are set to required, so the sign-up form always asks for one.
+            </p>
+          )}
           <div className="field">
             <label>Allowed email domains (one per line, empty = all allowed)</label>
             <textarea value={listToText(config.allowedEmailDomains)} onChange={(e) => update('allowedEmailDomains', textToList(e.target.value))} />

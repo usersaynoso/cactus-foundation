@@ -257,6 +257,7 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 | Require email verification | New accounts must click a verification link before they're active | On |
 | Ask new members to choose a username | Off hides the box and makes one up from their email address, with a few random digits after it | On |
 | Ask new members for a display name | Off hides the optional display-name box | On |
+| Ask new members to set a password | Off hides the password box at sign-up; members add one later from their account security page. Only shown while Password (below) is Optional | On |
 | Allowed email domains | If set, only these domains can register | — |
 | Blocked email domains | Domains that are never allowed to register | — |
 | Post-registration redirect | Page to send members to right after registering | — |
@@ -268,7 +269,7 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 |-------|-------------|---------|
 | Passkey | Off, Optional or Required. Required members are asked to add one the first time they sign in, before they can go anywhere else in their account | Optional |
 | Email sign-in link | Off or Optional. No Required option: there is nothing for a member to set up, the mailbox they have already verified is the credential | Optional |
-| Password | Off, Optional or Required. Required members choose one on the sign-up form, and set up their second step the first time they sign in. A short code is always compulsory alongside a password | Off |
+| Password | Off, Optional or Required. Required members choose one on the sign-up form, and set up their second step the first time they sign in. Optional members are offered one at sign-up too, unless you've turned that box off under Registration. A short code is always compulsory alongside a password | Off |
 | Trust this browser (days) | How long a member's "trust this browser" cookie lasts before a two-factor code is required again | `30` |
 | Session length (days) | How long a member stays signed in (sliding expiry) | `30` |
 | Site-wide members-only mode | Locks the entire public site behind member sign-in | Off |

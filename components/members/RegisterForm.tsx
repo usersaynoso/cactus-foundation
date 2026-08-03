@@ -18,10 +18,13 @@ type Props = {
   // full form rather than silently losing fields.
   collectUsername?: boolean
   collectDisplayName?: boolean
-  // The site's PASSWORD sign-in policy. Off keeps the field away entirely,
-  // optional offers it, required insists on one before the account is made.
-  // Left undefined it is fetched, so the Puck editor preview and any embedded
-  // use show the same form the live page would without having to be told.
+  // What this form should do about a password: off keeps the field away
+  // entirely, optional offers it, required insists on one before the account is
+  // made. Not quite the site's PASSWORD sign-in policy - a site that allows
+  // passwords may still choose not to ask for one at sign-up, leaving members
+  // to add one from their account later. Left undefined it is fetched, so the
+  // Puck editor preview and any embedded use show the same form the live page
+  // would without having to be told.
   passwordPolicy?: 'OFF' | 'OPTIONAL' | 'REQUIRED'
   // Embedded uses - a shop's post-purchase prompt, say - already sit under a
   // heading of their own, and the form's own title would be the second "Create
@@ -70,8 +73,8 @@ export default function RegisterForm({
     if (passwordPolicy) return
     fetch('/api/members/auth/config')
       .then((r) => r.json())
-      .then((d: { authMethodPolicies?: { PASSWORD?: Props['passwordPolicy'] } }) =>
-        setFetchedPasswordPolicy(d.authMethodPolicies?.PASSWORD ?? 'OFF')
+      .then((d: { registrationPasswordPolicy?: Props['passwordPolicy'] }) =>
+        setFetchedPasswordPolicy(d.registrationPasswordPolicy ?? 'OFF')
       )
       // A failed lookup leaves the field hidden: the API rejects a registration
       // missing a required password anyway, which is a far better outcome than

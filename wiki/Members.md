@@ -38,6 +38,8 @@ The email sign-in link has no **Required** option, and that's deliberate rather 
 
 Setting **Password** to Required also puts a password box on the sign-up form, so new members choose one as they join. The second step can't be done until they're actually signed in, so they're asked for that the first time they arrive.
 
+With **Password** set to Optional the sign-up form offers a password box too, which you can turn off with **Ask new members to set a password** under [Registration](#shortening-the-sign-up-form). Passwords stay available either way - members just add one from their own Security page rather than being asked for one before they've so much as looked round.
+
 Members can still add a passkey, set a password, or turn on the extra sign-in step for themselves from their own account's **Security** page - you don't need to do anything per-member. What they can't do is remove something you've marked Required; the site says so plainly rather than letting them delete it and immediately asking for it back.
 
 ### A word of caution about the sign-in link
@@ -108,10 +110,13 @@ You can also require email verification before an account becomes active (on by 
 
 ### Shortening the sign-up form
 
-The sign-up form asks for an email address, a username and an optional display name. The last two can go:
+The sign-up form asks for an email address, a username and an optional display name, plus a password if you offer them. All but the email address can go:
 
 - **Ask new members to choose a username** - turn it off and the box disappears. Cactus makes one up from their email address instead, with a few random digits after it, so `chris@example.com` becomes something like `chris4821`. They can still change it later if you allow username changes.
 - **Ask new members for a display name** - turn it off and the optional display-name box disappears too.
+- **Ask new members to set a password** - turn it off and signing up asks for nothing to remember. This one only appears while passwords are set to optional: with passwords off there is nothing to ask about, and with them required the form has to ask.
+
+Turning the password box off doesn't take passwords away. Members can add one whenever they like from **Security** in their account, which is where they'd set up the short code that goes with it anyway. It's often the kinder order of events: signing up takes one box and a click on an emailed link, and the password conversation waits until they've decided they're staying.
 
 Hiding a box genuinely removes it rather than tucking it out of sight, so nobody can fill it in by being clever with the form.
 

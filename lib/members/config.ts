@@ -31,6 +31,13 @@ export const MembersConfigSchema = z.object({
   // has no reason to make people invent a handle first.
   registrationCollectUsername: z.boolean().default(true),
   registrationCollectDisplayName: z.boolean().default(true),
+  // Whether the sign-up form offers a password box at all. Separate from the
+  // PASSWORD sign-in policy on purpose: a site can allow passwords without
+  // wanting one invented at the till. Off, the member registers with nothing to
+  // remember and adds a password later from their account security page, which
+  // is where the second factor password sign-in insists on lives anyway.
+  // Default true so existing sites keep asking exactly as they do now.
+  registrationCollectPassword: z.boolean().default(true),
   // One control per sign-in method, replacing the old allowedAuthMethods array
   // plus passwordsEnabled pair (two switches that both had to agree before a
   // password was offered - see normaliseLegacyAuthMethods for how stored rows
@@ -123,6 +130,18 @@ export function parseMembersConfig(raw: unknown): MembersConfig {
 // without the comparison being flagged as impossible.
 export function authMethodPolicy(config: MembersConfig, method: AuthMethod): AuthMethodPolicy {
   return config.authMethodPolicies[method]
+}
+
+// What the registration form should do about a password, which is not the same
+// question as what the site allows. Only OPTIONAL can be dropped: OFF has no
+// password to ask for, and REQUIRED means an account without one is unusable,
+// so the box stays whatever the toggle says. Everything that guards password
+// sign-in or adding a password later keeps reading the policy itself - turning
+// this off changes the sign-up form, nothing else.
+export function registrationPasswordPolicy(config: MembersConfig): AuthMethodPolicy {
+  const policy = authMethodPolicy(config, 'PASSWORD')
+  if (policy === 'OPTIONAL' && !config.registrationCollectPassword) return 'OFF'
+  return policy
 }
 
 export function isAuthMethodEnabled(config: MembersConfig, method: AuthMethod): boolean {
