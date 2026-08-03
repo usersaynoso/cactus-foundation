@@ -2,11 +2,12 @@
 name: deskwell-sequence-description
 description: >-
   Build or update a Deskwell / Cactus shop product's designed (Puck) description
-  featuring feature videos with a title and supporting text - video on one side,
-  text on the other on desktop (sides alternate on their own, video right
-  first), stacking to text-above-video on phones, with rounded corners matching
-  the product image. Works out which clip belongs to each section from the
-  video filenames, so only titles and copy need supplying. Use whenever the
+  featuring feature videos with a title and supporting text - opening with a
+  full-width video of the whole product above the short description, then video
+  on one side, text on the other on desktop (sides alternate on their own, video
+  right first), stacking to text-above-video on phones, with rounded corners
+  matching the product image. Works out which clip belongs to each section from
+  the video filenames alone, so only titles and copy need supplying. Use whenever the
   user asks to add a video / animation to a product description, put text beside
   a video, swap which side the video sits on, add several feature sections to a
   product, or replace a product description with "the same treatment as the
@@ -17,9 +18,10 @@ description: >-
 # Deskwell feature-video product description
 
 Produces a `shp_products.description_puck` document built from **FeatureVideo
-blocks**: video one side, title + text the other, vertically centred against
-each other, collapsing to text-above-video on phones. One block per feature,
-stacked in the order the user gives them.
+blocks**: a full-width video of the whole product at the top with the short
+description under it, then one block per feature - video one side, title + text
+the other, vertically centred against each other, collapsing to text-above-video
+on phones. Features run in the order the user gives them.
 
 Data only - no code changes. The block does the layout.
 
@@ -41,16 +43,28 @@ viewport.
 ## Inputs to collect
 
 1. **Product**: slug or id in `shp_products`.
-2. **Opening video** (optional, only when asked): one wide clip of the whole
-   product that runs full width at the top, with the product's short
-   description underneath it. See step 1a.
-3. **Title** and **body text** per section (verbatim from the user).
+2. **Title** and **body text** per section (verbatim from the user).
 
-That is the lot. The video for each section and the side it sits on are both
-worked out here, not asked for - see below. Only chase the user when a title
-matches no video, or matches two.
+That is the lot. Everything else is worked out here, not asked for: which clip
+belongs to each section, which side it sits on, and the opening video. Only
+chase the user when a title matches no video, or matches two.
+
+**The opening video is not optional and is never asked about.** Every product
+description opens with the whole-product clip running full width, with the
+product's `short_description` underneath it - see step 1a. That is the house
+style (Eclipse Plus, Academy), not a per-product decision. It is the clip whose
+`originalName` is the plain product name with no feature words after it -
+`Academy Visitor Chair.mp4`, `Eclipse Plus III Deluxe Mesh Back.mp4`. Only
+skip it if no such clip exists, and say so.
 
 ### Which video goes with which section
+
+**Filenames decide this. Nothing else.** Do not download a clip, do not extract
+frames, do not open one to see what it shows. Read `originalName` out of the
+database, match it against the section title, done. Fetching five videos to
+squint at thumbnails costs minutes and disk to answer a question the filename
+already answered - and where the filename genuinely does not answer it, looking
+at frames is not the fix either. **Ask.**
 
 Match on **`originalName`**, and take the url from the same row. Never build a
 url by hand from a filename, and never reuse one from a previous version of the
@@ -82,14 +96,14 @@ noun (`adjustment`), and words like "Optional" appear in titles only, so match
 on the **distinctive** words - `backrest tilt`, `arm height`, `seat tilt`,
 `lumbar` - rather than demanding the whole string. Two rules:
 
-- **Never guess.** No confident single match, or two clips look equally likely
-  → stop and ask which one, quoting the candidates. A wrong clip beside the
-  right words is worse than a question.
+- **Never guess, and never go looking.** No confident single match, or two clips
+  look equally likely → **stop and ask the user which one**, quoting the
+  candidate filenames. Do not try to break the tie by downloading them and
+  inspecting frames. A wrong clip beside the right words is worse than a
+  question, and a question costs one message.
 - Verify each chosen url resolves with a GET - the CDN answers 405 to HEAD.
-  `curl -s -o /dev/null -w "%{http_code}" -r 0-1 <url>` on all of them costs a
-  second and catches a moved library before the customer does.
-- After the screenshots, check the clip actually shows the feature its words
-  describe. Names get truncated; eyes don't.
+  `curl -s -o /dev/null -w "%{http_code}" -r 0-1 <url>` requests one byte, not
+  the file. Costs a second, catches a moved library before the customer does.
 
 **Moved or re-uploaded clips break the description silently.** The page keeps
 rendering, each block just 404s its video. If sections have gone blank, or the
@@ -146,9 +160,19 @@ this single prop; nothing else moves.
   it with a clean sentence or two of `<p>` - it is the fallback and feeds
   JSON-LD when `short_description` is empty. Never leave garbage in it.
 
-### 1. The block
+### 1. The feature block
 
-One `FeatureVideo` per feature in `content`, no Grid, no visibility duplicates:
+One `FeatureVideo` per feature, no Grid, no visibility duplicates. These follow
+the two opening blocks from step 1a - `content` always ends up as:
+
+```
+[0] FeatureVideo  - whole-product clip, full width, no copy
+[1] TextBlock     - short_description
+[2] FeatureVideo  - feature 1, textSide "left"
+[3] FeatureVideo  - feature 2, textSide "right"
+…
+```
+
 
 ```json
 {
@@ -184,12 +208,15 @@ Ready-made in `references/description-template.json`. Add further blocks
 Note `visibility` strings: `"true"` means HIDE on that device - all `"false"`
 here, since one block serves every screen.
 
-### 1a. The opening video (when asked for one)
+### 1a. The opening video - ALWAYS, and always first
 
-Some products lead with a single wide clip of the whole thing before the
-feature sections start - "a full width video at the top". That is the same
-block with the copy left out and the cap removed, followed by the product's
-own `short_description` as a `TextBlock` sitting underneath it:
+**Every description opens with it.** The first two blocks of `content` are the
+whole-product clip running full width, then the product's `short_description`
+underneath it. Feature sections start at block index 2. This is not a thing to
+ask about or offer; it is what a Deskwell product description looks like.
+
+It is the same `FeatureVideo` block with the copy left out and the cap removed,
+followed by a `TextBlock`:
 
 ```json
 [
@@ -239,15 +266,19 @@ own `short_description` as a `TextBlock` sitting underneath it:
 ```
 
 - Blank `maxWidth` is what makes it full width; the block reads a blank cap as
-  `100%`. Leave `title`/`body` empty so no two-track row is built at all.
+  `100%`. `padding: "none"` too - the TextBlock below carries the spacing.
+  Leave `title`/`body` empty so no two-track row is built at all.
 - Read the copy from `shp_products.short_description` and paste it verbatim -
   it is the same sentence that greets people higher up the page, so it should
   not be reworded here. Tidy double spaces, nothing else. If the product has
   no short description, skip the TextBlock rather than inventing copy.
 - Wide hero clips are the heavy ones (16:9 masters run to tens of megabytes
-  against ~4MB for a square feature clip). Check the file size before using
-  one, and say so if it is fat: the block's lazy preload keeps it off the
-  first paint, but it is still a big download for whoever scrolls that far.
+  against a few MB for a square feature clip). If you want the number, read it
+  off the `Content-Range` header of a one-byte request - never by downloading
+  the file:
+  `curl -s -o /dev/null -D - -r 0-0 <url> | grep -i content-range`
+  Worth mentioning to the user if it is fat, but not worth blocking on: the
+  block's lazy preload keeps it off the first paint either way.
 
 ### 1b. How playback works
 
@@ -306,13 +337,16 @@ What to expect:
   what stops that; do not "helpfully" set `preload="auto"` or add a poster for
   every section without checking weight.
 - iOS only autoplays muted inline video. The block sets both; don't add sound.
-- **Check the first frame before shipping a clip.** A video that fades up from
-  black shows a black rectangle until playback starts - a second on a fast
-  connection, longer on a phone. Test it:
-  `ffmpeg -ss 0.2 -i clip.mp4 -vframes 1 f.png && magick f.png -colorspace gray -format "%[fx:mean]\n" info:`
-  - a mean near 0 means it opens on black. Give that clip a `posterUrl` (grab a
-  representative frame, upload it to the media library, paste its url) rather
-  than leaving visitors a black box.
+- **Never download the clips.** Not to match them to sections, not to check
+  their opening frame, not to measure them. The verification step already looks
+  at the real page in a real browser, which is where a genuinely black or broken
+  clip shows up anyway - and it shows up in context, at the right size, on the
+  right background. Pulling 20MB of mp4 to the scratchpad to answer questions
+  the filename and the screenshots already answer is wasted time.
+- If a section does read as a black or blank box in the verification
+  screenshots, that clip fades up from black. Fix it with a `posterUrl`: grab a
+  representative frame, upload it to the media library, paste its url. Do not
+  swap the clip out on your own initiative - tell the user which one it is.
 - An admin opening the product's pop-out description builder later edits this
   same document. **Feature video** sits in the Media category, and **Title and
   text position** is right there in the sidebar if they want to flip sides by
