@@ -2434,7 +2434,7 @@ function MenuBlock(props: any) {
     hoverColor, activeColor, activeUnderline = 'none', activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, activeFontWeight, itemFontFamily, showDropdowns = 'hover',
     spacingShrunk, itemFontSizeShrunk, itemFontWeightShrunk,
     itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid,
-    scale, dropdownAlign = 'left', fitOneLine = 'no',
+    scale, dropdownAlign = 'left', fitOneLine = 'no', navButtonWidth,
   } = props
   if (!resolvedItems) {
     return <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg-subtle)', borderRadius: 6, color: 'var(--color-muted)', fontSize: '0.875rem' }}>Menu — configure in editor</div>
@@ -2525,7 +2525,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} scale={scale} dropdownAlign={dropdownAlign} fitOneLine={fitOneLine} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
+  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} scale={scale} dropdownAlign={dropdownAlign} fitOneLine={fitOneLine} navButtonWidth={navButtonWidth} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {
@@ -3635,6 +3635,7 @@ export const puckConfig = {
         activeUnderlineOffset: { type: 'custom' as const, label: 'Underline offset', units: ['px', 'em'], render: UnitValueField },
         showDropdowns: { type: 'select' as const, label: 'Dropdowns open on', options: [{ value: 'hover', label: 'Hover' }, { value: 'click', label: 'Click' }] },
         navToggle: { type: 'custom' as const, label: 'Nav behaviour', options: [{ value: 'collapse', label: 'Collapse to hamburger' }, { value: 'dropdown', label: 'Dropdown (current page)' }, { value: 'show', label: 'Always show' }], render: ResponsiveSelectField },
+        navButtonWidth: { type: 'custom' as const, label: 'Dropdown button width', options: [{ value: 'auto', label: 'Fits its text' }, { value: 'full', label: 'Full width of its slot' }], render: ResponsiveSelectField },
         dropdownAlign: { type: 'select' as const, label: 'Dropdown alignment (hamburger + dropdown)', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }] },
         spacingShrunk: { type: 'select' as const, label: 'Shrunk item spacing', options: [{ value: '', label: 'Same as spacing' }, { value: 'tight', label: 'Tight' }, { value: 'normal', label: 'Normal' }, { value: 'wide', label: 'Wide' }] },
         itemFontSizeShrunk: { type: 'select' as const, label: 'Shrunk font size', options: [{ value: '', label: 'Same as font size' }, { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
@@ -3643,7 +3644,7 @@ export const puckConfig = {
         letterSpacingFluid: { type: 'custom' as const, label: 'Responsive character spacing (em)', minLabel: 'Min spacing', maxLabel: 'Max spacing', render: MinMaxPairField },
         itemFontSizeFluid: { type: 'custom' as const, label: 'Responsive font size (rem)', minLabel: 'Min size', maxLabel: 'Max size', render: MinMaxPairField },
       },
-      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, scale: { desktop: 100 }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, dropdownAlign: 'left' as const, fitOneLine: 'no' as const, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
+      defaultProps: { menuId: '', menuName: '', orientation: 'horizontal' as const, spacing: { desktop: 'normal' }, alignment: { desktop: 'flex-start' }, scale: { desktop: 100 }, itemFontSize: { desktop: 'medium' }, itemFontWeight: { desktop: 'medium' }, textTransform: { desktop: 'none' }, itemFontFamily: '', itemColor: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', navToggle: { desktop: 'show', tablet: 'collapse', mobile: 'collapse' }, navButtonWidth: { desktop: 'auto' }, dropdownAlign: 'left' as const, fitOneLine: 'no' as const, spacingShrunk: '', itemFontSizeShrunk: '', itemFontWeightShrunk: '', itemSpacingFluid: { min: '', max: '' }, letterSpacingFluid: { min: '', max: '' }, itemFontSizeFluid: { min: '', max: '' } },
       resolveFields: (data: any, { fields, appState }: any) => {
         const p = data?.props ?? {}
         const out: Record<string, any> = { ...fields }
@@ -3654,8 +3655,12 @@ export const puckConfig = {
         // behaviour, no horizontal alignment, nothing to fit on one line.
         if (p.orientation === 'vertical') {
           delete out.alignment; delete out.navToggle; delete out.dropdownAlign
-          delete out.showDropdowns; delete out.fitOneLine
+          delete out.showDropdowns; delete out.fitOneLine; delete out.navButtonWidth
         }
+        // The button width describes the "Dropdown (current page)" trigger, so it
+        // only means anything once some breakpoint has picked that nav behaviour.
+        const navRv = normalizeResponsiveValue<string>(p.navToggle)
+        if (!(['desktop', 'tablet', 'mobile'] as const).some((d) => pickResponsive(navRv, d) === 'dropdown')) delete out.navButtonWidth
         if (!isHeaderShrinkEnabled(appState)) {
           delete out.spacingShrunk; delete out.itemFontSizeShrunk; delete out.itemFontWeightShrunk
         }

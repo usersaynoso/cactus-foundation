@@ -1,8 +1,10 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { fluidClamp, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
+import { navButtonWidthCss } from '@/lib/puck/menuNavButton'
+import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { emailSafeHref, maskEmailText } from '@/lib/email-obfuscate'
 
@@ -385,13 +387,15 @@ function currentPageLabel(items: MenuItem[], pathname: string | null, fallback: 
 // reveal it via the cactus-nav-dd-* classes at whichever widths chose this
 // mode. Reuses MobileNavItem for the panel so the nested accordion behaves
 // like the hamburger drawer, just centred.
-function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, panelAlign = 'left' }: {
+function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, panelAlign = 'left', blockId, fit = false }: {
   items: MenuItem[]
   colours?: MenuLinkColours
   fontFamily?: string
   className: string
   fallbackLabel: string
   panelAlign?: MenuDropAlign
+  blockId?: string
+  fit?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -419,7 +423,7 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
   }, [open])
 
   return (
-    <div ref={ref} className={className} style={{ position: 'relative', display: 'none', alignItems: 'center', justifyContent: FLEX_PLACE[panelAlign], ...dropAlignMargins(panelAlign) }}>
+    <div ref={ref} data-menu-dd-id={blockId} className={className} style={{ position: 'relative', display: 'none', alignItems: 'center', justifyContent: FLEX_PLACE[panelAlign], ...dropAlignMargins(panelAlign) }}>
       <button
         type="button"
         aria-haspopup="true"
@@ -438,10 +442,23 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
           border: '1px solid var(--color-border)',
           borderRadius: 6,
           cursor: 'pointer',
+          // "Keep on one line" caps the trigger at the width it has been given -
+          // without it a long page name makes the button wider than its column
+          // and it spills over whatever sits beside it.
+          ...(fit ? { maxWidth: '100%' } : {}),
         }}
       >
-        {current}
-        <span aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {fit ? (
+          // The label is the only part that may shrink; the bars keep their size.
+          // minWidth:0 is what lets a flex item shrink below its content, which is
+          // what gives HeadingFitText a narrower box to measure against and scale
+          // the label into. Unconstrained (an auto-width trigger with room to
+          // spare) it measures a box the text already fits and stays at 1:1.
+          <span style={{ display: 'block', flex: '0 1 auto', minWidth: 0 }}>
+            <HeadingFitText>{current}</HeadingFitText>
+          </span>
+        ) : current}
+        <span aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
           <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
           <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
@@ -503,6 +520,7 @@ type Props = {
   scale?: ResponsiveValue<number> | number
   dropdownAlign?: string
   fitOneLine?: string
+  navButtonWidth?: ResponsiveValue<string> | string
   spacingShrunk?: '' | 'tight' | 'normal' | 'wide'
   itemFontSizeShrunk?: '' | 'small' | 'medium' | 'large'
   itemFontWeightShrunk?: '' | 'normal' | 'medium' | 'semibold' | 'bold'
@@ -537,6 +555,7 @@ export default function MenuBlockClient({
   scale,
   dropdownAlign,
   fitOneLine,
+  navButtonWidth,
   spacingShrunk,
   itemFontSizeShrunk,
   itemFontWeightShrunk,
@@ -699,6 +718,11 @@ export default function MenuBlockClient({
     `[data-menu-id="${blockId}"][data-menu-fit]{justify-content:flex-start !important;}`,
   ].join('\n') : ''
 
+  // "Dropdown button width" for the collapsed current-page trigger, per
+  // breakpoint - see menuNavButton.ts for what each value does and why 'auto'
+  // emits nothing.
+  const navWidthCss = navButtonWidthCss(blockId, navButtonWidth)
+
   // Header "shrink on scroll" support - only emitted when at least one shrunk
   // value is set. Scoped under the header's own data-shrunk toggle (see
   // headerRootRender/HeaderShrinkScroll), so it's a no-op anywhere else this
@@ -725,6 +749,7 @@ export default function MenuBlockClient({
 
       {menuMediaCss && <style>{menuMediaCss}</style>}
       {fitCss && <style>{fitCss}</style>}
+      {navWidthCss && <style>{navWidthCss}</style>}
       <ul
         ref={listRef}
         data-menu-id={blockId}
@@ -797,6 +822,8 @@ export default function MenuBlockClient({
           className={[dropdownNavClasses, scaleClass].filter(Boolean).join(' ')}
           fallbackLabel="Menu"
           panelAlign={dropAlign}
+          blockId={blockId}
+          fit={fitEnabled}
         />
       )}
 

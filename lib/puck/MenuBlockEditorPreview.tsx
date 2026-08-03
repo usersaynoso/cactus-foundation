@@ -21,6 +21,7 @@ type Props = {
   scale?: ResponsiveValue<number> | number
   dropdownAlign?: string
   fitOneLine?: string
+  navButtonWidth?: ResponsiveValue<string> | string
   showDropdowns: string
   navToggle: ResponsiveValue<string> | string | undefined
   itemFontSize?: ResponsiveValue<string> | 'small' | 'medium' | 'large'
@@ -46,7 +47,7 @@ type Props = {
 // visually diverge (alignment, spacing, whatever) by construction. This
 // component only handles the states MenuBlockClient can't: no menu picked
 // yet, or still fetching the picked menu's items.
-export default function MenuBlockEditorPreview({ blockId, menuId, orientation, spacing, alignment = 'flex-start', scale, dropdownAlign, fitOneLine, showDropdowns = 'hover', navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemFontFamily, hoverColor, hoverBackground, activeColor, activeFontWeight, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
+export default function MenuBlockEditorPreview({ blockId, menuId, orientation, spacing, alignment = 'flex-start', scale, dropdownAlign, fitOneLine, navButtonWidth, showDropdowns = 'hover', navToggle, itemFontSize = 'medium', itemFontWeight = 'medium', textTransform = 'none', itemColor, itemFontFamily, hoverColor, hoverBackground, activeColor, activeFontWeight, activeUnderline, activeUnderlineColor, activeUnderlineThickness, activeUnderlineOffset, itemSpacingFluid, letterSpacingFluid, itemFontSizeFluid }: Props) {
   const [items, setItems] = useState<PublicMenuItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -135,6 +136,7 @@ export default function MenuBlockEditorPreview({ blockId, menuId, orientation, s
       scale={scale}
       dropdownAlign={dropdownAlign}
       fitOneLine={fitOneLine}
+      navButtonWidth={navButtonWidth}
       showDropdowns={showDropdowns}
       itemFontSize={itemFontSize}
       itemFontWeight={itemFontWeight}

@@ -218,6 +218,7 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
               scale={props.scale}
               dropdownAlign={props.dropdownAlign}
               fitOneLine={props.fitOneLine}
+              navButtonWidth={props.navButtonWidth}
               showDropdowns={props.showDropdowns ?? 'hover'}
               navToggle={props.navToggle}
               itemFontSize={props.itemFontSize}
