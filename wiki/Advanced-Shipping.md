@@ -217,6 +217,35 @@ guessed at: the shopper is asked to choose the number of people before it can be
 bought. A flat (not-per-person) service is unaffected and is charged once per
 line as before.
 
+## Orders that are paid for later
+
+If you take **bank transfer** (or cash), a shopper can place an order and pay for
+it whenever they get round to it. Nothing leaves the warehouse until the money
+lands, so a delivery date counted from the day they clicked is a promise you have
+no way of keeping - the transfer might arrive tomorrow, or a fortnight on
+Thursday.
+
+Advanced Shipping handles that on its own, with nothing to switch on:
+
+- **At the checkout**, choosing a pay-later method puts a line under it saying so:
+  delivery dates start from the day the payment clears rather than today, and
+  here is what the lead time on this basket actually is.
+- **Until the money arrives**, the order shows each item's delivery as a lead
+  time instead of a date - "Standard Delivery - 5 working days from when your
+  payment reaches us" - on the thank-you page, in the customer's account, and in
+  your admin. No date is promised, because none can be.
+- **The moment you mark the payment received**, every line is re-dated from that
+  day and reads as a proper date again. The confirmation email only goes out at
+  that point anyway, so it carries the real date rather than a stale one.
+
+The lead time honours the service the shopper actually bought, so an express or
+full-installation line keeps its own timing. Pre-order lines are left as dates
+throughout: their date comes from when the stock itself arrives, which paying
+sooner does not change.
+
+Card, PayPal and the open-banking methods are untouched - the money moves at the
+checkout, so the date the basket promised is the date the order keeps.
+
 ## Setting it up
 
 Everything lives on the shop's **Tax & shipping** page (Shop in the admin

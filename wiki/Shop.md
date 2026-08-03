@@ -42,6 +42,15 @@ shop promising a delivery date counted from a day the money had not arrived - se
 "Orders that are paid for later" there. With no such module installed, nothing
 changes.
 
+Bank transfer and cash are the two methods where the shopper leaves with an order
+nobody has been paid for yet, and an installed module is allowed to say what that
+means for them: picking one of those at the checkout can add a short line
+underneath it, and the order's own lines can read differently until you mark the
+payment received. [Advanced Shipping](Advanced-Shipping) uses this to stop the
+shop promising a delivery date counted from a day the money had not arrived - see
+"Orders that are paid for later" there. With no such module installed, nothing
+changes.
+
 **Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it's set up on its own **Settings → Instant Bank Pay** tab (add your GoCardless access token and webhook secret, choose sandbox or live, then switch it on) rather than the Shop → Payments tab. Refunds and confirmation work the same as any other method.
 
 **Direct bank payment (Crezco)** is another pay-by-bank option, added by installing the separate [Crezco Direct Bank Payments for Shop](https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop) module. Shoppers pick their bank on Crezco's hosted page and authorise the payment there - no card, no card fees. It is set up on the **Shop → Payments** tab (Crezco Bank Payments panel: add your Crezco API key and user ID, choose sandbox or production, register the webhook with one click, then switch it on). Confirmation works like any other method, with one honest difference: **refunds are manual**. Open banking has no refund rail, so the Refund button will tell you to send the money back by bank transfer yourself and record it against the order.

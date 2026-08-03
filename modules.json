@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.168"
+      "version": "v0.1.169"
     },
     {
       "name": "address-lookup-for-shop",
@@ -53,7 +53,7 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.31"
+      "version": "v0.1.32"
     },
     {
       "name": "quote-for-shop",
@@ -88,7 +88,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.31"
+      "version": "v0.1.32"
     },
     {
       "name": "contact-form-reply-catcher",
