@@ -133,15 +133,20 @@ export function ThemeToggle({
   // --- Cycle: one icon, click steps light → auto → dark ---
   if (effectiveStyle === 'cycle') {
     const next = NEXT_MODE[mode]
+    // The collapsed sidebar rail is too narrow for the styled tooltip, so it
+    // keeps the native title; everywhere else gets the shared tooltip.
     return (
       <button
         type="button"
         className="theme-toggle-cycle"
         onClick={() => apply(next)}
-        title={`Colour scheme: ${LABELS[mode]}`}
+        title={collapsed ? `Colour scheme: ${LABELS[mode]}` : undefined}
         aria-label={`Colour scheme: ${LABELS[mode]}. Switch to ${LABELS[next]}.`}
       >
         {ICONS[mode]}
+        {!collapsed && (
+          <span className="theme-toggle-tip" aria-hidden="true">{`Colour scheme: ${LABELS[mode]}`}</span>
+        )}
       </button>
     )
   }

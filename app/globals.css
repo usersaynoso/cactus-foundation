@@ -1402,6 +1402,7 @@ a:hover {
 
 /* Single cycling button shown when the sidebar is collapsed */
 .theme-toggle-cycle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1522,7 +1523,9 @@ a:hover {
   z-index: 10;
 }
 .theme-toggle-btn:hover .theme-toggle-tip,
-.theme-toggle-btn:focus-visible .theme-toggle-tip {
+.theme-toggle-btn:focus-visible .theme-toggle-tip,
+.theme-toggle-cycle:hover .theme-toggle-tip,
+.theme-toggle-cycle:focus-visible .theme-toggle-tip {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
