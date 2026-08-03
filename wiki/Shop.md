@@ -281,6 +281,14 @@ A line with options on it doesn't get a Buy again button - it gets **Choose opti
 
 Re-ordering is on by default and switches off in **Settings → Shop → Checkout → Order history**, which takes both buttons away together. Worth doing if your range moves faster than your order history - made-to-order work, one-offs, anything where pointing somebody at a year-old product page is more likely to disappoint than to sell.
 
+The **Addresses** tab fills itself in. Every address a signed-in customer orders to is kept there once the order is placed, so the second order asks them for rather less than the first one did. They can add one by hand too, and delete any of them, but nobody has to remember to save anything.
+
+At the delivery step, a customer with addresses on file gets a short **Deliver to** list above the form: their addresses, and a **Use a different address** option for when they're sending something somewhere new. Picking one fills the form in, and the form stays right there underneath, so a flat number they've since moved past can be corrected on the spot without touching what's stored in their account. Whichever address the order actually goes to is the one that gets kept.
+
+The same address ordered to twice stays one entry. Two entries only appear when the parcels would genuinely land at two different doors, so typing a postcode in capitals one week and lower case the next doesn't quietly grow a list of near-identical duplicates. It's the door that's matched on and not the name against it, which means two people at one address share one entry - the name comes up as whoever ordered first, and is typed over in the form like anything else. And a customer paying by bank transfer gets their address kept the moment they finish checking out, rather than whenever you get round to confirming the money.
+
+Guests aren't offered any of this and aren't asked to sign up for it. They see the form exactly as they always did.
+
 ### Cancellations and returns
 
 Customers can ask to call an order off or send something back from the order page itself, rather than hunting for your email address. They pick a reason from a short list and can add a note.
