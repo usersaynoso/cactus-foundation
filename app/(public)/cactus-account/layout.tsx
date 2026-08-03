@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
-import { getMemberAreaPath } from '@/lib/members/paths'
+import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
 import AccountNav from '@/components/members/account/AccountNav'
 import DeletionBanner from '@/components/members/account/DeletionBanner'
 
@@ -22,6 +22,13 @@ export default async function AccountLayout({ children }: { children: React.Reac
     // same regardless of the configured memberAreaPath.
     const headersList = await headers()
     const fullPath = headersList.get('x-cactus-member-full-path') ?? basePath
+    // Sign-in/sign-up/verify pages are the way *out* of having no session, so
+    // they render as-is (bare - the account nav is for members). Gating them
+    // pointed /login at /login and re-encoded the whole URL into the next
+    // one's ?redirect= each time round, until it outgrew what a browser will
+    // load. Missing header falls through to the gate, which is one safe hop:
+    // the resulting /login request carries the header and renders.
+    if (isPublicMemberPath(fullPath, basePath)) return <>{children}</>
     redirect(`${basePath}/login?redirect=${encodeURIComponent(fullPath)}`)
   }
 

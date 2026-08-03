@@ -21,3 +21,21 @@ export function getMemberAreaPath(): string {
   if (raw !== DEFAULT_MEMBER_AREA_PATH && isBlocklisted(raw)) return DEFAULT_MEMBER_AREA_PATH
   return raw
 }
+
+// Member-area sub-paths that must stay reachable without a session: they are
+// how a visitor gets one in the first place. The account layout's gate would
+// otherwise send /login to /login, folding the previous URL into the next
+// one's ?redirect= on every hop until the browser refuses the length. This
+// mirrors proxy.ts skipping its own gate for the admin area's /login sub-path.
+export const MEMBER_PUBLIC_SUBPATHS = ['/login', '/register', '/verify-email']
+
+// True only for those pages under the member area itself. `full` is the public
+// path, query optional (e.g. "/account/login?redirect=/x"); `basePath` is
+// "/" + getMemberAreaPath(). Anything outside the member area is not this
+// function's business - a site could have its own page at /login.
+export function isPublicMemberPath(full: string, basePath: string): boolean {
+  const path = full.split('?')[0] ?? ''
+  if (path !== basePath && !path.startsWith(basePath + '/')) return false
+  const sub = path.slice(basePath.length).replace(/\/+$/, '') || '/'
+  return MEMBER_PUBLIC_SUBPATHS.some((p) => sub === p || sub.startsWith(p + '/'))
+}
