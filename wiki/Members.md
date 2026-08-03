@@ -50,9 +50,9 @@ It asks for the email address first, and nothing else. Once they press **Continu
 
 - Added a passkey? They get the passkey button, offered first.
 - Set a password? They get the password button.
-- Done neither - which is everyone on day one - they get "email me a sign-in link" and that's it.
+- Done neither - which is everyone on day one - the sign-in link is simply sent there and then, and they're told to check their inbox. No second button to press, because there was only ever one thing they could have pressed.
 
-The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath for the inevitable typo.
+The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath - on the choice of methods and on the "check your inbox" message alike - for the inevitable typo.
 
 If the site can't reach its own settings for a moment - a wobbly connection at their end - the form quietly offers every method you've switched on rather than hiding one, so a passkey holder is never stuck looking at a form that won't take their passkey.
 

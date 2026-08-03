@@ -112,6 +112,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
     // works from the same address the lookup was answered for.
     const address = email.trim()
     setEmail(address)
+    let resolved: AuthMethods
     try {
       const res = await fetch('/api/members/auth/methods', {
         method: 'POST',
@@ -120,13 +121,23 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       })
       if (!res.ok) throw new Error('lookup failed')
       const d: AuthMethods = await res.json()
-      setMethods({ passkey: Boolean(d.passkey), password: Boolean(d.password), magicLink: Boolean(d.magicLink) })
+      resolved = { passkey: Boolean(d.passkey), password: Boolean(d.password), magicLink: Boolean(d.magicLink) }
     } catch {
-      setMethods(siteMethods)
-    } finally {
-      setLoading(false)
-      setStep('methods')
+      resolved = siteMethods
     }
+    setMethods(resolved)
+
+    // Nothing to choose between: no password, no passkey, link only. Showing a
+    // step whose one button says "Email me a sign-in link" is just asking the
+    // member to press Continue twice, so send it now. The address is passed
+    // through rather than read back off state, which has not settled yet.
+    if (!resolved.passkey && !resolved.password && resolved.magicLink) {
+      await handleMagicLink(address)
+      return
+    }
+
+    setLoading(false)
+    setStep('methods')
   }
 
   async function handlePasskeyLogin() {
@@ -165,7 +176,9 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
     }
   }
 
-  async function handleMagicLink() {
+  // Takes the address explicitly so the automatic send at the end of
+  // handleContinue can pass the normalised one before setEmail has landed.
+  async function handleMagicLink(address: string = email) {
     setError('')
     setLoading(true)
     setPendingMethod('magicLink')
@@ -173,7 +186,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       await fetch('/api/members/auth/magic-link/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: address }),
       })
       setStep('magic-sent')
     } catch {
@@ -261,10 +274,21 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
     return <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>Signing you in…</p>
   }
 
+  // The link can now arrive without anyone having pressed a button for it, so
+  // there has to be a way back from a mistyped address - otherwise Continue on
+  // a typo is a dead end.
   if (step === 'magic-sent') {
     return (
-      <div className="alert alert-success">
-        Check <strong>{email}</strong> for a sign-in link. It expires in 15 minutes.
+      <div>
+        <div className="alert alert-success">
+          Check <strong>{email}</strong> for a sign-in link. It expires in 15 minutes.
+        </div>
+        <button
+          className="btn btn-link"
+          onClick={() => { setStep('email'); setMethods(null); setError('') }}
+        >
+          Use a different email address
+        </button>
       </div>
     )
   }
@@ -422,7 +446,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
             className={buttonClass('magicLink')}
             style={{ width: '100%', marginBottom: 'var(--space-3)' }}
             disabled={loading}
-            onClick={handleMagicLink}
+            onClick={() => handleMagicLink()}
           >
             {pendingMethod === 'magicLink' ? 'Sending…' : 'Email me a sign-in link'}
           </button>
@@ -469,7 +493,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
         disabled={!looksLikeEmail(email) || loading}
         onClick={handleContinue}
       >
-        {loading ? 'Checking…' : 'Continue'}
+        {pendingMethod === 'magicLink' ? 'Sending…' : loading ? 'Checking…' : 'Continue'}
       </button>
     </div>
   )
