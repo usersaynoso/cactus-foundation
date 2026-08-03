@@ -122,17 +122,9 @@ export function MenuVerticalLink({ item, className, style, colours }: {
   )
 }
 
-const DROPDOWN_PANEL: React.CSSProperties = {
-  position: 'absolute',
-  top: 'calc(100% + 4px)',
-  left: 0,
-  // The panel is absolutely positioned inside a narrow <li>, so without an
-  // explicit width it shrink-to-fits to that li and comes out cramped.
-  // max-content sizes it to its longest row; minWidth stops tiny menus looking
-  // mean, maxWidth stops a very long label running off the page.
-  minWidth: 180,
-  width: 'max-content',
-  maxWidth: 320,
+// What a dropdown panel looks like. Where it sits and how wide it gets belongs
+// to the boxes below, because the two panels are placed by different means.
+const PANEL_CHROME: React.CSSProperties = {
   background: 'var(--color-surface)',
   border: '1px solid var(--color-border)',
   borderRadius: 6,
@@ -140,13 +132,38 @@ const DROPDOWN_PANEL: React.CSSProperties = {
   listStyle: 'none',
   margin: 0,
   padding: '0.375rem 0',
+}
+
+// The box a top-level panel hangs in. It starts flush under the trigger and
+// pushes the panel down with transparent padding rather than sitting 4px lower
+// itself - that gap has to stay crossable, see where this is rendered.
+//
+// The size constraints live here rather than on the panel so the padding spans
+// the panel's full width. A panel is positioned inside a narrow <li>, so
+// without an explicit width it shrink-to-fits to that li and comes out cramped.
+// max-content sizes it to its longest row; minWidth stops tiny menus looking
+// mean, maxWidth stops a very long label running off the page.
+const DROPDOWN_ANCHOR: React.CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  paddingTop: 4,
+  minWidth: 180,
+  width: 'max-content',
+  maxWidth: 320,
   zIndex: 100,
 }
 
+// Sub-panels hang off the side of their row, flush against it, so there is no
+// gap to bridge and they place themselves.
 const SUBDROPDOWN_PANEL: React.CSSProperties = {
-  ...DROPDOWN_PANEL,
+  ...PANEL_CHROME,
+  position: 'absolute',
   top: '-0.375rem',
   left: '100%',
+  minWidth: 180,
+  width: 'max-content',
+  maxWidth: 320,
   zIndex: 101,
 }
 
@@ -258,18 +275,28 @@ function DesktopNavItem({ item, overrides, colours, fontFamily, openOn = 'hover'
         </a>
         {hasChildren && open && (
           <>
-            {/* The panel hangs 4px below the trigger (DROPDOWN_PANEL.top). In hover
-                mode the pointer has to cross that gap to reach the menu, and for
-                those 4px it is over neither the trigger nor the panel - so the
-                li's onMouseLeave fires and the menu shuts before anything can be
-                clicked. This transparent strip fills the gap as a child of the
-                li, keeping the li "hovered" the whole way down. */}
+            {/* The panel sits 4px below the trigger. In hover mode the pointer
+                has to cross that gap to reach the menu, and while it is over
+                neither the trigger nor the panel the li's onMouseLeave fires and
+                the menu shuts before anything can be clicked.
+
+                Both of these keep the crossing inside the li. The gap is the
+                anchor's transparent top padding, so it is covered across the
+                panel's whole width - which the strip alone could never do, being
+                only as wide as the trigger. A panel is the wider of the two
+                nearly always (180px minimum against a ~80px menu item), so
+                approaching a row on any diagonal used to pass through about
+                100px of no-man's-land and lose the menu on the way. The strip
+                still earns its keep in the other direction, where a very long
+                menu item is wider than the panel it opens. */}
             <span aria-hidden style={{ position: 'absolute', top: '100%', left: 0, width: '100%', height: 6 }} />
-            <ul style={DROPDOWN_PANEL}>
-              {item.children!.map((child) => (
-                <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={1} />
-              ))}
-            </ul>
+            <div style={DROPDOWN_ANCHOR}>
+              <ul style={PANEL_CHROME}>
+                {item.children!.map((child) => (
+                  <DesktopNavItem key={child.id} item={child} colours={colours} fontFamily={fontFamily} openOn={openOn} depth={1} />
+                ))}
+              </ul>
+            </div>
           </>
         )}
       </li>
