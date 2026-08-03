@@ -5,6 +5,7 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import VerifyEmailNudge from '@/components/members/account/VerifyEmailNudge'
 
@@ -46,7 +47,7 @@ export default async function AccountIndexPage() {
 
   // One round of queries rather than a waterfall: this is the page every
   // signed-in member lands on, so it is the one worth not making them wait for.
-  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules] =
+  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable] =
     await Promise.all([
       getMembersConfig(),
       prisma.member.findUnique({
@@ -71,6 +72,7 @@ export default async function AccountIndexPage() {
         select: { id: true, type: true, source: true, createdAt: true },
       }),
       prisma.module.findMany({ where: { ...INSTALLED_MODULE_WHERE }, select: { manifest: true } }),
+      hasModuleNotificationCategories(),
     ])
 
   // Modules can append content here via the "members.account-section"
@@ -145,7 +147,10 @@ export default async function AccountIndexPage() {
           </SummaryCard>
         )}
 
-        {sections.notifications && (
+        {/* Same rule as the tab: no module contributes a category, no card. A
+            link labelled "Choose what we send" that opens a page with nothing
+            to choose is worse than no link. */}
+        {sections.notifications && notificationsAvailable && (
           <SummaryCard title="Notifications" href={`${basePath}/notifications`} linkLabel="Choose what we send">
             <span>Decide which emails land in your inbox.</span>
             {record?.backupEmail && <span>Recovery address: {record.backupEmail}</span>}

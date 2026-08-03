@@ -2,6 +2,7 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { getMemberAccountNavExtras, type MemberAccountNavContext } from '@/lib/members/account-nav'
+import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
 import AccountNav from '@/components/members/account/AccountNav'
 import AccountFlash from '@/components/members/account/AccountFlash'
 import DeletionBanner from '@/components/members/account/DeletionBanner'
@@ -36,13 +37,14 @@ export default async function MemberAccountShell({ children, member, notice, max
   // rather than dressing it in an account nav nobody can use.
   if (!current) return <>{children}</>
 
-  const [config, extras] = await Promise.all([
+  const [config, extras, notificationsAvailable] = await Promise.all([
     getMembersConfig(),
     getMemberAccountNavExtras({
       id: current.id,
       email: current.email,
       emailVerified: current.emailVerified,
     }),
+    hasModuleNotificationCategories(),
   ])
 
   return (
@@ -52,7 +54,12 @@ export default async function MemberAccountShell({ children, member, notice, max
         <DeletionBanner scheduledAt={current.deletionScheduledAt.toISOString()} />
       )}
       {notice}
-      <AccountNav basePath={`/${getMemberAreaPath()}`} sections={config.accountSectionsEnabled} extras={extras} />
+      <AccountNav
+        basePath={`/${getMemberAreaPath()}`}
+        sections={config.accountSectionsEnabled}
+        extras={extras}
+        notificationsAvailable={notificationsAvailable}
+      />
       {children}
     </div>
   )

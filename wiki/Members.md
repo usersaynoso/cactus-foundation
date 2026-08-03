@@ -154,11 +154,11 @@ Once signed in, members land on an **overview** page that tries to answer the ob
 
 - **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
 - **Security** - passkeys, password, two-factor authentication, active sessions, and trusted browsers.
-- **Notifications** - email preferences for anything your installed modules notify members about.
+- **Notifications** - email preferences for anything your installed modules notify members about. Nothing installed offers any yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose.
 - **Activity** - a simple history of their sign-ins and other account activity.
 - **Danger Zone** - requesting a copy of their data, or deleting their account.
 
-Installed modules can add tabs of their own here. With the Shop installed, members get **Orders** and **Addresses** alongside the built-in ones, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
+Installed modules can add tabs of their own here, and they slot in after **Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
 
 ### Data export and account deletion
 

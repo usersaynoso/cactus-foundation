@@ -27,6 +27,14 @@ export async function getModuleNotificationCategories(): Promise<Array<{ categor
   return manifests.flatMap((m) => m.memberExtensions?.notificationCategories ?? [])
 }
 
+/** Whether the Notifications section has anything in it at all. Core ships no
+ * optional notification types of its own, so with no module contributing any
+ * the page can only say so - the tab and its overview card are hidden instead
+ * of pointing a member at an empty room. */
+export async function hasModuleNotificationCategories(): Promise<boolean> {
+  return (await getModuleNotificationCategories()).length > 0
+}
+
 export async function getModuleDataExportPaths(): Promise<Array<{ moduleName: string; path: string }>> {
   const modules = await prisma.module.findMany({
     where: { ...INSTALLED_MODULE_WHERE },
