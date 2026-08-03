@@ -97,6 +97,8 @@ A registration link can arrive with the email address already filled in - add `?
 
 Once they've signed up, people wait on a page that names the address the link went to and offers a **Send it again** button, limited to one send a minute so your mail provider stays friendly.
 
+That minute is counted from the moment they arrive, because the link they're waiting for has only just gone out. Offering the button straight away was worse than useless: the site quietly declines to send a second link within a minute of the first, so an eager click reported success and did nothing at all - which looks exactly like email being broken when it isn't.
+
 It shows that address as plain text rather than in an editable box. Re-sending is the only thing the page can do, so a box invited people to "correct" a typo there, and the correction would have gone quietly nowhere while still looking like it had worked.
 
 For a genuine typo the page offers a **sign up again** link instead, which is the only real fix - the half-finished account left behind stays unverified and out of everyone's way. That link is hidden on invite-only sites, where signing up again would need an invite they haven't got.

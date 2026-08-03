@@ -45,7 +45,14 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
   const [message, setMessage] = useState('')
   const [typedEmail, setTypedEmail] = useState('')
   const [sentTo, setSentTo] = useState('')
-  const [resendCooldown, setResendCooldown] = useState(0)
+  // Arriving with an address means a link was just sent, and the server refuses
+  // to issue another within 60 seconds of the last one. It refuses in silence -
+  // it has to, since "too soon" is only knowable for an address that really is
+  // waiting to be verified - so a button offered before then reported success
+  // and sent nothing, which is precisely what "I clicked resend and still got
+  // no email" turned out to be. Starting the countdown on arrival means the
+  // first click can only land once the server will honour it.
+  const [resendCooldown, setResendCooldown] = useState(knownEmail ? 60 : 0)
 
   const target = knownEmail || typedEmail
 
