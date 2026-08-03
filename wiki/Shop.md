@@ -94,6 +94,8 @@ Leave it as a draft to keep working on it privately, or set it **Active** to put
 
 Both the products list and a product's own edit page carry a **Preview** button - the list's sits beside each row's actions, the edit page's just under Save - opening the live shop page in a new tab. It only works once a product is Active; a draft or archived one greys it out, since there's nothing to see yet.
 
+And the same trip the other way round. While you're signed in and allowed to edit products, the product's name on its own shop page is a link back to its edit page, opening in a new tab so the shop page you were checking stays where it is. There's a faint pencil beside the name to remind you it's there. Spot a typo while browsing your own shop, click the name, fix it - no hunting through the products list for the right row. Customers see none of this: to anyone who isn't signed in with permission to edit products, the name is just a name, and the link is never put on the page in the first place.
+
 ---
 
 ## Categories, tags and collections
