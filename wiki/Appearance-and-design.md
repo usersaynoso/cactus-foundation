@@ -127,6 +127,8 @@ The header editor also offers the **Heading**, **Text**, **Rich text** and **But
 
 **Site logo height.** The Site logo block's height setting is labelled **Element height**, with a matching **Element height when shrunk** if your header is set to shrink on scroll. The logo scales to that height and keeps its proportions.
 
+**Side padding.** With nothing selected in the header editor, the settings panel has a **Side padding** box: the gap held clear down each side of the header, between the screen edge and whatever sits furthest left and right. Leave it blank for the usual comfortable gap. Set it per screen size like everything else, so you can claw back a few millimetres beside the logo on phones - where every pixel counts - while the desktop header stays exactly as it was.
+
 ### Display conditions
 
 Each layout can be set to apply to specific contexts - so you can have a different header on your homepage, a simplified layout for a particular section, or a unique 404 page. Set this on the **Conditions** tab in the layout editor.

@@ -4077,7 +4077,7 @@ export const layoutPuckConfig = {
 
 const headerRootRender = ({
   children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes',
-  border = { show: 'show', color: '' }, maxWidth = '1200px',
+  border = { show: 'show', color: '' }, maxWidth = '1200px', paddingX = '',
   shrinkOnScroll = 'no', shrinkHeight = '48px',
 }: any) => {
   const bgMode = bg.mode ?? 'color'
@@ -4092,6 +4092,16 @@ const headerRootRender = ({
       ? (bgColor || 'var(--color-bg)')
       : (bgColor || undefined)
   const shrinking = shrinkOnScroll === 'yes'
+  // Horizontal gutter, per breakpoint. Blank keeps the long-standing 1.5rem that
+  // stops the logo and the action icons kissing the viewport edge; an explicit
+  // value narrows (or widens) it, which is the only way to claw back dead space
+  // beside the logo on a phone without touching the desktop header. Desktop is
+  // the inline style below, tablet/mobile come out as media rules.
+  const headerPxRv = normalizeResponsiveValue<string>(paddingX)
+  const headerPxAt = (d: Device) => (pickResponsive(headerPxRv, d) ?? '').trim() || '1.5rem'
+  // One header per page, so the bare attribute selector is specific enough - the
+  // root render has no id of its own to hang it off.
+  const headerPxCss = responsiveMediaCssFor('[data-header-inner]', (d) => `padding-left:${headerPxAt(d)};padding-right:${headerPxAt(d)};`)
   // data-header-root is unconditional (unlike data-shrink-root, which only
   // appears when shrink-on-scroll is on): it scopes the header-only true-
   // centering CSS that GridBlock/GroupBlock emit, so those rules are inert
@@ -4112,10 +4122,11 @@ const headerRootRender = ({
         width: '100%',
       }}
     >
+      {headerPxCss && <style>{headerPxCss}</style>}
       <div data-header-inner style={{
         maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
         margin: '0 auto',
-        padding: '0 1.5rem',
+        padding: `0 ${headerPxAt('desktop')}`,
         height: '100%',
         display: 'flex',
         flexDirection: 'row',
@@ -4166,10 +4177,11 @@ export const headerPuckConfig = {
       sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
       border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
+      paddingX:     { type: 'custom' as const, label: 'Side padding (blank = 1.5rem)', units: ['px', 'rem', '%', 'vw'], render: ResponsiveUnitValueField },
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
       shrinkHeight: { type: 'custom' as const, label: 'Shrunk height', units: ['px', 'rem'], render: UnitValueField },
     },
-    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', shrinkOnScroll: 'no', shrinkHeight: '48px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {
       if (data.props?.shrinkOnScroll === 'yes') return fields
       const { shrinkHeight: _h, ...rest } = fields
