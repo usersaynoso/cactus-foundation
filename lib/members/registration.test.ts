@@ -6,7 +6,7 @@ const { member } = vi.hoisted(() => ({
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { member } }))
 
-import { generateUsernameFromEmail, isUsernameFormatValid } from './registration'
+import { generateUsernameFromEmail, isUsernameFormatValid, loginRejectionForStatus } from './registration'
 
 // Nobody is taken unless a test says so.
 function taken(...usernames: string[]) {
@@ -80,5 +80,28 @@ describe('generateUsernameFromEmail', () => {
   it('gives up rather than looping forever', async () => {
     member.findUnique.mockResolvedValue({ id: 'existing' })
     await expect(generateUsernameFromEmail('chris@example.com')).rejects.toThrow(/available username/)
+  })
+})
+
+// Every route that issues a member session asks this first, including the
+// verify-email route, which signs a member in the moment they click the link
+// out of their inbox. A status that quietly returns null here would be handed
+// a session by all of them at once, so the whole enum is pinned down.
+describe('loginRejectionForStatus', () => {
+  it('lets only ACTIVE members through', () => {
+    expect(loginRejectionForStatus('ACTIVE')).toBeNull()
+  })
+
+  it('turns every other status away', () => {
+    for (const status of ['PENDING_VERIFICATION', 'PENDING_APPROVAL', 'SUSPENDED', 'DELETED'] as const) {
+      expect(loginRejectionForStatus(status)?.error, status).toBeTruthy()
+    }
+  })
+
+  // The login form reads this flag to send an unverified member to the holding
+  // page rather than showing them an error they can do nothing about.
+  it('flags only the unverified case for the verify page', () => {
+    expect(loginRejectionForStatus('PENDING_VERIFICATION')?.redirectToVerify).toBe(true)
+    expect(loginRejectionForStatus('PENDING_APPROVAL')?.redirectToVerify).toBeUndefined()
   })
 })

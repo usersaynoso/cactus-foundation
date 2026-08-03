@@ -16,9 +16,10 @@ type Props = {
   // Only set when registration is actually open to walk-ups. Invite-only sites
   // would be offering a door that needs a key nobody has, so they get no link.
   registerHref?: string
-  // The member area itself, where a verified visitor is sent. The gate there
-  // hands a signed-out one on to the sign-in page, which is the next thing
-  // they need anyway.
+  // The member area itself, where a verified visitor is sent - normally with a
+  // session already on them, since verifying is now a sign-in as well. The gate
+  // there hands on anyone who still hasn't got one (a site that holds new
+  // members for approval, say) to the sign-in page.
   accountHref: string
 }
 
@@ -77,11 +78,15 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
         setState('success')
         // Nothing left to do on this page, so the good news travels with them
         // to the member area as a pill rather than parking them on a screen
-        // whose only remaining purpose is to be left.
+        // whose only remaining purpose is to be left. The API signs them in on
+        // the way past where it can, so the wording follows what actually
+        // happened rather than promising a sign-in screen they won't see.
         setMemberFlash(
           d.status === 'PENDING_APPROVAL'
             ? 'Your email is verified. Your account is now awaiting admin approval.'
-            : 'Your email is verified. You can now sign in.'
+            : d.signedIn
+              ? 'Your email is verified and you are signed in. Welcome.'
+              : 'Your email is verified. You can now sign in.'
         )
         router.replace(accountHref)
       })

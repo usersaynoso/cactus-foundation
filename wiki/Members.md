@@ -142,9 +142,11 @@ Someone arriving at that page cold, from a bookmark or a link they dug up weeks 
 
 ### When they click the link in the email
 
-Clicking the link verifies the address and takes them straight on to their account area, rather than leaving them on a page whose entire remaining purpose was to be left. If they aren't signed in yet, that's the sign-in page, which is the next thing they need.
+Clicking the link verifies the address **and signs them in**, landing them in their account area with nothing else to do. Fetching a link out of your own inbox proves the address is yours every bit as well as an email sign-in link does, so asking for a sign-in immediately afterwards was making people prove the same thing twice in a row - which is precisely where a good number of them wandered off.
 
-The good news travels with them: **Your email is verified. You can now sign in.** appears as a small pill at the top of the page they land on, and takes itself away after a few seconds. On sites where new accounts wait for approval it says so instead, so nobody stands at a sign-in form wondering why their new password isn't working yet.
+The good news travels with them: **Your email is verified and you are signed in. Welcome.** appears as a small pill at the top of the page they land on, and takes itself away after a few seconds.
+
+Sites that hold new accounts for approval are the exception, and deliberately so: there the pill says the account is awaiting approval and no sign-in happens, because there's nothing to sign in to yet. Suspended and deleted accounts are turned away the same way, by the same check every other sign-in method uses.
 
 A link that has expired, or has already been used, still says so on the verification page itself, with the **Send it again** button underneath - that's a page with something left to do on it.
 
