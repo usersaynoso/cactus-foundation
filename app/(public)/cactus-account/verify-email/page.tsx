@@ -12,5 +12,12 @@ export default async function VerifyEmailPage() {
   // and a site with members switched off has no door at all.
   const registerOpen = config.enabled && config.registrationMode !== 'INVITE_ONLY'
 
-  return <VerifyEmailPanel registerHref={registerOpen ? `/${getMemberAreaPath()}/register` : undefined} />
+  const basePath = `/${getMemberAreaPath()}`
+
+  return (
+    <VerifyEmailPanel
+      registerHref={registerOpen ? `${basePath}/register` : undefined}
+      accountHref={basePath}
+    />
+  )
 }

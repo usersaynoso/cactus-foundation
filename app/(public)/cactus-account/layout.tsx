@@ -7,6 +7,7 @@ import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
 import AccountNav from '@/components/members/account/AccountNav'
+import AccountFlash from '@/components/members/account/AccountFlash'
 import DeletionBanner from '@/components/members/account/DeletionBanner'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,17 @@ export default async function AccountLayout({ children }: { children: React.Reac
     // one's ?redirect= each time round, until it outgrew what a browser will
     // load. Missing header falls through to the gate, which is one safe hop:
     // the resulting /login request carries the header and renders.
-    if (isPublicMemberPath(fullPath, basePath)) return <>{children}</>
+    // AccountFlash goes on both sides of this gate: verifying an email aims
+    // the visitor at the member area, and a signed-out one is bounced straight
+    // back out to /login, which is where the pill then has to appear.
+    if (isPublicMemberPath(fullPath, basePath)) {
+      return (
+        <>
+          <AccountFlash />
+          {children}
+        </>
+      )
+    }
     redirect(`${basePath}/login?redirect=${encodeURIComponent(fullPath)}`)
   }
 
@@ -48,6 +59,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
 
   return (
     <div style={{ maxWidth: 720, margin: '3rem auto', padding: '0 1.5rem' }}>
+      <AccountFlash />
       {member.deletionScheduledAt && (
         <DeletionBanner scheduledAt={member.deletionScheduledAt.toISOString()} />
       )}

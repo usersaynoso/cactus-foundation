@@ -1,7 +1,8 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { setMemberFlash } from '@/lib/members/flash'
 
 type State = 'checking' | 'success' | 'error' | 'pending'
 
@@ -15,17 +16,22 @@ type Props = {
   // Only set when registration is actually open to walk-ups. Invite-only sites
   // would be offering a door that needs a key nobody has, so they get no link.
   registerHref?: string
+  // The member area itself, where a verified visitor is sent. The gate there
+  // hands a signed-out one on to the sign-in page, which is the next thing
+  // they need anyway.
+  accountHref: string
 }
 
-export default function VerifyEmailPanel({ registerHref }: Props) {
+export default function VerifyEmailPanel({ registerHref, accountHref }: Props) {
   return (
     <Suspense fallback={null}>
-      <VerifyEmailContent registerHref={registerHref} />
+      <VerifyEmailContent registerHref={registerHref} accountHref={accountHref} />
     </Suspense>
   )
 }
 
-function VerifyEmailContent({ registerHref }: Props) {
+function VerifyEmailContent({ registerHref, accountHref }: Props) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const emailParam = searchParams.get('email') ?? ''
@@ -43,8 +49,16 @@ function VerifyEmailContent({ registerHref }: Props) {
 
   const target = knownEmail || typedEmail
 
+  // A verification token is spent the first time it is sent. Anything that runs
+  // this effect a second time for the same token (a re-render carrying a new
+  // router identity, React's development double-invoke) would be asking the API
+  // to consume a token that is already gone, and the second answer - "invalid
+  // or has expired" - would land on a visitor who did nothing wrong.
+  const submitted = useRef(false)
+
   useEffect(() => {
-    if (!token) return
+    if (!token || submitted.current) return
+    submitted.current = true
     fetch('/api/members/verify-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,17 +68,21 @@ function VerifyEmailContent({ registerHref }: Props) {
         const d = await res.json()
         if (!res.ok) throw new Error(d.error ?? 'Verification failed')
         setState('success')
-        setMessage(
+        // Nothing left to do on this page, so the good news travels with them
+        // to the member area as a pill rather than parking them on a screen
+        // whose only remaining purpose is to be left.
+        setMemberFlash(
           d.status === 'PENDING_APPROVAL'
             ? 'Your email is verified. Your account is now awaiting admin approval.'
             : 'Your email is verified. You can now sign in.'
         )
+        router.replace(accountHref)
       })
       .catch((err: unknown) => {
         setState('error')
         setMessage(err instanceof Error ? err.message : 'Verification failed')
       })
-  }, [token])
+  }, [token, router, accountHref])
 
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -89,7 +107,14 @@ function VerifyEmailContent({ registerHref }: Props) {
     <div style={{ maxWidth: 440, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
       {state === 'checking' && <p style={{ color: 'var(--color-text-muted)' }}>Verifying your email…</p>}
 
-      {state === 'success' && <div className="alert alert-success">{message}</div>}
+      {/* The wording itself is carried to the member area as a pill, so all
+          that's wanted here is somewhere to look while the browser moves - and
+          a door to go through by hand if it somehow doesn't. */}
+      {state === 'success' && (
+        <p style={{ color: 'var(--color-text-muted)' }}>
+          Taking you to your account… <a href={accountHref}>Go there now</a> if nothing happens.
+        </p>
+      )}
 
       {state === 'error' && (
         <>

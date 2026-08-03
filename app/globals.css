@@ -2157,6 +2157,83 @@ input[type="radio"] {
 }
 
 /* ============================================================
+   MEMBER AREA FLASH PILL
+   ============================================================ */
+/* Floats over the top of the member area to report something that happened on
+   the page before (components/members/account/AccountFlash.tsx). Sits above a
+   sticky site header or menu (z-index 100/101) but below the consent banner,
+   which has first claim on anyone's attention. */
+.member-flash {
+  position: fixed;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9990;
+  display: flex;
+  justify-content: center;
+  max-width: min(560px, calc(100vw - 2 * var(--space-4)));
+  /* The strip is wider than the pill on a big screen, and nothing behind it
+     should become unclickable just because a message is showing. */
+  pointer-events: none;
+}
+.member-flash-pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-base);
+  text-align: left;
+  animation: member-flash-in 220ms ease-out;
+}
+.member-flash-success {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+.member-flash-info {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+.member-flash-error {
+  background: var(--color-error-bg);
+  border-color: var(--color-destructive-border);
+  color: var(--color-error);
+}
+.member-flash-glyph {
+  flex-shrink: 0;
+}
+.member-flash-message {
+  flex: 1;
+}
+.member-flash-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin-left: var(--space-1);
+  font-size: var(--text-base);
+  line-height: inherit;
+}
+@keyframes member-flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
    TABLES
    ============================================================ */
 .table-wrapper {

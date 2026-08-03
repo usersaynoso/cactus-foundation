@@ -103,6 +103,14 @@ For a genuine typo the page offers a **sign up again** link instead, which is th
 
 Someone arriving at that page cold, from a bookmark or a link they dug up weeks later, is asked for their address instead, since nothing in the link says whose account it is.
 
+### When they click the link in the email
+
+Clicking the link verifies the address and takes them straight on to their account area, rather than leaving them on a page whose entire remaining purpose was to be left. If they aren't signed in yet, that's the sign-in page, which is the next thing they need.
+
+The good news travels with them: **Your email is verified. You can now sign in.** appears as a small pill at the top of the page they land on, and takes itself away after a few seconds. On sites where new accounts wait for approval it says so instead, so nobody stands at a sign-in form wondering why their new password isn't working yet.
+
+A link that has expired, or has already been used, still says so on the verification page itself, with the **Send it again** button underneath - that's a page with something left to do on it.
+
 ---
 
 ## The member account area
