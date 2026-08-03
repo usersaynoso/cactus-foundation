@@ -41,6 +41,19 @@ const FLEX_PLACE: Record<MenuDropAlign, string> = { left: 'flex-start', center: 
 // margins place the box, and there is no free space left inside it for
 // justify/align to distribute. Both are set, and between them every parent is
 // covered. 'left' emits no margins at all, so the default renders as before.
+// The hamburger's bars, sized to paint at the same weight as the outline icons
+// that sit beside it in a header row (ThemeToggle, the members and cart icons,
+// the search magnifier). Those are all `stroke-width: 2` inside a 24-unit
+// viewBox rendered at 20px, which paints 2 x 20/24 = 1.667px - so a flat 2px
+// bar was reading 20% heavier than its neighbours. Round caps to match theirs.
+const HAMBURGER_BAR: React.CSSProperties = {
+  display: 'block',
+  width: 22,
+  height: 20 * 2 / 24,
+  background: 'var(--color-text)',
+  borderRadius: 2,
+}
+
 function dropAlignMargins(align: MenuDropAlign): React.CSSProperties {
   if (align === 'center') return { marginLeft: 'auto', marginRight: 'auto' }
   if (align === 'right') return { marginLeft: 'auto' }
@@ -835,9 +848,9 @@ export default function MenuBlockClient({
             ...dropAlignMargins(dropAlign),
           }}
         >
-          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 22, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={HAMBURGER_BAR} />
+          <span style={HAMBURGER_BAR} />
+          <span style={HAMBURGER_BAR} />
         </button>
       )}
 
