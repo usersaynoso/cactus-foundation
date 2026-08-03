@@ -129,8 +129,11 @@ export default async function AccountIndexPage() {
           size={64}
         />
         <div style={{ minWidth: 0 }}>
+          {/* With the Profile section switched off there is nowhere for the
+              member to correct the name we greet them by, so a name we guessed
+              wrong just sits there. Better to greet nobody in particular. */}
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: 0, color: 'var(--color-text)' }}>
-            Hi, {greetingName(member, config.registrationCollectUsername)}
+            {sections.profile ? `Hi, ${greetingName(member, config.registrationCollectUsername)}` : 'Hi there'}
           </h1>
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-sm)' }}>
             {member.email}
