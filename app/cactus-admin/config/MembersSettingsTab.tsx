@@ -6,6 +6,8 @@ type Config = {
   enabled: boolean
   registrationMode: 'OPEN' | 'INVITE_ONLY' | 'APPROVAL_REQUIRED'
   emailVerificationRequired: boolean
+  registrationCollectUsername: boolean
+  registrationCollectDisplayName: boolean
   allowedAuthMethods: string[]
   passwordsEnabled: boolean
   smsTwoFactorPolicy: 'OPTIONAL' | 'REQUIRED'
@@ -116,6 +118,17 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.notifyAdminOnPendingApproval} onChange={(e) => update('notifyAdminOnPendingApproval', e.target.checked)} />
             Notify admins when a member awaits approval
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={config.registrationCollectUsername} onChange={(e) => update('registrationCollectUsername', e.target.checked)} />
+            Ask new members to choose a username
+          </label>
+          <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+            Off hides the field and makes one up from their email address, with a few random digits on the end.
+          </p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={config.registrationCollectDisplayName} onChange={(e) => update('registrationCollectDisplayName', e.target.checked)} />
+            Ask new members for a display name
           </label>
           <div className="field">
             <label>Allowed email domains (one per line, empty = all allowed)</label>

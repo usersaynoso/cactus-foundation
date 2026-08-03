@@ -56,7 +56,14 @@ export async function MembersRegisterRsc() {
   }
 
   const privacyPolicyUrl = await resolvePrivacyPolicyUrl()
-  return <RegisterForm registrationMode={config.registrationMode} privacyPolicyUrl={privacyPolicyUrl} />
+  return (
+    <RegisterForm
+      registrationMode={config.registrationMode}
+      privacyPolicyUrl={privacyPolicyUrl}
+      collectUsername={config.registrationCollectUsername}
+      collectDisplayName={config.registrationCollectDisplayName}
+    />
+  )
 }
 
 export async function MembersAccountLinkRsc(props: { loginLabel?: string; registerLabel?: string }) {

@@ -57,6 +57,8 @@ export default async function MemberRegisterPage({ searchParams }: Props) {
         inviteToken={config.registrationMode === 'INVITE_ONLY' ? inviteToken : undefined}
         privacyPolicyUrl={privacyPage?.slug ? `/${privacyPage.slug}` : undefined}
         initialEmail={prefillEmail}
+        collectUsername={config.registrationCollectUsername}
+        collectDisplayName={config.registrationCollectDisplayName}
       />
     </div>
   )

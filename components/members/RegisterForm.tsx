@@ -12,11 +12,24 @@ type Props = {
   // that already knows their address. A starting value only - it is an ordinary
   // editable field, and the address still has to be verified.
   initialEmail?: string
+  // Mirror of the members config: an admin can drop the username picker (one
+  // is generated from the email address) and the display name from the form.
+  // Default true so the Puck editor preview and any older caller still get the
+  // full form rather than silently losing fields.
+  collectUsername?: boolean
+  collectDisplayName?: boolean
 }
 
-type RegisterResult = { status: string; verifyEmailRequired: boolean }
+type RegisterResult = { status: string; verifyEmailRequired: boolean; verificationEmailSent?: boolean }
 
-export default function RegisterForm({ registrationMode, inviteToken, privacyPolicyUrl, initialEmail }: Props) {
+export default function RegisterForm({
+  registrationMode,
+  inviteToken,
+  privacyPolicyUrl,
+  initialEmail,
+  collectUsername = true,
+  collectDisplayName = true,
+}: Props) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -44,19 +57,27 @@ export default function RegisterForm({ registrationMode, inviteToken, privacyPol
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          username,
-          displayName: displayName || undefined,
+          username: collectUsername ? username : undefined,
+          displayName: collectDisplayName ? displayName || undefined : undefined,
           agreedToPolicy,
           turnstileToken: turnstileToken || undefined,
           inviteToken,
         }),
       })
-      const d = await res.json()
+      // An error response isn't guaranteed to be JSON - a crashed route hands
+      // back a bare 500 - and letting res.json() throw put the browser's own
+      // parse-failure wording in front of the member as if it were the site
+      // explaining itself. Safari's version of that reads "The string did not
+      // match the expected pattern.", which helps nobody.
+      const d = (await res.json().catch(() => ({}))) as Partial<RegisterResult> & { error?: string }
       if (!res.ok) throw new Error(d.error ?? 'Registration failed')
 
       const registerResult = d as RegisterResult
       setResult(registerResult)
-      if (registerResult.verifyEmailRequired) {
+      // Parking them on the verify-email page to wait for a link that was
+      // never sent helps nobody, so a failed send keeps them here with the
+      // truth instead.
+      if (registerResult.verifyEmailRequired && registerResult.verificationEmailSent !== false) {
         const target = window.location.pathname.replace(/\/register$/, '/verify-email')
         window.location.href = `${target}?email=${encodeURIComponent(email)}`
       }
@@ -65,6 +86,16 @@ export default function RegisterForm({ registrationMode, inviteToken, privacyPol
     } finally {
       setLoading(false)
     }
+  }
+
+  if (result && result.verifyEmailRequired && result.verificationEmailSent === false) {
+    return (
+      <div className="alert alert-warning">
+        Your account was created, but the verification email couldn&apos;t be sent. Nothing is wrong with
+        what you typed - this site&apos;s outgoing email isn&apos;t working. Please try again shortly, or
+        let the site owner know.
+      </div>
+    )
   }
 
   if (result && !result.verifyEmailRequired) {
@@ -90,23 +121,31 @@ export default function RegisterForm({ registrationMode, inviteToken, privacyPol
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
       </div>
 
-      <div className="field">
-        <label>Username</label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          required
-          pattern="[a-z0-9_-]{2,32}"
-          autoComplete="username"
-        />
-        <span className="field-hint">Lowercase letters, numbers, hyphens and underscores only.</span>
-      </div>
+      {collectUsername && (
+        <div className="field">
+          <label>Username</label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            required
+            // The hyphen is escaped because browsers compile `pattern` with the
+            // regex `v` flag, where a bare trailing `-` in a character class is
+            // a syntax error. An uncompilable pattern is skipped rather than
+            // enforced, so the unescaped version quietly validated nothing.
+            pattern="[a-z0-9_\-]{2,32}"
+            autoComplete="username"
+          />
+          <span className="field-hint">Lowercase letters, numbers, hyphens and underscores only.</span>
+        </div>
+      )}
 
-      <div className="field">
-        <label>Display name (optional)</label>
-        <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} />
-      </div>
+      {collectDisplayName && (
+        <div className="field">
+          <label>Display name (optional)</label>
+          <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} />
+        </div>
+      )}
 
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', fontSize: 'var(--text-sm)', margin: '0 0 var(--space-4)', cursor: 'pointer', color: 'var(--color-text)' }}>
         <input
@@ -131,7 +170,13 @@ export default function RegisterForm({ registrationMode, inviteToken, privacyPol
         type="submit"
         className="btn btn-primary btn-lg"
         style={{ width: '100%' }}
-        disabled={loading || !email || !username || !agreedToPolicy || (!!turnstileSiteKey && !turnstileToken)}
+        disabled={
+          loading ||
+          !email ||
+          (collectUsername && !username) ||
+          !agreedToPolicy ||
+          (!!turnstileSiteKey && !turnstileToken)
+        }
       >
         {loading ? 'Creating account…' : 'Create account'}
       </button>

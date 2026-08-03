@@ -38,7 +38,15 @@ export async function POST(request: NextRequest) {
       where: { id: 'singleton' },
       select: { siteName: true },
     })
-    await sendVerificationEmail(member.id, member.email, config?.siteName ?? 'Cactus')
+    // A send failure stays a 200 {ok:true}: a 500 here answered "is this
+    // address registered?" out loud, since only a real, unverified member ever
+    // reaches the send at all. The admin gets the reason in the runtime log
+    // instead, which is the only place it can go without leaking.
+    try {
+      await sendVerificationEmail(member.id, member.email, config?.siteName ?? 'Cactus')
+    } catch (err) {
+      console.error('[members/verify-email/resend] verification email failed to send', err)
+    }
   }
 
   return NextResponse.json({ ok: true })

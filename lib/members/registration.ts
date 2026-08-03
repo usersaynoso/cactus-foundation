@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { isBlocklisted } from '@/lib/config/site'
 import { hashMemberToken, createVerificationToken } from '@/lib/members/tokens'
@@ -19,6 +20,39 @@ export async function isUsernameAvailable(username: string): Promise<boolean> {
     select: { id: true },
   })
   return !existing
+}
+
+function randomDigits(count: number): string {
+  let out = ''
+  for (let i = 0; i < count; i++) out += randomInt(10).toString()
+  return out
+}
+
+// Username for sites that don't ask new members to pick one (members config
+// registrationCollectUsername). Built from the email's local part plus random
+// digits - chris@example.com becomes chris4821 - so the handle still means
+// something to its owner without being derivable from the address alone.
+// Availability is checked here rather than left to the unique constraint: two
+// people registering chris@ addresses on the same site is entirely ordinary.
+export async function generateUsernameFromEmail(email: string): Promise<string> {
+  let base = (email.split('@')[0] ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .replace(/^[-_]+/, '')
+    .replace(/[-_]+$/, '')
+    .slice(0, 20)
+  // Addresses made entirely of stripped characters still need a handle.
+  if (base.length < 2) base = 'member'
+
+  // Widening the suffix beats looping on four digits forever: a base that has
+  // already collided 15 times is a popular one, not an unlucky one.
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const candidate = `${base}${randomDigits(attempt < 15 ? 4 : 8)}`
+    if (isUsernameFormatValid(candidate) && (await isUsernameAvailable(candidate))) {
+      return candidate
+    }
+  }
+  throw new Error('Could not generate an available username')
 }
 
 export function isEmailDomainAllowed(email: string, config: MembersConfig): boolean {

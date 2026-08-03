@@ -10,6 +10,13 @@ export const MembersConfigSchema = z.object({
   enabled: z.boolean().default(false),
   registrationMode: z.enum(['OPEN', 'INVITE_ONLY', 'APPROVAL_REQUIRED']).default('OPEN'),
   emailVerificationRequired: z.boolean().default(true),
+  // Which fields the registration form asks for. Turning one off hides it and
+  // stops the API accepting it, so a crafted POST can't fill in a field the
+  // site has decided not to offer. With the username off, one is generated
+  // from the email address instead - a shop that only wants a checkout login
+  // has no reason to make people invent a handle first.
+  registrationCollectUsername: z.boolean().default(true),
+  registrationCollectDisplayName: z.boolean().default(true),
   allowedAuthMethods: z.array(z.enum(['PASSKEY', 'MAGIC_LINK', 'PASSWORD'])).default(['PASSKEY', 'MAGIC_LINK']),
   passwordsEnabled: z.boolean().default(false),
   // Whether members must enrol a mobile number for SMS sign-in codes.

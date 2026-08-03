@@ -49,6 +49,21 @@ Without a text-message module installed, the setting quietly does nothing - ther
 
 You can also require email verification before an account becomes active (on by default), and restrict registration to specific email domains or block specific ones.
 
+### Shortening the sign-up form
+
+The sign-up form asks for an email address, a username and an optional display name. The last two can go:
+
+- **Ask new members to choose a username** - turn it off and the box disappears. Cactus makes one up from their email address instead, with a few random digits after it, so `chris@example.com` becomes something like `chris4821`. They can still change it later if you allow username changes.
+- **Ask new members for a display name** - turn it off and the optional display-name box disappears too.
+
+Hiding a box genuinely removes it rather than tucking it out of sight, so nobody can fill it in by being clever with the form.
+
+### When the verification email doesn't send
+
+If your site's outgoing email is misconfigured, the account is still created, and the person signing up is told plainly that the email couldn't be sent rather than being parked on a page waiting for a link that will never arrive. The reason lands in your deployment logs. The quickest way to see it for yourself is **Settings → Configuration → Email → Send test email**, which reports whatever your mail provider said back. A common culprit is a **from** address your mail provider doesn't consider yours: most of them, iCloud especially, refuse to send on behalf of an address that isn't the account you're signing in as or one of its verified aliases.
+
+A registration link can arrive with the email address already filled in - add `?email=someone@example.com` to the sign-up link and the box starts with it typed. It's a convenience, nothing more: the address is still theirs to change, and it still has to be verified. The [Shop](Shop)'s post-purchase "create an account" prompt uses this, so the customer signs up under the address they ordered with and the order they just placed joins the new account.
+
 ---
 
 ## The member account area

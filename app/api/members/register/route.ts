@@ -11,7 +11,9 @@ import {
   validateInviteToken,
   consumeInviteToken,
   sendVerificationEmail,
+  generateUsernameFromEmail,
 } from '@/lib/members/registration'
+import { canResendVerification } from '@/lib/members/tokens'
 import { sendMagicLink } from '@/lib/members/magic-link'
 import { getOrCreateMembersRoleId } from '@/lib/members/default-role'
 import { verifyTurnstile } from '@/lib/auth/turnstile'
@@ -21,7 +23,10 @@ import { notifyAdminMemberPendingApproval } from '@/lib/members/admin-notify'
 
 const Body = z.object({
   email: z.string().email(),
-  username: z.string().min(2).max(32),
+  // Optional in the schema because the site may not ask for one - see the
+  // registrationCollectUsername branch below, which is what actually decides
+  // whether a supplied value is required, honoured, or ignored outright.
+  username: z.string().min(2).max(32).optional(),
   displayName: z.string().trim().max(80).optional(),
   turnstileToken: z.string().optional(),
   inviteToken: z.string().optional(),
@@ -38,8 +43,14 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
-  const { email, displayName, turnstileToken, agreedToPolicy } = parsed.data
-  const username = parsed.data.username.toLowerCase()
+  const { email, turnstileToken, agreedToPolicy } = parsed.data
+  // A hidden field is not a field: anything sent for one the site doesn't ask
+  // for is dropped rather than trusted, so hiding the username picker actually
+  // stops handles being chosen instead of merely hiding the box.
+  const displayName = config.registrationCollectDisplayName ? parsed.data.displayName : undefined
+  const suppliedUsername = config.registrationCollectUsername
+    ? parsed.data.username?.toLowerCase()
+    : undefined
   const inviteToken = parsed.data.inviteToken?.trim()
 
   if (!agreedToPolicy) {
@@ -73,14 +84,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This email domain is not permitted to register' }, { status: 400 })
   }
 
-  if (!isUsernameFormatValid(username)) {
-    return NextResponse.json(
-      { error: 'Usernames must be 2-32 characters: lowercase letters, numbers, hyphens and underscores only' },
-      { status: 400 }
-    )
-  }
-  if (!(await isUsernameAvailable(username))) {
-    return NextResponse.json({ error: `Username "${username}" is not available` }, { status: 409 })
+  if (config.registrationCollectUsername) {
+    if (!suppliedUsername) {
+      return NextResponse.json({ error: 'Choose a username' }, { status: 400 })
+    }
+    if (!isUsernameFormatValid(suppliedUsername)) {
+      return NextResponse.json(
+        { error: 'Usernames must be 2-32 characters: lowercase letters, numbers, hyphens and underscores only' },
+        { status: 400 }
+      )
+    }
+    if (!(await isUsernameAvailable(suppliedUsername))) {
+      return NextResponse.json({ error: `Username "${suppliedUsername}" is not available` }, { status: 409 })
+    }
   }
 
   // Enumeration-safe: an existing email doesn't get a distinguishable error -
@@ -94,9 +110,32 @@ export async function POST(request: NextRequest) {
     select: { id: true, status: true, username: true },
   })
   if (existing) {
-    if (isEmailConfigured() && existing.status === 'ACTIVE') {
+    // verificationEmailSent has to mean the same thing on both branches or it
+    // becomes the enumeration signal the rest of this branch exists to avoid,
+    // so an existing account gets a real send too: a sign-in link if it can
+    // sign in, or its verification link again if it never got one (which is
+    // usually why someone is registering the same address twice).
+    let emailSent = true
+    if (isEmailConfigured()) {
       const siteConfig = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true } })
-      await sendMagicLink(existing.id, email, siteConfig?.siteName ?? 'Cactus').catch(() => {})
+      const siteName = siteConfig?.siteName ?? 'Cactus'
+      if (existing.status === 'ACTIVE') {
+        emailSent = await sendMagicLink(existing.id, email, siteName).then(
+          () => true,
+          (err: unknown) => {
+            console.error('[members/register] sign-in link failed to send', err)
+            return false
+          }
+        )
+      } else if (existing.status === 'PENDING_VERIFICATION' && (await canResendVerification(existing.id))) {
+        emailSent = await sendVerificationEmail(existing.id, email, siteName).then(
+          () => true,
+          (err: unknown) => {
+            console.error('[members/register] verification email failed to send', err)
+            return false
+          }
+        )
+      }
     }
     // Same deterministic values a genuine new registration would get under
     // the current config - a fixed fake status here would itself become an
@@ -104,13 +143,21 @@ export async function POST(request: NextRequest) {
     // differ from the defaults.
     const fakeRequireVerification = config.emailVerificationRequired && isEmailConfigured()
     const fakeStatus = deriveInitialStatus(fakeRequireVerification, config.registrationMode)
-    return NextResponse.json({ status: fakeStatus, verifyEmailRequired: fakeRequireVerification })
+    return NextResponse.json({
+      status: fakeStatus,
+      verifyEmailRequired: fakeRequireVerification,
+      verificationEmailSent: emailSent,
+    })
   }
 
   const requireVerification = config.emailVerificationRequired && isEmailConfigured()
   const status = deriveInitialStatus(requireVerification, config.registrationMode)
 
   const roleId = await getOrCreateMembersRoleId()
+
+  // Generated only once the address is known to be new - an existing email
+  // returns above without ever burning a candidate handle.
+  const username = suppliedUsername ?? (await generateUsernameFromEmail(email))
 
   const member = await prisma.member.create({
     data: {
@@ -137,12 +184,23 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // The member row exists by this point, so a failed send is reported, not
+  // thrown. Throwing turned a working sign-up into a 500 whose non-JSON body
+  // surfaced in the browser as a parse error ("The string did not match the
+  // expected pattern." in Safari), while the account sat unusable on
+  // PENDING_VERIFICATION with no link ever sent and no way to tell why.
+  let verificationEmailSent = true
   if (requireVerification) {
     const siteConfig = await prisma.siteConfig.findUnique({
       where: { id: 'singleton' },
       select: { siteName: true },
     })
-    await sendVerificationEmail(member.id, email, siteConfig?.siteName ?? 'Cactus')
+    try {
+      await sendVerificationEmail(member.id, email, siteConfig?.siteName ?? 'Cactus')
+    } catch (err) {
+      console.error('[members/register] verification email failed to send', err)
+      verificationEmailSent = false
+    }
   } else if (member.status === 'PENDING_APPROVAL' && config.notifyAdminOnPendingApproval) {
     await notifyAdminMemberPendingApproval(member.id, member.username).catch(() => {})
   }
@@ -150,5 +208,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     status: member.status,
     verifyEmailRequired: requireVerification,
+    verificationEmailSent,
   })
 }
