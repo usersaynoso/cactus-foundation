@@ -122,6 +122,17 @@ function SignInIcon({ name, size, colour }: { name: SignInWidgetOptions['icon'];
   }
 }
 
+// An icon-only widget - the shape a site header wants - says nothing about what
+// it does until it is clicked, so it gets the same hover/focus tooltip the admin
+// side uses (.member-signin-tip in globals.css, visuals shared with
+// .theme-toggle-tip). Left off whenever there is a text label, where it would
+// only repeat what is already on screen. aria-hidden throughout: the anchor or
+// button already carries the same words as its accessible name, and a tooltip
+// that also announced them would say everything twice.
+function SignInTip({ text }: { text: string }) {
+  return <span className="member-signin-tip" aria-hidden="true">{text}</span>
+}
+
 const trimSlash = (path: string) => path.replace(/\/+$/, '') || '/'
 
 // Client island for the Members: Sign In widget. The registered Puck block is a
@@ -154,6 +165,9 @@ export function SignInWidgetClient(
   const border = o.variant === 'bordered' ? `1px solid ${o.borderColour || 'var(--color-border)'}` : 'none'
 
   const boxStyle: CSSProperties = {
+    // Containing block for the tooltip above; harmless on the variants that
+    // never show one.
+    position: 'relative',
     display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none',
     color: o.textColour || 'var(--color-text)', background, border,
     borderRadius: o.variant === 'plain' ? 0 : o.borderRadius, padding, lineHeight: 1,
@@ -187,9 +201,13 @@ export function SignInWidgetClient(
         {o.signedInLabel && <span>{o.signedInLabel}</span>}
       </>
     )
+    const accountName = o.signedInLabel || 'My account'
     return (
       <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
-        <a href={o.accountHref} aria-label={o.signedInLabel || 'My account'} style={boxStyle}>{accountInner}</a>
+        <a href={o.accountHref} aria-label={accountName} className="member-signin-trigger" style={boxStyle}>
+          {accountInner}
+          {!o.signedInLabel && <SignInTip text={accountName} />}
+        </a>
         {o.whenSignedIn === 'accountSignOut' && (
           <form action="/api/members/auth/logout" method="POST" style={{ margin: 0 }}>
             <button
@@ -231,9 +249,11 @@ export function SignInWidgetClient(
             setModalRequested(true)
             setModalOpen(true)
           }}
+          className="member-signin-trigger"
           style={{ ...boxStyle, font: 'inherit', fontSize: '0.875rem', fontWeight: 500, cursor: preview ? 'default' : 'pointer', WebkitAppearance: 'none', appearance: 'none' }}
         >
           {inner}
+          {!o.label && <SignInTip text={accessibleName} />}
         </button>
         {modalRequested && (
           <SignInModal
@@ -260,8 +280,9 @@ export function SignInWidgetClient(
     ? `${o.loginHref}?redirect=${encodeURIComponent(redirectTarget)}`
     : o.loginHref
   return (
-    <a href={href} aria-label={accessibleName} style={boxStyle}>
+    <a href={href} aria-label={accessibleName} className="member-signin-trigger" style={boxStyle}>
       {inner}
+      {!o.label && <SignInTip text={accessibleName} />}
     </a>
   )
 }

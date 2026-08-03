@@ -1819,6 +1819,47 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+/* ============================================================
+   MEMBERS SIGN-IN / ACCOUNT ICON TOOLTIP — frontend, not admin.
+   Same visuals as .theme-toggle-tip above, with two differences
+   the site header forces:
+     - it hangs BELOW the icon, because the header sits at the
+       very top of the page and there is nothing above it to
+       hang into;
+     - line-height is stated rather than inherited, because the
+       widget sets line-height:1 on its box to keep the icon row
+       aligned, which would otherwise squash the tooltip flat.
+   Only rendered when the widget is icon-only; with a text label
+   the tooltip would repeat what is already on screen.
+   ============================================================ */
+.member-signin-tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 10;
+}
+.member-signin-trigger:hover .member-signin-tip,
+.member-signin-trigger:focus-visible .member-signin-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity var(--dur-base), transform var(--dur-base);
+}
+
 .admin-sidebar nav a.admin-nav-account {
   height: auto;
   margin: 0;

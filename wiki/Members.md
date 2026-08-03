@@ -78,7 +78,7 @@ Find it in the page builder under **Members**, or in the header editor under **S
 **What it looks like**
 
 - **Icon** - a person, a person in a circle, a padlock, a key, an arrow through a door, or no icon at all.
-- **Text label** - "Sign in" by default. Clear the box and you get a bare icon, the way the basket does it.
+- **Text label** - "Sign in" by default. Clear the box and you get a bare icon, the way the basket does it. A bare icon isn't left to be guessed at: hover it, or reach it with the keyboard, and a small label appears underneath saying what it is - "Sign in", or "My account" once they're signed in. It's the same tooltip the admin uses on its own icons, so it looks like it belongs. Leave a text label in the box and there's no tooltip, since it would only be reading the button out loud back to you.
 - **Style** - a bordered pill, a filled block, or plain text with no box, plus colours and corner rounding to match your header.
 
 **What happens when someone clicks it**
