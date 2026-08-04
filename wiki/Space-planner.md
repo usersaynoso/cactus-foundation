@@ -1,6 +1,6 @@
 # Space Planner
 
-The Space Planner lets a customer draw their own room to scale, put your furniture in it, and find out what actually fits before they spend anything. What they take away is a floor plan they can print, a priced item list, a full basket, or a quote request with the plan attached.
+The Space Planner lets a customer draw their own room to scale, put your furniture in it, and find out what actually fits before they spend anything. What they take away is a PDF with the floor plan and a priced item list in it, a full basket, or a quote request with the plan attached.
 
 It is a module, so it is not there until you install it: **Modules → Add module →** `cactus-foundation-modules/space-planner-for-shop`.
 
@@ -14,13 +14,17 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 
 **Putting things in it.** They search your catalogue, pick something, and it lands in the room at its real size, in the first clear space rather than on top of whatever is already there. Listings with a proper 3D model are badged, because most listings have not got one and it saves a hunt. Prices read exactly as they do on the rest of your site, "from" figures and all.
 
-**Moving things about.** Furniture snaps flat against a wall when they drag it near one, and comes away again the moment they drag it back - which sounds obvious and is worth saying, because it did not always. **Start the room again** sits on the toolbar: it throws the room away and keeps everything they have chosen.
+**Doors and windows.** Under **Room → Doors & windows**, a tap on any wall puts one in it, and it can be slid along that wall, resized, or swapped between a door, a window and a plain opening. They are part of the room rather than part of one layout, so they follow the wall when it moves and they are still there in every layout tried in that room - and a desk in front of the only doorway is exactly the thing drawing the room was meant to catch.
 
-**What "fits" means.** Furniture overlapping in plan is normal - a chair tucks under a desk, a pedestal slides under the desktop - so the planner only complains when things actually clash at the same height. Where we know the clearance under a desktop, it will say "fits underneath" or "5 cm too tall" while they are still dragging.
+**Moving things about.** Furniture snaps flat against a wall when they drag it near one, and comes away again the moment they drag it back - which sounds obvious and is worth saying, because it did not always. It also snaps to the other furniture: drag a desk near the one beside it and the two click together edge to edge, and line up on the other axis at the same time, so a bank of desks actually touches instead of nearly touching. Holding **alt** switches all the snapping off for the fussy moments. Turning something is a handle on the selected item - drag it round, in fifteen-degree steps unless alt is held - and anything mounted on it or tucked under it comes round with it.
 
-**Three views.** A flat plan for arranging things, a 3D view for believing it, and a stand-in-the-room view for the full effect. The 3D one can be spun, tilted and zoomed, and the walls nearest the viewer step out of the way so you are looking into the room rather than at the outside of a box. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
+**Start again** sits on the toolbar. It throws the room away and keeps everything they have chosen, with a tick if they would rather clear that too.
 
-**Getting it out.** Print the floor plan and the item list. Send the lot to the basket in one go. Ask for a quote, which lands in your ordinary Quotes list with a link to the plan. Or have the plan emailed to whoever holds the budget.
+**What "fits" means.** Furniture overlapping in plan is normal - a chair tucks under a desk, a pedestal slides under the desktop - so the planner only complains when things genuinely clash. A chair pushed under a desk overlaps it in both plan and height, and is not a clash; two desks in the same square metre is. Where we know the clearance under a desktop, it will say "fits underneath" or "5 cm too tall" while they are still dragging.
+
+**Two views.** **Edit** is the flat plan, where things are arranged. **Preview** is the room in 3D, which can be spun, tilted and zoomed, and where the walls nearest the viewer step out of the way so you are looking into the room rather than at the outside of a box. **Perspective** can be switched off there: on is how the room will look to somebody standing in it, off is how a drawing is drawn, where two identical desks are the same size on screen wherever they are in the room and can be compared by eye. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
+
+**Getting it out.** **Export PDF** makes a document with the room's measurements and the priced item list, plus the floor plan, the 3D view and a quote page if they tick for them - the quote page in your own quote wording and terms. Send the lot to the basket in one go. Ask for a quote, which lands in your ordinary Quotes list with a link to the plan. Or have the plan emailed to whoever holds the budget.
 
 **Opening one again.** Everything saved is listed under **My spaces**, and every layout in it opens with a click - straight back into the planner with the room already drawn. A room has its own link for starting a fresh layout in it, which is the point of measuring once.
 
@@ -95,6 +99,8 @@ Named here so nobody goes looking:
 - Delivery dates on the item list. Waiting on a small addition to the Advanced Shipping module.
 - The picture service itself.
 - Downloading the whole room as a 3D file, sharing a whole space rather than one layout, and staff editing a customer's plan and sending it back.
+
+The PDF export needs an account, because the document is made from the saved plan and the prices in it are worked out on our side rather than in the customer's browser. Everything up to that point still works signed out.
 
 ## Related
 
