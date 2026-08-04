@@ -143,6 +143,18 @@ Renaming a value tidies up after itself: the variants it appears in are relabell
 
 Two options on the same product can't share a name, and neither can two values in the same option - Cactus will say so rather than let you build a product with two identical-looking choices.
 
+### When two choices are the same product
+
+Once in a while two choices describe the same thing. An office chair offering **Black back** or **Matching back** has, in black, exactly one chair to sell: its back is black, and it matches the black seat. Both wordings are honest, and neither is wrong.
+
+Left alone that becomes a small trap. The one chair has to be filed under one of the two, so a customer who picked the other wording finds black greyed out - and greyed out reads as "we don't sell that", when in fact they were one word away from it.
+
+So a variation can be told it also answers to a second choice. It stays filed where it is, with its own price, SKU, stock and photographs; it simply turns up under both wordings, and either route puts the identical thing in the basket. Nothing is duplicated, so there's no second stock figure to keep in step and no risk of the two drifting apart.
+
+Two things it deliberately won't do. It never overrides a real variation: where a combination has one of its own, that one wins, and standing in only happens where there's genuinely nothing there. And it doesn't spread - only the variations you've named answer to the extra choice, so a colour that truly isn't sold with a matching back stays greyed out rather than quietly shipping something else.
+
+There's no button for this on the Variations screen yet; ask and it can be set up for you. It also leaves your catalogue spreadsheet exactly as it is - one choice per column, same as always - so a Pull can't undo it.
+
 ## Adding personalisation
 
 In the same editor, scroll to **Personalisation** and add a field. Pick the kind (short text, long text, number, dropdown, tick-box, date, or file upload), give it a label, and say whether it's required.
