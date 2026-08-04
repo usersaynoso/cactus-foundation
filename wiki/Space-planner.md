@@ -6,17 +6,23 @@ It is a module, so it is not there until you install it: **Modules → Add modul
 
 ## What your customers see
 
-**Drawing the room.** Three ways in, and the first is the one most people want: type the width and depth, the way anybody standing in a room with a tape measure already has it. The other two are a preset to adjust and a shape to drag about. Whichever they choose, clicking any wall afterwards lets them type its real length, and the rest of the room follows.
+**Drawing the room.** Two ways in, plus three shapes to start from. The first is the one most people want: type the width and depth, the way anybody standing in a room with a tape measure already has it. The second is to tap out the corners themselves - as many as the room has. Under that sit a small office, an open-plan rectangle and an L-shape to adjust.
+
+**Rooms are not all rectangles**, and the planner does not pretend otherwise. Under **Room** they can drag any corner about, double-tap a wall to put a new corner in it, or remove one - so a bay, a return or a chimney breast is a couple of taps rather than a compromise. Walls snap square while they draw and write their own length as they go, and clicking any wall afterwards lets them type its exact length. If an outline ever folds through itself the planner says so and puts the last good one back.
 
 Measurements are always the **inside** of the room. That is what a tape measure gives you, so it is what the planner asks for.
 
-**Putting things in it.** They search your catalogue, pick something, and it lands in the room at its real size. Listings with a proper 3D model are badged, because most listings have not got one and it saves a hunt.
+**Putting things in it.** They search your catalogue, pick something, and it lands in the room at its real size, in the first clear space rather than on top of whatever is already there. Listings with a proper 3D model are badged, because most listings have not got one and it saves a hunt. Prices read exactly as they do on the rest of your site, "from" figures and all.
+
+**Moving things about.** Furniture snaps flat against a wall when they drag it near one, and comes away again the moment they drag it back - which sounds obvious and is worth saying, because it did not always. **Start the room again** sits on the toolbar: it throws the room away and keeps everything they have chosen.
 
 **What "fits" means.** Furniture overlapping in plan is normal - a chair tucks under a desk, a pedestal slides under the desktop - so the planner only complains when things actually clash at the same height. Where we know the clearance under a desktop, it will say "fits underneath" or "5 cm too tall" while they are still dragging.
 
-**Three views.** A flat plan for arranging things, a 3D view for believing it, and a stand-in-the-room view for the full effect. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
+**Three views.** A flat plan for arranging things, a 3D view for believing it, and a stand-in-the-room view for the full effect. The 3D one can be spun, tilted and zoomed, and the walls nearest the viewer step out of the way so you are looking into the room rather than at the outside of a box. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
 
 **Getting it out.** Print the floor plan and the item list. Send the lot to the basket in one go. Ask for a quote, which lands in your ordinary Quotes list with a link to the plan. Or have the plan emailed to whoever holds the budget.
+
+**Opening one again.** Everything saved is listed under **My spaces**, and every layout in it opens with a click - straight back into the planner with the room already drawn. A room has its own link for starting a fresh layout in it, which is the point of measuring once.
 
 **Saving.** Saving needs an account. Everything up to that point works signed out, and what they were doing is kept in their browser so closing the tab is not a disaster - but the moment they press Save, they are asked to sign in. Their rooms then live under **My spaces** in their account, and a room can hold several layouts, so somebody can measure once and compare three options.
 
@@ -86,7 +92,6 @@ Unlike an order or a review, **a customer has no copy of a plan anywhere else**.
 
 Named here so nobody goes looking:
 
-- Drawing an L-shaped or bay-windowed room freehand. The planner handles those shapes perfectly well once they exist; the drawing tool for them is next.
 - Delivery dates on the item list. Waiting on a small addition to the Advanced Shipping module.
 - The picture service itself.
 - Downloading the whole room as a 3D file, sharing a whole space rather than one layout, and staff editing a customer's plan and sending it back.
