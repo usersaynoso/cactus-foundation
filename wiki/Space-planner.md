@@ -4,6 +4,8 @@ The Space Planner lets a customer draw their own room to scale, put your furnitu
 
 It is a module, so it is not there until you install it: **Modules → Add module →** `cactus-foundation-modules/space-planner-for-shop`.
 
+**It arrives switched off for customers.** See [Staff only](#staff-only) - installing it puts the planner in your admin's hands and nowhere else until you say otherwise.
+
 ## What your customers see
 
 **Drawing the room.** Two ways in, plus three shapes to start from. The first is the one most people want: type the width and depth, the way anybody standing in a room with a tape measure already has it. The second is to tap out the corners themselves - as many as the room has. Under that sit a small office, an open-plan rectangle and an L-shape to adjust.
@@ -30,9 +32,24 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 
 **Saving.** Saving needs an account. Everything up to that point works signed out, and what they were doing is kept in their browser so closing the tab is not a disaster - but the moment they press Save, they are asked to sign in. Their rooms then live under **My spaces** in their account, and a room can hold several layouts, so somebody can measure once and compare three options.
 
+## Staff only
+
+**Shop settings → Space Planner → Hide the Space Planner from customers (staff only).** On to begin with, and it is the switch to reach for if you have decided the planner is not ready to be put in front of people who are paying you.
+
+With it on, the planner is not on your shop at all. No button on the basket, no button on product pages, nothing where the teaser block sits, no tab in a customer's account, and `/space-planner` tells anyone who bookmarked it that the page does not exist. Behind that, the data it runs on says the same thing, so it is genuinely gone rather than merely out of sight.
+
+Anyone signed in to your admin with Space Planner access carries on using it exactly as before, on the real catalogue, which is rather the point: you get to live with it for a fortnight before anybody else meets it.
+
+Two things worth knowing:
+
+- **Plans you have already shared by link keep working.** You sent those to a specific person on purpose, and a staff-only planner is mostly a tool for building somebody's layout and sending it to them. What goes is the invitation at the bottom of the shared page to open the planner, which would only lead nowhere.
+- **Saving still needs a customer account**, staff or not, because a saved room belongs to a customer. Drawing a room and filling it needs nothing but the switch; keeping it needs an account like everybody else's.
+
+Turning it off lets customers in immediately - with one wrinkle. A page you built yourself carrying the **teaser** block is stored ready-made for speed, so the teaser may take until that page is next saved to appear or disappear. Every other button is immediate, and the planner's own address is immediate either way, so nobody is ever looking at a button that works when it should not.
+
 ## Where it appears on your site
 
-Nothing shows up for customers until you put it somewhere:
+Nothing shows up for customers until you put it somewhere - and nothing at all while it is [staff only](#staff-only):
 
 - **The basket page.** On by default. This is the highest-intent spot on the site: they have picked everything and are quietly wondering whether it will all go in. The button hides itself on an empty basket.
 - **Product pages.** Place the **Space Planner: see it in your room** block on your product layout, wherever it belongs - under the buy button on a desk, and nowhere at all on a box of pens.
@@ -64,6 +81,7 @@ Filling in the category fallback sizes is the single cheapest thing you can do f
 
 They live in **Shop settings → Space Planner**.
 
+- **Hide the Space Planner from customers (staff only).** On by default. The whole feature disappears from your shop while your own staff carry on using it - see [Staff only](#staff-only).
 - Where the buttons appear, and what they say.
 - What customers can do with a plan: quote, email it to themselves, ask for a photoreal picture, show delivery dates.
 - **Let customers download the 3D models in their plan.** Off by default, and worth leaving off unless you mean it: with it on, anyone can save your suppliers' models to their own computer. The floor plan, the item list, the pictures and the quote all work perfectly well without it.
@@ -77,7 +95,15 @@ They are rules of thumb to help arrange furniture. They are **not** a workplace 
 
 ## Photoreal pictures
 
-Off until somebody sets up the picture service, and the admin says so rather than leaving you guessing. It needs two settings adding to the site - `SPACE_PLANNER_RENDER_URL` and `SPACE_PLANNER_RENDER_SECRET` - and a machine at the other end to do the rendering. Everything else in the planner works without it.
+Off until you switch them on, and the admin says so rather than leaving you guessing. Switching them on is a button on **Space Planner -> Pictures**.
+
+If your site already has a Fly.io key - and it probably does, because the video converter asks for one first - that button is the whole job. If it does not, there is one box to paste a key into: an **organisation** key from the Tokens page of your Fly.io dashboard, because a key tied to a single app cannot build anything new. Press the button, and the site builds its own picture service.
+
+**Nothing runs, and nothing costs, between pictures.** There is no machine sitting there. When a customer asks for a picture, a machine is built for that one picture, and it is destroyed the moment the picture arrives. Ten customers asking at once get ten machines and ten pictures at the same time - which costs the same as ten one after another and takes a tenth as long. There is a ceiling on how many at once, so a busy afternoon cannot run away with your money; past it, a customer is asked to try again in a minute.
+
+Three separate things make sure a machine goes away: the site deletes it when the picture lands, the machine puts itself to bed if it goes quiet, and the nightly tidy-up sweeps up anything that managed neither.
+
+Already run your own render machine? Set `SPACE_PLANNER_RENDER_URL` and `SPACE_PLANNER_RENDER_SECRET` and the site will use that instead, and stay out of the way. It will not offer to build you a second one.
 
 A picture is a photograph of a moment. If the customer moves things about afterwards, the picture is labelled with the date it shows rather than pretending to be current.
 
@@ -97,7 +123,6 @@ Unlike an order or a review, **a customer has no copy of a plan anywhere else**.
 Named here so nobody goes looking:
 
 - Delivery dates on the item list. Waiting on a small addition to the Advanced Shipping module.
-- The picture service itself.
 - Downloading the whole room as a 3D file, sharing a whole space rather than one layout, and staff editing a customer's plan and sending it back.
 
 The PDF export needs an account, because the document is made from the saved plan and the prices in it are worked out on our side rather than in the customer's browser. Everything up to that point still works signed out.
