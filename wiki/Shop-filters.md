@@ -47,6 +47,10 @@ So this module separates the two:
   them (Blue *and* Oak).
 - Active-filter chips, one-click clear, a "Showing 12 of 48" line, a tidy empty state,
   and a count badge on each group heading showing how many of its filters are ticked.
+- A group that would offer fewer than two choices on a page doesn't appear at all -
+  a heading with a single tick under it ("Height adjustable: Yes" on a page of
+  sit-stand desks) is not a choice. The automatic Category section follows the same
+  rule.
 - A long tick list folds after its first eight entries behind a "Show all" link
   (anything ticked stays visible above the fold).
 - On desktop the panel is **sticky**: it rides along as the shopper scrolls the grid,
