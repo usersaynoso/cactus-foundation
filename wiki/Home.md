@@ -35,6 +35,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Advanced Shipping](Advanced-Shipping) | Live delivery dates on every product and basket line, plus paid delivery-and-assembly options picked per item |
 | [Address Lookup](Address-Lookup) | Shoppers type the first line of their address at checkout and the rest fills itself in, via Ideal Postcodes |
 | [Quotes](Quotes) | Quoting instead of (or alongside) selling: save-a-basket codes, a quote-only shop with no checkout, a designable quote document and a PDF |
+| [Space Planner](Space-planner) | Customers draw their own room to scale, put your furniture in it in 2D and 3D, and find out what fits before they spend anything |
 | [Contact form](Contact-form) | A contact form for any page, with an admin inbox, replies and per-person signatures |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |

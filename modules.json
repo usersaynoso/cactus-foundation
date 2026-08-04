@@ -66,6 +66,11 @@
       "version": "v0.1.8"
     },
     {
+      "name": "space-planner-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
+      "version": "v0.1.1"
+    },
+    {
       "name": "reviews-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
       "version": "v0.1.2"
