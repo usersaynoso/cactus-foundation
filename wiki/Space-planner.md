@@ -16,6 +16,8 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 
 **Putting things in it.** They search your catalogue, pick something, and it lands in the room at its real size, in the first clear space rather than on top of whatever is already there. Listings with a proper 3D model are badged, because most listings have not got one and it saves a hunt. Prices read exactly as they do on the rest of your site, "from" figures and all.
 
+**In the right colour.** Anything sent over from the basket arrives in the fabric or finish they actually chose, so a room of blue chairs is a room of blue chairs. Picked from the catalogue panel instead, where no colour has been chosen yet, it wears the first one you list - the same one the product page opens on.
+
 **Doors and windows.** Under **Room → Doors & windows**, a tap on any wall puts one in it, and it can be slid along that wall, resized, or swapped between a door, a window and a plain opening. They are part of the room rather than part of one layout, so they follow the wall when it moves and they are still there in every layout tried in that room - and a desk in front of the only doorway is exactly the thing drawing the room was meant to catch.
 
 **Moving things about.** Furniture snaps flat against a wall when they drag it near one, and comes away again the moment they drag it back - which sounds obvious and is worth saying, because it did not always. It also snaps to the other furniture: drag a desk near the one beside it and the two click together edge to edge, and line up on the other axis at the same time, so a bank of desks actually touches instead of nearly touching. Holding **alt** switches all the snapping off for the fussy moments. Turning something is a handle on the selected item - drag it round, in fifteen-degree steps unless alt is held - and anything mounted on it or tucked under it comes round with it.
@@ -60,11 +62,19 @@ Nothing shows up for customers until you put it somewhere - and nothing at all w
 
 The planner will not invent a measurement. It works down a list, in order:
 
-1. **Measured from the 3D model**, where there is one.
-2. **Read from the spec sheet** - your Overall Width, Depth and Height values.
+1. **Measured from the 3D model**, where there is one and you have run the measuring pass.
+2. **Read from the spec sheet** - your Overall Width, Depth and Height values. A colour or size option that says nothing about its own dimensions takes them from the product it belongs to.
 3. **A typical size for the category**, where the spec sheet is silent. Anything sized this way is labelled **approx.** on screen.
-4. **Typed in by the customer**, if they know better. Nothing overwrites that.
+4. **Typed in by the customer**, if they know better. Nothing overwrites that, including a measurement.
 5. **A plain labelled block** at an ordinary size, so nothing is ever un-placeable.
+
+### Measuring your 3D models
+
+**Space Planner → Sizes → Measure** opens every 3D model you have, measures it, and remembers the answer. It is the single best thing you can do for how the planner looks, because a measured model beats anything written on a spec sheet.
+
+It runs in the tab you start it in, so leave that tab open - it downloads each model to measure it, and a few hundred models takes a while. You can stop it at any point and start again later. Anything a customer has typed in by hand is left exactly as it was.
+
+Worth running again after you add 3D models, and worth running once now if you have never run it.
 
 Two things are worth your attention in **Space Planner → Sizes**:
 
