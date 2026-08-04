@@ -46,10 +46,20 @@ So this module separates the two:
 - Ticks within a group widen the results (Blue *or* Green); ticks across groups narrow
   them (Blue *and* Oak).
 - Active-filter chips, one-click clear, a "Showing 12 of 48" line, a tidy empty state,
-  and a filter drawer on phones.
+  and a count badge on each group heading showing how many of its filters are ticked.
+- A long tick list folds after its first eight entries behind a "Show all" link
+  (anything ticked stays visible above the fold).
 - On desktop the panel is **sticky**: it rides along as the shopper scrolls the grid,
   scrolling within itself if it is taller than the window. Themes can adjust the top
   offset with the `--flt-sticky-top` CSS variable (default 7rem).
+- On phones and tablets the panel becomes a proper **filter sheet**: a floating
+  "Filter" button (with a badge counting active filters) stays reachable however far
+  the grid is scrolled, and opens a sheet that slides up from the bottom on phones or
+  in from the right on tablets. The sheet keeps the page from scrolling behind it,
+  closes on the dimmed backdrop, the × or the Escape key, and finishes with a
+  **"Show N products"** button - the count updates live as filters are ticked - which
+  drops the shopper back at the top of the results. Reduced-motion settings are
+  respected.
 - The selection is mirrored into the page address, so a filtered view can be shared,
   bookmarked, or returned to with the back button.
 - **The cards dress for the occasion.** With Blue ticked, a product that comes in blue
