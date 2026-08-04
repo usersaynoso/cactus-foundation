@@ -259,7 +259,7 @@ Nothing is deleted. Weights you've already recorded stay on your products and co
 
 ## Customer accounts
 
-Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop → Checkout** if you'd rather not).
+Guests can always check out without an account. If you have the [Members](Members) system switched on, signed-in customers additionally get an order history, saved addresses that pre-fill at checkout, a basket that follows them from one device to the next, and a "create an account" nudge after their first purchase (switch that nudge off in **Settings → Shop → Checkout** if you'd rather not).
 
 That nudge appears on the confirmation page, once the order is safely placed rather than in the middle of paying, and only to guests - a customer who was already signed in doesn't need telling. It sits below anything the customer still has to do about the money (bank transfer details, say) and above the list of what they've bought, so it's in plain sight rather than stranded at the bottom of a long receipt. It stays out of the way entirely if you've got Members switched off, or if your site is invite-only, since sending someone to a page that will only turn them away is worse than not asking at all.
 
@@ -290,6 +290,18 @@ At the delivery step, a customer with addresses on file gets a short **Deliver t
 The same address ordered to twice stays one entry. Two entries only appear when the parcels would genuinely land at two different doors, so typing a postcode in capitals one week and lower case the next doesn't quietly grow a list of near-identical duplicates. It's the door that's matched on and not the name against it, which means two people at one address share one entry - the name comes up as whoever ordered first, and is typed over in the form like anything else. And a customer paying by bank transfer gets their address kept the moment they finish checking out, rather than whenever you get round to confirming the money.
 
 Guests aren't offered any of this and aren't asked to sign up for it. They see the form exactly as they always did.
+
+### The basket follows them about
+
+A signed-in customer's basket is kept with their account rather than in the browser they happened to be using. Fill one up on the train on a phone, open the laptop at the desk, and it's already there. Nothing to press, no "save my basket" button, no emailed link.
+
+Signing in joins the two baskets rather than picking a winner: whatever they'd put in as a guest stays, whatever was waiting on the account comes back, and something sitting in both counts once at the larger quantity rather than doubling up. Signing out takes the basket off that browser, since it's safe on the account and a shared laptop is nobody's idea of a good place to leave a shopping list. Sign in on somebody else's machine and you get your basket, not theirs.
+
+Changes are sent up as they're made, so a phone put in a pocket mid-shop has already saved. If two devices are open at once, the one being used wins, and the other picks the change up the next time it's brought back to the front.
+
+Guests carry on exactly as before, basket kept in their own browser, nothing sent anywhere. It's worth saying that a basket is a list of what somebody fancied, not a promise about the price: what things cost, what's in stock and what delivery comes to are all worked out fresh when the basket is opened and again at the checkout, so a basket left for a fortnight can't hold you to a fortnight-old price.
+
+There's nothing to switch on. If you've got [Members](Members) running, it's running.
 
 ### Cancellations and returns
 
