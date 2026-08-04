@@ -46,18 +46,23 @@ Prices are **today's**, and anything that has moved since they saved is spelled 
 
 Everything arrives under **Shop → Quotes**.
 
-The list shows saved baskets and quote requests together - they are the same thing at different stages, and you want one answer to "what is outstanding?", not two lists to reconcile. Filter by status (New, Sent, Won, Lost, Expired) or by kind, and search by number, code, name, email or company.
+The list shows saved baskets and quote requests together - they are the same thing at different stages, and you want one answer to "what is outstanding?", not two lists to reconcile. Filter by status (New, Sent, Won, Lost, Expired) or by kind, and search by number, code, name, email or company. A code is found with or without its dash, so pasting one out of a link works. Past twenty-five, the list pages.
 
 Open one and you can:
 
 - **Price it.** Change any quantity or unit price. On a shop that withholds prices, this is where the figures come from in the first place.
+- **Add or remove lines.** For everything the customer could not put in the basket themselves - installation, a delivery charge, a bespoke item - and for the one they have thought better of. The running total under the table shows the subtotal, the VAT and what they will actually pay as you type.
+- **Correct the customer's details.** Name, company, email, telephone. Somebody who parked a basket without leaving an email and then rang up is the whole reason this is here.
+- **Change how long it stands.** The "valid until" date is yours to move - extending a quote by a month is the commonest thing anybody ever asks of one. Clear the date entirely for a quote that never lapses.
 - **Write a reply.** It goes on the quote document and in the email. The customer reads this one.
 - **Make internal notes.** The customer never sees these.
-- **Send it.** Emails the customer their priced quote and a link to it. If the email cannot be sent you are told why, rather than being shown a tick and left to wonder.
+- **Send it.** Saves what you have typed, then emails the customer their priced quote and a link to it. If the email cannot be sent you are told why, rather than being shown a tick and left to wonder.
 - **Set where it got to.** New, Sent, Won, Lost.
-- **Turn it into an order.** Creates a real, unpaid order in **Shop → Orders**, which then behaves like any other order you have ever had - statuses, dispatch emails, refunds, the lot.
+- **Turn it into an order.** Creates a real, unpaid order in **Shop → Orders**, which then behaves like any other order you have ever had - statuses, dispatch emails, refunds, the lot. Everything listed under a line on the quote - the chosen finish, the delivery service - goes across with it, so whoever picks it knows what they are picking.
 
 You can also see whether the customer has actually opened their quote, and when.
+
+> Nothing is saved until you press Save. If you wander off with prices half typed, your browser will ask whether you meant to.
 
 ### Turning a quote into an order
 
@@ -87,6 +92,38 @@ Three starters come with it: **Standard quote** (published for you, so the featu
 **Quote request page** is where the checkout used to be. Two blocks - the shopper's list and the form - with a one-column and a two-column starter.
 
 The wording that fills these in (heading, introduction, validity line, terms) lives in **Settings → Shop → Quotes**, so you are not editing a layout to change a sentence.
+
+### Choosing the type
+
+Every one of the five blocks has a **Font** box. Leave it empty and that part of the quote uses the typefaces you set under **Appearance → Styles** - headings in your heading font, everything else in your body font. Fill it in and that block uses whatever you pick instead, whether that is one of your own named fonts or anything from the Google catalogue.
+
+### Your name beside your logo
+
+**Quote: Heading** has a **Shop name beside the logo** switch. Turn it off if your logo already has the name drawn into it - otherwise the quote says who you are twice, which looks like a mistake because it rather is one.
+
+### Pictures, and how big
+
+**Quote: Items** can show a thumbnail against each line, at **Small**, **Medium** or **Large**. Medium is what it has always been. Large is worth it for furniture and worth avoiding for a list of forty items, unless you are fond of paper.
+
+### Delivery: a date, or a number of days
+
+If your delivery services work out an arrival date, **Quote: Items** can print that date against each line, or print how long it takes instead - "10 working days from order". The second is usually the honest one on a quote: a quote sits in somebody's inbox for a fortnight, and a date worked out the afternoon it was written is in the past by the time they open it. The wording after the number is yours to change, so "from receipt of order" or "from when your order lands" are both fine.
+
+Lines your delivery services never dated print exactly as they were quoted, and so do quotes saved before this existed - nothing is guessed at after the fact.
+
+### The line under the totals
+
+**Quote: Totals** has a **Delivery note under the totals** box, holding "Delivery is worked out once we have a delivery address." by default. Change it to whatever you would rather say, or empty it completely and nothing is printed there at all - which is the right answer if your prices already include delivery.
+
+---
+
+## VAT on a quote
+
+A quote shows VAT worked out against your default delivery area - the same figure your basket shows a shopper before they have typed an address, and for the same reason: you have to state a price long before you know where the parcel is going. The checkout works the real area out from the delivery postcode and charges from that.
+
+If your prices already include VAT, the row reads "VAT (included)" and the total does not move. If they do not, the VAT is added and the total says so.
+
+> Quotes made before this was fixed showed no VAT row at all, because a quote with no delivery address was treated as a quote with no tax. They were saved that way and they stay that way - a quote is a photograph of a day. Save the basket again for a quote with the row on it.
 
 ---
 
