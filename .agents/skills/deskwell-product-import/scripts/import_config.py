@@ -1,27 +1,34 @@
 """Per-import rules for the Deskwell product import. EDIT THIS, not import_lib.py.
 
-This revision is tuned for the July 2026 supplier "Seating Dataset" (Dynamic chairs).
-The previous Furniture Dataset (desks/tables/storage) version is preserved beside this
-file as import_config_furniture_2026-07.py.bak - restore it before re-running that
-import.
+This revision is tuned for the August 2026 supplier "Soft Seating Dataset"
+(Brixworth booths and soft seating, Mawsley modular, Harlestone stools, Lamport).
+The previous Seating Dataset (Dynamic chairs) version is preserved beside this file
+as import_config_seating_2026-07.py.bak - restore it before re-running that import.
 
-Chair conventions this encodes, read off the existing catalogue:
+Soft-seating conventions this encodes, read off the sheet and the existing catalogue:
 
-  - seat colour is the "Upholstery Colour" option (attr upholstery-colour, IMAGE),
-    an independently chosen back is "Back Colour" (attr back-colour) - chiro-plus style
-  - arms / headrest / draughtsman kit / mesh-vs-upholstered back are stated only in
-    product names, so they are NAME_LIFTS
-  - "High Back" / "Medium Back" groups merge into one listing with a Back Height
-    option (the chiro-medium-high-back precedent)
-  - Eclipse Plus I/II/III are lever counts: they merge via the Adjustments option,
-    with the same labels the existing eclipse-plus-medium listing uses
+  - the bespoke fabric is one "Upholstery Colour" option whose labels carry the
+    range prefix, the way the chair import's Camira values already do ("Rivet
+    Quench"): 'Rivet Burnish', 'Main Line Flax Bank', 'Era Endurance'. A two-tone
+    pick (panels & sofa, body & top) is one value: 'Rivet Burnish & Olive'.
+  - booth/sofa/modular leg colour comes from the Frame Colour column; the booth
+    table's own colour and leg come from the Table Top / Table Frame Colour columns
+  - a booth-with-table family runs to five axes (Seats, Table Colour, Table Leg,
+    Upholstery, Frame) so it splits on Frame Colour - the air-desk
+    "...-black-frame" precedent - which also collapses Table Leg on the black
+    listing (black frames only ever pair a black table leg)
+  - Frame Colour sits BEFORE Table Leg in KEEP_ORDER so the booth leg choice is
+    never silently derived from the table leg (choice before consequence)
+  - Mawsley/Brixworth modular units merge into one listing per brand with a Unit
+    option lifted from the group names; Low/High back is a Back Height option
+    lifted per row
 """
 import re
 from decimal import Decimal
 
 # ----------------------------------------------------------------- sheet shape
 
-HEADER_ROW = 0          # the flattened seating CSV has its headings on the first row
+HEADER_ROW = 3          # rows 0-2 are banner/section rows; headings sit on row 4
 
 # logical name -> the sheet's column heading
 COLUMNS = {
@@ -32,244 +39,183 @@ COLUMNS = {
     'marketing_text': 'Marketing Text', 'features': 'Product Features',
     'width': 'Width', 'depth': 'Depth', 'height': 'Height',
     'finish': 'Finish', 'colour': 'Colour', 'frame_colour': 'Frame Colour',
-    'seat_colour': 'Seat Colour', 'back_colour': 'Back Colour',
-    'seat_material': 'Seat Material', 'back_material': 'Back Material',
-    'material': 'Material', 'range': 'Range',
+    'table_top_colour': 'Table Top Colour',
+    'table_frame_colour': 'Table Frame Colour',
+    'range': 'Range',
 }
 
-TYPOS = []
+TYPOS = [
+    # supplier writes "Modular Seating Set - Circular Booth"; the dash would
+    # otherwise survive into a listing name
+    (re.compile(r'Seating Set - '), 'Seating Set '),
+    # one supplier group spans two sheet categories (Armchairs + Sofas), which
+    # would produce two listings with the same name; blanking it lets the product
+    # names drive the stems, landing on 'Lamport Armchair' and 'Lamport Sofa'
+    (re.compile(r'^Lamport Armchair And Sofa$'), ''),
+]
 
 # ------------------------------------------------------------ what becomes an axis
 
 COLUMN_AXES = [
-    ('Upholstery Colour', ['seat_colour']),
-    ('Back Colour', ['back_colour']),
     ('Frame Colour', ['frame_colour']),
-    ('Material', ['seat_material']),
-    # accessories (gas lifts, castors, headrests) have no seat, just a colour
-    ('Finish', ['colour']),
+    ('Table Colour', ['table_top_colour']),
+    ('Table Leg', ['table_frame_colour']),
+    # Harlestone stools come in two physical sizes stated only as Small/Large plus
+    # the Width column; the width is the clearer label and sorts numerically
     ('Width', ['width']),
-    ('Depth', ['depth']),
-    ('Height', ['height']),
+    # accessories (the power module) have no fabric, just a colour
+    ('Finish', ['colour']),
 ]
 COUNT_AXES = []
 
 DIMENSION_AXES = {'Width', 'Depth', 'Height'}
-NUMERIC_AXES = DIMENSION_AXES | {'Seats', 'Size'}
+NUMERIC_AXES = DIMENSION_AXES | {'Seats'}
 
 # ------------------------------------------------------------------ name wrangling
 
 NOISE_PHRASES = [re.compile(p, re.I) for p in (
+    r'\s+in\s+(Single|Two)\s+Tone\s*$',
     r'\s*\(MOQ of \d+[^)]*\)',
-    r'\s*\(Available in \d+ Sizes\)',
 )]
 
-# "Stacking" names the glides version of a chair that also comes on castors; stripping
-# it is what lets the Brunswick castor group land on the same listing. A single-source
-# group keeps its original name, so every other Stacking chair is unaffected.
-MERGE_PHRASES = [re.compile(r'\s+Stacking\b', re.I)]
+MERGE_PHRASES = []
 
-_ADJUSTMENTS = {'I': 'Seat Height',
-                'II': 'Seat Height & Backrest Tilt',
-                'III': 'Seat Height, Backrest & Seat Tilt'}
-
-GROUP_LIFTS = [
-    # Eclipse Plus I/II/III are lever counts - the existing eclipse-plus-medium listing
-    # bundles them as Adjustments, with exactly these labels. Lookbehind so only the
-    # numeral is cut and "Eclipse Plus" stays in the stem.
-    ('Adjustments',  re.compile(r'(?<=Eclipse Plus )(III|II|I)\b'),
-                     lambda m: _ADJUSTMENTS[m.group(1)]),
-    ('Back Height',  re.compile(r'\s+(High|Medium|Low)\s+Back\b', re.I),
-                     lambda m: f'{m.group(1).title()} Back'),
-    # "Medium Mesh Back": lift the height word but keep "Mesh Back" in the stem -
-    # mesh is part of the product's identity, the height is the option.
-    ('Back Height',  re.compile(r'\s+(High|Medium|Low)(?=\s+(?:Mesh|Airmesh)\s+Back\b)', re.I),
-                     lambda m: f'{m.group(1).title()} Back'),
-    ('Frame Colour', re.compile(r'\s+(Black|Silver|White|Chrome|Graphite|Green|Red|Blue)\s+Frame\b', re.I),
-                     lambda m: m.group(1).title()),
-    ('Castors',      re.compile(r'\s+[Ww]ith\s+Castors\b'), lambda m: 'With Castors'),
-]
+_FABRIC_RANGES = r'Rivet|Main Line Flax|Synergy|X2'
 
 
-def _arm_label(m):
-    if m.group(1):                      # "Without Arms"
-        return 'No Arms'
-    kind = m.group(2)
-    if not kind:                        # bare "With Arms"
-        return 'Fixed Arms'
-    kind = re.sub(r'\s+', ' ', kind).strip().title()
-    kind = kind.replace(' And ', ' & ')
-    return f'{kind} Arms'
-
-
-def _seat_label(m):
-    colour = m.group(1).title()
-    mat = m.group(2).lower()
-    if 'leather' in mat:
-        mat = 'Leather'
-    elif mat.startswith('poly'):
-        mat = 'Poly'
-    else:
-        mat = mat.title()
-    if mat == 'Fabric' and colour != 'Black':
-        return colour            # the library's fabric colours are plain labels
-    return f'{colour} {mat}'     # 'Black Fabric', 'Black Leather', 'Blue Vinyl'
-
-
-def _gas_lift_label(m):
-    label = f'Size {m.group(2)}'
-    if m.group(3):
-        label += ' HD'
-    if m.group(1):
-        label += ' Memory Return'
+def _fabric_pair(m):
+    """'Rivet Burnish' for a single tone, 'Rivet Burnish & Olive' for two."""
+    rng, a, b = m.group(1), m.group(2), m.group(3) if m.lastindex >= 3 else None
+    label = f'{rng} {a.title()}'
+    if b:
+        label += f' & {b.title()}'
     return label
 
 
-NAME_LIFTS = [
-    # absent='No Arms' matters: a group offering only with/without one arm type (Nest,
-    # Academy) must still see two values, or the axis looks non-varying and drops.
-    ('Arm Option',
-     re.compile(r'\bWith(out)?\s+((?:Loop|Folding|Sliding|Multi[- ]Adjustable|'
-                r'Height Adjustable(?:\s*(?:&|and)\s*Folding)?)\s+)?Arms\b', re.I),
-     _arm_label, 'No Arms'),
-    # "With Arms And Headrest" is how Stealth Shadow phrases it
-    ('Headrest', re.compile(r'\b(?:With|And)\s+Headrest\b', re.I),
-     lambda m: 'With Headrest', 'Without Headrest'),
-    # Absent labels double as words the design-residue detector ignores, so they must
-    # not contain a word that is itself a distinguishing feature ("Standard" killed the
-    # castor-set group's Design axis).
-    ('Draughtsman Kit', re.compile(r'\bWith\s+Hi(?:gh)?\s+Rise\s+Draughtsman\s+Kit\b', re.I),
-     lambda m: 'With Draughtsman Kit', 'None'),
-    ('Back Height', re.compile(r'\b(High|Medium|Low)\s+Back\b', re.I),
-     lambda m: f'{m.group(1).title()} Back', None),
-    # Mesh / Nylon / Black Fabric back stated only in the name (ISO, Academy,
-    # Brunswick, Zure); rows that never say have a back matching the seat. The
-    # lookbehind keeps "Airmesh Seat And Mesh Back" (Stealth - a seat-material
-    # choice, not a back option) out of it.
-    ('Back', re.compile(r'(?<!Seat And )\b((?:Black\s+)?(?:Mesh|Airmesh|Nylon|Fabric))\s+Back\b', re.I),
-     lambda m: f'{m.group(1).title()} Back', 'Matching Back'),
-    # "Black Mesh Seat" / "Black Airmesh Seat": mesh seat variants of a fabric chair
-    # (Ergo Click, Relay) keep the material in the colour label, overriding the
-    # column's plain 'Black' that would collide with the fabric black.
+GROUP_LIFTS = [
+    # 'Brixworth Sofa 2 Seater' + '3 Seater' -> one 'Brixworth Sofa' with a Seats
+    # option; also strips the seater count out of the ungrouped white-leg booth
+    # names so they land on the booth stems
+    ('Seats', re.compile(r'\s+(\d+)\s+Seater\b', re.I),
+     lambda m: f'{m.group(1)} Seater'),
+    # modular unit groups merge into one listing per brand; the descriptor becomes
+    # the Unit option. Longest alternatives first so 'Left End' beats 'Left'.
+    ('Unit', re.compile(r'\s+(90 Degree Inner Curved|90 Degree Outer Curved|'
+                        r'90 Degree Backless Curved|Central Backless|Central|'
+                        r'Corner|Left End|Right End|D-End|Left|Right)(?=\s+Unit\b)'),
+     lambda m: f'{m.group(1)} Unit'),
+    # the rest only ever fire on the ungrouped white-leg booth rows, whose "group"
+    # is the full product name - they reduce it to the same stem as the grouped
+    # booth-with-table rows ('and'/'with' are merge-key stopwords)
+    ('Frame Colour', re.compile(r'\s+With\s+(Black|White)\s+(?:Legs|[Ff]eet)\b'),
+     lambda m: m.group(1)),
+    ('Table Leg', re.compile(r'(?<=Table)\s+With\s+(Black|Silver|White)\s+Leg\b'),
+     lambda m: m.group(1)),
+    ('Table Colour', re.compile(r'\s*(Black|Grey|White)(?=\s+Table\b)'),
+     lambda m: m.group(1)),
     ('Upholstery Colour',
-     re.compile(r'\b(Black|Blue|Grey|White)\s+(Mesh|Airmesh)\s+Seat\b', re.I),
-     lambda m: f'{m.group(1).title()} {m.group(2).title()}', None),
-    # A colour the name states beside its seat material wins over the seat colour
-    # column (which is occasionally wrong - Banqueting says Blue Fabric over a column
-    # that says Black), and the material folds into the label the way the shared
-    # attribute library already does: it holds 'Black Fabric' and 'Black Leather' but
-    # plain 'Blue' / 'Charcoal' for fabric colours. "(?!\s+Back)" keeps "Black Fabric
-    # Back" - a back descriptor - from clobbering a bespoke seat colour. Mesh/Airmesh
-    # stay out of the alternation: they describe backs and whole chairs, not the seat
-    # colour ("Camden Black Mesh Chair Bespoke Colour Seat ...").
+     re.compile(r'\s+In\s+(' + _FABRIC_RANGES + r')\s+Fabric\s*-\s*(\w+)\s+Panels\s+'
+                r'And\s+(?:(\w+)\s+)?Sofa\s*$'),
+     _fabric_pair),
+    # the plain form ('... In Rivet Fabric - Burnish'), for the Lamport rows whose
+    # group was blanked above; runs after the booth form so it never steals it
     ('Upholstery Colour',
-     re.compile(r'\b(Black|Blue|Brown|Burgundy|Charcoal|Green|Grey|Red|Tan|White|Wine)\s+'
-                r'(Fabric|Vinyl|Velvet|Poly(?:propylene|urethane)?|'
-                r'(?:Soft\s+)?(?:Bonded\s+)?Leather)\b(?!\s+Back)', re.I),
-     lambda m: _seat_label(m), None),
-    ('Writing Table',
-     re.compile(r'\bWith\s+(?:Foldaway\s+)?(?:Poly\s+)?Writing\s+Tab(?:le|let)\b', re.I),
-     lambda m: 'With Writing Table', 'None'),
-    ('Glides', re.compile(r'\bWith\s+(Chrome\s+)?Glides\b', re.I),
-     lambda m: 'With Chrome Glides' if m.group(1) else 'With Glides', 'With Castors'),
-    ('Hand', re.compile(r'\b(Left|Right)(?:\s+Hand)?\b', re.I),
-     lambda m: f'{m.group(1).title()} Hand', 'Right Hand'),
-    ('Size', re.compile(r'\b(Memory Return )?Gas Lift (\d+)"?(?: (?:Black|Chrome))?( HD)?\b', re.I),
-     _gas_lift_label, None),
-    ('Design', re.compile(r'\bGlass\s+Top\b', re.I), lambda m: 'Glass Top', 'Solid Top'),
-    ('Castors', re.compile(r'\bWith Castors\b', re.I), lambda m: 'With Castors', None),
+     re.compile(r'\s+In\s+(' + _FABRIC_RANGES + r')\s+Fabric\s*-\s*(\w+)\s*$'),
+     _fabric_pair),
 ]
 
-# What a merged group that never mentions a lifted attribute actually offers. Back
-# Height only ever fills in on the Eclipse Deluxe merge, where the II group drops the
-# "Medium" its own spec column still states - confirm in the plan report if new merges
-# appear.
-ABSENT_LABEL = {'Back Height': 'Medium Back', 'Castors': 'No Castors'}
+NAME_LIFTS = [
+    ('Seats', re.compile(r'\b(\d+)\s+Seater\b', re.I),
+     lambda m: f'{m.group(1)} Seater', None),
+    # Mawsley Low/High back, stated per row; units without the words (Corner, ends,
+    # backless) get the BLANK_LABEL
+    ('Back Height', re.compile(r'\b(Low|High)\s+Back\b', re.I),
+     lambda m: f'{m.group(1).title()} Back', None),
+    # the L-shaped corner sofa set: arms both ends, or one end only
+    ('Arms', re.compile(r'\bWith\s+(?:(Left|Right)\s+)?Arms?\b(?!\s*chair)', re.I),
+     lambda m: f'{m.group(1).title()} Arm Only' if m.group(1) else 'Arms Both Sides',
+     None),
+    # Harlestone curved stools: the arc is the choice, the width follows from it
+    ('Shape', re.compile(r'\b(90|180)\s+Degree\b(?=\s+Stool)', re.I),
+     lambda m: f'{m.group(1)} Degree', None),
+    # fabric, always stated only in the name; anchored patterns keep the four name
+    # shapes (booth panels/sofa, stool body/top, plain, Era) from crossing
+    ('Upholstery Colour',
+     re.compile(r'\bIn\s+(' + _FABRIC_RANGES + r')\s+Fabric\s*-\s*(\w+)\s+Panels\s+'
+                r'And\s+(?:(\w+)\s+)?Sofa\s*$'),
+     _fabric_pair, None),
+    ('Upholstery Colour',
+     re.compile(r'\bIn\s+(' + _FABRIC_RANGES + r')\s+Fabric\s*-\s*(\w+)\s+Body'
+                r'(?:\s+And\s+Top|\s+(\w+)\s+Top)\s*$'),
+     _fabric_pair, None),
+    ('Upholstery Colour',
+     re.compile(r'\bIn\s+(' + _FABRIC_RANGES + r')\s+Fabric\s*-\s*(\w+)\s*$'),
+     _fabric_pair, None),
+    ('Upholstery Colour',
+     re.compile(r'\bin\s+(Era)\s*-\s*(\w+)\s*$'),
+     _fabric_pair, None),
+]
 
-BLANK_LABEL = {'Arm Option': 'No Arms', 'Headrest': 'Without Headrest',
-               'Back': 'Matching Back', 'Draughtsman Kit': 'None',
-               'Castors': 'No Castors', 'Material': 'Standard',
-               'Writing Table': 'None', 'Glides': 'With Castors',
-               'Hand': 'Right Hand'}
+ABSENT_LABEL = {}
+
+BLANK_LABEL = {
+    'Table Colour': 'None',        # the no-table rows of the Mawsley circular booth
+    'Back Height': 'Standard',     # Mawsley units with one back style (Corner, ends)
+}
 
 MERGE_KEY_SUBSTITUTIONS = []
-MERGE_KEY_STOPWORDS = {'office', 'the', 'a'}
+MERGE_KEY_STOPWORDS = {'office', 'the', 'a', 'and', 'with', 'in'}
 
 # ------------------------------------------------------------------- option order
 
 MAX_OPTIONS = 4
 
-# A thing a buyer picks (adjustments, arms, headrest, back style) comes before the
-# colours, so a colour never stands in for a feature.
-KEEP_ORDER = ['Size', 'Adjustments', 'Back Height', 'Draughtsman Kit', 'Headrest',
-              'Arm Option', 'Writing Table', 'Back', 'Glides', 'Castors', 'Hand',
-              'Upholstery Colour', 'Frame Colour', 'Back Colour', 'Material', 'Finish',
-              'Width', 'Depth', 'Height', 'Shape', 'Design', 'Leg Type', 'Range']
+# Frame Colour must precede Table Leg: a black booth frame always carries a black
+# table leg, so if Table Leg were considered first it would silently stand in for
+# the frame choice and the buyer would never see the booth legs.
+KEEP_ORDER = ['Seats', 'Unit', 'Back Height', 'Arms', 'Shape',
+              'Table Colour', 'Frame Colour', 'Table Leg',
+              'Upholstery Colour', 'Finish', 'Width', 'Depth', 'Height']
 
-# Which axis a five-option listing peels off into separate listings. Undoing a name
-# merge beats breaking up a choice a buyer expects to make; colours go last.
-SPLIT_PREFERENCE = ['Leg Type', 'Hand', 'Back', 'Draughtsman Kit', 'Back Height',
-                    'Material', 'Writing Table', 'Glides', 'Castors', 'Headrest',
-                    'Height', 'Width', 'Depth',
-                    'Design', 'Shape', 'Range', 'Adjustments', 'Arm Option',
-                    'Frame Colour', 'Size', 'Back Colour', 'Upholstery Colour', 'Finish']
+# Only the booth-with-table family runs past four axes; it peels off Frame Colour
+# (air-desk '-black-frame' precedent), which also collapses Table Leg on the black
+# listing since black frames only pair a black table leg.
+SPLIT_PREFERENCE = ['Frame Colour', 'Table Leg', 'Table Colour', 'Unit',
+                    'Back Height', 'Arms', 'Shape', 'Seats',
+                    'Width', 'Upholstery Colour', 'Finish']
 
 # The order options appear in on the product page.
-DISPLAY_ORDER = ['Size', 'Back Height', 'Adjustments', 'Arm Option', 'Headrest',
-                 'Draughtsman Kit', 'Writing Table', 'Back', 'Material', 'Width',
-                 'Depth', 'Height', 'Shape', 'Hand', 'Design', 'Glides', 'Castors',
-                 'Range', 'Upholstery Colour',
-                 'Back Colour', 'Finish', 'Frame Colour', 'Leg Type']
+DISPLAY_ORDER = ['Seats', 'Unit', 'Back Height', 'Arms', 'Shape', 'Width',
+                 'Depth', 'Height', 'Table Colour', 'Table Leg',
+                 'Upholstery Colour', 'Finish', 'Frame Colour']
 
 SPLIT_NAME = {
-    'Back': lambda v: '' if v == 'Matching Back' else v,
-    'Back Height': lambda v: v,
-    'Headrest': lambda v: '' if v == 'Without Headrest' else v,
-    'Draughtsman Kit': lambda v: '' if v in ('Standard', 'None') else v,
-    'Writing Table': lambda v: '' if v == 'None' else v,
-    'Glides': lambda v: '' if v == 'With Castors' else v,
-    'Arm Option': lambda v: '' if v == 'No Arms' else f'With {v}',
     'Frame Colour': lambda v: f'{v} Frame',
-    'Castors': lambda v: '' if v == 'No Castors' else v,
-    'Hand': lambda v: f'{v} Hand',
 }
 
 # ------------------------------------------------------- options -> attributes
 
 # axis -> (option name, pat_attributes slug, svr control type, pat control type)
 AXIS_ATTR = {
-    'Size':              ('Size', 'size', 'PILL', 'DROPDOWN'),
+    'Seats':             ('Seats', 'seats', 'PILL', 'DROPDOWN'),
+    'Unit':              ('Unit', 'unit', 'PILL', 'DROPDOWN'),
+    'Back Height':       ('Back Height', 'back-height', 'PILL', 'DROPDOWN'),
+    'Arms':              ('Arm Option', 'arm-option', 'PILL', 'DROPDOWN'),
+    'Shape':             ('Shape', 'shape', 'PILL', 'DROPDOWN'),
     'Width':             ('Width', 'width', 'PILL', 'DROPDOWN'),
     'Depth':             ('Depth', 'depth', 'PILL', 'DROPDOWN'),
     'Height':            ('Height', 'height', 'PILL', 'DROPDOWN'),
-    'Adjustments':       ('Adjustments', 'adjustments', 'PILL', 'DROPDOWN'),
-    'Back Height':       ('Back Height', 'back-height', 'PILL', 'DROPDOWN'),
-    'Headrest':          ('Headrest', 'headrest', 'PILL', 'DROPDOWN'),
-    'Arm Option':        ('Arm Option', 'arm-option', 'PILL', 'DROPDOWN'),
-    'Draughtsman Kit':   ('Draughtsman Kit', 'draughtsman-kit', 'PILL', 'DROPDOWN'),
-    'Back':              ('Back', 'back-style', 'PILL', 'DROPDOWN'),
-    'Writing Table':     ('Writing Table', 'writing-table', 'PILL', 'DROPDOWN'),
-    'Glides':            ('Glides', 'glides', 'PILL', 'DROPDOWN'),
-    'Castors':           ('Castors', 'castors', 'PILL', 'DROPDOWN'),
-    'Material':          ('Material', 'material', 'PILL', 'DROPDOWN'),
-    'Range':             ('Range', 'range', 'PILL', 'DROPDOWN'),
+    'Table Colour':      ('Table Colour', 'colour', 'SWATCH', 'DROPDOWN'),
+    'Table Leg':         ('Table Leg', 'leg-finish', 'SWATCH', 'SWATCH'),
     'Upholstery Colour': ('Upholstery Colour', 'upholstery-colour', 'IMAGE', 'IMAGE'),
-    'Back Colour':       ('Back Colour', 'back-colour', 'IMAGE', 'IMAGE'),
     'Finish':            ('Finish', 'finish', 'IMAGE', 'IMAGE'),
-    'Shape':             ('Shape', 'shape', 'PILL', 'DROPDOWN'),
     'Frame Colour':      ('Frame Colour', 'frame-colour', 'SWATCH', 'SWATCH'),
-    'Hand':              ('Hand', 'hand', 'PILL', 'DROPDOWN'),
-    'Leg Type':          ('Leg Type', 'leg-type', 'PILL', 'DROPDOWN'),
-    'Design':            ('Design', 'design', 'PILL', 'DROPDOWN'),
 }
-ATTR_NAME = {'adjustments': 'Adjustments', 'back-height': 'Back Height',
-             'headrest': 'Headrest', 'arm-option': 'Arm Option',
-             'draughtsman-kit': 'Draughtsman Kit', 'back-style': 'Back Style',
-             'writing-table': 'Writing Table', 'glides': 'Glides',
-             'upholstery-colour': 'Upholstery Colour', 'back-colour': 'Back Colour',
-             'castors': 'Castors', 'material': 'Material', 'range': 'Range',
-             'catalog': 'Catalog', 'design': 'Design', 'frame-colour': 'Frame Colour',
-             'hand': 'Hand', 'leg-type': 'Leg Type', 'shape': 'Shape'}
+ATTR_NAME = {'seats': 'Seats', 'unit': 'Unit', 'back-height': 'Back Height',
+             'arm-option': 'Arm Option', 'shape': 'Shape', 'colour': 'Colour',
+             'leg-finish': 'Leg Finish', 'upholstery-colour': 'Upholstery Colour',
+             'finish': 'Finish', 'frame-colour': 'Frame Colour',
+             'catalog': 'Catalog', 'range': 'Range'}
 OPTION_SOURCE_PROVIDER = 'product-attributes'
 
 # Attributes assigned to every listing as a per-variation column, hidden from the public
@@ -279,27 +225,20 @@ OPTION_SOURCE_PROVIDER = 'product-attributes'
 VARIATION_COLUMN_ATTRIBUTES = ['catalog', 'range']
 
 SWATCH_FALLBACK = {
-    'Frame Colour': {'black': '#323232', 'silver': '#7E7E7E', 'white': '#f3f3f3',
-                     'chrome': '#C9CDD1', 'aluminium': '#A8ADB3',
-                     'brushed aluminium': '#B4B8BC', 'graphite': '#4A4A4A',
-                     'green': '#2F6B3C', 'red': '#B03A2E', 'blue': '#2C4F8A',
-                     'beech': '#D7B68C', 'wooden': '#B08954',
-                     'black & chrome': '#3A3D40', 'black & silver': '#4F5357',
-                     'silver & white': '#D9DCDF', 'brushed aluminium & white': '#C9CDD1'},
+    'Frame Colour': {'black': '#323232', 'white': '#f3f3f3', 'silver': '#7E7E7E'},
+    'Table Colour': {'black': '#323232', 'grey': '#8A8D8F', 'white': '#f3f3f3',
+                     'none': ''},
+    'Table Leg':    {'black': '#323232', 'silver': '#7E7E7E', 'white': '#f3f3f3'},
 }
 
 # --------------------------------------------------------------- product cards
 
 CARD_LABEL = {
-    'Size': 'Sizes', 'Width': 'Widths', 'Depth': 'Depths', 'Height': 'Heights',
-    'Adjustments': 'Adjustment Options', 'Back Height': 'Back Height Options',
-    'Headrest': 'Headrest Options', 'Arm Option': 'Arm Options',
-    'Draughtsman Kit': 'Draughtsman Kit', 'Back': 'Back Options',
-    'Writing Table': 'Writing Table', 'Glides': 'Glide Options',
-    'Castors': 'Castor Options', 'Material': 'Materials', 'Range': 'Ranges',
-    'Upholstery Colour': 'Colours', 'Back Colour': 'Back Colours',
-    'Finish': 'Finishes', 'Shape': 'Shapes', 'Frame Colour': 'Frame Colours',
-    'Hand': 'Handing', 'Leg Type': 'Leg Types', 'Design': 'Designs',
+    'Seats': 'Seats', 'Unit': 'Units', 'Back Height': 'Back Height Options',
+    'Arm Option': 'Arm Options', 'Shape': 'Shapes', 'Width': 'Widths',
+    'Depth': 'Depths', 'Height': 'Heights', 'Table Colour': 'Table Colours',
+    'Table Leg': 'Table Legs', 'Upholstery Colour': 'Colours',
+    'Finish': 'Finishes', 'Frame Colour': 'Frame Colours',
 }
 CARD_DOT_LIMIT = 9        # swatch/image options draw dots; nine fit on a tile
 CARD_TEXT_BUDGET = 34     # text options print a comma list, so characters run out
@@ -332,8 +271,11 @@ def MEDIA_BASENAME(sku, n):
 # -------------------------------------------------------------------- categories
 
 NEW_CATEGORIES = [
-    ('Seating accessories', 'seating-accessories', 'office-seating',
-     'Gas lifts, castors, bases, arms, headrests and other spares for office chairs.'),
+    ('Privacy Booths & Pods', 'privacy-booths', 'office-seating',
+     'Enclosed and open acoustic booths for meetings, calls and focused work.'),
+    ('Modular Soft Seating', 'modular-seating', 'office-seating',
+     'Modular sofa units and complete seating sets for breakout and collaboration '
+     'spaces.'),
 ]
 
 
@@ -346,62 +288,16 @@ def categorise(sheet_category, listing_name):
     """(master category slug, [additional slugs]) - leaf categories only."""
     cat, name = sheet_category, listing_name
     if cat == 'Accessory':
-        if _has(name, 'Mat'):
-            return 'anti-fatigue-floor-mats', []
-        if _has(name, 'Laptop'):
+        if _has(name, 'Power Module'):
+            return 'power-modules-desktop-sockets', []
+        if _has(name, 'Monitor'):
             return 'monitor-arms-mounts', []
         return 'seating-accessories', []
-    if cat == 'Task and Operator':
-        if _has(name, 'Hi Rise', 'High Rise', 'Draughtsman', 'Kneeling', 'Stool'):
-            return 'draughtsman-chairs-stools', \
-                (['mesh-chairs'] if _has(name, 'Mesh') else [])
-        return 'task-operator-chairs', (['mesh-chairs'] if _has(name, 'Mesh') else [])
-    if cat == 'Executive':
-        return 'executive-chairs', (['mesh-chairs'] if _has(name, 'Mesh') else [])
-    if cat == 'Posture':
-        if _has(name, 'Stool'):
-            return 'draughtsman-chairs-stools', ['ergonomic-chairs']
-        return 'ergonomic-chairs', []
-    if cat == 'Heavy Duty':
-        return '24-hour-heavy-duty-chairs', \
-            (['ergonomic-chairs'] if _has(name, 'Posture') else [])
-    if cat == 'Visitor':
-        if _has(name, 'Sofa', 'Modular', 'Cube', 'Tub', 'Lounge'):
-            return 'soft-seating-tub-chairs', []
-        if _has(name, 'Stool'):
-            return 'stools', []
-        if _has(name, 'Cantilever'):
-            return 'cantilever-chairs', ['visitor-reception-chairs']
-        extra = []
-        if _has(name, 'Stacking', 'Folding'):
-            extra.append('stacking-folding-chairs')
-        if _has(name, 'Training'):
-            extra.append('meeting-conference-chairs')
-        return 'visitor-reception-chairs', extra
-    if cat == 'Conference':
-        extra = ['stacking-folding-chairs'] if _has(name, 'Stacking', 'Folding') else []
-        if _has(name, 'Visitor'):
-            extra.append('visitor-reception-chairs')
-        return 'meeting-conference-chairs', extra
-    if cat == 'Conference/visitor':
-        if _has(name, 'Cantilever'):
-            return 'cantilever-chairs', ['meeting-conference-chairs']
-        return 'meeting-conference-chairs', ['visitor-reception-chairs']
-    if cat == 'Reception':
-        if _has(name, 'Table'):
-            return 'coffee-occasional-tables', []
+    if cat == 'Privacy Booths':
+        return 'privacy-booths', []
+    if cat == 'Modular Seating':
+        return 'modular-seating', []
+    if cat in ('Armchairs', 'Sofas', 'Ottomans', 'Swivel Armchair', 'Stools'):
         return 'soft-seating-tub-chairs', []
-    if cat == 'Swivel Armchair':
-        if _has(name, 'Executive'):
-            return 'executive-chairs', []
-        return 'soft-seating-tub-chairs', []
-    if cat == 'Stools':
-        if _has(name, 'Footstool'):
-            return 'soft-seating-tub-chairs', []
-        return 'stools', []
-    if cat == 'Café & Bistro':
-        if _has(name, 'Stool'):
-            return 'stools', ['canteen-dining-chairs']
-        return 'canteen-dining-chairs', []
     raise SystemExit(f'no category mapping for {cat!r} (listing {listing_name!r}) - '
                      f'add a rule to categorise() in import_config.py')

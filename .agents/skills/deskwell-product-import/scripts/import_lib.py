@@ -506,12 +506,16 @@ def load_snapshot(work_dir):
                                     'name': name}
     for line in open(os.path.join(work_dir, 'attributes.tsv')):
         aid, slug, ctrl = line.rstrip('\n').split('\t')
-        snap['attrs'][slug] = {'id': aid, 'control': ctrl, 'values': {}}
+        snap['attrs'][slug] = {'id': aid, 'control': ctrl, 'values': {}, 'by_slug': {}}
     for line in open(os.path.join(work_dir, 'attribute_values.tsv')):
         aslug, vid, label, vslug, swatch, pos = line.rstrip('\n').split('\t')
         if aslug in snap['attrs']:
             snap['attrs'][aslug]['values'][label.lower()] = {
                 'id': vid, 'slug': vslug, 'swatch': swatch, 'position': int(pos)}
+            # the label map can shadow a row when two values share a label
+            # ('Black' exists twice under finish); the slug map keeps every row so
+            # write_sql never re-inserts a slug the library already holds
+            snap['attrs'][aslug]['by_slug'][vslug] = vid
     snap['slugs'] = {l.strip() for l in open(os.path.join(work_dir, 'slugs.txt')) if l.strip()}
     for line in open(os.path.join(work_dir, 'skus.txt')):
         if line.strip():
@@ -657,7 +661,9 @@ PRODUCT_COLS = ['id', 'name', 'slug', 'type', 'status', 'description', 'short_de
 def write_sql(plan, snap, cfg, replace_since=None, new_categories=()):
     """One transaction. Returns (sql_text, counts)."""
     categories = dict(snap['categories'])
-    attrs = {k: {'id': v['id'], 'values': {vv['slug']: vv['id'] for vv in v['values'].values()}}
+    attrs = {k: {'id': v['id'],
+                 'values': {**{vv['slug']: vv['id'] for vv in v['values'].values()},
+                            **v.get('by_slug', {})}}
              for k, v in snap['attrs'].items()}
     counts = collections.Counter()
     out = ['BEGIN;', "SET LOCAL statement_timeout = '600s';", '']
@@ -784,8 +790,8 @@ def write_sql(plan, snap, cfg, replace_since=None, new_categories=()):
             for n, v in enumerate(o['values']):
                 vid = str(uuid.uuid4())
                 value_id[(o['name'], v['label'])] = vid
-                optvals.append([q(vid), q(oid), q(v['label']), q(v['swatch']), str(n),
-                                q(v['attr_value_id'])])
+                optvals.append([q(vid), q(oid), q(v['label']), q(v['slug']),
+                                q(v['swatch']), str(n), q(v['attr_value_id'])])
 
         for n, var in enumerate(listing['variants']):
             cid, vrid = str(uuid.uuid4()), str(uuid.uuid4())
@@ -809,8 +815,9 @@ def write_sql(plan, snap, cfg, replace_since=None, new_categories=()):
     bulk('svr_options', ['id', 'product_id', 'name', 'control_type', 'position',
                          'source_provider', 'source_ref', 'card_display', 'card_label',
                          'card_limit'], opts)
+    # slug became NOT NULL on the live table (core update after the July import)
     bulk('svr_option_values',
-         ['id', 'option_id', 'label', 'swatch', 'position', 'source_ref'], optvals)
+         ['id', 'option_id', 'label', 'slug', 'swatch', 'position', 'source_ref'], optvals)
     bulk('svr_variants', ['id', 'product_id', 'child_product_id', 'enabled', 'position'], variants)
     bulk('svr_variant_values', ['variant_id', 'option_value_id'], varvals, chunk=800)
 
