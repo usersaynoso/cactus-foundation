@@ -28,6 +28,10 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 
 **Two views.** **Edit** is the flat plan, where things are arranged. **Preview** is the room in 3D, which can be spun, tilted and zoomed, and where the walls nearest the viewer step out of the way so you are looking into the room rather than at the outside of a box. **Perspective** can be switched off there: on is how the room will look to somebody standing in it, off is how a drawing is drawn, where two identical desks are the same size on screen wherever they are in the room and can be compared by eye. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
 
+**How tall you are.** A slider down the side of the 3D view sets eye height, with **Sitting** and **Standing** on it as one tap each and the height written out in the room's own units. Holding **alt** and scrolling does the same thing, as do Page Up and Page Down, for anybody who prefers not to reach for the slider. Whichever way, the view stays level - you simply get taller or shorter, rather than finding yourself looking at the ceiling.
+
+**Keeping the angles you like.** Found the spot that shows the meeting table and the window at once? **Keep this view** puts it on the strip above the 3D view, where it can be renamed, pointed somewhere else, or clicked to stand there again. A saved view belongs to the **space** rather than to one layout, which is rather the point: every option tried in that room can be looked at, and photographed, from the identical spot. Twelve per space, which is more than anybody compares.
+
 **Getting it out.** **Export PDF** makes a document with the room's measurements and the priced item list, plus the floor plan, the 3D view and a quote page if they tick for them - the quote page in your own quote wording and terms. Send the lot to the basket in one go. Ask for a quote, which lands in your ordinary Quotes list with a link to the plan. Or have the plan emailed to whoever holds the budget.
 
 **Opening one again.** Everything saved is listed under **My spaces**, and every layout in it opens with a click - straight back into the planner with the room already drawn. A room has its own link for starting a fresh layout in it, which is the point of measuring once.
@@ -107,6 +111,14 @@ They are rules of thumb to help arrange furniture. They are **not** a workplace 
 
 Off until you switch them on, and the admin says so rather than leaving you guessing. Switching them on is a button on **Space Planner -> Pictures**.
 
+Once they are on and the picture service is set up, customers get a **Make a photo** button in the planner's toolbar, next to Export PDF. It only appears when both of those are true - a button that answers "not set up yet" is worse than no button at all. On a phone it lives behind **More**, with the other occasional things.
+
+Pressing it opens the pictures for that layout: the last one taken, any before it, and a button to ask for a new one. Asking saves the layout first, because the picture is built from the saved plan and a desk moved a moment ago would otherwise be photographed where it used to be. Then it can be closed - the picture carries on without anybody watching it, and is waiting the next time they open it.
+
+**Where the picture is taken from** is a choice on that dialog: where they are looking right now, any view they have kept, or standing at the wall looking down the room. That last one used to be the only answer, whether it suited the room or not, which explained a good few photographs arriving from somewhere nobody had pointed the camera.
+
+**It is a proper photograph, not the preview blown up.** The room is built again on a machine of its own, with the full-size models, real lighting, real shadows and the soft darkening where a chair leg meets the floor - none of which a phone can be asked to draw sixty times a second, which is why the preview does not have them and why the picture takes a few minutes. Earlier versions promised this and quietly delivered the preview at a larger size, with the site header and the cookie bar sitting across the top of it. Both are sorted.
+
 If your site already has a Fly.io key - and it probably does, because the video converter asks for one first - that button is the whole job. If it does not, there is one box to paste a key into: an **organisation** key from the Tokens page of your Fly.io dashboard, because a key tied to a single app cannot build anything new. Press the button, and the site builds its own picture service.
 
 **Nothing runs, and nothing costs, between pictures.** There is no machine sitting there. When a customer asks for a picture, a machine is built for that one picture, and it is destroyed the moment the picture arrives. Ten customers asking at once get ten machines and ten pictures at the same time - which costs the same as ten one after another and takes a tenth as long. There is a ceiling on how many at once, so a busy afternoon cannot run away with your money; past it, a customer is asked to try again in a minute.
@@ -120,7 +132,7 @@ A picture is a photograph of a moment. If the customer moves things about afterw
 ## Privacy and data
 
 - The usage counts hold no personal data at all - no addresses, no session ids, nothing that identifies anybody. They are purged on the schedule you set.
-- A customer's rooms and layouts come out in their ordinary account data export.
+- A customer's rooms, layouts and saved views come out in their ordinary account data export.
 - When somebody deletes their account, their rooms and layouts go with it on the next nightly tidy-up.
 - Sharing a plan mints a private link. Nothing has one until they press Share, revoking it stops the link working straight away, and shared plans are kept out of search engines.
 
