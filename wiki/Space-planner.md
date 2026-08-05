@@ -16,6 +16,8 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 
 **Putting things in it.** They search your catalogue, pick something, and it lands in the room at its real size, in the first clear space rather than on top of whatever is already there. Listings with a proper 3D model are badged, because most listings have not got one and it saves a hunt. Prices read exactly as they do on the rest of your site, "from" figures and all.
 
+**Which one of it, though.** Anything that comes in sizes or finishes now asks before it goes in. Tapping the card opens the same choices your product page offers - swatches, sizes, the lot - and combinations you do not make are dimmed rather than removed, so nobody ends up in a dead end they cannot back out of. The chosen one's real size and real price appear before it is placed, and that is what gets placed. This matters more than it sounds: a range's own measurements describe the family rather than any member of it, so a boardroom table that comes in 180 and 240 cm has no width of its own to be placed at, and used to arrive at a category guess. Choosing first is what stops that.
+
 **In the right colour.** Anything sent over from the basket arrives in the fabric or finish they actually chose, so a room of blue chairs is a room of blue chairs. Picked from the catalogue panel instead, where no colour has been chosen yet, it wears the first one you list - the same one the product page opens on.
 
 **Doors and windows.** Under **Room → Doors & windows**, a tap on any wall puts one in it, and it can be slid along that wall, resized, or swapped between a door, a window and a plain opening. They are part of the room rather than part of one layout, so they follow the wall when it moves and they are still there in every layout tried in that room - and a desk in front of the only doorway is exactly the thing drawing the room was meant to catch.
@@ -25,6 +27,8 @@ Measurements are always the **inside** of the room. That is what a tape measure 
 **Start again** sits on the toolbar. It throws the room away and keeps everything they have chosen, with a tick if they would rather clear that too.
 
 **What "fits" means.** Furniture overlapping in plan is normal - a chair tucks under a desk, a pedestal slides under the desktop - so the planner only complains when things genuinely clash. A chair pushed under a desk overlaps it in both plan and height, and is not a clash; two desks in the same square metre is. Where we know the clearance under a desktop, it will say "fits underneath" or "5 cm too tall" while they are still dragging.
+
+A chair sticking out past the front edge of a desk is what tucking one under a desk looks like, and the planner now treats it that way. It used to want the chair to be no deeper than the desk, which office chairs rarely are - they are 64 to 69 cm deep and half of these desks are 60 - so the commonest arrangement in the catalogue came up red. What still comes up red is two things that are both the sort of thing others go under (two desks, a desk and a sideboard), anything too tall to be going under a desk at all, and anything overlapping a cupboard of desk height, which is solid to the floor and has no space beneath it whatever its top looks like.
 
 **Two views.** **Edit** is the flat plan, where things are arranged. **Preview** is the room in 3D, which can be spun, tilted and zoomed, and where the walls nearest the viewer step out of the way so you are looking into the room rather than at the outside of a box. **Perspective** can be switched off there: on is how the room will look to somebody standing in it, off is how a drawing is drawn, where two identical desks are the same size on screen wherever they are in the room and can be compared by eye. The flat plan works on any device; the 3D view needs a reasonably modern one and says so plainly rather than showing a blank square.
 
@@ -71,6 +75,16 @@ The planner will not invent a measurement. It works down a list, in order:
 3. **A typical size for the category**, where the spec sheet is silent. Anything sized this way is labelled **approx.** on screen.
 4. **Typed in by the customer**, if they know better. Nothing overwrites that, including a measurement.
 5. **A plain labelled block** at an ordinary size, so nothing is ever un-placeable.
+
+### How big the 3D model itself is drawn
+
+The list above is about the space a thing takes up in the plan. How big the **model** is drawn is a separate question, and it now has a shorter answer.
+
+Where you have told the 3D views setup how big a product really is - the overall height, or the overall width, that its materials are already scaled by - that one measurement decides it. The model is drawn to that size and nothing else about it is touched: a chair recorded at 111cm tall arrives 111cm tall, in the proportions its maker drew it in.
+
+Only where no such measurement exists does the planner go back to reconciling the model against the spec sheet, which is where a model could come out squashed or stretched: a spec figure that is not quite the overall size - a seat height, a range like "111-127cm", a width measured to the worktop rather than to the frame - used to pull the model to fit it. It no longer does for anything you have set a real size on.
+
+If a model still looks the wrong size, the number to check is the overall height or width on that variation in **3D views**, not the spec sheet.
 
 ### Measuring your 3D models
 
