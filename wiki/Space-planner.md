@@ -86,6 +86,12 @@ Only where no such measurement exists does the planner go back to reconciling th
 
 If a model still looks the wrong size, the number to check is the overall height or width on that variation in **3D views**, not the spec sheet.
 
+### When a model looks the right size but the wrong shape
+
+A room full of furniture is a great deal for a browser to draw at once, so the planner used to thin out the detail in every model before putting it on screen. On a heavy model - a mesh-backed chair, say - you would never notice. On a simple one it went badly: the Oslo oval boardroom table lost the join between its top and the band round the edge, so the curved ends came out faceted, with a gap you could see through.
+
+The planner now leaves a model alone unless it is genuinely heavy, and where it does thin one out it holds the outside edges still, which is where the damage always showed. There is also a **leave the detail alone** tick against each file in **Space Planner → Models** if you ever meet one that still does not survive the trip. Every model in your catalogue currently has that tick on.
+
 ### Measuring your 3D models
 
 **Space Planner → Sizes → Measure** opens every 3D model you have, measures it, and remembers the answer. It is the single best thing you can do for how the planner looks, because a measured model beats anything written on a spec sheet.
