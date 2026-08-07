@@ -45,6 +45,11 @@ So this module separates the two:
   against its own siblings, so options don't vanish while you're choosing between them).
 - Ticks within a group widen the results (Blue *or* Green); ticks across groups narrow
   them (Blue *and* Oak).
+- A **Selected** summary at the very top of the filter panel, above every group: one
+  removable chip per tick, each naming the group it came from ("Seat colour Black"),
+  so a shopper can see and undo what they have chosen without scrolling or opening a
+  single group. On phones and tablets it heads the filter sheet, and the chips above
+  the grid take over while the sheet is shut.
 - Active-filter chips, one-click clear, a "Showing 12 of 48" line, a tidy empty state,
   and a count badge on each group heading showing how many of its filters are ticked.
 - A **Sort by** dropdown above the grid, on the same row as the "Showing" line:
