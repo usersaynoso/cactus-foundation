@@ -143,6 +143,9 @@ you re-tick the new name in the picker.
   is already showing, not the whole catalogue behind it. On a page carrying the full
   category that is the same thing; on a page with a lower product limit, the cheapest
   product on the page is not necessarily the cheapest in the category.
+- If your shop hides products that have sold out (**Settings → Shop → General → Out of
+  stock products**), they are gone before the filters ever see them, so a filter can never
+  offer you a colour whose only product the category page next door refuses to list.
 - Products with no variations can't match variation filters, so they hide once any filter
   is ticked. Rather the point, but worth knowing. Price bands and spec rules read the
   product itself too, so those still work for variation-less products.

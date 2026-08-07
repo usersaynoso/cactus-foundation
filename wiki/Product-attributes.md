@@ -247,6 +247,7 @@ Filter options that nothing on the page could match are hidden, so a category pa
 
 - Filtering covers the products the grid has loaded, and a grid tops out at 100 products. For most shops that's the whole shelf and nobody notices. If you're running a catalogue in the thousands, this block isn't the right tool for the job.
 - A variant you've switched off is left out of filters. It isn't buyable, so sending someone to it would only annoy them.
+- If your shop hides products that have sold out (**Settings → Shop → General → Out of stock products**), the grid never loads them, so the filters agree with every other listing on the site.
 - Renaming an attribute changes its web address, so any bookmarked filter link for the old name stops working. Worth settling on a name before you advertise the link.
 - Removing the module takes your attributes and their assignments with it. Your products are untouched.
 

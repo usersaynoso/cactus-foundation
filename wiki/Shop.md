@@ -205,6 +205,29 @@ When a product is out of stock, visitors can leave their email address to be not
 
 ---
 
+## Hiding things that have sold out
+
+Some shops are happy for a sold-out product to sit there wearing its "Out of stock" badge, because it will be back on Thursday. Others would rather it vanished. **Settings → Shop → General → Out of stock products** covers both, and a middle position for everybody else.
+
+**When something sells out** gives you three answers:
+
+- **Leave it where it is, marked out of stock.** What the shop has always done, and still the default. Nothing changes.
+- **Take it out of the listings, keep its page.** It disappears from category pages, collections, product grids, search results and your sitemap, but its own page stays up. Anyone holding a link - a returning customer, an ad still running, a search result from last week - lands on the product rather than a dead end, and can still ask to be told when it's back.
+- **Hide it completely, page and all.** As above, and its page gives a page-not-found instead. For when sold out means gone.
+
+**Hide them from me and my staff as well** decides whether any of that applies to you. Leave it off, which is how it arrives, and anyone signed in with shop access still sees hidden products on the storefront with their usual out-of-stock badge, so nothing quietly disappears without your knowing. On a product page that shoppers can't reach at all, you'll get a short note at the top saying so. Tick the box and you see exactly what a shopper sees, which is handy for checking your own work and less handy for spotting that half a range has gone missing.
+
+A few things it deliberately does not do:
+
+- **It never hides anything from your Products screen.** That's where you go to reorder the stock, so hiding it there would be a peculiar sort of help.
+- **It only hides what you actually count.** A product with stock tracking switched off, one that takes backorders, or one on pre-order stays exactly where it is.
+- **It changes nothing about what can be bought.** A sold-out product could not be bought before this setting existed either. This is only about who gets shown it.
+- **Nothing is deleted or archived.** The moment stock goes back above zero, everything reappears on its own. There is no list to tidy up afterwards.
+
+Where a product comes in several variations, it counts as sold out only when every switched-on variation of it is - which is precisely when the picker on its page has nothing left to offer. One colour running out never hides the whole listing.
+
+---
+
 ## Best selling
 
 Every product carries a popularity figure, and both your Products list (**Sort → Best selling**) and the shopper-facing **Sort by** dropdown can order on it.
@@ -490,7 +513,7 @@ It works two ways. Leave your checkout exactly as it is and add a "Save cart as 
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
+**Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, what happens to products that have [sold out](#hiding-things-that-have-sold-out), the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
 
 ### Recording who supplied something
 
