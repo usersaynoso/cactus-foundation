@@ -47,6 +47,16 @@ So this module separates the two:
   them (Blue *and* Oak).
 - Active-filter chips, one-click clear, a "Showing 12 of 48" line, a tidy empty state,
   and a count badge on each group heading showing how many of its filters are ticked.
+- A **Sort by** dropdown above the grid, on the same row as the "Showing" line:
+  Recommended (your own order, the one the page arrived in), Price low to high, Price
+  high to low, Name A to Z, Name Z to A, Newest first and Oldest first. It sorts on the
+  very figure printed on the card - the "From £..." price where there is one - so the
+  order can never disagree with the numbers a shopper is reading, and products with no
+  price at all go to the end whichever way round it is. Names sort the way people read
+  them, so "800mm Bench" comes before "1200mm Bench" rather than after it. Sorting and
+  filtering work together, in any order, and the chosen sort joins the ticks in the page
+  address so a sorted, filtered view can be shared. Switch it off per page with the
+  block's "Sort by dropdown" setting.
 - A group that would offer fewer than two choices on a page doesn't appear at all -
   a heading with a single tick under it ("Height adjustable: Yes" on a page of
   sit-stand desks) is not a choice. The automatic Category section follows the same
@@ -88,7 +98,8 @@ So this module separates the two:
    can set your own hex colour (or a picture, for picture-swatch groups) on the filter row.
 4. **Page builder:** open a category or collection page's layout and drop on the
    **Shop: Filters & Product Grid** block. Set the category or collection slug in the
-   block's settings (or a tag), pick columns, filter position and whether counts show.
+   block's settings (or a tag), pick columns, filter position, whether counts show and
+   whether the Sort by dropdown appears.
 
 ## Settings
 
@@ -120,6 +131,10 @@ you re-tick the new name in the picker.
 - The block renders every product it lists (capped at 100) and filters instantly on the
   page - right for catalogues this platform aims at, not for thousands of products on one
   page.
+- Sorting works on the same set, for the same reason: it re-orders the products the page
+  is already showing, not the whole catalogue behind it. On a page carrying the full
+  category that is the same thing; on a page with a lower product limit, the cheapest
+  product on the page is not necessarily the cheapest in the category.
 - Products with no variations can't match variation filters, so they hide once any filter
   is ticked. Rather the point, but worth knowing. Price bands and spec rules read the
   product itself too, so those still work for variation-less products.
