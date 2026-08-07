@@ -46,11 +46,6 @@
       "version": "v0.1.4"
     },
     {
-      "name": "crezco-direct-bank-payments-for-shop",
-      "repoUrl": "https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop",
-      "version": "v0.1.0"
-    },
-    {
       "name": "square-payment-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/square-payment-for-shop",
       "version": "v0.1.4"
