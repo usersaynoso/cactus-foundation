@@ -201,6 +201,8 @@ A product with five options is a small form, and a page that treats it as a loos
 
 **Reset options really does reset.** As well as clearing the choices and the price, it now puts the picture back too - including the 3D view of the variation they'd configured, which used to stay up looking rather like a live choice long after the choices had gone. The page returns to how it looked when they arrived.
 
+**And, for you alone, how many there are.** While you're signed in with Shop access, a small dashed box marked **staff only** sits under the basket button showing the chosen combination's actual stock - **Stock: 4** - rather than the cheerful "In stock" everyone else gets. It follows the choices, so it always belongs to the one currently in hand, and it says nothing at all until a full combination is settled, because until then there's no single number to give. Where a variation isn't counting its stock it says so plainly instead of leaving a blank. Customers see none of this, and the figures aren't sent to their browser either. Ordinary products without options get the same thing beside their badges - see the Shop page for that.
+
 ## On your category pages
 
 A shopper scrolling a category sees a photo, a name and a price. What they don't see is that the chair comes in eleven colours, which is quite often the thing that would have made them click.

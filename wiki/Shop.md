@@ -94,6 +94,8 @@ Both the products list and a product's own edit page carry a **Preview** button 
 
 And the same trip the other way round. While you're signed in and allowed to edit products, the product's name on its own shop page is a link back to its edit page, opening in a new tab so the shop page you were checking stays where it is. There's a faint pencil beside the name to remind you it's there. Spot a typo while browsing your own shop, click the name, fix it - no hunting through the products list for the right row. Customers see none of this: to anyone who isn't signed in with permission to edit products, the name is just a name, and the link is never put on the page in the first place.
 
+**The stock figure behind "In stock".** A shopper is told whether something can be bought and nothing more, which is right for them and no use at all to you. So while you're signed in with Shop access, a product page also shows the actual number, in a small dashed box marked **staff only** so there's no wondering whether the customer looking over your shoulder can see it too. On an ordinary product it sits with the badges as **Stock: 42**, or **Stock: not tracked** where you've left stock counting switched off - a blank would only look like something that failed to load. On a product with options it sits under the buy button instead and belongs to the combination you've actually chosen, changing as you pick, because "how many of these are there" only has an answer once you've said which one. Shoppers get none of it: the numbers aren't merely hidden from them, they're never sent to their browser at all, so there's nothing to go digging for.
+
 ---
 
 ## Categories, tags and collections
@@ -479,8 +481,6 @@ Want size/colour choices, or let customers add engraving, a gift message or an u
 Selling something a photograph struggles with - furniture, a lamp, anything with a back to it? Install the **[Product 3D views](Product-3D-views)** module. It puts a slowly turning 3D model in the product gallery alongside your photographs, which shoppers can click to turn, pan and zoom. Models can be attached to a product or to individual variations.
 
 Want your customers saying why the thing was good, where the next shopper will read it? Install the **[Reviews](Reviews)** module. It adds a Reviews tab to every product page, holds each new review until you have read it (unless you would rather it went straight up), badges the ones written by people who actually bought the thing, lets you reply underneath, and will email past customers to ask if you want it to.
-
-Starting from nothing and rather wishing you were not? The **[Google Reviews](Google-Reviews)** module goes and finds your products on Google Shopping and brings back what people have already said about them, straight into that same Reviews list. It needs the Reviews module underneath it, and everything it brings in is labelled so nobody mistakes a stranger's opinion for one of your customers'.
 
 ## Quoting instead of selling
 
