@@ -49,6 +49,28 @@ Once the sheet exists, the settings tab is done with its job. The day-to-day but
 
 Your product cost price is your supplier cost - your margin. It is always included in the sheet, on both the Products and the Variations tabs, so anyone you share that sheet with can see it. Share the sheet with that in mind - and if you would rather a particular person didn't see your margins, send them a copy with the cost column deleted rather than the live sheet.
 
+Two other columns you can genuinely leave out, though - see just below.
+
+---
+
+## What goes in the sheet
+
+**Settings → Shop → Google Sheet** has a short list of columns you can keep out of the sheet altogether:
+
+- **Stock count** - the stock figure on the Products tab, and the **Stock** column on each product's own tab.
+- **Trade price** - your trade price on the Products tab and on each product's own tab.
+
+Both are included to begin with, which is how the sheet has always behaved. Untick one and the change takes effect on your **next Push**: the column disappears from the sheet, and anything that was in it goes with it.
+
+The important half is what a **Pull** then does, which is nothing. A column that isn't in the sheet isn't part of the sync, so that figure is simply left as it is on your website - the same as it would be if you deleted the column by hand. Leaving stock out of a sheet you're sending to a supplier does not come back as "every product now has no stock", which is rather the point of the setting.
+
+Tick one back on and the column returns on the next Push, filled in from your website.
+
+Two things worth knowing:
+
+- The stock **count** is the only stock column affected. Whether a product tracks inventory at all, its low-stock warning level, and what happens when it runs out are settings rather than figures, and they stay in the sheet either way.
+- Switching a column off or on shuffles the columns along, so any formulas you have in our columns on that Push go back to being plain numbers. Your own columns off to the right, and the formulas in them, are untouched. See **Using formulas in the sheet**.
+
 ---
 
 ## Pushing and pulling
@@ -184,6 +206,8 @@ Each Value cell now reads **`(slug)Name`** - `(black-mfc)Black`, say. The bracke
 ## What the sheet covers, and what it doesn't
 
 The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, both kinds of description (the plain one you type and the one you lay out in the designer), and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
+
+Stock and trade price are the two you can switch off if you'd rather they weren't in there - see **What goes in the sheet**.
 
 ### Attribute columns
 
