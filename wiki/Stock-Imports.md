@@ -59,7 +59,8 @@ This is the bit worth not skipping.
 - how many rows it found, and how big the file was
 - whether both columns you named are actually there
 - **how many of the codes in the file match a product in your shop**
-- how many of your products the file never mentions
+- how many of your products the file never mentions (and there is a section further down
+  that names them - see [Which products the file is not covering](#which-products-the-file-is-not-covering))
 - any stock figures it could not read, with examples
 - the first few rows, laid out as the reader sees them
 
@@ -118,9 +119,40 @@ matched, how many of your products the file did not mention.
 If the schedule happens to be running one when you arrive, it says so rather than
 starting a second.
 
+## Which products the file is not covering
+
+Underneath the Save button, a section called **Products not in your supplier's file**.
+Press **Show me which ones** and it fetches the file, compares it against everything in
+your shop that carries a code, and lists what is left over.
+
+A count on its own has never been much use. "412 of your products are not in the file"
+could be a range the supplier has quietly dropped, a batch that went in under the wrong
+codes, or four hundred variations of one chair, and no amount of looking at the number
+will tell you which. So the list gives you, for each one:
+
+| Column | What it tells you |
+| --- | --- |
+| Code | The SKU the shop has, which is what the file was searched for |
+| Product | Its name, linking straight to the product so you can go and look |
+| Part of | The listing a variation belongs to, linking to that. A product that is a listing in its own right says so |
+| Status | Live, draft or archived. An archived product missing from a supplier's file is usually not news |
+| Stock now | The count it is still sitting on, untouched, and whether the shop is actually enforcing it |
+
+There is a search box for narrowing it by code, name or listing, and a **Download the
+full list** button that hands you a spreadsheet - which is generally what you want, since
+the next step is usually an email to the supplier asking why half a range has vanished
+from their file.
+
+It reads the file you have **saved**, not whatever is typed in the box above it, and it
+changes nothing at all. On a very long list the screen shows the first two thousand and
+says so; the download has the lot.
+
+A note on what counts as missing: exactly what the run log means by it. If a product has
+no code at all it is not in this list, because there was never anything to match it on.
+
 ## Recent checks
 
-Underneath the settings, the last twenty runs: when, whether it was the schedule or a
+Underneath that, the last twenty runs: when, whether it was the schedule or a
 person, whether it worked, and the counts. If a supplier quietly stops publishing the
 file, this table is where you will see it first - which is rather the point of keeping
 one.
@@ -172,7 +204,8 @@ run log.
 
 ## Who can do what
 
-- Changing the settings needs the **shop.manage** permission.
+- Changing the settings, and listing the products the file does not cover, needs the
+  **shop.manage** permission.
 - Pressing **Fetch Latest Stock** needs **shop.products**.
 
 ## If something goes wrong
