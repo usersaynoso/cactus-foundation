@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
+import { isSpeedInsightsEnabled } from '@/lib/config/site'
 import './globals.css'
 
 type IconEntry = { url: string; type?: string; sizes?: string; media?: string }
@@ -54,11 +55,15 @@ const flashPreventionScript = `(function(){var t=localStorage.getItem('cactus-th
 // Non-necessary categories default to false (deny-by-default) until visitor makes a choice.
 const consentInitScript = `(function(){var c='';var cs=document.cookie.split(';');for(var i=0;i<cs.length;i++){var s=cs[i].trim();if(s.startsWith('cactus-consent=')){c=s.slice('cactus-consent='.length);break;}}var d={};if(c){try{d=JSON.parse(decodeURIComponent(c)).decision||{};}catch(e){}}window.__cactusConsent=Object.assign({necessary:true},d);window.cactusConsent=window.cactusConsent||{open:function(){},hasConsent:function(k){return!!window.__cactusConsent[k];},onChange:function(){return function(){};}};})();`
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Settings > General switch. Off means the script never reaches the page at
+  // all, rather than loading and being told to keep quiet.
+  const speedInsights = await isSpeedInsightsEnabled()
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -71,7 +76,7 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />
         <Script id="consent-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: consentInitScript }} />
         {children}
-        <SpeedInsights />
+        {speedInsights && <SpeedInsights />}
       </body>
     </html>
   )

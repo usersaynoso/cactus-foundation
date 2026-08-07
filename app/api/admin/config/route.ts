@@ -136,6 +136,7 @@ const Patch = z.object({
   adminPath: z.string().min(1).max(64).regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/).optional(),
   status: z.enum(['live', 'comingSoon', 'maintenance']).optional(),
   hideFromCrawlers: z.boolean().optional(),
+  speedInsightsEnabled: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
   emailFromAddress: z.string().email().optional().nullable(),

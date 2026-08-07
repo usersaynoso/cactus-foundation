@@ -38,6 +38,7 @@ type SiteConfig = {
   siteName: string; tagline: string; description: string;
   timezone: string; locale: string; dateFormat: string; timeFormat: string;
   adminPath: string; status: string; hideFromCrawlers: boolean;
+  speedInsightsEnabled: boolean;
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null; lazyLoadImages: boolean;
@@ -1593,6 +1594,21 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
             Hide from search engines (noindex)
           </label>
+          <div id="general-speed-insights" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.speedInsightsEnabled ?? true}
+                onChange={(e) => set('speedInsightsEnabled', e.target.checked)}
+              />
+              Measure how fast pages feel for real visitors
+            </label>
+            <span className="field-hint">
+              Adds a small piece of Vercel&apos;s Speed Insights to your pages, which times how quickly they load for the
+              people actually using them and reports it back to your Vercel dashboard. No cookies, nobody identified.
+              Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
+            </span>
+          </div>
           <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>

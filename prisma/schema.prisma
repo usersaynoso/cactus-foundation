@@ -181,6 +181,10 @@ model SiteConfig {
   setupCompleted         Boolean    @default(false)
   status                 SiteStatus @default(comingSoon)
   hideFromCrawlers       Boolean    @default(true)
+  // Load Vercel's Speed Insights script (Settings > General). Defaults on, which
+  // is what every install did before the switch existed - the root layout loaded
+  // it unconditionally - so it only does something once an admin turns it off.
+  speedInsightsEnabled   Boolean    @default(true)
   trustDeviceDays        Int        @default(28)
   // Core version whose starter layout templates were last seeded. Compared to
   // package.json version on request; a mismatch triggers refreshStarterLayouts.

@@ -11,6 +11,8 @@ let cachedStatus: SiteStatus | null = null
 let cachedStatusAt: number = 0
 let cachedPendingRedeployId: string | null = null
 let cachedPendingRedeployIdAt: number = 0
+let cachedSpeedInsights: boolean = true
+let cachedSpeedInsightsAt: number = 0
 const CACHE_TTL_MS = 5_000 // 5 seconds
 // Server-side safety net: the redeploy gate auto-releases after this window so an admin
 // is never permanently trapped if the webhook/client/token path never clears the flag.
@@ -71,6 +73,29 @@ export async function getSiteStatusCached(): Promise<SiteStatus | null> {
   return config?.status ?? null
 }
 
+// Read by the root layout on every route to decide whether to load Vercel's
+// Speed Insights script, so it gets the same treatment as the two readers above:
+// a short in-memory TTL (the value changes only when an admin flicks the switch)
+// and a best-effort read. A DB blip must not take out the root layout - it wraps
+// error pages too - so a failed read falls back to on, which is what every
+// install did before the switch existed.
+export async function isSpeedInsightsEnabled(): Promise<boolean> {
+  const now = Date.now()
+  if (cachedSpeedInsightsAt > 0 && now - cachedSpeedInsightsAt < CACHE_TTL_MS) {
+    return cachedSpeedInsights
+  }
+  const config = await prisma.siteConfig
+    .findUnique({
+      where: { id: 'singleton' },
+      select: { speedInsightsEnabled: true },
+    })
+    .catch(() => undefined)
+  if (config === undefined) return cachedSpeedInsights
+  cachedSpeedInsights = config?.speedInsightsEnabled ?? true
+  cachedSpeedInsightsAt = now
+  return cachedSpeedInsights
+}
+
 async function resolvePendingRedeploy(
   row: { pendingRedeployId: string | null; pendingRedeployAt: Date | null }
 ): Promise<string | null> {
@@ -115,6 +140,8 @@ export function invalidateSiteConfigCache() {
   cachedStatusAt = 0
   cachedPendingRedeployId = null
   cachedPendingRedeployIdAt = 0
+  cachedSpeedInsights = true
+  cachedSpeedInsightsAt = 0
   cachedFirstRunComplete = false
 }
 

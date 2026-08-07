@@ -67,10 +67,26 @@ function ssh(cfg: VpsConfig, command: string, stdin?: string, timeoutMs = 120_00
         'LogLevel=ERROR',
         '-o',
         'ConnectTimeout=20',
+        // This is a password login by design. Left to itself ssh offers every key
+        // in the agent first, and a dev machine with a handful of them burns
+        // through the server's MaxAuthTries before it ever reaches the password.
+        '-o',
+        'PubkeyAuthentication=no',
+        '-o',
+        'PreferredAuthentications=password',
         `${cfg.user}@${cfg.host}`,
         command,
       ],
-      { env: { ...process.env, SSHPASS: cfg.password }, timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 },
+      {
+        // SSH_ASKPASS_REQUIRE=never: the test runner has no controlling terminal,
+        // and with DISPLAY set (any Mac with XQuartz installed) ssh would rather
+        // shell out to a graphical ssh-askpass than read the pty sshpass hands
+        // it - which fails as "exec(/usr/X11R6/bin/ssh-askpass): No such file"
+        // and then three "Permission denied" retries with no password at all.
+        env: { ...process.env, SSHPASS: cfg.password, SSH_ASKPASS_REQUIRE: 'never' },
+        timeout: timeoutMs,
+        maxBuffer: 16 * 1024 * 1024,
+      },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(`VPS command failed: ${stderr || stdout || err.message}`))

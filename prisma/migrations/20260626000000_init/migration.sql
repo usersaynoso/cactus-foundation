@@ -135,6 +135,7 @@ CREATE TABLE "SiteConfig" (
     "setupCompleted" BOOLEAN NOT NULL DEFAULT false,
     "status" "SiteStatus" NOT NULL DEFAULT 'comingSoon',
     "hideFromCrawlers" BOOLEAN NOT NULL DEFAULT true,
+    "speedInsightsEnabled" BOOLEAN NOT NULL DEFAULT true,
     "trustDeviceDays" INTEGER NOT NULL DEFAULT 28,
     "starterTemplatesVersion" TEXT,
     "emailFromName" TEXT,
