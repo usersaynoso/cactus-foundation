@@ -91,7 +91,10 @@ async function getIO(): Promise<import('@gltf-transform/core').NodeIO> {
       // The decoders are the other half of that: a model already compressed with
       // Draco or meshopt (Blender's "Compression" tick, gltfpack, most "optimise
       // my GLB" tools) cannot even be opened without one, and those files are
-      // exactly the ones most likely to arrive here.
+      // exactly the ones most likely to arrive here. Reading is all they are for
+      // - there is deliberately no Draco ENCODER here, which is why the incoming
+      // compression is dropped from the document before anything is written back
+      // out. See the dispose in optimiseModelBytes.
       return new NodeIO()
         .registerExtensions(ALL_EXTENSIONS)
         .registerDependencies({
@@ -132,6 +135,33 @@ export async function optimiseModelBytes(input: Buffer, mimeType: string): Promi
   const { dedup, prune, weld, meshopt, textureCompress } = await import('@gltf-transform/functions')
 
   const document: Document = await io.readBinary(new Uint8Array(input))
+
+  // Whatever compression the file arrived in is dropped here, before a single
+  // pass runs. Reading has already undone it - a Draco or meshopt payload is
+  // decoded during readBinary - so by this line the document holds ordinary
+  // accessors, and the extension entry left behind is not something the geometry
+  // depends on. It is an instruction about how to write the file out again, and
+  // this function is about to decide that for itself.
+  //
+  // Left in place, the Draco entry is a hard failure rather than a missed
+  // saving. Its write pass demands a 'draco3d.encoder' the moment it runs -
+  // before it has even looked at whether any primitive is still Draco - and only
+  // the decoder is registered above, on purpose, for the reason given at the
+  // meshopt pass below. So writeBinary threw before producing a byte:
+  //
+  //   [KHR_draco_mesh_compression] Please install extension dependency, "draco3d.encoder".
+  //
+  // Which meant every Draco-compressed upload failed, and Draco is what Blender's
+  // Compression tick and most "optimise my GLB" tools produce - so the files with
+  // the most to gain were the ones that could not get through. The meshopt entry
+  // goes with it for the same reason it is safe to: the meshopt pass below
+  // re-compresses at settings this file chooses, so whatever the incoming one
+  // asked for is being replaced regardless.
+  //
+  // Neither call is conditional, because neither needs to be - disposeExtension
+  // does nothing when the extension was never there, which is the common case.
+  document.disposeExtension('KHR_draco_mesh_compression')
+  document.disposeExtension('EXT_meshopt_compression')
 
   const transforms: Transform[] = [
     // Merge accessors, meshes and textures that are byte-for-byte the same thing

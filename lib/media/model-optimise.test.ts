@@ -9,6 +9,15 @@ import { optimiseModelBytes } from '@/lib/media/model-optimise'
 // growing a seam. So these tests assert the two things the feature actually
 // promises - that the file gets smaller, and that what is in it survives.
 
+// An oversized, incompressible texture. Noise rather than a flat fill on purpose:
+// a solid colour compresses to almost nothing at any size, so a resize pass would
+// look like it had done its job whether it ran or not.
+function noise(size: number, seed: number): Promise<Buffer> {
+  const px = Buffer.alloc(size * size * 3)
+  for (let i = 0; i < px.length; i++) px[i] = Math.floor(Math.sin(i * seed) * 127 + 128) & 0xff
+  return sharp(px, { raw: { width: size, height: size, channels: 3 } }).png().toBuffer()
+}
+
 // Build a GLB with something for every pass to do: duplicated vertices for weld,
 // an oversized colour map and normal map for the texture passes, and an orphaned
 // material and texture for prune.
@@ -36,12 +45,6 @@ async function buildTestModel(): Promise<Buffer> {
 
   const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer)
   const uv = doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer)
-
-  const noise = (size: number, seed: number): Promise<Buffer> => {
-    const px = Buffer.alloc(size * size * 3)
-    for (let i = 0; i < px.length; i++) px[i] = Math.floor(Math.sin(i * seed) * 127 + 128) & 0xff
-    return sharp(px, { raw: { width: size, height: size, channels: 3 } }).png().toBuffer()
-  }
 
   const base = doc.createTexture('base').setMimeType('image/png').setImage(await noise(4096, 0.7))
   const normal = doc.createTexture('normal').setMimeType('image/png').setImage(await noise(4096, 1.3))
@@ -130,6 +133,85 @@ async function buildTwoSlotModel(): Promise<Buffer> {
   scene.addChild(doc.createNode('castor-b').setMesh(doc.createMesh('castor-b').addPrimitive(castor)))
 
   return Buffer.from(await new NodeIO().writeBinary(doc))
+}
+
+// A GLB in the state most of them actually arrive in: Draco-compressed. Blender's
+// "Compression" tick writes one, gltfpack writes one, and every "optimise my GLB"
+// site writes one - so an admin's model is more likely to be compressed already
+// than not, and the Deskwell bench desks on the live CDN all are.
+//
+// Built with a real Draco encoder rather than a hand-faked extension entry,
+// because the thing under test is whether the optimiser can take a file whose
+// geometry genuinely has to be decoded before anything can be done with it.
+// Draco only compresses indexed TRIANGLES primitives, hence the index buffer.
+async function buildDracoModel(): Promise<Buffer> {
+  const doc = new Document()
+  const buffer = doc.createBuffer()
+
+  const N = 60
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  for (let i = 0; i <= N; i++) {
+    for (let j = 0; j <= N; j++) {
+      const u = i / N
+      const v = j / N
+      positions.push(Math.cos(u * Math.PI * 2), v * 2 - 1, Math.sin(u * Math.PI * 2))
+      uvs.push(u, v)
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const a = i * (N + 1) + j
+      const b = a + 1
+      const c = a + (N + 1)
+      const d = c + 1
+      indices.push(a, c, b, b, c, d)
+    }
+  }
+
+  const pos = doc.createAccessor().setType('VEC3').setArray(new Float32Array(positions)).setBuffer(buffer)
+  const uv = doc.createAccessor().setType('VEC2').setArray(new Float32Array(uvs)).setBuffer(buffer)
+  const idx = doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(indices)).setBuffer(buffer)
+
+  // Textures as well as geometry, because a real product model has both and the
+  // balance between them is the whole verdict. Draco packs vertices tighter than
+  // meshopt does - that is the trade it makes, paid for with browser time - so a
+  // geometry-only Draco file comes back "already as small as it gets" and proves
+  // nothing about the passes. Give it the 4096px maps an Impulse desk actually
+  // ships with and the texture passes carry the saving, which is what happens on
+  // the real files too.
+  const base = doc.createTexture('base').setMimeType('image/png').setImage(await noise(4096, 0.7))
+  const normal = doc.createTexture('normal').setMimeType('image/png').setImage(await noise(4096, 1.3))
+
+  // Named, and asserted on below: the material name is the configurator's paint
+  // slot, and a decompress-recompress round trip is exactly where one could go.
+  const material = doc.createMaterial('Seat Fabric')
+    .setBaseColorFactor([0.8, 0.8, 0.8, 1])
+    .setBaseColorTexture(base)
+    .setNormalTexture(normal)
+  const prim = doc.createPrimitive()
+    .setAttribute('POSITION', pos)
+    .setAttribute('TEXCOORD_0', uv)
+    .setIndices(idx)
+    .setMaterial(material)
+  doc.createScene('scene').addChild(doc.createNode('seat').setMesh(doc.createMesh('seat').addPrimitive(prim)))
+
+  const { KHRDracoMeshCompression } = await import('@gltf-transform/extensions')
+  const draco3d = await import('draco3d')
+
+  // Required, as a real Draco file marks it: a reader without the decoder is
+  // meant to refuse the file rather than render it inside out.
+  doc.createExtension(KHRDracoMeshCompression).setRequired(true)
+
+  const io = new NodeIO()
+    .registerExtensions([KHRDracoMeshCompression])
+    .registerDependencies({
+      'draco3d.decoder': await draco3d.createDecoderModule(),
+      'draco3d.encoder': await draco3d.createEncoderModule(),
+    })
+
+  return Buffer.from(await io.writeBinary(doc))
 }
 
 describe('optimiseModelBytes', () => {
@@ -270,6 +352,57 @@ describe('optimiseModelBytes', () => {
       if (!size) continue
       expect(Math.max(size[0], size[1])).toBeLessThanOrEqual(2048)
     }
+  }, 120_000)
+
+  it('optimises a Draco-compressed GLB rather than failing to write it back', async () => {
+    // The optimiser registers a Draco decoder and no Draco encoder, on purpose -
+    // it re-compresses with meshopt, which the viewer decodes far faster. But the
+    // extension entry survived the read, and its write pass demands an encoder the
+    // moment it runs, so every Draco upload died on:
+    //
+    //   [KHR_draco_mesh_compression] Please install extension dependency, "draco3d.encoder".
+    //
+    // Silent to the admin on upload (auto-optimise logs and moves on, leaving the
+    // file at full weight) and a 500 from the library's ⚡ button. The files most
+    // worth compressing were the ones that could not be.
+    const input = await buildDracoModel()
+
+    // The fixture is worth nothing if it is not actually compressed, and a
+    // silently-uncompressed one would pass everything below while testing nothing.
+    const { ALL_EXTENSIONS, KHRDracoMeshCompression } = await import('@gltf-transform/extensions')
+    const draco3d = await import('draco3d')
+    const sourceDoc = await new NodeIO()
+      .registerExtensions([KHRDracoMeshCompression])
+      .registerDependencies({ 'draco3d.decoder': await draco3d.createDecoderModule() })
+      .readBinary(new Uint8Array(input))
+    expect(sourceDoc.getRoot().listExtensionsUsed().map((e) => e.extensionName))
+      .toContain('KHR_draco_mesh_compression')
+
+    const result = await optimiseModelBytes(input, 'model/gltf-binary')
+    expect(result.optimised).toBe(true)
+    if (!result.optimised) return
+
+    // Read back with the meshopt decoder and NO Draco decoder - the browser's
+    // position, and the strongest available statement that the Draco payload is
+    // gone. A file that still carried one would throw here rather than fail an
+    // assertion, which is the right kind of loud.
+    const { MeshoptDecoder } = await import('meshoptimizer')
+    await MeshoptDecoder.ready
+    const doc = await new NodeIO()
+      .registerExtensions(ALL_EXTENSIONS)
+      .registerDependencies({ 'meshopt.decoder': MeshoptDecoder })
+      .readBinary(new Uint8Array(result.bytes))
+
+    expect(doc.getRoot().listExtensionsUsed().map((e) => e.extensionName))
+      .not.toContain('KHR_draco_mesh_compression')
+
+    // And the model came out the other side intact: the paint slot's name, the
+    // UVs the configurator measures its texture scale from, and the geometry.
+    const prim = doc.getRoot().listMeshes()[0]?.listPrimitives()[0]
+    expect(prim).toBeDefined()
+    expect(prim?.getMaterial()?.getName()).toBe('Seat Fabric')
+    expect(prim?.getAttribute('POSITION')?.getCount()).toBeGreaterThan(0)
+    expect(prim?.getAttribute('TEXCOORD_0')?.getCount()).toBeGreaterThan(0)
   }, 120_000)
 
   it('reports a model it cannot improve rather than growing it', async () => {
