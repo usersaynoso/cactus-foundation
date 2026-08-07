@@ -31,7 +31,6 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Product 3D views](Product-3D-views) | Letting shoppers turn a product round in 3D instead of squinting at one photograph |
 | [Product downloads](Product-downloads) | Putting the manual, the spec sheet and the drawing on the product page for anyone to take |
 | [Reviews](Reviews) | Customer reviews on your product pages, moderated by you, with replies, verified-purchase badges and optional invitation emails |
-| [Google Reviews](Google-Reviews) | Bringing the reviews already written about your products on Google Shopping into your own Reviews list, on demand or overnight |
 | [Advanced Shipping](Advanced-Shipping) | Live delivery dates on every product and basket line, plus paid delivery-and-assembly options picked per item |
 | [Address Lookup](Address-Lookup) | Shoppers type the first line of their address at checkout and the rest fills itself in, via Ideal Postcodes |
 | [Stock Imports](Stock-Imports) | Keeping stock counts in step with a supplier's stock file, on a schedule you set, or on demand from the Products page |
