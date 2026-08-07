@@ -53,8 +53,11 @@ So this module separates the two:
 - Active-filter chips, one-click clear, a "Showing 12 of 48" line, a tidy empty state,
   and a count badge on each group heading showing how many of its filters are ticked.
 - A **Sort by** dropdown above the grid, on the same row as the "Showing" line:
-  Recommended (your own order, the one the page arrived in), Price low to high, Price
-  high to low, Name A to Z, Name Z to A, Newest first and Oldest first. It sorts on the
+  Recommended (your own order, the one the page arrived in), Best selling, Price low to
+  high, Price high to low, Name A to Z, Name Z to A, Newest first and Oldest first.
+  Best selling uses the shop's own popularity figure - see
+  [Best selling](Shop#best-selling) - and puts products nothing has ranked at the end
+  rather than pretending they sold badly. It sorts on the
   very figure printed on the card - the "From £..." price where there is one - so the
   order can never disagree with the numbers a shopper is reading, and products with no
   price at all go to the end whichever way round it is. Names sort the way people read

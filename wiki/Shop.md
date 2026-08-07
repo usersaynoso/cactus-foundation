@@ -60,7 +60,6 @@ changes.
 
 **Instant Bank Pay (open banking)** is a fifth option, added by installing the separate [GoCardless Instant Bank Pay for Shop](https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop) module. Shoppers authorise a one-off payment straight from their banking app - no card, no stored details. Once installed it joins the list on the **Shop → Payments** tab like any other method, with a button of its own along the top for its settings (add your GoCardless access token and webhook secret, choose sandbox or live). Switch it on, and drag it where you want it, on the list itself. Refunds and confirmation work the same as any other method.
 
-**Direct bank payment (Crezco)** is another pay-by-bank option, added by installing the separate [Crezco Direct Bank Payments for Shop](https://github.com/cactus-foundation-modules/crezco-direct-bank-payments-for-shop) module. Shoppers pick their bank on Crezco's hosted page and authorise the payment there - no card, no card fees. It joins the list on the **Shop → Payments** tab, with a button of its own along the top for its settings: add your Crezco API key and user ID, choose sandbox or production, and register the webhook with one click. Switching it on and placing it in the order both happen on the list. Confirmation works like any other method, with one honest difference: **refunds are manual**. Open banking has no refund rail, so the Refund button will tell you to send the money back by bank transfer yourself and record it against the order.
 
 **Card payment (Square)** is another card option, added by installing the separate [Square Payments for Shop](https://github.com/cactus-foundation-modules/square-payment-for-shop) module. Shoppers pay by card on Square's hosted checkout page, so card details never touch your site. It joins the list on the **Shop → Payments** tab, with a button of its own along the top for its settings. Sandbox and production get their own boxes, so both sets of credentials can be held at once and choosing which one the shop uses is a single dropdown. That dropdown saves itself the moment you change it and takes effect at once - there is nothing to deploy and no Save to press for it. The credentials in the boxes below are a different matter: those are stored with your hosting, so a token you have only just pasted in needs the site to redeploy before it will work. Paste in the access token from your Square developer dashboard - the Application ID shown next to it is not needed - then press **Look up locations** to fill the location ID in rather than hunting for it. Add the webhook URL shown on the page to your Square developer dashboard, paste back the signature key it gives you, then switch the method on. The signature key is optional: without it payments are still confirmed when the shopper comes back from Square, but a shopper who pays and then closes the tab has to be confirmed by hand. Refunds and confirmation work the same as any other method.
 
@@ -201,6 +200,22 @@ If you're on "hold everything" and the stock has actually arrived, take the prod
 ## Back-in-stock alerts
 
 When a product is out of stock, visitors can leave their email address to be notified the moment it's back. The moment you top the stock back up (or switch it to allow backorders), Cactus emails everyone waiting automatically - no extra step needed on your part.
+
+---
+
+## Best selling
+
+Every product carries a popularity figure, and both your Products list (**Sort → Best selling**) and the shopper-facing **Sort by** dropdown can order on it.
+
+It's built from two things. The first is what you have genuinely sold: paid orders only, refunded items taken back off, and nothing older than a year, so a hit from three catalogues ago can't squat at the top forever. The second is a starting rank you can be given - a supplier's own best-seller order, say, or your own hand-picked favourites - which matters enormously on a shop that hasn't been trading long. A best-seller list that says nothing until you've had a year of orders isn't much of a best-seller list.
+
+One real sale beats any starting rank. So a borrowed ranking quietly steps aside as your own trade builds up, without anyone having to remember to turn it off.
+
+Where a product comes in several variations, the sales count for the listing rather than each colour. A chair sold thirty times across fifteen fabrics is one popular chair, not fifteen also-rans.
+
+Products nothing has ranked either way sort last, not bottom. "We don't know" and "it sells badly" are different claims and the list treats them that way.
+
+The figure refreshes itself once a day, in the same overnight run that sends your low-stock email. It is not recalculated the instant a sale lands, which we're comfortable with: nobody has ever needed their best-seller list to be right to the second.
 
 ---
 
