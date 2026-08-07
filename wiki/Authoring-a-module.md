@@ -729,13 +729,15 @@ A module can register Vercel Cron jobs by declaring `cronJobs` in `cactus.module
 
 `scripts/generate-module-cron.mjs` runs on every `npm run build` and `npm run dev`. It collects `cronJobs` from every installed module's manifest into a single generated `vercel.json` at the project root - gitignored, never committed, same pattern as `lib/modules/router.ts`.
 
-**Authenticating cron requests.** Set a `CRON_SECRET` environment variable and Vercel automatically appends `Authorization: Bearer $CRON_SECRET` to its own cron requests - no custom secret scheme needed. Your cron route just checks that header:
+**Authenticating cron requests.** Vercel automatically appends `Authorization: Bearer $CRON_SECRET` to its own cron requests - no custom secret scheme needed. Your cron route just checks that header:
 
 ```ts
 const secret = process.env.CRON_SECRET
 if (!secret) return errorResponse('CRON_SECRET is not configured', 503)
 if (request.headers.get('authorization') !== `Bearer ${secret}`) return errorResponse('Unauthorized', 401)
 ```
+
+**Do not declare `CRON_SECRET` in `requiredEnvVars`.** Core owns that variable and mints it itself (`lib/vercel/cron-secret.ts`): it is generated during setup, and installing any module whose manifest declares `cronJobs` provisions one on a site that has none, writing it to the Vercel project before the install's redeploy. Declaring it required only risks dead-ending an install on a value the platform was going to create anyway. It arrives in `process.env` with the deploy the install triggers, never during the install request itself - which is why the 503 guard above still belongs in the route.
 
 Note that module route files **cannot** export their own `maxDuration` - the generated router imports every route file as a plain object of HTTP-method handlers, and a `maxDuration` export breaks that structural type. The shared dispatcher at `app/api/m/[module]/[...path]/route.ts` sets one `maxDuration` (currently 60s) for every module route instead.
 

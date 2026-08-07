@@ -22,6 +22,7 @@ const SENSITIVE_TARGETS: VercelEnvTarget[] = ['production', 'preview']
 const SENSITIVE_KEYS = new Set([
   'DATABASE_URL',
   'SESSION_SECRET',
+  'CRON_SECRET',
   'VERCEL_API_TOKEN',
   'BREVO_API_KEY',
   'SMTP_PASS',

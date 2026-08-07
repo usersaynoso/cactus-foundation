@@ -6,6 +6,7 @@ import { getSessionFromCookie, createSession, setSessionCookie } from '@/lib/aut
 import { seedDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 import { upsertVercelEnvVar } from '@/lib/vercel/env'
+import { ensureCronSecret } from '@/lib/vercel/cron-secret'
 import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
 import { isLocalMode } from '@/lib/config/env'
 import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
@@ -69,6 +70,13 @@ export async function POST() {
     adminPath: cfg.adminPath,
     siteStatus: 'comingSoon',
   }).catch(() => {})
+
+  // Same story as SESSION_SECRET below: the Vercel connect step mints CRON_SECRET,
+  // and that step is skipped when VERCEL_API_TOKEN was already in the environment.
+  // Deliberately NOT part of the needsRedeploy condition underneath - a site that has
+  // its other secrets should keep its auto-login, and a scheduled job that starts one
+  // deploy later than it might have costs nobody anything.
+  await ensureCronSecret()
 
   // SESSION_SECRET is generated during the Vercel connect step, but that step is
   // skipped when VERCEL_API_TOKEN is already in the environment before setup.

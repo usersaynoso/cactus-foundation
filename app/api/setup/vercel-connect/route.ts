@@ -445,12 +445,17 @@ export async function POST(req: NextRequest) {
     const siteUrl = `https://${primaryDomain}`
     const sessionSecret = randomBytes(48).toString('hex')
     const encryptionKey = randomBytes(32).toString('hex')
+    // Vercel attaches this to its own scheduled requests as a bearer token, and every
+    // cron route checks it. Minted here with the other internal secrets so a new site's
+    // scheduled jobs work from the first deploy without the owner inventing a password.
+    const cronSecret = randomBytes(32).toString('hex')
 
     const vars: Array<{ key: string; value: string; type?: 'plain' | 'sensitive' }> = [
       { key: 'VERCEL_API_TOKEN', value: token, type: 'sensitive' },
       { key: 'VERCEL_PROJECT_ID', value: projectId, type: 'plain' },
       { key: 'SESSION_SECRET', value: sessionSecret, type: 'sensitive' },
       { key: 'ENCRYPTION_KEY', value: encryptionKey, type: 'sensitive' },
+      { key: 'CRON_SECRET', value: cronSecret, type: 'sensitive' },
       { key: 'SITE_URL', value: siteUrl, type: 'plain' },
       { key: 'NEXT_PUBLIC_SITE_URL', value: siteUrl, type: 'plain' },
     ]

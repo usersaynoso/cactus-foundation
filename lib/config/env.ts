@@ -148,6 +148,14 @@ export function getEnvStatus(): {
       gates: 'Automatic database provisioning during setup',
     },
     {
+      name: 'CRON_SECRET',
+      description:
+        'Bearer token Vercel attaches to its own scheduled requests. Created automatically during setup, and again on the next update if this site predates that. Nothing to fetch from anywhere - it only ever means something to this site.',
+      required: false,
+      set: !!process.env.CRON_SECRET,
+      gates: 'Every scheduled job, core and module (they answer 503 without it)',
+    },
+    {
       name: 'EDGE_CONFIG',
       description: 'Vercel Edge Config read connection string',
       required: false,

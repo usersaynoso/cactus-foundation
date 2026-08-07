@@ -20,6 +20,7 @@ import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { ensureCronSecret, cronSecretSatisfied } from '@/lib/vercel/cron-secret'
 import { getActiveDeployLock } from '@/lib/deploy/lock'
 import { compareVersions } from '@/lib/updates/core'
 import pkg from '@/package.json'
@@ -152,9 +153,22 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Check required env vars
+  // Any module that schedules work needs CRON_SECRET, whether or not its manifest
+  // bothers to declare it - without one, Vercel's scheduled request arrives with no
+  // bearer token and every cron route answers 503. That failure is invisible (nothing
+  // reaches the admin), so mint the secret at install time rather than leaving the
+  // schedule quietly dead. See lib/vercel/cron-secret.ts for why this one is ours to
+  // generate. The redeploy this install triggers is what puts it in process.env.
+  const needsCronSecret =
+    manifest.cronJobs.length > 0 ||
+    manifest.requiredEnvVars.some((v) => v.name === 'CRON_SECRET')
+  const cronSecret = needsCronSecret ? await ensureCronSecret() : null
+
+  // Check required env vars. CRON_SECRET drops out of the list once provisioning has
+  // dealt with it; a genuine 'unavailable' still blocks, since then nothing will run.
   const missingRequired = manifest.requiredEnvVars
     .filter((v) => v.required && !process.env[v.name])
+    .filter((v) => !(v.name === 'CRON_SECRET' && cronSecret !== null && cronSecretSatisfied(cronSecret)))
     .map((v) => v.name)
 
   if (missingRequired.length > 0) {

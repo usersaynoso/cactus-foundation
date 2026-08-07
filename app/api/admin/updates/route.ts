@@ -13,6 +13,7 @@ import {
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { ensureCronSecret } from '@/lib/vercel/cron-secret'
 import { getActiveDeployLock } from '@/lib/deploy/lock'
 import { findModuleUpdates } from '@/lib/modules/updates'
 
@@ -121,6 +122,14 @@ export async function POST(request: NextRequest) {
   }
 
   const { currentVersion, latestVersion } = status
+
+  // Core ships scheduled jobs of its own (the member purge/exports/digests in
+  // scripts/generate-module-cron.mjs), so every install needs a CRON_SECRET whatever
+  // modules it has. Sites set up before this was minted automatically have none, and
+  // a cron with no bearer token fails 503 in silence. An update is the one moment we
+  // are already writing to Vercel and already redeploying, so heal it here. Best
+  // effort: a site with no Vercel credentials just carries on updating without one.
+  await ensureCronSecret()
 
   // Acquire deploy lock
   await prisma.deployLock.create({
