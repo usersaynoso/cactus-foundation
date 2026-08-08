@@ -11,7 +11,11 @@ description: >-
   user asks to add a video / animation to a product description, put text beside
   a video, swap which side the video sits on, add several feature sections to a
   product, or replace a product description with "the same treatment as the
-  Eclipse Plus chair". Covers the exact JSON, database writes and multi-viewport
+  Eclipse Plus chair". Also covers the case where the clips are not on the site
+  yet and the user attaches them: optimising each one locally with the site's own
+  encoder settings, uploading it to a video folder under the product's media
+  folder, filing the library rows, and clearing the local source folder
+  afterwards. Covers the exact JSON, database writes and multi-viewport
   verification.
 ---
 
@@ -39,6 +43,19 @@ way this does (text first, then video, on a phone), and the two halves stop
 being vertically centred against each other the moment the copy is longer than
 the clip. `textSide` exists precisely so neither happens. One block, every
 viewport.
+
+## When the user attaches the video files
+
+Often the clips are not on the site yet - the user attaches them (or points at a
+folder) along with the titles and copy. When that happens the job starts two
+steps earlier, and **all three of these are part of the job, not extras to offer**:
+
+1. **Optimise locally first, then upload.** Never upload the raw file and reach
+   for the library's Optimise button afterwards.
+2. **File them in a `video/` subfolder** of the product's own media folder.
+3. **Delete the local source folder afterwards** - see step 0d.
+
+The whole path is steps 0a to 0d below. Only then does the description get built.
 
 ## Inputs to collect
 
@@ -144,11 +161,142 @@ this single prop; nothing else moves.
   full-bleed background.
 - No `topOffset` and no `scrubScreens` - nothing pins any more, so the sticky
   header and tab bar (158px) never overlap the section.
-- DB: root `.env` `DIRECT_URL`, psql at `/opt/homebrew/opt/libpq/bin/psql`.
-- Live worked example: Eclipse Plus Deluxe
-  (`eclipse-plus-deluxe-mesh-back-task-operator-office-chair`), six sections.
+- DB: root `.env` `DIRECT_URL`, psql at `/opt/homebrew/opt/libpq/bin/psql`. The
+  size column on `Media` is `sizeBytes`; `size` does not exist.
+- Verify against **`https://deskwell.co.uk/shop/products/<slug>`**.
+  `dwoffice.furniture` answers 302 and is not worth pointing Playwright at.
+- Media library constants: provider `B2`, served from
+  `https://media.deskwell.co.uk/<key>`, `uploadedById`
+  `cmre0g0qu0002ld04bknhyfy2`.
+- Live worked examples: Eclipse Plus Deluxe
+  (`eclipse-plus-deluxe-mesh-back-task-operator-office-chair`), six sections;
+  Carter (`carter-high-back-black-leather-executive-office-chair-with-arms`),
+  three sections, and the first job that uploaded its own clips.
 
 ## Recipe
+
+### 0a. Optimise the attached clips - locally, with the site's own settings
+
+**Optimise before uploading, never after.** The library's Optimise button wakes
+a Fly machine to download the file it was just handed, re-encode it and write it
+back. Encoding the file already sitting on disk produces the identical bytes with
+none of that - and when the encode turns out not to be worth keeping, the fat
+version was never uploaded in the first place.
+
+`scripts/optimise-videos.py` is a faithful copy of the worker
+(`services/video-worker/video.py`) and the library's own quality ladder
+(`lib/media/video-quality.ts`): CRF 23 "balanced", 1920 width cap, 30 fps cap,
+x264 `slow`, High/4.1, yuv420p, `aq-mode=3`, faststart, metadata stripped, and a
+silent audio track dropped.
+
+```bash
+python3 .claude/skills/deskwell-sequence-description/scripts/optimise-videos.py \
+  <outDir> "/path/to/Product/"*.mp4
+```
+
+**Expect most feature clips to be rejected, and let them be.** The 5% minimum
+saving is the worker's own rule: an encode that lands within 5% of its source is
+not swapped in, because it trades a generation of quality for nothing. Supplier
+feature clips are usually short, small and already tightly encoded, so CRF 23
+comes back *bigger* - the report says `optimised: false`, the file is written as
+`.rejected.mp4`, and **the original is what gets uploaded**. Only the long
+whole-product hero reliably shrinks (Carter: 14.1 MB to 7.8 MB, plus a silent
+AAC track dropped; its three feature clips all grew and kept their originals).
+
+That is not a failure and does not want reporting as one. The library says
+"Already as small as it gets" and marks the item done, which is exactly what the
+`optimised: true` flag in step 0c reflects.
+
+### 0b. Upload to the product's `video/` folder
+
+**One query gives you both the folder id and the key prefix.** Do not walk the
+`Folder` tree with a recursive CTE and do not assemble the category path by hand
+- any existing image on the product already knows both:
+
+```sql
+SELECT m."folderId",
+       regexp_replace(m.key, '/[^/]+$', '') AS product_prefix
+FROM "Media" m
+WHERE m.url ILIKE '%/<product-slug>/%'
+  AND m."mimeType" LIKE 'image/%'
+LIMIT 1;
+```
+
+`folderId` is the parent for step 0c's `video` folder, and `product_prefix` +
+`/video` is the storage prefix. (The size column is **`sizeBytes`** - a query
+selecting `size` errors.)
+
+Key shape, matching what a media-library upload builds today
+(`buildLibraryUploadKey` - the **exact-name** form, no nanoid prefix):
+
+```
+media/shop/<category-path>/<product-slug>/video/<sanitised-filename>.mp4
+```
+
+Lower case, non-alphanumerics to hyphens, runs collapsed. Trim the trailing space
+supplier filenames carry before the extension, or the key ends in a stray hyphen.
+
+**The `.env` trap - this bites every time.** Do NOT `set -a && . ./.env`: a value
+in there contains an unquoted `&` and zsh dies with `parse error near '&'` before
+a single variable is set. Pull out just what is needed, quoted:
+
+```bash
+cd "/Users/chris/Git Local/Cactus"
+eval "$(grep -E '^(B2_KEY_ID|B2_KEY|B2_ENDPOINT|B2_BUCKET_NAME)=' .env \
+  | sed -E "s/^([A-Z_]+)=(.*)$/export \1='\2'/")"
+export RCLONE_CONFIG_B2S3_TYPE=s3 \
+       RCLONE_CONFIG_B2S3_PROVIDER=Other \
+       RCLONE_CONFIG_B2S3_ACCESS_KEY_ID="$B2_KEY_ID" \
+       RCLONE_CONFIG_B2S3_SECRET_ACCESS_KEY="$B2_KEY" \
+       RCLONE_CONFIG_B2S3_ENDPOINT="$B2_ENDPOINT"
+rclone copyto "<local>" "b2s3:$B2_BUCKET_NAME/<key>" --s3-no-check-bucket --no-traverse
+```
+
+The `b2eu`/`b2old` rclone remotes are dead. `--s3-no-check-bucket` is required -
+without it rclone tries `CreateBucket` and the app key gets `403 not entitled`.
+
+Verify every upload before going near the database - the CDN answers 405 to HEAD,
+so ask for one byte and read the total off `Content-Range`:
+
+```bash
+curl -s -o /dev/null -D - -r 0-0 "https://media.deskwell.co.uk/<key>" \
+  | grep -iE "^HTTP|content-range|content-type"
+```
+
+`206`, `video/mp4`, and a total matching the local file. Anything else, stop.
+
+### 0c. File the library rows
+
+`scripts/file-media.mjs` upserts the `video` folder under the product's own
+`Folder` row and creates one `Media` row per clip. Read its header for the
+manifest shape and why it has to be run from the repo root.
+
+- The column is **`sizeBytes`**, not `size`, and it must be what actually sits in
+  the bucket - the re-encoded size for a kept encode, the original size for a
+  rejected one.
+- `optimised: true` on **all** of them, rejected ones included. The platform does
+  the same (`markVideoAlreadyOptimised`), so a done-and-pointless optimise is not
+  offered again.
+- `uploadedById` `cmre0g0qu0002ld04bknhyfy2`, provider `B2`, mime `video/mp4`.
+- `originalName` is what step 1's clip matching reads, so keep it the supplier's
+  readable filename (trailing space trimmed) - never the storage key.
+
+### 0d. Delete the local source folder
+
+Once every upload has verified and the rows exist, remove the clips **and the
+folder holding them** - for Carter, the whole
+`Deskwell/Products/Dynamic/Seating Videos/Carter/` directory. The files are on
+the CDN and in the library; a second copy on the laptop is just a fork in the
+road for whoever looks next.
+
+Move it to the Trash rather than hard-deleting, so a mistake is recoverable:
+
+```bash
+osascript -e 'tell application "Finder" to delete POSIX file "/absolute/path/to/folder"'
+```
+
+**Only after the uploads verified.** Never before, and never if any clip came
+back anything other than 206.
 
 ### 0. Safety first
 
@@ -343,6 +491,18 @@ What to expect:
   clip shows up anyway - and it shows up in context, at the right size, on the
   right background. Pulling 20MB of mp4 to the scratchpad to answer questions
   the filename and the screenshots already answer is wasted time.
+  This is about *downloading*. Clips the user attached are already on disk and
+  cost nothing to probe - `ffprobe` them, pull a first frame out of them, do
+  whatever is useful, right up until step 0d clears the folder. Matching a clip
+  to a section is still done on the filename either way.
+- **A blank video box in the MOBILE screenshots is usually nothing.** WebKit
+  reports `playing` while `currentTime` is still `0`, having not painted a frame
+  by the time the screenshot fires, so the block renders as an empty rounded
+  rectangle. Before chasing it: check whether the same clip has content in the
+  desktop shot, and whether any *other* mobile section caught a later timestamp.
+  Both true means playback is fine. Only if the clip really does open on an empty
+  frame does the `posterUrl` remedy below apply - and while the source is still
+  on disk, `ffmpeg -vf "select=eq(n\,0)" -vframes 1` settles it outright.
 - If a section does read as a black or blank box in the verification
   screenshots, that clip fades up from black. Fix it with a `posterUrl`: grab a
   representative frame, upload it to the media library, paste its url. Do not

@@ -123,6 +123,8 @@ Two things are worth your attention in **Space Planner → Sizes**:
 
 Filling in the category fallback sizes is the single cheapest thing you can do for the planner's quality - it is what turns "a plain block" into "roughly the right shape".
 
+Delete a product and its remembered size hangs about until the nightly tidy-up clears it. Nothing on your shop uses it in the meantime; it only means the counts on this screen read a shade high for a day.
+
 ## What to get 3D modelled next
 
 **Space Planner → Rooms & plans** keeps a count of what customers keep placing that has no 3D model. That is your shopping list, in demand order, rather than a hunch.

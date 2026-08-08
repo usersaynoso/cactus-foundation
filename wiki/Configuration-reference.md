@@ -42,6 +42,7 @@ The preference is saved immediately and the update check refreshes straight away
 | Time format | How times are displayed (e.g. `HH:mm`) | `HH:mm` |
 | Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
 | Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
+| Measure how fast pages feel for real visitors | Adds Vercel's Speed Insights to your pages: it times how quickly they load for the people actually using them and reports it to your Vercel dashboard. No cookies, nobody identified. Untick it and the script is never sent at all, rather than sent and told to keep quiet - useful if your Vercel plan charges for the measurements. | On |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 

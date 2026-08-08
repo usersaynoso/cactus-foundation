@@ -175,6 +175,12 @@ deliberately forgiving. It copes with commas, semicolons, tabs or pipes between 
 columns, Windows or Mac line endings, quoted text containing commas, and the invisible
 marker Excel likes to put on the front of a file.
 
+It also copes with an inch mark sitting loose in a description - `Gas Lift 7" Black` - which
+a stricter reader mistakes for the start of a quotation and then swallows the following
+line whole, product code and all. Those products end up never receiving a figure while
+being listed as absent from a file they are plainly in. If your supplier writes sizes in
+inches, this is the one to know about.
+
 Stock figures are read as whole units:
 
 | In the file | Read as | Why |

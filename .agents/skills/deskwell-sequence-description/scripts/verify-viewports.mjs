@@ -18,10 +18,29 @@ const OUT = new URL('.', import.meta.url).pathname
 // Smooth scrolling is disabled too: scrollTo would otherwise animate, and every
 // measurement below would read the position the page is leaving rather than the
 // one it is going to.
+// The consent banner is hidden, never clicked: a screenshot tool has no business
+// answering a consent question on the user's behalf, and hiding it is enough.
+// It cannot be matched on class or id - Deskwell's is a bare <div> with NEITHER,
+// so the obvious `[class*=cookie i],[id*=cookie i]` selector sails straight past
+// it and it eats ~135px off the bottom of every screenshot. Match on what it is
+// (pinned, tall, against the bottom edge) and what it says instead.
+const hideConsent = (p) => p.evaluate(`(() => {
+  let n = 0
+  for (const el of document.querySelectorAll('body *')) {
+    const cs = getComputedStyle(el)
+    if (cs.position !== 'fixed' && cs.position !== 'sticky') continue
+    const r = el.getBoundingClientRect()
+    if (r.height < 40 || r.bottom < innerHeight - 40) continue
+    if (!/cookie|consent/i.test(el.textContent || '')) continue
+    el.style.setProperty('display', 'none', 'important'); n++
+  }
+  return n
+})()`).catch(() => 0)
+
 const load = async (p) => {
   await p.goto(URL_ARG, { waitUntil: 'domcontentloaded' })
   await p.waitForTimeout(3500)
-  await p.addStyleTag({ content: '[class*=cookie i],[id*=cookie i],[class*=consent i],[id*=consent i]{display:none!important}' }).catch(() => {})
+  await hideConsent(p)
   await p.addStyleTag({ content: 'html{scroll-behavior:auto!important}' }).catch(() => {})
 }
 
