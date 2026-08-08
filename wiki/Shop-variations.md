@@ -227,11 +227,29 @@ Two settings appear alongside the tick once it's on.
 
 **Label.** What the option is called on a card, which needn't be what it's called on the product page. "Seat upholstery colour" is a perfectly good heading on a full product page and hopeless on a tile two inches wide, so put "Colour" here and the product page keeps its longer name. Leave the box empty and the card simply uses the option's own name.
 
-**Swatches shown** (or **Options shown**, for dropdowns and pills). How many values fit before Cactus stops and adds a **+4** to say how many more there are. Eleven colours on a card is a wall of dots; five and a "+6" tells the same story and leaves room for the price. Leave it empty and every value is shown, however many that turns out to be.
+**Swatches shown** (or **Options shown**, for dropdowns and pills). How many values appear before Cactus stops and adds a **+4** to say how many more there are. Eleven colours on a card is a wall of dots; a few and a "+6" tells the same story and leaves room for the price. Three ways to say it:
+
+- **All of them** - every value, however many that turns out to be. Where it starts.
+- **As many as fit on one line** (up to six lines, if you like your cards taller). Cactus fills exactly that many lines of the card and no more, keeping room for the **+4** marker at the end. The counting happens on the shopper's screen, so a wide card shows more swatches and a narrow one fewer, and the row never spills past the lines you chose - whatever size the card happens to be drawn at.
+- **A number I type** - a fixed count, the same everywhere.
+
+However many show, the first swatches always sit on the same line as the heading, with any spill carrying on underneath - the heading never sits alone on a line of its own.
 
 One thing to do first, and only once for the whole shop: the summary needs somewhere to sit on the card, and where it sits is your decision rather than ours. Go to **Appearance → Layouts → Shop → Product Card** and drag the **Card: Variation options** piece into your card design - under the name reads well, or above the price. Publish it and every card in the shop follows suit. Until you do, ticking the box quietly changes nothing, which is why the Variations tab reminds you the moment you first tick one.
 
 Options you leave unticked carry on exactly as before and never appear on a card, so a product with a Size, a Colour and three fitting choices doesn't turn its tile into a specification sheet. An option nobody has given any values to yet is skipped as well, rather than printing an empty heading and looking broken.
+
+### Showing the photo for the one they're pointing at
+
+A row of swatches tells a shopper the desk comes in walnut. It doesn't show them the walnut desk, which is the bit that actually sells it.
+
+So the **Card: Variation options** piece carries a setting of its own: **Preview the photo when a shopper points at a value**. Turn it on (Appearance → Layouts → Shop → Product Card, click the piece, answer **Yes**) and the values stop being a list and start being something to point at. Hover 120cm and the card shows the 120cm desk. Move on to walnut and it shows the 120cm walnut one. Then a black frame, and there it is in 120cm, walnut, black frame. The choices build up as they go, so the picture is always the whole of what they've pointed at rather than just the last thing.
+
+On a phone, where nothing hovers, a tap does the same job - and it stays put, so they can look properly rather than losing it the moment their thumb moves. Tap the same swatch again to let it go. Whichever value the picture is currently showing is marked, so nobody has to guess which walnut they're looking at.
+
+If you have the 3D module, the little 3D icon comes along for the ride. Point at 120cm walnut, tap the icon, and the model that opens is the 120cm walnut one - the picture and the 3D view never disagree about which desk is being discussed.
+
+A few honest limits. It can only show a photo that exists: a combination nobody has photographed shows the nearest one it does have rather than an empty box, giving up the last choice first, so pointing at a finish that doesn't come in the chosen width leaves the width showing. A product whose variations have no photos of their own carries on as a plain summary. And leaving the setting at **No** - which is where it starts, including on every card design you've already published - keeps the tile exactly as it is today, with no extra weight in the page.
 
 ## Browsing every variation
 
