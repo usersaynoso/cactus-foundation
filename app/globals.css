@@ -1860,6 +1860,96 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+/* ============================================================
+   ICON LINK — frontend block (lib/puck/components/IconLinkBlock).
+   A bare icon that links somewhere, built to sit in a header
+   icon row next to the theme toggle: its resting and hover
+   colours fall back to the SAME tokens .theme-toggle-cycle uses,
+   so the pair match until a colour is chosen. The per-block
+   colour fields arrive as CSS custom properties (--il-fg /
+   --il-fg-hover), each possibly a light-dark() composite, so
+   light and dark mode resolve per arm with no extra rules.
+   Tooltip is the shared below-the-icon treatment from
+   .member-signin-tip (the header has no room above).
+   ============================================================ */
+.icon-link-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: var(--il-fg, var(--color-text-muted));
+  transition: color var(--dur-base) var(--ease-in-out);
+}
+.icon-link-trigger:hover,
+.icon-link-trigger:focus-visible {
+  color: var(--il-fg-hover, var(--color-primary));
+}
+.icon-link-trigger:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* Beats the svg's own width/height attributes, exactly as the
+   theme toggle does, so neighbouring icons can be sized alike. */
+.icon-link-trigger > svg,
+.icon-link-img,
+.icon-link-mask {
+  width: var(--il-icon, 20px);
+  height: var(--il-icon, 20px);
+}
+.icon-link-img {
+  display: block;
+  object-fit: contain;
+  transition: opacity var(--dur-base);
+}
+/* An image keeping its own colours can't take the hover colour,
+   so it signals hover the quiet way instead. */
+.icon-link-trigger:hover .icon-link-img,
+.icon-link-trigger:focus-visible .icon-link-img {
+  opacity: 0.75;
+}
+/* Uploaded icon recoloured: a currentColor box clipped by the
+   image's alpha, so the colour (and hover colour) fields apply
+   to SVG and PNG uploads just as they do to the built-in set. */
+.icon-link-mask {
+  display: block;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+.icon-link-tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 10;
+}
+.icon-link-trigger:hover .icon-link-tip,
+.icon-link-trigger:focus-visible .icon-link-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity var(--dur-base), transform var(--dur-base);
+}
+
 .admin-sidebar nav a.admin-nav-account {
   height: auto;
   margin: 0;

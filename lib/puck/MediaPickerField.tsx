@@ -140,7 +140,10 @@ function MediaPickerModal({ onSelect, onClose, kind = 'image' }: {
               <input
                 ref={fileRef}
                 type="file"
-                accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'}
+                // SVG joins the image list for icon-sized artwork (IconLink); the
+                // server's ACCEPTED_UPLOAD_TYPES has taken it all along — this
+                // attribute was the only thing filtering it out.
+                accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml'}
                 style={{ display: 'none' }}
                 onChange={(e) => handleUpload(e.target.files)}
               />
@@ -314,6 +317,7 @@ export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange,
 // here is all that's needed — no per-editor wiring to keep in sync.
 const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   ImageBlock:     { mediaUrl: 'Image' },
+  IconLink:       { iconUrl: 'Icon image (SVG or PNG)' },
   Card:           { mediaUrl: 'Image' },
   Quote:          { mediaUrl: 'Photo (shown inside the quote, left of the text)' },
   ImageChipPanel: { mediaUrl: 'Image' },

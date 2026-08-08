@@ -64,6 +64,7 @@ import RegisterForm from '@/components/members/RegisterForm'
 import { SignInWidgetClient } from '@/components/members/SignInWidgetClient'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
 import FeatureVideo from '@/lib/puck/components/FeatureVideo'
+import { IconLinkBlock, ICON_LINK_ICONS } from '@/lib/puck/components/IconLinkBlock'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
@@ -2753,7 +2754,7 @@ export const puckConfig = {
   categories: {
     layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
-    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                        defaultExpanded: true },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],            defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed'], defaultExpanded: true },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: true },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
@@ -3226,6 +3227,52 @@ export const puckConfig = {
         return rest
       },
       render: CTABanner,
+    },
+    // A lone icon that links somewhere — made for header icon rows, so its
+    // resting/hover colours default to the very tokens the theme toggle's
+    // cycle button uses and the two match without touching a field.
+    IconLink: {
+      label: 'Icon Link',
+      fields: {
+        icon: { type: 'select' as const, label: 'Icon', options: [
+          { value: 'custom', label: 'Uploaded image (SVG or PNG)' },
+          ...Object.entries(ICON_LINK_ICONS).map(([value, i]) => ({ value, label: i.label })),
+        ] },
+        iconUrl: { type: 'text' as const, label: 'Icon image (SVG or PNG)' },
+        tint: { type: 'select' as const, label: 'Icon image colouring', options: [
+          { value: 'tint', label: 'Recolour with the colours below' },
+          { value: 'original', label: "Keep the image's own colours" },
+        ] },
+        href: { type: 'text' as const, label: 'Link URL' },
+        newTab: { type: 'select' as const, label: 'Open in a new tab', options: [{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }] },
+        title: { type: 'text' as const, label: 'Title (shown as a tooltip on hover)' },
+        iconSize: { type: 'number' as const, label: 'Icon size (px)' },
+        // Both colour pickers carry a light arm and a dark-mode arm
+        // (SiteColourField composes them as light-dark()), so resting and hover
+        // can each differ between the two themes - from the site palette or a
+        // custom colour.
+        iconColour: { type: 'custom' as const, label: 'Icon colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        hoverColour: { type: 'custom' as const, label: 'Hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        // Audience. Keep this key as `audience`, never `visibility` — core owns
+        // a responsive-visibility field of that exact name on every block and
+        // strips it from render props, which would silently disable the gate.
+        audience: { type: 'select' as const, label: 'Who can see this', options: [
+          { value: 'everyone', label: 'Everyone' },
+          { value: 'admin', label: 'Admins only' },
+        ] },
+      },
+      defaultProps: { icon: 'custom', iconUrl: '', tint: 'tint', href: '/', newTab: 'no', title: '', iconSize: 20, iconColour: '', hoverColour: '', audience: 'everyone' },
+      // Image-only knobs show only for an uploaded image, and the colour
+      // fields drop out when that image keeps its own colours (they would
+      // paint nothing).
+      resolveFields: (data: any, { fields }: any) => {
+        const p = data?.props ?? {}
+        const out: Record<string, any> = { ...fields }
+        if (p.icon !== 'custom') { delete out.iconUrl; delete out.tint }
+        if (p.icon === 'custom' && p.tint === 'original') { delete out.iconColour; delete out.hoverColour }
+        return out
+      },
+      render: IconLinkBlock,
     },
 
     // ── Media ────────────────────────────────────────────────────────────────
@@ -3951,7 +3998,7 @@ export type PuckConfig = typeof puckConfig
 
 export const footerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'CookieSettingsLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'IconLink', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
@@ -3984,6 +4031,7 @@ export const footerPuckConfig = {
     SocialLinks:         noGutterDefault(puckConfig.components.SocialLinks),
     ButtonLink:          noGutterDefault(puckConfig.components.ButtonLink),
     Phone:               noGutterDefault(puckConfig.components.Phone),
+    IconLink:            puckConfig.components.IconLink,
     CookieSettingsLink:  puckConfig.components.CookieSettingsLink,
     // Grid stays mapped (but unlisted in any category above) purely so
     // pre-split data - saved-block entries or history snapshots a migration
@@ -4011,7 +4059,7 @@ export const layoutPuckConfig = {
   categories: {
     layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
-    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner'],                                       defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],                           defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },
     content:    { title: 'Content',    components: ['Hero', 'Eyebrow', 'Card', 'ImageChipPanel', 'Callout', 'Badge', 'Trustline', 'Chip', 'Accordion', 'FeatureList', 'SpecPanel', 'Ticker', 'Stats', 'Logos', 'SocialLinks'], defaultExpanded: false },
     site:       { title: 'Site',       components: ['SiteHeader', 'SiteLogo', 'Copyright', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'CookieSettingsLink'], defaultExpanded: false },
@@ -4045,6 +4093,7 @@ export const layoutPuckConfig = {
     ButtonLink:   puckConfig.components.ButtonLink,
     Phone:        puckConfig.components.Phone,
     CTABanner:    puckConfig.components.CTABanner,
+    IconLink:     puckConfig.components.IconLink,
     ImageBlock:   puckConfig.components.ImageBlock,
     VideoEmbed:   puckConfig.components.VideoEmbed,
     Embed:        puckConfig.components.Embed,
@@ -4192,7 +4241,7 @@ export const headerPuckConfig = {
     site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersSignIn', 'MembersAccountLink'], defaultExpanded: true },
     layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
-    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone'], defaultExpanded: false },
+    actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'IconLink'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
     ...(Object.keys(headerModuleBlocks).length > 0
       ? { blocks: { title: 'Blocks', components: Object.keys(headerModuleBlocks), defaultExpanded: true } }
@@ -4241,6 +4290,7 @@ export const headerPuckConfig = {
     RichTextBlock: puckConfig.components.RichTextBlock,
     ButtonLink:   puckConfig.components.ButtonLink,
     Phone:        puckConfig.components.Phone,
+    IconLink:     puckConfig.components.IconLink,
     ImageBlock:   puckConfig.components.ImageBlock,
     ...headerModuleBlocks,
   },

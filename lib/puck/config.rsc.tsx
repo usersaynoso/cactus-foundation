@@ -25,6 +25,7 @@ import {
 import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
+import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
 import {
   MembersLoginRsc,
   MembersRegisterRsc,
@@ -117,6 +118,9 @@ const rscComponents = withSafeRichText({
   TrustedMemberGate: { ...puckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
   MembersProfile: { ...puckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
   LayoutEmbed: { ...puckConfig.components.LayoutEmbed, render: wrapResponsiveRender(LayoutEmbedRsc) },
+  // Published render carries the 'Admins only' audience gate (session cookie
+  // read), which the editor-safe render in config.tsx cannot.
+  IconLink: { ...puckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
   ...moduleRscComponentsWrapped,
 })
 
@@ -127,6 +131,7 @@ export const footerPuckRscConfig = {
   components: withSafeRichText({
     ...footerPuckConfig.components,
     SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
+    IconLink: { ...footerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
   }),
 }
 
@@ -142,6 +147,7 @@ export const layoutPuckRscConfig = {
     MemberGate: { ...layoutPuckConfig.components.MemberGate, render: wrapResponsiveRender(MemberGateRsc) },
     TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
     MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
+    IconLink: { ...layoutPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
     ...moduleRscComponentsWrapped,
   }),
 }
@@ -153,6 +159,7 @@ export const headerPuckRscConfig = {
     SiteLogo: { ...headerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
     MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
     MembersSignIn: { ...headerPuckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
+    IconLink: { ...headerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
     ...(moduleRscByLayoutTypeWrapped['header'] ?? {}),
@@ -200,6 +207,14 @@ export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standa
     root: {
       render: opts?.standalone ? moduleLayoutStandaloneRoot(layoutType) : BareLayoutRoot,
     },
-    components: withSafeRichText({ ...sharedComponents, ...modBlocks }),
+    components: withSafeRichText({
+      ...sharedComponents,
+      // The shared 'actions' set includes IconLink; its audience gate has to
+      // hold here too, not just on the page/header/footer configs.
+      ...(sharedComponents.IconLink
+        ? { IconLink: { ...sharedComponents.IconLink, render: wrapResponsiveRender(IconLinkRsc) } }
+        : {}),
+      ...modBlocks,
+    }),
   }
 }
