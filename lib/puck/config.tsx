@@ -3779,6 +3779,7 @@ export const puckConfig = {
         bgColour: signInColourField('Background colour'),
         borderColour: signInColourField('Border colour'),
         textColour: signInColourField('Text colour'),
+        hoverColour: signInColourField('Hover colour'),
         borderRadius: { type: 'number' as const, label: 'Corner radius (px)' },
         // Behaviour
         clickAction: { type: 'select' as const, label: 'When clicked', options: [
@@ -3811,7 +3812,7 @@ export const puckConfig = {
       },
       defaultProps: {
         icon: 'person', iconSize: 20, iconColour: '', label: 'Sign in',
-        variant: 'bordered', bgColour: '', borderColour: '', textColour: '', borderRadius: 8,
+        variant: 'bordered', bgColour: '', borderColour: '', textColour: '', hoverColour: '', borderRadius: 8,
         clickAction: 'link', redirectTo: '',
         modalHeading: 'Sign in', modalWidth: 420, modalRadius: 12,
         showRegisterLink: 'yes', registerLabel: 'Create an account',

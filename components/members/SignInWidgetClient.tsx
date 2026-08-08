@@ -28,6 +28,10 @@ export type SignInWidgetOptions = {
   bgColour: string
   borderColour: string
   textColour: string
+  // Colour on hover/focus. Blank falls back to --color-primary, the same token
+  // the theme toggle and Icon Link blocks hover to, so the header icon family
+  // matches out of the box.
+  hoverColour: string
   borderRadius: number
   // What clicking it does. 'link' goes to the member sign-in page; 'modal'
   // keeps the visitor on the page they were reading and floats the same form
@@ -80,7 +84,7 @@ export type SignInWidgetState = {
 
 export const SIGN_IN_WIDGET_DEFAULTS: SignInWidgetOptions = {
   icon: 'person', iconSize: 20, iconColour: '', label: 'Sign in',
-  variant: 'bordered', bgColour: '', borderColour: '', textColour: '', borderRadius: 8,
+  variant: 'bordered', bgColour: '', borderColour: '', textColour: '', hoverColour: '', borderRadius: 8,
   clickAction: 'link', redirectTo: '',
   modalHeading: 'Sign in', modalWidth: 420, modalRadius: 12,
   showRegisterLink: 'yes', registerLabel: 'Create an account',
@@ -164,12 +168,20 @@ export function SignInWidgetClient(
     : (o.variant === 'bordered' ? (o.bgColour || 'transparent') : 'transparent')
   const border = o.variant === 'bordered' ? `1px solid ${o.borderColour || 'var(--color-border)'}` : 'none'
 
+  // Resting/hover colours ride on custom properties so the .member-signin-trigger
+  // rules in globals.css can swap them on :hover/:focus-visible - an inline
+  // `color` would beat any stylesheet hover rule. Blanks fall back to the same
+  // tokens the theme toggle and Icon Link use (--color-text / --color-primary).
+  const colourVars: Record<string, string> = {}
+  if (o.textColour) colourVars['--ms-fg'] = o.textColour
+  if (o.hoverColour) colourVars['--ms-fg-hover'] = o.hoverColour
+
   const boxStyle: CSSProperties = {
     // Containing block for the tooltip above; harmless on the variants that
     // never show one.
     position: 'relative',
     display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none',
-    color: o.textColour || 'var(--color-text)', background, border,
+    ...colourVars, background, border,
     borderRadius: o.variant === 'plain' ? 0 : o.borderRadius, padding, lineHeight: 1,
     fontSize: '0.875rem', fontWeight: 500,
   }
@@ -212,6 +224,7 @@ export function SignInWidgetClient(
           <form action="/api/members/auth/logout" method="POST" style={{ margin: 0 }}>
             <button
               type="submit"
+              className="member-signin-trigger"
               style={{ ...boxStyle, font: 'inherit', fontSize: '0.875rem', fontWeight: 500, cursor: preview ? 'default' : 'pointer', WebkitAppearance: 'none', appearance: 'none' }}
             >
               {o.signOutLabel || 'Sign out'}

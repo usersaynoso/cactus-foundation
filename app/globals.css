@@ -1859,6 +1859,18 @@ a:hover {
   transform: translateX(-50%) translateY(0);
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
+/* Resting and hover colours, carried on custom properties from the widget's
+   colour fields (SignInWidgetClient) - the fallbacks are the SAME tokens the
+   theme toggle and Icon Link hover rules use, so the header icon family
+   changes colour together. The tip above keeps its own --color-text. */
+.member-signin-trigger {
+  color: var(--ms-fg, var(--color-text));
+  transition: color var(--dur-base) var(--ease-in-out);
+}
+.member-signin-trigger:hover,
+.member-signin-trigger:focus-visible {
+  color: var(--ms-fg-hover, var(--color-primary));
+}
 
 /* ============================================================
    ICON LINK — frontend block (lib/puck/components/IconLinkBlock).
