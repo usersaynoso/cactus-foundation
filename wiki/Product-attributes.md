@@ -41,6 +41,16 @@ A value with no picture yet shows an empty dotted square, and on the shop it sim
 
 If pictures have ended up in the wrong place - an earlier version of the variations module used to pull a shared swatch picture into whichever product's folder it was used on - the attributes screen has a **Tidy picture folders** button. Press it and every attribute's swatch pictures are re-filed under **Shop → Attributes** where they belong, with anything using them (including product options built from the attribute) pointed at the new home. It's safe to press whenever you like: pictures already in the right place stay put.
 
+### Small copies for the shop
+
+A swatch photograph earns its size in one place only: the [3D views](Product-3D-views), which paint the actual file onto a model at true scale and would turn a small one into mush. Everywhere else the same picture is drawn at thumbnail size - the little squares in the product page's picker, the chips on category cards, the tiles in the filter - and serving the full photograph there means a shopper downloads megabytes of fabric photography to look at a row of dots.
+
+So each picture swatch now carries a **small copy** alongside the original. The shop's thumbnails, cards and filters use the small copy wherever one exists; the original stays exactly where it was and everything that needs it full-size (the 3D views above all) keeps reading it. Nothing to configure, and nothing changes about how you pick pictures.
+
+New pictures get their small copy made automatically the moment you set them on a value. For pictures from before this existed, the attributes screen has a **Make small copies** button: press it once and it works through everything that hasn't got one, narrating as it goes. It's safe to press at any time - values already sorted are passed over, and a picture that wouldn't benefit (already tiny, or hosted somewhere outside your library) is simply left as it is, with the shop falling back to the original exactly as before.
+
+The copies are ordinary files in your media library, filed beside their originals with `-small` on the name, so you can see them, and they move home together when you file an attribute into a group. Swap a value's picture and the old small copy is retired with it; the new picture gets its own.
+
 Untick **Show in filters** to keep an attribute for your own reference without offering it on the shop. Deleting an attribute takes its values with it, and removes it from every product - so it asks first.
 
 ### Attributes with a lot of values
