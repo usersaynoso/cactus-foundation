@@ -128,7 +128,7 @@
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     }
   ]
 }
