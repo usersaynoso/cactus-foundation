@@ -132,6 +132,9 @@ export const footerPuckRscConfig = {
     ...footerPuckConfig.components,
     SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
     IconLink: { ...footerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
+    // RSC render halves for any module blocks that opted into the footer
+    // (layoutTypes: ["footer"]) — same mechanism the header has below.
+    ...(moduleRscByLayoutTypeWrapped['footer'] ?? {}),
   }),
 }
 

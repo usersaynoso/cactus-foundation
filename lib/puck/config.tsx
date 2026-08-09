@@ -3997,12 +3997,19 @@ export type PuckConfig = typeof puckConfig
 // Footer Puck config — used in Appearance > Footer editor
 // ---------------------------------------------------------------------------
 
+// Module blocks that opted into the footer via layoutTypes: ["footer"] -
+// mirror of headerModuleBlocks below.
+const footerModuleBlocks = moduleComponentsByLayoutType['footer'] ?? {}
+
 export const footerPuckConfig = {
   categories: {
     site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'IconLink', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
+    ...(Object.keys(footerModuleBlocks).length > 0
+      ? { blocks: { title: 'Blocks', components: Object.keys(footerModuleBlocks), defaultExpanded: true } }
+      : {}),
   },
   root: {
     fields: {
@@ -4049,6 +4056,9 @@ export const footerPuckConfig = {
     TextBlock:           noGutterDefault(puckConfig.components.TextBlock),
     RichTextBlock:       noGutterDefault(puckConfig.components.RichTextBlock),
     ImageBlock:          noGutterDefault(puckConfig.components.ImageBlock),
+    // Module blocks that opted into the footer (layoutTypes: ["footer"]) -
+    // same mechanism the header has had all along.
+    ...footerModuleBlocks,
   },
 }
 
