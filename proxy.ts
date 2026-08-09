@@ -52,13 +52,31 @@ function workerImageHost(): string {
 
 // CSP allows inline styles/scripts because Next.js server components inject them.
 // External image origins are added when the media Worker host is known.
+// CSP_EXTRA_ORIGINS - space/comma-separated https origins a module's external
+// service lives on (e.g. a self-hosted chat server on its own subdomain).
+// Each origin is appended to script-src, connect-src (plus its wss: twin, since
+// an explicit https origin does not authorise the WebSocket upgrade in every
+// browser), frame-src and img-src. Same shape of escape hatch as workerHost
+// below, but generic: core stays ignorant of which module wants it and why.
+function extraOrigins(): string[] {
+  return (process.env.CSP_EXTRA_ORIGINS ?? '')
+    .split(/[\s,]+/)
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter((o) => /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o))
+}
+
 function buildCsp(): string {
   const workerHost = workerImageHost()
+  const extras = extraOrigins()
+  const extraScript = extras.map((o) => ` ${o}`).join('')
+  const extraConnect = extras.map((o) => ` ${o} ${o.replace(/^https:/, 'wss:')}`).join('')
+  const extraFrame = extraScript
   const imgSrc = [
     "'self'", 'data:', 'blob:',
     // Style guide demo images
     'https://picsum.photos', 'https://fastly.picsum.photos',
     workerHost ? `https://${workerHost}` : '',
+    ...extras,
   ].filter(Boolean).join(' ')
   return [
     `default-src 'self'`,
@@ -77,7 +95,7 @@ function buildCsp(): string {
     // decoder (Draco/Meshopt) when reading a .glb, e.g. the admin "Detect from
     // model" button. It permits ONLY WebAssembly.compile/instantiate, not JS
     // eval() - strictly narrower than 'unsafe-eval', which stays banned.
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com`,
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com${extraScript}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src ${imgSrc}`,
     // media-src - the library now stores video (mp4/webm). The <video> preview in
@@ -100,9 +118,9 @@ function buildCsp(): string {
     // rather than a factor. A blob: URL is same-origin, unguessable and readable
     // only by the document that made it, so this grants no reach the page hasn't
     // already got.
-    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}`,
+    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
-    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com`,
+    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com${extraFrame}`,
     // blob: - product-3d-views-for-shop decodes Draco-compressed meshes off the main
     // thread, and three's DRACOLoader builds that worker the only way it can: it
     // fetches the decoder's source as text and turns it into a Blob URL, since the
