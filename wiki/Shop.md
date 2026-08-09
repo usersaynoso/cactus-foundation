@@ -73,6 +73,8 @@ From **Shop → Products → New product**, fill in a name and price to get star
 
 The search box on the products list matches whole words in any order, across the name and the SKU. Typing "evolve screen" finds "Evolve / Impulse Plus Bench Screen" - you no longer have to remember the exact wording, or everything that sits between the two words you do remember. Every word you type has to appear somewhere, so adding another word narrows things down rather than widening them.
 
+If you use **Product options** (variations), this also searches every variation's own code, not just the listing's own SKU. Type a code off a delivery note or a customer's order and you get taken straight to the listing it belongs to - never to the hidden entry underneath it that variations use to keep each combination's own price and stock. The same is true of the search box shoppers use on your storefront.
+
 The product page is split into tabs, with a panel down the right that stays put as you work: whether the product is on sale, its main photo, its price and stock at a glance, and the **Save changes** button.
 
 - **Details** - the name, the descriptions, and your own SKU and barcode. If you've switched on suppliers (see below), the box for picking one lives here too. The web address is set when you first save; if the name has changed a lot and nothing links to it yet, you can ask for it to be rebuilt. The full description can stay plain text, or you can hit **Design with the page builder** to lay it out with headings, images and columns instead - and once you're designing, **Open in a new tab** pops that builder out into a page of its own with nothing else on screen, handy on a small window. Saving there sends the design straight back to the product; it never fights with anything you're doing on the main page.
@@ -405,11 +407,27 @@ The **Product Card** sub-tab does the same for the little product cards, with **
 
 If you have the Variations module, the Product Card sub-tab also offers a **Card: Variation options** piece. Drag it onto the card and every product that has options set to show there summarises them: a row of colour or fabric swatches, or a plain comma-separated list of sizes, each behind whatever heading you chose. Which options appear, what they are called and how many are shown before a "+4" is decided per product on its Variations tab. See [Shop variations](Shop-variations) for that half.
 
+The **Card: Short description** piece has a fourth setting alongside its 1, 2 and 3 line caps: **Fill the spare space**. Cards in a row are all drawn to the height of the tallest one, so a product with fewer options than its neighbours used to sit above a band of empty card. Set to fill, the short description pours into exactly that band - as many whole lines as fit, ending with an ellipsis where the writing runs on - and never a line more, so it cannot stretch the card or the row. The tallest card in a row shows no description at all (it has no spare space to fill), a card with a little shows a little, and the same card may show four lines on a desktop and one on a phone, because the space itself changes with the screen. Products with no short description are unaffected either way.
+
 On a phone, product grids now show **two products across** rather than one. A single card per row turned a category into a very long scroll indeed, with most of the shop hiding below the fold. Because each card is half the width it was, the wording on it - the name, the price, the option swatches, the link - steps down a little to match, so it still sits neatly inside the card instead of wrapping onto five lines. The photos keep their shape and take the room the words gave up. Nothing changes on a tablet or a desktop.
 
 Both come with a sensible design switched on from the moment Shop starts, so nothing looks broken before you touch them. If you want a *particular* grid or the product page to use a different design from the shop-wide one, open that block's settings and pick a **Layout** there; leave it on "Use shop default" to follow whatever you've published.
 
 You can also drop a whole **Category** layout onto any other page - your homepage, for instance - using the **Embed Layout** block, then pick the category and the number of products to show. See [Managing pages](Managing-pages) for how that block works.
+
+### Every block with a proper set of settings
+
+From shop 0.1.198 the blocks that used to take life as they found it carry settings of their own. Every one of them starts set to exactly what the block did before, so nothing on a published page changes until you open a block and change something.
+
+- The **product grid** can order its shelf: newest first (as always), best sellers first, price in either direction, or by name. It can carry a **heading** and a smaller line beside it, and you can reword the message shown when a shelf turns out to be empty.
+- A **featured collection** can take a heading of its own instead of the collection's name, the same ordering choices as the grid, and a **View all** link through to the full collection page for shoppers who want more than the sample.
+- The **category browser**'s cards can drop their little descriptions where you'd rather have a tighter grid of pictures and names.
+- The **category header**'s small line above the name - it has said *The range* since the day it appeared - is now yours to reword or remove, and the breadcrumb trail and the description each have an on/off switch. The **collection header** gets the same two switches.
+- The **promo banner** chooses which side its picture sits and how big it is, a filled or outline button, centred text if the mood takes you, and a line of small print under the button for the terms nobody reads but everybody needs.
+- Every **checkout step heading** is editable - Contact details, Delivery address, Delivery method, Payment method, Order review - along with the order summary's heading and its **Edit basket** link, the wording on the **Place order** button (the total stays on it no matter what you call it), and the padlock reassurance line beneath it, which steps aside entirely if you blank it.
+- The **back-in-stock form**'s invitation line, the hint inside the email box, the button and the thank-you message are all yours to reword.
+- On the **product card**, the name and the short description can each be capped at one, two or three lines, so one long-winded product can't make its card twice the height of its neighbours; anything longer trims off with an ellipsis. The **badge** piece can switch each kind of badge - New, stock, trade - on or off individually, for shops that find "Low stock" a bit much on a browsing page.
+- The **related products** strip can lie down as a sideways-scrolling carousel instead of a grid, and the **you might also like** strip takes a cap on how many suggestions it offers.
 
 ### The cart, your way
 
@@ -490,6 +508,10 @@ One place the trolley now keeps quiet: the basket page. The whole basket is alre
 It behaves itself, too. The panel closes on the **Esc** key, on a click of the dimmed page behind it, or on the cross in its corner, and the page underneath stops scrolling while it's open so a shopper can't lose their place. Keyboard users are put inside the panel when it opens and back on the trolley when it shuts.
 
 The wording and the look are yours: the heading, the subtotal label, both button labels, the "your basket is empty" message and the keep-shopping link are all editable, the buttons take colours from your own palette, and you can set how wide the panel is, how round the buttons are, and whether it comes in from the right or the left. Product photos and the delivery picker can each be switched off if you'd rather keep it lean. Leave **View full basket** blank and that button simply isn't there.
+
+The trolley itself has a **Hover colour** as well. Leave it blank and it warms to your site's main colour under the mouse, the same as the theme toggle, the Icon Link and the members sign-in button, so the whole row of header icons answers the cursor in one voice.
+
+Leave the **Text label** blank and the trolley also gains a small "Basket" tooltip on hover, the same quiet label the other icon-only header buttons already show.
 
 One honest caveat: the panel stays shut inside the layout editor. It covers the whole page it belongs to, and letting it do that over the design canvas would hide the very thing you were editing. Publish and try it on the real site.
 

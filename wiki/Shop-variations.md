@@ -262,6 +262,8 @@ Your **Products** list (Shop → Products) has a **Variations** tab beside the u
 - Where several products use the same extra column - an **Overall Height** attribute, say - you get one column and one filter entry for it, not one per product.
 - It's a read-only overview: click a product's name to jump to its own Variations tab, which is where the actual editing happens.
 
+Variation SKUs are also picked up by the **main Products list's own search box**, and by your storefront's search - typing a variation's code in either place takes you straight to the listing it belongs to. See "Adding products" in the Shop wiki page.
+
 ## Reports and spreadsheets
 
 The **Variation tools** entry in your sidebar holds the shop-wide reports and the spreadsheet import. Editing still happens on each product's own Variations tab.
