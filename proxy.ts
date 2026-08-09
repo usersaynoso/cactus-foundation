@@ -134,7 +134,10 @@ function buildCsp(): string {
     // A blob: worker is same-origin, its URL is unguessable and it inherits this very
     // policy, so this grants no reach the page has not already got.
     `worker-src 'self' blob:`,
-    `frame-ancestors 'none'`,
+    // 'self', not 'none': the site embeds its own pages (a module's "learn
+    // more" modal iframes the product details view). Framing by OTHER origins
+    // stays forbidden, which is the clickjacking protection that matters.
+    `frame-ancestors 'self'`,
     `base-uri 'self'`,
     `form-action 'self' https://github.com`,
   ].join('; ')
@@ -142,7 +145,9 @@ function buildCsp(): string {
 
 const SECURITY_HEADERS: [string, string][] = [
   ['Content-Security-Policy', buildCsp()],
-  ['X-Frame-Options', 'DENY'],
+  // SAMEORIGIN to agree with frame-ancestors 'self' above (browsers that speak
+  // CSP ignore this header when frame-ancestors is present; older ones read it).
+  ['X-Frame-Options', 'SAMEORIGIN'],
   ['X-Content-Type-Options', 'nosniff'],
   ['Referrer-Policy', 'strict-origin-when-cross-origin'],
   ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), publickey-credentials-create=(self), publickey-credentials-get=(self)'],
