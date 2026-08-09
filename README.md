@@ -64,6 +64,7 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 
 **Available modules:**
 
+- [Live Chat Powered By Chatwoot](https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot) - real live chat with your visitors, attachments both ways, answered from your admin, from the site itself while you browse it, or from a phone app that pings you. Runs on your own little chat server (the module can build it for you), so no chat company's branding and nobody else holding your conversations.
 - [Shop](https://github.com/cactus-foundation-modules/shop) - a full e-commerce foundation: products, categories, collections, cart, checkout, payments, orders, refunds, customers, discounts, tax and shipping, all run from your own admin. No third-party shop platform required.
 - [Shop Variations](https://github.com/cactus-foundation-modules/shop-variations) - adds product options to the shop: size/colour variant matrices with their own price, stock, SKU and image, plus personalisation add-ons (engraving text, gift messages, dropdowns, dates and artwork uploads). Requires the Shop module.
 - [Filters for Shop](https://github.com/cactus-foundation-modules/filters-for-shop) - grouped storefront filters for variation-heavy catalogues: one filter like Blue stands for any number of real option values (Blue, Stevia Blue, Sky Blue...), and while it's ticked the product cards show the matching variation's own photo and open the product with those options pre-selected. Requires the Shop and Shop Variations modules.

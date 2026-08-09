@@ -544,9 +544,14 @@ type ConfigPageInnerProps = {
   rolesData: RolesData | null
   roleExtensions: ReactNode
   membersGdprExtensions: ReactNode
+  // Modules can add their own backup cards under the core Backup section (e.g.
+  // a module that runs its own external service with its own database) via the
+  // "core.backup-page" extension point - resolved server-side in page.tsx the
+  // same way as roleExtensions.
+  backupExtensions?: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -1653,6 +1658,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             >
               {downloadingBackup ? 'Preparing backup…' : 'Download Backup'}
             </button>
+            {backupExtensions}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />

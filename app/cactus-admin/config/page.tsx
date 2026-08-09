@@ -149,6 +149,29 @@ export default async function ConfigPage() {
     )
   }
 
+  // Modules can add their own backup cards under Settings > Backup (e.g. a
+  // module running an external service with its own database) via the
+  // "core.backup-page" extension point - same generic mechanism as roles-page.
+  const backupSectionIds: string[] = []
+  for (const manifest of manifests) {
+    if (!manifest?.extensionPoints) continue
+    for (const entry of manifest.extensionPoints) {
+      if (entry.point !== 'core.backup-page') continue
+      if (!entry.permission || granted[entry.permission]) {
+        backupSectionIds.push(entry.id)
+      }
+    }
+  }
+  const backupSectionComponents = moduleExtensionPointComponents['core.backup-page'] ?? {}
+  const backupExtensions: ReactNode = (
+    <>
+      {backupSectionIds.map((id) => {
+        const Card = backupSectionComponents[id]
+        return Card ? <Card key={id} /> : null
+      })}
+    </>
+  )
+
   let membersGdprExtensions: ReactNode = null
   if (canViewMembersGdpr && user) {
     const entryIds: string[] = []
@@ -207,6 +230,7 @@ export default async function ConfigPage() {
         rolesData={rolesData}
         roleExtensions={roleExtensions}
         membersGdprExtensions={membersGdprExtensions}
+        backupExtensions={backupExtensions}
       />
     </Suspense>
   )

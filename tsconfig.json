@@ -40,6 +40,7 @@
   ],
   "exclude": [
     "node_modules",
-    "workers/media-worker"
+    "workers/media-worker",
+    ".claude"
   ]
 }
