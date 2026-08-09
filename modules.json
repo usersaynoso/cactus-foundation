@@ -18,7 +18,7 @@
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.0"
+      "version": "v0.1.1"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -73,7 +73,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "reviews-for-shop",
