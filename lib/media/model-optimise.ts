@@ -163,6 +163,15 @@ export async function optimiseModelBytes(input: Buffer, mimeType: string): Promi
   document.disposeExtension('KHR_draco_mesh_compression')
   document.disposeExtension('EXT_meshopt_compression')
 
+  // The one pass here that changes what a material says, and the only one that
+  // is a repair rather than a saving: a catalogue palette whose faces can no
+  // longer read a single cell of it, replaced by the flat value it stood for.
+  // See model-palette-pin for what that is and why it happens. It runs before
+  // the transforms below so prune drops the palette image once nothing points at
+  // it, and it is a no-op on any model that is not carrying the fault.
+  const { pinStraddlingPalettes } = await import('@/lib/media/model-palette-pin')
+  const repaired = await pinStraddlingPalettes(document)
+
   const transforms: Transform[] = [
     // Merge accessors, meshes and textures that are byte-for-byte the same thing
     // stored twice. Exporters produce these constantly - a chair with four
@@ -257,7 +266,15 @@ export async function optimiseModelBytes(input: Buffer, mimeType: string): Promi
   // A file that came back the same size or larger was already optimised, by us
   // or by the tool that exported it. Reported rather than written, so the caller
   // keeps the original bytes and simply stops offering the action.
-  if (after >= before) return { optimised: false, reason: 'Already as small as it gets', before, after }
+  //
+  // Unless a palette was pinned. That pass is a repair, and a repaired file is
+  // worth writing at any size - the alternative is discarding the fix because it
+  // cost a few dozen bytes of JSON and letting the model ship striped. It is
+  // also the only way the caller ever sees the repair, since the size verdict
+  // would otherwise send the original bytes straight back.
+  if (after >= before && !repaired) {
+    return { optimised: false, reason: 'Already as small as it gets', before, after }
+  }
 
   return { optimised: true, before, after, bytes }
 }
