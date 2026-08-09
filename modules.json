@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.202"
+      "version": "v0.1.203"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,12 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.120"
+      "version": "v0.1.121"
+    },
+    {
+      "name": "product-addons-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
+      "version": "v0.1.0"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -28,7 +33,7 @@
     {
       "name": "product-3d-views-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-3d-views-for-shop",
-      "version": "v0.1.85"
+      "version": "v0.1.86"
     },
     {
       "name": "product-downloads-for-shop",
@@ -63,12 +68,12 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.17"
+      "version": "v0.1.18"
     },
     {
       "name": "reviews-for-shop",
