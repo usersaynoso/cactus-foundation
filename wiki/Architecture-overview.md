@@ -981,6 +981,18 @@ onConsentChange(cb)               // subscribe to future decisions, returns unsu
 loadIfConsented('analytics', fn)  // run fn immediately if consented, else defer until consented
 ```
 
+### The event seam (`cactus:consent-change`)
+
+Every decision is also announced as a plain `CustomEvent` on `window`, with the full decision map as its `detail`:
+
+```ts
+window.addEventListener('cactus:consent-change', (e) => {
+  const granted = (e as CustomEvent<Record<string, boolean>>).detail['live-chat'] === true
+})
+```
+
+**Module code should use the event, not the listener Set.** `onConsentChange` keeps its subscribers in a module-level `Set` inside `lib/consent/gate.ts`; a module bundled separately cannot assume it shares that instance. The event crosses bundles, needs no import, and pairs cleanly with `useSyncExternalStore` for a React component that has to appear and disappear with the decision.
+
 ### Re-opening the preference panel
 
 ```ts
@@ -995,7 +1007,9 @@ Every decision is appended to `ConsentRecord` (append-only audit log). Current c
 
 ### Module contract
 
-Any module that sets non-necessary cookies **must** declare those categories in its manifest `cookieCategories` array. It **must not** load tracking scripts unconditionally - use `loadIfConsented(category, fn)` to gate them. The admin consent banner editor surfaces the module's declared categories as one-click suggestions. See [Authoring a module](Authoring-a-module) for details.
+Any module that sets non-necessary cookies **must** declare those categories in its manifest `cookieCategories` array, using the same key shape the banner enforces: lowercase, starting with a letter, letters/numbers/hyphens/underscores only (`live-chat`). It **must not** load tracking scripts unconditionally - use `loadIfConsented(category, fn)` to gate them. The admin consent banner editor surfaces the module's declared categories as one-click suggestions; a category worded loosely in a manifest is folded into a valid key there, with the module's wording kept as the label, so an older module still adds cleanly. See [Authoring a module](Authoring-a-module) for details.
+
+A module whose visible UI is itself the processing - a chat launcher, a video embed, a map - should not merely gate the script behind the category, but **render nothing at all until the category is granted**. A visitor who has not answered the banner has no decision recorded, so the same check covers "has not chosen yet" and "chose no". The live-chat module is the reference implementation: see [Live Chat](Live-Chat).
 
 ### Known limitation
 

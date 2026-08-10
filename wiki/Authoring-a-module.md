@@ -62,7 +62,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. | **Only worth setting when a module keeps two or more links - a section heading over a single link is noise. Shop is the only module that still uses one.**
 | `navGroupOrder` | `number` | Optional, only meaningful alongside `navGroupLabel`. Lower numbers sort earlier among labelled module sections; modules that omit it sort after any that set it, in their existing order. Use this if your module's section should appear above another module's, rather than wherever install order happens to put it. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
-| `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`). These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
+| `cookieCategories` | `string[]` | Non-essential cookie categories this module sets (e.g. `["analytics"]`, `["live-chat"]`). Declare them as **keys**, not prose: lowercase, starting with a letter, letters/numbers/hyphens/underscores only - that is the shape the banner stores and your code checks. Anything looser is folded into a valid key when the admin clicks the suggestion (`"Live chat"` → key `live-chat`, label `Live chat`), so an older manifest still works, but the key your code checks must match what actually lands in the site's list. These are surfaced as one-click suggestions in the admin consent banner editor. Declaring a category here does **not** automatically add it to the site's category list - that remains the admin's decision. See the consent gate contract below. |
 | `teardown` | `string[]` | PascalCase names of database tables owned by this module (e.g. `["ForumThread", "ForumPost"]`). Required if you want admins to be able to choose "Remove code and data" during uninstall. Without it, only "Remove code only" is available. |
 | `puckBlocks` | `PuckBlock[]` | Optional. Registers Puck blocks provided by this module. See [Module Puck blocks](#module-puck-blocks) below. |
 | `settingsTabs` | `SettingsTab[]` | Optional. Registers tabs your module contributes to the core admin's **Settings** (`/config`) page. See [Module settings tabs](#module-settings-tabs) below. |
@@ -840,7 +840,29 @@ onConsentChange((decision) => {
 
 You can also check `window.__cactusConsent.analytics` directly, but `hasConsent()` from `gate.ts` is safer (handles SSR and missing window).
 
-### 3. What Cactus cannot gate for you
+**In module code, prefer the window event.** `onConsentChange` keeps its subscribers in a module-level `Set` inside core's `gate.ts`, and a separately bundled module cannot assume it shares that instance. Core announces every decision on `window` as well, which crosses bundles and needs no import:
+
+```ts
+window.addEventListener('cactus:consent-change', (e) => {
+  const granted = (e as CustomEvent<Record<string, boolean>>).detail['live-chat'] === true
+})
+```
+
+For a React component that must appear and disappear with the decision, read it as an external store rather than mirroring it into state:
+
+```tsx
+const granted = useSyncExternalStore(
+  (cb) => { window.addEventListener('cactus:consent-change', cb); return () => window.removeEventListener('cactus:consent-change', cb) },
+  () => (window as unknown as { __cactusConsent?: Record<string, boolean> }).__cactusConsent?.['live-chat'] === true,
+  () => false,          // server snapshot - never granted during SSR
+)
+```
+
+### 3. Gate the UI too, not only the script
+
+If your module's visible control *is* the processing - a chat launcher, a video embed, a third-party map - render nothing at all until the category is granted, rather than showing the control and gating what it loads. A visitor who has not answered the banner yet has no decision recorded, so a single `=== true` check covers both "has not chosen" and "chose no". Decide server-side whether the gate applies at all (banner enabled **and** the site's category list actually carries your key), because the client cannot tell "no banner" from "not granted" - core defines `window.__cactusConsent` either way. The live-chat module's `WidgetLoader` is the reference implementation.
+
+### 4. What Cactus cannot gate for you
 
 If operators paste third-party script tags directly into page HTML (e.g. a raw Google Analytics snippet), Cactus cannot suppress them. Document this clearly if your module encourages such patterns.
 

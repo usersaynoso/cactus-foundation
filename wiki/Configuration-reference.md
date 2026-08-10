@@ -178,9 +178,12 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 | Accept all label | Button label for accepting all categories | `Accept all` |
 | Reject all label | Button label for rejecting non-essential categories | `Reject all` |
 | Manage label | Link/button label that opens the per-category toggle panel | `Manage preferences` |
+| Dismiss button label | Button label used when the banner is notice-only (no optional categories configured) | `Got it` |
 | Cookie categories | The list of cookie categories visitors can accept or reject. The **Necessary** category is always present, always on, and cannot be removed. | Necessary, Preferences, Analytics, Marketing |
 | Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again | `365` |
 | Keep consent records for (days) | How long consent records are kept. Leave blank to keep them indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
+
+**Category keys:** Each category has a machine-readable **Key** as well as a visitor-facing **Label**. Keys must start with a lowercase letter and contain only lowercase letters, numbers, hyphens and underscores - `live-chat`, not `Live chat`. The editor folds what you type into that shape as you type it, and the one-click suggestions offered by active modules arrive already in it (the module's own wording becomes the label). The key is what module code checks, so renaming the label is safe; changing the key is not.
 
 **Category changes:** Adding or removing a category, or changing whether a category is required or on by default, automatically triggers re-consent for returning visitors. Purely cosmetic changes (renaming a label, editing copy) do not.
 

@@ -33,8 +33,11 @@ Installs managed centrally can instead be pre-provisioned with `LIVECHAT_*` envi
 
 ## Privacy behaviour (deliberate)
 
+- **The bubble itself is consent-gated.** Where the site's consent banner carries a **`live-chat` cookie category**, no chat button is rendered until that category is granted: a visitor who has not answered the banner yet has no decision recorded, and one who answered and left live chat off has a recorded no. Both see nothing. Grant it and the bubble appears there and then, no reload; withdraw it mid-visit and the bubble goes, an open panel closes, and this visit's buffered journey is dropped.
+  - The category is added on **admin → Config → GDPR & Legal**, from the *Suggested by active modules* row (key `live-chat`). Adding it re-prompts existing visitors once. Without it, the banner has nothing for visitors to decide, so the bubble behaves as it always did and shows to everyone.
+  - Staff with `livechat.view` get the agent console instead, which is a signed-in staff tool and is not gated this way.
 - **Nothing loads until the visitor clicks the bubble.** No script, no cookies, no contact record. Once clicked, the conversation opens directly - no "Start conversation" interstitial - it follows the visitor across pages while open, and the chat window follows the site's light/dark mode.
-- The **page journey** (this visit only, with rough dwell times) buffers in `sessionStorage` and leaves the browser only when a chat is opened - and only at all when the site either runs no consent banner or the visitor granted the **`live-chat` cookie category** (the module suggests it to the banner's category table; adding it re-prompts existing visitors once).
+- The **page journey** (this visit only, with rough dwell times) buffers in `sessionStorage` and leaves the browser only when a chat is opened - and only at all under the same permission as the bubble.
 - Logged-in members are identified with a **server-computed HMAC**, so nobody can impersonate someone else's email by fiddling with the page.
 - **Retention**: a nightly job deletes resolved conversations older than the configured months (default 12) on the Chatwoot server and in the mirror. Keep the number in step with the site's privacy policy.
 - When core **Turnstile** is configured, opening chat runs a managed (invisible for most people) challenge first.
