@@ -125,7 +125,7 @@ The product's own SKU is now staff-only too, and by default. It's a buying refer
 - **A badge**, off by default. Switch it on and products carrying the tag get a small label on their card, with your own wording and your own colours. Pick colours from your site palette (the same swatches as Appearance → Styles) or choose freely, and set light and dark mode separately - there are previews of both side by side, which is the quickest way to catch a label that has gone invisible against a dark background.
 - **A place in the order**, set with the arrows. It sorts this list, and it settles which badge wins when a product carries two badge-bearing tags: the higher one.
 
-A product card only ever wears one badge. "Out of stock" and "Pre-order" come first whatever else is true, then your own tag badges, then the built-in ones. If you'd rather not see a particular kind at all, the **Card: Badge** part in your Product Card layout has a switch for each.
+The product's own page prints every badge it has earned, not just one - so a reduced chair that is also flagged Ex-display says both. A product card only ever wears one badge. "Out of stock" and "Pre-order" come first whatever else is true, then your own tag badges, then the built-in ones. If you'd rather not see a particular kind at all, the **Card: Badge** part in your Product Card layout has a switch for each.
 
 Tags are ticked on a product under **Organisation** on the product editor, and there's an **Add tag** box right there for when you think of one mid-edit.
 
