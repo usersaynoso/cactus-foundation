@@ -171,7 +171,10 @@ this single prop; nothing else moves.
 - Live worked examples: Eclipse Plus Deluxe
   (`eclipse-plus-deluxe-mesh-back-task-operator-office-chair`), six sections;
   Carter (`carter-high-back-black-leather-executive-office-chair-with-arms`),
-  three sections, and the first job that uploaded its own clips.
+  three sections, and the first job that uploaded its own clips; Classic
+  (`classic-executive-office-chair-with-arms`), four sections, whose back-change
+  clip is the reference case for a cross-fade through white reading as blank in
+  the verification screenshots.
 
 ## Recipe
 
@@ -194,14 +197,30 @@ python3 .claude/skills/deskwell-sequence-description/scripts/optimise-videos.py 
   <outDir> "/path/to/Product/"*.mp4
 ```
 
-**Expect most feature clips to be rejected, and let them be.** The 5% minimum
+**Expect some feature clips to be rejected, and let them be.** The 5% minimum
 saving is the worker's own rule: an encode that lands within 5% of its source is
-not swapped in, because it trades a generation of quality for nothing. Supplier
-feature clips are usually short, small and already tightly encoded, so CRF 23
-comes back *bigger* - the report says `optimised: false`, the file is written as
-`.rejected.mp4`, and **the original is what gets uploaded**. Only the long
-whole-product hero reliably shrinks (Carter: 14.1 MB to 7.8 MB, plus a silent
-AAC track dropped; its three feature clips all grew and kept their originals).
+not swapped in, because it trades a generation of quality for nothing. A short,
+small, already tightly encoded feature clip comes back *bigger* from CRF 23 -
+the report says `optimised: false`, the file is written as `.rejected.mp4`, and
+**the original is what gets uploaded** (Carter: all three feature clips grew).
+
+Two things do shrink hard, and the run is worth it for them alone:
+
+- **The long whole-product hero**, every time (Carter 14.1 MB to 7.8 MB; Classic
+  Cantilever 25.7 MB to 13.0 MB), usually dropping a silent AAC track with it.
+- **Clips shot at 60 fps that also hold a lot of flat frames.** The 30 fps cap
+  halves the frames before CRF touches them, and a fade through white or a static
+  hold gives the encoder almost nothing to keep, so these fall off a cliff -
+  Classic Cantilever's 1400x1400@60 "3 Colours" clip went 4.9 MB to 534 KB, and
+  the Classic back-change clip 2.4 MB to 304 KB, both saving ~8x on clips the
+  "features don't shrink" rule of thumb would have written off.
+
+  60 fps on its own is **not** enough to predict it: Classic's tilt, height and
+  weight-tension clips are the same 1400x1400@60 and all three still came back
+  bigger. Do not try to guess which way a clip will go - the point of running the
+  whole folder through is that the 5% rule decides, per file, for free.
+  The `in`/`out` fields in the report show the fps change, so a source reading
+  `@60.0` is a strong hint the encode will be kept.
 
 That is not a failure and does not want reporting as one. The library says
 "Already as small as it gets" and marks the item done, which is exactly what the
@@ -242,18 +261,21 @@ a single variable is set. Pull out just what is needed, quoted:
 
 ```bash
 cd "/Users/chris/Git Local/Cactus"
-eval "$(grep -E '^(B2_KEY_ID|B2_KEY|B2_ENDPOINT|B2_BUCKET_NAME)=' .env \
+eval "$(grep -E '^(B2_BUCKET_NAME)=' .env \
   | sed -E "s/^([A-Z_]+)=(.*)$/export \1='\2'/")"
-export RCLONE_CONFIG_B2S3_TYPE=s3 \
-       RCLONE_CONFIG_B2S3_PROVIDER=Other \
-       RCLONE_CONFIG_B2S3_ACCESS_KEY_ID="$B2_KEY_ID" \
-       RCLONE_CONFIG_B2S3_SECRET_ACCESS_KEY="$B2_KEY" \
-       RCLONE_CONFIG_B2S3_ENDPOINT="$B2_ENDPOINT"
-rclone copyto "<local>" "b2s3:$B2_BUCKET_NAME/<key>" --s3-no-check-bucket --no-traverse
+rclone copyto "<local>" "b2s3:$B2_BUCKET_NAME/<key>" --no-traverse
 ```
 
-The `b2eu`/`b2old` rclone remotes are dead. `--s3-no-check-bucket` is required -
-without it rclone tries `CreateBucket` and the app key gets `403 not entitled`.
+`b2s3:` is a configured rclone remote (S3 endpoint, `no_check_bucket = true`
+baked in) holding the live Deskwell credentials. `b2:` is the same account over
+the native B2 backend. Use one of those two names and nothing else.
+
+**Never invent or resurrect another B2 remote name.** The old `b2eu` / `b2old`
+remotes belonged to closed accounts and Backblaze answered them with
+`403 account_trouble - please log into your b2 account`, which reads like a
+billing problem with the live account and is not one. They were removed on
+2026-08-08. If a B2 command fails with `account_trouble`, the remote name is
+wrong, not the account.
 
 Verify every upload before going near the database - the CDN answers 405 to HEAD,
 so ask for one byte and read the total off `Content-Range`:
@@ -298,6 +320,18 @@ osascript -e 'tell application "Finder" to delete POSIX file "/absolute/path/to/
 **Only after the uploads verified.** Never before, and never if any clip came
 back anything other than 206.
 
+Do not try to confirm the move by listing `~/.Trash/<folder>` - without Full Disk
+Access that answers `Operation not permitted`, which looks like a failure and
+is not one. The `osascript` line prints the item's new Trash path on success;
+that plus the source directory no longer existing is the confirmation.
+
+**Step 0a's output directory is not part of this and must not be cleared.** The
+re-encodes (and the `.rejected.mp4` copies, which are byte-identical encodes of
+the clips whose originals got uploaded) stay in the scratchpad, so every clip
+is still probeable with `ffmpeg`/`ffprobe` after the source folder has gone -
+which is exactly what settles a suspicious-looking verification screenshot in
+step 3 without downloading anything back off the CDN.
+
 ### 0. Safety first
 
 - Read the product's current `description` and `description_puck`; save both
@@ -307,6 +341,12 @@ back anything other than 206.
 - If the plain `description` is junk (old iframe embeds and the like), replace
   it with a clean sentence or two of `<p>` - it is the fallback and feeds
   JSON-LD when `short_description` is empty. Never leave garbage in it.
+  The usual supplier shape is a `cdn.dynamicos.co.uk` iframe plus a jQuery
+  `<script>` pair plus an iframe-resizer loader - and then, tacked on the end, a
+  `<ul>` of real spec bullets ("Two lever infinite lock any position mechanism",
+  "Matching chrome 5 star base"). **Keep the bullets, bin the rest.** They are
+  the only content in there, they are what the fallback is for, and they are
+  usually one run-on `<li>` that wants splitting into one bullet per feature.
 
 ### 1. The feature block
 
@@ -420,6 +460,13 @@ followed by a `TextBlock`:
   it is the same sentence that greets people higher up the page, so it should
   not be reworded here. Tidy double spaces, nothing else. If the product has
   no short description, skip the TextBlock rather than inventing copy.
+- **A short description that stops mid-sentence still gets pasted verbatim.**
+  Several were truncated on the way in from the supplier - Classic Cantilever's
+  ends "Bring some class to your office with the Classic", no "range." Finishing
+  the sentence here would leave the description block and the top of the page
+  disagreeing, and inventing supplier copy is not this job's call. Paste it as
+  it is, then tell the user which product and quote the dangling end, so they
+  can fix the field itself if they want to.
 - Wide hero clips are the heavy ones (16:9 masters run to tens of megabytes
   against a few MB for a square feature clip). If you want the number, read it
   off the `Content-Range` header of a one-byte request - never by downloading
@@ -467,6 +514,36 @@ it installed:
 npm i playwright && npx playwright install chromium-headless-shell webkit
 ```
 
+**Run it with the scratchpad as the working directory.** The shots are written
+to the CWD, and the scratchpad is the one place an agent's sandboxed shell can
+actually write. Point the output anywhere else - the skill directory especially
+- and the write lands in the sandbox overlay instead: `ls` from that same shell
+cheerfully lists the PNGs, the file-reading tools say the path does not exist,
+and it reads like a broken script rather than a write you were never allowed to
+make. Copy the script over and run it there if that is simpler:
+
+```bash
+cp .../scripts/verify-viewports.mjs ./verify.mjs && node ./verify.mjs <url>
+```
+
+`npm i playwright` is quick; the browser download usually is not needed at all -
+check `ls ~/Library/Caches/ms-playwright/` first, since `chromium_headless_shell-*`
+and `webkit-*` are normally already there from a previous product. The `npx
+playwright install` line can also come back as
+`[RTK:PASSTHROUGH] playwright parser: All parsing tiers failed` with the shell cwd
+reset and no other output. That is the rtk wrapper failing to parse the command,
+not the install failing. Look in the cache directory rather than re-running it.
+
+**The screenshots land beside the script, inside this repo** - `scripts/d-0.png`
+and friends, deliberately (the header explains why: `process.cwd()` comes back
+percent-encoded from "Git Local" and the shots end up in a bogus tree). So they
+show up in `git status` in a tree several agents share. Look at them, then
+**delete them** before reporting:
+
+```bash
+rm -f .claude/skills/deskwell-sequence-description/scripts/[dtm]-*.png
+```
+
 What to expect:
 
 - **Desktop/tablet**: text midpoint level with the video midpoint; text on the
@@ -503,10 +580,30 @@ What to expect:
   Both true means playback is fine. Only if the clip really does open on an empty
   frame does the `posterUrl` remedy below apply - and while the source is still
   on disk, `ffmpeg -vf "select=eq(n\,0)" -vframes 1` settles it outright.
+- **A ghosted, barely-visible product is usually the clip's own cross-fade, and
+  is not a defect.** The "two options" / "back change" style clips swap one
+  version of the chair for another by fading *through white*, and the studio
+  background is white too, so a screenshot that lands mid-fade shows a faint
+  outline in an otherwise empty frame - on desktop and mobile alike, since both
+  viewports hit a similar timestamp. Two checks, in this order:
+  1. Sample frames of the copy still sitting in step 0a's output directory -
+     `for t in 0 0.5 1 1.5 2 2.5 3; do ffmpeg -v error -ss $t -i clip.mp4
+     -vframes 1 frames/$t.png -y; done`. **The PNG file sizes alone identify it**
+     before you open a single image: a near-white frame comes out a fraction of
+     the size of a frame with the chair in it (35KB against 140KB on Classic).
+  2. Open the biggest and the smallest. Chair solid black in one, ghost in the
+     other, means the clip is fine and the fade is the point of it.
+  Do not reach for `posterUrl` here - `t=0` has full content, so first paint is
+  already correct. Say what it is in the report and move on. And do not blame the
+  encoder: the Classic back-change clip legitimately compresses 2.4MB down to
+  304KB precisely *because* half of it is nearly flat white.
 - If a section does read as a black or blank box in the verification
   screenshots, that clip fades up from black. Fix it with a `posterUrl`: grab a
   representative frame, upload it to the media library, paste its url. Do not
   swap the clip out on your own initiative - tell the user which one it is.
+- `PIL` is not installed and `signalstats`/`metadata=print` prints nothing useful
+  through the shell here, so don't build a brightness-measuring pipeline. Frame
+  PNG size plus reading the image is the whole toolkit.
 - An admin opening the product's pop-out description builder later edits this
   same document. **Feature video** sits in the Media category, and **Title and
   text position** is right there in the sidebar if they want to flip sides by

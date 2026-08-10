@@ -1,18 +1,28 @@
 // Verify feature-video description blocks on the live site at three viewports.
 // Usage:
-//   node verify-viewports.mjs <productUrl> [count]
+//   node verify-viewports.mjs <productUrl> [count] [outDir]
 // count defaults to every <video> the description renders.
 // Needs playwright beside it (not a repo dependency):
 //   npm i playwright && npx playwright install chromium-headless-shell webkit
-// Writes d-<i>.png, t-<i>.png and m-<i>.png next to itself.
+// Writes d-<i>.png, t-<i>.png and m-<i>.png into outDir, defaulting to the CWD
+// - so run it from the scratchpad dir you installed playwright in.
 // LOOK AT THEM - numbers alone have missed a defect before now.
 
 import { chromium, webkit, devices } from 'playwright'
+import { resolve } from 'node:path'
 
 const URL_ARG = process.argv[2]
 const COUNT_ARG = process.argv[3] ? Number(process.argv[3]) : null
 if (!URL_ARG) { console.error('usage: node verify-viewports.mjs <productUrl> [count]'); process.exit(1) }
-const OUT = new URL('.', import.meta.url).pathname
+// The CWD, never the script's own directory. Writing beside the script looks
+// tidier and is unusable twice over: the repo lives under "Git Local", so a
+// path built from import.meta.url needs unescaping to avoid a "Git%20Local"
+// tree - and worse, an agent's shell is sandboxed to the scratchpad, so a write
+// into the skill directory silently lands in an overlay. `ls` from that same
+// shell then lists shots that the file-reading tools cannot open, which reads
+// as "the tool is broken" rather than "you wrote somewhere you cannot write".
+// CWD sidesteps both, and the skill already says to run this from a scratchpad.
+const OUT = resolve(process.argv[4] || process.cwd()) + '/'
 
 // deskwell.co.uk never reaches networkidle (polling widgets), so settle by time.
 // Smooth scrolling is disabled too: scrollTo would otherwise animate, and every

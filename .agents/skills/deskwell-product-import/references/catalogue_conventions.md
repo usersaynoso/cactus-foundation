@@ -202,10 +202,18 @@ hand; core re-files a product's images whenever it is saved in the admin.
 List the bucket rather than trusting the `Media` table:
 
 ```bash
-rclone lsf ":b2,account=$B2_KEY_ID,key=$B2_KEY,hard_delete=false:Deskwell-Office-Furniture/media/dynamic/"
+rclone lsf "b2s3:Deskwell-Office-Furniture/media/dynamic/"
 ```
 
-Credentials are in the Cactus root `.env` (`B2_KEY_ID`, `B2_KEY`). Do not `source .env`
+`b2s3:` (S3 endpoint) and `b2:` (native B2 backend) are configured rclone remotes holding
+the live Deskwell credentials. Use one of those two names and nothing else - never invent
+a remote name and never resurrect the old `b2eu` / `b2old`, which belonged to closed
+accounts and answer with `403 account_trouble - please log into your b2 account`. That
+message reads like a billing problem with the live account and is not one; it means the
+remote name is wrong. They were removed on 2026-08-08.
+
+Raw credentials are in the Cactus root `.env` (`B2_KEY_ID`, `B2_KEY`) if a remote ever has
+to be rebuilt. Do not `source .env`
 in zsh - a bare `&` on one line makes it a parse error; grep the values out. Expect gaps:
 about 18% of SKUs in the July 2026 import had no photo at all. A listing takes its images
 from its first variation that has any.

@@ -61,6 +61,8 @@ Upload a GLB and Cactus compresses it on the way in. Design tools are built for 
 
 There is nothing to switch on. The file picks up a green **✓ Optimised** badge in your media library once it is done, and models you uploaded before this existed can be slimmed down from there whenever you like - see [Managing media](Managing-media#slimming-down-3d-models). Only GLB files get this treatment; OBJ, FBX and 3DS are stored exactly as you sent them, which is one more reason to use GLB.
 
+**It also straightens out one thing suppliers' models get away with and ours cannot.** Catalogue tools shade a whole range from one shared swatch a few pixels across, each part told to read a single pixel of it. Re-cut a part so a shopper's finish tiles across it at a real size and that reading starts to wander, which draws broad bands of the wrong sheen down a desk top - right picture, right grain, stripes of polish. Cactus spots it on the way in, works out the shade the part was standing on and pins it there, so the surface goes back to one honest finish. Models using the trick as intended are left exactly as they are.
+
 If you would rather do the compressing yourself with your own tools, that works too - Cactus reads the usual compressed formats, including the newer compressed textures that keep a model light on a phone's memory as well as on its download.
 
 ### Models that move
@@ -126,6 +128,10 @@ It sits below the model list on the **3D views** tab, and appears only on a prod
 
    It is deliberately one or the other and never both: a second measurement could only ever disagree with the first, and there is nothing useful to do with a disagreement. One note on width - it is read left to right as the model was built, so a file that arrived lying on its side wants re-exporting the right way up rather than a number fudged to suit.
 
+**Models that show an add-on as well.** A model can be tagged to an add-on combination, so the shopper who ticks the screen sees the desk with its screens on rather than the bare desk (see [Showing a product with its add-ons](#showing-a-product-with-its-add-ons)). Such a file is not the size of the product: a desk 86.5cm high measures about 130cm to the top of its screen, and if the shop goes on using the product's own measurement for it, every finish on that file - the desk's own wood as much as the screen's fabric - is drawn about half again too big. Nothing looks broken; the colours are all correct and only the grain is the wrong size, which is exactly why it is worth saying.
+
+   So as soon as a product has a model tagged that way, the configurator grows a **Sizes with add-ons in shot** section listing those files, with a box for each. Type the real measurement of the whole thing with the add-on included - top of the screen, not top of the desk - in the same dimension you chose to scale by. Leave one empty and it says so, in red, rather than quietly getting it wrong. The box beside each one shows what the file itself measures and what your number works out to per unit, so a "1300mm" typed where you meant "130cm" shows up on the spot as a figure ten times its neighbours.
+
 **Turning a texture round.** Grain, weave and brushed metal all run in a direction, and a 3D file now and then arrives with one laid the wrong way - a wood grain running across a desk top rather than along it. Rather than sending the file back to whoever built it, set the **Rotation** box on that part: it's in degrees, so 90 lays the grain the other way round and anything in between works for a panel whose grain runs at an angle. It turns the pattern about the middle of the part, so nothing slides out of place, and it leaves the scale alone. A part set to a fixed colour has no Rotation box, a flat colour having no direction to speak of.
 
 **Which model gets coloured.** Whatever model the chosen variation carries. Attach a model to each variation from the **3D** column on the **Variations** tab, exactly as you would its picture; if a shape changes rather than just its colour - a headrest that is there on one option and not on another - that is simply a different file on that variation, no special rule to set. Variations that are the same shape can share one file, uploaded against each. If a variation has no model of its own, the product's own model stands in. (This is also why the height is set per variation: a taller model is genuinely taller.)
@@ -165,6 +171,16 @@ The configurator only starts colouring for shoppers once you have set up **at le
 So Cactus reads the swatch's own name. Any finish with the word **leather** in it - "Soft Leather", "Bonded Leather", "Leatherette", "Faux Leather", however your supplier writes it - is given a soft sheen automatically, and every other finish is painted exactly as it was before. Nothing to set up and nothing to tick: name your leathers as leathers, which you almost certainly already do, and the shopper switching from the wool to the leather sees the surface change as well as the colour. Switch back and the sheen goes with it.
 
 It reads the picture's filename too, so a colour listed as plain "Black" that points at a `black-leather` swatch is caught just the same. Only the swatch's own name counts, not the folder it sits in, so a wool filed under a "leather-chairs" product is left well alone. And it works whichever way your finishes are set up - a picture swatch attribute, a chooser on the Variations tab, even a leather offered as a plain colour dot with no photo behind it. The configurator's own preview shows the sheen too, so what you see while setting the product up is what the shopper gets.
+
+### Showing a product with its add-ons
+
+Where a product offers accessories through [Product add-ons](Product-Add-ons), the 3D view can show the product *with* them rather than on its own - a bench desk drawn with its privacy screens the moment the shopper ticks the screen, and back to the bare desk when they untick it.
+
+It takes two things. First, a model file that shows the pair together, attached to the product exactly as any other model is. Second, a **tag** on that file saying which add-on combination it is showing: beside every model on the **3D views** tab there is a small **＋ tag** button, and typing a short key into it - `screens`, say - marks the file as "this product, with the screens on". A file with no tag is the base model, which is what every model you already have is, and nothing about them changes.
+
+The key you type has to match the one set on the add-on itself, on the product's **Add-ons** tab. Set the same word in both places and the two are joined up; leave the add-on's blank and the 3D view simply never asks for the tagged file. Where a shopper picks a combination you have no tagged file for, they see the plain product - never a guess at something in between.
+
+Two things worth knowing. The tagged file must carry a size of its own, in **Sizes with add-ons in shot** - it is a different size from the product, and the configurator will tell you in red if you have not given it one. And the add-on's own finishes paint from the add-on's *own* options: point a material part at the screen listing's "Upholstery Colour" and the shopper choosing their screen fabric sees it change on the desk, while the desk's top and frame go on following the desk's own choosers.
 
 ### Not yet, but on the list
 
