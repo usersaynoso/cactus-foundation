@@ -7,7 +7,12 @@
 //   - every row is re-read inside the transaction and compared with what the
 //     plan saw. A price that has moved since the plan was made means the plan
 //     is stale, and the whole run is rolled back rather than half-applied
-//   - it is one transaction, so a UNIQUE clash on a SKU leaves no partial state
+//   - it is one transaction, so a UNIQUE clash on a restored SKU leaves no
+//     partial state
+//
+// What it writes: sale_price, and sale_sku (the code the supplier wants on the
+// order while the offer runs). The product's own sku is left alone, except on a
+// row an older version of this script swapped over, which is put back.
 //   - rollback.sql beside the plan puts every touched row back
 //
 // Usage:
@@ -53,7 +58,7 @@ try {
     // FOR UPDATE so nothing else can move the price between the check and the
     // write. A shop this size will never contend, but a price is a price.
     const { rows: current } = await client.query(
-      'select sku, price::text as price, sale_price::text as sale_price from shp_products where id = $1 for update',
+      'select sku, sale_sku, price::text as price, sale_price::text as sale_price from shp_products where id = $1 for update',
       [row.id],
     )
     if (current.length === 0) {
@@ -70,20 +75,23 @@ try {
       stale.push({ ...row, why: `sale price is now ${liveSale ?? 'none'}, plan expected ${row.currentSale ?? 'none'}` })
       continue
     }
-    if (row.newSku && live.sku !== row.sku) {
+    if (row.newSaleSku && (live.sale_sku ?? null) !== (row.currentSaleSku ?? null)) {
+      stale.push({ ...row, why: `sale SKU is now ${live.sale_sku ?? 'none'}, plan expected ${row.currentSaleSku ?? 'none'}` })
+      continue
+    }
+    // Only rows being put right after the old SKU-swapping script care what the
+    // SKU says; every other row leaves it alone, so it cannot go stale.
+    if (row.restoreSku && live.sku !== row.sku) {
       stale.push({ ...row, why: `SKU is now ${live.sku}, plan expected ${row.sku}` })
       continue
     }
 
-    if (row.newSku) {
-      await client.query('update shp_products set sale_price = $1, sku = $2, updated_at = now() where id = $3', [
-        row.newSale,
-        row.newSku,
-        row.id,
-      ])
-    } else {
-      await client.query('update shp_products set sale_price = $1, updated_at = now() where id = $2', [row.newSale, row.id])
-    }
+    const sets = ['sale_price = $1']
+    const values = [row.newSale]
+    if (row.newSaleSku) { values.push(row.newSaleSku); sets.push(`sale_sku = $${values.length}`) }
+    if (row.restoreSku) { values.push(row.restoreSku); sets.push(`sku = $${values.length}`) }
+    values.push(row.id)
+    await client.query(`update shp_products set ${sets.join(', ')}, updated_at = now() where id = $${values.length}`, values)
     applied.push(row)
   }
 

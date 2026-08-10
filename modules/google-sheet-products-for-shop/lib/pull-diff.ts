@@ -270,7 +270,7 @@ function numCell(s: string): number | undefined {
 function variationRowChanged(
   v: VariantEditorRow,
   cols: string[],
-  col: { sku: number; price: number; salePrice: number; rrp: number; tradePrice: number; costPrice: number; stock: number; barcode: number; supplier: number; weight: number; image: number },
+  col: { sku: number; saleSku: number; price: number; salePrice: number; rrp: number; tradePrice: number; costPrice: number; stock: number; barcode: number; supplier: number; weight: number; image: number },
 ): boolean {
   const cell = (i: number) => (cols[i] ?? '').trim()
   // Every number compares through numbersMatch, the float tolerance Push's
@@ -295,6 +295,7 @@ function variationRowChanged(
   if (priceCellChanged(col.tradePrice, v.tradePrice)) return true
   if (priceCellChanged(col.costPrice, v.costPrice)) return true
   if (col.sku >= 0 && (v.sku ?? null) !== (cell(col.sku) || null)) return true
+  if (col.saleSku >= 0 && (v.saleSku ?? null) !== (cell(col.saleSku) || null)) return true
   if (col.barcode >= 0 && (v.barcode ?? null) !== (cell(col.barcode) || null)) return true
   if (col.supplier >= 0 && (v.supplier ?? null) !== (cell(col.supplier) || null)) return true
   const numChanged = (a: number | null, b: number | null): boolean =>
@@ -351,7 +352,7 @@ export async function diffVariationRows(grid: string[][]): Promise<VariationRowR
     optionPairs.push({ nameCol, valueCol })
   }
   const fieldCol = {
-    sku: idx('Variant SKU'), price: idx('Price'),
+    sku: idx('Variant SKU'), saleSku: idx('Sale SKU'), price: idx('Price'),
     salePrice: idx('Sale Price'), rrp: idx('RRP'), tradePrice: idx('Trade Price'), costPrice: idx('Cost Price'),
     stock: idx('Stock'),
     barcode: idx('Barcode'), supplier: idx('Supplier'), weight: idx('Weight'), image: idx('Image'),

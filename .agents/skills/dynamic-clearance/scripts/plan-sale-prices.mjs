@@ -19,14 +19,20 @@
 // in its normal pricing formula, rounded up to the whole pound the rest of the
 // catalogue is priced in.
 //
-// The clearance SKU is taken across too: while an item is on clearance it is
-// ordered from the supplier by its clearance code (PR1291), not its catalogue
-// code (OP000115), so the shop's SKU has to say the same. This is why the
-// barcode is the first-choice match key - once the SKU has been swapped, the
-// old code is no longer in the row to match on, and the barcode is what still
-// ties the two catalogues together. The code that was displaced is kept in the
-// plan and in rollback.sql, so putting it back when the sale ends is one file.
-// Pass --no-skus to leave SKUs alone and move prices only.
+// The clearance code is recorded too, in shp_products.sale_sku - the shop's own
+// field for exactly this. While an item is on clearance it is ORDERED under the
+// clearance code (PR1291), while the supplier's stock spreadsheet still calls it
+// by its catalogue code (OP000115). Both are needed, so both are held: `sku` is
+// never touched, and the clearance code goes in beside it.
+//
+// (An older version of this script overwrote `sku` instead, which broke stock
+// matching. A row still in that state - its `sku` holding a clearance code - is
+// put right here: the catalogue code is read back off the clearance listing's
+// image filename and restored, with the clearance code moved to sale_sku. Where
+// the listing does not give the catalogue code the row is flagged instead, since
+// guessing a UNIQUE identifier is not on.)
+//
+// Pass --no-skus to move prices only and leave every code alone.
 //
 // Usage:
 //   node plan-sale-prices.mjs --in clearance.json --out-dir clearance_sale_2026_08_10
@@ -134,10 +140,25 @@ function decisionFor(item) {
 const client = new pg.Client({ connectionString: directUrl() })
 await client.connect()
 
+// sale_sku arrived with shop module 0.1.207. A site still on an older shop has
+// no such column, and the read below would fail with a raw Postgres error that
+// says nothing about what to do - so say it here instead.
+const { rows: hasColumn } = await client.query(`
+  select 1 from information_schema.columns
+   where table_name = 'shp_products' and column_name = 'sale_sku'
+`)
+if (hasColumn.length === 0) {
+  await client.end()
+  throw new Error(
+    'This shop has no sale SKU field yet (shp_products.sale_sku is missing).\n' +
+      'It arrives with shop module 0.1.207 - update the site first, then run this again.',
+  )
+}
+
 // The whole priced catalogue in one read - 21k narrow rows is far cheaper than
 // a round trip per clearance variant, and it lets duplicate keys be spotted.
 const { rows: catalogue } = await client.query(`
-  select p.id, p.sku, p.barcode, p.name, p.slug, p.status,
+  select p.id, p.sku, p.sale_sku, p.barcode, p.name, p.slug, p.status,
          p.price::text as price, p.sale_price::text as sale_price,
          parent.name as parent_name, parent.slug as parent_slug
     from shp_products p
@@ -152,6 +173,11 @@ const deskwellUrl = (row) => `${site}/shop/products/${row.parent_slug ?? row.slu
 
 const byBarcode = new Map()
 const bySku = new Map()
+// Rows already carrying a clearance code in the field it belongs in. This is
+// what makes a second run find last month's work: sale_sku is added to the row
+// rather than replacing anything, so the catalogue code keeps working as a key
+// as well.
+const bySaleSku = new Map()
 for (const row of catalogue) {
   if (row.barcode) {
     if (!byBarcode.has(row.barcode)) byBarcode.set(row.barcode, [])
@@ -160,6 +186,10 @@ for (const row of catalogue) {
   if (row.sku) {
     if (!bySku.has(row.sku)) bySku.set(row.sku, [])
     bySku.get(row.sku).push(row)
+  }
+  if (row.sale_sku) {
+    if (!bySaleSku.has(row.sale_sku)) bySaleSku.set(row.sale_sku, [])
+    bySaleSku.get(row.sale_sku).push(row)
   }
 }
 
@@ -289,6 +319,17 @@ for (const item of clearance) {
   } else if (item.barcode && byBarcode.has(item.barcode)) {
     candidates = byBarcode.get(item.barcode)
     matchedBy = 'barcode'
+  } else if (item.clearanceSku && bySaleSku.has(item.clearanceSku)) {
+    // A row already carrying this clearance code in its sale SKU is one an
+    // earlier run has been through - the right row by construction.
+    candidates = bySaleSku.get(item.clearanceSku)
+    matchedBy = 'clearance code already applied'
+  } else if (item.clearanceSku && bySku.has(item.clearanceSku)) {
+    // A row whose SKU *is* the clearance code was swapped over by the old
+    // version of this script, before sale_sku existed. Still the right row, and
+    // the write below puts the catalogue code back where it can.
+    candidates = bySku.get(item.clearanceSku)
+    matchedBy = 'clearance code in the SKU from an older run'
   } else if (item.supplierCode && bySku.has(item.supplierCode)) {
     candidates = bySku.get(item.supplierCode)
     matchedBy = `sku (${item.codeSource})`
@@ -316,21 +357,27 @@ for (const item of clearance) {
     continue
   }
 
-  // The SKU only moves when there is somewhere to move it to, and never onto a
-  // code another product already holds - shp_products.sku is UNIQUE, so a clash
-  // would fail the whole transaction at apply time rather than here.
-  let newSku = null
-  if (moveSkus && item.clearanceSku && item.clearanceSku !== target.sku) {
-    const holder = (bySku.get(item.clearanceSku) ?? []).find((r) => r.id !== target.id)
-    if (holder) {
-      note(`clearance SKU ${item.clearanceSku} is already on ${holder.sku ?? holder.id} (${holder.name})`, { sku: target.sku })
-      continue
-    }
-    newSku = item.clearanceSku
+  // The clearance code goes into sale_sku, which is nullable and NOT unique -
+  // it is the supplier's code for the offer, not the shop's identity, so two
+  // rows wearing it is legitimate and needs no clash guard.
+  let newSaleSku = null
+  if (moveSkus && item.clearanceSku && item.clearanceSku !== target.sale_sku) newSaleSku = item.clearanceSku
+
+  // A row the OLD script swapped: its sku is the clearance code. Put the
+  // catalogue code back where the clearance listing tells us what it was - its
+  // image filenames start with it. sku is UNIQUE, so a code another row already
+  // holds is left well alone and flagged instead; and with no code to restore,
+  // the row still gets its price and sale code, with the SKU noted for a human.
+  let restoreSku = null
+  let skuNeedsAttention = false
+  if (moveSkus && item.clearanceSku && target.sku === item.clearanceSku) {
+    const holder = item.supplierCode ? (bySku.get(item.supplierCode) ?? []).find((r) => r.id !== target.id) : null
+    if (item.supplierCode && !holder) restoreSku = item.supplierCode
+    else skuNeedsAttention = true
   }
 
   const salePriceAlreadyRight = target.sale_price != null && Number(target.sale_price) === newSale
-  if (salePriceAlreadyRight && !newSku) {
+  if (salePriceAlreadyRight && !newSaleSku && !restoreSku) {
     note(`already on sale at ${newSale} under the clearance SKU`, { sku: target.sku })
     continue
   }
@@ -338,7 +385,12 @@ for (const item of clearance) {
   planned.push({
     id: target.id,
     sku: target.sku,
-    newSku,
+    currentSaleSku: target.sale_sku,
+    newSaleSku,
+    // Only set for a row left holding a clearance code in its SKU by the old
+    // script. Null on every ordinary row, whose SKU is never touched.
+    restoreSku,
+    skuNeedsAttention,
     barcode: target.barcode,
     name: target.name,
     parentName: target.parent_name,
@@ -376,7 +428,7 @@ for (const [id, group] of byId) {
     for (const g of group) skipped.push({ ...g, reason: `clearance lists this row at ${[...prices].join(' and ')} - contradictory` })
     continue
   }
-  const skus = new Set(group.map((g) => g.newSku).filter(Boolean))
+  const skus = new Set(group.map((g) => g.newSaleSku).filter(Boolean))
   if (skus.size > 1) {
     for (const g of group) skipped.push({ ...g, reason: `clearance lists this row under ${[...skus].join(' and ')} - contradictory` })
     continue
@@ -384,19 +436,22 @@ for (const [id, group] of byId) {
   deduped.push({ ...group[0], clearanceRows: group.length, id })
 }
 
-// Two different Deskwell rows both being handed the same clearance SKU is the
-// same UNIQUE clash as above, just from inside the one run.
+// Two rows sharing one clearance code needs no guard now the code lands in
+// sale_sku: that column is not UNIQUE, because a supplier is free to put one
+// clearance code across several lines. A restored catalogue SKU is the unique
+// one, and the two rows that would collide on it are caught here.
 const final = []
-const claimed = new Map()
+const restoring = new Map()
 for (const row of deduped) {
-  if (!row.newSku) continue
-  if (!claimed.has(row.newSku)) claimed.set(row.newSku, [])
-  claimed.get(row.newSku).push(row)
+  if (!row.restoreSku) continue
+  if (!restoring.has(row.restoreSku)) restoring.set(row.restoreSku, [])
+  restoring.get(row.restoreSku).push(row)
 }
 for (const row of deduped) {
-  const rivals = row.newSku ? claimed.get(row.newSku) : null
+  const rivals = row.restoreSku ? restoring.get(row.restoreSku) : null
   if (rivals && rivals.length > 1) {
-    skipped.push({ ...row, reason: `${rivals.length} Deskwell rows would all be given SKU ${row.newSku}` })
+    // Don't lose the price over it: keep the row, drop only the SKU restore.
+    final.push({ ...row, restoreSku: null, skuNeedsAttention: true })
     continue
   }
   final.push(row)
@@ -420,7 +475,7 @@ writeFileSync(join(outDir, 'decisions.json'), `${JSON.stringify({ decisions: Obj
 
 writeFileSync(
   join(outDir, 'plan.csv'),
-  `${csv(final, ['sku', 'newSku', 'barcode', 'name', 'parentName', 'price', 'currentSale', 'newSale', 'clearanceNow', 'clearanceWas', 'matchedBy', 'codeAgrees', 'dynamicUrl', 'deskwellUrl'])}\n`,
+  `${csv(final, ['sku', 'restoreSku', 'skuNeedsAttention', 'currentSaleSku', 'newSaleSku', 'barcode', 'name', 'parentName', 'price', 'currentSale', 'newSale', 'clearanceNow', 'clearanceWas', 'matchedBy', 'codeAgrees', 'dynamicUrl', 'deskwellUrl'])}\n`,
 )
 writeFileSync(
   join(outDir, 'unmatched.csv'),
@@ -432,24 +487,31 @@ const rollback = final
   .map(
     (r) =>
       `UPDATE "shp_products" SET "sale_price" = ${r.currentSale == null ? 'NULL' : r.currentSale}` +
-      (r.newSku ? `, "sku" = ${sqlLiteral(r.sku)}` : '') +
-      ` WHERE "id" = '${r.id}'; -- ${r.sku ?? ''} ${r.name}`,
+      (r.newSaleSku ? `, "sale_sku" = ${sqlLiteral(r.currentSaleSku)}` : '') +
+      // Only a row this run put right carries a sku change to undo. Undoing it
+      // means putting the clearance code back in the SKU, which is where it was.
+      (r.restoreSku ? `, "sku" = ${sqlLiteral(r.sku)}` : '') +
+      ` WHERE "id" = '${r.id}'; -- ${r.restoreSku ?? r.sku ?? ''} ${r.name}`,
   )
   .join('\n')
 writeFileSync(
   join(outDir, 'rollback.sql'),
-  `-- Undo the clearance sale prices and SKU swaps applied from ${outDir}.\n` +
-    `-- Restores each row to the price and code it held before the run.\nBEGIN;\n${rollback}\nCOMMIT;\n`,
+  `-- Undo the clearance sale prices and sale codes applied from ${outDir}.\n` +
+    `-- Restores each row to the price and codes it held before the run.\nBEGIN;\n${rollback}\nCOMMIT;\n`,
 )
 
 const overwrites = final.filter((r) => r.currentSale != null).length
-const skuMoves = final.filter((r) => r.newSku).length
+const skuMoves = final.filter((r) => r.newSaleSku).length
+const repairs = final.filter((r) => r.restoreSku).length
+const needAttention = final.filter((r) => r.skuNeedsAttention).length
 const disagree = final.filter((r) => r.codeAgrees === false).length
 const money = (n) => (n == null ? '?' : `£${Number(n).toFixed(2).replace(/\.00$/, '')}`)
 
 console.log(
   `${clearance.length} clearance variants read\n` +
-    `  ${final.length} to update (${overwrites} already carry a different sale price, ${skuMoves} change SKU)\n` +
+    `  ${final.length} to update (${overwrites} already carry a different sale price, ${skuMoves} gain a sale SKU)\n` +
+    (repairs ? `  ${repairs} still hold a clearance code in the SKU itself from an older run - the catalogue code is put back\n` : '') +
+    (needAttention ? `  ${needAttention} hold a clearance code in the SKU with no catalogue code to restore - fix these by hand\n` : '') +
     `  ${suggestions.length} need confirming - listed below\n` +
     `  ${skipped.length} skipped in total - see ${join(outDir, 'unmatched.csv')}\n` +
     (disagree ? `  ${disagree} matched on barcode but the image code disagrees with the SKU - check these by hand\n` : ''),

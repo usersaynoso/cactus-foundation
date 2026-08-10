@@ -3,8 +3,9 @@ name: dynamic-clearance
 description: >-
   Read the Dynamic Office Seating clearance collection, match each clearance
   item to the Deskwell / Cactus shop product it corresponds to, and put it on
-  sale - writing a sale price of the clearance price plus 6%, and swapping the
-  product's SKU over to the clearance code it must now be ordered under. Where
+  sale - writing a sale price of the clearance price plus 6%, and recording the
+  clearance code in the product's Sale SKU so it is ordered under the right code
+  while the offer runs. The product's own SKU is never touched. Where
   a clearance item carries no barcode, it guesses which Deskwell product it is
   and hands back both product links side by side to be confirmed before
   anything is written. Use whenever the user asks to check the supplier's
@@ -13,7 +14,8 @@ description: >-
   actually stocks, confirm the guessed matches, or take products back off sale
   when a clearance run ends. Covers scraping the public collection without a
   login, matching by barcode and supplier code, the exact database writes to
-  shp_products, and the rollback file that undoes them.
+  shp_products, and the rollback file that undoes them. Also puts right any row
+  left holding a clearance code in its SKU by an earlier version of this skill.
 ---
 
 # Dynamic clearance
@@ -48,9 +50,17 @@ rows created by shop-variations, occasionally a standalone product.
 | Column | Value |
 | --- | --- |
 | `sale_price` | `ceil(clearance price x 1.06)` |
-| `sku` | the clearance code (`PR1291`), replacing the catalogue code (`OP000115`) |
+| `sale_sku` | the clearance code (`PR1291`) |
 
-`price` is never touched. Sale prices are already switched on for this shop
+`price` and **`sku` are never touched**. The two codes do different jobs and
+both are needed: the supplier's stock spreadsheet still calls the item
+`OP000115`, while an order for it has to say `PR1291` to get the lower price.
+Overwriting one with the other breaks whichever job it was doing.
+
+`sale_sku` needs shop module **0.1.207 or newer** on the site. The planner
+checks for the column up front and says so plainly if it is not there yet.
+
+Sale prices are already switched on for this shop
 (`shp_settings.config.enabledPriceTypes` contains `sale`), so the storefront
 shows the sale figure with `price` struck through beside it, and the checkout
 charges the sale figure - `effectivePrice` in `modules/shop/lib/pricing.ts` is
@@ -61,21 +71,39 @@ The 6% is the same uplift the shop's normal pricing already carries
 against the rest of the catalogue. Rounded up to the whole pound everything
 else is priced in. Change it with `--uplift`.
 
-## Matching, and why the SKU swap makes the barcode the important key
+## Matching
 
 The two catalogues share no identifier by name. What they do share:
 
 1. **Barcode.** `shp_products.barcode` is filled on ~20,800 of ~21,200 rows,
    and Dynamic's product endpoint returns the same EAN. This is the primary
    key, exact, no interpretation.
-2. **Supplier code.** Dynamic's clearance listings show the code nowhere in
+2. **The clearance code itself,** in `sale_sku`. A row already carrying
+   `PR1291` there is one an earlier run has been through.
+3. **Supplier code.** Dynamic's clearance listings show the code nowhere in
    their data, but their image filenames start with it (`OP000115_1_<uuid>.jpg`),
    and that matches `shp_products.sku`. Used when there is no barcode.
 
-Once a run has swapped the SKU to `PR1291`, key 2 no longer finds that row -
-the catalogue code has gone. **The barcode is what keeps the row findable on
-the next run**, which is why an item with neither key is never guessed into the
-plan.
+Key 3 keeps working run after run now, because the catalogue code stays in the
+row. That was not true of the old SKU-swapping behaviour, which destroyed its
+own match key the first time it ran.
+
+**Re-running is safe and changes nothing.** A row already on sale at the right
+figure under the right code is skipped as "already on sale under the clearance
+SKU", so the three commands can be run again any time to pick up whatever
+Dynamic has added to the collection since.
+
+### Rows left over from the old behaviour
+
+Until August 2026 this skill wrote the clearance code straight into `sku`. A row
+still in that state is recognised (its SKU *is* a clearance code), and the plan
+puts it right: the catalogue code is read back off the clearance listing's image
+filename and restored to `sku`, with the clearance code moved into `sale_sku`.
+
+Where the listing gives no catalogue code to restore - or another product
+already holds it, `sku` being UNIQUE - the row still gets its price and sale
+code, and is flagged `skuNeedsAttention` in `plan.csv` for a human to sort out.
+Guessing at a unique identifier is not on.
 
 ## The confirm loop, for everything with no barcode
 
@@ -112,14 +140,25 @@ node .agents/skills/dynamic-clearance/scripts/plan-sale-prices.mjs --in clearanc
 - `N=<SKU>` - the guess was wrong, and this is the right product
 
 Anything not mentioned stays open and is asked again on the next run, so the
-list can be worked through a few at a time. Decisions accumulate in `plan.json`
-and are never re-asked. **The numbers refer to the list that was just printed**
-- once some are answered the rest close up and renumber, so always answer
-against the most recent list.
+list can be worked through a few at a time. **The numbers refer to the list
+that was just printed** - once some are answered the rest close up and
+renumber, so always answer against the most recent list.
+
+Decisions are never re-asked. They accumulate in `decisions.json` beside the
+plan, so a **new** run in a **new** folder should be handed the last one:
+
+```bash
+node .agents/skills/dynamic-clearance/scripts/plan-sale-prices.mjs --in clearance.json --out-dir clearance_sale_2026_09_15 --decisions clearance_sale_2026_08_10/decisions.json
+```
+
+Each decision records the product it was made about, and Dynamic reuse their
+`PR` codes - so a decision whose product name no longer matches is dropped
+rather than applied to whatever now wears that code. A stale "we do not stock
+this" is the dangerous direction: it would hide a real item in silence.
 
 A confirmed pairing outranks every other key, and the confirmed rows appear in
 `plan.csv` with `matchedBy` = `confirmed by hand`, ready to apply with the same
-command as the rest. They get the same sale price and the same SKU swap.
+command as the rest. They get the same sale price and the same sale code.
 
 The guesser weighs words by how rare they are across the shop's own catalogue,
 so "trapezium" and "moonstone" decide matches and "office", "chair" and "black"
@@ -144,26 +183,28 @@ endpoints are the way in.
 ## Taking things back off sale
 
 Every run writes `rollback.sql` next to the plan, restoring each touched row's
-previous sale price *and* its previous SKU:
+previous sale price *and* its previous sale code:
 
 ```bash
 psql "$DIRECT_URL" -f clearance_sale_YYYY_MM_DD/rollback.sql
 ```
 
-That is the correct end-of-clearance move: the catalogue code comes back, the
-sale price goes to NULL, and the product returns to its normal price. Do not
-hand-write UPDATEs for this - the whole point of the file is that it names the
-row ids the run actually touched.
+That is the correct end-of-clearance move: the sale price goes to NULL, the
+sale code goes with it, and the product returns to its normal price under the
+catalogue code it never stopped carrying. Do not hand-write UPDATEs for this -
+the whole point of the file is that it names the row ids the run actually
+touched.
 
 ## Guards worth knowing about
 
 - A computed sale price that is not **below** `price` is skipped, not written.
   `isOnSale` ignores it anyway, so writing it would only make the admin lie.
-- `shp_products.sku` is UNIQUE. A clearance code already held by another
-  product, or claimed by two rows in the same run, is skipped with the clash
-  named.
+- `sale_sku` is deliberately **not** UNIQUE - a supplier may put one clearance
+  code across several lines - so no row is ever skipped over a code clash. Only
+  a restored catalogue SKU has to be unique, and two rows wanting the same one
+  keeps the prices and drops only the restore.
 - Apply re-reads every row inside the transaction and compares price, sale
-  price and SKU against what the plan saw. Any drift aborts the whole run
+  price and sale code against what the plan saw. Any drift aborts the whole run
   rather than writing half of it. `--force` applies the rows that still match.
 - Only rows that carry a SKU are ever suggested - a parent listing has none, and
   a confirmation has to name something.
@@ -174,9 +215,10 @@ row ids the run actually touched.
 
 | File | For |
 | --- | --- |
-| `plan.csv` / `plan.json` | what will be written. Show the CSV before applying. `plan.json` also holds the numbered list and every decision made so far |
+| `plan.csv` / `plan.json` | what will be written. Show the CSV before applying. `plan.json` also holds the numbered list |
+| `decisions.json` | every yes and no given so far. Hand it to the next run with `--decisions` |
 | `unmatched.csv` | everything skipped, with the reason |
-| `rollback.sql` | undo, including the SKUs |
+| `rollback.sql` | undo, including the sale codes |
 | `applied.json` | written by apply: what actually changed, and when |
 
 ## After a run
