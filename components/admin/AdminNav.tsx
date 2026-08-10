@@ -40,6 +40,9 @@ const NAV_ICONS: Record<string, ReactNode> = {
   media: (
     <svg {...ICON_PROPS}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.75" /><path d="M3 17l5.5-5.5a1.5 1.5 0 0 1 2.12 0L18 19" /></svg>
   ),
+  inbox: (
+    <svg {...ICON_PROPS}><path d="M4 13h4l2 3h4l2-3h4" /><path d="M5.5 5h13l2.5 8v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5z" /></svg>
+  ),
   appearance: (
     <svg {...ICON_PROPS}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.55-.22-1.05-.59-1.41-.36-.37-.58-.87-.58-1.42 0-1.1.9-2 2-2H17a4 4 0 0 0 4-4c0-4.42-4.03-7.17-9-7.17Z" /><circle cx="7.5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="9.5" cy="7.5" r="1" fill="currentColor" stroke="none" /><circle cx="14.5" cy="7.5" r="1" fill="currentColor" stroke="none" /></svg>
   ),

@@ -1,4 +1,6 @@
 import { Suspense, type ReactNode } from 'react'
+import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
@@ -15,7 +17,22 @@ import ConfigPageClient from './ConfigPageClient'
 type ModuleSettingsTab = { id: string; label: string; permission?: string; host?: string }
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
 
-export default async function ConfigPage() {
+// Roles and the member/registration settings used to be the "Users" tab here.
+// They now live on the Users screen alongside the people they apply to, so any
+// link still pointing at the old tab (a bookmark, a command-palette entry from a
+// stale bundle, an older module) is sent on rather than quietly showing General.
+const MOVED_TO_USERS_SUBS = new Set(['registration', 'avatars', 'usernames', 'sections', 'access', 'roles'])
+
+export default async function ConfigPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const sp = await searchParams
+  if (sp.tab === 'users' || (sp.sub && MOVED_TO_USERS_SUBS.has(sp.sub))) {
+    const adminPath = (await headers()).get('x-cactus-admin-path') ?? 'cactus-admin'
+    const target = sp.sub === 'roles' ? 'roles'
+      : sp.sub && MOVED_TO_USERS_SUBS.has(sp.sub) ? `settings&sub=${sp.sub}`
+      : 'users'
+    return redirect(`/${adminPath}/users?tab=${target}`)
+  }
+
   const [user, activeModules] = await Promise.all([
     getSessionFromCookie(),
     prisma.module.findMany({
@@ -28,14 +45,12 @@ export default async function ConfigPage() {
     (mod) => mod.manifest as { settingsTabs?: ModuleSettingsTab[]; extensionPoints?: ExtensionPointEntry[] } | null
   )
 
-  // Every permission this page consults - the four core tab gates, plus one per
+  // Every permission this page consults - the core tab gates, plus one per
   // module settings tab and per module-contributed section - resolved in a single
   // batch query. Each used to be its own database round-trip inside a loop.
   const permissionKeys = [
     ...new Set(
       [
-        'members.settings',
-        'roles.manage',
         'emails.templates',
         'members.gdpr',
         'config.manage',
@@ -77,81 +92,14 @@ export default async function ConfigPage() {
     hostedSettingsSlots[host] = <>{panels.map((p) => p.node)}</>
   }
 
-  // "Users" tab (Members settings / Roles) - a merge of what used to be
-  // standalone /members/settings and /roles pages, each still gated by its own
-  // original permission. The email templates editor started life here too; it
-  // moved to the Email tab once it covered every email on the site rather than
-  // only the member ones.
-  const canManageMembersSettings = granted['members.settings'] === true
-  const canManageRoles = granted['roles.manage'] === true
   const canManageEmailTemplates = granted['emails.templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
   const canManageNav = granted['config.manage'] === true
 
-  let rolesData: { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] } | null = null
-  let roleExtensions: ReactNode = null
-  if (canManageRoles && user) {
-    // Explicit selects only - the roles editor needs a role's name, protected flag,
-    // permission keys and holder count, not whole rows and every column of every
-    // RolePermission join row.
-    const [roles, permissions, activeRoleModules] = await Promise.all([
-      prisma.role.findMany({
-        select: {
-          id: true,
-          name: true,
-          isProtected: true,
-          permissions: { select: { permissionKey: true } },
-          _count: { select: { users: true, members: true } },
-        },
-        orderBy: { name: 'asc' },
-      }),
-      prisma.permission.findMany({
-        select: { key: true, description: true, module: true },
-        orderBy: { key: 'asc' },
-      }),
-      prisma.module.findMany({ where: { status: 'active' }, select: { name: true } }),
-    ])
-    rolesData = {
-      roles: roles.map((r) => ({
-        id: r.id,
-        name: r.name,
-        isProtected: r.isProtected,
-        permissionKeys: r.permissions.map((p) => p.permissionKey),
-        // Members role is held by site members, not staff - count both so
-        // it doesn't misleadingly show "0 people" while actually in use.
-        userCount: r._count.users + r._count.members,
-      })),
-      permissions,
-      activeModuleNames: activeRoleModules.map((m) => m.name),
-    }
-
-    // Modules can contribute their own per-user role management UI here (e.g.
-    // Gazette's Contributor/Author/Editor assignment) via the "core.roles-page"
-    // extension point, permission-filtered live from Module.manifest.
-    const roleSectionIds: string[] = []
-    for (const manifest of manifests) {
-      if (!manifest?.extensionPoints) continue
-      for (const entry of manifest.extensionPoints) {
-        if (entry.point !== 'core.roles-page') continue
-        if (!entry.permission || granted[entry.permission]) {
-          roleSectionIds.push(entry.id)
-        }
-      }
-    }
-    const roleSectionComponents = moduleExtensionPointComponents['core.roles-page'] ?? {}
-    roleExtensions = (
-      <>
-        {roleSectionIds.map((id) => {
-          const Section = roleSectionComponents[id]
-          return Section ? <Section key={id} /> : null
-        })}
-      </>
-    )
-  }
-
   // Modules can add their own backup cards under Settings > Backup (e.g. a
   // module running an external service with its own database) via the
-  // "core.backup-page" extension point - same generic mechanism as roles-page.
+  // "core.backup-page" extension point - the same generic mechanism the roles
+  // page uses over on Users.
   const backupSectionIds: string[] = []
   for (const manifest of manifests) {
     if (!manifest?.extensionPoints) continue
@@ -209,8 +157,17 @@ export default async function ConfigPage() {
     ])
     const navManifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
     const moduleGroups = buildModuleNavGroups(navManifests, { canSee: () => true })
+    // The Inbox only exists where a module fills it. Unfiltered by permission here,
+    // to match the rest of the editor: an admin sets rules on every item that this
+    // site has, whether or not their own role could open it.
+    const availableCoreItemIds = new Set<string>()
+    const hasInboxTab = activeModules.some((mod) =>
+      ((mod.manifest as { extensionPoints?: Array<{ point: string }> } | null)?.extensionPoints ?? [])
+        .some((e) => e.point === 'core.inbox-tabs')
+    )
+    if (hasInboxTab) availableCoreItemIds.add('inbox')
     navEditorData = {
-      sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig)),
+      sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig), availableCoreItemIds),
       roles: navRoles,
     }
   }
@@ -221,14 +178,10 @@ export default async function ConfigPage() {
         moduleTabs={moduleTabs}
         hostedSettingsSlots={hostedSettingsSlots}
         hostedSettingsPanels={hostedSlotPanels}
-        canManageMembersSettings={canManageMembersSettings}
-        canManageRoles={canManageRoles}
         canManageEmailTemplates={canManageEmailTemplates}
         canViewMembersGdpr={canViewMembersGdpr}
         canManageNav={canManageNav}
         navEditorData={navEditorData}
-        rolesData={rolesData}
-        roleExtensions={roleExtensions}
         membersGdprExtensions={membersGdprExtensions}
         backupExtensions={backupExtensions}
       />

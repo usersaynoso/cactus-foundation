@@ -2,6 +2,8 @@
 
 Not every shop sells off the shelf. Some price every job on its own merits, some quote trade against list, and plenty simply have customers who want twelve of something and a figure in writing before they commit. A basket and a card machine are no use to any of them.
 
+> **Where it lives now.** Quotes used to have a sidebar link of its own. It is now a **Quotes** tab on **Shop → Sales**, beside orders and returns. Old links still work.
+
 This module gives you quotes. You pick one of two ways to work, and you can change your mind whenever you like.
 
 Requires the **Shop** module.
@@ -58,7 +60,7 @@ Open one and you can:
 - **Make internal notes.** The customer never sees these.
 - **Send it.** Saves what you have typed, then emails the customer their priced quote and a link to it. If the email cannot be sent you are told why, rather than being shown a tick and left to wonder.
 - **Set where it got to.** New, Sent, Won, Lost.
-- **Turn it into an order.** Creates a real, unpaid order in **Shop → Orders**, which then behaves like any other order you have ever had - statuses, dispatch emails, refunds, the lot. Everything listed under a line on the quote - the chosen finish, the delivery service - goes across with it, so whoever picks it knows what they are picking.
+- **Turn it into an order.** Creates a real, unpaid order in **Shop → Sales**, which then behaves like any other order you have ever had - statuses, dispatch emails, refunds, the lot. Everything listed under a line on the quote - the chosen finish, the delivery service - goes across with it, so whoever picks it knows what they are picking.
 
 You can also see whether the customer has actually opened their quote, and when.
 

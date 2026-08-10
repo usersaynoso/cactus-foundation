@@ -49,7 +49,7 @@ const S = {
   media: 'Settings › Media & storage',
   gdpr: 'Settings › GDPR & Legal',
   integrations: 'Settings › Integrations',
-  users: 'Settings › Users',
+  users: 'Users',
   nav: 'Settings › Navigation',
   styles: 'Appearance › Styles',
   appearance: 'Appearance',
@@ -62,7 +62,6 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'tab-media', label: 'Media & storage settings', section: 'Settings', path: '/config?tab=media', requires: '/config', keywords: ['storage', 'uploads', 'provider', 'images', 's3', 'r2', 'bucket'] },
   { id: 'tab-gdpr', label: 'GDPR & Legal', section: 'Settings', path: '/config?tab=gdpr', requires: '/config', keywords: ['consent', 'cookies', 'privacy', 'legal', 'data protection'] },
   { id: 'tab-integrations', label: 'Integrations', section: 'Settings', path: '/config?tab=integrations', requires: '/config', keywords: ['github', 'sentry', 'turnstile', 'neon', 'webhook', 'connections', 'api keys'] },
-  { id: 'tab-users', label: 'User & member settings', section: 'Settings', path: '/config?tab=users', requires: '/config', keywords: ['members', 'registration', 'accounts'] },
   { id: 'tab-navigation', label: 'Navigation & menu editor', section: 'Settings', path: '/config?tab=navigation', requires: '/config', keywords: ['sidebar', 'menu', 'reorder', 'rename', 'admin menu'] },
 
   // ── General tab sections ───────────────────────────────────────────────────
@@ -103,12 +102,12 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'integrations-neon', label: 'Neon database provisioning', section: S.integrations, path: '/config?tab=integrations#section-neon', requires: '/config', keywords: ['neon', 'database', 'postgres', 'provisioning'] },
 
   // ── Users settings sub-tabs ────────────────────────────────────────────────
-  { id: 'users-registration', label: 'Registration settings', section: S.users, path: '/config?tab=users&sub=registration', requires: '/config', keywords: ['sign up', 'registration', 'members', 'open registration'] },
-  { id: 'users-avatars', label: 'Avatars', section: S.users, path: '/config?tab=users&sub=avatars', requires: '/config', keywords: ['avatar', 'profile picture', 'gravatar'] },
-  { id: 'users-usernames', label: 'Usernames', section: S.users, path: '/config?tab=users&sub=usernames', requires: '/config', keywords: ['username', 'handle', 'display name'] },
-  { id: 'users-account-sections', label: 'Account sections', section: S.users, path: '/config?tab=users&sub=sections', requires: '/config', keywords: ['account page', 'profile sections'] },
-  { id: 'users-access', label: 'Access control', section: S.users, path: '/config?tab=users&sub=access', requires: '/config', keywords: ['access', 'restrict', 'membership'] },
-  { id: 'users-roles', label: 'Roles & permissions', section: S.users, path: '/config?tab=users&sub=roles', requires: '/config', keywords: ['roles', 'permissions', 'capabilities', 'access rights'] },
+  { id: 'users-registration', label: 'Registration settings', section: S.users, path: '/users?tab=settings&sub=registration', requires: '/users', keywords: ['sign up', 'registration', 'members', 'open registration'] },
+  { id: 'users-avatars', label: 'Avatars', section: S.users, path: '/users?tab=settings&sub=avatars', requires: '/users', keywords: ['avatar', 'profile picture', 'gravatar'] },
+  { id: 'users-usernames', label: 'Usernames', section: S.users, path: '/users?tab=settings&sub=usernames', requires: '/users', keywords: ['username', 'handle', 'display name'] },
+  { id: 'users-account-sections', label: 'Account sections', section: S.users, path: '/users?tab=settings&sub=sections', requires: '/users', keywords: ['account page', 'profile sections'] },
+  { id: 'users-access', label: 'Access control', section: S.users, path: '/users?tab=settings&sub=access', requires: '/users', keywords: ['access', 'restrict', 'membership'] },
+  { id: 'users-roles', label: 'Roles & permissions', section: S.users, path: '/users?tab=roles', requires: '/users', keywords: ['roles', 'permissions', 'capabilities', 'access rights'] },
 
   // ── Appearance / Styles ────────────────────────────────────────────────────
   { id: 'appearance-design', label: 'Header & footer design', section: S.appearance, path: '/appearance', requires: '/appearance', keywords: ['header', 'footer', 'layout', 'design', 'site chrome'] },

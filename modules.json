@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.207"
+      "version": "v0.1.209"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,12 +13,12 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.129"
+      "version": "v0.1.130"
     },
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.12"
+      "version": "v0.1.14"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -43,12 +43,12 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.46"
+      "version": "v0.1.47"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
@@ -68,17 +68,17 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.23"
+      "version": "v0.1.24"
     },
     {
       "name": "reviews-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
-      "version": "v0.1.3"
+      "version": "v0.1.4"
     },
     {
       "name": "directory",
@@ -88,17 +88,17 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.15"
+      "version": "v0.1.16"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.14"
+      "version": "v0.1.15"
     },
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.33"
+      "version": "v0.1.34"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -108,27 +108,27 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.25"
+      "version": "v0.1.26"
     },
     {
       "name": "gemini-watermark-remover",
       "repoUrl": "https://github.com/cactus-foundation-modules/gemini-watermark-remover",
-      "version": "v0.1.10"
+      "version": "v0.1.11"
     },
     {
       "name": "ultimate-seo",
       "repoUrl": "https://github.com/cactus-foundation-modules/ultimate-seo",
-      "version": "v0.1.2"
+      "version": "v0.1.3"
     },
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.16"
+      "version": "v0.1.17"
     },
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.14"
+      "version": "v0.1.15"
     }
   ]
 }

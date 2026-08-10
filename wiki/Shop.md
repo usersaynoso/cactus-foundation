@@ -4,11 +4,18 @@
 
 The shop lives at `/shop` on your site (`/shop/products/your-product` for a product, `/shop/categories/mugs` for a category, and so on).
 
+> **Where things live now.** The shop used to spread nine links across your sidebar, and each add-on you installed took another. It now takes two: **Catalogue** and **Sales**.
+>
+> - **Catalogue** - Products, Categories, Collections, and a tab for each catalogue add-on you have installed (Variations, Attributes, Add-ons, Filters, Reviews).
+> - **Sales** - Orders, Cancellations & returns, Customers, Discounts, Reports, Tax & shipping, and Quotes if you have that module.
+>
+> Nothing was taken away and nothing moved house without leaving a forwarding address: every old link still works, it just carries you to the right tab.
+
 ---
 
 ## Who can do what
 
-Shop has seven permissions, set on your core roles from **Settings → Users → Roles**:
+Shop has seven permissions, set on your core roles from **Users → Roles**:
 
 - `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
 - `shop.manage` - full run of the shop: settings, tax and shipping setup. (Editing what the shop's emails say needs `emails.templates` instead - they live on the site-wide Emails tab now.) Overrides every other Shop permission below.
@@ -69,7 +76,7 @@ changes.
 
 ## Adding products
 
-From **Shop → Products → New product**, fill in a name and price to get started, then come back to fill in the rest.
+From **Shop → Catalogue → New product**, fill in a name and price to get started, then come back to fill in the rest.
 
 The search box on the products list matches whole words in any order, across the name and the SKU. Typing "evolve screen" finds "Evolve / Impulse Plus Bench Screen" - you no longer have to remember the exact wording, or everything that sits between the two words you do remember. Every word you type has to appear somewhere, so adding another word narrows things down rather than widening them.
 
@@ -141,7 +148,7 @@ Every category also gets a thumbnail beside its name in the list, so the ones st
 
 ## Orders
 
-**Shop → Orders** is the screen you'll live on. Across the top sit four counters: how many orders are waiting on money, how many are paid and haven't gone out yet, how many are waiting on pre-order stock, and what you've taken in the last thirty days. The first three are buttons: click one and the list below shows exactly those orders, so "three to send" always turns into three orders and never four.
+**Shop → Sales** is the screen you'll live on. Across the top sit four counters: how many orders are waiting on money, how many are paid and haven't gone out yet, how many are waiting on pre-order stock, and what you've taken in the last thirty days. The first three are buttons: click one and the list below shows exactly those orders, so "three to send" always turns into three orders and never four.
 
 Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are a manual job outside Cactus, since there's no card or account to refund back to automatically.
 
@@ -248,7 +255,7 @@ The figure refreshes itself once a day, in the same overnight run that sends you
 
 ## Bringing in a spreadsheet
 
-**Shop → Products → Import** takes a CSV file of your catalogue - name, web address, price, stock, size and weight, categories, tags, images, SEO fields, pre-order settings, download rules and more. Existing products are matched and updated by their SKU, or by their web address where a product has no SKU. Anything new comes in as a draft unless the file says otherwise, so you can check it over before making it live. Grab the **Import template** button first if you're not sure of the column layout. A running log of your last few imports sits on the same page, so you can see what came in and what (if anything) got skipped and why.
+**Shop → Catalogue → Import** takes a CSV file of your catalogue - name, web address, price, stock, size and weight, categories, tags, images, SEO fields, pre-order settings, download rules and more. Existing products are matched and updated by their SKU, or by their web address where a product has no SKU. Anything new comes in as a draft unless the file says otherwise, so you can check it over before making it live. Grab the **Import template** button first if you're not sure of the column layout. A running log of your last few imports sits on the same page, so you can see what came in and what (if anything) got skipped and why.
 
 A file doesn't have to carry every column. Anything the file leaves out is left exactly as it is on your site rather than being wiped, so a spreadsheet of just names and prices does only what it says. A column that *is* there but left blank is taken at its word and clears that field - which is how you empty something on purpose.
 
@@ -307,7 +314,7 @@ That nudge appears on the confirmation page, once the order is safely placed rat
 
 The nudge is the sign-up form itself, sitting right there on the confirmation with the address they ordered with already typed in - not a button that carries them off somewhere else to start again. It's the same form as the one on your sign-up page, so it asks for exactly the fields you've chosen in **Settings → Members** and holds them to the same privacy policy. Someone who just spent five minutes paying you is unlikely to go looking for a second form.
 
-Which does mean the shop's own tickbox is not the whole story: with accounts switched off site-wide, it can be ticked and still show nothing, because there is no account to create. The Checkout settings say so underneath the tickbox when that is the case, and point you at **Settings → Users → Registration**, which is where accounts are turned on.
+Which does mean the shop's own tickbox is not the whole story: with accounts switched off site-wide, it can be ticked and still show nothing, because there is no account to create. The Checkout settings say so underneath the tickbox when that is the case, and point you at **Users → Settings → Registration**, which is where accounts are turned on.
 
 The useful part is what happens next: sign up with the same email address and the order they just placed joins the new account by itself, so their order history isn't empty on the day they make it. Orders are claimed this way only once the customer has confirmed their email address, for the obvious reason - anyone can type someone else's address into a sign-up form, and an unconfirmed match would hand over that person's order history and delivery addresses along with it. If you've turned email confirmation off in the Members settings, nothing is claimed.
 

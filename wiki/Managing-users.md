@@ -4,6 +4,8 @@ The **Users** section in the admin lets you see who has access to your site and 
 
 This covers admin **Users** only - people who can access your admin area. For visitor accounts (registration, sign-in, public profiles), see [Members](Members).
 
+> **New home for roles and member settings.** Roles used to be tucked away under Settings, which meant looking after one person's account and deciding what accounts can do were two different screens. Both now live here, as tabs across the top of the Users page: **Users**, **Pending Approval**, **Invites**, **Roles** and **Settings** (registration, avatars, usernames, account sections, access control). Old links into Settings still work - they carry you here. If your role lets you edit roles but not users, you still get in; you simply see the tabs you are allowed.
+
 ---
 
 ## Roles and permissions
@@ -16,7 +18,7 @@ You can create as many additional roles as you need - for example, an Editor who
 
 ### Creating a role
 
-1. Go to **Settings → Users → Roles**.
+1. Go to **Users → Roles**.
 2. Click **New role**.
 3. Give the role a name.
 4. Tick the permissions you want this role to have. Permissions are grouped by area (Pages, Media, Users, Settings, and so on). Installed modules add their own permissions to the list.

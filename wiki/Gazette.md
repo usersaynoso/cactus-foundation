@@ -2,13 +2,15 @@
 
 **Gazette** is a blog and news module for Cactus. Write, schedule and publish **Posts**, group them with **Tags** and **Series**, take comments and reactions, and publish an RSS feed - all from your own admin.
 
+> **Where it lives now.** Gazette used to take six sidebar links. It takes one - **Gazette** - with Posts, Tags, Series, Authors, Comments and Templates as tabs across the top. Old links still work.
+
 Posts live at `/gazette` on your site (or `/gazette/your-post-title` for an individual post). If you already have a page at that address, the page wins and Gazette's front page stays hidden until you rename one of them.
 
 ---
 
 ## Who can write for the Gazette
 
-Gazette has three writing permissions, set on your core roles from **Settings → Users → Roles** alongside everything else:
+Gazette has three writing permissions, set on your core roles from **Users → Roles** alongside everything else:
 
 - `gazette.contributor` - can write and edit their own drafts, but can't publish. Handy for guest writers you want to check over before anything goes live.
 - `gazette.author` - can write, edit and publish their own posts.

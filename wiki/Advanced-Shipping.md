@@ -250,9 +250,10 @@ checkout, so the date the basket promised is the date the order keeps.
 
 ## Setting it up
 
-Everything lives on the shop's **Tax & shipping** page (Shop in the admin
-sidebar, then **Tax & shipping**). Alongside the shop's own tax and shipping tab
-you get three more tabs:
+Everything lives on the shop's **Tax & shipping** page - **Shop → Sales** in the
+admin sidebar, then the **Tax & shipping** tab across the top. (It used to have a
+sidebar link of its own; the old link still works.) Alongside the shop's own tax
+and shipping tab you get three more tabs:
 
 - **Delivery services** - your delivery-and-assembly options: name, description,
   delivery time, floor, and the price rows that say where each is offered.

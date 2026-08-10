@@ -2,6 +2,8 @@
 
 **Product Attributes** lets shoppers narrow your shop down to what they're actually after. Material, colour, room, finish, whatever matters in your trade - you decide what the labels are, tick them onto your products, and drop a filtered grid onto your shop page.
 
+> **Where it lives now.** Attributes used to have a sidebar link of their own. They are now an **Attributes** tab on **Shop → Catalogue**. Old links still work.
+
 It needs the **Shop** module installed and up to date. It works nicely alongside **Shop Variations** if you have it, and perfectly well without.
 
 Once installed, you'll find a **Product attributes** entry in the Shop section of your admin sidebar.
@@ -109,7 +111,7 @@ One exception worth knowing. If you typed a choice straight into a product's Var
 
 ## Putting attributes on a product
 
-1. Open any product (**Shop → Products →** the product).
+1. Open any product (**Shop → Catalogue →** the product).
 2. Go to its **Attributes** tab.
 3. Pick the attributes this product uses from the **Add an attribute** list.
 4. For an ordinary attribute, tick its value ("Material: Oak"). Then hit the product's **Save changes** button.

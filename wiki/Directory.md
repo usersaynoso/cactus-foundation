@@ -8,7 +8,7 @@ The directory lives at `/directory` on your site (or `/directory/cafes` for a ca
 
 ## Who can do what
 
-Directory has two permissions, set on your core roles from **Settings → Users → Roles**:
+Directory has two permissions, set on your core roles from **Users → Roles**:
 
 - `directory.access` - see the Directory section in the admin sidebar and its dashboard summary.
 - `directory.manage` - create and edit categories and entries, change settings, and run CSV imports.

@@ -5,6 +5,8 @@ shop's category and collection pages, designed for catalogues where the interest
 differences - colour, finish, width - live on a product's *options* rather than on the
 product itself.
 
+> **Where it lives now.** Filters used to have a sidebar link of its own. It is now a **Filters** tab on **Shop → Catalogue**. Old links still work.
+
 Requires the [Shop](Shop) and [Shop Variations](Shop-variations) modules. If
 [Product Attributes](Product-attributes) is installed too, filters can also match
 spec values - and price-band groups need neither.
@@ -94,7 +96,7 @@ So this module separates the two:
 
 ## Setting it up
 
-1. **Admin > Shop > Filters.** Add a group (Colour), choose whether it filters by
+1. **Admin > Shop > Catalogue > Filters.** Add a group (Colour), choose whether it filters by
    product values or price bands, pick how shoppers choose from it (colour swatches,
    say), then add a filter (Blue). Filters in a price-band group get from/up-to boxes
    instead of a value picker; the up-to figure is exclusive, so neighbouring bands

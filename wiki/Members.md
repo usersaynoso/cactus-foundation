@@ -8,7 +8,7 @@ This is a different system from admin **Users** (see [Managing users](Managing-u
 
 ## Turning it on
 
-Go to **Settings → Users** in the admin and tick **Members system enabled** (the checkbox sits above the Registration/Avatars/Usernames/Account sections/Access control tabs - it's visible no matter which one you're on). Nothing changes for visitors until you do this.
+Go to **Users → Settings** in the admin and tick **Members system enabled** (the checkbox sits above the Registration/Avatars/Usernames/Account sections/Access control tabs - it's visible no matter which one you're on). Nothing changes for visitors until you do this.
 
 Once it's on, your site gets:
 
@@ -20,7 +20,7 @@ Once it's on, your site gets:
 
 ## How people sign in
 
-Members can sign in three ways, and each one has its own setting (**Settings → Users → Access control**):
+Members can sign in three ways, and each one has its own setting (**Users → Settings → Access control**):
 
 - **Passkey** - fingerprint, face unlock, or a security key. The quickest and most secure option. **Optional** by default.
 - **Email sign-in link** - a one-time link emailed to them. No password to remember. **Optional** by default, and it's what a brand-new member uses the very first time, before they've set anything else up.
@@ -62,7 +62,7 @@ If the site can't reach its own settings for a moment - a wobbly connection at t
 
 ### Sign-in codes by text message
 
-If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Settings → Users → Access control → Mobile number for sign-in codes** controls whether that's their choice:
+If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Users → Settings → Access control → Mobile number for sign-in codes** controls whether that's their choice:
 
 - **Optional** (the default) - members may add a mobile number from their account page if they fancy it.
 - **Required** - members with a password must add one. Anyone who hasn't yet is still let in with an email code (nobody gets locked out), but they're taken straight to the add-your-number card after signing in and reminded on every account page until it's done.
@@ -102,7 +102,7 @@ The block only appears on your site at all when members are switched on. Turn me
 
 ## Registration modes
 
-**Settings → Users → Registration** controls who can sign up:
+**Users → Settings → Registration** controls who can sign up:
 
 - **Open** - anyone can register.
 - **Invite only** - people need an invite link, which you generate from **Users → Invites**. Each invite can be used once and expires after however many days you set.
@@ -119,7 +119,7 @@ The sign-up form asks for an email address, a username and an optional display n
 
 Both switches follow the member into their account, not just the sign-up form. Turn one off and the matching box vanishes from **Profile** as well, along with anything else that mentions it: no "change your username" offer for a handle they never picked, and the overview stops listing a missing display name among the things they still ought to fill in. With the username switch off, the overview greets them by the front half of their email address rather than by the made-up handle, on the grounds that being welcomed by a name you've never seen before is unsettling.
 
-The offer to change a username now also waits until you've actually allowed username changes (**Settings → Users → Usernames**), which is off to begin with. Members used to get the box and the button regardless, and pressing it was politely refused every single time.
+The offer to change a username now also waits until you've actually allowed username changes (**Users → Settings → Usernames**), which is off to begin with. Members used to get the box and the button regardless, and pressing it was politely refused every single time.
 - **Ask new members to set a password** - turn it off and signing up asks for nothing to remember. This one only appears while passwords are set to optional: with passwords off there is nothing to ask about, and with them required the form has to ask.
 
 Turning the password box off doesn't take passwords away. Members can add one whenever they like from **Account & Security** in their account, which is where they'd set up the short code that goes with it anyway. It's often the kinder order of events: signing up takes one box and a click on an emailed link, and the password conversation waits until they've decided they're staying.
@@ -158,9 +158,9 @@ A link that has expired, or has already been used, still says so on the verifica
 
 ## The member account area
 
-Once signed in, members land on an **overview** page that tries to answer the obvious questions before they have to go looking: who they're signed in as, when they joined, whether their email address still needs confirming (with a button to send the link again), how their sign-in is set up, what's still blank on their profile, and the last few things that happened on their account. Everything else lives behind the tabs above it, which you can individually switch on or off (**Settings → Users → Account sections**):
+Once signed in, members land on an **overview** page that tries to answer the obvious questions before they have to go looking: who they're signed in as, when they joined, whether their email address still needs confirming (with a button to send the link again), how their sign-in is set up, what's still blank on their profile, and the last few things that happened on their account. Everything else lives behind the tabs above it, which you can individually switch on or off (**Users → Settings → Account sections**):
 
-- **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The three picture sources sit behind a set of radio buttons under the avatar, and only the ones actually available are offered: no Gravatar unless you have allowed it (**Settings → Users → Avatars**), and no uploaded photo until there is one. Where Gravatar is allowed, new members start on it, so a member who already has a picture attached to their email address at gravatar.com arrives with it in place rather than having to go and find the setting. Anybody who hasn't simply gets their initials, which is what they would have had anyway. The username and display-name boxes only appear if you ask for them at sign-up (see [Shortening the sign-up form](#shortening-the-sign-up-form)). The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
+- **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The three picture sources sit behind a set of radio buttons under the avatar, and only the ones actually available are offered: no Gravatar unless you have allowed it (**Users → Settings → Avatars**), and no uploaded photo until there is one. Where Gravatar is allowed, new members start on it, so a member who already has a picture attached to their email address at gravatar.com arrives with it in place rather than having to go and find the setting. Anybody who hasn't simply gets their initials, which is what they would have had anyway. The username and display-name boxes only appear if you ask for them at sign-up (see [Shortening the sign-up form](#shortening-the-sign-up-form)). The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
   Switch this one off and the page genuinely goes: the tab disappears, the card on the overview disappears, and typing the address in by hand gets a **Not found** rather than the page. Nothing on it can be saved either, so a member with it already open in an old tab is told it's been switched off instead of quietly getting their changes dropped. Worth doing on a site where an account is only ever a way to sign in and pay, and a bio nobody will read is just another empty box to look at. Their existing details aren't deleted - switch it back on and everything is where they left it.
 - **Account & Security** - their email address, passkeys, password, two-factor authentication, active sessions, and trusted browsers. See [Changing their email address](#changing-their-email-address) just below.
 - **Notifications** - email preferences for anything your installed modules notify members about. Nothing installed offers any yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose.
@@ -208,7 +208,7 @@ Members can request a copy of all their data at any time - it's bundled up and a
 
 ## Public profiles and directory
 
-Every member gets a profile page at `/members/<username>`. You control who can see it (**Settings → Users → Account sections → Public profile visibility**):
+Every member gets a profile page at `/members/<username>`. You control who can see it (**Users → Settings → Account sections → Public profile visibility**):
 
 - **Public** - anyone, including visitors who aren't signed in.
 - **Members only** - only people signed in as a member.
@@ -236,7 +236,7 @@ Member management lives alongside your ordinary admin Users, rather than in a se
 
 ## Making the whole site members-only
 
-**Settings → Users → Access control → Site-wide members-only mode** locks your entire public site behind sign-in - visitors must be a member to see anything. You can list specific pages as exceptions (for example, your homepage or a "why join" page), and admins always get through regardless.
+**Users → Settings → Access control → Site-wide members-only mode** locks your entire public site behind sign-in - visitors must be a member to see anything. You can list specific pages as exceptions (for example, your homepage or a "why join" page), and admins always get through regardless.
 
 If you'd rather show a locked-down preview to guests instead of blocking them outright, turn on **Guest preview** as well.
 

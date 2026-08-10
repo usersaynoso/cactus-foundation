@@ -2,6 +2,8 @@
 
 Most sites need one thing above all else: a way for someone to get in touch without having to think about it. The **contact form** module adds a form you can drop onto any page, and an inbox in your admin area where everything that comes through it lands.
 
+> **Where it lives now.** Enquiries used to have an **Inbox** link of their own in the sidebar. They now sit on the shared **Inbox** screen, on a **Contact form** tab beside live chat if you have it. Old links still work - they just carry you to the tab.
+
 Messages stay on your own site rather than scattering into whatever mailbox you happen to use that week. You still get an email telling you something has arrived, but the conversation itself lives somewhere you can find it again.
 
 ---

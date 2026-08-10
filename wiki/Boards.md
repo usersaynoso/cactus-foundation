@@ -2,13 +2,15 @@
 
 **Boards** is a discussion forum module for Cactus. Members create **Boards** and **Sub-boards**, start **Threads**, and reply to each other, with polls, reactions, subscriptions, bookmarks, search and a full set of moderation tools - all from your own admin.
 
+> **Where it lives now.** Boards used to take four sidebar links. It takes one - **Boards** - and Threads, Structure, Moderation and Analytics are tabs across the top of that page. Old links still work.
+
 The forum lives at `/boards` on your site (or `/boards/general` for a board, `/boards/t/your-thread-title` for a thread). If you already have a page at `/boards`, that page wins and the forum's front page stays hidden until you rename one of them.
 
 ---
 
 ## Who can do what
 
-Moderating Boards is just another permission on your core roles, set from **Settings → Users → Roles**:
+Moderating Boards is just another permission on your core roles, set from **Users → Roles**:
 
 - `boards.access` - see the Boards section in the admin sidebar at all.
 - `boards.manage` - get at structure, tags, templates and the settings/import tab.

@@ -2,13 +2,15 @@
 
 **Ultimate SEO** is the SEO command centre for a Cactus site. It gathers every page the site serves - core pages and the content of any installed modules (Gazette posts, Shop products, Directory entries) - into one place, scores each one against a set of search-friendly rules, suggests fixes, applies the easy ones with one click, crawls the live site the way a search engine would, and puts the sitemap and robots controls in the admin where they belong.
 
+> **Where it lives now.** SEO used to take four sidebar links. It takes one - **SEO** - with Dashboard, Pages, Site audit and Sitemap & robots as tabs across the top. Old links still work.
+
 Install it and a new **SEO** section appears in the admin sidebar with four screens, plus an **SEO** tab on **Settings**.
 
 ---
 
 ## Who can do what
 
-Two permissions, set on your core roles from **Settings → Users → Roles**:
+Two permissions, set on your core roles from **Users → Roles**:
 
 - `seo.view` - see the dashboard, the pages list and audit results, and run the analyser.
 - `seo.manage` - apply one-click fixes, run site audits, edit sitemap and robots rules, and change SEO settings.

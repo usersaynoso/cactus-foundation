@@ -18,6 +18,7 @@ import { z } from 'zod'
 // customisation for that item back to its default.
 export type CoreNavItemId =
   | 'dashboard'
+  | 'inbox'
   | 'pages'
   | 'menus'
   | 'media'
@@ -48,6 +49,14 @@ export type CanonicalNavItem = {
   isModule: boolean
   /** Optional deep-link surfaced in the sidebar's Quick Create ("New…") menu. */
   createAction?: { label: string; path: string }
+  /**
+   * A core item that only exists when something fills it — the Inbox is nothing
+   * but a host for module-contributed tabs, so on a site with no messaging module
+   * installed it would be an empty screen. The caller decides (see the
+   * `availableCoreItemIds` option) and unlisted conditional items are dropped
+   * from the menu and from the Navigation editor alike.
+   */
+  conditional?: boolean
 }
 
 export type CanonicalSection = {
@@ -64,6 +73,7 @@ export const CORE_SECTIONS: CanonicalSection[] = [
 
 export const CORE_NAV_ITEMS: CanonicalNavItem[] = [
   { id: 'dashboard', label: 'Dashboard', path: '', icon: 'dashboard', iconIsSvg: false, section: 'main', defaultPermissions: [], isModule: false },
+  { id: 'inbox', label: 'Inbox', path: '/inbox', icon: 'inbox', iconIsSvg: false, section: 'main', defaultPermissions: [], isModule: false, conditional: true },
   { id: 'pages', label: 'Pages', path: '/pages', icon: 'pages', iconIsSvg: false, section: 'content', defaultPermissions: ['pages.read'], isModule: false, createAction: { label: 'New page', path: '/pages/new' } },
   { id: 'menus', label: 'Menus', path: '/menus', icon: 'menus', iconIsSvg: false, section: 'content', defaultPermissions: ['menus.manage'], isModule: false, createAction: { label: 'New menu', path: '/menus' } },
   { id: 'media', label: 'Media', path: '/media', icon: 'media', iconIsSvg: false, section: 'content', defaultPermissions: ['media.upload', 'media.delete'], isModule: false, createAction: { label: 'Upload media', path: '/media' } },
@@ -71,7 +81,10 @@ export const CORE_NAV_ITEMS: CanonicalNavItem[] = [
   { id: 'appearance', label: 'Appearance', path: '/appearance', icon: 'appearance', iconIsSvg: false, section: 'system', defaultPermissions: ['appearance.manage'], isModule: false },
   { id: 'layouts', label: 'Layouts', path: '/layouts', icon: 'layouts', iconIsSvg: false, section: 'system', defaultPermissions: ['layouts.manage'], isModule: false },
   { id: 'modules', label: 'Modules', path: '/modules', icon: 'modules', iconIsSvg: false, section: 'system', defaultPermissions: ['modules.manage'], isModule: false },
-  { id: 'users', label: 'Users', path: '/users', icon: 'users', iconIsSvg: false, section: 'system', defaultPermissions: ['users.manage'], isModule: false },
+  // Roles and the member/registration settings moved onto this screen from
+  // Settings, so a role holding either of those keys and not users.manage still
+  // needs the link - the page gates each of its tabs separately.
+  { id: 'users', label: 'Users', path: '/users', icon: 'users', iconIsSvg: false, section: 'system', defaultPermissions: ['users.manage', 'members.settings', 'roles.manage'], isModule: false },
 ]
 
 /** Every core permission key the sidebar consults — resolved in one batch query. */
@@ -197,6 +210,11 @@ export type UserNavContext = {
   isAdmin: boolean
   /** Whether the user's role holds a given permission key. */
   can: (key: string) => boolean
+  /**
+   * Ids of the conditional core items this site actually has (see
+   * CanonicalNavItem.conditional). Omitted means none.
+   */
+  availableCoreItemIds?: ReadonlySet<string>
 }
 
 export type ResolvedNavItem = {
@@ -245,10 +263,20 @@ function moduleItemFrom(link: { label: string; path: string; icon?: string }): C
  * Returns sections in their default order, each with its items in default order.
  * Placement only; visibility and customisation are applied by the caller.
  */
-function buildCanonical(moduleGroups: ModuleNavGroup[]): Array<{ section: CanonicalSection; items: CanonicalNavItem[] }> {
+function buildCanonical(
+  moduleGroups: ModuleNavGroup[],
+  availableCoreItemIds?: ReadonlySet<string>
+): Array<{ section: CanonicalSection; items: CanonicalNavItem[] }> {
   const bucket = new Map<string, CanonicalNavItem[]>()
   for (const s of CORE_SECTIONS) bucket.set(s.id, [])
-  for (const item of CORE_NAV_ITEMS) bucket.get(item.section)!.push(item)
+  for (const item of CORE_NAV_ITEMS) {
+    // Conditional items (the Inbox) exist only where something fills them. A
+    // caller that says nothing is treated as "nothing available" rather than
+    // "everything": a missed call site then hides a link, never advertises a
+    // dead one.
+    if (item.conditional && !availableCoreItemIds?.has(item.id)) continue
+    bucket.get(item.section)!.push(item)
+  }
 
   const coreLabelToId = new Map<string, string>()
   for (const s of CORE_SECTIONS) if (s.label) coreLabelToId.set(s.label, s.id)
@@ -338,7 +366,7 @@ export function resolveAdminMenu(
   config: AdminMenuConfig,
   user: UserNavContext
 ): ResolvedNavSection[] {
-  const canonical = buildCanonical(moduleGroups)
+  const canonical = buildCanonical(moduleGroups, user.availableCoreItemIds)
 
   const sections = canonical.map((entry, sectionIndex) => {
     const secOverride = config.sections[entry.section.id]
@@ -408,9 +436,10 @@ export type EditorNavSection = {
  */
 export function resolveAdminMenuForEditor(
   moduleGroups: ModuleNavGroup[],
-  config: AdminMenuConfig
+  config: AdminMenuConfig,
+  availableCoreItemIds?: ReadonlySet<string>
 ): EditorNavSection[] {
-  const canonical = buildCanonical(moduleGroups)
+  const canonical = buildCanonical(moduleGroups, availableCoreItemIds)
 
   return canonical
     .map((entry, sectionIndex) => {

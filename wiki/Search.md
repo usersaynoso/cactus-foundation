@@ -2,6 +2,8 @@
 
 Site-wide search for the frontend. One search box, every public content type: pages, shop products, shop categories and collections, Gazette articles, Directory entries, Boards threads and member profiles. Ships two page-builder blocks - a Search Box you can put anywhere (including the header) and a Search Results block on a designable results page at `/search`.
 
+> **Where it lives now.** The search index dashboard used to have a sidebar link. It is now an **Index & searches** tab inside **Settings → Search**, next to the settings it belongs with. Old links still work.
+
 Provided by the `search` module (`cactus-foundation-modules/search`, table prefix `srch_`).
 
 ## What visitors get

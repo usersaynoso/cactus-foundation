@@ -10,7 +10,7 @@ Requires the **Shop** module.
 
 ## Adding a file
 
-1. Open a product under **Shop → Products**.
+1. Open a product under **Shop → Catalogue**.
 2. Go to the **Downloads** tab.
 3. Click **Add a file** and choose one. You can pick several at once.
 4. Type what each file actually is in the box next to it.

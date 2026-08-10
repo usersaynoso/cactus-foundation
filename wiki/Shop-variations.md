@@ -2,14 +2,16 @@
 
 **Shop Variations** adds product options to your shop. It comes in two flavours, and you can use either or both on any product:
 
+> **Where it lives now.** The variation tools used to have a **Variation tools** sidebar link. Everything is on the **Variations** tab of **Shop → Catalogue** now, with the import and bulk tools behind an **Import & tools** sub-tab. Old links still work.
+
 - **Variants** - fixed choices like Size and Colour, where each combination can have its own price, stock level, SKU, barcode, weight and photo. (The weight column only appears while the shop is charging postage by weight - that switch lives at the top of Shop → Tax & shipping.) A "Red / XL" jumper and a "Blue / S" jumper are the same product to your customer, but you can price and count them separately behind the scenes.
 - **Personalisation** - free-form extras the customer fills in: engraving text, a gift message, a paid gift-wrap tick-box, a dropdown of finishes, a date, or an uploaded file (artwork, a photo, a logo). You decide which are optional, which are required, and what each one adds to the price.
 
-It needs the **Shop** module installed and up to date. Once both are in, every product grows a **Variations** tab for editing its own options, your **Products** list (Shop → Products) grows a **Variations** tab that lists every variation across the whole shop in one place, and a **Variation tools** entry appears in the Shop section of your admin sidebar for reports and spreadsheet import.
+It needs the **Shop** module installed and up to date. Once both are in, every product grows a **Variations** tab for editing its own options, your **Products** list (Shop → Catalogue) grows a **Variations** tab that lists every variation across the whole shop in one place, and a **Variation tools** entry appears in the Shop section of your admin sidebar for reports and spreadsheet import.
 
 ## Adding options to a product
 
-1. Open any product in your shop (Shop → Products → the product).
+1. Open any product in your shop (Shop → Catalogue → the product).
 2. Go to its **Variations** tab. It sits right there on the product, alongside Details, Pricing and the rest - there's no separate screen to go off to any more, so you won't lose half-finished edits getting there.
 3. Add an option with **Add from attributes**, and pick the attribute it should be built from - Size, Colour, Finish, whatever you've set up over on [Product Attributes](Product-attributes). Options always come from an attribute now, rather than being typed out product by product, so the same twelve finishes are one list everybody draws on instead of forty near-identical lists that drift apart the first time somebody spells "Grey" the other way. You still choose how it looks on the page (a dropdown, a row of pills, colour swatches, or image swatches), and tick only the values this product actually comes in - see [Building an option from a list you already have](#building-an-option-from-a-list-you-already-have) just below.
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
@@ -257,7 +259,7 @@ A few honest limits. It can only show a photo that exists: a combination nobody 
 
 ## Browsing every variation
 
-Your **Products** list (Shop → Products) has a **Variations** tab beside the usual list of products. It shows every variation across the whole shop in one place - a thumbnail, which product it belongs to, its options (like "Walnut / Large"), price, stock and SKU, and, if you have the 3D module, its 3D file. A variation currently on offer shows its Sale SKU underneath its own, so the code to order under is right there without opening the product.
+Your **Products** list (Shop → Catalogue) has a **Variations** tab beside the usual list of products. It shows every variation across the whole shop in one place - a thumbnail, which product it belongs to, its options (like "Walnut / Large"), price, stock and SKU, and, if you have the 3D module, its 3D file. A variation currently on offer shows its Sale SKU underneath its own, so the code to order under is right there without opening the product.
 
 - Pick a product from the **searchable dropdown** to narrow the list down to just that one.
 - Use the **Nothing set** half of the filter to find the gaps: variations with no image, no SKU, no stock number, or (with the 3D module installed) no 3D file - so you can spot at a glance the ones still waiting for a photo, a code, a count or a model. Any extra columns your other add-ons contribute can be filtered on the same way.

@@ -2,6 +2,8 @@
 
 The Space Planner lets a customer draw their own space to scale, put your furniture in it, and find out what actually fits before they spend anything. What they take away is a PDF with the floor plan and a priced item list in it, a full basket, or a quote request with the plan attached.
 
+> **Where it lives now.** The planner used to take four sidebar links. It takes one - **Space Planner** - with Spaces & layouts, Model corrections, Sizes and Pictures as tabs across the top. Old links still work.
+
 It is a module, so it is not there until you install it: **Modules → Add module →** `cactus-foundation-modules/space-planner-for-shop`.
 
 **It arrives switched off for customers.** See [Staff only](#staff-only) - installing it puts the planner in your admin's hands and nowhere else until you say otherwise.

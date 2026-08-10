@@ -2,6 +2,8 @@
 
 The `live-chat` module gives a Cactus site real live chat: visitors talk to staff from a bubble on the site, attachments travel both ways, and staff answer from whichever surface suits - the Cactus admin, a floating console while browsing the public site, or the Chatwoot mobile app (with push notifications).
 
+> **Where it lives now.** Live chat used to have its own sidebar link. Conversations now sit on the shared **Inbox** screen, on a **Live chat** tab beside your contact-form enquiries. Old links still work - they just carry you to the tab.
+
 Repo: `cactus-foundation-modules/live-chat-powered-by-chatwoot`
 
 ## How it fits together

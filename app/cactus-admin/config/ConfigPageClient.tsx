@@ -12,8 +12,6 @@ import { useScrollToHash } from '@/components/admin/useScrollToHash'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
 import MembersGdprClient from './MembersGdprClient'
-import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
-import RolesClient from './RolesClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
 import type { EditorNavSection } from '@/lib/nav/admin-menu'
@@ -520,7 +518,6 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 }
 
 type ModuleTab = { id: string; label: string }
-type RolesData = { roles: Array<{ id: string; name: string; isProtected: boolean; permissionKeys: string[]; userCount: number }>; permissions: Array<{ key: string; description: string | null; module: string | null }>; activeModuleNames: string[] }
 type NavEditorData = { sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
 
 type ConfigPageInnerProps = {
@@ -535,23 +532,18 @@ type ConfigPageInnerProps = {
   // labels. See lib/modules/hosted-settings.ts.
   hostedSettingsSlots?: HostedSettingsSlots
   hostedSettingsPanels?: HostedSettingsPanels
-  canManageMembersSettings: boolean
-  canManageRoles: boolean
   canManageEmailTemplates: boolean
   canViewMembersGdpr: boolean
   canManageNav: boolean
   navEditorData: NavEditorData | null
-  rolesData: RolesData | null
-  roleExtensions: ReactNode
   membersGdprExtensions: ReactNode
   // Modules can add their own backup cards under the core Backup section (e.g.
   // a module that runs its own external service with its own database) via the
-  // "core.backup-page" extension point - resolved server-side in page.tsx the
-  // same way as roleExtensions.
+  // "core.backup-page" extension point - resolved server-side in page.tsx.
   backupExtensions?: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageMembersSettings, canManageRoles, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, rolesData, roleExtensions, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -560,13 +552,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Baseline admin path to detect a change on save, so we can follow the admin to the new URL.
   const savedAdminPath = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
-  const showUsersTab = canManageMembersSettings || canManageRoles
   const showNavTab = canManageNav && !!navEditorData
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showUsersTab && tabParam === 'users') || (showNavTab && tabParam === 'navigation') ? (tabParam as string) : 'general'
+  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showNavTab && tabParam === 'navigation') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
-  const [usersSubTab, setUsersSubTab] = useState<MembersSettingsTabKey | 'roles'>(
-    canManageMembersSettings ? 'registration' : 'roles'
-  )
   // Email tab sub-tabs. "Delivery" is the from-address and provider settings
   // that have always lived here; "Templates" is every email the site sends,
   // core and module alike.
@@ -582,21 +570,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       const valid =
         TABS.includes(t as Tab) ||
         moduleTabs.some((mt) => mt.id === t) ||
-        (showUsersTab && t === 'users') ||
         (showNavTab && t === 'navigation')
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
       if (valid) setTab(t)
     }
     const sub = searchParams.get('sub')
-    if (sub && showUsersTab) {
-      const validSub =
-        ((sub === 'registration' || sub === 'avatars' || sub === 'usernames' || sub === 'sections' || sub === 'access') && canManageMembersSettings) ||
-        (sub === 'roles' && canManageRoles)
-      if (validSub) {
-        setTab('users')
-        setUsersSubTab(sub as MembersSettingsTabKey | 'roles')
-      }
-    }
     // The email templates editor used to hang off the Users tab; the old
     // ?sub=email-templates deep link still lands on it, wherever it moves to.
     if (sub === 'templates' || sub === 'email-templates') {
@@ -621,9 +599,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [error, setError] = useState('')
 
   // Deep links carry a #section hash; pull that section into view once its tab (and
-  // the initial data load) have rendered. Re-attempt when the active tab, the users
-  // sub-tab, or the loading flag changes so a cross-tab or fetch-gated jump still lands.
-  useScrollToHash([tab, usersSubTab, loading])
+  // the initial data load) have rendered. Re-attempt when the active tab or the
+  // loading flag changes so a cross-tab or fetch-gated jump still lands.
+  useScrollToHash([tab, loading])
 
   // Env var state
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({})
@@ -1524,7 +1502,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         style={{ marginBottom: '2rem' }}
         items={[
           ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => setTab(t) })),
-          ...(showUsersTab ? [{ key: 'users', label: 'Users', active: tab === 'users', onClick: () => setTab('users') }] : []),
           ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => setTab('navigation') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => setTab(t.id) })),
         ]}
@@ -1879,38 +1856,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
             </div>
           </div>
-        </div>
-      )}
-
-      {tab === 'users' && showUsersTab && (
-        <div>
-          <TabStrip
-            items={[
-              ...(canManageMembersSettings ? [
-                { key: 'registration', label: 'Registration', active: usersSubTab === 'registration', onClick: () => setUsersSubTab('registration') },
-                { key: 'avatars', label: 'Avatars', active: usersSubTab === 'avatars', onClick: () => setUsersSubTab('avatars') },
-                { key: 'usernames', label: 'Usernames', active: usersSubTab === 'usernames', onClick: () => setUsersSubTab('usernames') },
-                { key: 'sections', label: 'Account sections', active: usersSubTab === 'sections', onClick: () => setUsersSubTab('sections') },
-                { key: 'access', label: 'Access control', active: usersSubTab === 'access', onClick: () => setUsersSubTab('access') },
-              ] : []),
-              ...(canManageRoles ? [{ key: 'roles', label: 'Roles', active: usersSubTab === 'roles', onClick: () => setUsersSubTab('roles') }] : []),
-            ]}
-          />
-
-          {canManageMembersSettings && (usersSubTab === 'registration' || usersSubTab === 'avatars' || usersSubTab === 'usernames' || usersSubTab === 'sections' || usersSubTab === 'access') && (
-            <MembersSettingsTab tab={usersSubTab} />
-          )}
-
-          {usersSubTab === 'roles' && canManageRoles && rolesData && (
-            <>
-              <p style={{ margin: '0 0 1.25rem', color: 'var(--color-text-muted)', fontSize: 'var(--text-base)' }}>
-                Pick a role on the left, then choose what people with that role are allowed to do.
-              </p>
-              <RolesClient roles={rolesData.roles} permissions={rolesData.permissions} activeModuleNames={rolesData.activeModuleNames} />
-              {roleExtensions}
-            </>
-          )}
-
         </div>
       )}
 

@@ -18,7 +18,7 @@ If the product has variations, left and right arrows appear on the model too, le
 
 ## Adding a 3D model
 
-1. Open a product under **Shop → Products**.
+1. Open a product under **Shop → Catalogue**.
 2. Go to the **3D views** tab.
 3. If the product has variations, pick what the model is for: **the whole product**, or one particular variation.
 4. Click **Add a 3D model**, then either pick a file you have uploaded before or upload a new one. The picker opens in the product's own 3d folder (see [Where the files live](#where-the-files-live)), so this product's models are what you see first - you can still browse into any other folder, and the search box covers the whole library.

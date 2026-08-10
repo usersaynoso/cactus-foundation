@@ -77,13 +77,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // as its own top-level Settings tab, so it isn't a /config?tab= destination.
   type ModuleSettingsTabMeta = { id: string; label: string; permission?: string; host?: string }
   const settingsTabManifests = liveModules.map((mod) => mod.manifest as { settingsTabs?: ModuleSettingsTabMeta[] } | null)
-  // Module nav-entry permissions, each module settings tab's permission, AND the core
-  // items' default-visibility keys are resolved together in one batch: the same map
-  // gates module links, module settings tabs, and the core sidebar resolution below.
+  // The Inbox is a core screen with no content of its own - it exists only to host
+  // tabs modules publish into `core.inbox-tabs` (contact form, live chat). On a site
+  // with none of those installed the link would open an empty page, so it is only
+  // offered when something fills it, and only to a role allowed to open one of them.
+  type ExtensionPointMeta = { point: string; permission?: string }
+  const inboxContributions = liveModules.flatMap((mod) => {
+    const m = mod.manifest as { extensionPoints?: ExtensionPointMeta[] } | null
+    return (m?.extensionPoints ?? []).filter((e) => e.point === 'core.inbox-tabs')
+  })
+  // Module nav-entry permissions, each module settings tab's permission, each inbox
+  // contributor's permission, AND the core items' default-visibility keys are resolved
+  // together in one batch: the same map gates module links, module settings tabs, the
+  // Inbox link, and the core sidebar resolution below.
   const navPermissionKeys = [
     ...new Set([
       ...manifests.flatMap((m) => (m?.navEntries ?? []).map((e) => e.permission).filter((p): p is string => !!p)),
       ...settingsTabManifests.flatMap((m) => (m?.settingsTabs ?? []).map((t) => t.permission).filter((p): p is string => !!p)),
+      ...inboxContributions.map((e) => e.permission).filter((p): p is string => !!p),
       ...CORE_NAV_PERMISSION_KEYS,
     ]),
   ]
@@ -119,10 +130,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // (order/rename/visibility from Settings > Navigation) and filter to what this
   // role may see. isProtected admins see every item so they can never hide the
   // screen that edits these rules from themselves.
+  const availableCoreItemIds = new Set<string>()
+  if (inboxContributions.some((e) => !e.permission || navPermissions[e.permission] === true)) {
+    availableCoreItemIds.add('inbox')
+  }
+
   const menuSections = resolveAdminMenu(moduleNavGroups, parseAdminMenuConfig(config?.adminMenuConfig), {
     roleId: user.role.id,
     isAdmin: isAdmin(user),
     can: (key) => navPermissions[key] === true,
+    availableCoreItemIds,
   })
 
   // White-label the admin chrome to the site's primary colour and font. Only the

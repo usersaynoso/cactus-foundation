@@ -2,6 +2,8 @@
 
 The Twilio module connects your site to your [Twilio](https://www.twilio.com) account. It forwards calls made to your Twilio phone numbers wherever you like, takes a voicemail when nobody answers (with opening hours per number, if you'd rather your phone didn't ring at midnight), shows each number's call and text message history (with playback of any recordings), lets you make outbound calls that show your Twilio number as caller ID, and sends sign-in codes by text message instead of email.
 
+> **Where it lives now.** The call and text logs used to have a **Twilio** link in the sidebar. They are now a **Calls & texts** tab inside **Settings → Twilio**, alongside the rest of the phone settings. Old links still work.
+
 If you don't have a Twilio account, none of this page applies - carry on happily without it.
 
 ---

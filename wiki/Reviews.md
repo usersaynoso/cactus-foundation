@@ -2,6 +2,8 @@
 
 Shoppers trust other shoppers considerably more than they trust you, which is deflating but useful. This module lets your customers rate a product out of five and say why, puts those ratings on the product page, and gives you a single screen where you decide what goes up.
 
+> **Where it lives now.** Reviews used to have a sidebar link of its own. It is now a **Reviews** tab on **Shop → Catalogue**, beside your products. Old links still work.
+
 Requires the **Shop** module.
 
 ---
