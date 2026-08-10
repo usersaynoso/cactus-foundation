@@ -223,6 +223,8 @@ A product with five options is a small form, and a page that treats it as a loos
 
 **And, for you alone, how many there are.** While you're signed in with Shop access, a small dashed box marked **staff only** sits under the basket button showing the chosen combination's actual stock - **Stock: 4** - rather than the cheerful "In stock" everyone else gets. It follows the choices, so it always belongs to the one currently in hand, and it says nothing at all until a full combination is settled, because until then there's no single number to give. Where a variation isn't counting its stock it says so plainly instead of leaving a blank. Customers see none of this, and the figures aren't sent to their browser either. Ordinary products without options get the same thing beside their badges - see the Shop page for that.
 
+**And which one to order.** Sat with it is a second dashed **staff only** box giving the chosen combination's own **SKU**, and its **Sale SKU** where the supplier has that one on clearance. Like the stock figure it says nothing until the whole combination is settled, and for the same reason: a half-finished choice matches no single variation, so there is no code to give - and a leftover one from the last complete choice would be worse than none, since it's the code you'd go and order. Once the last option is answered it's the code for exactly what's on screen. Customers see neither, and neither is sent to their browser.
+
 ## On your category pages
 
 A shopper scrolling a category sees a photo, a name and a price. What they don't see is that the chair comes in eleven colours, which is quite often the thing that would have made them click.

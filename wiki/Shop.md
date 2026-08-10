@@ -105,6 +105,10 @@ And the same trip the other way round. While you're signed in and allowed to edi
 
 **The stock figure behind "In stock".** A shopper is told whether something can be bought and nothing more, which is right for them and no use at all to you. So while you're signed in with Shop access, a product page also shows the actual number, in a small dashed box marked **staff only** so there's no wondering whether the customer looking over your shoulder can see it too. On an ordinary product it sits with the badges as **Stock: 42**, or **Stock: not tracked** where you've left stock counting switched off - a blank would only look like something that failed to load. On a product with options it sits under the buy button instead and belongs to the combination you've actually chosen, changing as you pick, because "how many of these are there" only has an answer once you've said which one. Shoppers get none of it: the numbers aren't merely hidden from them, they're never sent to their browser at all, so there's nothing to go digging for.
 
+**And the codes you order under.** The **Sale SKU** - the supplier's code for stock they've put on clearance - now shows on the product's own shop page in the same dashed **staff only** box, just under the SKU line. It appears whenever the product has one, on offer or not, so when a customer rings up about the chair on the page in front of you, the code you'd actually place the order with is right there rather than three clicks into the admin. Customers never see it, and it's never put on the page for them in the first place.
+
+The product's own SKU is a separate matter, since plenty of shops quote theirs to customers quite deliberately. So it carries a **Show the code to** setting on the SKU block in your product page layout: **Everyone**, as it has always been, or **Staff only** if you'd rather it were a buying reference for you alone. Editing pages → your product detail layout → click the SKU block. Setting it to Staff only adds a small "staff only" note beside the code so you can tell at a glance which way round it is.
+
 ---
 
 ## Categories, tags and collections
