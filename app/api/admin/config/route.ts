@@ -48,7 +48,10 @@ export async function GET() {
 }
 
 const ConsentCategoryPatch = z.object({
-  key: z.string().min(1).max(50).regex(/^[a-z][a-z0-9_-]*$/),
+  key: z.string().min(1).max(50).regex(
+    /^[a-z][a-z0-9_-]*$/,
+    'Cookie category keys must start with a lowercase letter and contain only lowercase letters, numbers, hyphens or underscores (for example "live-chat")'
+  ),
   label: z.string().min(1).max(100),
   description: z.string().max(300).default(''),
   required: z.boolean().default(false),
@@ -63,6 +66,7 @@ const ConsentBannerConfigPatch = z.object({
   acceptAllLabel: z.string().max(100).default('Accept all'),
   rejectAllLabel: z.string().max(100).default('Reject all'),
   manageLabel: z.string().max(100).default('Manage preferences'),
+  dismissLabel: z.string().max(100).default('Got it'),
   categories: z.array(ConsentCategoryPatch).min(1),
   reConsentDays: z.number().int().min(1).max(3650).default(365),
   consentLogRetentionDays: z.number().int().min(0).max(36500).nullable().optional(),
@@ -100,7 +104,7 @@ function bumpConsentVersions(
 
   let copyBump = false
   if (stored) {
-    const copyKeys = ['title', 'body', 'acceptAllLabel', 'rejectAllLabel', 'manageLabel', 'style'] as const
+    const copyKeys = ['title', 'body', 'acceptAllLabel', 'rejectAllLabel', 'manageLabel', 'dismissLabel', 'style'] as const
     for (const k of copyKeys) {
       if ((incoming as Record<string, unknown>)[k] !== (stored as Record<string, unknown>)[k]) {
         copyBump = true

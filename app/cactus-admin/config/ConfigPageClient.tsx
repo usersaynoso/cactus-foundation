@@ -56,6 +56,26 @@ type MenuOption = { id: string; name: string }
 const TABS = ['general', 'email', 'media', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
 
+// Cookie category keys are machine-readable: lowercase, starting with a letter,
+// only letters, numbers, hyphens and underscores (the API enforces the same
+// shape). Modules may word their suggestion however they like - "Live chat" -
+// so anything typed or suggested is folded into that shape here rather than
+// being sent off to be rejected.
+function consentCategoryKey(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^[^a-z]+/, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/-+$/, '')
+    .slice(0, 50)
+}
+
+function consentCategoryLabel(raw: string): string {
+  const words = raw.replace(/[_-]+/g, ' ').trim()
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : raw
+}
+
 // Branding (logo/favicon/app icons + app identity) moved to the Styles page. These
 // SiteConfig keys - plus the GET's derived *Url preview fields - are owned there
 // now, so this page keeps them out of its config state and its Save payload, and
@@ -718,20 +738,23 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   }, [searchParams, loadGhStatus, config.adminPath, loading])
 
   // GDPR consent banner state
-  const [gdprSuggestions, setGdprSuggestions] = useState<string[]>([])
+  const [gdprSuggestions, setGdprSuggestions] = useState<Array<{ key: string; label: string }>>([])
 
   const loadGdprSuggestions = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/modules')
       if (!res.ok) return
       const data = (await res.json()) as { modules?: Array<{ status: string; manifest?: { cookieCategories?: string[] } | null }> }
-      const cats = new Set<string>()
+      const cats = new Map<string, string>()
       for (const mod of (data.modules ?? [])) {
         if (mod.status === 'active' && mod.manifest?.cookieCategories) {
-          for (const c of mod.manifest.cookieCategories) cats.add(c)
+          for (const c of mod.manifest.cookieCategories) {
+            const key = consentCategoryKey(c)
+            if (key) cats.set(key, consentCategoryLabel(c))
+          }
         }
       }
-      setGdprSuggestions([...cats])
+      setGdprSuggestions([...cats].map(([key, label]) => ({ key, label })))
     } catch { /* ignore */ }
   }, [])
 
@@ -1945,7 +1968,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         }
 
         const existingKeys = new Set(cats.map((c) => c.key))
-        const availableSuggestions = gdprSuggestions.filter((k) => !existingKeys.has(k))
+        const availableSuggestions = gdprSuggestions.filter((s) => !existingKeys.has(s.key))
 
         return (
           <div>
@@ -2079,7 +2102,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                               type="text"
                               value={cat.key}
                               disabled={cat.required}
-                              onChange={(e) => updateCategory(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
+                              onChange={(e) => updateCategory(i, {
+                                // Typed keys are folded into the shape the API accepts as they are
+                                // typed - a trailing hyphen is left alone so "live-chat" can be
+                                // reached one keystroke at a time.
+                                key: e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^[^a-z]+/, '').slice(0, 50),
+                              })}
                               style={{ width: '100%', fontSize: '0.8125rem' }}
                             />
                           </div>
@@ -2111,14 +2139,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   {availableSuggestions.length > 0 && (
                     <div style={{ marginTop: '0.5rem' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Suggested by active modules:</span>
-                      {availableSuggestions.map((key) => (
+                      {availableSuggestions.map(({ key, label }) => (
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setConsent({ categories: [...cats, { key, label: key.charAt(0).toUpperCase() + key.slice(1), description: '', required: false, defaultOn: false }] })}
+                          onClick={() => setConsent({ categories: [...cats, { key, label, description: '', required: false, defaultOn: false }] })}
                           style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', marginRight: '0.375rem', marginBottom: '0.375rem', borderRadius: 9999, background: 'var(--color-primary-subtle)', border: '1px solid var(--color-primary-border)', color: 'var(--color-primary)', cursor: 'pointer' }}
                         >
-                          + {key}
+                          + {label}
                         </button>
                       ))}
                     </div>

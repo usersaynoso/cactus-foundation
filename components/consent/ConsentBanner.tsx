@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { ConsentBannerConfig, ConsentDecision, ConsentCookiePayload } from '@/lib/consent/types'
-import { notifyConsentChange } from '@/lib/consent/gate'
+import { notifyConsentChange, onConsentChange } from '@/lib/consent/gate'
 
 const CONSENT_COOKIE = 'cactus-consent'
 const CONSENT_ID_COOKIE = 'cactus-consent-id'
@@ -54,11 +54,7 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
       window.cactusConsent = {
         open,
         hasConsent: (cat) => window.__cactusConsent?.[cat] === true,
-        onChange: (cb) => {
-          // Thin wrapper - real subscription is in gate.ts
-          const { onConsentChange } = require('@/lib/consent/gate')
-          return onConsentChange(cb)
-        },
+        onChange: onConsentChange,
       }
     }
   }, [open])
@@ -291,7 +287,7 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
         {noticeOnly ? (
           <button style={btnPrimaryStyle} onClick={handleDismiss}>
-            {config.dismissLabel}
+            {config.dismissLabel || 'Got it'}
           </button>
         ) : (
           <>
