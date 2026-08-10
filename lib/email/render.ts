@@ -103,10 +103,6 @@ async function renderResolved({ def, subjectTemplate, bodyTemplate, wrapperLayou
 
   const subjectWithConditionals = applyConditionals(subjectTemplate, merged)
   const bodyWithConditionals = applyConditionals(bodyTemplate, merged)
-  // Text alternative comes off the *body* only - a plain-text reader wants the
-  // message, not a flattened rendering of the header, footer and social row.
-  // Strip tags before interpolating so already-escaped entities don't leak in.
-  const bodyTextTemplate = bodyWithConditionals.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 
   const subject = interpolate(subjectWithConditionals, merged, false)
   // Merge values may carry user-supplied text (a suspension reason, a product
@@ -123,9 +119,88 @@ async function renderResolved({ def, subjectTemplate, bodyTemplate, wrapperLayou
 
   return {
     subject,
+    // Off the *body* only - a plain-text reader wants the message, not a
+    // flattened rendering of the header, footer and social row.
+    text: htmlToPlainText(body),
     html: wrapEmailHtml({ bodyHtml: body, subject, vars: merged, palette, layout }),
-    text: interpolate(bodyTextTemplate, merged, false),
   }
+}
+
+/**
+ * The plain-text alternative, made from the finished HTML body.
+ *
+ * Two things were wrong with making it from the TEMPLATE instead, which is what
+ * this used to do:
+ *
+ * 1. Tags were stripped before the merge values went in, so an anchor's href
+ *    went with the tag and the address it pointed at never reached the text
+ *    part at all. Every "click here to confirm" email said click here and gave
+ *    a plain-text reader nothing to click - which is most of what this module's
+ *    emails are FOR. Space Planner works round it by printing a visible url
+ *    beside the link; nothing else did.
+ * 2. Merge values were then interpolated in unescaped, so a product name or a
+ *    typed reason containing a tag landed as markup in text/plain.
+ *
+ * Working from the rendered body fixes both at once, provided the order is
+ * kept: links out first, then tags away, and only then entities decoded. Decode
+ * before stripping and an escaped `&lt;b&gt;` in somebody's typed text becomes
+ * a real tag one line before the stripper runs, which is the second bug again
+ * wearing a hat.
+ */
+export function htmlToPlainText(html: string): string {
+  const withLinks = html
+    // Anything that carries meaning by being a separate line becomes one.
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/\s*(p|div|tr|li|h[1-6]|table|blockquote)\s*>/gi, '\n')
+    .replace(/<\s*hr\s*\/?\s*>/gi, '\n---\n')
+    // "Open your layout (https://…)" - unless the label already IS the address,
+    // in which case saying it twice is worse than not saying it once.
+    .replace(
+      /<a\b[^>]*?href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\s*\/\s*a\s*>/gi,
+      (_match, _quote: string, href: string, inner: string) => {
+        const label = inner.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+        const url = href.trim()
+        if (!url || url.startsWith('mailto:') || decodeEntities(label) === decodeEntities(url)) return label || url
+        return `${label} (${url})`
+      },
+    )
+
+  const stripped = withLinks.replace(/<[^>]*>/g, ' ')
+
+  return decodeEntities(stripped)
+    // Tabs and stray carriage returns collapse; newlines are load-bearing here.
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  pound: '£',
+  hellip: '…',
+  mdash: '-',
+  ndash: '-',
+  rsquo: '’',
+  lsquo: '‘',
+  ldquo: '“',
+  rdquo: '”',
+}
+
+/** The handful escapeHtml produces, plus the ones template authors actually type. */
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x?[0-9a-f]+|\w+);/gi, (match, body: string) => {
+    if (body.startsWith('#')) {
+      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match
+    }
+    return ENTITIES[body.toLowerCase()] ?? match
+  })
 }
 
 /**

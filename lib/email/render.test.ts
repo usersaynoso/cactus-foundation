@@ -37,3 +37,56 @@ describe('previewEmailTemplate', () => {
     expect(rendered.subject).toBe('Verify your Beta Ltd account')
   })
 })
+
+describe('the plain-text alternative', () => {
+  it('keeps the address an anchor pointed at', async () => {
+    const rendered = await previewEmailTemplate(
+      'member.verify-email',
+      { bodyHtml: '<p>Hello.</p><p><a href="{{verifyUrl}}">Confirm your address</a></p>' },
+      { verifyUrl: 'https://example.com/verify?token=abc' },
+    )
+    // The old renderer stripped tags off the TEMPLATE, so the href went with
+    // the tag and the text part said "Confirm your address" and nothing else.
+    expect(rendered.text).toContain('Confirm your address (https://example.com/verify?token=abc)')
+  })
+
+  it('does not say the address twice when the label already is one', async () => {
+    const rendered = await previewEmailTemplate(
+      'member.verify-email',
+      { bodyHtml: '<p><a href="{{verifyUrl}}">{{verifyUrl}}</a></p>' },
+      { verifyUrl: 'https://example.com/verify' },
+    )
+    expect(rendered.text).toBe('https://example.com/verify')
+  })
+
+  it('lands a merge value carrying a tag as text, not as markup', async () => {
+    const rendered = await previewEmailTemplate(
+      'member.verify-email',
+      { bodyHtml: '<p>Reason: {{siteName}}</p>' },
+      { siteName: '<b>bold</b> and <script>alert(1)</script>' },
+    )
+    expect(rendered.text).toContain('<b>bold</b> and <script>alert(1)</script>')
+    // Which is to say it is TEXT: nothing in the text part is a tag the reader's
+    // client could act on, because everything that was one has been stripped.
+    expect(rendered.text).not.toContain('<p>')
+  })
+
+  it('reads back the entities the escaper put in', async () => {
+    const rendered = await previewEmailTemplate(
+      'member.verify-email',
+      { bodyHtml: '<p>{{siteName}}</p>' },
+      { siteName: 'Bloggs & Sons' },
+    )
+    expect(rendered.text).toContain('Bloggs & Sons')
+    expect(rendered.text).not.toContain('&amp;')
+  })
+
+  it('keeps paragraphs apart rather than running them into one line', async () => {
+    const rendered = await previewEmailTemplate(
+      'member.verify-email',
+      { bodyHtml: '<p>One.</p><p>Two.</p>' },
+      {},
+    )
+    expect(rendered.text).toBe('One.\nTwo.')
+  })
+})
