@@ -107,7 +107,7 @@ And the same trip the other way round. While you're signed in and allowed to edi
 
 **And the codes you order under.** The **Sale SKU** - the supplier's code for stock they've put on clearance - now shows on the product's own shop page in the same dashed **staff only** box, just under the SKU line. It appears whenever the product has one, on offer or not, so when a customer rings up about the chair on the page in front of you, the code you'd actually place the order with is right there rather than three clicks into the admin. Customers never see it, and it's never put on the page for them in the first place.
 
-The product's own SKU is a separate matter, since plenty of shops quote theirs to customers quite deliberately. So it carries a **Show the code to** setting on the SKU block in your product page layout: **Everyone**, as it has always been, or **Staff only** if you'd rather it were a buying reference for you alone. Editing pages → your product detail layout → click the SKU block. Setting it to Staff only adds a small "staff only" note beside the code so you can tell at a glance which way round it is.
+The product's own SKU is now staff-only too, and by default. It's a buying reference, and a customer has no more use for it than they do for your supplier's clearance code - so it sits on the page for you, with a small "staff only" note beside it, and isn't put in front of shoppers at all. If yours is one of the shops that quotes SKUs to customers deliberately, the SKU block carries a **Show the code to** setting: Editing pages → your product detail layout → click the SKU block → set it to **Everyone**.
 
 ---
 
