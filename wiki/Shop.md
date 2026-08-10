@@ -113,7 +113,29 @@ The product's own SKU is now staff-only too, and by default. It's a buying refer
 
 ## Categories, tags and collections
 
-**Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+**Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes, and get a page and an optional card badge of their own - see below. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+
+### Tags
+
+**Shop → Catalogue → Tags** is where tags are made and dressed. Each one has:
+
+- **A name and a web address.** The address is what the tag's own page lives at (`/shop/tag/summer-sale`) and what any page block pointed at the tag is holding, so it is a separate box rather than something that quietly changes when you rename the tag. Change it and you'll be asked to confirm first, because old links stop finding it.
+- **A description**, printed at the top of the tag's page and used as its wording in search results.
+- **Show this tag on the shop**, on by default. Turn it off and the tag becomes filing for your own benefit: no page, no badge, nothing about it printed anywhere a shopper can see.
+- **A badge**, off by default. Switch it on and products carrying the tag get a small label on their card, with your own wording and your own colours. Pick colours from your site palette (the same swatches as Appearance → Styles) or choose freely, and set light and dark mode separately - there are previews of both side by side, which is the quickest way to catch a label that has gone invisible against a dark background.
+- **A place in the order**, set with the arrows. It sorts this list, and it settles which badge wins when a product carries two badge-bearing tags: the higher one.
+
+A product card only ever wears one badge. "Out of stock" and "Pre-order" come first whatever else is true, then your own tag badges, then the built-in ones. If you'd rather not see a particular kind at all, the **Card: Badge** part in your Product Card layout has a switch for each.
+
+Tags are ticked on a product under **Organisation** on the product editor, and there's an **Add tag** box right there for when you think of one mid-edit.
+
+### The "On Sale" tag
+
+Every shop starts with one tag it doesn't have to look after: **On Sale**. It applies itself. A product is in it for as long as it actually has money off - either because it has a sale price of its own, or because one of its variations does - and drops out again the moment the offer ends. There is nothing to tick, and nothing to remember to untick when a sale finishes.
+
+It behaves like any other tag otherwise: it has its own page listing everything currently reduced, and it arrives with a red **Sale** badge switched on. Rename it, recolour it, reword the badge, hide it from the shop or delete it outright - all of that is yours. The only thing you can't do is put it on a product by hand, which is rather the point.
+
+If you've switched sale prices off altogether under **Shop → Settings**, nothing is on offer, so the tag's page is empty and no badges appear.
 
 ### Sub-categories
 
@@ -382,7 +404,7 @@ Shop Home, Product, Checkout, Confirmation and Cart always show one of these des
 
 The **Category** tab has two blocks worth knowing about. **Category Browser** shows a category's sub-categories as cards - or, with its "Show as" setting flipped to **Pills**, as a compact row of wrapping link chips, which suits pages where the sub-categories are shortcuts above a product grid rather than the main event. Drop it on the Category design and it works out which category it's on by itself, so one design serves the lot. (It's the same block you can put on Shop Home to show your top-level categories.) **Category Description** prints whatever you've written for the category - the designed version if you've built one, the plain paragraph if you haven't, and nothing at all if you've written neither, so a category you haven't got round to yet doesn't leave a hole. There's a starter called **Sub-categories First** that puts the two in the sensible order: heading, sub-category cards, description, then the products.
 
-The product grid shows each item as a card with its photo, price and a short line of detail, and can flag an item with a small badge - **New**, **Low stock** or a **Trade price** - worked out from the product's tags and its stock level. Give a product the `new` or `trade` tag to earn its badge; the low-stock badge appears on its own once stock drops to your warning threshold. The card's own design - where the photo, name, price and badge sit - comes from the **Product Card** layout described below, and that one design is used everywhere a product card shows up: the catalogue grid, the "you might also like" row, a featured collection, or a single pinned product.
+The product grid shows each item as a card with its photo, price and a short line of detail, and can flag an item with a small badge - **New**, **Low stock** or a **Trade price** - worked out from the product's tags and its stock level. Give a product the `new` or `trade` tag to earn one of those two; the low-stock badge appears on its own once stock drops to your warning threshold. For a badge in your own wording and colours, switch one on for a tag under **Shop → Catalogue → Tags** instead - that's also where the automatic **Sale** badge comes from. The card's own design - where the photo, name, price and badge sit - comes from the **Product Card** layout described below, and that one design is used everywhere a product card shows up: the catalogue grid, the "you might also like" row, a featured collection, or a single pinned product.
 
 By default the **Product** page puts large photos on the left, with thumbnails to click through the rest of the gallery, and everything a shopper needs to buy on the right: the price, any saving against a higher "was" price, the stock status and the **Add to basket** button with a quantity picker. Below that sits a tabbed panel with the full description, a plain specification list, the dimensions and any download - all drawn straight from what you filled in on the product, so there's nothing extra to write. The related and "step up to" suggestions below use the same card design as the rest of the shop.
 
