@@ -129,6 +129,8 @@ A product card only ever wears one badge. "Out of stock" and "Pre-order" come fi
 
 Tags are ticked on a product under **Organisation** on the product editor, and there's an **Add tag** box right there for when you think of one mid-edit.
 
+A tag's page can be designed like any other: **Appearance → Layouts → Shop → Tag** gives you a **Tag** layout with a header block, product grids and a promo panel to arrange as you like. One layout serves every tag - each block works out which tag it is looking at on its own - so you build it once. Publish nothing there and tags keep their plain built-in page.
+
 ### The "On Sale" tag
 
 Every shop starts with one tag it doesn't have to look after: **On Sale**. It applies itself. A product is in it for as long as it actually has money off - either because it has a sale price of its own, or because one of its variations does - and drops out again the moment the offer ends. There is nothing to tick, and nothing to remember to untick when a sale finishes.
