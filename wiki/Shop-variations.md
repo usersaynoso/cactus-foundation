@@ -49,11 +49,17 @@ Tick **Image up front** and that combination's first photo joins the product's o
 
 Tick **3D up front** and the same thing happens for that combination's model, if it has one - with the [3D views](Product-3D-views) add-on installed, it joins the opening view behind the product's own model. A combination worth promoting for its model alone is fine too: tick just that box, and even with no photograph of its own the model still turns up.
 
-As the shopper picks, the promoted ones thin out. Choose 160cm and anything you've promoted that doesn't come in 160cm leaves the strip - they've said what they want, and a rival finish loitering there is only answering a question nobody asked - while the promoted ones that still fit stay put, because those are still on the table. Once every option is settled the gallery behaves exactly as it always has: the chosen combination's own photos and model at the front, the product's own behind. Press **Reset options** and the whole promoted set comes back, since the shopper is browsing again rather than choosing.
+What you've put up front stays up front until every option has been answered. Picking one option out of three is not a decision, it's a shopper halfway through thinking, and pulling the photograph or the model away at that point - or quietly swapping it for a different one - moves the picture out from under them. So nothing changes while they're still choosing.
 
-One deliberate exception, for products whose pictures live entirely on their combinations. If the product carries no photographs of its own and the shopper's picks have narrowed past everything you promoted, the combinations still in the running fill the gallery themselves - promoted or not. Otherwise a shopper who picked a width you hadn't promoted would be staring at an empty space, which is nobody's idea of a product page. The same goes for 3D: where the product has no model of its own and nothing promoted survives the picks, the models of the combinations still on offer stand in. Untouched pages are unaffected - before the first pick you still get exactly what you promoted, and nothing else.
+The moment the last option lands, the gallery behaves exactly as it always has: that combination's own photographs and model at the front, the product's own behind, and the promoted ones step aside. Press **Reset options** and they come back, since the shopper is browsing again rather than choosing.
 
 Left unticked, which is how every row starts, nothing changes at all.
+
+#### Letting the promoted ones lead
+
+Behind the product's own pictures is the right way round most of the time: the photograph you made the cover is the one the page should open on, and the promoted finishes are extras to be clicked. Sometimes it is exactly backwards - the product's own shots are a line drawing, a dimensions diagram or a bare white cut-out, and the handsome photography lives on the combinations.
+
+So the product's **Images** tab has a tick box under the grid: **Show these images after the variation images**. Tick it and the promoted combinations lead the thumbnail strip, the product's own pictures follow, and the page opens on the first promoted photo instead of the cover. Untick it and everything goes back as it was. It only appears on products that actually have variations, and it changes nothing anywhere else - the cover photo still runs the category tiles, the cart and the search results.
 
 ### Building an option from a list you already have
 
