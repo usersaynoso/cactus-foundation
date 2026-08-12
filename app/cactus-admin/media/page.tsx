@@ -14,7 +14,6 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Media — Admin' }
 
-const FOLDER_LIMIT = 500
 const TAG_LIMIT = 500
 
 type Props = { searchParams: Promise<Record<string, string>> }
@@ -61,12 +60,16 @@ export default async function MediaPage({ searchParams }: Props) {
   // boundary once they resolve. Nothing below blocks on it.
   const statsPromise = computeLibraryStats()
 
-  // Folder and tag lists are sidebar furniture, so they're capped rather than
-  // unbounded. A library with more than FOLDER_LIMIT folders or TAG_LIMIT tags is
-  // well past the point where a flat sidebar list is the right UI anyway.
+  // The folder list is never capped. It is a tree, not a flat list: cutting it
+  // short by name drops whole root folders (and every child hanging off them)
+  // from the sidebar with no indication anything is missing, which is exactly
+  // what a cap of 500 did to a library of ~1,100 folders. Three narrow columns
+  // per row is cheap; /api/admin/media/folders is unbounded for the same reason,
+  // and the two have to agree or the tree changes shape on the first refetch.
+  // Tags are a genuinely flat list, so TAG_LIMIT stays.
   const [initial, folders, folderCounts, tags, workerConfig, videoJobs, moduleTabs] = await Promise.all([
     queryMediaLibrary(query),
-    prisma.folder.findMany({ orderBy: { name: 'asc' }, take: FOLDER_LIMIT, select: { id: true, name: true, parentId: true } }),
+    prisma.folder.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, parentId: true } }),
     prisma.media.groupBy({ by: ['folderId'], _count: { _all: true } }),
     prisma.tag.findMany({ orderBy: { name: 'asc' }, take: TAG_LIMIT, select: { id: true, name: true, _count: { select: { media: true } } } }),
     getMediaWorkerConfig(),
