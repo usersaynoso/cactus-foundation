@@ -626,7 +626,7 @@ The pure half of the contract - the types, the defaults and the two helpers that
 
 ### Putting a control where a shopper will find it: `shop.cart-header-actions`
 
-`shop.cart-header-actions` collects components shop renders on the basket page's own heading row, to the right of "Your cart". `quote-for-shop` contributes two ("Save cart as a quote" and "Retrieve quote"), each a server component that reads its own settings and returns `null` when the owner has switched it off.
+`shop.cart-header-actions` collects components shop renders on the basket page's own heading row, to the right of "Your basket". `quote-for-shop` contributes two ("Save basket as a quote" and "Retrieve quote"), each a server component that reads its own settings and returns `null` when the owner has switched it off.
 
 It exists for a specific problem: a control a shopper has to be able to **find without having been told it exists** cannot depend on the site owner having dragged a block onto a layout. The right answer is usually both - the point for the default placement, a Puck block for owners who want it somewhere else, and a setting that turns the automatic one off so they never get two.
 

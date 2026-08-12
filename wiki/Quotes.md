@@ -16,7 +16,7 @@ Both live in **Settings → Shop → Quotes**, under **How this shop sells**.
 
 ### Normal shop, plus save-a-basket (the default)
 
-Nothing about your checkout changes. Shoppers can still buy exactly as they always could. What they gain is a **Save cart as a quote** button on the basket page: it hands them a short code, shows them their quote on screen, and lets them download it as a PDF. Any time later they type the code into **Retrieve quote** and their basket comes back.
+Nothing about your checkout changes. Shoppers can still buy exactly as they always could. What they gain is a **Save basket as a quote** button on the basket page: it hands them a short code, shows them their quote on screen, and lets them download it as a PDF. Any time later they type the code into **Retrieve quote** and their basket comes back.
 
 This is the gentler of the two, and it is what you get on installing the module. It is worth having on a perfectly ordinary shop: people building a big order over several evenings stop losing it, and people who need somebody else's approval have something to show them.
 
@@ -34,7 +34,7 @@ You can also **withhold prices entirely** in this mode, so the shop shows your s
 
 **Saving a basket.** They press the button, optionally give a name and an email, and get a code like `ACDE-FGHJ`. Their quote opens in a panel over the page - your own design, not ours - with a **Download as PDF** button pinned to the bottom of it. If they gave an email, the code and a link arrive there too.
 
-**Getting it back.** The **Retrieve quote** button sits beside the "Your cart" heading. They type the code in, and their basket is put back as it was.
+**Getting it back.** The **Retrieve quote** button sits beside the "Your basket" heading. They type the code in, and their basket is put back as it was.
 
 Their basket is **replaced**, not added to, and they are told so before they press it - adding an old basket on top of a new one produces something that is neither.
 
@@ -131,7 +131,7 @@ If your prices already include VAT, the row reads "VAT (included)" and the total
 
 ## Where the buttons go
 
-By default, **Save cart as a quote** and **Retrieve quote** both sit on the basket page's heading row, to the right of "Your cart". They are there without you doing anything, because a button nobody can find is a button nobody presses.
+By default, **Save basket as a quote** and **Retrieve quote** both sit on the basket page's heading row, to the right of "Your basket". They are there without you doing anything, because a button nobody can find is a button nobody presses.
 
 If you would rather place them yourself - in the totals column, next to the checkout button, wherever - both are also page-builder blocks for the basket layout. Drop them where you want them and turn the automatic ones off in **Settings → Shop → Quotes**.
 
