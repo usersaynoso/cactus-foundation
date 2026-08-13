@@ -278,7 +278,20 @@ Modules hosted in the `cactus-foundation-modules` GitHub organisation appear aut
 3. Tag a release: `git tag v1.0.0 && git push --tags`.
 4. Create a GitHub Release for the tag. The release body becomes the "Update notes" shown in the admin.
 
-Modules hosted elsewhere can still be installed manually if the admin knows the repo URL - the directory only shows `cactus-foundation-modules` repos as a curated shortlist.
+Modules hosted elsewhere can still be installed if the admin knows the repo URL - the directory only shows `cactus-foundation-modules` repos as a curated shortlist. See the next section.
+
+## Writing a module for your own site
+
+A module does not have to live in the module organisation, and does not have to be public. A site-specific module - something only one business would ever want - belongs in that owner's own GitHub account, where it never appears in anyone else's directory. The mechanics:
+
+1. **Host it in your own account.** Any `https://github.com/you/your-module` repo works, public or private. The manifest, migrations, release tagging and versioning rules are all exactly as described on this page - nothing about authoring changes.
+2. **Publish a GitHub release.** The install reads the manifest *at the release tag*, so an untagged repo cannot be installed. Pre-releases install through the Beta channel.
+3. **For a private repo, grant the site's GitHub App access to it.** The same App the site already uses to commit its module registry can fetch private module code at deploy time - on GitHub: **Settings → Applications →** the app **→ Configure**, add the module repository. No new secret is involved. If you would rather not use the App (or the site is configured with a personal access token instead), set the `MODULE_CLONE_TOKEN` environment variable to a fine-grained PAT with read-only **Contents** access on the module repo; `GITHUB_API_TOKEN` is also tried as a last resort.
+4. **Install it from Admin → Modules → "Add a custom module".** Paste the repo URL, pick a channel, press Install. The same checks run as for a directory install - manifest validation, `requiresCoreVersion`, `requiresModules`, table-prefix uniqueness - and a private repo the site could not fetch at deploy time is refused up front rather than breaking the next deploy.
+
+Once installed, a custom module behaves exactly like a directory one: it shows in the Installed list (top of the Modules page), gets update badges when you publish a new release, updates with one click, and uninstalls the same way.
+
+Worth saying plainly to anyone pasting a URL: a module runs inside the site's own runtime with full database access. Install code you trust.
 
 ## Module Puck blocks
 
@@ -645,6 +658,13 @@ Rules worth keeping if you build one of these:
 - **Only form fields belong on the Save button.** Structural actions (shop-variations' "add an option", "generate variants") still apply immediately, because they are jobs rather than typed-in details. Holding an action back behind Save reads as broken.
 - **Contributions save independently, so report per-tab.** They are separate endpoints; one failing cannot roll the others back. Say which tab failed rather than a blanket "could not save", and leave the failed tab dirty so nothing is silently lost.
 - **Bump `requiresModules` when you use one of these APIs.** A contributor importing `@/modules/shop/components/admin/product-editor/context` depends on a specific shop version, exactly as `requiresCoreVersion` works for core APIs. `shop-variations` and `product-attributes-for-shop` both pin `shop >= 0.1.38` for this reason.
+
+A sibling point, `shop.product-editor-media-sections` (shop v0.1.216), does the same for a contribution that does **not** deserve a tab: it renders at the foot of the editor's own **Images** tab, under the picture grid. `shop-variations` uses it for one tick box - whether the product's own photographs sit behind the variations it has promoted with "Image up front" - which belongs beside the pictures it reorders and would be absurd as a tab of its own. Everything above still applies (server component, rendered by the page, `useProductEditorSave` for the save), with two differences worth copying if you add a point like it:
+
+- **No label, no order in the strip.** A contribution here is not a destination, so it carries no name of its own; it borrows the host section's heading style and the manifest's `order` only decides which contribution comes first when there is more than one.
+- **The tab scope does the work.** Because the panel is rendered *inside* the Images tab, `useProductEditorSave` registers against that tab with no extra plumbing - the unsaved dot lands on **Images**, which is where the admin just clicked, and the failure message names it too.
+
+The general shape: when a contribution is *about* something the host already shows, put it next to that thing rather than in a tab where the user must go looking for the connection.
 
 ### Replacing a part rather than adding to one
 
