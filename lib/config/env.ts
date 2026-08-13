@@ -140,6 +140,14 @@ export function getEnvStatus(): {
       gates: 'GitHub App connection flow (alternative to GITHUB_API_TOKEN)',
     },
     {
+      name: 'MODULE_CLONE_TOKEN',
+      description:
+        'GitHub token used only at deploy time to fetch private module repositories (a fine-grained PAT with read-only Contents access on those repos). Optional - without it, deploys fall back to the GitHub App connection, then GITHUB_API_TOKEN.',
+      required: false,
+      set: !!process.env.MODULE_CLONE_TOKEN,
+      gates: 'Deploy-time fetch of private custom modules',
+    },
+    {
       name: 'NEON_API_KEY',
       description:
         'Neon API key. Lets Cactus create a Postgres database for you automatically during setup. Leave unset if you are supplying your own DATABASE_URL. Generate from: Neon console → Account Settings → API keys.',

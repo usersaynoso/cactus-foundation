@@ -16,6 +16,7 @@ import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
 import { checkModuleUpdateCompat } from '@/lib/modules/compat'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
+import { getGithubClient, getGithubConnectionStatus } from '@/lib/github/client'
 import { getGitHubConfigStatus, isLocalMode } from '@/lib/config/env'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
@@ -64,6 +65,55 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
   const { repoUrl, channel } = parsed.data
+
+  // Validate the URL shape before any lock or network call. `repoUrl` is only
+  // z.string().url() above, and a well-formed URL that is not a GitHub repo
+  // used to travel into getLatestRelease and surface as an unhandled 500.
+  // Custom modules arrive from a pasted URL box, so this is now a common path.
+  let repoRef: { owner: string; repo: string }
+  try {
+    repoRef = parseGitHubRepo(repoUrl)
+  } catch {
+    return errorResponse(
+      'That is not a GitHub repository address. Paste the full URL of the repo, e.g. https://github.com/your-account/your-module.'
+    )
+  }
+
+  // Probe the repo before resolving a release. The common failure for a custom
+  // module is not "no releases" - it is that this site's GitHub credentials
+  // cannot see the repo at all, and GitHub reports a private repo it cannot see
+  // as 404. Without this probe that case surfaces as "publish a release first",
+  // sending the owner hunting for a release that already exists.
+  let repoIsPrivate = false
+  try {
+    const octokit = await getGithubClient()
+    const { data: probed } = await octokit.rest.repos.get({ owner: repoRef.owner, repo: repoRef.repo })
+    repoIsPrivate = probed.private
+  } catch (err: unknown) {
+    if ((err as { status?: number }).status === 404) {
+      return errorResponse(
+        `Cactus cannot see ${repoRef.owner}/${repoRef.repo} on GitHub. If the repository is private, install the Cactus GitHub App on the account that owns it and grant it access to that repository (on GitHub: Settings → Applications → the app → Configure), then try again. If it is public, check the address for typos.`
+      )
+    }
+    // Any other probe failure (rate limit, transient network): fall through -
+    // the release resolution below has its own error handling, and a blip here
+    // should not invent a scarier message.
+  }
+
+  // Refuse a private repo the build cannot clone. Installing it anyway would
+  // commit the module into modules.json and break the site's next deploy at
+  // the checkout step - far worse than refusing here (the same reasoning as
+  // the requiresCoreVersion check below). The build fetches module code with,
+  // in order: MODULE_CLONE_TOKEN, the GitHub App connection, GITHUB_API_TOKEN
+  // (see scripts/checkout-modules.mjs).
+  if (repoIsPrivate && !process.env.MODULE_CLONE_TOKEN && !process.env.GITHUB_API_TOKEN) {
+    const { state } = await getGithubConnectionStatus()
+    if (state !== 'ready') {
+      return errorResponse(
+        `${repoRef.owner}/${repoRef.repo} is private, and this site has no credential its deploys could fetch the code with - the install would break the next deploy. Connect a GitHub App under Settings → Integrations (and grant it access to the repository), or set the MODULE_CLONE_TOKEN environment variable to a token that can read it.`
+      )
+    }
+  }
 
   // Check deploy lock (a lock stranded by a hard-killed function is treated as
   // stale and cleared, so a crashed install doesn't block every future one).
@@ -178,7 +228,6 @@ export async function POST(request: NextRequest) {
   }
 
   // Acquire deploy lock and create the module row
-  const { owner, repo } = parseGitHubRepo(repoUrl)
   await prisma.$transaction([
     prisma.deployLock.create({
       data: { id: 'singleton', lockedBy: `module:${manifest.name}` },

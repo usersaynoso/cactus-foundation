@@ -20,6 +20,7 @@ import { readFileSync, mkdirSync, existsSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { spawn } from 'child_process'
+import { resolveCloneToken, buildAuthHeaderArgs, secretsToScrub, scrubSecrets } from './lib/module-clone-auth.mjs'
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 const modulesDir = join(rootDir, 'modules')
@@ -40,16 +41,46 @@ if (entries.length === 0) {
 
 const isVercel = process.env.VERCEL === '1'
 
+// Clone credential for private module repos, resolved lazily on the FIRST
+// failed clone and then shared by every module (see module-clone-auth.mjs for
+// the tier order). Never resolved up front: a site with only public modules
+// must not pay a database read or a GitHub call per build, and must behave
+// byte for byte as before.
+let credentialPromise = null
+const scrubList = []
+function getCloneCredential() {
+  credentialPromise ??= resolveCloneToken(process.env)
+    .then((cred) => {
+      if (cred) {
+        // Everything this token could appear as in git output gets scrubbed
+        // before any log line - build logs are visible in the deployment log
+        // viewer.
+        scrubList.push(...secretsToScrub(cred.token))
+        for (const w of cred.warnings) console.warn(`[checkout-modules] ${w}`)
+      }
+      return cred
+    })
+    .catch(() => null)
+  return credentialPromise
+}
+
 // Promise-returning spawn. Output is captured rather than inherited so that parallel
-// clones don't interleave; the caller decides when to print it.
+// clones don't interleave; the caller decides when to print it. Captured output is
+// scrubbed of any clone credential before a caller can log it, and git is told
+// never to prompt (a private repo cloned anonymously must fail fast, not hang a
+// build waiting for a username).
 function git(args) {
   return new Promise((resolve) => {
-    const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'pipe'], shell: false })
+    const child = spawn('git', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    })
     let output = ''
     child.stdout.on('data', (d) => { output += d })
     child.stderr.on('data', (d) => { output += d })
-    child.on('error', (err) => resolve({ status: 1, output: err.message }))
-    child.on('close', (status) => resolve({ status, output }))
+    child.on('error', (err) => resolve({ status: 1, output: scrubSecrets(err.message, scrubList) }))
+    child.on('close', (status) => resolve({ status, output: scrubSecrets(output, scrubList) }))
   })
 }
 
@@ -69,9 +100,34 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
   // and one beginning with a dash would otherwise be read by git as an option
   // rather than a URL (`--upload-pack=…` runs a command). Args are already passed
   // as an array, so there's no shell to inject into - this closes the other half.
+  const cloneArgs = (authArgs, ref) => [
+    ...authArgs,
+    'clone', '--depth=1',
+    ...(ref ? ['--branch', ref] : []),
+    '--', repoUrl, moduleDir,
+  ]
+
+  // One clone attempt: anonymous first, and - only if that failed and a
+  // credential exists - the same clone again with auth attached as -c config
+  // (never in the URL, so nothing persists into .git/config). Auth is never
+  // attached up front: an App installation token presented for a public repo
+  // outside its own installation is refused by GitHub, which would break every
+  // directory module's clone. Public repos therefore behave byte for byte as
+  // before; a private repo fails fast anonymously and picks the credential up
+  // on its retry.
+  const attemptClone = async (ref) => {
+    const plain = await git(cloneArgs([], ref))
+    if (plain.status === 0) return plain
+    const cred = await getCloneCredential()
+    if (!cred) return plain
+    log(`${name}: anonymous clone failed — retrying with the ${cred.source} credential`)
+    try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
+    return git(cloneArgs(buildAuthHeaderArgs(cred.token), ref))
+  }
+
   if (version) {
     log(`${name}: cloning ${repoUrl} at ${version}…`)
-    const pinned = await git(['clone', '--depth=1', '--branch', version, '--', repoUrl, moduleDir])
+    const pinned = await attemptClone(version)
     if (pinned.status === 0) return true
 
     if (isVercel) {
@@ -79,7 +135,7 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
       // but an unpinned HEAD clone must never replace a pin here.
       log(`${name}: pinned clone at ${version} failed — retrying (Vercel never falls back to HEAD for a pinned entry)`)
       try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
-      const retry = await git(['clone', '--depth=1', '--branch', version, '--', repoUrl, moduleDir])
+      const retry = await attemptClone(version)
       if (retry.status === 0) return true
       log(`${name}: pinned clone at ${version} failed again — ${retry.output.trim().split('\n')[0] ?? ''}`)
       return false
@@ -91,7 +147,7 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
     log(`${name}: no version recorded — cloning ${repoUrl} at HEAD…`)
   }
 
-  const fallback = await git(['clone', '--depth=1', '--', repoUrl, moduleDir])
+  const fallback = await attemptClone(null)
   return fallback.status === 0
 }
 

@@ -108,11 +108,14 @@ type InstalledModule = {
 }
 
 function buildInstalledEntry(m: InstalledModule): DirectoryEntry {
-  const manifest = m.manifest as { teardown?: string[] } | null
+  const manifest = m.manifest as { teardown?: string[]; description?: string } | null
   return {
     repoUrl: m.repoUrl,
     repoName: m.name,
-    description: '',
+    // A custom (off-directory) module has no org repo to borrow a description
+    // from - the one in its stored manifest is all there is. Read it rather
+    // than showing a blank card forever.
+    description: typeof manifest?.description === 'string' ? manifest.description : '',
     installed: true,
     installedId: m.id,
     installedVersion: m.version,

@@ -85,6 +85,8 @@ export default function ModulesPage() {
   const [updatingAll, setUpdatingAll] = useState(false)
   const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
   const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
+  const [customUrl, setCustomUrl] = useState('')
+  const [customChannel, setCustomChannel] = useState<'public' | 'beta'>('public')
 
   const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
     const sessionKey = `cactus-module-update-check-${installedId}`
@@ -216,12 +218,12 @@ export default function ModulesPage() {
     setActionLoading((prev) => ({ ...prev, [key]: val }))
   }
 
-  async function handleInstall(repoUrl: string) {
+  async function handleInstall(repoUrl: string, channelOverride?: 'public' | 'beta'): Promise<boolean> {
     setError('')
     setNotice('')
     setLoaderFor(repoUrl, true)
     const entry = entries.find((e) => e.repoUrl === repoUrl)
-    const channel = entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public')
+    const channel = channelOverride ?? (entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public'))
     try {
       const res = await fetch('/api/admin/modules', {
         method: 'POST',
@@ -232,7 +234,7 @@ export default function ModulesPage() {
       if (!res.ok) {
         if (d.code === 'core_version_required') {
           setCoreVersionModal({ moduleName: d.moduleName, requiredVersion: d.requiredVersion, currentVersion: d.currentVersion })
-          return
+          return false
         }
         throw new Error(d.error ?? 'Install failed')
       }
@@ -248,11 +250,23 @@ export default function ModulesPage() {
       }
       await loadDirectory()
       router.refresh()
+      return true
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Install failed')
+      return false
     } finally {
       setLoaderFor(repoUrl, false)
     }
+  }
+
+  // The custom-URL panel funnels into the same install call the directory
+  // cards use - the server-side error messages coming back are the entire
+  // diagnostic story, so they are surfaced verbatim via setError above.
+  async function handleCustomInstall() {
+    const url = customUrl.trim()
+    if (!url) return
+    const ok = await handleInstall(url, customChannel)
+    if (ok) setCustomUrl('')
   }
 
   async function handleAction(id: string, action: 'update' | 'enable' | 'disable') {
@@ -613,6 +627,65 @@ export default function ModulesPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Custom module install */}
+      <section style={{ marginTop: '2.5rem' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 1rem' }}>Add a custom module</h2>
+        <div className="card" style={{ maxWidth: 560 }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 0 }}>
+            Install a module from any GitHub repository, including a private one in your own account. It needs a{' '}
+            <code>cactus.module.json</code> manifest and at least one published release. For a private repository,
+            grant this site&rsquo;s GitHub App access to it first.
+          </p>
+          <div className="field">
+            <label htmlFor="custom-module-url">Repository URL</label>
+            <input
+              id="custom-module-url"
+              type="url"
+              placeholder="https://github.com/your-account/your-module"
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              disabled={actionLoading[customUrl.trim()]}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Channel</span>
+            <div style={{
+              display: 'inline-flex', padding: 2, gap: 2,
+              background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
+            }}>
+              {(['public', 'beta'] as const).map((channel) => (
+                <button
+                  key={channel}
+                  type="button"
+                  disabled={actionLoading[customUrl.trim()]}
+                  onClick={() => setCustomChannel(channel)}
+                  style={{
+                    border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
+                    fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
+                    background: customChannel === channel ? 'var(--color-primary)' : 'transparent',
+                    color: customChannel === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {channel === 'public' ? 'Public' : 'Beta'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={!customUrl.trim() || actionLoading[customUrl.trim()]}
+            onClick={handleCustomInstall}
+          >
+            {actionLoading[customUrl.trim()] ? 'Installing…' : customChannel === 'beta' ? 'Install beta' : 'Install'}
+          </button>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: 0, marginTop: '1rem' }}>
+            Worth saying plainly: a module runs as part of the site itself, database and all. Installing one from a
+            pasted address means trusting whoever wrote it - the directory implies a little vetting, this box implies
+            none. If in doubt, don&rsquo;t.
+          </p>
+        </div>
       </section>
 
       {/* Uninstall modal */}
