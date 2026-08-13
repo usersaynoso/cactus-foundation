@@ -48,6 +48,10 @@ const SQL_TYPE_TO_UDT: Record<string, string> = {
   UUID: 'uuid',
   INET: 'inet',
   CITEXT: 'citext',
+  // search's srch_documents.search_vector. A plain written column, not a
+  // generated one, so it is dumped like any other and the serialiser does have a
+  // branch for it (TEXTUAL in serialize.ts).
+  TSVECTOR: 'tsvector',
 }
 
 function listModuleMigrationFiles(): string[] {
@@ -104,18 +108,56 @@ function parseEnumNames(sql: string): Set<string> {
   return names
 }
 
-// Column lines inside a CREATE TABLE body: `"colName" TYPE ...` - stops before a
-// bare CONSTRAINT/PRIMARY/FOREIGN/UNIQUE/CHECK line, which never starts with a
-// quoted identifier followed immediately by a type.
+// Net parenthesis depth a line changes the body by, ignoring parens inside
+// single-quoted literals (a DEFAULT '(' would otherwise unbalance the count).
+function parenDelta(line: string): number {
+  const withoutLiterals = line.replace(/'(?:[^']|'')*'/g, '')
+  let delta = 0
+  for (const ch of withoutLiterals) {
+    if (ch === '(') delta++
+    else if (ch === ')') delta--
+  }
+  return delta
+}
+
+// Column lines inside a CREATE TABLE body: `"colName" TYPE ...`.
+//
+// `IF NOT EXISTS` is optional in the table pattern and must be: EVERY module
+// migration writes `CREATE TABLE IF NOT EXISTS`, and a pattern without it
+// silently matched none of them - 171 tables and 1,455 columns across the
+// modules went unchecked while the test still went green on the init migration
+// alone. The `columns.length > 50` drift guard below could not catch that,
+// because core's 48 tables clear it on their own.
+//
+// Two things inside a body are not column declarations and must not be read as
+// one:
+//   - A table-level constraint on its own line (CONSTRAINT/PRIMARY/FOREIGN/
+//     UNIQUE/CHECK). Those don't start with a quoted identifier, so the column
+//     pattern skips them for free.
+//   - A *continuation* line of a multi-line CHECK, which very much does start
+//     with a quoted identifier: `"mount_type" IS NULL OR "mount_type" IN (...)`
+//     in space-planner's 001 parsed as a column of type `IS`. Constraint bodies
+//     are nested one paren deeper than the column list, so only lines that start
+//     at depth 0 are considered.
 function parseCreateTableColumns(sql: string, file: string): ParsedColumn[] {
   const out: ParsedColumn[] = []
-  for (const tableMatch of sql.matchAll(/CREATE\s+TABLE\s+"([^"]+)"\s*\(([\s\S]*?)\n\);/gi)) {
+  for (const tableMatch of sql.matchAll(
+    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"([^"]+)"\s*\(([\s\S]*?)\n\);/gi,
+  )) {
     const table = tableMatch[1]!
     const body = tableMatch[2]!
+    let depth = 0
     for (const line of body.split('\n')) {
-      const colMatch = /^\s*"([^"]+)"\s+([A-Za-z0-9_" ()[\],.]+?)\s*(?:NOT NULL|NULL|DEFAULT|,\s*$|$)/.exec(
-        line,
-      )
+      const startedAtTopLevel = depth === 0
+      depth += parenDelta(line)
+      if (!startedAtTopLevel) continue
+      // The type runs until whatever follows it: a column constraint written
+      // inline (`"id" TEXT PRIMARY KEY`), a nullability or default clause, a
+      // trailing comma, or end of line.
+      const colMatch =
+        /^\s*"([^"]+)"\s+([A-Za-z0-9_" ()[\],.]+?)\s*(?:PRIMARY\s+KEY|UNIQUE|REFERENCES|CHECK|GENERATED|COLLATE|NOT\s+NULL|NULL|DEFAULT|,\s*$|$)/i.exec(
+          line,
+        )
       if (!colMatch) continue
       const column = colMatch[1]!
       const sqlType = colMatch[2]!.trim()
@@ -158,6 +200,38 @@ describe('backup serialiser covers every column type in the real schema', () => 
       columns.push(...parseAlterTableColumns(sql, file))
     }
     expect(columns.length, 'parsed zero columns - the parser regex has drifted from the SQL format').toBeGreaterThan(50)
+
+    // The guard that would have caught this test quietly checking nothing but
+    // core for however long. Two things it deliberately does NOT do:
+    //
+    //   - Assert a column count. Core's own 48 tables clear any threshold a
+    //     machine with no modules checked out could also be expected to clear,
+    //     so a number cannot tell the two situations apart.
+    //   - Count module columns from any source. The first attempt at this guard
+    //     did, and still passed with the bug reintroduced: parseAlterTableColumns
+    //     already handled `IF NOT EXISTS`, so later modules' ADD COLUMN
+    //     migrations kept the count non-zero while every module TABLE went
+    //     unparsed.
+    //
+    // Nor "at least one module column came through the CREATE TABLE path", which
+    // was the second attempt and also passed with the bug reintroduced:
+    // contact-form's 001 is the one module migration writing plain
+    // `CREATE TABLE "x" (`, so three tables kept coming through while the other
+    // 168 did not.
+    //
+    // So: EVERY module migration that declares a table must yield at least one
+    // column. Drift then reports itself as the list of files that parsed nothing.
+    const silentModuleMigrations = listModuleMigrationFiles().filter((f) => {
+      const sql = readFileSync(f, 'utf8')
+      if (!/CREATE\s+TABLE/i.test(sql)) return false
+      return parseCreateTableColumns(sql, f).length === 0
+    })
+    expect(
+      silentModuleMigrations.map((f) => path.relative(process.cwd(), f)),
+      'these module migrations declare a table but no column was parsed out of them - the ' +
+        'CREATE TABLE pattern has drifted from what modules actually write, and this test is ' +
+        'checking less of the schema than it appears to',
+    ).toEqual([])
 
     const unmapped: string[] = []
     const unsupported: string[] = []
