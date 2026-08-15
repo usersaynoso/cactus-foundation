@@ -4233,6 +4233,12 @@ const headerRootRender = ({
   // to clear. 'auto' height can't be known at render time, so it falls back to
   // the 48px floor the header itself uses.
   const stickyOffsetAt = (d: Device) => (heightAt(d) === 'auto' ? '48px' : heightAt(d))
+  // Which edges the border paints. 'show' is the pre-edge-picker value and still
+  // means the bottom border alone, so headers saved before this look identical.
+  const borderShow = border?.show ?? 'show'
+  const borderLine = `1px solid ${border?.color || 'var(--color-border, #e5e7eb)'}`
+  const borderTop = borderShow === 'top' || borderShow === 'both' ? borderLine : 'none'
+  const borderBottom = borderShow === 'show' || borderShow === 'both' ? borderLine : 'none'
   const headerOffsetCss = sticky === 'yes'
     ? [
         `:root{--cactus-header-offset:${stickyOffsetAt('desktop')};}`,
@@ -4252,7 +4258,11 @@ const headerRootRender = ({
         height: desktopHeight === 'auto' ? undefined : desktopHeight,
         minHeight: desktopHeight === 'auto' ? 48 : undefined,
         background,
-        borderBottom: border?.show === 'show' ? `1px solid ${border?.color || 'var(--color-border, #e5e7eb)'}` : 'none',
+        borderTop,
+        borderBottom,
+        // An explicit height plus a border must not grow the header past that
+        // height, or a top border shifts everything under a sticky header down.
+        boxSizing: 'border-box',
         position: sticky === 'yes' ? 'sticky' : 'relative',
         top: sticky === 'yes' ? 0 : undefined,
         zIndex: sticky === 'yes' ? 100 : undefined,
@@ -4319,7 +4329,9 @@ export const headerPuckConfig = {
       // what keeps every header saved against the old select intact.
       height:       { type: 'custom' as const, label: 'Height (blank = 64px, or type auto)', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
       sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
-      border:       { type: 'custom' as const, label: 'Border bottom', render: BorderField },
+      // `sides` turns the Show/Hide picker into the four-way edge choice
+      // (bottom / top / both / none). See lib/puck/BorderField.tsx.
+      border:       { type: 'custom' as const, label: 'Border', sides: true, render: BorderField },
       maxWidth:     { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }, { value: '1400px', label: '1400px' }] },
       paddingX:     { type: 'custom' as const, label: 'Side padding (blank = 1.5rem)', units: ['px', 'rem', '%', 'vw'], render: ResponsiveUnitValueField },
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },

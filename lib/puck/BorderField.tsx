@@ -5,11 +5,30 @@ import { useSiteColours } from '@/lib/puck/useSiteColours'
 import { ColourSwatchButton, CustomColourSwatch } from '@/lib/puck/ColourSwatchButton'
 import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
 
-export type BorderFieldValue = { show: 'show' | 'hide'; color: string }
+// 'show' means "the one edge this field is about" and predates there being a
+// choice of edge, so it stays the bottom border on a header and the top border
+// on a footer - every layout saved before the edge picker existed renders the
+// same. 'top' and 'both' only ever appear on a field that opted in via
+// `sides: true`.
+export type BorderFieldValue = { show: 'show' | 'hide' | 'top' | 'both'; color: string }
+
+const EDGE_OPTIONS: Array<{ value: BorderFieldValue['show']; label: string }> = [
+  { value: 'show', label: 'Bottom only' },
+  { value: 'top', label: 'Top only' },
+  { value: 'both', label: 'Top and bottom' },
+  { value: 'hide', label: 'No border' },
+]
+
+const PLAIN_OPTIONS: Array<{ value: BorderFieldValue['show']; label: string }> = [
+  { value: 'show', label: 'Show' },
+  { value: 'hide', label: 'Hide' },
+]
 
 export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChange, field }) => {
     const colours = useSiteColours()
 
+    // Opt-in: only a field that renders both edges offers the four-way choice.
+    const options = (field as { sides?: boolean }).sides ? EDGE_OPTIONS : PLAIN_OPTIONS
     const show = value?.show ?? 'show'
     const color = value?.color ?? ''
     // The border colour carries an optional dark-mode arm as `light-dark(l, d)`;
@@ -47,11 +66,10 @@ export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChan
         </label>
         <select
           value={show}
-          onChange={(e) => onChange({ show: e.target.value as 'show' | 'hide', color })}
+          onChange={(e) => onChange({ show: e.target.value as BorderFieldValue['show'], color })}
           style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit', marginBottom: '0.5rem' }}
         >
-          <option value="show">Show</option>
-          <option value="hide">Hide</option>
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {show !== 'hide' && (
           <>

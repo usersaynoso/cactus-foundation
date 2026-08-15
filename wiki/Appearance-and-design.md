@@ -131,6 +131,8 @@ The header editor also offers the **Heading**, **Text**, **Rich text** and **But
 
 **Height.** Also with nothing selected, **Height** is now a box you type a number into rather than a list of six sizes, and it is set per screen size like everything else - so a phone header carrying a single row of small icons can be genuinely short while the desktop one keeps its full height and its logo. Leave it blank for 64px. Type `auto` if you would rather it simply grew to fit whatever is in it. Anything you set before this change is untouched and still reads the same.
 
+**Border.** The header's **Border** setting used to be a straight Show or Hide, and what it showed was always a line along the bottom. It now asks which edge you actually want: **Bottom only**, **Top only**, **Top and bottom**, or **No border** - handy for a header that sits below an announcement strip and wants a line above it as well. The colour swatches underneath work exactly as before and apply to whichever edges you have picked. Headers set up before this carry on with their line along the bottom, so nothing moves unless you move it.
+
 **Side padding.** With nothing selected in the header editor, the settings panel has a **Side padding** box: the gap held clear down each side of the header, between the screen edge and whatever sits furthest left and right. Leave it blank for the usual comfortable gap. Set it per screen size like everything else, so you can claw back a few millimetres beside the logo on phones - where every pixel counts - while the desktop header stays exactly as it was.
 
 ### Display conditions
