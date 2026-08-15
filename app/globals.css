@@ -150,16 +150,23 @@
   --color-primary-glow:   rgba(69, 149, 120, 0.2);
 
   /* Text */
+  /* Muted is real content (excerpts, bylines, captions, hints), not decoration,
+     so it has to clear AA 4.5:1 on both --color-surface (#fff) and the slightly
+     warm --color-bg (sand-50). sand-400 only managed 2.4:1 and read as a smudge.
+     sand-600 gives 5.7:1 / 5.4:1. Nothing lighter clears AA against a near-white
+     page, so muted and secondary share a value in light mode by necessity - the
+     two tiers separate again in dark mode below. Anything genuinely inert wants
+     --color-text-disabled, which is exempt from the contrast minimum. */
   --color-text:           var(--sand-900);
   --color-text-secondary: var(--sand-600);
-  --color-text-muted:     var(--sand-400);
+  --color-text-muted:     var(--sand-600);
   --color-text-disabled:  var(--sand-300);
   --color-text-inverse:   #ffffff;
 
   /* Legacy text aliases (keep for backwards compat) */
   --color-fg:             var(--sand-900);
   --color-fg-secondary:   var(--sand-600);
-  --color-muted:          var(--sand-400);
+  --color-muted:          var(--sand-600);
 
   /* Primary (cactus green) */
   --color-primary:        var(--cactus-500);
@@ -222,12 +229,15 @@
   --color-border-strong:  #514d44;
   --color-text:           #f0ede8;
   --color-text-secondary: #a89f91;
-  --color-text-muted:     #6e6657;
+  /* sand-500. The old #6e6657 was sand-600 lifted straight from light mode and
+     only reached 3.2:1 on a dark page; sand-500 gives 5.0:1 while staying a step
+     below secondary (6.4:1), so the two tiers still read apart. */
+  --color-text-muted:     #8e856f;
   --color-text-disabled:  #3f3c35;
 
   --color-fg:             #f0ede8;
   --color-fg-secondary:   #a89f91;
-  --color-muted:          #6e6657;
+  --color-muted:          #8e856f;
 
   --color-primary:        var(--cactus-400);
   --color-primary-hover:  var(--cactus-300);
@@ -314,12 +324,13 @@ img[data-logo-variant="dark"] { display: none; }
     --color-border-strong:  #514d44;
     --color-text:           #f0ede8;
     --color-text-secondary: #a89f91;
-    --color-text-muted:     #6e6657;
+    /* Keep in step with the [data-theme="dark"] block above. */
+    --color-text-muted:     #8e856f;
     --color-text-disabled:  #3f3c35;
 
     --color-fg:             #f0ede8;
     --color-fg-secondary:   #a89f91;
-    --color-muted:          #6e6657;
+    --color-muted:          #8e856f;
 
     --color-primary:        var(--cactus-400);
     --color-primary-hover:  var(--cactus-300);

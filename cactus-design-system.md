@@ -82,7 +82,7 @@
 /* Text */
 --color-text:           var(--sand-900);
 --color-text-secondary: var(--sand-600);
---color-text-muted:     var(--sand-400);
+--color-text-muted:     var(--sand-600); /* AA 4.5:1 on white and on sand-50 */
 --color-text-disabled:  var(--sand-300);
 --color-text-inverse:   #ffffff;
 
@@ -126,7 +126,7 @@ Applied under `[data-theme="dark"]` or `@media (prefers-color-scheme: dark)`.
   --color-border-strong:  #514d44;
   --color-text:           #f0ede8;
   --color-text-secondary: #a89f91;
-  --color-text-muted:     #6e6657;
+  --color-text-muted:     #8e856f; /* sand-500, AA 5.0:1 on the dark page */
   --color-text-disabled:  #3f3c35;
   --color-primary:        var(--cactus-400);
   --color-primary-hover:  var(--cactus-300);

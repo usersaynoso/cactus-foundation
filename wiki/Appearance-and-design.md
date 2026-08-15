@@ -78,6 +78,8 @@ Cactus supports light mode, dark mode, and auto (which follows the visitor's dev
 
 Your global colours each have a separate light and dark variant. On top of that, **every other colour setting in the Styles editor has an optional dark-mode override** - the page background, links, body and heading colours, buttons and their hover state, image borders, and form fields. Each override sits just beneath its normal (light) colour, labelled "Dark mode override (optional)". Set one to change how that colour looks in dark mode; leave it empty and dark mode quietly reuses the light colour. So you can define exactly how your site looks in both modes, right down to the last detail.
 
+The one worth checking is **Links > Hover colour**. A hover colour picked to look good on a white page is usually a deep, near-black shade, and reusing it on a dark page makes the thing you're pointing at disappear rather than light up - which is especially obvious where a whole card is a link, since the headline goes dark just as you reach for it. Give the hover its own dark-mode override: something brighter than your page background, such as an accent colour.
+
 ---
 
 ## Layouts
