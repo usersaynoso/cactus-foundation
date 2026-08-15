@@ -12,6 +12,8 @@ Requires the **Shop** module.
 
 Install the module and there is nothing to build. Every product page gains a **Reviews** tab, beside Description and Specification, holding the star rating, the reviews themselves and the form for writing one. It is dressed by whatever layout your shop uses, so it looks like part of the page rather than a bolted-on box.
 
+The form itself stays folded away behind a **Write a review** button, up on the right of the Reviews heading. Most people arrive to read, not to write, and a form sat open underneath every review pushed the reviews themselves off the screen. One click and it unfolds; once a review has been sent the button steps aside and leaves the thank-you where it is.
+
 If you would rather put reviews somewhere specific, three blocks are available in the page builder:
 
 | Block | Where it goes | What it draws |

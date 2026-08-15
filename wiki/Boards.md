@@ -78,7 +78,11 @@ Every tag has its own page listing threads carrying it, at `/boards/tag/tag-name
 
 ## Designing board and thread pages
 
-The look of a board (or sub-board) page and a thread's own page can be customised in **Appearance → Layouts**, under the **Boards** tab (with **Board** and **Thread** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Boards' own blocks (thread list, sub-board list, reply list, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+The look of a board (or sub-board) page and a thread's own page can be customised in **Appearance → Layouts**, under the **Boards** tab (with **Board** and **Thread** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Boards' own blocks (thread list, sub-board list, reply list, and more) alongside the usual layout and content blocks.
+
+Install Boards from v0.1.17 onwards and one Board design and one Thread design are created and published for you, arranged exactly as the pages already look. Two more of each are offered under **+ New Layout**.
+
+If your Boards went in before v0.1.17 those two tabs will be empty, and updating will not fill them - the module only creates its starting designs once, on the way in, and yours has already had its go. Nothing is broken: your boards carry on using the built-in look. Click **+ New Layout**, pick a Board design and a Thread design, publish each one, and set it to show on the entire site.
 
 ## Linking to Boards content from a menu
 

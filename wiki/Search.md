@@ -58,7 +58,7 @@ Both blocks keep their entire configuration in the page builder sidebar - there 
 
 This hides blocks, it does not lock the door: `/search` stays a reachable URL and the search API still answers, so treat it as "not announced yet" rather than as a security control.
 
-The results page is a **layout type** (`searchResults`) under Appearance → Layouts, with a starter arrangement of a large search box over the results list. Until one is published, `/search` renders that arrangement anyway, so search works out of the box - including the designed shop product cards described below, so the results page matches what the dropdown shows for the same products without anyone having to publish a layout first. That fallback page widens to the shop's own page width when it is showing those cards, so a row of three is not squeezed into a reading column.
+The results page is a **layout type** (`searchResults`) under Appearance → Layouts, with a starter arrangement of a large search box over the results list. Install Search from v0.1.18 onwards and that arrangement is created and published for you, ready to rearrange; installed earlier and the tab stays empty, because the module only creates its starting design once, on the way in. Either way `/search` renders the same arrangement whether a layout is published or not, so search works out of the box - including the designed shop product cards described below, so the results page matches what the dropdown shows for the same products without anyone having to publish a layout first. That fallback page widens to the shop's own page width when it is showing those cards, so a row of three is not squeezed into a reading column.
 
 ## Designed product cards (shop integration)
 

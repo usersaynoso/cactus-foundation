@@ -44,6 +44,25 @@ removed at any time like any other block. If you uninstall the module, remove
 the block from the layout first (a leftover block renders nothing, but there
 is no sense leaving it lying about).
 
+### On a product tile (staff only)
+
+A compact tick list on the product card itself, so a member of staff walking a
+category page can see which listings still need work without opening any of
+them. It shows a `Checks 7/10` heading, then every aspect with a green tick or
+a red cross - a cross meaning never checked, or checked longer ago than six
+months - and finally, centred underneath, whether the product carries a note.
+The note line reads the other way round: a note is something outstanding, so
+**having one is the cross** and an empty box is the tick. Hover it to read the
+note, and hover an aspect for its age.
+
+Same privacy as the product-page strip: it renders empty for everyone and only
+fills itself in once the site has confirmed who is looking, so a cached
+category page can never leak it to a shopper. A whole grid's worth of tiles is
+looked up in one go rather than one request per tile.
+
+**Placing it:** in **Admin → Layouts → Shop → Product Card**, drag **Card:
+Product checks** to where you want it - under the price is the natural home.
+
 ### In the product editor
 
 A **Checks** section in the admin product editor, alongside Downloads and

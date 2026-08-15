@@ -68,3 +68,6 @@ coverage/
 
 # Off-platform sequence worker service (its own repo, usersaynoso)
 /services/
+
+# Deskwell blog schedule and drafts (owner content, never committed)
+deskwell_blog/
