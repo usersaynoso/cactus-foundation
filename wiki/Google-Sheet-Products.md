@@ -93,6 +93,8 @@ If you have made changes in the sheet since Cactus last synced with it, Push sto
 
 Products with variations no longer share one enormous "Variations" tab. Each such product gets **its own tab**, named after it, showing only the option columns that product actually uses - so you are never scrolling past blank columns that belong to something else. A plain product without variations just lives on the Products tab as before.
 
+Each tab is also made only as big as that product needs, and trimmed back down as it shrinks. That is not housekeeping for its own sake: Google limits how big any one spreadsheet can get, and it counts every cell in every tab whether there is anything in it or not. A tab left at Google's default size is a thousand rows of nothing holding forty variations, and a few hundred of those was enough to fill a spreadsheet that was barely a twentieth full - at which point a Push stopped part-way with a message about cell limits. Push now checks there is room before it starts, claims back the empty rows on its own tabs if things are tight, and only if it genuinely will not fit does it stop and say so. Tabs of your own count towards the same limit, so if you ever see that message, delete any you have finished with or start a fresh sheet from the settings page.
+
 One thing to leave be: **don't rename or delete a product's tab by hand.** A Pull needs to find every tab to know which variations you still have. If one has gone missing, the Pull stops and tells you which to put back (or just Push again to rebuild it) - rather than assume those variations were deleted and remove them. Tidying a product away in the admin removes its tab for you on the next Push, which is the safe way round.
 
 ### Using formulas in the sheet
