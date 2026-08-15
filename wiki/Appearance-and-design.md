@@ -173,10 +173,10 @@ If you don't set an app icon at all, the standard **Favicon** box still works on
 ### App name and colours
 
 - **App name** and **Short name** are used when someone installs your site as an app. The short name is the label under the icon on a phone home screen. Both fall back to your site name if left blank.
-- **Theme colour** tints the browser toolbar on mobile, the bar around Safari's window on a Mac, and the installed app.
+- **Theme colour** tints the browser toolbar on mobile and the installed app.
 - **Background colour** is shown briefly while the installed app is loading.
 
-**A note on Safari.** Recent versions of Safari stopped reading the setting every other browser uses for this and started working the colour out from the page itself instead, which meant your Theme colour was quietly ignored and the toolbar came out white or black to match your page. Cactus now hands Safari the Theme colour by a route it does pay attention to, so the toolbar tints the way you asked without a single pixel of your site changing colour. Nothing to switch on. If you would rather the toolbar simply blended into your pages as Safari intended, set the Theme colour to your page background and it will.
+**A note on Safari.** Recent versions of Safari stopped reading the setting every other browser uses for this, so the Theme colour has no effect there and the bar around the window is left to Safari's own judgement. Nothing you can set in Cactus changes that. Every other browser, and your site installed as an app, still honour the Theme colour as they always have.
 
 ### Dark-mode logo and favicon
 
