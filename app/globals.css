@@ -404,13 +404,31 @@ html {
   }
 }
 
+/* Safari 26 ignores <meta name="theme-color"> and derives its toolbar tint from
+   body's background-color (falling back to html's). Painting the page colour on
+   html means body's background no longer propagates to the canvas, so the
+   overscroll band past the top or bottom of a page shows the page colour rather
+   than the tint. */
+html {
+  background-color: var(--color-page-bg, var(--color-bg));
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-base);
   color: var(--color-text);
-  background: var(--color-page-bg, var(--color-bg));
+  /* background-color is the site's Theme colour purely so Safari samples it -
+     the gradient paints over it edge to edge, so what renders is the page colour
+     exactly as before. Must stay two longhands: the `background` shorthand would
+     reset the image and leak the tint onto the page. --cactus-theme-color comes
+     from the root layout; unset, this falls back to the old single colour. */
+  background-color: var(--cactus-theme-color, var(--color-page-bg, var(--color-bg)));
+  background-image: linear-gradient(
+    var(--color-page-bg, var(--color-bg)),
+    var(--color-page-bg, var(--color-bg))
+  );
   -webkit-font-smoothing: antialiased;
 }
 
