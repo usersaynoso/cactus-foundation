@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { clearAlert } from '@/lib/notifications/alerts'
-import { isModuleInBuild, seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
+import { declaredLayoutTypesByModule, isModuleInBuild, seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
 
 // Reconciles modules left in 'deploying' once the Vercel build reaches a terminal
 // state. Centralised so every "deploy finished" path (the Pro-plan webhook, the
@@ -43,13 +43,22 @@ export async function markModulesDeploySucceeded(): Promise<void> {
       // exactly how a live Shop ended up 404ing every product URL. Left unstamped,
       // seedPendingModuleLayouts() picks it up on the next request served by a build
       // that does have the code.
+      //
+      // The stamp goes on only when the seed actually wrote something, or when the
+      // module has no layout types to write. A run that creates nothing yet stamps
+      // anyway is the whole gazette fault in one line: six starters, no flags, zero
+      // rows, door shut for good. `seedPendingModuleLayouts()` would now dig such a
+      // module back out on a later request, but there is no sense manufacturing the
+      // hole first.
       if (!m.layoutsSeededAt && isModuleInBuild(m.name)) {
         try {
-          await seedModuleDefaultLayouts(prisma, m.name)
-          await prisma.module.update({
-            where: { id: m.id },
-            data: { layoutsSeededAt: new Date() },
-          })
+          const created = await seedModuleDefaultLayouts(prisma, m.name)
+          if (created > 0 || !declaredLayoutTypesByModule()[m.name]?.length) {
+            await prisma.module.update({
+              where: { id: m.id },
+              data: { layoutsSeededAt: new Date() },
+            })
+          }
         } catch (err) {
           // Left unstamped, so the next deploy tries again. The module is active either
           // way - a missing default layout is a blank page, not a broken site.

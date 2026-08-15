@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   planStarterCleanup,
   planOrphanLayoutTypes,
-  planPendingModuleSeeds,
+  planModuleSeeds,
+  planModuleSeedTemplates,
+  declaredLayoutTypesByModule,
   stableStringify,
   type LayoutRow,
 } from './starterLayouts'
@@ -259,31 +261,110 @@ describe('planOrphanLayoutTypes', () => {
 // layoutsSeededAt on top of that turns "seed once" into "never". A live Shop lost
 // its product, index, checkout and confirmation layouts exactly that way, and 404ed
 // every product URL, because those pages are Puck-only with no hardcoded fallback.
-describe('planPendingModuleSeeds', () => {
-  const pending = [{ name: 'shop' }, { name: 'gazette' }]
+describe('planModuleSeeds', () => {
+  const types = { shop: ['shopIndex', 'shopProduct'], gazette: ['gazetteCategory', 'gazetteEntry'] }
+  const unstamped = [{ name: 'shop', layoutsSeededAt: null }, { name: 'gazette', layoutsSeededAt: null }]
+  const stamped = (name: string) => ({ name, layoutsSeededAt: new Date('2026-08-15T04:59:49Z') })
 
-  it('seeds a never-seeded module whose code is in this build', () => {
-    expect(planPendingModuleSeeds(pending, ['shop', 'gazette'])).toEqual(pending)
+  it('seeds a never-stamped module whose code is in this build', () => {
+    expect(planModuleSeeds(unstamped, ['shop', 'gazette'], types, new Set())).toEqual(unstamped)
   })
 
   it('skips a module whose code this build does not have', () => {
     // Left unstamped on purpose: the deploy that brings the code seeds it properly.
-    expect(planPendingModuleSeeds(pending, ['gazette'])).toEqual([{ name: 'gazette' }])
+    expect(planModuleSeeds(unstamped, ['gazette'], types, new Set())).toEqual([unstamped[1]])
   })
 
   it('skips everything when the build has no modules at all', () => {
-    expect(planPendingModuleSeeds(pending, [])).toEqual([])
+    expect(planModuleSeeds(unstamped, [], types, new Set())).toEqual([])
   })
 
-  it('has nothing to do when no module is awaiting a seed', () => {
-    expect(planPendingModuleSeeds([], ['shop'])).toEqual([])
+  // The gazette fault: stamped at install, nothing written (no template carried
+  // publishByDefault), so "seed once" became "never" and no module release could
+  // put it right. A stamped module with not one row across all its types gets
+  // another go.
+  it('seeds a stamped module that owns no layout of any type it declares', () => {
+    expect(planModuleSeeds([stamped('gazette')], ['gazette'], types, new Set(['shopIndex'])))
+      .toEqual([stamped('gazette')])
   })
 
-  it('ignores modules in the build that are not awaiting a seed', () => {
-    // An already-stamped module never reaches here - re-minting layouts the owner
-    // has since deleted is the thing the stamp exists to prevent.
-    expect(planPendingModuleSeeds([{ name: 'shop' }], ['shop', 'contact-form'])).toEqual([
-      { name: 'shop' },
-    ])
+  it('leaves a stamped module alone once it has a layout of any of its types', () => {
+    // Deleting the layout for ONE type is a decision - falling back to the built-in
+    // page - and re-minting it on the next update would change a live site unasked.
+    expect(planModuleSeeds([stamped('shop')], ['shop'], types, new Set(['shopIndex']))).toEqual([])
+  })
+
+  it('leaves a stamped module alone when it declares no layout types at all', () => {
+    expect(planModuleSeeds([stamped('twilio')], ['twilio'], types, new Set())).toEqual([])
+  })
+
+  it('has nothing to do when nothing is installed', () => {
+    expect(planModuleSeeds([], ['shop'], types, new Set())).toEqual([])
+  })
+})
+
+// publishByDefault used to be a precondition, so a module that never set it got no
+// layouts at all - and the install stamped layoutsSeededAt regardless, which made it
+// permanent. It is a preference now.
+describe('planModuleSeedTemplates', () => {
+  const t = (id: string, publishByDefault?: boolean): StarterTemplate => ({
+    id, name: id, description: id, data: { content: [], root: { props: {} }, zones: {} },
+    ...(publishByDefault === undefined ? {} : { publishByDefault }),
+  })
+
+  it('takes the flagged template when a type has one', () => {
+    const entries = [
+      { type: 'shopIndex', template: t('a') },
+      { type: 'shopIndex', template: t('b', true) },
+    ]
+    expect(planModuleSeedTemplates(entries).map((e) => e.template.id)).toEqual(['b'])
+  })
+
+  it('takes every flagged template when a type marks more than one', () => {
+    const entries = [
+      { type: 'shopIndex', template: t('a', true) },
+      { type: 'shopIndex', template: t('b', true) },
+    ]
+    expect(planModuleSeedTemplates(entries).map((e) => e.template.id)).toEqual(['a', 'b'])
+  })
+
+  it('falls back to the first template when a type flags none', () => {
+    const entries = [
+      { type: 'gazetteCategory', template: t('first') },
+      { type: 'gazetteCategory', template: t('second') },
+    ]
+    expect(planModuleSeedTemplates(entries).map((e) => e.template.id)).toEqual(['first'])
+  })
+
+  it('seeds nothing for a type that says publishByDefault: false out loud', () => {
+    const entries = [
+      { type: 'shopCategory', template: t('a', false) },
+      { type: 'shopCategory', template: t('b') },
+    ]
+    expect(planModuleSeedTemplates(entries)).toEqual([])
+  })
+
+  it('decides per type, not per module', () => {
+    const entries = [
+      { type: 'gazetteCategory', template: t('cat-first') },
+      { type: 'gazetteEntry', template: t('entry-a') },
+      { type: 'gazetteEntry', template: t('entry-b', true) },
+    ]
+    expect(planModuleSeedTemplates(entries).map((e) => e.template.id)).toEqual(['cat-first', 'entry-b'])
+  })
+
+  it('gives every layout type of every module in this build a default', () => {
+    // The regression that started all this: open Layouts on a fresh install and no
+    // module tab may be empty.
+    for (const [moduleName, typeKeys] of Object.entries(declaredLayoutTypesByModule())) {
+      const planned = planModuleSeedTemplates(moduleStarterTemplates(moduleName))
+      const seededTypes = new Set(planned.map((e) => e.type))
+      const declaredWithStarters = typeKeys.filter((key) =>
+        moduleStarterTemplates(moduleName).some((e) => e.type === key),
+      )
+      for (const key of declaredWithStarters) {
+        expect(seededTypes.has(key), `${moduleName}/${key} would seed nothing`).toBe(true)
+      }
+    }
   })
 })
