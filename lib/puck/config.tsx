@@ -566,6 +566,21 @@ function readColumnSizesMode(columnSizes: unknown): string | undefined {
   return typeof columnSizes === 'string' ? columnSizes : (columnSizes as any)?.desktop
 }
 
+// Split is the last container still on Puck's legacy DropZone API: its two
+// columns live in `data.zones` and only ever reach the block through
+// `puck.renderDropZone`. Puck hands that down when a block sits in ordinary
+// page content, but its RSC slot renderer (SlotRender in @puckeditor/core)
+// does not - so a Split dropped inside ANY slot renders two empty columns on
+// the published page while looking perfectly right in the editor. That is how
+// every Gazette post came to publish a blank body on 2026-08-15: the post
+// layout's Split had been moved inside a Section.
+// Grid2 does everything Split does - the same 70/30 and other ratio presets,
+// gap, vertical align, stacking - and is slot-based, so Split is retired the
+// same way the dynamic `Grid` above was: still registered, so existing data
+// keeps rendering and editing exactly as before, but no longer offered in any
+// picker and barred from every slot, which is the only place it can't work.
+const SLOT_DISALLOW = ['Split']
+
 function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   const cols = Array.from({ length: colCount }, (_, i) => i + 1)
   const alignOptions = [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }]
@@ -605,7 +620,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   fields.gapShrunk = { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] }
   for (const n of cols) fields[`col${n}WidthShrunk`] = { type: 'custom' as const, label: `Col ${n} shrunk width`, units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField }
   Object.assign(fields, aosFields)
-  for (const n of cols) fields[`col${n}`] = { type: 'slot' as const }
+  for (const n of cols) fields[`col${n}`] = { type: 'slot' as const, disallow: SLOT_DISALLOW }
 
   const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', gapShrunk: '', ...aosDefaults }
   for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
@@ -2752,7 +2767,7 @@ const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY =
 
 export const puckConfig = {
   categories: {
-    layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Layout',     components: ['Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'], defaultExpanded: true },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],            defaultExpanded: true },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'FeatureVideo', 'Embed'], defaultExpanded: true },
@@ -2776,7 +2791,7 @@ export const puckConfig = {
     Section: {
       label: 'Section',
       fields: {
-        content: { type: 'slot' as const },
+        content: { type: 'slot' as const, disallow: SLOT_DISALLOW },
         bg: { type: 'custom' as const, label: 'Background type', render: SectionBgColorField },
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
@@ -2854,7 +2869,7 @@ export const puckConfig = {
         col3WidthShrunk: { type: 'custom' as const, label: 'Col 3 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
         col4WidthShrunk: { type: 'custom' as const, label: 'Col 4 shrunk width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
         ...aosFields,
-        col1: { type: 'slot' as const }, col2: { type: 'slot' as const }, col3: { type: 'slot' as const }, col4: { type: 'slot' as const },
+        col1: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col2: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col3: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col4: { type: 'slot' as const, disallow: SLOT_DISALLOW },
       },
       defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
       resolveFields: (data: any, { fields, appState }: any) => {
@@ -2926,7 +2941,7 @@ export const puckConfig = {
         gap: { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
         padding: paddingField,
         gapShrunk: { type: 'select' as const, label: 'Shrunk gap', options: [{ value: '', label: 'Same as gap' }, { value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
-        items: { type: 'slot' as const },
+        items: { type: 'slot' as const, disallow: SLOT_DISALLOW },
       },
       defaultProps: { columns: 'auto', direction: 'row', justify: 'start', align: 'stretch', wrap: 'wrap', gap: 'md', padding: 'none', gapShrunk: '' },
       resolveFields: (data: any, { fields, appState }: any) => {
@@ -3847,7 +3862,7 @@ export const puckConfig = {
     MemberGate: {
       label: 'Member Gate',
       fields: {
-        content: { type: 'slot' as const },
+        content: { type: 'slot' as const, disallow: SLOT_DISALLOW },
         fallbackMessage: { type: 'text' as const, label: 'Message shown to guests' },
       },
       defaultProps: { fallbackMessage: 'Sign in to view this content.' },
@@ -3856,7 +3871,7 @@ export const puckConfig = {
     TrustedMemberGate: {
       label: 'Trusted Member Gate',
       fields: {
-        content: { type: 'slot' as const },
+        content: { type: 'slot' as const, disallow: SLOT_DISALLOW },
         fallbackMessage: { type: 'text' as const, label: 'Message shown to non-trusted visitors' },
       },
       defaultProps: { fallbackMessage: 'This content is only available to trusted members.' },
@@ -4004,7 +4019,7 @@ const footerModuleBlocks = moduleComponentsByLayoutType['footer'] ?? {}
 export const footerPuckConfig = {
   categories: {
     site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'IconLink', 'CookieSettingsLink'], defaultExpanded: true },
-    layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: false },
+    layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
     ...(Object.keys(footerModuleBlocks).length > 0
@@ -4068,7 +4083,7 @@ export const footerPuckConfig = {
 
 export const layoutPuckConfig = {
   categories: {
-    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Split', 'Spacer', 'Divider'], defaultExpanded: true },
+    layout:     { title: 'Structure',  components: ['ContentSlot', 'Section', 'Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock', 'Quote', 'Caption'],              defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'CTABanner', 'IconLink'],                           defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock', 'VideoEmbed', 'Embed'],                                      defaultExpanded: false },

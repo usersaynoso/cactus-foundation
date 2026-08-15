@@ -116,7 +116,35 @@ Any page that includes one of these blocks always shows the very latest posts on
 
 ## Designing your post listing and post pages
 
-The look of your post listing pages (the main feed, tag pages, series pages, author pages, and monthly archives all share one design) and your individual post pages can be customised in **Appearance → Layouts**, under the **Gazette** tab (with **Listing** and **Post** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Gazette's own blocks (post list, author bio, table of contents, comments, and more) alongside the usual layout and content blocks. Nothing changes until you pick a starter design and publish it - until then, both page types keep their current built-in look.
+The look of your post listing pages (the main feed, tag pages, series pages, author pages, and monthly archives all share one design) and your individual post pages can be customised in **Appearance → Layouts**, under the **Gazette** tab (with **Listing** and **Post** sub-tabs) - the same drag-and-drop editor used for your header and footer, with Gazette's own blocks (post list, author bio, table of contents, comments, and more) alongside the usual layout and content blocks.
+
+Install Gazette from v0.1.16 onwards and one Listing design and one Post design are created and published for you, ready to edit. Three designs of each are offered under **+ New Layout** if you would rather start somewhere else.
+
+If your Gazette went in before v0.1.16 those two tabs will be empty, and updating will not fill them - the module only ever creates its starting designs once, on the way in, and yours has already had its go. Nothing is broken: your posts carry on using the built-in look. Click **+ New Layout**, pick a Listing design and a Post design, publish each one, and set it to show on the entire site.
+
+### Settings on the Entry Header block
+
+The **Gazette: Entry Header [Anchor]** block draws the top of a post - the featured image, the headline, and the line of small print under it. Select it in the Post design and the panel offers:
+
+| Setting | What it does |
+|---------|--------------|
+| **Featured image** | Show or hide the post's picture. Off is the tidy choice for a text-led blog, or for a design that puts the picture somewhere else entirely. |
+| **Image shape** | Leave it **As uploaded** to keep each photo's own proportions, or crop every one to the same widescreen, landscape, classic or square shape so a run of posts all start at the same place. |
+| **Image corners** | Square through to very rounded. |
+| **Alignment** | Headline and small print to the left, or centred. |
+| **Author name**, **Date**, **Reading time**, **Comment count**, **View count**, **Tags** | Each can be switched off on its own. The view count still obeys the site-wide **Show view counts** setting - a block can hide it, never force it on. |
+| **Date style** | 14 August 2026, 14 Aug 2026, or 14/08/2026. |
+| **Tags label** | The words before the list of tags. Blank leaves just the tags. |
+
+Settings that could not do anything stay out of the way: turn the image off and its shape and corners disappear, turn the date off and the date style goes with it.
+
+Posts designed before these settings existed look exactly as they did - everything starts switched on.
+
+### Where the contents list sits
+
+The **Gazette: Table of Contents** block used to tuck itself out to one side, which was right on the built-in post page and quite wrong in a design where you had given it a column of its own: it pulled itself out of that column and left whatever sat underneath - usually **Gazette: Series Navigation** - wrapping its words around it a letter at a time. It now sits squarely in whatever column you put it in, with a **Contents** heading above the links, and the blocks below it start below it. On phones it stays a tap-to-open **Contents** panel as before.
+
+If you want the contents list to follow the reader down the page, that is the **Col sticky** setting on the Grid holding the column, not the block.
 
 ---
 
