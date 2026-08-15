@@ -122,6 +122,65 @@ Install Gazette from v0.1.16 onwards and one Listing design and one Post design 
 
 If your Gazette went in before v0.1.16 those two tabs will be empty, and updating will not fill them - the module only ever creates its starting designs once, on the way in, and yours has already had its go. Nothing is broken: your posts carry on using the built-in look. Click **+ New Layout**, pick a Listing design and a Post design, publish each one, and set it to show on the entire site.
 
+### Settings on the Category Header block
+
+The **Gazette: Category Header [Anchor]** block is the heading at the top of a listing page. One Listing design serves the main feed, tag pages, series pages, author pages and the monthly archives, so by default the block shows whichever heading the page in question has of its own - "Gazette", "Tag: Standing desks", "Posts by Ada", "August 2026 archive" and so on. Select it in the Listing design and the panel offers:
+
+| Setting | What it does |
+|---------|--------------|
+| **Heading** | Leave it blank and each page keeps its own heading, which is what the block has always done. Type something and every listing page gets those words instead. Include `{title}` and the page's own heading is dropped in where you put it, so "Reading: {title}" gives "Reading: Gazette" on the main feed and "Reading: Tag: Standing desks" on a tag page. |
+| **Heading level** | Whether it counts as the page's main heading or a lesser one. Main heading is right unless you have put something more important above it. |
+| **Heading size** | How big it looks, separately from how important it counts as. Leave it on **As the theme** to inherit your site's own heading style. |
+| **Small label above** | A short line of capitals above the heading, in the style of a section label. Blank for none. |
+| **Alignment** | Left or centred. |
+| **Description** | The sentence under the heading. Switch it off and it goes, along with its own wording box. |
+| **Description wording** | As with the heading: blank keeps whatever the page supplies, and `{title}` stands in for it. |
+| **Line underneath** | A hairline rule below the whole header. |
+| **Space underneath** | How much room before the next block. **As the theme** is the spacing it has always had. |
+
+Headers designed before these settings existed carry on exactly as they were.
+
+### Settings on the Entry List block
+
+The **Gazette: Entry List [Anchor]** block is the run of post cards itself. Select it in the Listing design and the panel offers:
+
+| Setting | What it does |
+|---------|--------------|
+| **Posts per page** | How many cards before the listing stops for breath. Leave it at 0 to keep using the number in **Settings → Gazette**, which is what every listing did before this setting existed. 48 is the ceiling. |
+| **When there are more posts** | **Numbered pages** is the old behaviour. **"Load more" button** adds one more helping at a time without leaving the page. **Load as you scroll** fetches the next lot as the visitor nears the bottom. **Show nothing more** stops dead at the first page, handy for a "latest three posts" panel in a sidebar. |
+| **"Load more" label** | The words on the button. |
+| **Order** | Newest first, oldest first, most read first, or title A to Z. Pinned posts still come first whichever you pick, which is rather the point of pinning them. |
+| **Columns** | **Fit to the space** keeps the cards flowing to suit the width they've been given. One to four pins the count instead. Phones always get a single column, whatever you choose, because four cards side by side on a handset is not a design, it's a punishment. |
+| **Image**, **Excerpt**, **Author**, **Date**, **Comment count** | Each can be switched off on its own. |
+| **Image shape** | The shape every card's picture is cropped to: widescreen (16:9, the shape they have always been), landscape, classic, square, or **As uploaded**, which crops nothing and lets each picture keep its own proportions. Square is the one that matches a shop laid out with product cards. |
+| **When a card is hovered** | **Nothing** leaves the cards still. **Lift** raises the card slightly, deepens its shadow and eases the picture in a touch, which is exactly what the shop's product cards do, so a site running both reads as one thing. **Grow slightly** swells the whole card in place instead. Anyone who has asked their computer to keep animation to a minimum gets no movement either way. |
+| **View count** | Follows the site-wide **Show view counts** setting by default, and can be forced on or off for this listing. |
+
+"Load as you scroll" keeps its button as well, for anyone using a keyboard or a browser that won't play along, and stops loading by itself if the connection gives up rather than hammering away in the background.
+
+Listings designed before these settings existed carry on exactly as they were: numbered pages, the site's own posts-per-page number, everything on show, widescreen pictures and no hover. Newly added blocks arrive with the lift already on. If you want the square pictures or the hover on a listing you designed earlier, open it and pick them.
+
+### Letting visitors filter the listing
+
+Three more blocks sit in the Listing design, for visitors to narrow the posts down themselves:
+
+- **Gazette: Series Filter**
+- **Gazette: Author Filter**
+- **Gazette: Tag Filter**
+
+Drop in as many or as few as suit you, in a sidebar or across the top. Each one lists what you actually have, with the number of published posts beside each, and a chip for "all" to clear it again. Anything with nothing published under it is left out, so nobody clicks through to an empty page.
+
+They stack: pick a series and an author and the listing shows the posts that are both. Choosing a filter takes the visitor to the main Gazette address with the choice remembered, so the back button behaves and a filtered view can be shared as a link like any other page. The individual tag, series and author pages carry on working as they always have, and a filter block on one of those pages shows that choice as already picked.
+
+| Setting | What it does |
+|---------|--------------|
+| **Heading** | The small label above the chips. Leave it blank for none. |
+| **Style** | **Pills** for a row of rounded chips, **List** for a stacked column, which suits a narrow sidebar. |
+| **Order** | A to Z, or most posts first. |
+| **Maximum shown** | Trims a long list to the first few. 0 shows the lot. Whatever the visitor has currently picked is always shown, even if it falls outside the cut. |
+| **Show post counts** | The number beside each option. |
+| **Show the "all" option** and **"All" label** | The chip that clears this filter, and what it says. |
+
 ### Settings on the Entry Header block
 
 The **Gazette: Entry Header [Anchor]** block draws the top of a post - the featured image, the headline, and the line of small print under it. Select it in the Post design and the panel offers:
