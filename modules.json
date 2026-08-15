@@ -18,7 +18,7 @@
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.17"
+      "version": "v0.1.18"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -38,7 +38,7 @@
     {
       "name": "product-downloads-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-downloads-for-shop",
-      "version": "v0.1.5"
+      "version": "v0.1.6"
     },
     {
       "name": "filters-for-shop",
@@ -63,7 +63,7 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.33"
+      "version": "v0.1.34"
     },
     {
       "name": "quote-for-shop",
