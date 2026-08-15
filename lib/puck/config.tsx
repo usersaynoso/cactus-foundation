@@ -4374,6 +4374,21 @@ export const fullPagePuckConfig = puckConfig
 
 const MODULE_LAYOUT_CATEGORY_KEYS = ['layout', 'typography', 'actions', 'media', 'content'] as const
 
+// Blocks that are still registered and fully renderable but no longer offered
+// in any picker: the dynamic `Grid` that Grid2/Grid3/Grid4 replaced, and `Split`,
+// retired in v0.5.1053 because it cannot work inside a slot.
+//
+// A module layout's component set is the only one in the file derived from the
+// category lists rather than from `puckConfig.components`, so dropping a name
+// from a category does not merely hide that block here - it UNREGISTERS it, and
+// Puck renders nothing at all for a type its config has never heard of. Taking
+// 'Split' out of the layout category in v0.5.1053 therefore blanked the entire
+// two-column half of the shop's Product Detail and Checkout layouts on the live
+// site while every page still served a 200. Retired blocks are added back by
+// name here so existing module-layout data keeps rendering, without putting
+// them back in `sharedCategories` and so back in the picker.
+const RETIRED_BLOCKS = ['Split', 'Grid'] as const
+
 // Shared by both the editor (here) and the RSC render path (lib/puck/config.rsc.tsx)
 // so the "module declares its own blocks" wiring only exists in one place.
 export function getModuleLayoutSharedParts() {
@@ -4381,7 +4396,11 @@ export function getModuleLayoutSharedParts() {
     MODULE_LAYOUT_CATEGORY_KEYS.map((k) => [k, puckConfig.categories[k]])
   )
   const sharedComponents = Object.fromEntries(
-    MODULE_LAYOUT_CATEGORY_KEYS.flatMap((k) => puckConfig.categories[k].components)
+    [
+      ...MODULE_LAYOUT_CATEGORY_KEYS.flatMap((k) => puckConfig.categories[k].components),
+      ...RETIRED_BLOCKS,
+    ]
+      .filter((name) => (puckConfig.components as any)[name])
       .map((name) => [name, (puckConfig.components as any)[name]])
   )
   return { sharedCategories, sharedComponents }
