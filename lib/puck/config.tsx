@@ -477,8 +477,8 @@ function GridBlock(props: any) {
       {gapVAlignCss && <style>{gapVAlignCss}</style>}
       {anyColSticky && (
         <style>{[
-          stackMode !== 'never' && `${mobileMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
-          stackMode === 'tablet' && `${tabletMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;}}`,
+          stackMode !== 'never' && `${mobileMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;max-height:none !important;overflow:visible !important;}}`,
+          stackMode === 'tablet' && `${tabletMediaQuery()}{[data-grid-id="${id}"]>[data-col-sticky]{position:static !important;top:auto !important;max-height:none !important;overflow:visible !important;}}`,
         ].filter(Boolean).join('')}</style>
       )}
       <div
@@ -522,9 +522,30 @@ function GridBlock(props: any) {
         // align keeps the box its content height (not stretched to the row) so
         // there is room to travel; the media rules below drop it back to static
         // once the grid stacks. Marked with data-col-sticky for those rules.
+        // A pinned column taller than the viewport would otherwise strand its
+        // own bottom off-screen for good - it never scrolls, so whatever sits
+        // below the fold is unreachable. Capping it at the viewport (minus its
+        // own offset) and letting it scroll internally keeps that content
+        // reachable; a column shorter than the cap is untouched.
+        // Offset: an author-set value is taken at face value (they may already
+        // have dialled in a number to clear a sticky header, and doubling it up
+        // would shove the column down the page). Left blank - the default - it
+        // clears whatever sticky header the page has via the variable the header
+        // publishes, so a pinned column stops losing its top edge underneath it.
         const colSticky = colStickies[i]
+        const rawStickyOffset = (colStickyOffsets[i] || '').trim()
+        const stickyOffset = rawStickyOffset && !/^0[a-z%]*$/i.test(rawStickyOffset)
+          ? rawStickyOffset
+          : 'var(--cactus-header-offset, 0px)'
         const stickyStyle = colSticky
-          ? { position: 'sticky' as const, top: colStickyOffsets[i] || '0px', alignSelf: 'start' as const, zIndex: 1 }
+          ? {
+              position: 'sticky' as const,
+              top: stickyOffset,
+              alignSelf: 'start' as const,
+              zIndex: 1,
+              maxHeight: `calc(100vh - ${stickyOffset})`,
+              overflowY: 'auto' as const,
+            }
           : {}
         return (
           <div key={i} {...(colSticky ? { 'data-col-sticky': '' } : {})} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...stickyStyle, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
@@ -4204,6 +4225,20 @@ const headerRootRender = ({
   // shrink-on-scroll override is header[data-shrink-root][data-shrunk] (0,2,1),
   // so a shrunk header still wins on scroll even though both carry !important.
   const headerHeightCss = responsiveMediaCssFor('header[data-header-root]', heightDecl)
+  // A sticky header floats over everything below it, so anything else that pins
+  // itself to the top of the viewport (a sticky Grid column, say) lands *under*
+  // the header and loses its own top edge. Publish the header's height as a
+  // page-level variable and those blocks can clear it without the author having
+  // to measure the header by hand. 0px when the header doesn't stick - nothing
+  // to clear. 'auto' height can't be known at render time, so it falls back to
+  // the 48px floor the header itself uses.
+  const stickyOffsetAt = (d: Device) => (heightAt(d) === 'auto' ? '48px' : heightAt(d))
+  const headerOffsetCss = sticky === 'yes'
+    ? [
+        `:root{--cactus-header-offset:${stickyOffsetAt('desktop')};}`,
+        responsiveMediaCssFor(':root', (d) => `--cactus-header-offset:${stickyOffsetAt(d)};`),
+      ].filter(Boolean).join('\n')
+    : ''
   // data-header-root is unconditional (unlike data-shrink-root, which only
   // appears when shrink-on-scroll is on): it scopes the header-only true-
   // centering CSS that GridBlock/GroupBlock emit, so those rules are inert
@@ -4226,6 +4261,7 @@ const headerRootRender = ({
     >
       {headerPxCss && <style>{headerPxCss}</style>}
       {headerHeightCss && <style>{headerHeightCss}</style>}
+      {headerOffsetCss && <style>{headerOffsetCss}</style>}
       <div data-header-inner style={{
         maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
         margin: '0 auto',
