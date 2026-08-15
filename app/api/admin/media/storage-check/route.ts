@@ -31,13 +31,17 @@ export async function GET() {
 //   { action: 'correct-sizes' }              - rewrites recorded sizes to match
 //                                              the objects. Changes no file.
 //   { action: 'delete-orphans', keys: [] }   - deletes objects with no media
-//                                              item. Destructive, and no
-//                                              reference check can vouch for an
-//                                              object nothing in the database
-//                                              points at, so it needs the delete
-//                                              permission as well and only ever
-//                                              acts on keys a fresh scan still
-//                                              calls orphaned.
+//                                              item and nothing pointing at
+//                                              them. Destructive, so it needs
+//                                              the delete permission as well and
+//                                              only ever acts on keys a fresh
+//                                              scan still calls orphaned. That
+//                                              re-scan is also what keeps an
+//                                              object a module is using out of
+//                                              reach: the scan files those under
+//                                              `claimed`, never `orphaned`, so a
+//                                              stale page asking for one is
+//                                              simply skipped.
 //   { action: 'purge-missing', keys: [],     - removes library entries whose
 //     force?: boolean }                        file is no longer in storage.
 //                                              Deletes no blob (there isn't one

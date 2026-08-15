@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { diffStorageAgainstRows, isOwnMediaKey, type ReconcileRow } from './reconcile'
+import { diffStorageAgainstRows, extractReferencedKeys, isOwnMediaKey, type ReconcileRow } from './reconcile'
 import type { StoredObject } from './upload'
 
 // The stakes here are one-sided. A missed orphan costs a little storage; a FALSE
@@ -67,6 +67,30 @@ describe('diffStorageAgainstRows', () => {
     expect(d.orphaned).toEqual([])
   })
 
+  it('keeps an object the site is using out of the orphan list', () => {
+    // The case that cost a live site: a module writes a 3D model's url straight
+    // into its own table without minting a library row, so the object looks
+    // unowned while a product page serves it.
+    const used = 'media/shop/desks/impulse/3d/120cm.glb'
+    const d = diffStorageAgainstRows('B2', [], [obj(used, 400_000), obj('media/spare.webp', 10)], (k) => k === used)
+    expect(d.orphaned.map((o) => o.key)).toEqual(['media/spare.webp'])
+    expect(d.claimed.map((o) => o.key)).toEqual([used])
+    expect(d.claimedBytes).toBe(400_000)
+    expect(d.orphanedBytes).toBe(10)
+  })
+
+  it('leaves a claimed object out of the orphan byte total', () => {
+    const d = diffStorageAgainstRows('B2', [], [obj('media/a.webp', 500)], () => true)
+    expect(d.orphaned).toEqual([])
+    expect(d.orphanedBytes).toBe(0)
+  })
+
+  it('still calls a rowless object an orphan when no claim test is given', () => {
+    const d = diffStorageAgainstRows('B2', [], [obj('media/a.webp', 500)])
+    expect(d.orphaned.map((o) => o.key)).toEqual(['media/a.webp'])
+    expect(d.claimed).toEqual([])
+  })
+
   it('matches keys exactly, so a shared prefix is not treated as the same file', () => {
     const d = diffStorageAgainstRows(
       'B2',
@@ -75,6 +99,39 @@ describe('diffStorageAgainstRows', () => {
     )
     expect(d.orphaned.map((o) => o.key)).toEqual(['media/photo.webp.bak'])
     expect(d.missing).toEqual([])
+  })
+})
+
+describe('extractReferencedKeys', () => {
+  it('finds a key inside a url, a bare key and a JSON blob', () => {
+    const keys = extractReferencedKeys([
+      'https://media.example.co.uk/media/shop/chair.webp',
+      'media/shop/desk/3d/120cm.glb',
+      '{"model":"media/shop/desk/3d/140cm.glb","alt":"a desk"}',
+    ].join('\n'))
+    expect(keys.has('media/shop/chair.webp')).toBe(true)
+    expect(keys.has('media/shop/desk/3d/120cm.glb')).toBe(true)
+    expect(keys.has('media/shop/desk/3d/140cm.glb')).toBe(true)
+  })
+
+  it('drops a signed url\'s query so the key still matches', () => {
+    const keys = extractReferencedKeys('https://x/media/a.glb?Authorization=abc123&Expires=1')
+    expect(keys.has('media/a.glb')).toBe(true)
+  })
+
+  it('records the decoded form of an escaped key as well as the raw one', () => {
+    const keys = extractReferencedKeys('https://x/media/shop/my%20chair.webp')
+    expect(keys.has('media/shop/my chair.webp')).toBe(true)
+    expect(keys.has('media/shop/my%20chair.webp')).toBe(true)
+  })
+
+  it('survives a malformed escape rather than throwing the whole scan away', () => {
+    const keys = extractReferencedKeys('media/100%discount.webp')
+    expect(keys.has('media/100%discount.webp')).toBe(true)
+  })
+
+  it('finds nothing in content that mentions no media', () => {
+    expect(extractReferencedKeys('a page about office chairs').size).toBe(0)
   })
 })
 

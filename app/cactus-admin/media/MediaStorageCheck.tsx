@@ -136,7 +136,8 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
           <h2 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--color-text)' }}>Storage check</h2>
           <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
             Compares this library against the files actually held in storage. Finds leftovers taking up
-            room, items whose file has gone, and sizes recorded wrongly.
+            room, files the site uses that never got an entry here, items whose file has gone, and sizes
+            recorded wrongly.
           </p>
         </div>
         <button type="button" onClick={() => void scan()} disabled={busy} style={buttonStyle(false)}>
@@ -168,7 +169,7 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
                     danger: true,
                     onClick: () => {
                       const ok = window.confirm(
-                        `Permanently delete ${result.orphaned.length} leftover file${result.orphaned.length === 1 ? '' : 's'} from storage, freeing ${formatBytes(result.orphanedBytes)}?\n\nNothing in this library points at them. This cannot be undone from here.`
+                        `Permanently delete ${result.orphaned.length} leftover file${result.orphaned.length === 1 ? '' : 's'} from storage, freeing ${formatBytes(result.orphanedBytes)}?\n\nNothing in this library points at them and nothing on the site is using them. This cannot be undone from here.`
                       )
                       if (ok) void post('delete-orphans', result.orphaned.map((o) => o.key))
                     },
@@ -176,6 +177,16 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
                 : undefined
             }
             rows={result.orphaned.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
+          />
+
+          {/* No button of any kind: these are in use. They are shown so the gap
+              is visible, not so it can be cleared. */}
+          <Group
+            title="In use, but with no entry here"
+            empty="Everything the site uses has an entry in this library."
+            count={result.claimed.length}
+            summary={`${formatBytes(result.claimedBytes)}, kept safe and never offered for deletion`}
+            rows={result.claimed.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
           />
 
           <Group
