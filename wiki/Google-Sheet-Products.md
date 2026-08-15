@@ -43,6 +43,10 @@ If you leave it in Testing, Google quietly cuts off access after **seven days** 
 
 Once the sheet exists, the settings tab is done with its job. The day-to-day buttons - **Push**, **Pull**, **Open sheet** and the sync log - live on your **Products** page from now on, under a **Google Sheet** button next to New product. Settings stays as the one-off setup.
 
+What the settings tab does keep is a **Where things stand** panel at the top: whether Google is connected and as whom, whether the sheet exists and how many product tabs it had at the last Push, when you last pushed and pulled, and - if something is running on the Products page this minute - what. The Google walkthrough above folds itself away once you are connected, so the tab stops being six steps you have already done.
+
+**Reset sheet** refuses while a push, a pull or a check is part-way through, rather than pointing everything at a blank workbook mid-job. And a reset now properly forgets the old sheet: it used to keep the list of product tabs the last Push had written, so the first check of the shiny new sheet stopped to complain that all of them were missing.
+
 ---
 
 ## Cost price - a quiet warning
@@ -81,7 +85,9 @@ You do both from your **Products** page: look for the **Google Sheet** button up
 
 Overwrites the sheet with whatever is currently on your website. This is how you get an up-to-date working copy before a big edit. The Products tab is filled first, then a tab for each of your products that has variations, then Suppliers.
 
-Like a Pull, a Push now works in stages with a live count and a little tracker (Products, then the product tabs, then a tidy-up), because a big catalogue is a lot of tabs to fill. You can leave the window open and watch it along; if something interrupts it, it picks up where it left off, and a **Continue** button appears if it ever needs a nudge.
+Like a Pull, a Push works in stages with a live count and a little tracker, because a big catalogue is a lot of tabs to fill. You can leave the window open and watch it along; if something interrupts it, it picks up where it left off, and a **Continue** button appears if it ever needs a nudge.
+
+The first two stages are **Reading catalogue** and **Reading variations**, and on a big shop they are the slow part - gathering every product, every price, every variation and every attribute before a single cell is written. That gathering used to happen before the window even appeared, so pressing Push meant staring at a button for the best part of a minute and, on a large enough catalogue, never getting a window at all. The window now opens straight away and tells you which half it is on; the writing that follows is comparatively quick.
 
 Closing the Push window while it is working now means **stop**: it asks first (the same question as the Stop button), then winds the push up at the tab it is on. Tabs already written stay written; push again whenever you like. Closing the whole browser tab is different - nothing is running on your side then, so the push simply pauses, and reopening offers Continue as before.
 
@@ -140,9 +146,23 @@ If nothing at all has changed since your last Push or Pull, the window just says
 
 Nothing has changed at this point. When you are happy, press the button in the preview to actually do it.
 
+#### The check that comes first
+
+Working out what a Pull would do is real work - every tab of the sheet has to be read, and every row of it lined up against your shop - and on a big catalogue that takes a little while. So it now happens the same way everything else here does: in stages, with a bar for each, so you can see it moving.
+
+The window walks through **Reading sheet**, **Products**, **Removals** and **Variations**, counting tabs read and rows compared as it goes, and naming whatever it is looking at. There is a clock in the corner, so a check that is simply taking a moment reads as one, and a **Stop** button for when you would rather not wait. Nothing is being changed while any of this happens - it is only a look - so stopping costs you nothing but the time already spent.
+
+Before, all of it happened inside one silent request. On a catalogue of any size that request ran out of time before it finished, and the window sat on "Reading your sheet and comparing it with your catalogue…" for ever, with nothing to press. That is what this replaces.
+
+One more thing worth knowing: when you press Pull, it uses the check you have just looked at rather than reading and comparing everything all over again - so the Pull itself starts more or less instantly, and what the list showed you is exactly what runs.
+
+If the sheet has moved on since - you edited it in another tab, or the window has been open a quarter of an hour - Pull will not act on the old list. It says so and checks again, and you get a fresh list to confirm. It would be easy to have it quietly re-do the work itself instead, and that is precisely the thing that used to leave you looking at a dialog that never came back: checking is the part that takes a while, and a check reports its progress where a silent one cannot.
+
 ### Watching it work, and picking up where it left off
 
-Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many variations - along with a small tracker across the three stages (Products, Removals, Variations) so you can see how far through it is, rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
+Once you confirm, Pull shows you a live count as it goes - so many products of so many, then so many removals, then so many variations - along with a small tracker across the three stages (Products, Removals, Variations) so you can see how far through it is, rather than a spinner and a shrug. A big catalogue is done in stages, and you can leave the page open and watch it tick along.
+
+The removals stage has its own bar and names each product as it goes, and it now works through them in batches like the other two. On a big clear-out it used to try to do the lot in one go, which past a certain size never finished - it would be cut short, start again from the beginning, and sit there. It also says "Removing", rather than "Updating", while it is removing something, which sounds like a small thing and is not.
 
 It also tells you **what** it is working on, not merely how much. The window names the product it is writing at that moment - "Updating Chiro Plus Ergonomic Chair…" - and for variations it names the product and the options too, so you get "Chiro Plus Ergonomic Chair - Black / High back" rather than an anonymous number creeping upwards. Underneath, a short **Just done** list keeps the last handful of items on screen as they go by. The counts now move item by item as well, so a long stretch on one big product no longer looks like it has wandered off.
 
@@ -160,7 +180,7 @@ Closing the Pull window while it is working also means stop now - it asks the sa
 
 Only one stage of a Pull can ever run at a time, so opening the same Pull in a second tab, or a retry arriving while the previous attempt is still going, waits its turn instead of both marching through the catalogue at once.
 
-Push and Pull also refuse to run over the top of each other. If a Push is part-way through - even one you have walked away from - opening Pull says so plainly and asks you to let it finish (or cancel it) first, rather than fighting it for Google's reading allowance and timing out with a misleading "could not read the sheet". Push has always had the same manners about a Pull in progress.
+Push and Pull also refuse to run over the top of each other. If a Push is part-way through - even one you have walked away from - opening Pull says so plainly and asks you to let it finish (or cancel it) first, rather than fighting it for Google's reading allowance and timing out with a misleading "could not read the sheet". Push has the same manners about a Pull in progress, and about a check of the sheet that is still reading it.
 
 The preview's numbers only count real differences: a Pull straight after a Push - with nothing edited in between - shows nothing to update, rather than solemnly claiming your entire catalogue needs redoing. This now includes the extra columns other features add to the Variations tab, like 3D files and per-variation attributes - edit one of those cells and the preview counts it as a change to make, the same as a price or a stock figure. Rows that already match your shop are shown as skipped, and - this is the bit that actually saves you time - Pull no longer touches them at all: on a big catalogue where you only changed a handful of rows, it used to grind through every row regardless, and now it only works on the ones that changed. Click **"what's changing"** under the product count to see exactly which field is changing on which product before you commit, and the matching list under the variation count to see which variations (by product and option) a Pull will update.
 
@@ -298,11 +318,13 @@ Pull does two things, and they fail for completely different reasons: it fetches
 - **"Read the sheet fine, but comparing it with your catalogue failed"** - the sheet is not the problem and rebuilding it will not help. Something on your own site fell over mid-comparison. Try again in a minute; if it keeps happening, the reason on the end of that message is the thing to quote to us.
 - **"Your site answered with an error"**, or **"It ran out of time"** - your site never got as far as an opinion. The first is a crash, the second is a very large catalogue taking longer than the minute it is allowed. Either way, nothing has been changed on your site.
 
+The check itself no longer has a size at which it gives up: it works in stages and banks each one, so a catalogue of any size gets there in the end. Where it stops for a reason you have to do something about - a product tab renamed away, or a sheet with no product tabs at all - it now says so at once instead of trying again five times first.
+
 ### Google's speed limit
 
 Google only lets one account read from, or write to, a sheet so many times a minute. A catalogue with a lot of products used to go through that allowance quickly, because every product with variations has a tab of its own to fetch or fill in.
 
-Pull fetches those tabs in bundles of forty or so at a time rather than one by one, so reading even a very large catalogue costs Google a handful of requests and takes seconds - this is also what fixed the "ran out of time" failure that very large catalogues used to hit before the reading had even finished. Better still, a Pull started from the preview dialog usually doesn't read the sheet at all: the preview keeps what it read, and as long as Google confirms the sheet hasn't been touched in between, the Pull picks that copy up and gets straight on with comparing it against your catalogue. Edit the sheet between preview and Pull and it quietly reads afresh - the comparison itself is always run against your site as it stands right now, so nothing is ever decided from stale information.
+Pull fetches those tabs in bundles of forty or so at a time rather than one by one, so reading even a very large catalogue costs Google a handful of requests and takes seconds - this is also what fixed the "ran out of time" failure that very large catalogues used to hit before the reading had even finished. Better still, a Pull started from the check usually doesn't go near Google at all: the check keeps everything it read and everything it worked out, and as long as Google confirms the sheet hasn't been touched in between, the Pull picks that up and gets straight on with applying it. Edit the sheet between the two, or leave the window open a quarter of an hour, and it quietly checks afresh rather than acting on a stale answer.
 
 Push now works the same way: the product tabs are read, filled in and tidied in bundles of fifteen, so a bundle costs Google roughly half a dozen requests where it used to cost several **per tab**. On top of that, a Push keeps a fingerprint of what it wrote to each tab last time - if a product hasn't changed since, and nobody has edited the sheet by hand in between, its tab is skipped without so much as a glance. On the usual push, where a handful of products changed since the last one, that is nearly every tab, and the whole thing is over in seconds. It still paces itself to stay inside Google's allowance, and if Google says no regardless, it waits a moment and asks again rather than giving up on the spot.
 
