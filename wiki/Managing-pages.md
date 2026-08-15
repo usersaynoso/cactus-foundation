@@ -79,6 +79,8 @@ That breathing gap is 24px down each side, and every width except **Edge to edge
 
 **Scroll animations and sticking are everywhere they make sense.** Nearly every block now has a **Scroll animation** setting (fade, slide, zoom) - pick one and the speed and delay options appear; leave it on None and they stay hidden. Content blocks that might sit beside something taller - images, cards, text, buttons, spec panels, videos and the like - also have **Stick while scrolling**, which pins the block in place while its neighbour scrolls past (an offset field appears once it's on, for clearing a sticky header). Sticking only has room to work when the block's column is taller than the block itself.
 
+**A pinned column clears the header on its own, and scrolls if it has to.** Set a Grid column to **Stick while scrolling** and leave its offset blank: it now parks itself just below whatever sticky header the site has, instead of sliding underneath it and losing its own top edge. Type an offset yourself and that number is used as given - nothing is added on top, so a header clearance you dialled in by hand stays exactly where you put it. And if a pinned column is taller than the screen, it gets its own scrollbar rather than hiding its bottom half off-screen forever. Both behaviours switch off once the grid stacks to a single column on smaller screens, where nothing is pinned anyway.
+
 ---
 
 ## Available blocks
