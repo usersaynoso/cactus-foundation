@@ -64,8 +64,19 @@ export default async function RootLayout({
   // all, rather than loading and being told to keep quiet.
   const speedInsights = await isSpeedInsightsEnabled()
 
+  // Safari 26 ignores <meta name="theme-color"> and works its browser-UI tint
+  // out from the page instead. Publishing the Theme colour as a variable lets
+  // globals.css and the header render hand Safari that value without changing a
+  // rendered pixel. resolveBranding is cache()d, so this shares the query
+  // generateMetadata already made.
+  const branding = await resolveBranding()
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      style={{ '--cactus-theme-color': branding.themeColor } as React.CSSProperties}
+    >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

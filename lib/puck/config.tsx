@@ -4245,6 +4245,25 @@ const headerRootRender = ({
         responsiveMediaCssFor(':root', (d) => `--cactus-header-offset:${stickyOffsetAt(d)};`),
       ].filter(Boolean).join('\n')
     : ''
+  // Safari 26 ignores <meta name="theme-color"> and takes its browser-UI tint
+  // from the background-color of a fixed/sticky element pinned within 4px of the
+  // top (>=90% wide, >=3px high on macOS), ahead of body's and html's. On a
+  // public page this header IS that element, so it decides the tint for the
+  // whole site - which is why the admin picked up the site's Theme colour from
+  // body and the front end never could. Carrying the Theme colour as the
+  // header's own background-color and painting the real background on a
+  // full-bleed child underneath the content hands the tint back to the owner
+  // without changing a rendered pixel: Safari reads the property, the visitor
+  // sees the child. Verified against Safari itself before shipping - a mutation
+  // from the console does NOT retint, so this only ever shows on a real load.
+  //
+  // Solid-colour headers only. The two transparent modes have nothing opaque to
+  // paint over the tint, and a header that disqualifies itself simply lets
+  // Safari fall through to body, which carries the same Theme colour anyway.
+  // A translucent colour would leak the tint through the overlay, so an explicit
+  // rgba()/hsla() opts out too; tokens are assumed opaque, as they are elsewhere.
+  const translucent = /\b(rgba|hsla)\(/i.test(String(background ?? ''))
+  const tintCarrier = bgMode === 'color' && !translucent
   // data-header-root is unconditional (unlike data-shrink-root, which only
   // appears when shrink-on-scroll is on): it scopes the header-only true-
   // centering CSS that GridBlock/GroupBlock emit, so those rules are inert
@@ -4257,7 +4276,12 @@ const headerRootRender = ({
       style={{
         height: desktopHeight === 'auto' ? undefined : desktopHeight,
         minHeight: desktopHeight === 'auto' ? 48 : undefined,
-        background,
+        // See the tintCarrier note above: the header's own background-color is
+        // the Safari tint, and the overlay child below paints what is seen. With
+        // no Theme colour set the var() falls back to the real background, so
+        // the element is byte-identical to before.
+        background: tintCarrier ? undefined : background,
+        backgroundColor: tintCarrier ? `var(--cactus-theme-color, ${background})` : undefined,
         borderTop,
         borderBottom,
         // An explicit height plus a border must not grow the header past that
@@ -4272,6 +4296,13 @@ const headerRootRender = ({
       {headerPxCss && <style>{headerPxCss}</style>}
       {headerHeightCss && <style>{headerHeightCss}</style>}
       {headerOffsetCss && <style>{headerOffsetCss}</style>}
+      {/* Paints what the visitor actually sees, hiding the Safari tint colour
+          sitting on the header itself. inset:0 is the padding box, so the
+          header's own borders still show; it follows the height on a
+          shrink-on-scroll header for free. */}
+      {tintCarrier && (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background, pointerEvents: 'none' }} />
+      )}
       <div data-header-inner style={{
         maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'),
         margin: '0 auto',
@@ -4280,6 +4311,10 @@ const headerRootRender = ({
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
+        // Must outrank the tint overlay above, which is a sibling painted after
+        // the normal flow would otherwise put this.
+        position: 'relative',
+        zIndex: 1,
       }}>
         {/* Row's cross-axis (alignItems above) centres this vertically; without an
             explicit width the content zone shrinks to its own content on the main
