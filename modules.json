@@ -18,12 +18,12 @@
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.16"
+      "version": "v0.1.17"
     },
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.56"
+      "version": "v0.1.57"
     },
     {
       "name": "stock-import-for-shop",
