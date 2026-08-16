@@ -36,6 +36,7 @@ type Config = {
   blockedEmailDomains: string[]
   notifyAdminOnPendingApproval: boolean
   profileVisibility: 'PUBLIC' | 'MEMBERS_ONLY' | 'HIDDEN'
+  accountSinglePage: boolean
   accountSectionsEnabled: {
     profile: boolean
     security: boolean
@@ -279,10 +280,27 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="checkbox" checked={config.directoryEnabled} onChange={(e) => update('directoryEnabled', e.target.checked)} />
             Enable public member directory
           </label>
+          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area layout</p>
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.accountSinglePage}
+                onChange={(e) => update('accountSinglePage', e.target.checked)}
+              />
+              Put the whole account on one page
+            </label>
+            <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>
+              Every section a member can see is drawn down the overview, one under the next. The tabs stay
+              exactly where they are and scroll to the right part instead of loading a fresh page. Tabs added by
+              modules - a shop&apos;s orders, say - keep their own pages, since those hold rather more than a
+              section&apos;s worth.
+            </p>
+          </div>
           <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area sections</p>
           <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
             Which tabs members get inside their account. Switching one off takes its tab and its summary card
-            off the overview too.
+            off the overview too - and, on one page, its section with them.
           </p>
           {ACCOUNT_SECTION_FIELDS.map((section) => (
             <div key={section.key} style={{ marginBottom: 'var(--space-3)' }}>

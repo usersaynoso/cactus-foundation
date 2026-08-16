@@ -6,8 +6,15 @@ import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
+import { accountSectionAnchor } from '@/lib/members/account-layout'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import VerifyEmailNudge from '@/components/members/account/VerifyEmailNudge'
+import ContactDetailsCard from '@/components/members/account/ContactDetailsCard'
+import ProfileSection from '@/components/members/account/ProfileSection'
+import SecuritySection from '@/components/members/account/SecuritySection'
+import NotificationsSection from '@/components/members/account/NotificationsSection'
+import ActivitySection from '@/components/members/account/ActivitySection'
+import DangerZoneSection from '@/components/members/account/DangerZoneSection'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,13 +25,23 @@ const CORE_ACTIVITY_LABELS: Record<string, string> = {
   email_changed: 'Email address changed',
 }
 
-// Who to greet. The username is only a name the member recognises if the site
+// Who to greet. The full name wins where there is one, cut to its first word:
+// "Hi, Chris" is what a person says, and "Hi, Chris Taylor-Guest" is what a bank
+// says. It is also the one name here the member typed in themselves and can
+// change, which is why it beats the rest.
+//
+// After that, the username is only a name the member recognises if the site
 // asked them to pick one - with that switch off it was invented from their email
 // address with random digits stuck on the end, and greeting someone by a handle
 // they have never seen is worse than not using their name at all. The email's
 // local part is what that handle was built from anyway, and the full address is
 // printed directly underneath, so it gives nothing away.
-function greetingName(member: { displayName: string | null; username: string; email: string }, usernameCollected: boolean): string {
+function greetingName(
+  member: { fullName: string | null; displayName: string | null; username: string; email: string },
+  usernameCollected: boolean,
+): string {
+  const firstName = member.fullName?.trim().split(/\s+/)[0]
+  if (firstName) return firstName
   if (member.displayName) return member.displayName
   if (usernameCollected) return member.username
   return member.email.split('@')[0] || 'there'
@@ -109,6 +126,11 @@ export default async function AccountIndexPage() {
       : null
 
   const sections = config.accountSectionsEnabled
+  // One page: every section the member can see is drawn below, and the summary
+  // cards point at those rather than at pages of their own.
+  const singlePage = config.accountSinglePage
+  const sectionHref = (key: Parameters<typeof accountSectionAnchor>[0], path: string) =>
+    singlePage ? `${basePath}#${accountSectionAnchor(key)}` : `${basePath}${path}`
   // Nagging for a display name the site never asks for, and gives the member no
   // field to fill in, is a to-do item they cannot tick off.
   const profileGaps = [
@@ -129,11 +151,15 @@ export default async function AccountIndexPage() {
           size={64}
         />
         <div style={{ minWidth: 0 }}>
-          {/* With the Profile section switched off there is nowhere for the
-              member to correct the name we greet them by, so a name we guessed
-              wrong just sits there. Better to greet nobody in particular. */}
+          {/* A name is only worth greeting somebody by if they can put it right.
+              The full name on the card below is always theirs to change, and the
+              Profile section is the other place a name can be corrected - a site
+              with neither greets nobody in particular rather than leaving a
+              wrong guess sitting there. */}
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: 0, color: 'var(--color-text)' }}>
-            {sections.profile ? `Hi, ${greetingName(member, config.registrationCollectUsername)}` : 'Hi there'}
+            {member.fullName?.trim() || sections.profile
+              ? `Hi, ${greetingName(member, config.registrationCollectUsername)}`
+              : 'Hi there'}
           </h1>
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-sm)' }}>
             {member.email}
@@ -146,9 +172,13 @@ export default async function AccountIndexPage() {
 
       {!member.emailVerified && <VerifyEmailNudge email={member.email} />}
 
+      {/* Above the summary cards because it is the only thing on this page with
+          anything to fill in - the rest are links to somewhere else. */}
+      <ContactDetailsCard initial={{ fullName: member.fullName }} />
+
       <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
         {sections.security && (
-          <SummaryCard title="Account & Security" href={`${basePath}/security`} linkLabel="Manage account">
+          <SummaryCard title="Account & Security" href={sectionHref('security', '/security')} linkLabel="Manage account">
             <span>{passkeyCount === 0 ? 'No passkeys yet' : `${passkeyCount} passkey${passkeyCount === 1 ? '' : 's'}`}</span>
             <span>{record?.password ? 'Password set' : 'No password set'}</span>
             <span>{twoFactorCount > 0 ? 'Two-factor on' : 'Two-factor off'}</span>
@@ -157,7 +187,7 @@ export default async function AccountIndexPage() {
         )}
 
         {sections.profile && (
-          <SummaryCard title="Profile" href={`${basePath}/profile`} linkLabel="Edit profile">
+          <SummaryCard title="Profile" href={sectionHref('profile', '/profile')} linkLabel="Edit profile">
             {profileGaps.length === 0 ? (
               <span>All filled in. Nothing to do here.</span>
             ) : (
@@ -171,14 +201,14 @@ export default async function AccountIndexPage() {
             link labelled "Choose what we send" that opens a page with nothing
             to choose is worse than no link. */}
         {sections.notifications && notificationsAvailable && (
-          <SummaryCard title="Notifications" href={`${basePath}/notifications`} linkLabel="Choose what we send">
+          <SummaryCard title="Notifications" href={sectionHref('notifications', '/notifications')} linkLabel="Choose what we send">
             <span>Decide which emails land in your inbox.</span>
             {record?.backupEmail && <span>Recovery address: {record.backupEmail}</span>}
           </SummaryCard>
         )}
 
         {sections.activity && (
-          <SummaryCard title="Recent activity" href={`${basePath}/activity`} linkLabel="See all activity">
+          <SummaryCard title="Recent activity" href={sectionHref('activity', '/activity')} linkLabel="See all activity">
             {recentActivity.length === 0 ? (
               <span>Nothing recorded yet.</span>
             ) : (
@@ -196,6 +226,59 @@ export default async function AccountIndexPage() {
         const Section = sectionComponents[id]
         return Section ? <Section key={id} /> : null
       })}
+
+      {/* One-page account. Each section is exactly the component its own page
+          renders, so there is one copy of every one of them and no chance of
+          the two shapes drifting apart. The same switches decide what appears:
+          a section turned off is as absent here as its tab is. */}
+      {singlePage && (
+        <>
+          {sections.profile && (
+            <AccountSection anchor={accountSectionAnchor('profile')}>
+              <ProfileSection />
+            </AccountSection>
+          )}
+          {sections.security && (
+            <AccountSection anchor={accountSectionAnchor('security')}>
+              <SecuritySection />
+            </AccountSection>
+          )}
+          {sections.notifications && notificationsAvailable && (
+            <AccountSection anchor={accountSectionAnchor('notifications')}>
+              <NotificationsSection />
+            </AccountSection>
+          )}
+          {sections.activity && (
+            <AccountSection anchor={accountSectionAnchor('activity')}>
+              <ActivitySection />
+            </AccountSection>
+          )}
+          {sections.dangerZone && (
+            <AccountSection anchor={accountSectionAnchor('dangerZone')}>
+              <DangerZoneSection linkedToStaff={!!member.userId} />
+            </AccountSection>
+          )}
+        </>
+      )}
     </div>
+  )
+}
+
+// A section of the one-page account: the anchor its tab scrolls to, and a rule
+// above it so the join between two sections reads as a join rather than as one
+// long run of headings. `scrollMarginTop` clears the sticky tab bar, which
+// would otherwise sit on top of the heading the member was just sent to.
+function AccountSection({ anchor, children }: { anchor: string; children: React.ReactNode }) {
+  return (
+    <section
+      id={anchor}
+      style={{
+        scrollMarginTop: 'calc(var(--cactus-header-offset, 0px) + 4rem)',
+        borderTop: '1px solid var(--color-border)',
+        paddingTop: 'var(--space-6)',
+      }}
+    >
+      {children}
+    </section>
   )
 }

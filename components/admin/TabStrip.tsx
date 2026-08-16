@@ -7,7 +7,10 @@ export type TabStripItem = {
   key: string
   label: ReactNode
   href?: string
-  onClick?: () => void
+  /** Runs on click. On a linked tab it runs alongside the navigation, so a
+   * handler that wants to replace it (scrolling to a section rather than
+   * loading a page) calls preventDefault itself. */
+  onClick?: (event: React.MouseEvent<HTMLElement>) => void
   active: boolean
 }
 
@@ -72,7 +75,7 @@ export function TabStrip({ items, trailing, style }: Props) {
       <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <div ref={scrollRef} className="no-scrollbar" style={{ display: 'flex', overflowX: 'auto' }}>
           {items.map((item) => item.href ? (
-            <Link key={item.key} href={item.href} prefetch={false} style={tabStyle(item.active)}>
+            <Link key={item.key} href={item.href} prefetch={false} onClick={item.onClick} style={tabStyle(item.active)}>
               {item.label}
             </Link>
           ) : (

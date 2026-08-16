@@ -789,6 +789,13 @@ model Member {
   // Stored lowercase; validated against the shared path/username blocklist
   username                  String       @unique
   displayName               String?
+  // The member's real-world name, kept apart from displayName/username: those
+  // are the public handle a site may not even collect, this is who an order is
+  // made out to. Shown on the account overview and read by the shop checkout to
+  // fill its contact step in. No phone number alongside it on purpose - a number
+  // belongs to a delivery address, not to the account (the shop keeps one per
+  // saved address).
+  fullName                  String?
   // FK to Media.id — plain string, no Prisma relation (mirrors ogImageId style)
   avatarMediaId             String?
   avatarChoice              AvatarChoice @default(GENERATED)

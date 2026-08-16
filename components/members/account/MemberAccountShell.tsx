@@ -67,6 +67,7 @@ export default async function MemberAccountShell({ children, member, notice, max
         sections={config.accountSectionsEnabled}
         extras={extras}
         notificationsAvailable={notificationsAvailable}
+        singlePage={config.accountSinglePage}
       />
       {children}
     </div>

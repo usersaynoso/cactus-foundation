@@ -80,6 +80,11 @@ export const MembersConfigSchema = z.object({
   blockedEmailDomains: z.array(z.string()).default([]),
   notifyAdminOnPendingApproval: z.boolean().default(true),
   profileVisibility: z.enum(['PUBLIC', 'MEMBERS_ONLY', 'HIDDEN']).default('PUBLIC'),
+  // Draw the whole account on the overview page, one section under the next,
+  // with the tabs scrolling to them instead of loading a page each. Off by
+  // default: the tabbed shape is what every existing site already has, and a
+  // busy account (a shop's, with orders and addresses on it) is a long page.
+  accountSinglePage: z.boolean().default(false),
   accountSectionsEnabled: z.object({
     profile: z.boolean().default(true),
     security: z.boolean().default(true),
