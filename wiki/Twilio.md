@@ -23,12 +23,13 @@ Once connected, the settings tab shows the account it's talking to, so you can t
 
 ### Finding your way around
 
-The Twilio settings tab is divided into five sections along the top:
+The Twilio settings tab is divided into six sections along the top:
 
 - **Account** - the credentials above, your account country, and the Test connection button.
 - **Phone numbers** - which of your Twilio numbers this site uses, and which one texts go out from.
 - **Call handling** - forwarding, greetings, voicemail and opening hours, one number at a time.
 - **Texting** - what texts go out from, and a button to send yourself a test one.
+- **Templates** - the wording of every text your site sends.
 - **Alerts & data** - email alerts, and how long recordings are kept.
 
 ---
@@ -210,6 +211,26 @@ Normally, signing in with a password sends a 6-digit code to your email. With Tw
 **If the texts ever stop working** - credentials removed, module disabled, Twilio having a bad day - codes quietly go back to email. Nobody gets locked out.
 
 **Checking it works:** the **Texting** tab tells you which number texts go out from, and has a **Send a test text** box. Put your mobile in, press the button, and a message saying it's a test lands a few seconds later. Rather more civilised than signing yourself out to find out.
+
+---
+
+## The wording of your texts
+
+Emails have had an editor for a while - **Settings → Emails** - and texts now have the same thing, on the **Templates** tab. Anything on your site that sends a text message puts its wording here, so it's all in one place rather than scattered about.
+
+With the Shop installed, that's the order updates: confirmed, being processed, on its way, complete, cancelled, part of an order dispatched, and the three about a cancel or return request. Pick one on the left, change the words on the right, save.
+
+- **The bits in curly brackets** - `{{orderNumber}}`, `{{customerName}}` and so on - are filled in when the message goes out. The ones marked with a star have to stay in: a text saying an order is on its way, without saying which order, is a text nobody can do anything with.
+- **Preview** shows the finished message with stand-in details, and tells you how many messages you're paying for. Texts are charged in chunks of 160 characters, and a single curly quote or emoji drops that to 70 - so the counter says which one you've ended up with. Keeping the wording snappy is the whole trick.
+- **Send test** puts a copy on your own mobile, marked as a test, before any customer sees it.
+- **Send this text** can be unticked to stop one particular message going out at all, whoever asked for texts. The rest carry on.
+- **Put the original wording back** does what it says, and only to the wording - your on/off choice stays put.
+
+Customers choose whether they want texts, email, or both, on the page they land on after ordering and on their own account page. They can't turn everything off, mind: an order somebody has paid for is not a mailing list, so we insist on at least one way of reaching them.
+
+There's nothing on this tab until something on your site sends a text - it says as much rather than showing you an empty list.
+
+Editing the wording needs the **Edit text message templates** permission (`sms.templates`), which is separate from the email one on purpose: texts cost money per send, so you may want fewer hands on them.
 
 ---
 

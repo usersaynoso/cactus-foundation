@@ -18,7 +18,7 @@ The shop lives at `/shop` on your site (`/shop/products/your-product` for a prod
 Shop has seven permissions, set on your core roles from **Users → Roles**:
 
 - `shop.access` - see the Shop section in the admin sidebar, view (but not change) orders, products and customers.
-- `shop.manage` - full run of the shop: settings, tax and shipping setup. (Editing what the shop's emails say needs `emails.templates` instead - they live on the site-wide Emails tab now.) Overrides every other Shop permission below.
+- `shop.manage` - full run of the shop: settings, tax and shipping setup. (Editing what the shop's emails say needs `emails.templates` instead - they live on the site-wide Emails tab now. Its text messages need `sms.templates`, and live on the Twilio tab.) Overrides every other Shop permission below.
 - `shop.products` - create, edit and delete products, categories, tags and collections; run CSV imports and exports.
 - `shop.orders` - view and manage orders and refunds.
 - `shop.customers` - view customer records.
@@ -350,9 +350,26 @@ The useful part is what happens next: sign up with the same email address and th
 
 Anyone can look up an order's status without an account too, using their order number and the email address it was placed under.
 
+### Order updates by text message
+
+With the [Twilio](Twilio) module installed and a text-enabled number added, customers can have their order updates texted to them as well as - or instead of - emailed.
+
+The choice is offered on the page they land on after ordering: **How shall we keep you posted?**, with a tickbox each for email and text message, and a box for the mobile number when they want texts. It's the same card whether they have an account or not, and it saves against that order, so a guest gets the choice too. Signed-in customers can change their mind later on the **Notifications** tab of their account, and that change carries across to any order still in progress.
+
+What they can't do is untick both. An order is something you have to be able to tell somebody about, so the choice is how you reach them, not whether. Cactus refuses the save and says so.
+
+A few sensible details:
+
+- A landline in the delivery number won't do - texts need a mobile, and Cactus says so rather than pretending to send one. If the number is unusable and text was the only channel chosen, the email goes out anyway rather than the customer hearing nothing.
+- Texts cover the customer-facing milestones only: order confirmed, being processed, dispatched, complete, cancelled, part of an order dispatched, and the three about a cancel or return request. Your own alerts - new order, low stock, import finished - stay on email, on the grounds that you're sitting at a screen and texts cost money.
+- The wording of every text lives on **Settings → Twilio → Templates**, editable exactly like the emails.
+- The delivery phone number and the number for text updates are kept apart, because they aren't always the same person: one is whoever's at the door, the other is whoever placed the order.
+
+No Twilio, or no text-enabled number? None of this appears anywhere, and orders carry on being emailed about exactly as before.
+
 ### What a signed-in customer actually sees
 
-**Orders** and **Addresses** are tabs in the customer's account, next to Profile and Security, and those pages carry the same tabs across the top - so nobody clicks "order history" and finds themselves stranded on a page with no way back.
+**Orders** and **Addresses & Phone Numbers** are tabs in the customer's account, next to Profile and Security, and those pages carry the same tabs across the top - so nobody clicks "order history" and finds themselves stranded on a page with no way back.
 
 The order list shows each order with its date, a photo of what's in it, how many items, what it cost, and where it's got to - being prepared, on its way, complete. Four filters across the top narrow it to orders in progress, completed or cancelled. Opening one shows the lot: every line with its picture and any options they chose, what's been dispatched and what hasn't, each parcel with the courier and tracking number, any refunds, the full breakdown of what they paid (items, discount and the code they used, delivery, VAT), both addresses, and any downloads. There's a **Buy again** button on each line, and a **printable receipt** on its own tidy page.
 
@@ -362,7 +379,9 @@ A line with options on it gets the same **Buy again** button, but it opens the p
 
 Re-ordering is on by default and switches off in **Settings → Shop → Checkout → Order history**, which takes the button away everywhere. Worth doing if your range moves faster than your order history - made-to-order work, one-offs, anything where pointing somebody at a year-old product page is more likely to disappoint than to sell.
 
-The **Addresses** tab fills itself in. Every address a signed-in customer orders to is kept there once the order is placed, so the second order asks them for rather less than the first one did. They can add one by hand too, and delete any of them, but nobody has to remember to save anything.
+The **Addresses & Phone Numbers** tab fills itself in. Every address a signed-in customer orders to is kept there once the order is placed, so the second order asks them for rather less than the first one did. They can add one by hand too, and delete any of them, but nobody has to remember to save anything.
+
+Each address keeps its own phone number, changed on that page a line under the address it belongs to. That's the point of holding it there rather than on the account: the number wanted for a delivery is whoever's actually at that door - the site manager at the second office, the colleague taking it in at home - and not automatically the person who paid. Pick that address at the checkout and its number comes along with it. A number that isn't a UK one gets a polite refusal rather than being filed and quietly failing later, and an address saved with no number at all is perfectly fine unless you've made a number compulsory, in which case the checkout brings the form back out and asks for one.
 
 At the delivery step, a customer with addresses on file gets a short **Deliver to** list above the form: their addresses, and a **Use a different address** option for when they're sending something somewhere new. Picking one fills the form in, and the form stays right there underneath, so a flat number they've since moved past can be corrected on the spot without touching what's stored in their account. Whichever address the order actually goes to is the one that gets kept.
 
@@ -490,7 +509,7 @@ The delivery address can look itself up, too. With the [Address Lookup](Address-
 
 An empty basket now gets an honest answer, too. Arrive at checkout with nothing in the basket - a bookmarked link, a back button, an order already placed in another tab - and the page no longer presents a full set of contact, delivery and payment forms for an order that doesn't exist. The order summary says the basket is empty and offers the way back to the shop, and the rest of the checkout politely stays out of it.
 
-The forms have come along too. Every field has a proper visible label (not grey text that vanishes the moment you start typing), the browser's own saved details fill things in with a tap, and mistakes are pointed out politely next to the field the moment you leave it - "Enter your postcode", not a vague red sulk at the top. The email field says why it's wanted (that's where the confirmation goes), and the phone number explains itself: it's only used if something goes wrong with the delivery. That box says **Phone (optional)** unless you've ticked **Require a phone number at checkout** under Settings → Shop → Checkout, in which case it drops the "(optional)", asks for a number before the order can be placed, and says "Enter a phone number" if someone skips past it. Up to and including shop version 0.1.177 that tickbox was pure decoration: it saved happily, and the checkout carried on calling the field optional and taking orders without a number, which is a poor show from a setting with the word "require" in its name. The address section is now honestly titled **Delivery address**, with **Delivery method** below it where you charge postage by zone.
+The forms have come along too. Every field has a proper visible label (not grey text that vanishes the moment you start typing), the browser's own saved details fill things in with a tap, and mistakes are pointed out politely next to the field the moment you leave it - "Enter your postcode", not a vague red sulk at the top. The email field says why it's wanted (that's where the confirmation goes), and the phone number explains itself: it's only used about that delivery. The phone box sits on the delivery step, directly under the first and last name and above the business name, rather than up with the contact details - the number wanted is whoever's at that door, which isn't always the person paying, and it's kept against that address afterwards for the same reason. Contact details are now just the email address and the full name, and for a signed-in customer that name arrives already filled in from their account. The phone box says **Phone (optional)** unless you've ticked **Require a phone number at checkout** under Settings → Shop → Checkout, in which case it drops the "(optional)", asks for a number before the order can be placed, and says "Enter a phone number" if someone skips past it. With a number made compulsory, picking a saved address that hasn't got one brings the delivery form back out so there's somewhere to put one, instead of hiding the only box that could answer for it. Up to and including shop version 0.1.177 that tickbox was pure decoration: it saved happily, and the checkout carried on calling the field optional and taking orders without a number, which is a poor show from a setting with the word "require" in its name. The address section is now honestly titled **Delivery address**, with **Delivery method** below it where you charge postage by zone.
 
 The last step earns some trust as well. The place-order button now says exactly what's about to happen - **Place order - £84.20** - so nobody clicks into the unknown, and a small padlock note by the card fields points out that card details go straight to the payment provider, encrypted, without ever touching your site. And if you've never published a checkout design at all, the page no longer shrugs and shows nothing: the full standard checkout appears on its own, exactly as the classic starter would lay it out.
 
