@@ -17,7 +17,10 @@ export async function runDigest(mode: DigestMode): Promise<number> {
   const since = new Date(Date.now() - windowMs)
 
   const prefs = await prisma.memberNotificationPreference.findMany({
-    where: { digestMode: mode, enabled: true },
+    // The email channel only - this sends a digest EMAIL, and a member who has
+    // asked for a category by text has said nothing about wanting it summarised
+    // in their inbox as well.
+    where: { channel: 'EMAIL', digestMode: mode, enabled: true },
     select: { memberId: true, category: true },
   })
   if (prefs.length === 0) return 0

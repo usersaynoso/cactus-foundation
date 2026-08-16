@@ -559,7 +559,7 @@ CREATE TABLE "GithubAppConnection" (
 CREATE TYPE "MemberStatus" AS ENUM ('PENDING_VERIFICATION', 'PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'DELETED');
 CREATE TYPE "AvatarChoice" AS ENUM ('UPLOAD', 'GRAVATAR', 'GENERATED');
 CREATE TYPE "TwoFactorMethod" AS ENUM ('EMAIL', 'AUTHENTICATOR_APP', 'SMS');
-CREATE TYPE "NotificationChannel" AS ENUM ('EMAIL');
+CREATE TYPE "NotificationChannel" AS ENUM ('EMAIL', 'SMS');
 CREATE TYPE "DigestMode" AS ENUM ('INSTANT', 'DAILY', 'WEEKLY', 'DISABLED');
 CREATE TYPE "DataExportStatus" AS ENUM ('PENDING', 'PROCESSING', 'READY', 'EXPIRED');
 
@@ -792,6 +792,17 @@ CREATE TABLE "EmailTemplate" (
     CONSTRAINT "EmailTemplate_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "SmsTemplate" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "body" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SmsTemplate_pkey" PRIMARY KEY ("id")
+);
+
 -- Members indexes
 
 CREATE UNIQUE INDEX "Member_email_key" ON "Member"("email");
@@ -851,6 +862,7 @@ CREATE INDEX "MemberAdminNote_memberId_createdAt_idx" ON "MemberAdminNote"("memb
 CREATE INDEX "MemberAdminActionLog_memberId_createdAt_idx" ON "MemberAdminActionLog"("memberId", "createdAt" DESC);
 
 CREATE UNIQUE INDEX "EmailTemplate_key_key" ON "EmailTemplate"("key");
+CREATE UNIQUE INDEX "SmsTemplate_key_key" ON "SmsTemplate"("key");
 
 -- Members foreign keys
 

@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.233"
+      "version": "v0.1.234"
     },
     {
       "name": "address-lookup-for-shop",
@@ -108,7 +108,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.26"
+      "version": "v0.1.27"
     },
     {
       "name": "gemini-watermark-remover",

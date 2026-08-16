@@ -57,6 +57,7 @@ coverage/
 /lib/modules/extension-points.ts
 /lib/modules/sms-providers.ts
 /lib/modules/email-templates.ts
+/lib/modules/sms-templates.ts
 /lib/puck/module-components.ts
 /lib/puck/module-rsc-components.ts
 /lib/puck/module-embed-options.ts

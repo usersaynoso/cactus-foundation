@@ -767,6 +767,10 @@ enum TwoFactorMethod {
 
 enum NotificationChannel {
   EMAIL
+  // Only ever offered when an active module contributes a working SMS provider
+  // (lib/auth/sms.ts) - the preference rows are harmless without one, but the
+  // account page hides the channel rather than promising texts nothing sends.
+  SMS
 }
 
 enum DigestMode {
@@ -1111,6 +1115,21 @@ model EmailTemplate {
   // back to the default rather than cascade-delete the admin's copy edits.
   wrapperLayoutId String?
   // Non-transactional emails only; the renderer ignores it for the rest.
+  isActive    Boolean  @default(true)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+// The same idea one channel over: admin overrides for any registered text
+// message (lib/sms/registry.ts). No subject and no wrapper - a text is one
+// short body and nothing else - so a reset to default is just nulling `body`.
+model SmsTemplate {
+  id          String   @id @default(cuid())
+  // e.g. "shop.order-shipped"
+  key         String   @unique
+  body        String?  @db.Text
+  // Non-transactional texts only; the renderer ignores it for the rest.
   isActive    Boolean  @default(true)
   updatedById String?
   updatedAt   DateTime @updatedAt

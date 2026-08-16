@@ -34,6 +34,10 @@ export const CORE_PERMISSIONS = [
   // when the editor only reached the member emails; core-reconcile 015 moves
   // existing grants across.
   { key: 'emails.templates', description: 'Edit email templates and wrapper designs' },
+  // The same job for text messages. Kept apart from the email key on purpose:
+  // texts cost money per send, so an owner may well want the wording of them
+  // in fewer hands than the wording of the emails.
+  { key: 'sms.templates', description: 'Edit text message templates' },
 ] as const
 
 export type CorePermissionKey = (typeof CORE_PERMISSIONS)[number]['key']

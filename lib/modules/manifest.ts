@@ -143,6 +143,20 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     export: z.string().min(1),
   }).optional(),
+  // Text messages this module sends, surfaced in the same style of editor as
+  // the emails above - the one an SMS-provider module puts on its own admin
+  // page. Identical seam to `emailTemplates`, pointing at an SmsTemplateDef[]
+  // (lib/sms/registry.ts), with the same module-namespaced key rule.
+  //
+  // Collected by scripts/generate-module-sms-templates.mjs into
+  // lib/modules/sms-templates.ts. Sending goes through core's sendSmsTemplate(),
+  // so an owner's wording edits apply with nothing further for the module to do,
+  // and a site with no SMS provider simply sends nothing.
+  smsTemplates: z.object({
+    groupLabel: z.string().min(1),
+    import: z.string().min(1),
+    export: z.string().min(1),
+  }).optional(),
   // Declarative contributions to the core Members system (see MEMBERS_SPEC.md
   // amendment 5). Pure data, read live from this manifest at request time by
   // core Members code (lib/modules/member-extensions.ts) - no codegen step,
@@ -150,7 +164,20 @@ export const ModuleManifestSchema = z.object({
   // component import.
   memberExtensions: z.object({
     activityTypes: z.array(z.object({ type: z.string().min(1), label: z.string().min(1) })).default([]),
-    notificationCategories: z.array(z.object({ category: z.string().min(1), label: z.string().min(1) })).default([]),
+    notificationCategories: z.array(z.object({
+      category: z.string().min(1),
+      label: z.string().min(1),
+      // Which ways a member may ask to be told. Defaults to email alone, which
+      // is what every category declared before this field existed meant.
+      // 'SMS' only appears on the account page when an active module actually
+      // has a working SMS provider.
+      channels: z.array(z.enum(['EMAIL', 'SMS'])).default(['EMAIL']),
+      // A category the member may choose the delivery of but not opt out of -
+      // at least one channel must stay switched on. For the things somebody has
+      // to be told about (an order they have paid for), not for anything a site
+      // would like to send them.
+      required: z.boolean().default(false),
+    })).default([]),
     // Path under this module's own API namespace that core calls internally
     // (self-origin fetch, internal bearer) to collect this module's
     // contribution to a member's data export.

@@ -22,9 +22,29 @@ export async function getModuleActivityTypes(): Promise<Array<{ type: string; la
   return manifests.flatMap((m) => m.memberExtensions?.activityTypes ?? [])
 }
 
-export async function getModuleNotificationCategories(): Promise<Array<{ category: string; label: string }>> {
+export type ModuleNotificationCategory = {
+  category: string
+  label: string
+  /** Ways a member may ask to be told. Email alone unless the module says more. */
+  channels: Array<'EMAIL' | 'SMS'>
+  /** Delivery is the member's choice, being told at all is not - at least one
+   * channel has to stay on. */
+  required: boolean
+}
+
+export async function getModuleNotificationCategories(): Promise<ModuleNotificationCategory[]> {
   const manifests = await getActiveModuleManifests()
-  return manifests.flatMap((m) => m.memberExtensions?.notificationCategories ?? [])
+  return manifests.flatMap((m) =>
+    (m.memberExtensions?.notificationCategories ?? []).map((c) => ({
+      category: c.category,
+      label: c.label,
+      // A manifest written before these fields existed parses with the zod
+      // defaults, but a manifest read straight out of the database predates the
+      // parse, so the fallbacks are repeated here rather than assumed.
+      channels: c.channels?.length ? c.channels : (['EMAIL'] as Array<'EMAIL' | 'SMS'>),
+      required: c.required ?? false,
+    })),
+  )
 }
 
 /** Whether the Notifications section has anything in it at all. Core ships no
