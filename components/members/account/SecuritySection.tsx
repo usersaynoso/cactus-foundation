@@ -14,6 +14,25 @@ type Passkey = { id: string; deviceName: string | null; createdAt: string; lastU
 type Session = { id: string; ipAddress: string | null; userAgent: string | null; lastActiveAt: string; isCurrent: boolean }
 type TrustedBrowser = { id: string; deviceInfo: string | null; expiresAt: string; isCurrent: boolean }
 
+// Cards sit in a grid, so the class's own bottom margin would double the gap,
+// and each one fills its row so a short card next to a tall one still squares up.
+const cardStyle: React.CSSProperties = { height: '100%', marginBottom: 0 }
+// Devices and browsers accumulate; cap the list rather than let one card drag
+// the row down to a screen and a half.
+const listStyle: React.CSSProperties = { maxHeight: '14rem', overflowY: 'auto' }
+
+/** A list row: description on the left, an optional action button on the right. */
+function ListRow({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
+      {/* A user agent string is long and the column is half the width it was,
+          so the text wraps and the button keeps its size. */}
+      <span style={{ minWidth: 0, wordBreak: 'break-word', fontSize: 'var(--text-sm)' }}>{children}</span>
+      {action && <span style={{ flexShrink: 0 }}>{action}</span>}
+    </div>
+  )
+}
+
 export default function SecuritySection() {
   const [emailInfo, setEmailInfo] = useState<EmailInfo | null>(null)
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
@@ -222,7 +241,7 @@ export default function SecuritySection() {
   }
 
   return (
-    <div>
+    <div className="account-grid-container">
       <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', margin: '0 0 var(--space-4)', color: 'var(--color-text)' }}>
         Account &amp; Security
       </h2>
@@ -238,175 +257,201 @@ export default function SecuritySection() {
         </div>
       )}
 
-      {/* The whole block waits on the fetch, heading included: a site with this
-          section switched off answers 403 here, and half an email panel with a
-          "Current: …" that never resolves is worse than no panel at all. */}
-      {emailInfo && (
-        <>
-          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-5) 0 var(--space-2)', color: 'var(--color-text)' }}>Email address</h3>
-          {emailNotice && <div className="alert alert-success">{emailNotice}</div>}
-          <p style={{ margin: '0 0 var(--space-3)' }}>
-            Current: <strong>{emailInfo.email}</strong>
-            {!emailInfo.emailVerified && <span className="field-hint"> (not verified yet)</span>}
-          </p>
-          {!emailInfo.canChange ? (
-            <p className="field-hint">{emailInfo.reason}</p>
-          ) : (
-            <>
-              <div className="field">
-                <label htmlFor="member-new-email">New email address</label>
-                <input
-                  id="member-new-email"
-                  type="email"
-                  autoComplete="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                />
-              </div>
-              {emailInfo.requiresPassword && (
+      {/* One grid rather than fixed pairs of cards: the email panel is not
+          always there, and a hard-coded row would leave a hole beside whatever
+          followed it on the sites that switch it off. */}
+      <div className="account-grid">
+        {/* The whole card waits on the fetch, heading included: a site with this
+            section switched off answers 403 here, and half an email panel with a
+            "Current: …" that never resolves is worse than no panel at all. */}
+        {emailInfo && (
+          <div className="card" style={cardStyle}>
+            <h3 className="card-title">Email address</h3>
+            {emailNotice && <div className="alert alert-success">{emailNotice}</div>}
+            <p style={{ margin: '0 0 var(--space-3)' }}>
+              Current: <strong>{emailInfo.email}</strong>
+              {!emailInfo.emailVerified && <span className="field-hint"> (not verified yet)</span>}
+            </p>
+            {!emailInfo.canChange ? (
+              <p className="field-hint">{emailInfo.reason}</p>
+            ) : (
+              <>
                 <div className="field">
-                  <label htmlFor="member-email-password">Current password</label>
+                  <label htmlFor="member-new-email">New email address</label>
                   <input
-                    id="member-email-password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={emailPassword}
-                    onChange={(e) => setEmailPassword(e.target.value)}
+                    id="member-new-email"
+                    type="email"
+                    autoComplete="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
                   />
                 </div>
-              )}
-              <button
-                className="btn btn-secondary"
-                disabled={emailBusy || !newEmail.trim() || (emailInfo.requiresPassword && !emailPassword)}
-                onClick={requestEmailChange}
-              >
-                {emailBusy ? 'Sending…' : emailPendingFor ? 'Send a new code' : 'Change email address'}
-              </button>
-              <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
-                We send a code to the new address and only move your sign-in once it comes back, so a
-                typo costs you nothing.
-              </p>
-              {emailPendingFor && (
-                <div style={{ marginTop: 'var(--space-3)' }}>
+                {emailInfo.requiresPassword && (
                   <div className="field">
-                    <label htmlFor="member-email-code">Code sent to {emailPendingFor}</label>
+                    <label htmlFor="member-email-password">Current password</label>
                     <input
-                      id="member-email-code"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      autoComplete="one-time-code"
-                      value={emailCode}
-                      onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      id="member-email-password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
                     />
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    disabled={emailBusy || emailCode.length !== 6}
-                    onClick={confirmEmailChange}
-                  >
-                    Confirm new address
-                  </button>
+                )}
+                <button
+                  className="btn btn-secondary"
+                  disabled={emailBusy || !newEmail.trim() || (emailInfo.requiresPassword && !emailPassword)}
+                  onClick={requestEmailChange}
+                >
+                  {emailBusy ? 'Sending…' : emailPendingFor ? 'Send a new code' : 'Change email address'}
+                </button>
+                <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                  We send a code to the new address and only move your sign-in once it comes back, so a
+                  typo costs you nothing.
+                </p>
+                {emailPendingFor && (
+                  <div style={{ marginTop: 'var(--space-3)' }}>
+                    <div className="field">
+                      <label htmlFor="member-email-code">Code sent to {emailPendingFor}</label>
+                      <input
+                        id="member-email-code"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoComplete="one-time-code"
+                        value={emailCode}
+                        onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      />
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      disabled={emailBusy || emailCode.length !== 6}
+                      onClick={confirmEmailChange}
+                    >
+                      Confirm new address
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="card" style={cardStyle}>
+          <h3 className="card-title">Passkeys</h3>
+          {(passkeys?.length ?? 0) === 0 && <p className="field-hint">No passkeys yet.</p>}
+          {passkeys?.map((pk) => (
+            <ListRow
+              key={pk.id}
+              action={<button className="btn btn-secondary btn-sm" onClick={() => removePasskey(pk.id)}>Remove</button>}
+            >
+              {pk.deviceName ?? 'Passkey'} - added {new Date(pk.createdAt).toLocaleDateString()}
+            </ListRow>
+          ))}
+          <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} disabled={busy} onClick={addPasskey}>
+            🔑 Add a passkey
+          </button>
+        </div>
+
+        <div className="card" style={cardStyle}>
+          <h3 className="card-title">Password</h3>
+          {passwordStatus?.passwordsEnabled ? (
+            <>
+              {passwordStatus.hasPassword && (
+                <div className="field">
+                  <label>Current password</label>
+                  <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
                 </div>
               )}
+              <div className="field">
+                <label>{passwordStatus.hasPassword ? 'New password' : 'Set a password'}</label>
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              </div>
+              <button className="btn btn-secondary" disabled={busy || !newPassword} onClick={savePassword}>
+                {passwordStatus.hasPassword ? 'Change password' : 'Set password'}
+              </button>
+              {passwordStatus.hasPassword && !twoFactorStatus?.enabled && (
+                <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                  Set up two-factor authentication to be able to sign in with your password.
+                </p>
+              )}
+              {passwordStatus.passwordRequired && (
+                <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
+                  This site asks every member for a password, so this one can be changed but not removed.
+                </p>
+              )}
             </>
+          ) : (
+            <p className="field-hint">Password sign-in is not enabled for this site.</p>
           )}
-        </>
-      )}
-
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Passkeys</h3>
-      {passkeys?.map((pk) => (
-        <div key={pk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
-          <span>{pk.deviceName ?? 'Passkey'} - added {new Date(pk.createdAt).toLocaleDateString()}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => removePasskey(pk.id)}>Remove</button>
         </div>
-      ))}
-      <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} disabled={busy} onClick={addPasskey}>
-        🔑 Add a passkey
-      </button>
 
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Password</h3>
-      {passwordStatus?.passwordsEnabled ? (
-        <>
-          {passwordStatus.hasPassword && (
-            <div className="field">
-              <label>Current password</label>
-              <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+        <div className="card" style={cardStyle}>
+          <h3 className="card-title">Two-factor authentication</h3>
+          {twoFactorStatus?.enabled ? (
+            <div>
+              <p style={{ marginTop: 0 }}>Enabled via {twoFactorStatus.method === 'EMAIL' ? 'email code' : 'authenticator app'}.</p>
+              <button className="btn btn-secondary btn-sm" onClick={removeTwoFactor}>Remove</button>
+              <div style={{ marginTop: 'var(--space-3)' }}>
+                <span className="field-hint">{recoveryRemaining ?? 0} recovery codes remaining. </span>
+                <button className="btn btn-link" onClick={regenerateRecoveryCodes}>Regenerate codes</button>
+              </div>
             </div>
+          ) : totpSetup ? (
+            <div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={totpSetup.qrDataUrl} alt="Authenticator QR code" style={{ width: 180, height: 180, maxWidth: '100%' }} />
+              <p className="field-hint" style={{ wordBreak: 'break-all' }}>Secret: {totpSetup.secret}</p>
+              <div className="field">
+                <label>Enter the 6-digit code from your app</label>
+                <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+              </div>
+              <button className="btn btn-primary" disabled={totpCode.length !== 6} onClick={verifyTotpSetup}>Verify</button>
+            </div>
+          ) : (
+            <button className="btn btn-secondary" onClick={startTotpSetup}>Set up authenticator app</button>
           )}
-          <div className="field">
-            <label>{passwordStatus.hasPassword ? 'New password' : 'Set a password'}</label>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </div>
+
+        <div className="card" style={cardStyle}>
+          <h3 className="card-title">Active sessions</h3>
+          <div style={listStyle}>
+            {sessions?.map((s) => (
+              <ListRow
+                key={s.id}
+                action={!s.isCurrent && <button className="btn btn-secondary btn-sm" onClick={() => revokeSession(s.id)}>Revoke</button>}
+              >
+                {s.userAgent ?? 'Unknown device'} - {s.ipAddress ?? 'unknown IP'} {s.isCurrent && '(this browser)'}
+              </ListRow>
+            ))}
           </div>
-          <button className="btn btn-secondary" disabled={busy || !newPassword} onClick={savePassword}>
-            {passwordStatus.hasPassword ? 'Change password' : 'Set password'}
-          </button>
-          {passwordStatus.hasPassword && !twoFactorStatus?.enabled && (
-            <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
-              Set up two-factor authentication below to be able to sign in with your password.
-            </p>
+          {(sessions?.length ?? 0) > 1 && (
+            <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={revokeAllSessions}>
+              Sign out other sessions
+            </button>
           )}
-          {passwordStatus.passwordRequired && (
-            <p className="field-hint" style={{ marginTop: 'var(--space-2)' }}>
-              This site asks every member for a password, so this one can be changed but not removed.
-            </p>
+        </div>
+
+        <div className="card" style={cardStyle}>
+          <h3 className="card-title">Trusted browsers</h3>
+          {(trustedBrowsers?.length ?? 0) === 0 && <p className="field-hint">No trusted browsers.</p>}
+          <div style={listStyle}>
+            {trustedBrowsers?.map((b) => (
+              <ListRow
+                key={b.id}
+                action={<button className="btn btn-secondary btn-sm" onClick={() => revokeTrustedBrowser(b.id)}>Revoke</button>}
+              >
+                {b.deviceInfo ?? 'Unknown device'} {b.isCurrent && '(this browser)'} - expires {new Date(b.expiresAt).toLocaleDateString()}
+              </ListRow>
+            ))}
+          </div>
+          {(trustedBrowsers?.length ?? 0) > 0 && (
+            <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={revokeAllTrustedBrowsers}>
+              Revoke all
+            </button>
           )}
-        </>
-      ) : (
-        <p className="field-hint">Password sign-in is not enabled for this site.</p>
-      )}
-
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Two-factor authentication</h3>
-      {twoFactorStatus?.enabled ? (
-        <div>
-          <p>Enabled via {twoFactorStatus.method === 'EMAIL' ? 'email code' : 'authenticator app'}.</p>
-          <button className="btn btn-secondary btn-sm" onClick={removeTwoFactor}>Remove</button>
-          <div style={{ marginTop: 'var(--space-3)' }}>
-            <span className="field-hint">{recoveryRemaining ?? 0} recovery codes remaining. </span>
-            <button className="btn btn-link" onClick={regenerateRecoveryCodes}>Regenerate codes</button>
-          </div>
         </div>
-      ) : totpSetup ? (
-        <div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={totpSetup.qrDataUrl} alt="Authenticator QR code" style={{ width: 180, height: 180 }} />
-          <p className="field-hint">Secret: {totpSetup.secret}</p>
-          <div className="field">
-            <label>Enter the 6-digit code from your app</label>
-            <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
-          </div>
-          <button className="btn btn-primary" disabled={totpCode.length !== 6} onClick={verifyTotpSetup}>Verify</button>
-        </div>
-      ) : (
-        <button className="btn btn-secondary" onClick={startTotpSetup}>Set up authenticator app</button>
-      )}
-
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Active sessions</h3>
-      {sessions?.map((s) => (
-        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
-          <span>{s.userAgent ?? 'Unknown device'} - {s.ipAddress ?? 'unknown IP'} {s.isCurrent && '(this browser)'}</span>
-          {!s.isCurrent && <button className="btn btn-secondary btn-sm" onClick={() => revokeSession(s.id)}>Revoke</button>}
-        </div>
-      ))}
-      {(sessions?.length ?? 0) > 1 && (
-        <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={revokeAllSessions}>
-          Sign out other sessions
-        </button>
-      )}
-
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 'var(--space-6) 0 var(--space-2)', color: 'var(--color-text)' }}>Trusted browsers</h3>
-      {(trustedBrowsers?.length ?? 0) === 0 && <p className="field-hint">No trusted browsers.</p>}
-      {trustedBrowsers?.map((b) => (
-        <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--color-border)' }}>
-          <span>{b.deviceInfo ?? 'Unknown device'} {b.isCurrent && '(this browser)'} - expires {new Date(b.expiresAt).toLocaleDateString()}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => revokeTrustedBrowser(b.id)}>Revoke</button>
-        </div>
-      ))}
-      {(trustedBrowsers?.length ?? 0) > 0 && (
-        <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={revokeAllTrustedBrowsers}>
-          Revoke all
-        </button>
-      )}
+      </div>
     </div>
   )
 }
