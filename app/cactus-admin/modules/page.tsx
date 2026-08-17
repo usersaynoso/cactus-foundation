@@ -6,6 +6,22 @@ import type { ModuleStatus } from '@prisma/client'
 import { markdownToHtml } from '@/lib/markdown-client'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
+import { readJsonResponse } from '@/lib/updates/read-json-response'
+
+// The shape the module install/update/uninstall handlers answer with. Only the fields
+// the UI branches on - a killed function answers with none of them.
+type ModuleActionResponse = {
+  ok?: boolean
+  error?: string
+  code?: string
+  moduleName?: string
+  requiredVersion?: string
+  currentVersion?: string
+  redeployTriggered?: boolean
+  status?: ModuleStatus
+  failed?: string[]
+  updated?: number
+}
 
 type GitHubAppStatus = {
   connected: boolean
@@ -231,13 +247,16 @@ export default function ModulesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repoUrl, channel }),
       })
-      const d = await res.json()
-      if (!res.ok) {
+      // Not res.json(): a run killed at the platform's time limit answers with HTML, and
+      // parsing that throws a browser message no site owner can act on.
+      const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Install failed')
+      const d = parsed.data ?? {}
+      if (!parsed.ok) {
         if (d.code === 'core_version_required') {
-          setCoreVersionModal({ moduleName: d.moduleName, requiredVersion: d.requiredVersion, currentVersion: d.currentVersion })
+          setCoreVersionModal({ moduleName: d.moduleName!, requiredVersion: d.requiredVersion!, currentVersion: d.currentVersion! })
           return false
         }
-        throw new Error(d.error ?? 'Install failed')
+        throw new Error(parsed.error ?? 'Install failed')
       }
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
@@ -280,13 +299,14 @@ export default function ModulesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
-      const d = await res.json()
-      if (!res.ok) {
+      const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Action failed')
+      const d = parsed.data ?? {}
+      if (!parsed.ok) {
         if (d.code === 'core_version_required') {
-          setCoreVersionModal({ moduleName: d.moduleName, requiredVersion: d.requiredVersion, currentVersion: d.currentVersion })
+          setCoreVersionModal({ moduleName: d.moduleName!, requiredVersion: d.requiredVersion!, currentVersion: d.currentVersion! })
           return
         }
-        throw new Error(d.error ?? 'Action failed')
+        throw new Error(parsed.error ?? 'Action failed')
       }
       if (d.redeployTriggered) {
         announceRedeployStarted()
@@ -312,15 +332,17 @@ export default function ModulesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update-all' }),
       })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Update failed')
+      const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Update failed')
+      if (!parsed.ok) throw new Error(parsed.error ?? 'Update failed')
+      const d = parsed.data ?? {}
       if (d.redeployTriggered) {
         announceRedeployStarted()
       } else {
         const failed: string[] = d.failed ?? []
-        if (d.updated > 0) {
+        const updatedCount = d.updated ?? 0
+        if (updatedCount > 0) {
           setNotice(
-            `${d.updated} module${d.updated === 1 ? '' : 's'} updated${failed.length ? `, ${failed.length} failed` : ''}. Your changes are waiting to go live - review and redeploy from Notifications.`
+            `${updatedCount} module${updatedCount === 1 ? '' : 's'} updated${failed.length ? `, ${failed.length} failed` : ''}. Your changes are waiting to go live - review and redeploy from Notifications.`
           )
         } else if (failed.length > 0) {
           setError(`Failed to update: ${failed.join(', ')}`)
@@ -354,8 +376,9 @@ export default function ModulesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: uninstallMode }),
       })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Uninstall failed')
+      const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Uninstall failed')
+      if (!parsed.ok) throw new Error(parsed.error ?? 'Uninstall failed')
+      const d = parsed.data ?? {}
       setUninstallModal(null)
       if (d.redeployTriggered) {
         announceRedeployStarted()

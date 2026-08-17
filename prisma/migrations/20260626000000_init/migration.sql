@@ -367,6 +367,7 @@ CREATE TABLE "DeployLock" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "lockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lockedBy" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3),
     CONSTRAINT "DeployLock_pkey" PRIMARY KEY ("id")
 );
 

@@ -604,6 +604,12 @@ model DeployLock {
   lockedAt DateTime @default(now())
   // moduleId or themeId holding the lock
   lockedBy String
+  // When this hold stops being credible. Set by whoever takes the lock, from how
+  // long its own work can legitimately run (see lib/deploy/lock.ts). A lock past
+  // its expiry is treated as abandoned and cleared, so a hard-killed function
+  // (Vercel timeout / OOM, which runs no release path) blocks the next attempt for
+  // seconds rather than the blanket 15 minutes the fallback rule allows.
+  expiresAt DateTime?
 }
 
 // ---------------------------------------------------------------------------

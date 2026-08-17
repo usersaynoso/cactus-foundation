@@ -7,6 +7,7 @@ import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
+import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
@@ -300,8 +301,15 @@ function UpdatesPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updateModules: modulesWithUpdates.length > 0 && updateModulesToo }),
       })
-      const d = (await res.json()) as { ok?: boolean; redeployTriggered?: boolean; error?: string }
-      if (!res.ok) throw new Error(d.error ?? 'Update failed')
+      // Deliberately not res.json(): an update killed at the platform's time limit answers
+      // with an HTML page, and parsing that throws a browser message the owner can't act on.
+      const parsed = await readJsonResponse<{
+        ok?: boolean
+        redeployTriggered?: boolean
+        error?: string
+      }>(res, 'Update failed')
+      if (!parsed.ok) throw new Error(parsed.error ?? 'Update failed')
+      const d = parsed.data ?? {}
       setShowConfirm(false)
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status

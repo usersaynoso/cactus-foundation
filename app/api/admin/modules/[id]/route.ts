@@ -10,7 +10,7 @@ import { compareVersions } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
-import { getActiveDeployLock } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage } from '@/lib/deploy/lock'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
@@ -96,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const lock = await getActiveDeployLock()
-    if (lock) return errorResponse('Another install or update is in progress', 409)
+    if (lock) return errorResponse(lockBusyMessage(lock), 409)
 
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
@@ -156,9 +156,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    await prisma.deployLock.create({
-      data: { id: 'singleton', lockedBy: `module:${mod.name}` },
-    })
+    await acquireDeployLock(`module:${mod.name}`)
 
     try {
       // Commit modules.json and redeploy immediately: the git push auto-deploys and the
@@ -267,7 +265,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const { mode } = parsed.data
 
   const lock = await getActiveDeployLock()
-  if (lock) return errorResponse('Another install or update is in progress', 409)
+  if (lock) return errorResponse(lockBusyMessage(lock), 409)
 
   const manifest = mod.manifest as { teardown?: string[] } | null
 
@@ -281,9 +279,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
   }
 
-  await prisma.deployLock.create({
-    data: { id: 'singleton', lockedBy: `module:uninstall:${mod.name}` },
-  })
+  await acquireDeployLock(`module:uninstall:${mod.name}`)
 
   const droppedTables: string[] = []
 

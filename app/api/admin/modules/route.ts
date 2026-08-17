@@ -22,7 +22,7 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret, cronSecretSatisfied } from '@/lib/vercel/cron-secret'
-import { getActiveDeployLock } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, DEFAULT_LOCK_HOLD_MS } from '@/lib/deploy/lock'
 import { compareVersions } from '@/lib/updates/core'
 import pkg from '@/package.json'
 
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   // stale and cleared, so a crashed install doesn't block every future one).
   const lock = await getActiveDeployLock()
   if (lock) {
-    return errorResponse('Another install or update is in progress. Please wait.', 409)
+    return errorResponse(lockBusyMessage(lock), 409)
   }
 
   // Resolve the release first: the manifest is read AT this tag (not HEAD), so
@@ -230,7 +230,11 @@ export async function POST(request: NextRequest) {
   // Acquire deploy lock and create the module row
   await prisma.$transaction([
     prisma.deployLock.create({
-      data: { id: 'singleton', lockedBy: `module:${manifest.name}` },
+      data: {
+        id: 'singleton',
+        lockedBy: `module:${manifest.name}`,
+        expiresAt: new Date(Date.now() + DEFAULT_LOCK_HOLD_MS),
+      },
     }),
     prisma.module.create({
       data: {
@@ -320,7 +324,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const lock = await getActiveDeployLock()
-  if (lock) return errorResponse('Another install or update is in progress', 409)
+  if (lock) return errorResponse(lockBusyMessage(lock), 409)
 
   const pending = await prisma.module.findMany({ where: { status: 'update_available' } })
   if (pending.length === 0) {
@@ -333,7 +337,7 @@ export async function PATCH(request: NextRequest) {
     select: { name: true, version: true, status: true },
   })
 
-  await prisma.deployLock.create({ data: { id: 'singleton', lockedBy: 'modules:update-all' } })
+  await acquireDeployLock('modules:update-all')
 
   const updated: { id: string; name: string; tag: string }[] = []
   const failed: string[] = []

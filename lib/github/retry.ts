@@ -47,6 +47,13 @@ export interface RetryOpts {
   attempts?: number
   baseMs?: number
   capMs?: number
+  /**
+   * Absolute time (ms epoch) this work must be finished by. A retry whose backoff would
+   * run past it is not slept through: the last error is surfaced immediately instead.
+   * Without this, a multi-minute retry budget inside a 60s route guarantees the function
+   * is hard-killed mid-retry - which strands the deploy lock and returns no error at all.
+   */
+  deadlineAt?: number
 }
 
 // Exponential backoff with equal jitter (guaranteed half + random half), so
@@ -66,7 +73,12 @@ export async function retryTransient<T>(fn: () => Promise<T>, opts: RetryOpts = 
       lastErr = err
       if (!isTransientGitError(err) || i === attempts - 1) throw err
       const ceil = Math.min(capMs, baseMs * 2 ** i)
-      await sleep(Math.floor(ceil / 2 + Math.random() * (ceil / 2)))
+      const waitMs = Math.floor(ceil / 2 + Math.random() * (ceil / 2))
+      // Sleeping past the caller's deadline buys nothing: the function would be killed
+      // mid-sleep and the error never told. Give up now, while there's still time to
+      // release the lock and say why.
+      if (opts.deadlineAt !== undefined && Date.now() + waitMs > opts.deadlineAt) throw err
+      await sleep(waitMs)
     }
   }
   throw lastErr

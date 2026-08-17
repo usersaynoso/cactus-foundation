@@ -25,6 +25,13 @@ const OUTAGE_SIGNATURES = [
   'enotfound',
   'fetch failed',
   'network error',
+  // Raised by this codebase rather than by GitHub: a run abandoned at its own deadline,
+  // a function killed at the platform's ceiling, or a live reading off GitHub's status
+  // page. All three want the same "check GitHub, try again shortly" line underneath.
+  'timed out',
+  'ran out of time',
+  'responding slowly',
+  'github is currently reporting problems',
 ]
 
 const STATUS_CODE_SIGNATURES = [

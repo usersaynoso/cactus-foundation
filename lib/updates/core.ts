@@ -11,8 +11,17 @@ import { isGitHubConfigured, isLocalMode } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
 import { compareVersions } from './version'
 import { applyPinFloor, formatHeldPins, type RegistryPin } from '@/lib/modules/pin-floor'
+import {
+  assertWithinDeadline,
+  msRemaining,
+  isDeadlineError,
+  DeadlineExceededError,
+} from './deadline'
 
 const UPSTREAM_REPO = process.env.CACTUS_CORE_REPO ?? 'usersaynoso/cactus-foundation'
+
+// Least time worth opening the createTree → createCommit → updateRef transaction with.
+const PUSH_MIN_BUDGET_MS = 15_000
 
 function parseRepo(raw: string): { owner: string; repo: string } {
   const [owner, repo] = raw.split('/')
@@ -299,11 +308,21 @@ async function readPinnedModules(
 // update triggers. Callers pass the full desired module list (untouched modules keep
 // their current confirmed version, selected-for-update modules pass their target tag) -
 // omitting an installed module here would silently drop its registry entry.
+//
+// `opts.deadlineAt` is the wall-clock time the caller's function will be killed at (less
+// headroom). It is checked at the points where abandoning the run is still free - before
+// the blob fetches, between them, and before the push transaction opens - so a GitHub
+// slow spell ends in a clean thrown error rather than a hard kill that leaves the deploy
+// lock stranded and the admin with no message. It is deliberately NOT checked inside the
+// commit transaction: once the push has started, finishing it is what keeps the repo
+// consistent.
 export async function syncCoreFromUpstream(
   fromVersion: string,
   toVersion: string,
-  modulesJson?: ModuleRegistryEntry[]
+  modulesJson?: ModuleRegistryEntry[],
+  opts: { deadlineAt?: number } = {}
 ): Promise<SyncResult> {
+  const { deadlineAt } = opts
   const octokit = await getGithubClient()
   const { owner: adminOwner, repo: adminRepo } = getMainRepo()
   const { owner: upOwner, repo: upRepo } = parseRepo(UPSTREAM_REPO)
@@ -332,13 +351,17 @@ export async function syncCoreFromUpstream(
 
   const fromTree = await getUpstreamTree(fromTag)
   const toTree = await getUpstreamTree(toTag)
+  assertWithinDeadline(deadlineAt, 'reading the release contents from GitHub')
 
   // Read the admin repo's ACTUAL base tree once, up front, and plan the reconcile
   // against it (not against the upstream from-tag). This is what makes the update
   // self-healing: it drives core toward the target from wherever the repo actually is,
   // so drift from a failed update, a user edit, or a version skip is corrected, not
   // tripped over. See planCoreSync.
-  const initialBase = await retryTransient(() => readAdminBase(octokit, adminOwner, adminRepo))
+  const initialBase = await retryTransient(
+    () => readAdminBase(octokit, adminOwner, adminRepo),
+    { deadlineAt },
+  )
   if (initialBase.truncated) {
     console.warn('[core-update] base tree read was truncated - skipping deletions this run')
   }
@@ -381,13 +404,16 @@ export async function syncCoreFromUpstream(
       const index = cursor++
       if (index >= plan.writes.length) return
       const w = plan.writes[index]!
+      // Checked per file rather than per batch: an update can touch hundreds of files,
+      // so this is where a slow GitHub actually eats the budget.
+      assertWithinDeadline(deadlineAt, 'downloading the updated files from GitHub')
       // getBlob (unlike getContent) has no 1 MB ceiling, so large files aren't dropped.
       // A tighter retry budget than the default (8 attempts / up to minutes) stops one
       // file's backoff from dominating the whole 60s route; the createTree transaction
       // below keeps the full retry budget as the real durability guarantee.
       const { data: upstreamBlob } = await retryTransient(
         () => octokit.rest.git.getBlob({ owner: upOwner, repo: upRepo, file_sha: w.sha }),
-        { attempts: 4, capMs: 8000 },
+        { attempts: 4, capMs: 8000, deadlineAt },
       )
       const bytes = Buffer.from(upstreamBlob.content, upstreamBlob.encoding === 'base64' ? 'base64' : 'utf8')
       if (bytes.includes(0)) {
@@ -430,6 +456,13 @@ export async function syncCoreFromUpstream(
   // rebases instead of failing non-fast-forward. Deletions are re-checked against the
   // fresh base each attempt - a sha: null for an absent path is the one thing createTree
   // refuses. Every attempt converges to the same target, so re-running is always safe.
+  // The push is the one step worth starting only if it can plausibly finish. Opening it
+  // with seconds left invites the hard kill this deadline exists to avoid; refusing here
+  // costs nothing, since the next attempt reconciles from wherever the repo actually is.
+  if (msRemaining(deadlineAt) < PUSH_MIN_BUDGET_MS) {
+    throw new DeadlineExceededError('preparing the update')
+  }
+
   let commitSha: string
   try {
     commitSha = await retryTransient(async () => {
@@ -456,8 +489,9 @@ export async function syncCoreFromUpstream(
         owner: adminOwner, repo: adminRepo, ref: 'heads/main', sha: newCommit.sha,
       })
       return newCommit.sha
-    })
+    }, { deadlineAt })
   } catch (err) {
+    if (isDeadlineError(err)) throw err
     // Surface enough context that an at-scale failure is reportable without repo access.
     const detail = err instanceof Error ? err.message : String(err)
     throw new Error(

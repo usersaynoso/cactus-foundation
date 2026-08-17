@@ -14,8 +14,10 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret } from '@/lib/vercel/cron-secret'
-import { getActiveDeployLock } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage } from '@/lib/deploy/lock'
 import { findModuleUpdates } from '@/lib/modules/updates'
+import { deadlineFromNow, isDeadlineError } from '@/lib/updates/deadline'
+import { gitHubOutageNote } from '@/lib/github/health'
 
 export const maxDuration = 60
 
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
   // stale and cleared, so a crashed update doesn't block every future one).
   const lock = await getActiveDeployLock()
   if (lock) {
-    return errorResponse('Another install or update is in progress. Please wait.', 409)
+    return errorResponse(lockBusyMessage(lock), 409)
   }
 
   // Fetch current status to get version numbers
@@ -131,10 +133,13 @@ export async function POST(request: NextRequest) {
   // effort: a site with no Vercel credentials just carries on updating without one.
   await ensureCronSecret()
 
-  // Acquire deploy lock
-  await prisma.deployLock.create({
-    data: { id: 'singleton', lockedBy: 'cactus-core-update' },
-  })
+  // Acquire deploy lock. The expiry it carries is what stops a hard-killed run from
+  // blocking every later attempt for a quarter of an hour.
+  await acquireDeployLock('cactus-core-update')
+
+  // Give the sync a budget that ends a little before this function's 60s ceiling, so a
+  // slow GitHub produces a real error message and a released lock rather than a kill.
+  const deadlineAt = deadlineFromNow()
 
   // Captured before the sync push so startDeferredRedeploy's poll reliably picks up
   // the Vercel build that push triggers (the deploy lock guarantees no other
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
       ? allModules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.pendingVersion ?? m.version }))
       : undefined
 
-    await syncCoreFromUpstream(currentVersion, latestVersion, modulesJson)
+    await syncCoreFromUpstream(currentVersion, latestVersion, modulesJson, { deadlineAt })
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
     // Bust the update cache so the panel reflects the running version after redeploy.
@@ -224,9 +229,22 @@ export async function POST(request: NextRequest) {
       )
     )
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
+
+    // Ask GitHub whether GitHub is the problem. A live outage reading turns "Update
+    // failed: 502" into something the site owner can act on (namely: wait), and is the
+    // difference between "my site is broken" and "GitHub is having a bad afternoon".
+    // Best effort - a status page that won't answer never changes the outcome here.
+    const base = err instanceof Error ? err.message : 'Unknown error'
+    let note = ''
+    try {
+      note = await gitHubOutageNote()
+    } catch { /* status page unreachable: report the raw failure alone */ }
+
     return errorResponse(
-      `Update failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      500
+      note ? `Update failed: ${base} ${note}` : `Update failed: ${base}`,
+      // A deadline abort or a live GitHub outage is "try again shortly", not "your site
+      // is broken" - 503 says so, and nothing was written either way.
+      isDeadlineError(err) || note ? 503 : 500
     )
   }
 
