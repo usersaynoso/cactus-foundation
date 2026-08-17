@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
 import { markdownToHtml } from '@/lib/markdown-client'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
+import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 
 type GitHubAppStatus = {
   connected: boolean
@@ -382,7 +383,19 @@ export default function ModulesPage() {
         <h1 className="page-title">Modules</h1>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && (
+        <div className="alert alert-danger">
+          <div>{error}</div>
+          {looksLikeGitHubProblem(error) && (
+            <div style={{ marginTop: '0.5rem' }}>
+              {GITHUB_OUTAGE_HINT}{' '}
+              <a href={GITHUB_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+                GitHub status
+              </a>
+            </div>
+          )}
+        </div>
+      )}
       {notice && <div className="alert alert-info">{notice}</div>}
 
       {ghStatus && !ghStatus.hasPat && !ghStatus.connected && (

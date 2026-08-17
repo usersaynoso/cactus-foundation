@@ -6,6 +6,7 @@ import type { MediaProviderType } from '@prisma/client'
 import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
+import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
@@ -447,7 +448,15 @@ function UpdatesPanel() {
             )}
             {updateError && (
               <div className="alert alert-danger" style={{ fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>
-                {updateError}
+                <div>{updateError}</div>
+                {looksLikeGitHubProblem(updateError) && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    {GITHUB_OUTAGE_HINT}{' '}
+                    <a href={GITHUB_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+                      GitHub status
+                    </a>
+                  </div>
+                )}
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
