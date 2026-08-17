@@ -5,16 +5,6 @@ import type { MediaProviderType } from '@prisma/client'
 import { envKeysForProvider } from '@/lib/media/providers'
 import type { GlobalColour } from '@/lib/design/tokens'
 import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
-import {
-  BACKDROP_LOGO_SCALE_MIN,
-  BACKDROP_LOGO_SCALE_MAX,
-  BACKDROP_LOGO_SCALE_DEFAULT,
-  clampBackdropScale,
-  normaliseBackdropMode,
-  normaliseBackdropSurface,
-  type BackdropLogoMode,
-  type BackdropLogoSurface,
-} from '@/lib/config/backdrop-logo'
 
 // The branding fields the "Save branding" button persists. A subset of
 // SiteConfig, saved to /api/admin/config (config.manage) - the same endpoint and
@@ -23,10 +13,6 @@ import {
 type BrandingConfig = {
   logoMediaId: string | null
   logoDarkMediaId: string | null
-  backdropLogoEnabled: boolean
-  backdropLogoScale: number
-  backdropLogoMode: BackdropLogoMode
-  backdropLogoSurface: BackdropLogoSurface
   faviconMediaId: string | null
   faviconDarkMediaId: string | null
   appIconMediaId: string | null
@@ -41,7 +27,6 @@ type BrandingConfig = {
 
 const EMPTY_BRANDING: BrandingConfig = {
   logoMediaId: null, logoDarkMediaId: null,
-  backdropLogoEnabled: false, backdropLogoScale: BACKDROP_LOGO_SCALE_DEFAULT, backdropLogoMode: 'auto', backdropLogoSurface: 'page',
   faviconMediaId: null, faviconDarkMediaId: null,
   appIconMediaId: null, appleTouchIconMediaId: null,
   webManifest192MediaId: null, webManifest512MediaId: null,
@@ -107,10 +92,6 @@ export function useBrandingState(): BrandingState {
       const next: BrandingConfig = {
         logoMediaId: (c.logoMediaId as string | null) ?? null,
         logoDarkMediaId: (c.logoDarkMediaId as string | null) ?? null,
-        backdropLogoEnabled: (c.backdropLogoEnabled as boolean | undefined) ?? false,
-        backdropLogoScale: clampBackdropScale(c.backdropLogoScale as number | undefined),
-        backdropLogoMode: normaliseBackdropMode(c.backdropLogoMode as string | undefined),
-        backdropLogoSurface: normaliseBackdropSurface(c.backdropLogoSurface as string | undefined),
         faviconMediaId: (c.faviconMediaId as string | null) ?? null,
         faviconDarkMediaId: (c.faviconDarkMediaId as string | null) ?? null,
         appIconMediaId: (c.appIconMediaId as string | null) ?? null,
@@ -471,45 +452,6 @@ function IconPreviewGallery({ previews, config, siteName }: { previews: Record<P
   )
 }
 
-// Scale mock-up for the backdrop logo. The real thing measures itself against
-// the shorter side of the viewport, so the preview measures against the shorter
-// side of this box (its height) and the percentage means the same thing here as
-// it will on the site. Deliberately no cropping guard: an over-large logo runs
-// off the edges here exactly as it would on a page.
-const BACKDROP_PREVIEW_HEIGHT = 180
-
-function BackdropLogoPreview({ previews, config }: { previews: Record<PreviewKey, string | null>; config: BrandingConfig }) {
-  const src = config.backdropLogoMode === 'dark' ? previews.logoDark ?? previews.logo : previews.logo
-  if (!src) return null
-
-  return (
-    <div style={{ margin: '0 0 1.75rem' }}>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>Preview - roughly what a visitor sees behind the page:</div>
-      <div
-        style={{
-          height: BACKDROP_PREVIEW_HEIGHT,
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius)',
-          background: config.backdropLogoSurface === 'theme'
-            ? (config.themeColor || '#ffffff')
-            : 'var(--color-page-bg, var(--color-bg))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- illustrative mock-up thumbnail, not a real page image */}
-        <img
-          src={src}
-          alt=""
-          style={{ width: (config.backdropLogoScale / 100) * BACKDROP_PREVIEW_HEIGHT, height: 'auto', display: 'block', flexShrink: 0 }}
-        />
-      </div>
-    </div>
-  )
-}
-
 // The Branding tab body. All state lives in the useBrandingState hook (held at
 // page level) so edits survive tab switches; this component is purely the form.
 export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalColour[] }) {
@@ -555,71 +497,6 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
         onUploaded={(m) => b.applyMedia('logoDarkMediaId', 'logoDark', m)}
         onRemove={() => b.clearMedia('logoDarkMediaId', 'logoDark')}
       />
-
-      <h3 style={heading}>Backdrop logo</h3>
-      <p style={subNote}>
-        Paints your logo once, centred, on the colour behind your site. It shows through wherever a page leaves its background alone, so it reads as a watermark rather than a picture. Off by default, and never shown in the admin.
-      </p>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={config.backdropLogoEnabled}
-          onChange={(e) => b.set('backdropLogoEnabled', e.target.checked)}
-        />
-        <strong>Show my logo behind the site</strong>
-      </label>
-      {config.backdropLogoEnabled && !previews.logo && (
-        <div className="alert alert-info" style={{ marginBottom: 'var(--form-gap)' }}>
-          Upload a site logo above and there will be something to show. Until then this does nothing.
-        </div>
-      )}
-      {config.backdropLogoEnabled && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label htmlFor="backdrop-logo-scale">Size ({config.backdropLogoScale}%)</label>
-              <input
-                id="backdrop-logo-scale"
-                type="range"
-                min={BACKDROP_LOGO_SCALE_MIN}
-                max={BACKDROP_LOGO_SCALE_MAX}
-                step={1}
-                value={config.backdropLogoScale}
-                onChange={(e) => b.set('backdropLogoScale', clampBackdropScale(Number(e.target.value)))}
-              />
-              <span className="field-hint">How wide the logo sits, measured against the shorter side of the visitor&apos;s screen.</span>
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label htmlFor="backdrop-logo-mode">Which logo</label>
-              <select
-                id="backdrop-logo-mode"
-                value={config.backdropLogoMode}
-                onChange={(e) => b.set('backdropLogoMode', normaliseBackdropMode(e.target.value))}
-              >
-                <option value="auto">Follow the visitor&apos;s theme</option>
-                <option value="light">Always the standard logo</option>
-                <option value="dark">Always the dark-mode logo</option>
-              </select>
-              <span className="field-hint">Following the theme uses your dark-mode logo in dark mode, the standard one otherwise. No dark logo uploaded? It quietly uses the standard one.</span>
-            </div>
-          </div>
-          <div className="field" style={{ marginBottom: 'var(--form-gap)' }}>
-            <label htmlFor="backdrop-logo-surface">What&apos;s behind it</label>
-            <select
-              id="backdrop-logo-surface"
-              value={config.backdropLogoSurface}
-              onChange={(e) => b.set('backdropLogoSurface', normaliseBackdropSurface(e.target.value))}
-            >
-              <option value="page">Your page colour (how it has always looked)</option>
-              <option value="theme">Your Theme colour</option>
-            </select>
-            <span className="field-hint">
-              Your <strong>Theme colour</strong> ({config.themeColor || '#ffffff'}) has always sat behind your pages with the page colour painted over the top of it. Choose it here and that paint comes off: the colour shows through every part of a page that hasn&apos;t a background of its own, which on a typical home page is most of it. One colour for both light and dark mode, so check both before you settle on it.
-            </span>
-          </div>
-          <BackdropLogoPreview previews={previews} config={config} />
-        </>
-      )}
 
       <h3 style={heading}>Favicon &amp; app icons</h3>
       <p style={subNote}>Upload one square app icon and we&apos;ll create the whole set - browser favicon, Apple touch icon, and installable-app icons. Prefer to hand-pick any of them? Replace it below; your override sticks.</p>

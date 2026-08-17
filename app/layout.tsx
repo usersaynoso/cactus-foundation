@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
-import { backdropLogoCssUrl } from '@/lib/config/backdrop-logo'
 import { isSpeedInsightsEnabled } from '@/lib/config/site'
 import './globals.css'
 
@@ -72,27 +71,11 @@ export default async function RootLayout({
   // generateMetadata already made.
   const branding = await resolveBranding()
 
-  // Optional logo watermark (Appearance > Branding). Both logos are published as
-  // variables and the mode as an attribute, rather than one resolved url: an
-  // inline style would out-rank the stylesheet, so "auto" could never swap to
-  // the dark logo when the theme toggle flips. globals.css picks between them.
-  const backdrop = branding.backdropLogo
-  const rootStyle: React.CSSProperties = { '--cactus-theme-color': branding.themeColor } as React.CSSProperties
-  if (backdrop) {
-    Object.assign(rootStyle, {
-      '--cactus-backdrop-logo-light': backdropLogoCssUrl(backdrop.url),
-      '--cactus-backdrop-logo-dark': backdropLogoCssUrl(backdrop.darkUrl),
-      '--cactus-backdrop-logo-size': `${backdrop.scale}vmin`,
-    })
-  }
-
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      data-backdrop-logo={backdrop ? backdrop.mode : undefined}
-      data-backdrop-surface={backdrop ? backdrop.surface : undefined}
-      style={rootStyle}
+      style={{ '--cactus-theme-color': branding.themeColor } as React.CSSProperties}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />

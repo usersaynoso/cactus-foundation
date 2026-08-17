@@ -410,36 +410,7 @@ html {
    background no longer propagates to the canvas, so the overscroll band past
    the top or bottom of a page shows the page colour rather than the tint. */
 html {
-  background-color: var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg)));
-}
-
-/* Backdrop logo (Appearance > Branding). The root layout publishes a light and a
-   dark url plus data-backdrop-logo when the option is on; these rules pick which
-   one paints, so "auto" follows the site's own theme toggle rather than the OS.
-   Unset everywhere else, so `var(--cactus-backdrop-logo, none)` below paints
-   nothing and the body background is byte-for-byte what it always was. */
-html[data-backdrop-logo] {
-  --cactus-backdrop-logo: var(--cactus-backdrop-logo-light);
-}
-html[data-backdrop-logo='dark'],
-html[data-backdrop-logo='auto'][data-theme='dark'] {
-  --cactus-backdrop-logo: var(--cactus-backdrop-logo-dark);
-}
-/* What the watermark sits on. Unset (and on 'page') the sheet stays the page
-   colour, which is how every site has always looked; 'theme' swaps in the Theme
-   colour, so the tint that was only ever under the page now shows through every
-   section that hasn't a background of its own. Both the html background-color
-   above and body's gradient below read this, so the overscroll band past the top
-   or bottom of a page matches the page rather than flashing the old colour. */
-html[data-backdrop-surface='theme'] {
-  --cactus-backdrop-surface: var(--cactus-theme-color, var(--color-page-bg, var(--color-bg)));
-}
-/* The watermark and its sheet are site branding, so the admin wears neither.
-   Last of the three, because :has() takes the specificity of its argument and
-   ties with the attribute selectors above - later wins. */
-html:has(.admin-shell) {
-  --cactus-backdrop-logo: none;
-  --cactus-backdrop-surface: var(--color-page-bg, var(--color-bg));
+  background-color: var(--color-page-bg, var(--color-bg));
 }
 
 body {
@@ -455,19 +426,10 @@ body {
      image and leak the tint across every page. --cactus-theme-color comes from
      the root layout; unset, this falls back to the old single colour. */
   background-color: var(--cactus-theme-color, var(--color-page-bg, var(--color-bg)));
-  /* Two layers, and the order matters: the logo is listed first so it paints ON
-     TOP of the page-colour gradient, which in turn still covers the theme colour
-     underneath. Every other background longhand is a matching two-item list, so
-     the gradient keeps its old values (repeat, auto size, scrolling) while the
-     logo sits centred and fixed to the viewport. */
-  background-image: var(--cactus-backdrop-logo, none), linear-gradient(
-    var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg))),
-    var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg)))
+  background-image: linear-gradient(
+    var(--color-page-bg, var(--color-bg)),
+    var(--color-page-bg, var(--color-bg))
   );
-  background-position: center center, 0 0;
-  background-repeat: no-repeat, repeat;
-  background-size: var(--cactus-backdrop-logo-size, auto), auto;
-  background-attachment: fixed, scroll;
   -webkit-font-smoothing: antialiased;
 }
 

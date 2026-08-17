@@ -206,19 +206,6 @@ model SiteConfig {
   // Optional dark-mode logo. Frontend swaps to this when the active theme is
   // dark (data-theme="dark"); falls back to logoMediaId when unset.
   logoDarkMediaId        String?
-  // Backdrop logo: paints the site logo once, centred, on the page colour behind
-  // every public page (Appearance > Branding). Off by default, and never shown
-  // in the admin. See app/globals.css for how the layer is stacked.
-  backdropLogoEnabled    Boolean    @default(false)
-  // Width of that watermark as a percentage of the viewport's shorter side.
-  backdropLogoScale      Int        @default(40)
-  // Which logo it paints: 'light', 'dark', or 'auto' (follows the site theme).
-  backdropLogoMode       String     @default("auto")
-  // What the watermark sits on: 'page' (the page colour, as every site has
-  // always looked) or 'theme' (the Theme colour, which then shows through every
-  // page section that hasn't got a background of its own). Only consulted while
-  // backdropLogoEnabled is true, so the switch can't repaint a site on its own.
-  backdropLogoSurface    String     @default("page")
   faviconMediaId         String?
   // Optional dark-mode favicon. Served via a prefers-color-scheme media query,
   // so it follows the browser/OS dark setting (not the in-site theme toggle).
