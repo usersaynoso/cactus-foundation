@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
+import { clampBackdropScale, normaliseBackdropMode, type BackdropLogoMode } from '@/lib/config/backdrop-logo'
 
 // Cactus fall-back assets shipped in /public. Used whenever the admin hasn't
 // uploaded a custom equivalent, so a fresh install still has a full icon set.
@@ -16,6 +17,19 @@ export const BRANDING_DEFAULTS = {
   backgroundColor: '#ffffff',
 } as const
 
+// The optional logo watermark painted behind every public page. Null whenever
+// it's switched off, or switched on with no logo uploaded to paint - so the root
+// layout can treat "null" as "emit nothing at all".
+export type ResolvedBackdropLogo = {
+  /** Logo shown in light mode, and in dark mode too unless darkUrl differs. */
+  url: string
+  /** Dark-mode logo. Falls back to `url` when no dark logo is uploaded. */
+  darkUrl: string
+  /** Width as a percentage of the viewport's shorter side. */
+  scale: number
+  mode: BackdropLogoMode
+}
+
 export type ResolvedBranding = {
   // Custom icon URLs (null => fall back to the Cactus defaults above).
   faviconUrl: string | null
@@ -28,6 +42,7 @@ export type ResolvedBranding = {
   shortName: string
   themeColor: string
   backgroundColor: string
+  backdropLogo: ResolvedBackdropLogo | null
 }
 
 const FALLBACK: ResolvedBranding = {
@@ -40,6 +55,7 @@ const FALLBACK: ResolvedBranding = {
   shortName: BRANDING_DEFAULTS.shortName,
   themeColor: BRANDING_DEFAULTS.themeColor,
   backgroundColor: BRANDING_DEFAULTS.backgroundColor,
+  backdropLogo: null,
 }
 
 // Resolves the site's icon + app-identity branding, applying Cactus defaults for
@@ -54,6 +70,11 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
       where: { id: 'singleton' },
       select: {
         siteName: true,
+        logoMediaId: true,
+        logoDarkMediaId: true,
+        backdropLogoEnabled: true,
+        backdropLogoScale: true,
+        backdropLogoMode: true,
         faviconMediaId: true,
         faviconDarkMediaId: true,
         appleTouchIconMediaId: true,
@@ -71,6 +92,8 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
 
   // One round-trip resolves every referenced media row to its URL.
   const ids = [
+    config.logoMediaId,
+    config.logoDarkMediaId,
     config.faviconMediaId,
     config.faviconDarkMediaId,
     config.appleTouchIconMediaId,
@@ -90,6 +113,19 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
 
   const siteName = config.siteName?.trim() || null
 
+  // The watermark needs a light logo to paint; without one there's nothing to
+  // show, whatever the switch says. The dark slot falls back to the light logo,
+  // matching how the header picks its logo.
+  const logoUrl = urlOf(config.logoMediaId)
+  const backdropLogo: ResolvedBackdropLogo | null = config.backdropLogoEnabled && logoUrl
+    ? {
+        url: logoUrl,
+        darkUrl: urlOf(config.logoDarkMediaId) ?? logoUrl,
+        scale: clampBackdropScale(config.backdropLogoScale),
+        mode: normaliseBackdropMode(config.backdropLogoMode),
+      }
+    : null
+
   return {
     faviconUrl: urlOf(config.faviconMediaId),
     faviconDarkUrl: urlOf(config.faviconDarkMediaId),
@@ -100,5 +136,6 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
     shortName: config.appShortName?.trim() || siteName || BRANDING_DEFAULTS.shortName,
     themeColor: config.themeColor?.trim() || BRANDING_DEFAULTS.themeColor,
     backgroundColor: config.backgroundColor?.trim() || BRANDING_DEFAULTS.backgroundColor,
+    backdropLogo,
   }
 })

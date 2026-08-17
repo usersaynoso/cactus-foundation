@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { isBlocklisted } from '@/lib/config/site'
+import { BACKDROP_LOGO_SCALE_MIN, BACKDROP_LOGO_SCALE_MAX } from '@/lib/config/backdrop-logo'
 import { syncToEdgeConfig, waitForAdminPathPropagation } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
@@ -156,6 +157,9 @@ const Patch = z.object({
   lazyLoadImages: z.boolean().optional(),
   logoMediaId: z.string().optional().nullable(),
   logoDarkMediaId: z.string().optional().nullable(),
+  backdropLogoEnabled: z.boolean().optional(),
+  backdropLogoScale: z.number().int().min(BACKDROP_LOGO_SCALE_MIN).max(BACKDROP_LOGO_SCALE_MAX).optional(),
+  backdropLogoMode: z.enum(['light', 'dark', 'auto']).optional(),
   faviconMediaId: z.string().optional().nullable(),
   faviconDarkMediaId: z.string().optional().nullable(),
   appIconMediaId: z.string().optional().nullable(),
