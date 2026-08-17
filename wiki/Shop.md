@@ -72,7 +72,9 @@ changes.
 
 **Payment description** on that tab decides what the method is called: fill it in with "Card payment" and that is what shoppers pick at checkout, what the Payments tab calls it, and what shows on the order. The same wording goes to Square for the shopper to see on their page, with the order number added on the end. Leave the box empty and the method keeps its default name, **Card payment (Square)**.
 
-Both of those two show their own badge beside the name at checkout, so a shopper spots the one they know before reading a word. The Square one is drawn dark on a light page and light on a dark one; the GoCardless one is the same either way. Nothing to switch on, and nothing to upload - the badge arrives with the module. Methods without a badge of their own simply keep their name, as before.
+**Badges at checkout.** Card (Stripe), PayPal, Card payment (Square) and Instant Bank Pay each show their own logo beside the name, so a shopper spots the one they know before reading a word. Nothing to switch on and nothing to upload: the badge comes with the method, and it is drawn to suit whichever face your site is showing, light or dark. Bank transfer and cash are not brands, so they keep their name and nothing else.
+
+**The line under each method.** Underneath the name sits a sentence saying who handles the money - "Credit and debit card payments are securely handled by our payment partner Stripe", and so on. Every method arrives with wording of its own, and the boxes at the bottom of the **Payment methods** list let you write over any of it. Empty a box again and the original wording comes back, so there is no way to lose it. A method that arrived with nothing to say shows nothing until you type something in.
 
 ---
 
