@@ -16,6 +16,10 @@ export type ConsentBannerConfig = {
   manageLabel: string
   dismissLabel: string
   categories: ConsentCategory[]
+  // Puts an editable copy of the category switches at the top of the page linked
+  // as the privacy policy, so a visitor can revisit their choice without waiting
+  // for the banner to ask again.
+  showPrivacyPagePanel: boolean
   reConsentDays: number
   consentLogRetentionDays: number | null
   categoriesVersion: number
@@ -61,6 +65,7 @@ export const DEFAULT_CONSENT_BANNER_CONFIG: ConsentBannerConfig = {
       defaultOn: false,
     },
   ],
+  showPrivacyPagePanel: true,
   reConsentDays: 365,
   consentLogRetentionDays: null,
   categoriesVersion: 0,

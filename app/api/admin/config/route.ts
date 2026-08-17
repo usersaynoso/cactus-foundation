@@ -68,6 +68,10 @@ const ConsentBannerConfigPatch = z.object({
   manageLabel: z.string().max(100).default('Manage preferences'),
   dismissLabel: z.string().max(100).default('Got it'),
   categories: z.array(ConsentCategoryPatch).min(1),
+  // Deliberately absent from bumpConsentVersions' copyKeys: this only moves an
+  // existing control onto the privacy page, so switching it must not re-prompt
+  // everyone who has already decided.
+  showPrivacyPagePanel: z.boolean().default(true),
   reConsentDays: z.number().int().min(1).max(3650).default(365),
   consentLogRetentionDays: z.number().int().min(0).max(36500).nullable().optional(),
 })

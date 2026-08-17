@@ -3,34 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ConsentBannerConfig, ConsentDecision, ConsentCookiePayload } from '@/lib/consent/types'
 import { notifyConsentChange, onConsentChange } from '@/lib/consent/gate'
-
-const CONSENT_COOKIE = 'cactus-consent'
-const CONSENT_ID_COOKIE = 'cactus-consent-id'
-
-function readCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.split(';').find((s) => s.trim().startsWith(`${name}=`))
-  if (!match) return null
-  return decodeURIComponent(match.trim().slice(name.length + 1))
-}
-
-function writeCookie(name: string, value: string, maxAgeDays: number): void {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeDays * 86400}; SameSite=Lax`
-}
-
-function getOrCreateConsentId(): string {
-  const existing = readCookie(CONSENT_ID_COOKIE)
-  if (existing) return existing
-  const id = crypto.randomUUID()
-  writeCookie(CONSENT_ID_COOKIE, id, 365 * 2)
-  return id
-}
-
-function buildDefaultDecision(categories: ConsentBannerConfig['categories']): ConsentDecision {
-  const d: ConsentDecision = {}
-  for (const cat of categories) d[cat.key] = cat.required ? true : cat.defaultOn
-  return d
-}
+import {
+  CONSENT_COOKIE,
+  buildDefaultDecision,
+  readCookie,
+  resolveCurrentDecision,
+  saveConsentDecision,
+  type ConsentAction,
+} from '@/lib/consent/client'
 
 type Props = {
   config: ConsentBannerConfig
@@ -44,10 +24,14 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
     buildDefaultDecision(config.categories)
   )
 
+  // Reopening the banner must show the choices the visitor actually made, not the
+  // site defaults - offering to reset someone's settings the moment they ask to
+  // review them is the one thing this panel must never do.
   const open = useCallback(() => {
+    setDecision(resolveCurrentDecision(config).decision)
     setManaging(true)
     setVisible(true)
-  }, [])
+  }, [config])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -92,32 +76,10 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
 
   const noticeOnly = !config.categories.some((cat) => !cat.required)
 
-  async function applyDecision(finalDecision: ConsentDecision, action: 'accept_all' | 'reject_all' | 'custom' | 'withdraw' | 'acknowledge') {
-    const consentId = getOrCreateConsentId()
-
-    const payload: ConsentCookiePayload = {
-      version: config.categoriesVersion,
-      decision: finalDecision,
-      at: new Date().toISOString(),
-    }
-    writeCookie(CONSENT_COOKIE, JSON.stringify(payload), config.reConsentDays || 365)
-
-    notifyConsentChange({ necessary: true, ...finalDecision })
+  async function applyDecision(finalDecision: ConsentDecision, action: ConsentAction) {
     setVisible(false)
     setManaging(false)
-
-    try {
-      await fetch('/api/consent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consentId,
-          action,
-          decision: finalDecision,
-          categoriesVersion: config.categoriesVersion,
-        }),
-      })
-    } catch { /* 429 or network error - cookie state is source of truth for UI */ }
+    await saveConsentDecision(config, finalDecision, action)
   }
 
   function handleAcceptAll() {

@@ -2175,6 +2175,18 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   </div>
                 </div>
 
+                <div className="field">
+                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={consent.showPrivacyPagePanel ?? true}
+                      onChange={(e) => setConsent({ showPrivacyPagePanel: e.target.checked })}
+                    />
+                    Show a preferences panel on the privacy policy page
+                  </label>
+                  <span className="field-hint">Puts the same switches at the top of the page chosen above as your privacy policy, so visitors can change their mind without waiting to be asked again.</span>
+                </div>
+
                 {(consent.categoriesVersion ?? 0) > 0 && (
                   <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
                     Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
