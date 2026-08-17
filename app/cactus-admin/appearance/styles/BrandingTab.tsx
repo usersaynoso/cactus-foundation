@@ -11,7 +11,9 @@ import {
   BACKDROP_LOGO_SCALE_DEFAULT,
   clampBackdropScale,
   normaliseBackdropMode,
+  normaliseBackdropSurface,
   type BackdropLogoMode,
+  type BackdropLogoSurface,
 } from '@/lib/config/backdrop-logo'
 
 // The branding fields the "Save branding" button persists. A subset of
@@ -24,6 +26,7 @@ type BrandingConfig = {
   backdropLogoEnabled: boolean
   backdropLogoScale: number
   backdropLogoMode: BackdropLogoMode
+  backdropLogoSurface: BackdropLogoSurface
   faviconMediaId: string | null
   faviconDarkMediaId: string | null
   appIconMediaId: string | null
@@ -38,7 +41,7 @@ type BrandingConfig = {
 
 const EMPTY_BRANDING: BrandingConfig = {
   logoMediaId: null, logoDarkMediaId: null,
-  backdropLogoEnabled: false, backdropLogoScale: BACKDROP_LOGO_SCALE_DEFAULT, backdropLogoMode: 'auto',
+  backdropLogoEnabled: false, backdropLogoScale: BACKDROP_LOGO_SCALE_DEFAULT, backdropLogoMode: 'auto', backdropLogoSurface: 'page',
   faviconMediaId: null, faviconDarkMediaId: null,
   appIconMediaId: null, appleTouchIconMediaId: null,
   webManifest192MediaId: null, webManifest512MediaId: null,
@@ -107,6 +110,7 @@ export function useBrandingState(): BrandingState {
         backdropLogoEnabled: (c.backdropLogoEnabled as boolean | undefined) ?? false,
         backdropLogoScale: clampBackdropScale(c.backdropLogoScale as number | undefined),
         backdropLogoMode: normaliseBackdropMode(c.backdropLogoMode as string | undefined),
+        backdropLogoSurface: normaliseBackdropSurface(c.backdropLogoSurface as string | undefined),
         faviconMediaId: (c.faviconMediaId as string | null) ?? null,
         faviconDarkMediaId: (c.faviconDarkMediaId as string | null) ?? null,
         appIconMediaId: (c.appIconMediaId as string | null) ?? null,
@@ -486,7 +490,9 @@ function BackdropLogoPreview({ previews, config }: { previews: Record<PreviewKey
           height: BACKDROP_PREVIEW_HEIGHT,
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius)',
-          background: 'var(--color-page-bg, var(--color-bg))',
+          background: config.backdropLogoSurface === 'theme'
+            ? (config.themeColor || '#ffffff')
+            : 'var(--color-page-bg, var(--color-bg))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -596,6 +602,20 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
               </select>
               <span className="field-hint">Following the theme uses your dark-mode logo in dark mode, the standard one otherwise. No dark logo uploaded? It quietly uses the standard one.</span>
             </div>
+          </div>
+          <div className="field" style={{ marginBottom: 'var(--form-gap)' }}>
+            <label htmlFor="backdrop-logo-surface">What&apos;s behind it</label>
+            <select
+              id="backdrop-logo-surface"
+              value={config.backdropLogoSurface}
+              onChange={(e) => b.set('backdropLogoSurface', normaliseBackdropSurface(e.target.value))}
+            >
+              <option value="page">Your page colour (how it has always looked)</option>
+              <option value="theme">Your Theme colour</option>
+            </select>
+            <span className="field-hint">
+              Your <strong>Theme colour</strong> ({config.themeColor || '#ffffff'}) has always sat behind your pages with the page colour painted over the top of it. Choose it here and that paint comes off: the colour shows through every part of a page that hasn&apos;t a background of its own, which on a typical home page is most of it. One colour for both light and dark mode, so check both before you settle on it.
+            </span>
           </div>
           <BackdropLogoPreview previews={previews} config={config} />
         </>

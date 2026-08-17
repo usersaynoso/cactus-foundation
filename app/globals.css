@@ -410,7 +410,7 @@ html {
    background no longer propagates to the canvas, so the overscroll band past
    the top or bottom of a page shows the page colour rather than the tint. */
 html {
-  background-color: var(--color-page-bg, var(--color-bg));
+  background-color: var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg)));
 }
 
 /* Backdrop logo (Appearance > Branding). The root layout publishes a light and a
@@ -425,10 +425,21 @@ html[data-backdrop-logo='dark'],
 html[data-backdrop-logo='auto'][data-theme='dark'] {
   --cactus-backdrop-logo: var(--cactus-backdrop-logo-dark);
 }
-/* The watermark is site branding, so the admin never wears it. Set on body
-   itself, which is where the background-image below resolves the variable. */
-body:has(.admin-shell) {
+/* What the watermark sits on. Unset (and on 'page') the sheet stays the page
+   colour, which is how every site has always looked; 'theme' swaps in the Theme
+   colour, so the tint that was only ever under the page now shows through every
+   section that hasn't a background of its own. Both the html background-color
+   above and body's gradient below read this, so the overscroll band past the top
+   or bottom of a page matches the page rather than flashing the old colour. */
+html[data-backdrop-surface='theme'] {
+  --cactus-backdrop-surface: var(--cactus-theme-color, var(--color-page-bg, var(--color-bg)));
+}
+/* The watermark and its sheet are site branding, so the admin wears neither.
+   Last of the three, because :has() takes the specificity of its argument and
+   ties with the attribute selectors above - later wins. */
+html:has(.admin-shell) {
   --cactus-backdrop-logo: none;
+  --cactus-backdrop-surface: var(--color-page-bg, var(--color-bg));
 }
 
 body {
@@ -450,8 +461,8 @@ body {
      the gradient keeps its old values (repeat, auto size, scrolling) while the
      logo sits centred and fixed to the viewport. */
   background-image: var(--cactus-backdrop-logo, none), linear-gradient(
-    var(--color-page-bg, var(--color-bg)),
-    var(--color-page-bg, var(--color-bg))
+    var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg))),
+    var(--cactus-backdrop-surface, var(--color-page-bg, var(--color-bg)))
   );
   background-position: center center, 0 0;
   background-repeat: no-repeat, repeat;

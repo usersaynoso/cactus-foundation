@@ -150,6 +150,7 @@ CREATE TABLE "SiteConfig" (
     "backdropLogoEnabled" BOOLEAN NOT NULL DEFAULT false,
     "backdropLogoScale" INTEGER NOT NULL DEFAULT 40,
     "backdropLogoMode" TEXT NOT NULL DEFAULT 'auto',
+    "backdropLogoSurface" TEXT NOT NULL DEFAULT 'page',
     "faviconMediaId" TEXT,
     "faviconDarkMediaId" TEXT,
     "appIconMediaId" TEXT,

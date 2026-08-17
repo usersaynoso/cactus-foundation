@@ -160,6 +160,7 @@ const Patch = z.object({
   backdropLogoEnabled: z.boolean().optional(),
   backdropLogoScale: z.number().int().min(BACKDROP_LOGO_SCALE_MIN).max(BACKDROP_LOGO_SCALE_MAX).optional(),
   backdropLogoMode: z.enum(['light', 'dark', 'auto']).optional(),
+  backdropLogoSurface: z.enum(['page', 'theme']).optional(),
   faviconMediaId: z.string().optional().nullable(),
   faviconDarkMediaId: z.string().optional().nullable(),
   appIconMediaId: z.string().optional().nullable(),

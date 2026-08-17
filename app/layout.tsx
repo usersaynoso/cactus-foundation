@@ -91,6 +91,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-backdrop-logo={backdrop ? backdrop.mode : undefined}
+      data-backdrop-surface={backdrop ? backdrop.surface : undefined}
       style={rootStyle}
     >
       <head>

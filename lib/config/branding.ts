@@ -1,6 +1,12 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
-import { clampBackdropScale, normaliseBackdropMode, type BackdropLogoMode } from '@/lib/config/backdrop-logo'
+import {
+  clampBackdropScale,
+  normaliseBackdropMode,
+  normaliseBackdropSurface,
+  type BackdropLogoMode,
+  type BackdropLogoSurface,
+} from '@/lib/config/backdrop-logo'
 
 // Cactus fall-back assets shipped in /public. Used whenever the admin hasn't
 // uploaded a custom equivalent, so a fresh install still has a full icon set.
@@ -28,6 +34,8 @@ export type ResolvedBackdropLogo = {
   /** Width as a percentage of the viewport's shorter side. */
   scale: number
   mode: BackdropLogoMode
+  /** Whether the watermark sits on the page colour or the Theme colour. */
+  surface: BackdropLogoSurface
 }
 
 export type ResolvedBranding = {
@@ -75,6 +83,7 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
         backdropLogoEnabled: true,
         backdropLogoScale: true,
         backdropLogoMode: true,
+        backdropLogoSurface: true,
         faviconMediaId: true,
         faviconDarkMediaId: true,
         appleTouchIconMediaId: true,
@@ -123,6 +132,7 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
         darkUrl: urlOf(config.logoDarkMediaId) ?? logoUrl,
         scale: clampBackdropScale(config.backdropLogoScale),
         mode: normaliseBackdropMode(config.backdropLogoMode),
+        surface: normaliseBackdropSurface(config.backdropLogoSurface),
       }
     : null
 
