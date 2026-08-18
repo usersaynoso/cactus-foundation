@@ -704,6 +704,17 @@ The answer was a second, **additive** point beside the claim-and-replace one, no
 
 The general lesson: when a point is winner-takes-all and you find yourself wanting a second winner, the answer is usually a second point with different semantics, not a bigger claim.
 
+### The same contribution as data, for a view that cannot render components
+
+`shop.product-detail-images` (`modules/shop/lib/detail-images.ts`) is the additive point above with the components taken out: a provider's `load(productId)` returns plain image URLs and a placement (`'before'` or `'after'` the product's own), and the host does the rendering. Its live consumer is `shop-variations`, which contributes the variations an owner has promoted onto the parent's gallery, and its live host is the chrome-free `/shop/products/<slug>/details` view that a companion module's "Learn more" modal iframes.
+
+It exists because `shop.gallery-media` could not serve that view. That point hands over a thumbnail strip and a stage, both of which assume an interactive gallery with a notion of what the shopper has picked; the details view is a row of `<img>`s inside someone else's modal, with no stage and no selection, so there was nothing for those components to render into.
+
+- **Ask for data when the host has more than one kind of renderer.** A component contribution binds the contributor to one host UI. The same facts as data serve a gallery, a bare strip, and whatever the host builds next.
+- **Placement is the contributor's to state, not the host's to guess.** Whether promoted variations sit in front of or behind the product's own photographs is a per-product setting the contributor owns; the host would have to learn about variations to work it out, which is the thing these points exist to avoid.
+- **Reproduce the host-visible rule, not just the data.** The provider applies the product page's own rules - enabled and promoted only, matrix order, one representative picture each - so the two views cannot drift apart. A second implementation of the *selection* is the part worth being careful about; the rendering was never the risk.
+- **De-duplicate at the join.** A promoted variation may carry a photograph the parent also has, and the same picture twice in a short strip reads as a fault. First occurrence wins, so the requested order survives.
+
 ### A tab in a host's tab strip
 
 `shop.product-detail-tabs` (`modules/shop/lib/detail-tabs.ts`, shop v0.1.50) lets a module add a tab to the product page's own strip, beside Description and Specification. Its live consumer is `product-downloads-for-shop`, whose **Downloads** tab lists a product's manuals and spec sheets.
@@ -889,7 +900,9 @@ const granted = useSyncExternalStore(
 
 ### 3. Gate the UI too, not only the script
 
-If your module's visible control *is* the processing - a chat launcher, a video embed, a third-party map - render nothing at all until the category is granted, rather than showing the control and gating what it loads. A visitor who has not answered the banner yet has no decision recorded, so a single `=== true` check covers both "has not chosen" and "chose no". Decide server-side whether the gate applies at all (banner enabled **and** the site's category list actually carries your key), because the client cannot tell "no banner" from "not granted" - core defines `window.__cactusConsent` either way. The live-chat module's `WidgetLoader` is the reference implementation.
+If your module's visible control *is* the processing - a chat launcher, a video embed, a third-party map - do none of that processing until the category is granted, rather than showing the control and gating what it loads. A visitor who has not answered the banner yet has no decision recorded, so a single `=== true` check covers both "has not chosen" and "chose no". Decide server-side whether the gate applies at all (banner enabled **and** the site's category list actually carries your key), because the client cannot tell "no banner" from "not granted" - core defines `window.__cactusConsent` either way. The live-chat module's `WidgetLoader` is the reference implementation.
+
+Rendering nothing is the safe default, but consider an **inert placeholder** where the visitor might come looking for the feature: a control that simply vanishes reads as "this site does not have that", and someone who declined is left with no route back. Say what is missing and offer `window.cactusConsent.open()` underneath - it reopens the banner's manage view on the visitor's existing choices (core v0.5.1098+; older core opens it on the site defaults, so saving from there would reset their other categories). The placeholder must stay inert: no script, no cookie, no request. To word it differently for "not asked yet" versus "asked and declined", check whether the `cactus-consent` cookie exists - `window.__cactusConsent` flattens both to `false`. Read its existence only; the payload inside is core's to shape.
 
 ### 4. What Cactus cannot gate for you
 
