@@ -23,7 +23,7 @@
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.64"
+      "version": "v0.1.67"
     },
     {
       "name": "stock-import-for-shop",
@@ -48,7 +48,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.57"
+      "version": "v0.1.60"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
