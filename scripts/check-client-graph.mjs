@@ -63,11 +63,54 @@ function collectFiles(dir, out = []) {
   return out
 }
 
+// The version of each module actually on disk. Three failed Deskwell deploys in
+// a row printed the same file paths while the real answer was "the install is
+// still on shop v0.1.248" - a core release does NOT carry module pins, the owner
+// updates each module from the admin. Naming the version turns a wall of paths
+// into an obvious "that pin is behind". modules.json is the list checkout-modules
+// actually used; the manifest is the fallback for a directory that is not in it.
+function readModuleVersions(rootDir) {
+  const versions = new Map()
+  try {
+    const pinned = JSON.parse(readFileSync(path.join(rootDir, 'modules.json'), 'utf8'))
+    for (const entry of pinned.modules ?? []) {
+      if (entry?.name && entry?.version) versions.set(entry.name, entry.version)
+    }
+  } catch {
+    // No modules.json is not itself an error - fall through to the manifests.
+  }
+  let dirs = []
+  try {
+    dirs = readdirSync(path.join(rootDir, 'modules'), { withFileTypes: true })
+  } catch {
+    return versions
+  }
+  for (const dir of dirs) {
+    if (!dir.isDirectory() || versions.has(dir.name)) continue
+    try {
+      const manifest = JSON.parse(readFileSync(path.join(rootDir, 'modules', dir.name, 'cactus.module.json'), 'utf8'))
+      if (manifest?.version) versions.set(dir.name, `v${String(manifest.version).replace(/^v/, '')}`)
+    } catch {
+      // A module with no readable manifest just goes unlabelled.
+    }
+  }
+  return versions
+}
+
 /**
  * @param {string} rootDir
  * @returns {string[]} one formatted trail per leaking client file, shortest route first
  */
 export function findClientGraphLeaks(rootDir) {
+  const moduleVersions = readModuleVersions(rootDir)
+
+  // 'modules/shop/lib/product-url.ts' -> 'modules/shop/lib/product-url.ts  [shop v0.1.248]'
+  const label = (relativePath) => {
+    const match = /^modules\/([^/]+)\//.exec(relativePath)
+    const version = match && moduleVersions.get(match[1])
+    return version ? `${relativePath}  [${match[1]} ${version}]` : relativePath
+  }
+
   const source = new Map()
   for (const dir of SOURCE_DIRS) {
     for (const file of collectFiles(path.join(rootDir, dir))) {
@@ -118,7 +161,7 @@ export function findClientGraphLeaks(rootDir) {
   for (const [file, text] of source) {
     if (!/^\s*['"]use client['"]/m.test(text.slice(0, 400))) continue
     const trail = traceToServerOnly(file)
-    if (trail) leaks.push(trail.map((step) => step.replace(`${rootDir}/`, '')).join('\n    -> '))
+    if (trail) leaks.push(trail.map((step) => label(step.replace(`${rootDir}/`, ''))).join('\n    -> '))
   }
   return leaks
 }
@@ -136,5 +179,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       'Every step below is an edge the bundler follows - a dynamic import() counts, only `import type` does not:\n',
   )
   for (const leak of leaks) console.error(`  ${leak}\n`)
+  // Only the labels this file appended - two spaces then '[<module> v<version>]'.
+  // A bare /\[...\]/ would also catch a route segment like layouts/[id]/page.tsx.
+  const modulesInTrails = [...new Set(leaks.flatMap((leak) => [...leak.matchAll(/ {2}\[([^\]]+? v[^\]]+)\]/g)].map((m) => m[1])))]
+  if (modulesInTrails.length > 0) {
+    console.error(`[check-client-graph] module versions in those trails: ${modulesInTrails.join(', ')}`)
+    console.error(
+      '[check-client-graph] if a fix for this is already released, this install\'s module pins are behind - ' +
+        'a core update does NOT move them. Update those modules from the admin Modules page.\n',
+    )
+  }
   process.exit(1)
 }
