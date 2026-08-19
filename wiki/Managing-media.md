@@ -169,6 +169,16 @@ Folders keep a growing library tidy - one for logos, one for blog photos, one fo
 
 **Reorganise whole folders** the same way - drag a folder in the tree onto another folder to nest it there, or drop it on **Media** at the top to move it back to the root. Everything inside travels with it.
 
+### Shop products file themselves
+
+If you have the shop installed, you don't file product pictures by hand. Every photo, 3D model and download attached to a product is put away under **Shop → the product's master category → the product's own folder**, matching your category tree, and it is re-filed whenever you save the product with a different category or a different name.
+
+There is one thing that does *not* re-file itself, and it is worth knowing about: **renaming a category, or moving it under a different parent.** The files already filed under the old name stay where they are, which leaves the same category showing up twice in your library with its pictures split between the two spellings.
+
+So the shop tells you when it has happened. Rename or re-parent a category under **Shop → Categories** and, if anything has been left behind, a note appears at the top of that screen saying how many files are affected, with a **Tidy up filing** button. Nothing is broken while you wait - your shop shows every one of those pictures either way - so you can do it there and then or leave it for later. Pressing the button moves them across in small batches and counts them off as it goes, and every place that pointed at a file follows it automatically: product galleries, variation swatches, 3D models, spec sheets, description videos, even old saved quotes.
+
+> **Why not just do it automatically?** Because moving files is real work in your storage, and a single category can carry tens of thousands of them. A rename that quietly turned into twenty minutes of copying would either give up half way or leave you staring at a spinner. Better to tell you, and let you press the button.
+
 > **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. There's no undo, so read that summary before you confirm.
 
 ---

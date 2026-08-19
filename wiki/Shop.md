@@ -121,6 +121,12 @@ The product's own SKU is now staff-only too, and by default. It's a buying refer
 
 **Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes, and get a page and an optional card badge of their own - see below. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say), each with a page of its own. Unlike categories they follow no rule and inherit nothing: a product is in a collection because you put it there. See **Collections** below.
 
+### Renaming a category, and where the pictures live
+
+A product's photos, 3D models and spec sheets are filed in your media library under its master category's name. That filing is stamped when each file goes up, so **renaming a category, or moving it under a different parent, leaves the existing files under the old name** while anything uploaded afterwards goes to the new one. The shop carries on showing everything perfectly well - only the media library looks untidy, listing what is really one category twice.
+
+Rename or move a category and Cactus counts what has been stranded and says so, right at the top of the Categories screen, with a **Tidy up filing** button beside it. Press it when it suits you: the files are moved across in small batches, the count on screen keeps up with what has actually finished, and every reference follows automatically, from product galleries and variation swatches to 3D models, downloads, description videos and saved quotes. Choose **Later** and the note simply goes away until the next rename.
+
 ### Tags
 
 **Shop → Catalogue → Tags** is where tags are made and dressed. Each one has:
