@@ -4,7 +4,7 @@ import sharp from 'sharp'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
-import { loadMediaUsageIndex } from '@/lib/media/references'
+import { loadMediaUsageIndex, isMediaInContent } from '@/lib/media/references'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
@@ -943,7 +943,7 @@ export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<st
   // haystack carries every reference the installed modules contributed (a product
   // image, an option swatch, a 3D model), which is why the warning names modules
   // as well as pages - core cannot tell from a substring hit which one matched.
-  const { haystack } = await loadMediaUsageIndex()
+  const usageIndex = await loadMediaUsageIndex()
 
   for (const media of mediaRows) {
     const mediaId = media.id
@@ -960,11 +960,7 @@ export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<st
     if (avatarCount > 0) refs.push(`${avatarCount} member avatar${avatarCount > 1 ? 's' : ''}`)
     if ((exportCounts.get(mediaId) ?? 0) > 0) refs.push('a data export')
 
-    const inContent =
-      (media.url && haystack.includes(media.url.toLowerCase())) ||
-      (media.key && haystack.includes(media.key.toLowerCase())) ||
-      haystack.includes(media.id.toLowerCase())
-    if (inContent) refs.push('page, layout or module content')
+    if (isMediaInContent(media, usageIndex)) refs.push('page, layout or module content')
 
     result.set(mediaId, refs)
   }

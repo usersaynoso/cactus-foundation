@@ -29,6 +29,18 @@ export type MediaUsageIndex = {
    */
   haystack: string
   /**
+   * Every url, storage key and id-shaped token found in `haystack`, pulled out
+   * once so a row can be classified with a set lookup instead of a substring
+   * scan of the whole blob.
+   *
+   * Three `haystack.includes()` calls per row is fine on a library of hundreds
+   * and quadratic on one of tens of thousands: 36,000 rows against a haystack
+   * carrying every product url, 3D model url and swatch on the site is billions
+   * of character comparisons, which is why the media page's stat bar stopped
+   * arriving at all. Same verdicts, one pass to build.
+   */
+  referenced: Set<string>
+  /**
    * True when at least one module's usage provider failed, so the index is known
    * to be incomplete. Everything is then treated as in use: an over-cautious
    * "nothing to reclaim" is a wasted click, whereas an under-cautious "unused"
@@ -46,6 +58,61 @@ export type MediaUsageIndex = {
 let cachedIndex: MediaUsageIndex | null = null
 let cachedIndexAt = 0
 const CACHE_TTL_MS = 30_000
+
+/**
+ * Trim a captured url or key to the form a Media row actually holds: no query,
+ * no fragment, no trailing sentence punctuation.
+ */
+function normaliseReference(raw: string): string {
+  return raw.replace(/[?#].*$/, '').replace(/[.,;:]+$/, '')
+}
+
+/**
+ * Every reference-shaped token in `haystack`, lower-cased (the haystack already
+ * is). Three shapes, because a media item is referenced by any of the three:
+ * a full url, a bare storage key, or a Media id.
+ *
+ * The character class each url/key match stops at - whitespace, quote, escape,
+ * bracket, comma, pipe, angle - is the set that terminates one inside JSON,
+ * markdown and HTML alike. A storage key is sanitised down to [a-z0-9._-] and
+ * slashes before it is ever written, so none of those characters can appear
+ * INSIDE a key: extraction is exact for the shapes this site stores, not a
+ * heuristic. Percent-encoded forms are recorded decoded as well, since builder
+ * JSON sometimes carries the encoded spelling of a key the row holds plainly.
+ */
+export function extractReferenceTokens(haystack: string): Set<string> {
+  const out = new Set<string>()
+  const add = (raw: string) => {
+    const value = normaliseReference(raw)
+    if (!value) return
+    out.add(value)
+    try {
+      const decoded = decodeURIComponent(value)
+      if (decoded !== value) out.add(decoded)
+    } catch {
+      // A stray % makes this throw; the raw form is already recorded.
+    }
+  }
+  for (const m of haystack.matchAll(/https?:\/\/[^\s"'\\)>,\]}|]+/g)) add(m[0])
+  for (const m of haystack.matchAll(/media\/[^\s"'\\)>,\]}|]+/g)) add(m[0])
+  // Ids are opaque alphanumeric handles (cuid, or the shorter minted ones), and
+  // turn up quoted in builder JSON as "mediaId":"...". Over-matching here is
+  // harmless: a token nothing owns simply never gets looked up.
+  for (const m of haystack.matchAll(/[a-z0-9]{20,40}/g)) out.add(m[0])
+  return out
+}
+
+/**
+ * Can `value` be trusted to the token set? True when every character in it is
+ * one a key or url is allowed to contain, which is the assumption extraction
+ * rests on. Anything stranger - a legacy row written before keys were sanitised,
+ * a url with a space in it - falls back to the old substring scan rather than
+ * being quietly declared unused, because "unused" is the verdict that arms a
+ * bulk-delete button.
+ */
+function isPlainReference(value: string): boolean {
+  return /^[a-z0-9._~:/?#[\]@!$&'()*+,;=%-]+$/i.test(value)
+}
 
 async function buildMediaUsageIndex(): Promise<MediaUsageIndex> {
   const [config, ogPages, avatars, exports, pages, layouts] = await Promise.all([
@@ -115,7 +182,7 @@ async function buildMediaUsageIndex(): Promise<MediaUsageIndex> {
 
   const haystack = parts.join('\n').toLowerCase()
 
-  return { referencedIds, haystack, degraded }
+  return { referencedIds, haystack, referenced: extractReferenceTokens(haystack), degraded }
 }
 
 // Wrapped in React's `cache` so a single request never builds the index twice
@@ -131,6 +198,33 @@ export const loadMediaUsageIndex = cache(async (): Promise<MediaUsageIndex> => {
   return index
 })
 
+/**
+ * Is this row's url, key or id embedded in page, layout or module content?
+ * The content half of the usage question, split out because the media library's
+ * "what references this?" warning names that source separately from the
+ * foreign-key ones.
+ */
+export function isMediaInContent(
+  media: { id: string; key: string; url: string },
+  index: MediaUsageIndex,
+): boolean {
+  const { haystack, referenced } = index
+  const url = media.url ? media.url.toLowerCase() : ''
+  const key = media.key ? media.key.toLowerCase() : ''
+
+  if (url && referenced.has(url)) return true
+  if (key && referenced.has(key)) return true
+  if (referenced.has(media.id.toLowerCase())) return true
+
+  // Nothing matched. For the ordinary shapes that is the answer - extraction is
+  // exact for them - but a value carrying a character extraction cannot have
+  // captured gets the original substring scan, so an odd row can never be
+  // mislabelled unused. Only unmatched rows ever pay for this.
+  if (url && !isPlainReference(url) && haystack.includes(url)) return true
+  if (key && !isPlainReference(key) && haystack.includes(key)) return true
+  return false
+}
+
 /** Is a single Media row referenced anywhere on the site? */
 export function isMediaInUse(
   media: { id: string; key: string; url: string },
@@ -140,11 +234,7 @@ export function isMediaInUse(
   if (index.referencedIds.has(media.id)) return true
   // Puck blocks embed media by url (bgImage/imageUrl/mediaUrl), by storage key,
   // or by id (ImageBlock/Card mediaId). Any occurrence means it is in use.
-  const { haystack } = index
-  if (media.url && haystack.includes(media.url.toLowerCase())) return true
-  if (media.key && haystack.includes(media.key.toLowerCase())) return true
-  if (haystack.includes(media.id.toLowerCase())) return true
-  return false
+  return isMediaInContent(media, index)
 }
 
 /** Ids of every Media row in `media` that is referenced somewhere on the site. */
