@@ -224,6 +224,9 @@ export default function MediaDetailPanel({
             <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.35rem 1rem', fontSize: 'var(--text-sm)' }}>
               <Meta label="Type">{fileKind(item.mimeType)} · {item.mimeType}</Meta>
               <Meta label="Size">{formatBytes(item.sizeBytes)}</Meta>
+            {item.width !== null && item.height !== null && (
+              <Meta label="Dimensions">{item.width.toLocaleString('en-GB')} × {item.height.toLocaleString('en-GB')} px</Meta>
+            )}
               <Meta label="Folder">{folderName(item.folderId)}</Meta>
               <Meta label="Uploaded">{formatDate(item.createdAt)}{item.uploadedBy ? ` · ${item.uploadedBy.username}` : ''}</Meta>
             </dl>

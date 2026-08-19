@@ -75,6 +75,7 @@ export default function MediaList({
             {sortHeader('Name', 'name', 'name_desc')}
             <th>Type</th>
             {sortHeader('Size', 'smallest', 'largest', 'right')}
+            {sortHeader('Dimensions', 'smallest_dim', 'largest_dim', 'right')}
             <th>Folder</th>
             <th>Usage</th>
             {sortHeader('Uploaded', 'oldest', 'newest')}
@@ -122,6 +123,12 @@ export default function MediaList({
                 </td>
                 <td style={{ color: 'var(--color-text-secondary)' }}>{fileKind(item.mimeType)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{formatBytes(item.sizeBytes)}</td>
+                {/* An em dash of a cell means "not measured", which is not the
+                    same as "no size" - a video or a 3D file never has one, and
+                    an image only gets one once something has read its header. */}
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
+                  {item.width !== null && item.height !== null ? `${item.width} × ${item.height}` : '—'}
+                </td>
                 <td style={{ color: 'var(--color-text-secondary)' }}>{folderName(item.folderId)}</td>
                 <td>
                   <span style={usagePill(item.inUse)}>{item.inUse ? 'In use' : 'Unused'}</span>

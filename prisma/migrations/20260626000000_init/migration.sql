@@ -224,6 +224,9 @@ CREATE TABLE "Media" (
     "originalName" TEXT,
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
+    "width" INTEGER,
+    "height" INTEGER,
+    "pixels" INTEGER,
     "optimised" BOOLEAN NOT NULL DEFAULT false,
     "folderId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -445,6 +448,7 @@ CREATE INDEX "Media_uploadedById_idx" ON "Media"("uploadedById");
 CREATE INDEX "Media_createdAt_idx" ON "Media"("createdAt");
 CREATE INDEX "Media_provider_idx" ON "Media"("provider");
 CREATE INDEX "Media_folderId_idx" ON "Media"("folderId");
+CREATE INDEX "Media_pixels_idx" ON "Media"("pixels");
 
 CREATE UNIQUE INDEX "Folder_parentId_name_key" ON "Folder"("parentId", "name");
 CREATE INDEX "Folder_parentId_idx" ON "Folder"("parentId");

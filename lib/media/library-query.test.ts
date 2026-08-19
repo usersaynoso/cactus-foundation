@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OPTIMISABLE_TYPE_WHERE } from '@/lib/media/library-query'
+import { OPTIMISABLE_TYPE_WHERE, TYPE_FILTER_WHERE, parseLibraryQuery } from '@/lib/media/library-query'
 import {
   ACCEPTED_UPLOAD_TYPES,
   MODEL_EXTENSION_TYPES,
@@ -71,5 +71,66 @@ describe('OPTIMISABLE_TYPE_WHERE', () => {
       expect(matches(OPTIMISABLE_TYPE_WHERE, type)).toBe(true)
     }
     expect(matches(OPTIMISABLE_TYPE_WHERE, 'image/svg+xml')).toBe(false)
+  })
+})
+
+// Every type a file in this library can have. Shared by the partition test
+// below, which cares about the whole domain rather than a chosen few.
+const EVERY_TYPE = [
+  ...ACCEPTED_UPLOAD_TYPES,
+  ...Object.values(MODEL_EXTENSION_TYPES),
+  'video/mp4',
+  'video/webm',
+  'application/pdf',
+  'application/zip',
+  'text/plain',
+]
+
+describe('TYPE_FILTER_WHERE', () => {
+  // The dropdown's four options have to carve the library up cleanly. A type in
+  // none of them cannot be reached by any filter - which is what happened to
+  // videos and 3D files while "Other" meant "not an image" and they were also
+  // counted as images by nothing at all. A type in two would be listed twice.
+  it.each(EVERY_TYPE)('files %s under exactly one option', (mimeType) => {
+    const hits = (['image', 'video', 'model', 'other'] as const).filter((key) =>
+      matches(TYPE_FILTER_WHERE[key], mimeType),
+    )
+    expect(hits).toHaveLength(1)
+  })
+
+  it('puts videos and 3D files under their own options, not under Other', () => {
+    expect(matches(TYPE_FILTER_WHERE.video, 'video/mp4')).toBe(true)
+    expect(matches(TYPE_FILTER_WHERE.model, 'model/gltf-binary')).toBe(true)
+    expect(matches(TYPE_FILTER_WHERE.other, 'video/mp4')).toBe(false)
+    expect(matches(TYPE_FILTER_WHERE.other, 'model/x-fbx')).toBe(false)
+    // And the things that genuinely are neither still land somewhere.
+    expect(matches(TYPE_FILTER_WHERE.other, 'application/pdf')).toBe(true)
+  })
+
+  it('counts SVG as an image', () => {
+    // It is not optimisable and it has no pixel size, but it is still a picture
+    // as far as "show me the images" is concerned.
+    expect(matches(TYPE_FILTER_WHERE.image, 'image/svg+xml')).toBe(true)
+  })
+})
+
+describe('parseLibraryQuery', () => {
+  const parse = (params: Record<string, string>) =>
+    parseLibraryQuery(new URLSearchParams(params), 25, 1)
+
+  it.each(['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest', 'largest_dim', 'smallest_dim'])(
+    'accepts the %s sort',
+    (sort) => {
+      expect(parse({ sort }).sort).toBe(sort)
+    },
+  )
+
+  it.each(['all', 'image', 'video', 'model', 'other'])('accepts the %s type filter', (type) => {
+    expect(parse({ type }).type).toBe(type)
+  })
+
+  it('falls back rather than trusting a hand-typed value', () => {
+    expect(parse({ sort: 'biggest' }).sort).toBe('newest')
+    expect(parse({ type: 'audio' }).type).toBe('all')
   })
 })

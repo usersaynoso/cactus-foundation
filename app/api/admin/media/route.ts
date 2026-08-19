@@ -13,6 +13,7 @@ import {
 } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
+import { dimensionsFromBuffer, isMeasurableImageType } from '@/lib/media/dimensions'
 import { signAssetUrl } from '@/lib/media/asset-token'
 import { resolveFolderPath } from '@/lib/media/organise'
 
@@ -82,6 +83,12 @@ export async function POST(request: NextRequest) {
     // already in this folder, rather than behind a random prefix.
     const key = await buildLibraryUploadKey(provider, file.type, file.name, folderPath || undefined)
     const result = await uploadMedia(validation.buffer, file.type, provider, file.name, folderPath || undefined, false, key)
+    // Measured here, from the bytes that just passed through, rather than read
+    // back out of storage afterwards - they are in hand and this is the only
+    // moment they will be.
+    const dimensions = isMeasurableImageType(result.mimeType)
+      ? await dimensionsFromBuffer(validation.buffer)
+      : null
     const record = await saveMediaRecord({
       key: result.key,
       url: result.url,
@@ -93,6 +100,7 @@ export async function POST(request: NextRequest) {
       isDecorative,
       originalName: file.name || undefined,
       folderId,
+      dimensions,
     })
     return NextResponse.json(record, { status: 201 })
   } catch (err: unknown) {

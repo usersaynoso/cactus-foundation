@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 import { isDirectUploadType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
 import { verifyUploadToken } from '@/lib/media/upload-token'
+import { isMeasurableImageType, probeDimensionsByUrl, setMediaDimensions } from '@/lib/media/dimensions'
 
 // Record a Media row for a file the client already uploaded straight to the
 // Worker (see /upload-url). The bytes are in storage; this only writes the DB
@@ -84,12 +85,31 @@ export async function POST(request: NextRequest) {
     // stands afterwards, because optimising rewrites its size and its optimised
     // flag and the library would otherwise render the pre-optimise numbers until
     // the next refresh. Everything else is returned untouched.
+    // The bytes went straight from the browser to storage, so nothing here has
+    // seen them - the picture is measured by reading its header back out of the
+    // object. Best-effort on purpose: an upload that landed is an upload that
+    // landed, and a measurement that didn't come off is what the media page's
+    // "Measure image sizes" action picks up later.
+    let measured: { width: number; height: number; pixels: number } | null = null
+    if (isMeasurableImageType(contentType)) {
+      const dims = await probeDimensionsByUrl(record.url)
+      if (dims) {
+        try {
+          await setMediaDimensions(record.id, dims)
+          measured = { ...dims, pixels: dims.width * dims.height }
+        } catch { /* row gone; nothing to report */ }
+      }
+    }
+
     const optimised = await autoOptimiseNewUpload(record.id, contentType, storedSize, user.id)
     if (optimised !== storedSize) {
       const fresh = await prisma.media.findUnique({ where: { id: record.id } })
       if (fresh) return NextResponse.json(fresh, { status: 201 })
     }
-    return NextResponse.json(record, { status: 201 })
+    // Merged rather than re-read: the row in hand is correct in every other
+    // respect, and the grid wants the size to show on the card it is about to
+    // draw rather than after the next refresh.
+    return NextResponse.json({ ...record, ...(measured ?? {}) }, { status: 201 })
   } catch (err: unknown) {
     // Two files whose names sanitise to the same storage key can both be signed
     // before either has a row (the key is only claimed at this point), so the

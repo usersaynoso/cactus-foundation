@@ -1,7 +1,7 @@
 'use client'
 
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
-import { SORTS, type Sort, type TypeFilter, type UseFilter, type ViewMode, type TagInfo } from './types'
+import { SORTS, TYPE_FILTERS, type Sort, type TypeFilter, type UseFilter, type ViewMode, type TagInfo } from './types'
 
 // The filter/search/view row plus a chip strip beneath it summarising every
 // active narrowing, each chip individually removable. Keeps the controls tidy on
@@ -64,7 +64,7 @@ export default function MediaToolbar({
       onRemove: () => { onSearchInput(''); onSearchSubmit('') },
     })
   }
-  if (type !== 'all') chips.push({ key: 'type', label: type === 'image' ? 'Images only' : 'Other files', onRemove: () => onType('all') })
+  if (type !== 'all') chips.push({ key: 'type', label: TYPE_CHIP_LABELS[type], onRemove: () => onType('all') })
   if (use !== 'all') chips.push({ key: 'use', label: use === 'in-use' ? 'In use' : 'Not in use', onRemove: () => onUse('all') })
   if (optimisableOnly) chips.push({ key: 'optimisable', label: 'Still to optimise', onRemove: () => onOptimisableOnly(false) })
   if (tagFilter) chips.push({ key: 'tag', label: `Tag: ${tagFilter}`, onRemove: () => onTagFilter('') })
@@ -103,9 +103,7 @@ export default function MediaToolbar({
           {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </Select>
         <Select value={type} onChange={(v) => onType(v as TypeFilter)} label="File type">
-          <option value="all">All types</option>
-          <option value="image">Images</option>
-          <option value="other">Other files</option>
+          {TYPE_FILTERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </Select>
         <Select value={use} onChange={(v) => onUse(v as UseFilter)} label="Usage">
           <option value="all">All usage</option>
@@ -155,6 +153,15 @@ export default function MediaToolbar({
       )}
     </div>
   )
+}
+
+// Chip wording, which is not the dropdown's wording: a chip says what is being
+// left out, so "Images" reads as "Images only".
+const TYPE_CHIP_LABELS: Record<Exclude<TypeFilter, 'all'>, string> = {
+  image: 'Images only',
+  video: 'Videos only',
+  model: '3D files only',
+  other: 'Other files',
 }
 
 function Select({ value, onChange, label, children }: { value: string; onChange: (v: string) => void; label: string; children: ReactNode }) {

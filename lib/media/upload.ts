@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
+import { dimensionFields, dimensionsFromBuffer, isMeasurableImageType, probeDimensionsByUrl, type Dimensions } from '@/lib/media/dimensions'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
@@ -857,6 +858,11 @@ export async function saveMediaRecord(data: {
   // images (a resize or reshape of an optimised source) pass this; a fresh
   // upload has not been optimised and leaves it alone.
   optimised?: boolean
+  // Pixel size of the image, when the caller had the bytes in hand to measure.
+  // Omitted (or null) leaves the row unmeasured, which is what every non-raster
+  // upload is and what the media page's "Measure image sizes" action exists to
+  // catch up on.
+  dimensions?: Dimensions | null
 }): Promise<Media> {
   // For proxied providers the canonical serving url is always the Worker url.
   // requireWorkerUrl() (not workerUrl()) so a missing or malformed worker
@@ -877,6 +883,7 @@ export async function saveMediaRecord(data: {
       originalName: data.originalName ?? null,
       folderId: data.folderId ?? null,
       optimised: data.optimised ?? false,
+      ...dimensionFields(data.dimensions),
     },
   })
 }
@@ -1176,7 +1183,7 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
     undefined,
     keepName,
   )
-  await repointMediaToBlob(media, result, { optimised: true })
+  await repointMediaToBlob(media, result, { optimised: true, bytes: encoded })
 
   return { optimised: true, before, after }
 }
@@ -1335,7 +1342,18 @@ async function persistDerivedImage(
   // and no reference has to move at all.
   const exactName = isExactNameKey(media.key, media.originalName)
   const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined, exactName)
-  return repointMediaToBlob(media, result, { optimised: media.optimised })
+  return repointMediaToBlob(media, result, { optimised: media.optimised, bytes: encoded })
+}
+
+/**
+ * A url that no cache can answer from an older copy of the same key. Only used
+ * when reading bytes back to measure them; nothing is stored under this form.
+ * An unknown query param means nothing to the media Worker, which reads only the
+ * image-resizing ones, but it does put the request in a cache slot of its own.
+ */
+function withCacheBuster(url: string): string {
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}measure=${Date.now()}`
 }
 
 // ---------------------------------------------------------------------------
@@ -1357,10 +1375,30 @@ async function repointMediaToBlob(
     // Only passed when the swap changes the display name (a replacement file of a
     // different type re-extensions it). Omitted leaves the name alone.
     originalName?: string | null
+    // The bytes just written, when this process has them. Only used to measure
+    // the image, and only worth passing for a raster one - see below.
+    bytes?: Buffer
   },
 ): Promise<Media> {
   const oldKey = media.key
   const oldUrl = media.url
+
+  // Pixel size travels with the bytes, so every in-place rewrite has to restate
+  // it: a resize changes it, a crop changes it, a replacement file changes it
+  // entirely, and a Replace with a video or a 3D model means the row no longer
+  // has one at all. Carrying the previous image's numbers forward would leave
+  // the library sorting a 400px thumbnail as the 4000px original it replaced.
+  //
+  // Measured from the bytes when the caller has them. When it doesn't (the
+  // direct-upload replace path, where the client PUT straight to storage) the
+  // object itself is read back - with a cache-buster, because an exact-form key
+  // keeps its address across a replacement and a proxy holding the pre-replace
+  // copy would otherwise measure the file that just went away.
+  const dimensions = isMeasurableImageType(result.mimeType)
+    ? data.bytes
+      ? await dimensionsFromBuffer(data.bytes)
+      : await probeDimensionsByUrl(withCacheBuster(result.url))
+    : null
 
   const updated = await prisma.media.update({
     where: { id: media.id },
@@ -1371,6 +1409,7 @@ async function repointMediaToBlob(
       sizeBytes: result.sizeBytes,
       optimised: data.optimised,
       ...(data.originalName !== undefined ? { originalName: data.originalName } : {}),
+      ...dimensionFields(dimensions),
     },
   })
 
@@ -1532,7 +1571,7 @@ export async function replaceMediaFile(
   // A file someone just picked has not been through the optimiser, whatever the
   // item it replaces had been — so the badge clears and the item is offered for
   // optimising again, exactly as a fresh upload of the same file would be.
-  return repointMediaToBlob(media, result, { optimised: false, originalName: plan.originalName })
+  return repointMediaToBlob(media, result, { optimised: false, originalName: plan.originalName, bytes: buffer })
 }
 
 // Replace an item's bytes with a blob the client already PUT straight to the

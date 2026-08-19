@@ -22,6 +22,7 @@ import { preflightUploadError, isAcceptedUploadType, isOptimisableType, isVideoD
 import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
+import { DIMENSION_SORTS, SORTS } from './types'
 import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
 type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
@@ -117,7 +118,12 @@ const FOLDER_WIDTH_KEY = 'cactus.media.folderPaneWidth'
 const FOLDER_WIDTH_DEFAULT = 220
 const FOLDER_WIDTH_MIN = 160
 const FOLDER_WIDTH_MAX = 520
-const SORT_VALUES: Sort[] = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest']
+// Taken from the dropdown's own list rather than restated, so a sort added there
+// is one a saved preference is allowed to hold.
+const SORT_VALUES: Sort[] = SORTS.map((s) => s.value)
+/** Images measured per request by the "Measure image sizes" prompt. Matches the
+ *  route's own default; a batch is a range request apiece, not a re-encode. */
+const MEASURE_BATCH = 40
 // Batch size for bulk delete/move once "Select all" can hand over hundreds of
 // ids in one go - each item is a storage round trip server-side, so a big
 // selection needs splitting into several short requests rather than one long one.
@@ -232,6 +238,11 @@ export default function MediaLibrary({
   const [loading, setLoading] = useState(false)
 
   const [sort, setSort] = useState<Sort>('newest')
+  // How many images have never had their pixel size recorded, or null while
+  // nobody has asked. Only ever asked for when a picture-size sort is on, which
+  // is the only time the answer changes what the grid shows.
+  const [unmeasured, setUnmeasured] = useState<number | null>(null)
+  const [measuring, setMeasuring] = useState<{ done: number; total: number } | null>(null)
   const [type, setType] = useState<TypeFilter>('all')
   const [use, setUse] = useState<UseFilter>('all')
   // Not part of the File type dropdown: this is the "Optimisable" stat tile's own
@@ -420,6 +431,68 @@ export default function MediaLibrary({
     if (firstRun.current) { firstRun.current = false; return }
     fetchItems()
   }, [fetchItems])
+
+  const dimensionSort = DIMENSION_SORTS.includes(sort)
+
+  // Ask how much of the library has never been measured, but only while a
+  // picture-size sort is showing. Everything uploaded before pixel sizes were
+  // recorded has none, and those rows sort last - which is honest, but needs
+  // saying out loud rather than leaving someone to conclude the sort is broken.
+  useEffect(() => {
+    if (!dimensionSort) return
+    let cancelled = false
+    fetch('/api/admin/media/measure')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => { if (!cancelled && typeof d?.remaining === 'number') setUnmeasured(d.remaining) })
+      .catch(() => { /* the prompt simply doesn't appear */ })
+    return () => { cancelled = true }
+  }, [dimensionSort])
+
+  // Work through every unmeasured image, a batch per request. The server picks
+  // the rows (whatever is still unmeasured, newest first), so this is a loop
+  // rather than a list to hand over - closing the tab halfway costs nothing but
+  // the batch in flight, and running it again carries on where it stopped.
+  const measureAll = useCallback(async () => {
+    const total = unmeasured ?? 0
+    if (total <= 0) return
+    setMeasuring({ done: 0, total })
+    let remaining = total
+    try {
+      for (;;) {
+        const res = await fetch('/api/admin/media/measure', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: MEASURE_BATCH }),
+        })
+        const d = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(typeof d?.error === 'string' ? d.error : `Request failed (${res.status})`)
+        const left = typeof d?.remaining === 'number' ? d.remaining : 0
+        // A batch that measured nothing has hit files it cannot read - a blob
+        // that has gone missing, a provider having a bad afternoon - and asking
+        // again would fetch the very same rows for ever, because they are still
+        // the unmeasured ones. Stop and say how many were left.
+        if (left >= remaining) {
+          remaining = left
+          break
+        }
+        remaining = left
+        setMeasuring({ done: Math.max(0, total - remaining), total })
+        if (remaining === 0) break
+      }
+      setUnmeasured(remaining)
+      pushToast(
+        remaining === 0 ? 'success' : 'error',
+        remaining === 0
+          ? `Measured ${total.toLocaleString('en-GB')} image${total === 1 ? '' : 's'}.`
+          : `Measured ${(total - remaining).toLocaleString('en-GB')} of ${total.toLocaleString('en-GB')}. ${remaining.toLocaleString('en-GB')} could not be read - try again in a moment.`,
+      )
+      await fetchItems()
+    } catch (err) {
+      pushToast('error', err instanceof Error ? err.message : 'Could not measure the images')
+    } finally {
+      setMeasuring(null)
+    }
+  }, [unmeasured, pushToast, fetchItems])
 
   const refetchFolders = useCallback(async () => {
     try {
@@ -1319,6 +1392,44 @@ export default function MediaLibrary({
             searchFolderLabel={folderName(currentFolderId)}
             onClearAll={clearAllFilters}
           />
+
+          {/* Sorting by picture size can only sort what has been measured, and
+              a library built before pixel sizes were recorded has none. Rather
+              than let the sort look broken, say how many are unmeasured and
+              offer to go and measure them. */}
+          {dimensionSort && (unmeasured ?? 0) > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                flexWrap: 'wrap',
+                padding: 'var(--space-3) var(--space-4)',
+                marginBottom: 'var(--space-3)',
+                background: 'var(--color-info-subtle)',
+                border: '1px solid var(--color-info-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--color-text)',
+              }}
+            >
+              <span style={{ flex: '1 1 240px', minWidth: 0 }}>
+                {measuring
+                  ? `Measuring images… ${measuring.done.toLocaleString('en-GB')} of ${measuring.total.toLocaleString('en-GB')}`
+                  : `${(unmeasured ?? 0).toLocaleString('en-GB')} image${unmeasured === 1 ? ' has' : 's have'} never been measured, so ${unmeasured === 1 ? 'it sits' : 'they sit'} at the end of this sort.`}
+              </span>
+              {canUpload && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={!!measuring}
+                  onClick={measureAll}
+                >
+                  {measuring ? 'Measuring…' : 'Measure image sizes'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Selection / clipboard bar */}
           {(selectionActive || clipboard) && (

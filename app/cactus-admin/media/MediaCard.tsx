@@ -13,6 +13,10 @@ export type MediaCardItem = {
   originalName: string | null
   mimeType: string
   sizeBytes: number
+  // Pixel size of a raster image, null until something has measured it (and
+  // always null for videos, 3D files and SVGs).
+  width: number | null
+  height: number | null
   createdAt: Date | string
   inUse: boolean
   optimised: boolean
