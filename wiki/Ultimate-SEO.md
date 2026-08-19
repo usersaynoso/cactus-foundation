@@ -38,6 +38,17 @@ Click a row and the detail panel opens:
 - For **core pages**, the title and meta description are editable right there, with a *Use suggestion* button that drafts a description from the page's own copy. Saving writes through properly - the page editor and the next publish both see the change.
 - For **module content**, editing happens where that content lives - the panel deep-links straight to the right editor in Gazette, Shop or Directory. The analysis still applies either way.
 
+### Analysing everything at once
+
+Clicking Analyse on four hundred products one at a time is nobody's idea of an afternoon. The button beside the filters does the lot:
+
+- **Analyse all *N*** scores every page in the table and saves the results, with a progress bar and a **Stop** button for when you change your mind. It works through the list in small batches, so a big catalogue is a longer wait rather than a broken one.
+- Narrow the list first with the search box or the content-type filter and the button follows suit - it reads **Analyse these *N*** and only touches what you can see. Handy for scoring just the Gazette, or just the products whose name you searched for.
+- Focus keywords are left exactly as they are. A bulk run re-scores pages, it never re-words them.
+- When it finishes you get the count and the average score, and the Dashboard's figures catch up with it.
+
+Run it again whenever you have added a batch of content - re-analysing an already-scored page simply replaces its score.
+
 ## Site audit
 
 The Pages screen analyses what is stored; the audit checks what is actually served. It fetches your published pages over HTTP - the same view a search engine gets - and reports:
