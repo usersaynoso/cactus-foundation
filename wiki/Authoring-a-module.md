@@ -735,7 +735,16 @@ It is single-winner, like `shop.product-detail-parts` and unlike `shop.product-d
 
 The panel props also carry an optional layout hint, `autoSort?: boolean`, fed from the Sections block's **Auto-sort specification groups** field. It is a hint, not a contract: a provider whose body is a set of groups may re-order them for the tightest column fill, and a provider with no notion of groups ignores it.
 
-### A whole-page tab beside a host's list
+### Answering a metadata question for the host's page
+
+`shop.product-social-image` (`modules/shop/lib/product-social-image.ts`) is the smallest shape yet: a single-winner point whose provider is a plain server-safe function answering one question - *which picture will this product's page open on for THIS request?* Shop's `generateMetadata` asks it before falling back to the product's own first photograph, and the answer becomes the page's `og:image`, so a shared link's social preview shows the configuration the link carries rather than the stock photo. Its live consumer is `shop-variations`, whose provider replays the gallery's own opening-image derivation against the request's picks.
+
+Two request-scoped conventions make it work, both the same `cache()` slot trick as shop-variations' bootstrap:
+
+- **`modules/shop/lib/product-page-params.ts`** - shop parks the product page's raw `searchParams` here (from `generateMetadata` *and* the page component, whichever runs first), and any companion module reads back the parameters it owns. Shop never learns what `seat-colour=oxford-blue` or `pad=...` mean; it only holds the map. This is also how a shared link's selection reaches `getVariationBootstrap` during the page render, so the option controls arrive in the first HTML already set.
+- **The deep-link preselection slot** (`rememberPreselectOptionValues`) - already written by the `shop.product-page-resolver` provider before the social-image point is asked, so a variant's own URL and a parametered parent URL resolve through one code path.
+
+The provider runs inside `generateMetadata`, so everything it touches must be server-safe, and it must never throw for a malformed parameter - an unreadable pick means "no answer", never a broken page. Note the resolution order in shop's `generateMetadata`: park the search params, resolve the product (running the page resolver for a deep link), *then* ask this point - a provider asked before the deep link is recorded would answer for the wrong configuration.
 
 `shop.products-tabs` (`modules/shop/app/cactus-admin/shop/products/page.tsx`, shop v0.1.92) lets a module add a whole-page tab beside the built-in list on the Products admin page. Its live consumer is `shop-variations`, whose **Variations** tab lists every variation across the shop with per-product and missing-image/missing-file filters. Use it when a module has a *catalogue-wide* view that belongs next to Products rather than as its own sidebar entry.
 
@@ -792,6 +801,29 @@ Most modules only need admin pages and API routes. A module that also needs a pu
 ```
 
 `publicBasePath` must be a single lowercase URL segment (letters, digits, hyphens). It is validated for uniqueness at install time against every other installed module's `publicBasePath`, and against existing InfoPage slugs - installing a module whose base collides with an existing page, or creating/renaming a page to match an installed module's base, is rejected with a 409. **An InfoPage always wins a collision that slips through** (e.g. a page created before the module was installed) - this never causes data loss, it just hides the module's public index until the page is renamed or removed.
+
+### Putting content on a bare slug
+
+A module that wants its content at `/<slug>` rather than `/<base>/<slug>` - a blog whose posts sit at the top level, say - can additionally declare:
+
+```json
+"publicRootSlug": {
+  "page": "./app/root/[slug]/page",
+  "claimImport": "./lib/root-slug",
+  "claimExport": "myModuleClaimsRootSlug"
+}
+```
+
+`claimExport` names a `(slug: string) => Promise<boolean>` that answers whether your module owns that slug; `page` names the page component core renders when it says yes, receiving `params: { slug }` like any other page. Both are imported lazily, so neither may pull client code in at the top level.
+
+Core asks the claim **last** - after it has ruled out an `InfoPage` and a module index at that slug - so core content always wins and your claim only ever runs on what would otherwise be a 404. Keep it cheap and make it return `false` fast when the feature is switched off.
+
+Two things to get right:
+
+- **Put the page outside `app/public/<base>/`.** Everything in that directory is also mounted under `/<base>/`, so a page kept there would answer at both addresses. Gazette uses `app/root/[slug]/page.tsx`.
+- **Keep the old address alive.** Leave a page at `app/public/<base>/[slug]/page.tsx` that `permanentRedirect`s to the new one, or every link already out in the world breaks the day you switch.
+
+Because a bare slug shares its space with pages and other modules' bases, your slug generator should treat `getInstalledPublicBasePaths()` and the existing `InfoPage` slugs as taken - otherwise a colliding slug simply never resolves to your content.
 
 ### Conventions
 

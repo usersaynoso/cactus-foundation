@@ -196,6 +196,10 @@ The link works in both directions where new values are concerned. Add a value to
 
 If you have the **Google Sheet** module, each **Use for variations** block becomes an extra column on the sheet's Variations tab, named after the block - so "Main finish" and "Edge finish" come through as two columns, not one. Type or change a variant's value there and it comes back in on the next Pull, the same as price or stock. A value you type that didn't exist yet is created for you.
 
+You can also add a whole attribute to a product from the sheet, rather than coming back here to tick it: head a spare column on that product's variations tab with the attribute's name - `Shipping` - fill the cells in, and Pull. The attribute is put on the product as a **Use for variations** block and the values are saved against each variant.
+
+Deleting the block here is final, whatever the sheet still says. Cactus records that you took that attribute off that product, and no column heading puts it back; adding it here again lifts that, because you have said yes rather than the sheet saying it for you. An attribute you already keep as ordinary product information on that product is never quietly converted either - the heading is declined and the product left alone. The full account is on the [Google Sheet Products](Google-Sheet-Products) page.
+
 ## Showing attributes on the product page
 
 Filters help a shopper *find* a product; the Specification tab helps them *read* one. The same attributes can do both. Underneath the attributes on the Attributes tab you'll find **Specification layout** - the one place you decide what shows on the product page and how it's grouped.

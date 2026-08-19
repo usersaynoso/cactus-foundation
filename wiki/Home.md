@@ -35,6 +35,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Advanced Shipping](Advanced-Shipping) | Live delivery dates on every product and basket line, plus paid delivery-and-assembly options picked per item |
 | [Address Lookup](Address-Lookup) | Shoppers type the first line of their address at checkout and the rest fills itself in, via Ideal Postcodes |
 | [Stock Imports](Stock-Imports) | Keeping stock counts in step with a supplier's stock file, on a schedule you set, or on demand from the Products page |
+| [Google Shopping](Google-Shopping) | A Merchant Center feed with every variation as its own listing - give Google one address and the catalogue keeps itself up to date |
 | [Quotes](Quotes) | Quoting instead of (or alongside) selling: save-a-basket codes, a quote-only shop with no checkout, a designable quote document and a PDF |
 | [Space Planner](Space-planner) | Customers draw their own room to scale, put your furniture in it in 2D and 3D, and find out what fits before they spend anything |
 | [Contact form](Contact-form) | A contact form for any page, with an admin inbox, replies and per-person signatures |

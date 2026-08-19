@@ -169,10 +169,11 @@ Enabling or disabling a module refreshes the admin sidebar immediately - nav lin
 - **Database connection pool saturation** - watch `pg_stat_activity` or your provider's pool metrics. If you're near the limit, check `DATABASE_URL` is a pooled connection string.
 - **Vercel function errors** - set `SENTRY_DSN` for structured error tracking. Without it, errors go to Vercel's function logs only.
 - **Failed modules/themes** - the Modules/Themes admin page shows any item stuck in `failed` status with the error message.
-- **Deploy lock stuck** - if a deploy fails uncleanly, `DeployLock` may remain set. Clear it:
+- **Deploy lock stuck** - if a deploy fails uncleanly, `DeployLock` may remain set, and installs/updates answer "Another install or update is in progress". It clears itself: the row carries an `expiresAt` stamped by whoever took it (90 seconds for the normal in-request holders), and the next attempt after that sweeps it. The message tells you how long that is. Only a row written by an older build - no `expiresAt` - waits out the 15-minute fallback. Clearing it by hand is a last resort, not the first move:
   ```sql
   DELETE FROM "DeployLock" WHERE id = 'singleton';
   ```
+  If the same lock keeps reappearing, the update is dying rather than running: check GitHub's [status page](https://www.githubstatus.com/), since a degraded GitHub is the usual cause of an update slow enough to be killed.
 
 ## Admin recovery procedures
 
@@ -260,6 +261,8 @@ Module code is pinned to the version recorded in your site's module registry - a
 **Checking for updates** reads the public upstream releases directly and does not require your GitHub App installation to include the upstream repo. The check tries your authenticated GitHub connection first (so a private upstream fork the installation can reach still works) and falls back to an unauthenticated read of the public `usersaynoso/cactus-foundation` repo. As a result, the panel correctly shows the update card (or "Up to date") even when your App is only installed on your own deployment repo. If the check itself fails for some other reason, the panel says "Couldn't check for updates right now" rather than falsely reporting that GitHub is not configured.
 
 **Applying an update** still requires GitHub to be configured (a GitHub App or `GITHUB_API_TOKEN`) with write access to your `GITHUB_REPO`. The upstream repo must publish GitHub Releases whose tags correspond to `package.json` versions (e.g. `v0.5.97`).
+
+**When an update fails because GitHub is having a bad day.** Every update is a write to your GitHub repo, so a GitHub incident shows up here as an error that reads like your site's fault when it isn't. If the failure carries one of the tell-tale GitHub signatures - `Resource not accessible by integration`, a 5xx, a rate limit, a dropped connection - the update dialog (and the Modules page) now adds a line saying the problem is probably GitHub's end, with a link to [githubstatus.com](https://www.githubstatus.com/). Nothing is half-applied when a push fails: the whole update is one commit, so it either lands or it doesn't, and trying again once GitHub settles is safe. `Resource not accessible by integration` can also mean the GitHub App genuinely lacks write access to your repo, so if the status page is all green, check the App's permissions under admin > Settings > Integrations.
 
 **Requirements:**
 - `GITHUB_REPO` is set to your repo (e.g. `myorg/my-cactus-site`).

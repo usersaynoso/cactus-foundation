@@ -229,6 +229,8 @@ Each Value cell now reads **`(slug)Name`** - `(black-mfc)Black`, say. The bracke
 
 The Products and Variations tabs cover the bulk of a catalogue: names, web addresses, prices (the main price plus the sale, retail and trade prices), stock, size and weight, categories, tags, collections, images and videos, SEO fields, pre-order settings, download rules for digital products, the related-products and upsell settings, both kinds of description (the plain one you type and the one you lay out in the designer), and the size/colour options with their per-variant prices (the main price plus the sale, RRP, trade and cost prices, exactly as on the Products tab), stock and SKU.
 
+Both tabs also carry the **smallest order** - `min_order_quantity` on Products, **Min Qty** on Variations - for anything you will not sell one of. A blank cell means one at a time on the Products tab, and on the Variations tab it means "whatever the product itself says". A 1 means the same as a blank in both places, so a sheet written before these columns existed Pulls back without changing a thing.
+
 Stock and trade price are the two you can switch off if you'd rather they weren't in there - see **What goes in the sheet**.
 
 ### Attribute columns
@@ -240,7 +242,29 @@ If you use **Attributes** on your products, they travel with the sheet too.
 
 A value the attribute hasn't seen before is created for you, exactly as a new size or colour would be.
 
-An attribute only shows up as a column once a product actually uses it - on either tab - so to put one on a product for the first time, tick it on that product's **Attributes** tab in the admin and it'll be in the sheet from then on. A Pull will not start using an attribute on your behalf just because a column happens to be headed with its name. That used to be the way of it on the Variations tab, and it turned out to be a touch too helpful: a column of supplier codes pasted onto a variations tab was enough to promote "Range" and "Catalog" into per-variation settings on every product it touched, each one then dutifully written back into the sheet so it came straight back the moment you deleted it. Your own columns, and other features' columns, are now left exactly where they are.
+You don't have to go to the admin to put one on a product for the first time. You can do it from the sheet.
+
+#### Putting an attribute on a product from the sheet
+
+On a product's variations tab, head a spare column with the attribute's name - `Shipping` - fill in the cells below it, and Pull. That attribute is attached to the product as a per-variant setting, and each variant gets the value you typed. Several new columns in one go is fine; they all land on the same Pull.
+
+From then on it's an ordinary attribute column: it comes back on every Push, and you edit it in the sheet or in the admin as you please.
+
+**Taking one off again sticks.** Remove the column on the product's **Attributes** tab and Cactus remembers that you did. The heading can sit in the sheet with values under it for the rest of its natural life and that attribute will not come back onto that product. Put it back by hand on the Attributes tab and the sheet is trusted with it again.
+
+That is the bit worth knowing about, because the first version of this had no such memory: an attribute you deleted was written back into the sheet by the next Push and re-attached by the Pull after it, so the column simply could not be got rid of. It can now.
+
+Three things it won't do, all of them on purpose:
+
+- **It only matches an attribute you already have.** A heading naming nothing recognisable is treated as a column of your own and left alone, so a typo costs you nothing but a Pull. To use a brand-new attribute, create it in the admin first, then the sheet can put it on as many products as you like.
+- **It won't take an attribute off you.** If that product already uses the attribute as ordinary product information - one value for the whole product - the heading is declined and the product left exactly as it was. Carrying one attribute both ways on the same product is a decision for the Attributes tab.
+- **It won't touch the sheet's own columns.** `Supplier`, `Price`, `Option 1` and the rest belong to the sheet, so an attribute that happens to share one of those names is never read from that column.
+
+A blank column attaches nothing. Something has to be typed under the heading first.
+
+Do bear in mind that each product has its own variations tab, so a column headed on one tab puts the attribute on that one product. Twenty products means the heading on twenty tabs.
+
+One last note for anyone who used the very first version of this: a heading still carrying a trailing star, like `Shipping *`, still works and the star is tidied away on the next Push. You don't need to add stars any more.
 
 ### The designed description column
 

@@ -42,6 +42,9 @@ COLUMNS = {
     'table_top_colour': 'Table Top Colour',
     'table_frame_colour': 'Table Frame Colour',
     'range': 'Range',
+    'back_colour_col': 'Back Colour',
+    'arms_col': 'Arms',
+    'headrest_col': 'Headrest',
 }
 
 TYPOS = [
@@ -57,6 +60,13 @@ TYPOS = [
 # ------------------------------------------------------------ what becomes an axis
 
 COLUMN_AXES = [
+    # Orlena (Aug 2026): four axes, all stated as columns, all four already
+    # existing attributes on the site - so the options reuse their values and
+    # the colours keep the swatches the Camira ranges already carry.
+    ('Upholstery Colour', ['colour']),
+    ('Back Colour', ['back_colour_col']),
+    ('Arm Option', ['arms_col']),
+    ('Headrest', ['headrest_col']),
     ('Frame Colour', ['frame_colour']),
     ('Table Colour', ['table_top_colour']),
     ('Table Leg', ['table_frame_colour']),
@@ -174,6 +184,7 @@ MAX_OPTIONS = 4
 # table leg, so if Table Leg were considered first it would silently stand in for
 # the frame choice and the buyer would never see the booth legs.
 KEEP_ORDER = ['Seats', 'Unit', 'Back Height', 'Arms', 'Shape',
+              'Headrest', 'Arm Option', 'Back Colour',
               'Table Colour', 'Frame Colour', 'Table Leg',
               'Upholstery Colour', 'Finish', 'Width', 'Depth', 'Height']
 
@@ -185,9 +196,12 @@ SPLIT_PREFERENCE = ['Frame Colour', 'Table Leg', 'Table Colour', 'Unit',
                     'Width', 'Upholstery Colour', 'Finish']
 
 # The order options appear in on the product page.
+# Orlena: the chair itself first (headrest, then arms), then the two colour
+# picks, so a shopper settles what the chair IS before what it looks like.
 DISPLAY_ORDER = ['Seats', 'Unit', 'Back Height', 'Arms', 'Shape', 'Width',
                  'Depth', 'Height', 'Table Colour', 'Table Leg',
-                 'Upholstery Colour', 'Finish', 'Frame Colour']
+                 'Headrest', 'Arm Option',
+                 'Upholstery Colour', 'Back Colour', 'Finish', 'Frame Colour']
 
 SPLIT_NAME = {
     'Frame Colour': lambda v: f'{v} Frame',
@@ -210,8 +224,15 @@ AXIS_ATTR = {
     'Upholstery Colour': ('Upholstery Colour', 'upholstery-colour', 'IMAGE', 'IMAGE'),
     'Finish':            ('Finish', 'finish', 'IMAGE', 'IMAGE'),
     'Frame Colour':      ('Frame Colour', 'frame-colour', 'SWATCH', 'SWATCH'),
+    # Orlena (Aug 2026). Control types copied off the options already live on the
+    # site: Headrest and Arm Option are PILLs on 15 and 20 listings, Back Colour
+    # is an IMAGE on 3.
+    'Headrest':          ('Headrest', 'headrest', 'PILL', 'DROPDOWN'),
+    'Arm Option':        ('Arm Option', 'arm-option', 'PILL', 'DROPDOWN'),
+    'Back Colour':       ('Back Colour', 'back-colour', 'IMAGE', 'IMAGE'),
 }
 ATTR_NAME = {'seats': 'Seats', 'unit': 'Unit', 'back-height': 'Back Height',
+             'headrest': 'Headrest', 'back-colour': 'Back Colour',
              'arm-option': 'Arm Option', 'shape': 'Shape', 'colour': 'Colour',
              'leg-finish': 'Leg Finish', 'upholstery-colour': 'Upholstery Colour',
              'finish': 'Finish', 'frame-colour': 'Frame Colour',
@@ -293,6 +314,11 @@ def categorise(sheet_category, listing_name):
         if _has(name, 'Monitor'):
             return 'monitor-arms-mounts', []
         return 'seating-accessories', []
+    # Orlena (Aug 2026): an ergonomic task chair. Both the task/operator and the
+    # ergonomic leaf apply - it is sold as an 8-hour posture chair - and the site
+    # already cross-lists chairs that way.
+    if cat == 'Task & Operator Chairs':
+        return 'task-operator-chairs', ['ergonomic-chairs']
     if cat == 'Privacy Booths':
         return 'privacy-booths', []
     if cat == 'Modular Seating':

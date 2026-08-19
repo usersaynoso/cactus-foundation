@@ -5,7 +5,8 @@ description: >-
   featuring feature videos with a title and supporting text - opening with a
   full-width video of the whole product above the short description, then video
   on one side, text on the other on desktop (sides alternate on their own, video
-  right first), stacking to text-above-video on phones, with rounded corners
+  right first), carrying any spec bullets from the old description over as a
+  two-column tick list, stacking to text-above-video on phones, with rounded corners
   matching the product image. Works out which clip belongs to each section from
   the video filenames alone, so only titles and copy need supplying. Use whenever the
   user asks to add a video / animation to a product description, put text beside
@@ -56,6 +57,18 @@ steps earlier, and **all three of these are part of the job, not extras to offer
 3. **Delete the local source folder afterwards** - see step 0d.
 
 The whole path is steps 0a to 0d below. Only then does the description get built.
+
+**"Attached" doesn't always mean a chat attachment - check the session's
+additional working directories first.** The Domino job (2026-08-10) got sent
+straight to the Media table query, found nothing, and reported "no clips
+found, none attached" - when the clips were sitting the whole time in
+`Deskwell/Products/Dynamic/Seating Videos/<Product>/`, a folder the session
+already had listed as an additional working directory. Before asking the user
+where the clips are, check every additional working directory the session
+lists for a folder matching the product name - that convention (`Seating
+Videos/<Product>/*.mp4`) is exactly what "the user attaches them" has looked
+like in practice so far. Only fall back to asking if nothing turns up there
+either.
 
 ## Inputs to collect
 
@@ -174,7 +187,11 @@ this single prop; nothing else moves.
   three sections, and the first job that uploaded its own clips; Classic
   (`classic-executive-office-chair-with-arms`), four sections, whose back-change
   clip is the reference case for a cross-fade through white reading as blank in
-  the verification screenshots.
+  the verification screenshots; Dakota
+  (`dakota-high-back-black-leather-executive-office-chair-with-arms`), three
+  sections, the first to carry the supplier's spec bullets over into a tick
+  grid (step 1c). The tick-grid layout itself is copied from Oslo Air Piste
+  (`oslo-air-piste-height-adjustable-office-desk`), which has no videos at all.
 
 ## Recipe
 
@@ -334,8 +351,10 @@ step 3 without downloading anything back off the CDN.
 
 ### 0. Safety first
 
-- Read the product's current `description` and `description_puck`; save both
-  to the scratchpad before touching anything.
+- Read the product's current `description`, `short_description` and
+  `description_puck`; save all three to the scratchpad before touching anything.
+  All three get written by this job, and this is a live customer's database -
+  the saved copies are the rollback.
 - If `description_puck` already has content, show the user what is there and
   confirm replacement.
 - If the plain `description` is junk (old iframe embeds and the like), replace
@@ -347,19 +366,28 @@ step 3 without downloading anything back off the CDN.
   "Matching chrome 5 star base"). **Keep the bullets, bin the rest.** They are
   the only content in there, they are what the fallback is for, and they are
   usually one run-on `<li>` that wants splitting into one bullet per feature.
+- **Those bullets are content, not packaging. They go in the new description
+  too** - see step 1c. Cleaning the fallback field is not the same as carrying
+  them over, and binning the only spec list the product has because it arrived
+  wrapped in an iframe is a regression, not a tidy-up.
 
 ### 1. The feature block
 
 One `FeatureVideo` per feature, no Grid, no visibility duplicates. These follow
-the two opening blocks from step 1a - `content` always ends up as:
+the opening blocks from steps 1a and 1c - `content` always ends up as:
 
 ```
 [0] FeatureVideo  - whole-product clip, full width, no copy
 [1] TextBlock     - short_description
-[2] FeatureVideo  - feature 1, textSide "left"
-[3] FeatureVideo  - feature 2, textSide "right"
+[2] Grid2         - spec bullets, two columns of ticks   (only if bullets exist)
+[3] FeatureVideo  - feature 1, textSide "left"
+[4] FeatureVideo  - feature 2, textSide "right"
 …
 ```
+
+A product with no supplier bullets simply has no Grid2 and features start at
+index 2. The alternation still starts video-right at the first feature either
+way - the bullet grid no more shifts it than the hero does.
 
 
 ```json
@@ -456,17 +484,44 @@ followed by a `TextBlock`:
 - Blank `maxWidth` is what makes it full width; the block reads a blank cap as
   `100%`. `padding: "none"` too - the TextBlock below carries the spacing.
   Leave `title`/`body` empty so no two-track row is built at all.
-- Read the copy from `shp_products.short_description` and paste it verbatim -
-  it is the same sentence that greets people higher up the page, so it should
-  not be reworded here. Tidy double spaces, nothing else. If the product has
-  no short description, skip the TextBlock rather than inventing copy.
-- **A short description that stops mid-sentence still gets pasted verbatim.**
-  Several were truncated on the way in from the supplier - Classic Cantilever's
-  ends "Bring some class to your office with the Classic", no "range." Finishing
-  the sentence here would leave the description block and the top of the page
-  disagreeing, and inventing supplier copy is not this job's call. Paste it as
-  it is, then tell the user which product and quote the dangling end, so they
-  can fix the field itself if they want to.
+- The copy comes from `shp_products.short_description`, and **the block and the
+  field must always say exactly the same thing** - it is the same sentence that
+  greets people at the top of the page, so a reader meeting it twice must not
+  meet two versions of it. Copy it across unchanged.
+- **Punctuation faults get fixed in the field, not worked around.** Supplier
+  short descriptions arrive with double spaces, missing commas and run-on
+  sentences - Dakota's read "A chair for every user and every location it has
+  upholstered pads", which stops a reader dead. Put it right, then write the
+  corrected text to **both** `short_description` and the TextBlock in one
+  statement, so they cannot drift:
+
+  ```sql
+  UPDATE shp_products
+  SET short_description = :'sd',
+      description_puck = jsonb_set(description_puck, '{content,1,props,content}', to_jsonb(:'sd'::text))
+  WHERE slug='<slug>'
+  RETURNING short_description = description_puck->'content'->1->'props'->>'content' AS block_matches_field;
+  ```
+
+  `t` back means they agree. Check the index - `{content,1,…}` is right only
+  because the TextBlock is block 1, under the hero.
+
+  **Punctuation and spacing only. No rewording.** Collapse double spaces, add
+  the missing comma, hyphenate a compound modifier ("wipe-clean leather-look"),
+  break a run-on with a spaced hyphen per the house style. Do not swap
+  vocabulary, reorder clauses, or improve the sales pitch - that is the owner's
+  copy, and the job is to stop it tripping the reader up, not to rewrite it.
+  Say in the report what was changed and why.
+- **A short description that stops mid-sentence is different - flag it, do not
+  finish it.** Several were truncated on the way in from the supplier - Classic
+  Cantilever's ends "Bring some class to your office with the Classic", no
+  "range." Missing words are missing *facts*, and guessing at them is inventing
+  supplier copy; a missing comma is not. Copy it across as it is, then tell the
+  user which product and quote the dangling end so they can decide the wording.
+- If the product has no short description at all, skip the TextBlock rather than
+  inventing copy. Treat a literal placeholder value the same way - `short_description`
+  reading `n/a` (or similar junk like `-`, `tbc`, `none`) is not real content either,
+  so skip the TextBlock rather than promoting the placeholder to visible copy.
 - Wide hero clips are the heavy ones (16:9 masters run to tens of megabytes
   against a few MB for a square feature clip). If you want the number, read it
   off the `Content-Range` header of a one-byte request - never by downloading
@@ -474,6 +529,91 @@ followed by a `TextBlock`:
   `curl -s -o /dev/null -D - -r 0-0 <url> | grep -i content-range`
   Worth mentioning to the user if it is fat, but not worth blocking on: the
   block's lazy preload keeps it off the first paint either way.
+
+### 1c. The spec bullets - two columns of ticks, under the short description
+
+**Whenever the old description carried a bullet list, it gets carried over.**
+Not asked about, not offered, not left behind in the fallback field: the
+supplier's spec bullets are the only hard detail the product has (castor type,
+base, edge thickness, weight capacity) and they are what a buyer scans for.
+Dropping them because the new description is prettier is a regression.
+
+They go **immediately under the intro TextBlock**, before the first feature
+video, as a two-column tick list - the Oslo Air Piste layout
+(`oslo-air-piste-height-adjustable-office-desk`) is the reference. That is a
+`Grid2` holding one `RichTextBlock` per column, each with `bulletIcon: "check"`:
+
+```json
+{
+  "type": "Grid2",
+  "props": {
+    "id": "Grid2-<product>-specs-<hash>",
+    "gap": "md",
+    "col1": [
+      {
+        "type": "RichTextBlock",
+        "props": {
+          "id": "RichTextBlock-<product>-specs-a-<hash>",
+          "content": "<ul><li><p>First bullet</p></li><li><p>Second bullet</p></li></ul>",
+          "bulletIcon": "check",
+          "bulletColor": "",
+          "textColor": "",
+          "linkColor": "",
+          "linkHoverColor": "",
+          "padding": "default",
+          "sticky": "off",
+          "stickyOffset": "",
+          "visibility": { "desktop": "false", "tablet": "false", "mobile": "false" },
+          "animationType": "none",
+          "animationDuration": "normal",
+          "animationDelay": "none"
+        }
+      }
+    ],
+    "col2": [ { "type": "RichTextBlock", "props": { "…": "second half, same shape" } } ],
+    "columns": "2",
+    "columnSizes": "equal",
+    "stackColumns": "tablet",
+    "padding": "none",
+    "spaceBelow": "md",
+    "gapShrunk": "",
+    "col1Align": "start",
+    "col2Align": "start",
+    "col1Width": "",
+    "col2Width": "",
+    "col1WidthShrunk": "",
+    "col2WidthShrunk": "",
+    "col1Sticky": "off",
+    "col2Sticky": "off",
+    "col1StickyOffset": "",
+    "col2StickyOffset": "",
+    "verticalAlign": "stretch",
+    "visibility": { "desktop": "false", "tablet": "false", "mobile": "false" },
+    "animationType": "none",
+    "animationDuration": "normal",
+    "animationDelay": "none"
+  }
+}
+```
+
+- `col1`/`col2` are **inline arrays of blocks**, not Puck zones. Put the child
+  block straight in the array; nothing goes in `zones`.
+- **`<ul><li><p>text</p></li></ul>`** - the `<p>` inside each `<li>` is what the
+  editor's rich text produces, so match it or an admin's first edit reflows the
+  whole list.
+- `bulletIcon: "check"` is the tick. `RICH_TEXT_BULLET_ICONS` in
+  `lib/puck/config.tsx` holds the rest if a product ever wants something else;
+  the default (`"default"`) is a plain disc and is not this.
+- **Split by count, first half to `col1`.** 13 bullets goes 7 and 6, not
+  "whichever looks balanced" - the columns are equal width and the reader goes
+  down the left then down the right.
+- `stackColumns: "tablet"` collapses to one column on tablet and phone, so the
+  ticks never end up two-across on a 375px screen.
+- Supplier bullets usually arrive as **one run-on `<li>` separated by `•`**.
+  Split on the bullet character, trim, one `<li>` each. Keep the supplier's
+  wording and their capitalisation; fix nothing but stray whitespace.
+- The same split list is what the cleaned plain `description` gets (step 0) -
+  one `<li>` per feature there too, no `<p>` wrapper needed in the fallback.
 
 ### 1b. How playback works
 

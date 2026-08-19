@@ -76,6 +76,16 @@ It needs the **Shop** and **Product Attributes** modules installed.
   text beneath the chosen bar, so the shopper knows what they are paying for
   without leaving the basket. A line with only one service simply states what
   happens and offers nothing to switch to.
+- At the checkout, the **Your order** summary stops listing products and starts
+  listing deliveries: one heading per arrival day, soonest first, with everything
+  landing that day underneath it. A day whose items are all on one service takes
+  the fuller heading - "Flat-pack - by Tuesday 25th of August" - and the per-item
+  repetition of that same sentence disappears, having already been said above. A
+  day carrying two different services keeps its items together and states the day
+  alone, each product naming its own service beneath itself, because one heading
+  can only honestly promise what all of them share. This needs a shop new enough
+  to understand delivery groups; an older one simply lists each item with its own
+  delivery line, exactly as before.
 - On the basket's sticky checkout bar: **"everything by Friday"** beside the
   item count - the last of the basket's own delivery dates, which is when the
   whole order has actually landed. It follows the shopper down a long basket,
@@ -173,12 +183,13 @@ are, and they are shown to shoppers the same way too: if Shop is set to
 beside it does. Nothing about what you charge changes - only what is printed.
 
 A price row says where the service is offered and what it costs there. Rows can
-apply to everything, to one supplier, one category, or one range (a product
-attribute you nominate, e.g. Hyphen or Aero), and the most specific row that fits
-the product wins: range beats category, category beats supplier, supplier beats
-the everywhere row. **No matching row means the service simply is not offered on
-that product** - which is also how you keep a service to one supplier: give it a
-single supplier row and nothing else.
+apply to everything, to one supplier, one category, or one value of your
+**shipping attribute** (a product attribute you nominate, e.g. Hyphen or Aero),
+and the most specific row that fits the product wins: shipping attribute beats
+category, category beats supplier, supplier beats the everywhere row. **No
+matching row means the service simply is not offered on that product** - which
+is also how you keep a service to one supplier: give it a single supplier row
+and nothing else.
 
 A price row can also carry **different timing for just that scope**: tick
 "Different timing here" and fill in only what differs. So one Standard delivery
@@ -187,6 +198,18 @@ and one Installation service can take ten days for most furniture but thirty for
 one awkward range - no second service with the same name, no mental arithmetic.
 Anything left blank keeps the service's usual timing, and setting "Never sooner
 than" to 0 on a row lifts the service's floor just there.
+
+The services are listed in the order shoppers see them, and the arrows on each
+one move it up or down. That order does one more job: where a product is not
+offered your default service (the one nominated in Delivery settings), it starts
+on the highest service in this list that it *is* offered - so put the one you
+would rather sell nearer the top. A newly added service joins the bottom.
+
+Every price row has an **Edit** button beside it, so a price rise, a longer lead
+time or a switch to per-person pricing is a change in place rather than a remove
+and a retype. The one thing Edit does not change is *where* the row applies - a
+row is defined by its scope, so to move a price somewhere else, remove it and
+add a new one.
 
 If a product falls under no service at all, it shows no delivery estimate - by
 design, not by accident.
@@ -219,15 +242,18 @@ line as before.
 
 ## Orders that are paid for later
 
-If you take **bank transfer** (or cash), a shopper can place an order and pay for
-it whenever they get round to it. Nothing leaves the warehouse until the money
+Some orders are placed today and paid for later. A **bank transfer** (or cash) is
+the obvious one: the shopper pays whenever they get round to it, which might be
+tomorrow or a fortnight on Thursday. **Instant Bank Pay** is the quieter one - the
+shopper authorises it there and then, but the money itself takes a working day or
+two to actually reach you. Either way, nothing leaves the warehouse until it
 lands, so a delivery date counted from the day they clicked is a promise you have
-no way of keeping - the transfer might arrive tomorrow, or a fortnight on
-Thursday.
+no way of keeping.
 
 Advanced Shipping handles that on its own, with nothing to switch on:
 
-- **At the checkout**, choosing a pay-later method puts a line under it saying so:
+- **At the checkout**, choosing a method you have to go and pay by hand puts a
+  line under it saying so:
   delivery dates start from the day the payment clears rather than today, and
   here is what the lead time on this basket actually is. It appears the moment
   the method is picked - which is when the shopper is deciding - rather than
@@ -236,7 +262,8 @@ Advanced Shipping handles that on its own, with nothing to switch on:
   time instead of a date - "Standard Delivery - 5 working days from when your
   payment reaches us" - on the thank-you page, in the customer's account, and in
   your admin. No date is promised, because none can be.
-- **The moment you mark the payment received**, every line is re-dated from that
+- **The moment the payment lands** - you marking a transfer received, or the bank
+  confirming an authorised payment has cleared - every line is re-dated from that
   day and reads as a proper date again. The confirmation email only goes out at
   that point anyway, so it carries the real date rather than a stale one.
 
@@ -245,25 +272,34 @@ full-installation line keeps its own timing. Pre-order lines are left as dates
 throughout: their date comes from when the stock itself arrives, which paying
 sooner does not change.
 
-Card, PayPal and the open-banking methods are untouched - the money moves at the
-checkout, so the date the basket promised is the date the order keeps.
+Card and PayPal are effectively untouched: the money moves at the checkout, so
+the date the basket promised is the date the order keeps. Strictly they follow
+the same rule as everything else - an order is dated once it is paid for and not
+before - which only shows if a card payment fails or is abandoned, where the
+lead-time wording is the honest thing to leave behind anyway.
 
 ## Setting it up
 
 Everything lives on the shop's **Tax & shipping** page - **Shop → Sales** in the
 admin sidebar, then the **Tax & shipping** tab across the top. (It used to have a
 sidebar link of its own; the old link still works.) Alongside the shop's own tax
-and shipping tab you get three more tabs:
+and shipping tab you get four more tabs:
 
 - **Delivery services** - your delivery-and-assembly options: name, description,
   delivery time, floor, and the price rows that say where each is offered.
+- **Missing shipping rules** - every value of your shipping attribute that no
+  delivery service prices, with how many live products use it, plus a second
+  list of the values only some of your services price. Nothing here is broken:
+  those products fall back to the category, supplier or everywhere price. It is
+  simply the list of places where the fallback is deciding for you.
 - **Holidays** - import the official bank-holiday calendar for your region
   (England & Wales, Scotland, or Northern Ireland). It refreshes itself weekly.
 - **Delivery settings** - the shop-wide dispatch timing (cut-off, days to
   dispatch, ship days, with a live "an order placed now would dispatch…"
   preview so you can spot a wrong cut-off before a shopper does), which
-  attribute means "range", which attribute holds a **person count** for
-  per-person pricing, your holiday region, the default service shown before the
+  attribute is your **shipping attribute** (the one that usually means "range"),
+  which attribute holds a **person count** for per-person pricing, your holiday
+  region, the default service shown before the
   shopper changes it, and how the basket shows the picker: the **chosen service
   with the rest as chips** (the default), a compact **dropdown**, or **radio
   buttons** that list every option at once.
@@ -276,6 +312,17 @@ One small note on timing: to keep the storefront quick, the shop keeps a very
 short-lived copy of your services and prices (about ten seconds). An edit in the
 admin can therefore take up to ten seconds to show on product pages and in the
 basket - blink and you'll miss it, but it is not a bug.
+
+## Other modules can read your delivery times
+
+From 0.1.42 the module publishes each product's delivery time - working days to
+send, then working days on the road - for any other module that wants it. It
+publishes nothing about who is asking, and needs no setting up.
+
+The first taker is [Google Shopping](Google-Shopping): install both and your
+product feed tells Google how long each product takes, so shoppers see "get it by
+Thursday" against your listings. Nothing changes for a shop running Advanced
+Shipping on its own.
 
 ## Changed in 0.1.18
 

@@ -4,7 +4,26 @@
 
 > **Where it lives now.** Gazette used to take six sidebar links. It takes one - **Gazette** - with Posts, Tags, Series, Authors, Comments and Templates as tabs across the top. Old links still work.
 
-Posts live at `/gazette` on your site (or `/gazette/your-post-title` for an individual post). If you already have a page at that address, the page wins and Gazette's front page stays hidden until you rename one of them.
+The Gazette's front page lives at `/gazette` on your site. If you already have a page at that address, the page wins and Gazette's front page stays hidden until you rename one of them.
+
+Individual posts live wherever you tell them to - see **Where your posts live** below.
+
+---
+
+## Where your posts live
+
+Out of the box a post sits under the Gazette, at `/gazette/your-post-title`. Some sites would rather posts sat straight off the front door instead, at `/your-post-title` - shorter, tidier, and one less word between a reader and the thing they came for.
+
+Pick which you want under **Settings → Gazette → Post links**:
+
+- **Under the gazette** - `yoursite.co.uk/gazette/staff-lockers-giving-everyone-a-spot-of-their-own`
+- **Straight off the home page** - `yoursite.co.uk/staff-lockers-giving-everyone-a-spot-of-their-own`
+
+Only the posts move. The listing, tags, series, archive, author pages and the RSS feed stay under `/gazette` whichever you pick, so the section still hangs together.
+
+**Nothing breaks when you switch.** Every old `/gazette/...` link - the ones already shared, bookmarked, printed on something, or sitting inside another post - carries on working and sends the reader to the new address on its own. Search engines are told the move is permanent, so rankings follow the post rather than being left at the old door. Links you typed into the body of a post are left exactly as you typed them and simply travel via the redirect, so there is nothing you have to go back and edit.
+
+One thing worth knowing: with posts on the front door, a post shares its address space with your ordinary pages. If a page and a post ever want the same name, the page wins. Gazette spots this when you save and quietly numbers the post's address instead, so you never end up with a post nobody can reach.
 
 ---
 
@@ -109,7 +128,7 @@ Zipped exports aren't supported directly yet - unzip first, then pick the files.
 
 Two Gazette blocks are available anywhere in the ordinary Cactus page builder, under the **Modules** category:
 
-- **Gazette Feed** - a grid, list or compact roundup of recent posts, optionally filtered by tag.
+- **Gazette Feed** - a grid, list or compact roundup of recent posts, optionally filtered by tag. Whichever layout you pick applies on a full-size screen; the cards drop to two abreast on a tablet and one on a phone, the same way your post listing pages behave, so a three-across roundup on your homepage stays readable on a handset.
 - **Gazette Featured** - a single spotlighted post (latest, or your pinned one) in a hero, card or minimal layout.
 
 Any page that includes one of these blocks always shows the very latest posts on every visit, even if the page itself is normally cached - so a scheduled post appearing on time isn't held up by an old cached copy of your homepage.

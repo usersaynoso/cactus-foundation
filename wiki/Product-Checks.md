@@ -12,12 +12,19 @@ for how that works. It requires the Shop and Shop Variations modules.
 
 ## What it records
 
-Ten aspects per product, each with its own last-checked date:
+Twelve aspects per product, each with its own last-checked date:
 
 Title, Short description, Long description, Images, 3D models, Variations,
-Add-ons, Downloads, Specification, Shipping.
+Add-ons, Add-on models, Downloads, Specification, Shipping, Categories and
+tags.
 
-Plus one notes box per product, shared across all ten - a place for "waiting
+Add-on models is the separate one worth explaining: an add-on a shopper bolts
+on - a pedestal, a screen - carries its own 3D model, and it can be wrong long
+after the product's own model is fine. Categories and tags covers where the
+listing actually sits in the shop, which is the sort of thing that quietly
+drifts as the catalogue grows.
+
+Plus one notes box per product, shared across all twelve - a place for "waiting
 on supplier photography" rather than a diary.
 
 A check older than **six months** counts as stale. Every save records who
@@ -27,7 +34,7 @@ saved it.
 
 ### On the product page (staff only)
 
-A quiet one-line strip - `Checks: 7/10 current, oldest 4 months` - that
+A quiet one-line strip - `Checks: 7/12 current, oldest 4 months` - that
 expands on click to the full grid: each aspect shows its date (or "never"),
 a tick button stamps today, and a date picker backdates. Save is explicit,
 and its outcome is shown.
@@ -48,7 +55,7 @@ is no sense leaving it lying about).
 
 A compact tick list on the product card itself, so a member of staff walking a
 category page can see which listings still need work without opening any of
-them. It shows a `Checks 7/10` heading, then every aspect with a green tick or
+them. It shows a `Checks 7/12` heading, then every aspect with a green tick or
 a red cross - a cross meaning never checked, or checked longer ago than six
 months - and finally, centred underneath, whether the product carries a note.
 The note line reads the other way round: a note is something outstanding, so

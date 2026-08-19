@@ -389,7 +389,29 @@ Module database tables are **prefixed** (`tablePrefix` field, e.g. `forum_`). Th
 
 `DeployLock` is a single row (`id = "singleton"`) that makes install, update, core update and uninstall mutually exclusive; a second attempt while it is held gets a 409. It is released by the handler that took it, by the Vercel deploy webhook, or by the redeploy-status handler.
 
-None of those runs if the function holding it is hard-killed - a Vercel function timeout or an OOM - and the row then sat there forever, turning every subsequent install or update into a permanent 409 that the admin UI offers no way out of. Every acquire and check site now goes through `getActiveDeployLock()` (`lib/deploy/lock.ts`), which treats a lock older than `STALE_LOCK_MS` (15 minutes) as orphaned: it deletes it and reports no lock held. Fifteen minutes comfortably exceeds the longest legitimate hold, which is a 60-second route plus the build it triggers. The delete is scoped to the exact `id` + `lockedAt` pair, so a fresh lock taken by another request in the window between the read and the delete is never removed by mistake. Read the lock through this helper, never with a bare `findUnique`.
+None of those runs if the function holding it is hard-killed - a Vercel function timeout or an OOM - and the row then sat there forever, turning every subsequent install or update into a permanent 409 that the admin UI offers no way out of. Every acquire and check site goes through `lib/deploy/lock.ts`, never a bare `findUnique`/`create`:
+
+- **`acquireDeployLock(lockedBy, holdMs?)`** takes the lock and stamps `DeployLock.expiresAt` with how long this holder's work can credibly run. The default (`DEFAULT_LOCK_HOLD_MS`, 90 seconds) suits every current caller: each one releases the lock *before* the build it triggers starts, and each route caps at `maxDuration = 60`, so a hold cannot legitimately outlive its function. A caller that holds it across something longer passes its own `holdMs`.
+- **`getActiveDeployLock()`** deletes and reports "no lock" for a row past its `expiresAt`. A row with no expiry - written by an older build, or by a caller that did not stamp one - falls back to `STALE_LOCK_MS` (15 minutes). The delete is scoped to the exact `id` + `lockedAt` pair, so a fresh lock taken by another request between the read and the delete is never removed by mistake.
+- **`lockBusyMessage(lock)`** is the 409 body: it names how long the wait is (`secondsUntilLockClears`) rather than saying "please wait", because the usual reason for seeing it twice is a previous attempt that died, not one still running.
+
+The expiry is what makes a failed update survivable. Before it, one hard kill locked the owner out for a quarter of an hour - which, on a day when GitHub is degraded and every attempt dies at 60 seconds, is a fifteen-minute wait per attempt.
+
+### Update work runs against a deadline, so it fails properly
+
+Being killed at the function ceiling is the worst outcome available: no catch block runs (lock stranded), and the browser gets the platform's **HTML** timeout page instead of JSON - which `res.json()` then chokes on, showing the owner a browser parser message ("The string did not match the expected pattern." in Safari) as the entire explanation for a failed update.
+
+So the work is given a budget that ends before the ceiling (`lib/updates/deadline.ts`: `ROUTE_WORK_BUDGET_MS` = 60s minus 10s headroom). `syncCoreFromUpstream(..., { deadlineAt })` checks it where abandoning the run is still free - after reading the release trees, per file while downloading blobs, and before opening the push transaction (which needs `PUSH_MIN_BUDGET_MS`, 15s, to be worth starting). It is deliberately **not** checked inside the commit transaction: once the push has started, finishing it is what keeps the repo consistent. `retryTransient` also takes `deadlineAt` and refuses to sleep past it - its default budget is minutes, which inside a 60-second route guarantees the kill it was meant to survive.
+
+An abort throws `DeadlineExceededError` ("Nothing was changed - this usually means GitHub is responding slowly"), so the handler rolls back its queued module rows, releases the lock, and answers **503** with a real sentence.
+
+### When it is GitHub's fault, the update says so
+
+`lib/github/health.ts` reads GitHub's own status page (`githubstatus.com/api/v2/summary.json`) and reports whether *API Requests*, *Git Operations* or *Webhooks* are non-operational. It is cached for a minute, times out after 2.5 seconds, and treats every failure as "no known problem" - a status page that will not answer must never block an update.
+
+The core-update handler calls it only on failure, appending e.g. "GitHub is currently reporting problems with Git Operations (major outage)." to the error, and downgrades the response to 503. Client-side, `looksLikeGitHubProblem()` (`lib/updates/github-outage.ts`) matches that wording plus deadline aborts, and the admin adds a link to GitHub's status page underneath.
+
+Both admin surfaces read update responses through `readJsonResponse()` (`lib/updates/read-json-response.ts`) rather than `res.json()`: a gateway status or an HTML body becomes "The update ran out of time before your site heard back. Nothing was changed..." instead of a parser error.
 
 ### Compatibility is checked per module, including in bulk
 
@@ -472,16 +494,37 @@ A module can optionally own a top-level public URL segment by declaring `publicB
 - `resolveModulePublicPage(base, path)` - resolves a module's `page.tsx` for a given base + path, matching literal segments before dynamic `[param]` segments so resolution is deterministic.
 - `dispatchModulePublicRoute(base, path, method, req)` - resolves and invokes a module's `route.ts` handler.
 - `getModulePublicBases()` - the list of all installed bases.
+- `resolveModuleRootSlugPage(slug)` - asks each module that declared `publicRootSlug` whether it owns a bare top-level slug (see below).
 - `collectModuleSitemapEntries(siteUrl)` - calls `getPublicSitemapEntries(siteUrl)` from each module's `lib/sitemap.ts` (if present), swallowing per-module errors.
 - `collectModuleRobotsDisallow()` - calls `getPublicRobotsDisallow()` from each module's `lib/robots.ts` (if present), swallowing per-module errors. `app/robots.ts` merges the returned paths into its `disallow` list. Shop uses this to pull every shop URL out of both `sitemap.xml` and `robots.txt` while `shopStatus` is set to Closed in Settings - no redeploy needed, both routes are `force-dynamic`.
 
 Core resolves requests to a module's public base through three routes, in order:
 
-1. `app/(public)/[slug]/page.tsx` - the existing InfoPage-by-slug route. It looks up an `InfoPage` first (InfoPage always wins a slug collision); on a miss, it falls back to `resolveModulePublicPage(slug, [])` for the module's index page.
+1. `app/(public)/[slug]/page.tsx` - the existing InfoPage-by-slug route. It looks up an `InfoPage` first (InfoPage always wins a slug collision); on a miss, it falls back to `resolveModulePublicPage(slug, [])` for the module's index page, and then to `resolveModuleRootSlugPage(slug)` for a module claiming the bare slug for content of its own.
 2. `app/(public)/[slug]/[...path]/page.tsx` - a generic catch-all for a module's sub-pages (`/<base>/<...path>`), added specifically for this mechanism.
 3. `app/(public)/[slug]/feed.xml/route.ts` - a dedicated literal-segment delegate to `dispatchModulePublicRoute(slug, ['feed.xml'], 'GET', req)`, since a `route.ts` can't share a folder with the `[...path]` page catch-all.
 
 All three are `force-dynamic`. The index fallback in particular calls `getSessionFromCookie()` (a dynamic API) before rendering the module component - without that, the route would be cached forever under the InfoPage route's `revalidate = false` after its first render, and content like Gazette's scheduled posts would never go live on time. This was the riskiest part of the mechanism to get right; it's covered by an explicit build-time acceptance check (`/gazette` renders fresh on each request) rather than relying on convention alone.
+
+#### Bare top-level slugs (`publicRootSlug`)
+
+A module can also put its own content on a bare slug - `/my-post` rather than `/gazette/my-post` - by declaring `publicRootSlug` in its manifest:
+
+```json
+"publicRootSlug": {
+  "page": "./app/root/[slug]/page",
+  "claimImport": "./lib/root-slug",
+  "claimExport": "gazetteClaimsRootSlug"
+}
+```
+
+`claimExport` names a `(slug: string) => Promise<boolean>`; `page` names a page component receiving `params: { slug }`. `generate-module-router.mjs` emits both as lazy `() => import(...)` loaders into `PUBLIC_ROOT_SLUG_CLAIMS`, for the same reason every other loader in that file is lazy: `app/(public)/[slug]/page.tsx` imports the router statically, so an eager import would pull the claiming module into the public bundle.
+
+Precedence is fixed and deliberate: **InfoPage, then module index, then claim.** Core content always wins, and the claim is only consulted on what would otherwise have been a 404 - so the cost on a genuine 404 is one claim call per declaring module. A claim that returns `false` (the gazette's does whenever the site is on the default URL style) short-circuits after a single settings read.
+
+The page must live **outside** `app/public/<base>/`, since everything under that directory is also mounted at `/<base>/...`. Gazette keeps its root-slug page at `app/root/[slug]/page.tsx` and leaves the `app/public/gazette/[slug]/page.tsx` in place as a `permanentRedirect` to the new address, so URLs indexed under the old shape keep working.
+
+Unlike `publicBasePath` there is no uniqueness check to make: two modules may both declare a claim, and they are asked in registry order until one says yes. A module whose claimed slug also matches an InfoPage or another module's base simply never gets asked - so a claiming module should keep its own slugs clear of those (gazette's `ensureUniquePostSlug` reads `getInstalledPublicBasePaths()` and the `InfoPage` slugs and numbers the post's slug rather than letting it be shadowed).
 
 `publicBasePath` uniqueness is enforced twice: at build time (`generate-module-router.mjs` fails the build if two modules declare the same base) and at module-install time (`POST /api/admin/modules` rejects a colliding base, and also rejects one that matches an existing InfoPage slug). The reverse direction is enforced in the pages API: creating or renaming an `InfoPage` to a slug reserved by an installed module's `publicBasePath` (via `lib/modules/public.ts`'s `getInstalledPublicBasePaths()`) returns 409.
 
@@ -764,6 +807,8 @@ The lazy-load switch (below) is the current example of (2). Every RSC `Render` c
 
 **The Image block included, deliberately.** It carried an exemption when the setting first landed, on the grounds that an Image block can be the first thing on a page and lazy-loading the LCP element measurably delays it. That reasoning is still true, and the trade is real - with the switch on (the default) a hero Image block is lazy. It is exposed rather than decided in code because it is the site owner's call: the help text names the cost and points at the switch as the first thing to try if the top of a page feels slow. A blanket exemption also made the switch quietly untrue to its own label.
 
+**Per-panel override.** The Image + Floating Chips block has an "Image loading" field (default "Site default") whose "Load immediately (above the fold)" option opts that one image out of the site-wide switch: it renders `loading="eager"` plus `fetchPriority="high"`, the same treatment the Hero block's side image has always had. It exists because that block is the designed hero-panel, so its image is usually the largest thing above the fold and the page's LCP element - lazy-loading it is exactly the cost the paragraph above describes, but flipping the whole site to eager to fix one hero is the wrong trade. Other image blocks stay governed by the switch alone.
+
 Module blocks render their own `<img>` tags in their own repos and do not consult this setting.
 
 ### Starter templates
@@ -1001,7 +1046,13 @@ window.addEventListener('cactus:consent-change', (e) => {
 window.cactusConsent.open()       // programmatically re-open the consent banner
 ```
 
-The `CookieSettingsLink` Puck block calls this for you. Drop it into your footer layout so visitors always have a way to change their mind.
+The `CookieSettingsLink` Puck block calls this for you. Drop it into your footer layout so visitors always have a way to change their mind. `open()` reloads the visitor's stored decision before showing the manage view, so reviewing a choice never quietly offers to reset it.
+
+### The privacy page panel
+
+`components/consent/ConsentPreferencesPanel.tsx` is a second front end onto the same decision: the category switches rendered inline, above the content of whichever page `SiteConfig.privacyPolicyPageId` points at. `renderInfoPageContent` (`lib/puck/renderInfoPage.tsx`) decides whether to draw it - the banner must be enabled, the page must be the linked privacy policy, and `consentBannerConfig.showPrivacyPagePanel` must not be `false` (absent counts as on, so sites configured before this existed get it). Where the page has a layout, the panel goes inside the content slot, not above it, or it would land above the site header.
+
+Both surfaces share `lib/consent/client.ts`, which owns the cookie names, the payload shape, and the audit POST. Anything that writes a consent decision should go through `saveConsentDecision` rather than touching the cookie itself - two copies of that logic is exactly how the banner and the panel would drift apart.
 
 ### ConsentRecord table
 
@@ -1011,7 +1062,9 @@ Every decision is appended to `ConsentRecord` (append-only audit log). Current c
 
 Any module that sets non-necessary cookies **must** declare those categories in its manifest `cookieCategories` array, using the same key shape the banner enforces: lowercase, starting with a letter, letters/numbers/hyphens/underscores only (`live-chat`). It **must not** load tracking scripts unconditionally - use `loadIfConsented(category, fn)` to gate them. The admin consent banner editor surfaces the module's declared categories as one-click suggestions; a category worded loosely in a manifest is folded into a valid key there, with the module's wording kept as the label, so an older module still adds cleanly. See [Authoring a module](Authoring-a-module) for details.
 
-A module whose visible UI is itself the processing - a chat launcher, a video embed, a map - should not merely gate the script behind the category, but **render nothing at all until the category is granted**. A visitor who has not answered the banner has no decision recorded, so the same check covers "has not chosen yet" and "chose no". The live-chat module is the reference implementation: see [Live Chat](Live-Chat).
+A module whose visible UI is itself the processing - a chat launcher, a video embed, a map - should not merely gate the script behind the category, but **do none of the processing until the category is granted**. A visitor who has not answered the banner has no decision recorded, so the same check covers "has not chosen yet" and "chose no".
+
+Rendering nothing at all is the safe default, but for a feature the visitor might go looking for it is worth showing an inert placeholder that says what is missing and offers `window.cactusConsent.open()` underneath - a launcher that simply vanishes reads as "this site does not have that", and someone who declined has no way back. Whether the visitor has answered the banner at all (rather than answered and declined) is not in `window.__cactusConsent`, which flattens both to `false`; the presence of the `cactus-consent` cookie is the signal for that, and is all a module should read of it. The live-chat module is the reference implementation: see [Live Chat](Live-Chat).
 
 ### Known limitation
 
