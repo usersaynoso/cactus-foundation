@@ -117,7 +117,7 @@ The product's own SKU is now staff-only too, and by default. It's a buying refer
 
 ## Categories, tags and collections
 
-**Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes, and get a page and an optional card badge of their own - see below. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say) with their own page and optional cover image.
+**Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes, and get a page and an optional card badge of their own - see below. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say), each with a page of its own. Unlike categories they follow no rule and inherit nothing: a product is in a collection because you put it there. See **Collections** below.
 
 ### Tags
 
@@ -177,6 +177,27 @@ Every category also gets a thumbnail beside its name in the list, so the ones st
 Pointing at a tile also shows its second picture on its own, without any clicking, and drops back to the cover when the mouse moves away. That second picture is either the product's own next photo or, where it hasn't got one, a variation you've ticked **Image up front** - the ones already shown with the product's own pictures on its page. Variation colours you haven't put up front stay behind the arrows, so pointing at a tile never flicks it to a colour nobody asked about.
 
 **Spinning a 3D model from the grid.** If you have the 3D Views add-on and a product (or one of its variations) has a model, its card shows a small **3D** button in the bottom-right corner. Clicking it loads the model right there in the card to turn, tilt and zoom, with a close button to go back to the photos. It follows the photo you're on: flick to a variation's picture and tap **3D**, and you get that variation's model with its own material; if that variation has none, it falls back to the first model the product has. No model on the product or any of its variations means no button at all. Only one card's model is live at a time - opening another closes the last - so a grid full of them stays light.
+
+### Collections
+
+**Shop → Catalogue → Collections** is where a collection is built and looked after. A collection is a shelf you fill yourself: "Under £200", "Everything in oak", "The six things we actually want on the front page". Nothing lands on it automatically, which is the point.
+
+Each collection in the list shows a stack of the first few products in it, its name, how many products it holds, and the web address its page lives at. A collection holding nothing at all is flagged **Empty**, since an empty collection makes for an empty page. Drag the handle beside a collection to move it up or down; that order is the order collections come out in wherever the site lists them.
+
+Beside every collection sit the things you'll reach for most:
+
+- **View.** Opens that collection's page on the live site in a new tab, so you can look at what a shopper sees without losing your place here.
+- **Copy link.** Puts the collection's web address on your clipboard, ready to paste into a newsletter, a post, or a menu.
+- **Duplicate.** Makes a copy of the whole thing, wording, search settings and product list included, called "<name> (copy)". Handy when the autumn version of a collection is last year's with four things swapped out. The original is left alone.
+- **Delete.** Removes the collection and its page. The products in it stay in your catalogue; they just lose this grouping.
+
+Open a collection and you get two tabs.
+
+**Details** holds the words. The **name**, the **web address** (yours to type out rather than something that quietly follows the name around, because changing it stops old links working), and a **description** printed at the top of the collection's page. Underneath that is **How this page looks in search results**: a title and a description for search engines, each with a counter that turns amber once it's long enough to be cut short in a listing, and a preview of roughly what Google will print. Leave both blank and the collection's name and description are used, which is usually fine and occasionally not.
+
+**Products** is the collection itself. Search your catalogue in the box at the top and click a product to put it on the shelf, or use **Add all** when a search has already found exactly the run you wanted. Products already in the collection say so rather than going in twice. Below that is the collection in the order shoppers will see it: drag a product up the list, nudge it with the arrows, or press **Sort A-Z** and have done with it. **Remove** takes a product off the shelf and does nothing else to it. Anything still in draft or archived is labelled, because those don't show on the collection page however carefully you've placed them.
+
+There's no Save button on that tab, and that isn't an oversight: every add, removal and reorder is saved the moment you make it.
 
 ---
 
