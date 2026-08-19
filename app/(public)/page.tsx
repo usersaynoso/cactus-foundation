@@ -1,16 +1,18 @@
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
+import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
 
-export default async function RootPage() {
-  // One read of the singleton row covers both the setup gate and the welcome
-  // screen below. A failed read means "not set up", same as before, and
-  // redirect() throws, so it must stay outside the catch.
-  const config = await prisma.siteConfig
+// generateMetadata and RootPage both need the singleton config and, when one
+// is assigned, the homepage row. cache() keeps each at a single query per
+// request, same as the [slug] route does for its page row.
+const getRootConfig = cache(() =>
+  prisma.siteConfig
     .findUnique({
       where: { id: 'singleton' },
       select: {
@@ -19,19 +21,48 @@ export default async function RootPage() {
       },
     })
     .catch(() => null)
+)
+
+const getHomepage = cache((id: string) =>
+  prisma.infoPage
+    .findUnique({
+      where: { id },
+      select: {
+        id: true, title: true, body: true, bodyFormat: true,
+        builderData: true, publishedData: true, status: true,
+        metaDescription: true, ogImageId: true,
+      },
+    })
+    .catch(() => null)
+)
+
+// Without this, the root URL - the address every crawler and shared link
+// starts from - served the layout's install defaults while the same content
+// on /<slug> carried the page's real title, description and OG image.
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const config = await getRootConfig()
+    if (!config?.setupCompleted || !config.homepageId) return {}
+    const page = await getHomepage(config.homepageId)
+    if (!page || page.status === 'draft') return {}
+    const ogImageUrl = page.ogImageId
+      ? await prisma.media.findUnique({ where: { id: page.ogImageId }, select: { url: true } }).then((m) => m?.url)
+      : undefined
+    return { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined }
+  } catch { return {} }
+}
+
+export default async function RootPage() {
+  // A failed config read means "not set up", same as before, and redirect()
+  // throws, so it must stay outside any catch.
+  const config = await getRootConfig()
 
   if (!config?.setupCompleted) {
     redirect('/setup')
   }
 
   if (config.homepageId) {
-    const page = await prisma.infoPage.findUnique({
-      where: { id: config.homepageId },
-      select: {
-        id: true, title: true, body: true, bodyFormat: true,
-        builderData: true, publishedData: true, status: true,
-      },
-    }).catch(() => null)
+    const page = await getHomepage(config.homepageId)
 
     if (page) {
       const isDraft = page.status === 'draft'

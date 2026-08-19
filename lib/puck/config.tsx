@@ -2163,7 +2163,7 @@ function Card(props: any) {
 function ImageChipPanel(props: any) {
   const {
     mediaUrl, alt, chips = [], boxShadow = 'none', borderRadius = 'none', borderStyle = 'none',
-    borderColor = 'var(--color-border)', borderWidth = '1px', padding,
+    borderColor = 'var(--color-border)', borderWidth = '1px', padding, imageLoading = 'auto',
     framePadding = 'none', frameBg = 'none', gridPattern = 'none', scanEffect = 'off',
     sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
@@ -2206,7 +2206,7 @@ function ImageChipPanel(props: any) {
           behind), while the scan beam and chips come later in the DOM so they
           paint over the image without needing an explicit stacking order. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
+      <img src={mediaUrl} alt={alt ?? ''} loading={imageLoading === 'eager' ? 'eager' : imgLoading(puck)} {...(imageLoading === 'eager' ? { fetchPriority: 'high' as const } : {})} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -3487,6 +3487,10 @@ export const puckConfig = {
         frameBg: { type: 'select' as const, label: 'Panel background', options: [{ value: 'none', label: 'None' }, { value: 'subtle', label: 'Subtle fill' }, { value: 'gradient', label: 'Gradient' }] },
         gridPattern: { type: 'select' as const, label: 'Blueprint grid', options: [{ value: 'none', label: 'Off' }, { value: 'subtle', label: 'On' }] },
         scanEffect: { type: 'select' as const, label: 'Scan sheen (animated)', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] },
+        // Above-the-fold hero panels are usually the page's largest image;
+        // "Load immediately" opts them out of the site-wide lazy-load setting
+        // and flags the fetch as high priority so the browser gets on with it.
+        imageLoading: { type: 'select' as const, label: 'Image loading', options: [{ value: 'auto', label: 'Site default' }, { value: 'eager', label: 'Load immediately (above the fold)' }] },
         padding: paddingField,
         ...STICKY_FIELDS,
         ...aosFields,
@@ -3495,7 +3499,7 @@ export const puckConfig = {
         mediaUrl: '', alt: '',
         chips: [{ label: 'Label', value: 'Detail text', position: 'top-right' as const, animationType: 'none' as const, animationDelay: 'none' as const }],
         boxShadow: 'md' as const, borderStyle: 'solid' as const, borderColor: 'var(--color-border)', borderWidth: '1px' as const, borderRadius: 'lg' as const,
-        framePadding: 'none' as const, frameBg: 'none' as const, gridPattern: 'none' as const, scanEffect: 'off' as const,
+        framePadding: 'none' as const, frameBg: 'none' as const, gridPattern: 'none' as const, scanEffect: 'off' as const, imageLoading: 'auto' as const,
         padding: 'none', ...STICKY_DEFAULTS, ...aosDefaults,
       },
       // Until an image is picked the panel is just a placeholder, so only the
