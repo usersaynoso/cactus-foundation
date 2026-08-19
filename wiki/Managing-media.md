@@ -76,6 +76,8 @@ The same 50 MB ceiling covers 3D model files. They go the same way photos do - b
 > **Necessary, not merely worth doing, if you want 3D models.** A Worker deployed before this release will turn every 3D file away, because accepting them is new and your Worker only learns new things when you send it a fresh copy. Redeploy and they upload as normal. Photos are unaffected either way.
 >
 > **And once more, if you would rather people didn't help themselves to your 3D models.** A redeployed Worker will only hand out a model file to someone whose link carries a valid pass, and Cactus expires those passes after a day or so. Copied links go stale, and other websites can't point at your models at all. Photographs are deliberately left alone, so nothing else on your site changes. Until you redeploy, models are served to anyone who has the address - which is what every Worker did before now.
+>
+> **Once more still, if your pictures are feeding a shopping comparison site.** Storage occasionally fumbles a perfectly good request - once or twice in a hundred, more when something is working through your whole catalogue at speed - and the old Worker passed the fumble straight on as an error. A person's browser shrugs and asks again; a shopping feed does not, it simply marks the product as having a picture it cannot read. A redeployed Worker quietly asks storage again, twice, before giving up, and it also answers the "is this really there?" question that link checkers and shopping feeds ask before they download anything, which the old one refused outright. If Google Merchant Center has been turning products down over their images, this is very likely why.
 
 ---
 
@@ -123,13 +125,19 @@ All of these tiles are counted from Cactus's own records. If you want to know wh
 Below that is a row of controls to help you find things in a hurry:
 
 - A **search box** that looks inside the folder you're standing in, filtering as you type so you don't have to press Enter and wait. Next to it a small **In [folder name] / Everywhere** switch appears: leave it be to search where you are, or flip it to sweep the whole library. Searching a folder means that folder itself - files tucked away in folders inside it aren't counted, which is the same set you'd see by browsing it. If a search inside a folder comes up empty, the message offers a one-click **Search all folders**, and the little tag under the controls always says which of the two you're looking at.
-- **Sort** - newest or oldest first, by name A-Z or Z-A, or largest to smallest.
-- **File type** - show everything, just images, or just other files.
+- **Sort** - newest or oldest first, by name A-Z or Z-A, by **file size** (largest or smallest file first), or by **picture size** (biggest or smallest picture first). The last two are a different question from the first two: a scan of a postage stamp and a wall-sized photograph can weigh exactly the same on disc and be nothing alike on a page, so "biggest picture" sorts by how many pixels across and down a photo actually is.
+- **File type** - show everything, just images, just videos, just 3D files, or the odds and ends that are none of those (PDFs, zips and so on).
 - **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
 - **Tags** - narrow down to a single tag (see [Tags](#tags) below).
-- A **view switch** on the right flips between a **grid** of thumbnails and a tidy **list** - the list is handy when you want to eyeball names, sizes and folders down a column, and you can sort it by tapping the Name, Size or Uploaded headings. Cactus remembers both your chosen view and sort order for next time.
+- A **view switch** on the right flips between a **grid** of thumbnails and a tidy **list** - the list is handy when you want to eyeball names, sizes and folders down a column, and you can sort it by tapping the Name, Size, Dimensions or Uploaded headings. Cactus remembers both your chosen view and sort order for next time.
 
-Whenever a filter is on, a little tag appears under the controls spelling out what you're looking at ("Images only", "Not in use", and so on). Each has an × to lift just that one, or **Clear all** to start fresh. A small line above the files tells you how many there are, so you always know how big the set you're looking at is. If a search or filter turns up nothing, the empty message offers a one-click **Clear filters** to get everything back.
+#### Measuring your pictures
+
+Cactus records a photo's width and height the moment it arrives, and shows it in the list view and on the file's own preview. Pictures uploaded **before** that came along have never been measured, so they can't take part in a picture-size sort and sit at the end of it instead.
+
+The first time you choose one of the picture-size sorts, a note appears above the files saying how many are unmeasured, with a **Measure image sizes** button beside it. It works steadily through them in the background, showing its progress as it goes, and it picks up where it left off if you wander off mid-way - so on a big library you can run it, leave it, and come back. A file it genuinely can't read (one whose storage has gone walkabout, say) is left unmeasured and reported at the end, rather than holding up the rest. Videos, 3D files and vector logos never carry a measurement: a video isn't a picture, and a vector has whatever size you draw it at.
+
+Whenever a filter is on, a little tag appears under the controls spelling out what you're looking at ("Images only", "3D files only", "Not in use", and so on). Each has an × to lift just that one, or **Clear all** to start fresh. A small line above the files tells you how many there are, so you always know how big the set you're looking at is. If a search or filter turns up nothing, the empty message offers a one-click **Clear filters** to get everything back.
 
 Each file carries a small **in use** dot (green) or unused (grey) marker. Files you've already slimmed down wear a green **✓ Optimised** badge, and any tags you've added show as little chips. Any photo that's missing its alt text gets a small **Alt?** flag in the corner, so gaps in your descriptions are easy to spot and fix. If a file's preview can't be loaded, you'll see a tidy placeholder rather than a broken-image icon.
 
@@ -163,6 +171,7 @@ Folders keep a growing library tidy - one for logos, one for blog photos, one fo
 - **Open a folder** by clicking its name in the tree, or a step in the breadcrumb trail to hop back up.
 - **Rename or delete a folder** using the small pencil and bin icons that appear beside its name in the tree.
 - **Upload straight into a folder** by opening it first, then clicking **Upload** - the new files land right there.
+- **The number beside each folder** counts everything inside it, subfolders and all - so a folder that only holds other folders no longer reads "(0)" while quietly containing two hundred photos. Hover the number and it tells you the split: how many are filed in that folder itself (which is what you see when you click it) and how many are in there altogether.
 - **Stay where you were**: the folder you're viewing is remembered in the page address, so refreshing the page (or bookmarking it, or sending the link to a colleague) opens that same folder rather than tipping you back out to the top.
 
 **Drag and drop** is the quickest way to file things away: grab any thumbnail and drop it onto a folder in the tree (or onto a step in the breadcrumb). Selected several files first? Dragging any one of them carries the whole selection along.
