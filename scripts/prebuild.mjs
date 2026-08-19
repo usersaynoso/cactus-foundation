@@ -94,3 +94,16 @@ if (failed) {
   console.error(`[prebuild] ${failed.label} failed — aborting build`)
   process.exit(failed.status ?? 1)
 }
+
+// 3. Last, because it needs both the module code and the generated wiring on
+// disk: prove no client component can reach server-only code. This is the only
+// moment THIS install's pinned module versions are assembled together, and a
+// bad combination fails the bundler with a page of unrelated-looking errors
+// about 'fs' and 'net'. Seconds here, named edge, versus a minute there and a
+// guessing game. See scripts/check-client-graph.mjs.
+const clientGraph = await run('client graph', 'node', ['scripts/check-client-graph.mjs'])
+flush(clientGraph)
+if (clientGraph.status !== 0) {
+  console.error('[prebuild] client graph check failed — aborting build')
+  process.exit(clientGraph.status ?? 1)
+}
