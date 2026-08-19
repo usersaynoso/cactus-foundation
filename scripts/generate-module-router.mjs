@@ -84,6 +84,7 @@ const apiRoutes = {}    // moduleName → [{ pattern, importPath }]
 const publicBases = new Map() // base → moduleName
 const publicPageLoaders = {}  // base → { key → importPath }
 const publicRoutes = {}       // base → [{ pattern, importPath }]
+const rootSlugClaims = []     // [{ moduleName, pageImport, claimImport, claimExport }]
 const sitemapModules = []     // [{ moduleName, importPath }]
 const robotsModules = []      // [{ moduleName, importPath }]
 
@@ -122,8 +123,22 @@ for (const moduleName of moduleNames) {
     }
   }
 
-  // Public routes — only for modules that declare a publicBasePath.
   const manifest = readManifest(moduleName)
+
+  // Bare top-level slug claims — independent of publicBasePath, so collect them
+  // before the `continue` below drops modules with no public base of their own.
+  const rootSlug = manifest?.publicRootSlug
+  if (rootSlug?.page && rootSlug?.claimImport && rootSlug?.claimExport) {
+    const toAlias = (p) => p.replace(/^\.\//, `@/modules/${moduleName}/`).replace(/\.tsx?$/, '')
+    rootSlugClaims.push({
+      moduleName,
+      pageImport: toAlias(rootSlug.page),
+      claimImport: toAlias(rootSlug.claimImport),
+      claimExport: rootSlug.claimExport,
+    })
+  }
+
+  // Public routes — only for modules that declare a publicBasePath.
   const base = manifest?.publicBasePath
   if (!base) continue
 
@@ -232,6 +247,23 @@ out.push(``)
 out.push(`const PUBLIC_BASES: string[] = ${JSON.stringify([...publicBases.keys()])}`)
 out.push(``)
 
+out.push(`// Modules that can claim a bare top-level slug for content of their own. Asked`)
+out.push(`// in registry order, and only once core has ruled out an info page and a module`)
+out.push(`// index at that slug, so core content always wins a collision. Both halves are`)
+out.push(`// lazy for the same reason the loaders above are.`)
+out.push(`type RootSlugClaimModule = Record<string, ((slug: string) => Promise<boolean>) | undefined>`)
+out.push(`const PUBLIC_ROOT_SLUG_CLAIMS: Array<{`)
+out.push(`  module: string`)
+out.push(`  claimExport: string`)
+out.push(`  loadClaim: () => Promise<RootSlugClaimModule>`)
+out.push(`  loadPage: PageModule`)
+out.push(`}> = [`)
+for (const { moduleName, pageImport, claimImport, claimExport } of rootSlugClaims) {
+  out.push(`  { module: '${moduleName}', claimExport: '${claimExport}', loadClaim: () => import('${claimImport}'), loadPage: () => import('${pageImport}') },`)
+}
+out.push(`]`)
+out.push(``)
+
 out.push(`function matchPattern(pattern: string[], actual: string[]): Record<string, string> | null {`)
 out.push(`  if (pattern.length !== actual.length) return null`)
 out.push(`  const params: Record<string, string> = {}`)
@@ -303,6 +335,19 @@ out.push(`  }`)
 out.push(`  return null`)
 out.push(`}`)
 out.push(``)
+out.push(`export async function resolveModuleRootSlugPage(`)
+out.push(`  slug: string`)
+out.push(`): Promise<{ Component: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> } | null> {`)
+out.push(`  for (const entry of PUBLIC_ROOT_SLUG_CLAIMS) {`)
+out.push(`    const claimModule = await entry.loadClaim()`)
+out.push(`    const claim = claimModule[entry.claimExport]`)
+out.push(`    if (!claim || !(await claim(slug))) continue`)
+out.push(`    const page = await entry.loadPage()`)
+out.push(`    return { Component: page.default, generateMetadata: page.generateMetadata, mappedParams: { slug } }`)
+out.push(`  }`)
+out.push(`  return null`)
+out.push(`}`)
+out.push(``)
 out.push(`export async function dispatchModulePublicRoute(`)
 out.push(`  base: string,`)
 out.push(`  path: string[],`)
@@ -369,5 +414,5 @@ out.push(`export const MODULES_IN_BUILD: ReadonlySet<string> = new Set(${JSON.st
 
 writeFileSync(routerPath, out.join('\n') + '\n')
 console.log(
-  `[generate-module-router] router.ts written (${moduleNames.length} module(s): ${moduleNames.join(', ') || 'none'}; public bases: ${[...publicBases.keys()].join(', ') || 'none'})`
+  `[generate-module-router] router.ts written (${moduleNames.length} module(s): ${moduleNames.join(', ') || 'none'}; public bases: ${[...publicBases.keys()].join(', ') || 'none'}; root-slug claims: ${rootSlugClaims.map((c) => c.moduleName).join(', ') || 'none'})`
 )

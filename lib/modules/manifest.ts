@@ -103,6 +103,20 @@ export const ModuleManifestSchema = z.object({
   // Single top-level public URL segment this module owns (e.g. "gazette" for
   // /gazette/*). Optional — most modules have no public-facing routes.
   publicBasePath: z.string().regex(/^[a-z][a-z0-9-]*$/, 'publicBasePath must be a single lowercase URL segment').optional(),
+  // Lets a module put its own content on a bare top-level slug (/my-post) rather
+  // than under publicBasePath (/gazette/my-post). `claimImport`/`claimExport`
+  // name a module file exporting `(slug: string) => Promise<boolean>`, asked only
+  // after core has failed to find an info page or a module index at that slug, so
+  // core content always wins a collision. `page` is the page file rendered when a
+  // claim is taken; it receives `params: { slug }` like any other page.
+  //
+  // Both are loaded lazily by lib/modules/router.ts. The public bare-slug route
+  // imports that file statically, so nothing declared here may be eager.
+  publicRootSlug: z.object({
+    page: z.string().min(1),
+    claimImport: z.string().min(1),
+    claimExport: z.string().min(1),
+  }).optional(),
   // Components this module contributes to extension points published by other
   // modules' own pages (e.g. a hard dependency's admin UI). `point` is an
   // arbitrary string namespace the publishing module documents and reads live

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
-import { resolveModulePublicPage } from '@/lib/modules/router'
+import { resolveModulePublicPage, resolveModuleRootSlugPage } from '@/lib/modules/router'
 import type { Metadata } from 'next'
 
 type Props = {
@@ -44,7 +44,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     // searchParams must travel too (the search module titles the page from ?q=),
     // and the call must be awaited INSIDE the try: returning the bare promise let
     // a rejection escape the catch and kill the whole page render.
-    const resolved = await resolveModulePublicPage(slug, [])
+    const resolved = (await resolveModulePublicPage(slug, [])) ?? (await resolveModuleRootSlugPage(slug))
     if (resolved?.generateMetadata) {
       return await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
     }
@@ -67,9 +67,11 @@ export default async function InfoPageRoute({ params, searchParams }: Props) {
   const page = await getPageBySlug(slug).catch(() => null)
 
   if (!page) {
-    // No InfoPage at this slug - fall through to a module's public index, if any.
-    // InfoPage always wins on a collision (checked above); this only runs on a miss.
-    const resolved = await resolveModulePublicPage(slug, [])
+    // No InfoPage at this slug - fall through to a module's public index, then to
+    // a module claiming the bare slug for content of its own (a gazette post at
+    // /my-post). InfoPage always wins on a collision (checked above); this only
+    // runs on a miss, and a module index beats a claim for the same reason.
+    const resolved = (await resolveModulePublicPage(slug, [])) ?? (await resolveModuleRootSlugPage(slug))
     if (!resolved) notFound()
 
     // Calling a dynamic API before rendering forces this request to render dynamically
