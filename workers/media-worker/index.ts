@@ -227,7 +227,14 @@ const worker = {
       return handleUpload(request, env, url)
     }
 
-    if (request.method !== 'GET') {
+    // HEAD is answered exactly as GET is, minus the body. It is not something a
+    // browser asks for - it is what link checkers and, more to the point,
+    // Google's Merchant Center image crawler send before downloading a product
+    // photograph. A 405 with four words of text/plain in the body reads to them
+    // as "whatever is here, it is not an image", which is how a shelf full of
+    // perfectly good pictures got turned down as an unsupported image type.
+    const isHead = request.method === 'HEAD'
+    if (request.method !== 'GET' && !isHead) {
       return readError('Method not allowed', 405, env)
     }
 
@@ -301,7 +308,7 @@ const worker = {
     })
 
     try {
-      const upstream = await fetchFromProvider(provider, fullKey, env, cfOptions, rangeHeader)
+      const upstream = await fetchFromProviderWithRetry(provider, fullKey, env, cfOptions, rangeHeader)
       if (!upstream.ok) {
         return upstream.status === 404
           ? readError('Not found', 404, env)
@@ -351,6 +358,16 @@ const worker = {
       } else {
         responseHeaders.set('Content-Type', 'application/octet-stream')
         responseHeaders.set('Content-Disposition', 'attachment')
+      }
+
+      if (isHead) {
+        // Content-Length is normally filled in by the runtime as it streams the
+        // body; with no body to stream, the upstream's own figure is the only
+        // one there is, and a HEAD that omits it is half an answer.
+        const length = upstream.headers.get('Content-Length')
+        if (length && !responseHeaders.has('Content-Length')) responseHeaders.set('Content-Length', length)
+        void upstream.body?.cancel()
+        return new Response(null, { status, headers: responseHeaders })
       }
 
       return new Response(upstream.body, { status, headers: responseHeaders })
@@ -464,7 +481,7 @@ async function verifyAssetToken(secret: string, key: string, token: string, nowM
 function corsHeaders(env: Env): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
-    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, content-type',
     'Access-Control-Max-Age': '86400',
   }
@@ -673,6 +690,42 @@ function constantTimeEqual(a: string, b: string): boolean {
 // ---------------------------------------------------------------------------
 // Per-provider fetch
 // ---------------------------------------------------------------------------
+
+// Object storage answers a small share of perfectly valid GETs with a transient
+// 5xx or a rate-limit - B2 does it once or twice in every hundred under load -
+// and the Worker's only reply was a 502 carrying four words of text/plain. A
+// browser quietly retries that on its own; a crawler does not. Google's Merchant
+// Center took the plain-text body for the picture itself and disapproved the item
+// as an unsupported image type, so a flake rate of one or two percent across
+// twenty thousand feed images became hundreds of rejected products.
+//
+// Two extra attempts with a short backoff. A 404 is never retried - it is an
+// answer, not a failure - and neither is anything else in the 4xx range beyond
+// the two that explicitly mean "ask again".
+const RETRYABLE_UPSTREAM_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const UPSTREAM_ATTEMPTS = 3
+
+async function fetchFromProviderWithRetry(
+  provider: string,
+  fullKey: string,
+  env: Env,
+  cfOptions: RequestInit['cf'],
+  range: string | null,
+): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    const lastAttempt = attempt === UPSTREAM_ATTEMPTS
+    try {
+      const response = await fetchFromProvider(provider, fullKey, env, cfOptions, range)
+      if (lastAttempt || response.ok || !RETRYABLE_UPSTREAM_STATUS.has(response.status)) return response
+      // Let go of the failed attempt's body rather than leaving the connection
+      // open behind us while we sleep.
+      await response.body?.cancel()
+    } catch (error) {
+      if (lastAttempt) throw error
+    }
+    await new Promise((resolve) => setTimeout(resolve, attempt * 150))
+  }
+}
 
 async function fetchFromProvider(
   provider: string,
