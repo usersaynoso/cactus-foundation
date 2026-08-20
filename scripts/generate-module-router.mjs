@@ -138,6 +138,23 @@ for (const moduleName of moduleNames) {
     })
   }
 
+  // Sitemap and robots contributions — deliberately BEFORE the publicBasePath
+  // check below. What a module puts in /sitemap.xml or /robots.txt has nothing
+  // to do with whether it serves public pages under a prefix of its own:
+  // ultimate-seo's admin-managed entries and shop-variations' per-combination
+  // product URLs are both about other modules' pages. Scanned from behind that
+  // `continue`, neither was ever collected, and both screens looked like they
+  // worked while changing nothing at all.
+  const sitemapPath = join(rootDir, 'modules', moduleName, 'lib', 'sitemap.ts')
+  if (existsSync(sitemapPath)) {
+    sitemapModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/sitemap` })
+  }
+
+  const robotsPath = join(rootDir, 'modules', moduleName, 'lib', 'robots.ts')
+  if (existsSync(robotsPath)) {
+    robotsModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/robots` })
+  }
+
   // Public routes — only for modules that declare a publicBasePath.
   const base = manifest?.publicBasePath
   if (!base) continue
@@ -173,15 +190,6 @@ for (const moduleName of moduleNames) {
     }
   }
 
-  const sitemapPath = join(rootDir, 'modules', moduleName, 'lib', 'sitemap.ts')
-  if (existsSync(sitemapPath)) {
-    sitemapModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/sitemap` })
-  }
-
-  const robotsPath = join(rootDir, 'modules', moduleName, 'lib', 'robots.ts')
-  if (existsSync(robotsPath)) {
-    robotsModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/robots` })
-  }
 }
 
 const out = []
