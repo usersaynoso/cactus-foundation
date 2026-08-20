@@ -762,6 +762,7 @@ Three rules make this point safe to answer, and they are the interesting part:
 
 - **Decline for a partial selection.** A half-chosen listing *is* the listing with some controls pre-set, and there is no end to the number of half-chosen addresses a crawler can invent. Only a complete combination that resolves to a real variation gets an address of its own.
 - **Answer from the thing, not from the request.** The variations provider spells its answer from the variation's own option values in display order, never from what was typed - so an alias value and a hand-reordered query string both fold onto the one address, which is what a canonical is for.
+- **Hand core the URL raw.** Next pastes each sitemap entry's `url` straight into `<loc>` with no escaping of its own, and the sitemap protocol wants entity-escaping there - one unescaped `&` from a query string ends the XML document at that line and loses every entry below it. `app/sitemap.ts` escapes the lot in one place (`lib/seo/sitemap-xml.ts`, core 0.5.1151), so a module's `getPublicSitemapEntries` returns plain URLs and must **not** pre-escape them, or they come out double-escaped.
 - **Publish and declare from one function.** Both sides call `buildVariationQuery` in `lib/url-selection.ts`. A sitemap advertising one spelling while the page declares another is worse than having neither: the page would be disowning the exact URL the sitemap just recommended.
 
 Shop only asks the point when the request actually carries a query string, so an ordinary product page pays nothing for the mechanism existing.
