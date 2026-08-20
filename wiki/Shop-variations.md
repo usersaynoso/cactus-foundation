@@ -47,7 +47,7 @@ That leaves a slight shame: you photograph a desk in six finishes, and a shopper
 
 So each row of the grid has two tick boxes: **Image up front** and **3D up front** - separate, because the combination with your best photo is not always the one with your best model, and you may only have one of the two to show off in the first place.
 
-Tick **Image up front** and that combination's first photo joins the product's own gallery straight away, before anyone has touched an option, sitting behind the product's own pictures in the thumbnail strip. Tick it on three rows and all three turn up. The product's own photo still takes the main stage, so nothing is hijacked - the extra ones are simply there to be clicked. The same photos also come first among this product's variation pictures on its tile in a grid, ahead of the rest of the range, and a shopper pointing at that tile is shown one where the product hasn't a second photo of its own - so the finish you've chosen to show off is the one that answers the cursor, not whichever colour happens to be first in the grid.
+Tick **Image up front** and that combination's first photo joins the product's own gallery straight away, before anyone has touched an option, arriving behind the product's own pictures in the thumbnail strip. Tick it on three rows and all three turn up. From there it is an ordinary picture in the gallery: it appears on the product's **Images** tab alongside the product's own photographs, marked **Variation**, and you drag it wherever you like among them - see [below](#arranging-them-among-your-own-pictures). The same photos also come first among this product's variation pictures on its tile in a grid, ahead of the rest of the range, and a shopper pointing at that tile is shown one where the product hasn't a second photo of its own - so the finish you've chosen to show off is the one that answers the cursor, not whichever colour happens to be first in the grid.
 
 Tick **3D up front** and the same thing happens for that combination's model, if it has one - with the [3D views](Product-3D-views) add-on installed, it joins the opening view behind the product's own model. A combination worth promoting for its model alone is fine too: tick just that box, and even with no photograph of its own the model still turns up.
 
@@ -57,15 +57,19 @@ The moment the last option lands, the gallery behaves exactly as it always has: 
 
 Left unticked, which is how every row starts, nothing changes at all.
 
-#### Letting the promoted ones lead
+#### Arranging them among your own pictures
 
-Behind the product's own pictures is the right way round most of the time: the photograph you made the cover is the one the page should open on, and the promoted finishes are extras to be clicked. Sometimes it is exactly backwards - the product's own shots are a line drawing, a dimensions diagram or a bare white cut-out, and the handsome photography lives on the combinations.
+Behind the product's own pictures is the right way round most of the time: the photograph you made the cover is the one the page should open on, and the promoted finishes are extras to be clicked. Sometimes it is exactly backwards - the product's own shots are a line drawing, a dimensions diagram or a bare white cut-out, and the handsome photography lives on the combinations. Often it is neither, and what you actually want is the oak one, then your two studio shots, then the walnut.
 
-So the product's **Images** tab has a tick box under the grid: **Show these images after the variation images**. Tick it and the promoted combinations lead the thumbnail strip, the product's own pictures follow, and the page opens on the first promoted photo instead of the cover. Untick it and everything goes back as it was. It only appears on products that actually have variations, and it changes nothing outside the product page - the cover photo still runs the cart and the search results.
+So a promoted combination's photo turns up on the product's **Images** tab as a tile in the same grid as the product's own pictures, marked **Variation** with the combination's name underneath it. Drag it anywhere in that grid, or use its arrows. Whatever order you leave the grid in is the order the shopper gets: the thumbnail strip on the product page, the pictures behind the arrows on its tile in a grid, and the picture the page opens on if you drag one to the front. Press **Save** as you would for any other change to the product.
 
-Underneath it sits a second box for the tiles: **Use the variation image on category pages**. Tick that and wherever this product turns up in a grid - category pages, search results, related products, a featured collection - it leads with the first combination ticked **Image up front** instead of its own cover. The product's own pictures are still there, just further along the arrows, so a shopper flicking through the tile sees the lot either way.
+Drag a **Variation** tile to the very front and it becomes the cover in every sense: the product page opens on it, and wherever the product turns up in a grid - category pages, search results, related products, a featured collection - the tile leads with it instead of the product's own photograph. The product's own pictures are still there, just further along the arrows, so a shopper flicking through the tile sees the lot either way. Leave it anywhere else and the tile leads with the product's own cover, exactly as it always did.
 
-The two are deliberately separate. A line drawing is a poor advert on a category page and a perfectly good first thing to see on the product page itself, so you can have the handsome finish leading the tile while the product page opens the way it always did - or the other way round, or both, or neither.
+Each **Variation** tile has a description box, the same as the product's own pictures. What you type there is that combination's photograph's description, so it's the one that goes to screen readers and search engines wherever the picture shows up, not only here.
+
+Press the **×** on a **Variation** tile to take it off the gallery. That is the **Image up front** tick going off and nothing more: the photograph stays on the combination it belongs to, ready to be shown again the moment somebody picks that finish, and you can put it back up front from the Variations tab whenever you like. Nothing is deleted.
+
+The note under the grid says the same in a sentence, and none of this appears on products without variations.
 
 ### Building an option from a list you already have
 
