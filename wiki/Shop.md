@@ -178,6 +178,8 @@ Fill those in and a parent category's page opens with its sub-categories as card
 
 Every category also gets a thumbnail beside its name in the list, so the ones still waiting for a picture are obvious at a glance.
 
+**Sharing a category page.** Paste a category's address into a message, a post or a chat and the preview brings a picture with it, the same as a product page does. It uses the category's own picture where you have set one, and borrows the first photograph from the products on the page where you have not, so a category shares tidily whether or not anyone has got round to choosing a cover.
+
 **What a category page lists.** By default a category shows every product from itself *and* all its sub-categories - so "Kitchenware" includes the mugs filed under "Mugs". If you'd rather a category showed only the products filed directly on it, you can change that. The shop-wide default is in **Shop → Settings → General** ("Products shown on a category page"), and any single category can override it from its **Edit** panel.
 
 **Flicking through photos on the grid.** When a product has more than one photo, its card on a listing grows a pair of arrows: shoppers hover (or, on a phone, just look) and click the right arrow to see the next picture without opening the product, and a left arrow appears once they've moved along. If you use variations, each variation's own photo joins the run too, so someone can flick straight from the blue one to the green one on the grid. A product with a single photo shows no arrows, as before. This turns up everywhere product cards do - category and collection grids, "you might also like" rows, and featured blocks.
@@ -202,6 +204,8 @@ Beside every collection sit the things you'll reach for most:
 Open a collection and you get two tabs.
 
 **Details** holds the words. The **name**, the **web address** (yours to type out rather than something that quietly follows the name around, because changing it stops old links working), and a **description** printed at the top of the collection's page. Underneath that is **How this page looks in search results**: a title and a description for search engines, each with a counter that turns amber once it's long enough to be cut short in a listing, and a preview of roughly what Google will print. Leave both blank and the collection's name and description are used, which is usually fine and occasionally not.
+
+A collection's address shares with a picture too. There is no cover to choose on a collection, so it borrows the first photograph from the products on the shelf, which is the same picture a shopper sees at the top of the page anyway.
 
 **Products** is the collection itself. Search your catalogue in the box at the top and click a product to put it on the shelf, or use **Add all** when a search has already found exactly the run you wanted. Products already in the collection say so rather than going in twice. Below that is the collection in the order shoppers will see it: drag a product up the list, nudge it with the arrows, or press **Sort A-Z** and have done with it. **Remove** takes a product off the shelf and does nothing else to it. Anything still in draft or archived is labelled, because those don't show on the collection page however carefully you've placed them.
 

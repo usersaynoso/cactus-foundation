@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.266"
+      "version": "v0.1.267"
     },
     {
       "name": "address-lookup-for-shop",
@@ -123,7 +123,7 @@
     {
       "name": "ultimate-seo",
       "repoUrl": "https://github.com/cactus-foundation-modules/ultimate-seo",
-      "version": "v0.1.7"
+      "version": "v0.1.8"
     },
     {
       "name": "search",

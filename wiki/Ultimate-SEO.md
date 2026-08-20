@@ -22,6 +22,8 @@ Two permissions, set on your core roles from **Users → Roles**:
 The first screen is the state of the nation:
 
 - **Average SEO score** across every analysed page, plus counts of pages missing descriptions, missing social images, missing focus keywords, and duplicate titles.
+
+**What counts as having a social image.** A page has one if it would actually show a picture when somebody pastes its address into a message or a post, not merely if a picture was chosen for it by hand. A product counts if it has photographs. A product category counts if it has its own picture, or if the products on it do. A collection counts if the products on the shelf do. So a shop that has never once opened the social image box is not told off eighty-odd times for something it is already doing perfectly well.
 - **Quick wins** - the lowest-scoring pages, one click away from their analysis.
 - **Recent site audits** with error and warning counts.
 - A **very loud warning** if the whole site is currently hidden from search engines (or the site status is coming-soon/maintenance, which blocks crawlers just as thoroughly). No point polishing metadata nobody is allowed to read.
