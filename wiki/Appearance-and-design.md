@@ -187,6 +187,12 @@ You can also upload a **dark-mode logo** and a **dark-mode favicon**. Both are o
 - The **dark-mode logo** is shown automatically whenever a visitor is viewing your site in dark mode, whether they chose it with the toggle or their device is set that way. Handy if your normal logo is dark ink that would vanish against a dark background.
 - The **dark-mode favicon** follows the visitor's browser or device setting rather than the toggle on your site, because browsers decide favicons for themselves. It swaps in when their system is set to dark mode.
 
+### Where the favicon shows up
+
+Your favicon is used for everything the site serves, not only its pages. Ask a browser for `/sitemap.xml`, `/robots.txt` or any other file the site hands out and there is no page for the icon to be attached to, so the browser falls back to asking the site for `/favicon.ico` directly - and that now answers with **your** icon rather than the Cactus one. Before, a site with its own branding showed somebody else's logo on the tab of its own sitemap, which is not a good look for something you might well be showing a client.
+
+Changing the favicon takes up to an hour to show everywhere, since browsers hold on to tab icons rather firmly. A hard refresh hurries it along.
+
 Uploading a logo or favicon requires a media storage provider to be set up. See [Managing media](Managing-media) for how to set that up.
 
 ---

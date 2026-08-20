@@ -28,7 +28,33 @@ The first screen is the state of the nation:
 
 ## Pages
 
-One table of everything with a URL: core pages always, and - when the modules are installed - Gazette posts, Shop products and Directory entries. Each row shows type, publication status, whether a meta description exists, and the latest score.
+One table of everything with a URL: core pages always, and - when the modules are installed - Gazette posts, Shop products and Directory entries.
+
+### Reading the table
+
+Across the top sit the figures you opened the screen for: how many pages there are, the average score, how many are good, need work or are frankly poor, how many have never been analysed, how many have no meta description, and how many carry a score that is now out of date. **Every one of those tiles is a filter.** Reading "43 pages have no meta description" and then having to build that filter by hand is precisely what made this screen basic; click the tile instead.
+
+Each row shows the page and its address, its type, publication status, the meta description (with its length, since length is the thing that goes wrong), the focus keyword, a count of failures and warnings, the score, and when it was last analysed.
+
+**Every column sorts.** Click a heading to sort by it, click again to turn it over. Columns start the way round they are useful - worst score first, most problems first, longest-unlooked-at first, missing descriptions first - because nobody opens this screen to admire the pages that are already fine. Pages with no score at all, no keyword or no date stay at the bottom whichever way the arrow points: absent is not the same as worst, and a wall of blanks at the top would bury what you asked to see.
+
+### Narrowing it down
+
+Under the tiles: filter by **content type**, by **published or not**, by **score band**, and by **issue**. The issue list is built from what the analyser actually found on your site, commonest first with a count beside each - *No meta description (43)*, *Duplicate title (7)* - plus two of its own: **Never analysed** and **Score out of date**.
+
+**Score out of date** is the useful one nobody thinks to ask for. It means the page has been edited since it was last analysed, so the score describes a version of the page that no longer exists. The row says so, and so does the detail panel.
+
+The search box matches titles, addresses, focus keywords and meta description text at once.
+
+Your filters, sort order and page size are remembered, so coming back to the screen picks up where you left it. **Clear filters** puts it all back.
+
+### Working through a long list
+
+- **Page size** of 25, 50, 100 or the lot, with the usual Previous/Next underneath, so a shop with four hundred products is a table rather than a scroll.
+- **Tick boxes** on each row, and one in the heading that takes the whole page of results. Once anything is ticked, a bar appears with **Analyse selected** on it - and, when your filters match more than is on screen, **Select all *N* matching**.
+- **Export** hands you the current view as a spreadsheet, in the order it is on screen, with the description, keyword, score, failure and warning counts and both dates. Useful for handing a list to whoever writes the copy.
+
+### The detail panel
 
 Click a row and the detail panel opens:
 
@@ -43,7 +69,8 @@ Click a row and the detail panel opens:
 Clicking Analyse on four hundred products one at a time is nobody's idea of an afternoon. The button beside the filters does the lot:
 
 - **Analyse all *N*** scores every page in the table and saves the results, with a progress bar and a **Stop** button for when you change your mind. It works through the list in small batches, so a big catalogue is a longer wait rather than a broken one.
-- Narrow the list first with the search box or the content-type filter and the button follows suit - it reads **Analyse these *N*** and only touches what you can see. Handy for scoring just the Gazette, or just the products whose name you searched for.
+- Narrow the list first with any of the filters and the button follows suit - it reads **Analyse these *N*** and only touches what the filters match, whether or not it is on the page you are looking at. Filter to **Never analysed** and press it for the obvious first pass; filter to **Score out of date** and press it to bring everything back up to date after a busy week of editing.
+- Or tick individual rows and use **Analyse selected**, for when only a handful are worth the wait.
 - Focus keywords are left exactly as they are. A bulk run re-scores pages, it never re-words them.
 - When it finishes you get the count and the average score, and the Dashboard's figures catch up with it.
 
@@ -68,6 +95,8 @@ Run it on demand from the button, or let it run itself weekly (Mondays, 4am, whe
 - **Extra sitemap entries** - your pages and module content are in the sitemap automatically; anything else you want crawled can be added here with optional priority and change frequency.
 - Both screens link straight to the live `/sitemap.xml` and `/robots.txt` so you can see the result.
 
+> **Fixed in 0.1.6.** Both lists were being collected only from modules that serve public pages under a prefix of their own, which this module does not - so the rules you added here were saved, listed back to you, and then had no effect whatsoever on the live `/sitemap.xml` and `/robots.txt`. They apply now. If you added a Disallow rule at any point and wondered why the page was still being crawled, that is why, and it is worth a look at the list to check you still mean all of it.
+
 ## Structured data blocks
 
 Two new blocks appear in the page builder:
@@ -86,7 +115,7 @@ Two new blocks appear in the page builder:
 ## For developers
 
 - Repo: [cactus-foundation-modules/ultimate-seo](https://github.com/cactus-foundation-modules/ultimate-seo)
-- Requires core `0.5.436+`. No environment variables; the weekly audit authenticates with the standard `CRON_SECRET`.
+- Requires core `0.5.1150+` (earlier core builds never collected this module's sitemap and robots entries at all). No environment variables; the weekly audit authenticates with the standard `CRON_SECRET`.
 - Tables are prefixed `seo_` (settings singleton, per-page analysis, audit runs and issues, robots rules, sitemap entries) and are torn down on uninstall.
 - Integration is entirely through existing module hooks: `lib/sitemap.ts` (`getPublicSitemapEntries`), `lib/robots.ts` (`getPublicRobotsDisallow`), a `settingsTabs` manifest entry, manifest `puckBlocks`, and a `cronJobs` entry. No core changes.
 - One-click fixes write only to core `InfoPage` rows (columns plus the Puck `root.props` mirror in both draft and published data, so a later publish does not revert them). Module-owned content is analysed read-only and deep-linked to its own editor - this module never writes another module's tables.
