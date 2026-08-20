@@ -1,6 +1,6 @@
 # Ultimate SEO
 
-**Ultimate SEO** is the SEO command centre for a Cactus site. It gathers every page the site serves - core pages and the content of any installed modules (Gazette posts, Shop products, Directory entries) - into one place, scores each one against a set of search-friendly rules, suggests fixes, applies the easy ones with one click, crawls the live site the way a search engine would, and puts the sitemap and robots controls in the admin where they belong.
+**Ultimate SEO** is the SEO command centre for a Cactus site. It gathers every page the site serves - core pages and the content of any installed modules (Gazette posts, Shop products, product categories and collections, filter pages, Directory entries) - into one place, scores each one against a set of search-friendly rules, suggests fixes, applies the easy ones with one click, crawls the live site the way a search engine would, and puts the sitemap and robots controls in the admin where they belong.
 
 > **Where it lives now.** SEO used to take four sidebar links. It takes one - **SEO** - with Dashboard, Pages, Site audit and Sitemap & robots as tabs across the top. Old links still work.
 
@@ -28,7 +28,9 @@ The first screen is the state of the nation:
 
 ## Pages
 
-One table of everything with a URL: core pages always, and - when the modules are installed - Gazette posts, Shop products and Directory entries.
+One table of everything with a URL: core pages always, and - when the modules are installed - Gazette posts, Shop products, Shop **product categories** and **product collections**, **filter pages**, and Directory entries.
+
+The last three are the ones people are surprised to find here, and they are usually the ones doing the heavy lifting. A product category at `/shop/categories/office-chairs`, a collection at `/shop/collections/impulse` and a filter page at `/green-office-chairs` are each a real address with its own page title and description, written to bring people in from a search - so they are listed, scored and filtered exactly like everything else. Whether a shop's products sit at `/desk-name` or `/shop/products/desk-name` is followed too; categories, collections and filter pages keep their own addresses either way.
 
 ### Reading the table
 
