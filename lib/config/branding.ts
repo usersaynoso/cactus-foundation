@@ -7,6 +7,10 @@ export const BRANDING_DEFAULTS = {
   faviconSvg: '/favicon.svg',
   faviconPng: '/favicon-96x96.png',
   favIco: '/favicon.ico',
+  // The bundled Cactus icon itself. /favicon.ico is a route now (see
+  // app/api/branding/favicon/route.ts), so the fall-back file has to sit at an
+  // address that route can redirect to without meeting itself coming back.
+  favIcoFallback: '/cactus-favicon.ico',
   appleTouch: '/apple-touch-icon.png',
   icon192: '/web-app-manifest-192x192.png',
   icon512: '/web-app-manifest-512x512.png',

@@ -174,6 +174,10 @@ const ALWAYS_PASS = [
   '/api/webhooks/',
   '/_next/',
   '/favicon.ico',
+  // Where next.config.ts sends /favicon.ico. A tab icon is not a page: it must
+  // answer during setup and while the site is closed, exactly as the static
+  // file it replaced did.
+  '/api/branding/',
 ]
 
 // Paths allowed during first-run setup (before setupCompleted = true).

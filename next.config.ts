@@ -38,6 +38,20 @@ const config: NextConfig = {
     loader: 'custom',
     loaderFile: './lib/media/loader.ts',
   },
+  async rewrites() {
+    return {
+      // beforeFiles runs ahead of the static file handler, which is the whole
+      // point: /favicon.ico has to reach the branding route rather than a file
+      // in /public. Everything that has no document head - /sitemap.xml,
+      // /robots.txt, a JSON response - falls back to this address for its tab
+      // icon, so it must answer with the site's own favicon and not Cactus's.
+      beforeFiles: [
+        { source: '/favicon.ico', destination: '/api/branding/favicon' },
+      ],
+      afterFiles: [],
+      fallback: [],
+    }
+  },
   async headers() {
     // In development, static chunks and source maps are same-origin. Adding an
     // Access-Control-Allow-Origin header makes WebKit/Safari treat them as CORS
