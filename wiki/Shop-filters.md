@@ -46,7 +46,9 @@ So this module separates the two:
 - **Live counts** next to each filter, recalculated as they tick (a tick never counts
   against its own siblings, so options don't vanish while you're choosing between them).
 - Ticks within a group widen the results (Blue *or* Green); ticks across groups narrow
-  them (Blue *and* Oak).
+  them (Blue *and* Oak), and where both ticks describe a variation, **the same
+  variation has to answer both**. Red and Leather asks for a red leather chair, not a
+  chair sold in red fabric and, separately, in black leather.
 - A **Selected** summary at the very top of the filter panel, above every group: one
   removable chip per tick, each naming the group it came from ("Seat colour Black"),
   so a shopper can see and undo what they have chosen without scrolling or opening a
@@ -84,6 +86,16 @@ So this module separates the two:
   **"Show N products"** button - the count updates live as filters are ticked - which
   drops the shopper back at the top of the results. Reduced-motion settings are
   respected.
+- **Sharing the bottom of a phone screen.** A live chat bubble parks itself in a
+  bottom corner and sits above more or less everything, which used to include the
+  filter controls: it covered most of the "Show N products" button, and all but a
+  sliver of the "Filter" button behind it. The open sheet now sits above the chat
+  bubble, as a panel demanding an answer should, and on phones the closed "Filter"
+  button has moved from the middle of the bottom edge to the left of it, well clear
+  of the corner - and nicely under a thumb while it is there. On tablets there is
+  room for both, so it stays in the middle. If you also use Quotes, a quote opened
+  from behind the sheet still comes up on top: the pecking order is quote, then
+  filter sheet, then chat.
 - The selection is mirrored into the page address, so a filtered view can be shared,
   bookmarked, or returned to with the back button.
 - **The cards dress for the occasion.** With Blue ticked, a product that comes in blue
@@ -111,6 +123,72 @@ So this module separates the two:
    block's settings (or a tag), pick columns, filter position, whether counts show and
    whether the Sort by dropdown appears.
 
+## Filter collections - a page of its own for a filtered view
+
+Shoppers search for "green office chairs", not for "office chairs, then colour, then
+green". A **filter collection** turns any filtered view into a page in its own right:
+the same products, the same panel, the filters you pick already ticked, at its own
+address with its own page title, description and intro.
+
+`/green-office-chairs` shows what `/shop/categories/office-chairs?colour=green` shows,
+but it is a page - so it can be linked to, shared, put in a menu, and found.
+
+**Admin > Shop > Catalogue > Filter Collections.**
+
+1. **Add a page.** Give it a name ("Green Office Chairs") and say what it starts from -
+   a category, a collection, a tag, or the whole shop. The address is made from the
+   name; you can change it, and an address already spoken for by a page or a product
+   quietly gets a number on the end rather than saving a page nobody can reach.
+2. **Tick what arrives ticked.** Every filter you have set up is offered, grouped as it
+   is on the panel. Tick Colour: Green and that is the page.
+3. **Write it up.** A short description sits under the heading. **Design the intro**
+   opens the full-screen page builder for the longer piece - the same builder your
+   product and category descriptions use.
+4. **Fill in the search bits.** Page title and description for search results, a
+   sharing picture, and a tick to keep the page out of search engines entirely if it is
+   only there to be linked to from a campaign.
+5. **Publish.** Until you do, only staff can see it, and it says so across the top.
+
+Published pages are added to your sitemap automatically, at their own address, unless
+they are marked as hidden from search.
+
+**Listing them all in one place.** Shop's **Collection Browser** block - the one behind
+an "all our collections" page - grows an **Include Filter collections** switch once this
+add-on is installed. Turn it on and your published filter collections appear on that
+page beside the shop's own collections, using the same tiles: name, short description
+and sharing picture, each linking to its own address. Drafts are left off, since a
+shopper following that link would only find a page they are not allowed to see. The
+tiles carry no product count, because working one out means running the whole filtered
+query for every page on the list, and that is a slow page for the sake of a number.
+
+**Nothing is locked.** The panel is the ordinary panel: a shopper who lands on Green
+Office Chairs and unticks green sees every office chair, exactly as they would have on
+the category page. That is deliberate - a filter page is a good starting point, not a
+cul-de-sac.
+
+**The filters stay one set.** A collection only names a starting selection. Add a new
+colour to the Colour group next month and every page built on Colour picks it up with
+no revisiting.
+
+### How the pages look
+
+All filter collection pages share one design, so you build forty of them without
+designing forty layouts.
+
+Out of the box they arrive plain but working: breadcrumb, heading, your intro, the
+filter panel and grid. To dress them up, go to **Design > Layouts**, add a layout of
+type **Filters > Filter collection page**, and build the arrangement you want from
+three blocks:
+
+- **Filter Page: Heading** - the page's name, its short description and the trail back
+  to where its products come from.
+- **Filter Page: Intro** - whatever that page's own designed intro says. Pages with
+  nothing written yet simply leave no gap.
+- **Shop: Filters & Product Grid** - the usual grid. It needs no settings here: the
+  page tells it which products to start from and which filters to tick.
+
+Publish it and every filter collection wears it, present and future.
+
 ## Settings
 
 Under **Settings > Shop > Filters**:
@@ -132,6 +210,14 @@ Spec rules work the same way but read Product Attributes values instead, from th
 product itself or any of its variations. Spec and price matches don't swap the card
 photo - there is no single variation to borrow one from.
 
+Ticks in two different groups are checked against a single variation wherever they
+can be. A listing sold in red fabric and in black leather satisfies Red on one chair
+and Leather on another, so it is not a red leather chair and no longer answers both
+ticks at once. Filters that belong to the whole listing rather than to any one
+variation stay listing-wide: a price band, a sub-category, and a spec stamped on the
+parent product rather than on its variations. Those never rule a listing out on the
+grounds that some other variation carries them.
+
 Because rules match by name and label, they survive re-imports that recreate option rows.
 The flip side: rename an option value everywhere and the filter stops covering it until
 you re-tick the new name in the picker.
@@ -151,6 +237,9 @@ you re-tick the new name in the picker.
 - Products with no variations can't match variation filters, so they hide once any filter
   is ticked. Rather the point, but worth knowing. Price bands and spec rules read the
   product itself too, so those still work for variation-less products.
+- On a filter collection page, unticking a preselected filter sticks: come back to the
+  page, refresh it, share the link, and it stays unticked. Arriving at the plain address
+  again is what puts the page's own starting selection back.
 - Filtering and pre-selection read Shop and Shop Variations' existing data and deep
   links. The photo behaviour uses a small contract the Shop module's card carousel
   offers for exactly this: the filter names which variations' pictures are allowed and

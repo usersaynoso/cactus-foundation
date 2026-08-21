@@ -8,6 +8,7 @@ export type Sort =
   | 'largest' | 'smallest'
   | 'largest_dim' | 'smallest_dim'
 export type TypeFilter = 'all' | 'image' | 'video' | 'model' | 'other'
+export type ShapeFilter = 'all' | 'square' | 'not-square'
 export type UseFilter = 'all' | 'in-use' | 'unused'
 export type ViewMode = 'grid' | 'list'
 
@@ -29,6 +30,15 @@ export const SORTS: { value: Sort; label: string }[] = [
 /** The sorts that read Media.width/height, so the page knows when to offer to
  *  measure the images that have never been measured. */
 export const DIMENSION_SORTS: Sort[] = ['largest_dim', 'smallest_dim']
+
+/** Proportions, read off the recorded pixel size. Both narrowings show only
+ *  measured pictures: videos, 3D files, vectors and anything never measured have
+ *  no shape to judge, so they are left out rather than guessed at. */
+export const SHAPE_FILTERS: { value: ShapeFilter; label: string }[] = [
+  { value: 'all', label: 'Any shape' },
+  { value: 'square', label: 'Square (1:1)' },
+  { value: 'not-square', label: 'Not square' },
+]
 
 export const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: 'All types' },

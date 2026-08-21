@@ -20,6 +20,8 @@ Nothing about your checkout changes. Shoppers can still buy exactly as they alwa
 
 This is the gentler of the two, and it is what you get on installing the module. It is worth having on a perfectly ordinary shop: people building a big order over several evenings stop losing it, and people who need somebody else's approval have something to show them.
 
+Nothing in this mode asks a shopper to request a price - there is a checkout, and that is what it is for. That now holds everywhere, including the Space Planner, which used to put an **Ask for a quote** button on every layout no matter how the shop sold. Its own switch under **Shop settings → Space Planner** still decides whether you want the button; this setting decides whether it is offered at all.
+
 ### Quotes only
 
 No checkout at all. Every **Add to basket** becomes **Add to quote**, the basket leads to your quote request page instead of the till, and `/shop/checkout` stops serving. Shoppers build a list, send it over, and you come back with a price.

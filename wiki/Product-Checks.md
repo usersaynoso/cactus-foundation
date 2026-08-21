@@ -27,8 +27,9 @@ drifts as the catalogue grows.
 Plus one notes box per product, shared across all twelve - a place for "waiting
 on supplier photography" rather than a diary.
 
-A check older than **six months** counts as stale. Every save records who
-saved it.
+A check older than **six months** counts as stale, on the product page and the
+product tile alike. The admin list can be switched to a tighter or looser window
+just for the view you are looking at. Every save records who saved it.
 
 ## Where it appears
 
@@ -77,12 +78,46 @@ Add-ons - the same grid, already expanded, for updating while you edit.
 
 ### Admin → Product checks
 
-The staleness list: every catalogue product, the longest-unchecked first.
-A product that has never been checked at all sorts to the very top, which is
-rather the point. Each row shows how many aspects are current, the oldest
-check's age, which aspects are outstanding, who last saved and when, and
-links through to the product's editor. Hidden variation children and archived
-products are left out.
+The working list: every catalogue product, the longest-unchecked first until
+you say otherwise. Hidden variation children and archived products are left
+out.
+
+**Each row** shows the product's picture and SKU, twelve small squares (one per
+aspect: filled green means current, amber means checked but out of date, an
+empty dashed square means never checked), how many are current out of twelve,
+the age of the oldest check, the first line of any note, and who last saved.
+Hover a square for that aspect's age; **click it to mark that aspect checked
+today** without opening anything. The arrow at the end of a row opens the full
+grid inline, where dates can be backdated and the note edited.
+
+**Counting along the top** are six tiles - everything in view, all checks done,
+checks outstanding, never checked, gone out of date, and carrying a note. Each
+one is a button that filters the list to it. Under them is a chip per aspect
+with how many products still want that aspect looked at; clicking one narrows
+the list to exactly those products, so "which listings still have no 3D models"
+is one click.
+
+**Filtering:** search by name, slug or SKU; by product status; by category
+(which follows sub-categories down the tree); by whether the checks are done or
+not; by a single aspect being done, not done, never checked or out of date; and
+by whether the product carries a note. There is also a "current for" choice -
+three months, six months or a year - which decides what counts as still in
+date for the view you are looking at, without changing anything saved.
+
+**Sorting:** longest unchecked first or last, fewest checks done first or most,
+notes first or last, recently saved first or longest since saved, and name
+either way. The column headings sort too - click one, click it again to turn it
+round.
+
+**Doing several at once:** tick the boxes down the left, choose an aspect (or
+"Every check") in the bar that appears, and mark them all checked today. The
+same bar can clear those dates back to never, which asks first.
+
+**Export CSV** hands you whatever the filters currently show as a spreadsheet -
+handy for giving somebody a morning's worth of checking on paper.
+
+The view lives in the address bar, so a filtered, sorted list is a link you can
+send to whoever is doing the checking, and a refresh lands you back on it.
 
 ## Installing it
 

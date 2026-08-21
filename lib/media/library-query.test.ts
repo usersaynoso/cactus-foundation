@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OPTIMISABLE_TYPE_WHERE, TYPE_FILTER_WHERE, parseLibraryQuery } from '@/lib/media/library-query'
+import { OPTIMISABLE_TYPE_WHERE, SHAPE_FILTER_WHERE, TYPE_FILTER_WHERE, parseLibraryQuery } from '@/lib/media/library-query'
 import {
   ACCEPTED_UPLOAD_TYPES,
   MODEL_EXTENSION_TYPES,
@@ -114,6 +114,19 @@ describe('TYPE_FILTER_WHERE', () => {
   })
 })
 
+describe('SHAPE_FILTER_WHERE', () => {
+  // The 1:1 comparison itself is a column-against-column field reference - the
+  // database's job, and not something a hand-rolled evaluator could stand in for
+  // honestly. What can go wrong on this side is the guard in front of it, so that
+  // is what is pinned down: drop it and every unmeasured video, model and vector
+  // reads as "not square", because NULL is not equal to NULL.
+  it.each(['square', 'not-square'] as const)('%s only matches measured pictures', (key) => {
+    const and = (SHAPE_FILTER_WHERE[key] as { AND: unknown[] }).AND
+    expect(and).toContainEqual({ width: { not: null } })
+    expect(and).toContainEqual({ height: { not: null } })
+  })
+})
+
 describe('parseLibraryQuery', () => {
   const parse = (params: Record<string, string>) =>
     parseLibraryQuery(new URLSearchParams(params), 25, 1)
@@ -129,8 +142,13 @@ describe('parseLibraryQuery', () => {
     expect(parse({ type }).type).toBe(type)
   })
 
+  it.each(['all', 'square', 'not-square'])('accepts the %s shape filter', (shape) => {
+    expect(parse({ shape }).shape).toBe(shape)
+  })
+
   it('falls back rather than trusting a hand-typed value', () => {
     expect(parse({ sort: 'biggest' }).sort).toBe('newest')
     expect(parse({ type: 'audio' }).type).toBe('all')
+    expect(parse({ shape: 'round' }).shape).toBe('all')
   })
 })

@@ -198,6 +198,7 @@ They live in **Shop settings → Space Planner**.
 - **Hide the Space Planner from customers (staff only).** On by default. The whole feature disappears from your shop while your own staff carry on using it - see [Staff only](#staff-only).
 - Where the buttons appear, and what they say.
 - What customers can do with a layout: quote, email it to themselves, ask for a photoreal picture, show delivery dates. These four switches now genuinely govern four buttons - until 0.1.23 the buttons they were meant to control had never been built, so the switches sat there controlling nothing.
+- **"Ask for a quote" also answers to how your shop sells.** From 0.1.29 the button only appears when **Shop settings → Quotes** is set to quotes-only. Set to a normal shop with a checkout, nothing else on the site invites a quote request, so the planner stopped being the one place that did - it was offering a layout for pricing on shops that had never asked to be sent any. The switch here is still yours, it simply cannot conjure up a quote request on a shop that does not take them, and the settings page now says so beside it rather than leaving you to work it out.
 - Spacing guidance - walkway widths and the space behind a desk for a chair - and the wording that travels with every warning.
 - Limits: how many spaces a customer keeps, how many layouts per space, how much goes in one layout.
 - Housekeeping: how long usage counts are kept.

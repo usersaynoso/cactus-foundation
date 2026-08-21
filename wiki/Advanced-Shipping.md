@@ -64,6 +64,13 @@ It needs the **Shop** and **Product Attributes** modules installed.
   combination they have settled on carries no service at all, that row appears on
   its own with nothing above it, so the page still says where the delivery went
   rather than going quiet.
+- **You can turn that row off entirely.** In Delivery settings, *Services this
+  choice cannot have* is ticked by default, which is everything described above.
+  Untick it and a product page simply never mentions a service the chosen
+  variation is not offered - no greyed-out names, no "available in" line, only
+  the services that combination can actually be bought with. Worth doing if your
+  range is broad enough that the row reads as a list of things the shopper
+  cannot have rather than a nudge towards something better.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
@@ -300,9 +307,11 @@ and shipping tab you get four more tabs:
   attribute is your **shipping attribute** (the one that usually means "range"),
   which attribute holds a **person count** for per-person pricing, your holiday
   region, the default service shown before the
-  shopper changes it, and how the basket shows the picker: the **chosen service
+  shopper changes it, how the basket shows the picker: the **chosen service
   with the rest as chips** (the default), a compact **dropdown**, or **radio
-  buttons** that list every option at once.
+  buttons** that list every option at once - and whether a product page names the
+  **services the chosen variation cannot have** (on by default; untick it to show
+  only what that variation can be bought with).
 
 There is nothing to configure in your hosting - no keys, no environment
 variables. Set your dispatch timing, add your services, import the holidays, and

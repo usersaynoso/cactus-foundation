@@ -43,6 +43,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |
 | [Gemini Watermark Remover](Gemini-Watermark-Remover) | Stripping the watermark from Google Gemini images, straight into your media library |
 | [Ultimate SEO](Ultimate-SEO) | Site-wide SEO scoring, page analysis with one-click fixes, crawl audits, sitemap and robots controls |
+| [UK Bookkeeping](UK-Bookkeeping) | Keeping the books, filing your VAT return with HMRC, and working out your accounts and corporation tax from those same records |
 | [Configuration reference](Configuration-reference) | Every setting in the admin panel, explained |
 
 ## For developers

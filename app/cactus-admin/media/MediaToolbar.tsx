@@ -1,7 +1,7 @@
 'use client'
 
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
-import { SORTS, TYPE_FILTERS, type Sort, type TypeFilter, type UseFilter, type ViewMode, type TagInfo } from './types'
+import { SHAPE_FILTERS, SORTS, TYPE_FILTERS, type ShapeFilter, type Sort, type TypeFilter, type UseFilter, type ViewMode, type TagInfo } from './types'
 
 // The filter/search/view row plus a chip strip beneath it summarising every
 // active narrowing, each chip individually removable. Keeps the controls tidy on
@@ -14,6 +14,8 @@ export default function MediaToolbar({
   onSort,
   type,
   onType,
+  shape,
+  onShape,
   use,
   onUse,
   optimisableOnly,
@@ -37,6 +39,8 @@ export default function MediaToolbar({
   onSort: (v: Sort) => void
   type: TypeFilter
   onType: (v: TypeFilter) => void
+  shape: ShapeFilter
+  onShape: (v: ShapeFilter) => void
   use: UseFilter
   onUse: (v: UseFilter) => void
   /** Set by the "Optimisable" stat tile rather than by a dropdown, so it only ever appears as a chip. */
@@ -65,6 +69,7 @@ export default function MediaToolbar({
     })
   }
   if (type !== 'all') chips.push({ key: 'type', label: TYPE_CHIP_LABELS[type], onRemove: () => onType('all') })
+  if (shape !== 'all') chips.push({ key: 'shape', label: SHAPE_CHIP_LABELS[shape], onRemove: () => onShape('all') })
   if (use !== 'all') chips.push({ key: 'use', label: use === 'in-use' ? 'In use' : 'Not in use', onRemove: () => onUse('all') })
   if (optimisableOnly) chips.push({ key: 'optimisable', label: 'Still to optimise', onRemove: () => onOptimisableOnly(false) })
   if (tagFilter) chips.push({ key: 'tag', label: `Tag: ${tagFilter}`, onRemove: () => onTagFilter('') })
@@ -104,6 +109,9 @@ export default function MediaToolbar({
         </Select>
         <Select value={type} onChange={(v) => onType(v as TypeFilter)} label="File type">
           {TYPE_FILTERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </Select>
+        <Select value={shape} onChange={(v) => onShape(v as ShapeFilter)} label="Picture shape">
+          {SHAPE_FILTERS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </Select>
         <Select value={use} onChange={(v) => onUse(v as UseFilter)} label="Usage">
           <option value="all">All usage</option>
@@ -162,6 +170,11 @@ const TYPE_CHIP_LABELS: Record<Exclude<TypeFilter, 'all'>, string> = {
   video: 'Videos only',
   model: '3D files only',
   other: 'Other files',
+}
+
+const SHAPE_CHIP_LABELS: Record<Exclude<ShapeFilter, 'all'>, string> = {
+  square: 'Square only',
+  'not-square': 'Not square',
 }
 
 function Select({ value, onChange, label, children }: { value: string; onChange: (v: string) => void; label: string; children: ReactNode }) {

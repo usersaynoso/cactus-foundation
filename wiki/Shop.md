@@ -203,7 +203,7 @@ Beside every collection sit the things you'll reach for most:
 
 Open a collection and you get two tabs.
 
-**Details** holds the words. The **name**, the **web address** (yours to type out rather than something that quietly follows the name around, because changing it stops old links working), and a **description** printed at the top of the collection's page. Underneath that is **How this page looks in search results**: a title and a description for search engines, each with a counter that turns amber once it's long enough to be cut short in a listing, and a preview of roughly what Google will print. Leave both blank and the collection's name and description are used, which is usually fine and occasionally not.
+**Details** holds the words, and there are now three sizes of them - the same three a category has. A **short description** is the one line printed on the collection's card and under its heading. A **full description** is the paragraph or two shown further down the page, once you've added the Collection Description block to your Collection layout. And a **designed description** opens the full-screen page builder in a new tab, where the description can have pictures, columns and callouts in it; anything you build there is shown in place of the plain full description, and a collection with one is marked **Designed** in the list. Above them sit the **name** and the **web address** (yours to type out rather than something that quietly follows the name around, because changing it stops old links working). Underneath that is **How this page looks in search results**: a title and a description for search engines, each with a counter that turns amber once it's long enough to be cut short in a listing, and a preview of roughly what Google will print. Leave both blank and the collection's name and description are used, which is usually fine and occasionally not.
 
 A collection's address shares with a picture too. There is no cover to choose on a collection, so it borrows the first photograph from the products on the shelf, which is the same picture a shopper sees at the top of the page anyway.
 
@@ -263,6 +263,119 @@ Two sensible limits: you can't dispatch more of something than was bought, and y
 - **Offer to split the shipment** - anything on the shelf can go straight away, with the pre-order following on. That's the setting to use if you want to dispatch part of an order, and shoppers are told as much at checkout.
 
 If you're on "hold everything" and the stock has actually arrived, take the products off pre-order on their **Stock & delivery** tab and the order will let you mark it dispatched. Or switch this setting over to splitting shipments, if sending things separately suits you better after all.
+
+---
+
+## Invoices
+
+A receipt says what somebody paid. An invoice says who charged them, at what VAT rate, under what registration number, and against a number that has to stay unique for as long as the business exists. The shop has always printed the first. It can now raise the second.
+
+Invoicing is **off** until you switch it on, under **Settings → Shop → Invoices**. That is deliberate: turning it on is a decision about paperwork, not a display preference, and nobody should inherit one by updating.
+
+### Switching it on
+
+Tick **Raise invoices for orders**, then answer three things:
+
+- **When to raise one.** Completed, dispatched, paid for, or never (you raise each one yourself). Completed is the default: it is the point at which you have finished your side of the bargain. Whichever you pick, there is a button on every order too.
+- **What they are called.** Invoice numbers look like `INV-000123`. You choose the prefix; the running number comes from the database and cannot be edited, which is rather the point of it. Change the prefix whenever you like and future invoices follow it. Nothing already issued is renumbered, because renumbering issued invoices is not a thing a business may do.
+- **Payment terms.** Days from the invoice date until payment is due, printed as a "due by" date. Leave it at 0 if you are paid at the checkout, and no due date is printed at all.
+
+Then fill in your own details: business name, trading address, VAT registration number, company number, accounts email and phone. The VAT number is the one that matters. Without it the document is a bill rather than a VAT invoice, and a customer trying to reclaim the tax will be back in touch. The settings screen says so if you leave it empty.
+
+The wording boxes underneath - the heading, an opening line, how to pay, your terms, a footer line - are copied onto each invoice as it is raised. Editing them later changes what future invoices say and never rewrites paperwork you have already sent out.
+
+### Designing what it looks like
+
+The invoice is a layout, like the shop's other pages. **Appearance → Layouts → New**, pick **Invoice document**, and you get the same builder you use everywhere else with six blocks made for the job:
+
+| Block | What it prints |
+| --- | --- |
+| Heading | Your logo, the heading, the invoice and order numbers, the date and any due date |
+| From and to | Your details and registration numbers, who it is for, and the delivery address when it differs |
+| Items | What was bought, with options and an optional rate column. Product codes are off unless you turn them on |
+| Totals | Subtotal, discount, delivery, tax and the total |
+| Tax summary | Net, tax and gross at each rate. This is the block that makes it a VAT invoice |
+| Payment and terms | How to pay, your terms and the footer line, which sits centred unless you move it |
+
+Every block takes a font of its own and its own labels, so an invoice can be made to look like your letterhead rather than like everyone else's. Three starters come with it: a standard invoice, one with the tax rate against every line for a shop selling at more than one rate, and a plain one.
+
+Two things the invoice leaves out on purpose. Your **business name in words** is printed only where there is no logo, since most logos have the name drawn into them already and printing it twice beside itself looks like a mistake - the Heading block will print it always, or never, if you would rather. And **delivery dates never appear on an invoice**. They belong on the confirmation email, where they are still a live question; an invoice is read months later by an accountant, by which time "by Wednesday the 2nd" is either history or wrong.
+
+You do not have to design anything to start. Until you publish a layout of your own, invoices print with the standard arrangement above.
+
+### On the order
+
+Open an order and there is an **Invoice** panel on the right, once invoicing is on. Before one exists it says when invoices go out on this shop, with a **Raise the invoice now** button beside it. After one exists it shows the number, the date, the total, **View**, **PDF**, and what the books made of it.
+
+An invoice is never edited. If one is wrong, press **Void**, say why, and raise a fresh one. The wrong one stays on file marked void, its number stays spent, and the reason you typed is what explains the gap to anyone who asks later. Voiding needs the shop manager permission; raising one needs only the order permission.
+
+Voiding also tells your books, so the sale and the VAT on it come back out. See below.
+
+### What the customer sees
+
+If **Show it to the customer on their own order page** is ticked, the invoice appears as a link on their order in their account, beside the printable receipt. The link is signed, so it works from an email without anybody signing in, and it carries nothing personal in the address itself.
+
+**Download PDF** prints the layout you designed through a real browser, so the PDF and the page cannot drift apart. If your hosting cannot run the printer, switch the PDF off and the on-screen invoice carries on regardless.
+
+### Sending it to your books
+
+If the **UK Bookkeeping** module is installed, every invoice raised is handed to it as income the moment it is raised, ready for the VAT return. Nobody types anything twice. There is nothing to switch on in the shop for this: it happens because the books are there.
+
+What goes over is itemised: each product with its quantity and stock code, delivery as a line of its own, every one at the rate it was actually charged at. The books record it that way, so the entry reads as the list of what was sold rather than one lump per VAT rate, and it comes to the penny what the invoice came to. Credit notes go over itemised in the same way.
+
+The books decide what to do with it, under **Settings → Bookkeeping → Sales from elsewhere on this site**: whether to take them at all, which category they are filed under, and whether they land as records or as drafts for somebody to look at first.
+
+Whatever the books say comes back onto the order's invoice panel in words - "Recorded as income of £1,872.00 in the books", or the reason it could not be. If it failed (the books were mid-VAT-return, say), press **Send to the books again** once the cause is sorted. Sending the same invoice twice never records the sale twice.
+
+**The invoice itself goes with it.** The books keep the PDF against the entry as evidence, so the document behind a line is a click away rather than a hunt through the shop. If the PDF could not be printed at the time, the panel says so and **Send to the books again** attaches it.
+
+**Voiding takes it back out.** Press **Void** and the books are told in the same breath: if the VAT return it belongs to is still open, the entry is removed outright; if that return has been filed, or the money has been matched to a bank line, the entry stays and a reversing entry goes into the open period, which is what a credit note is. Either way the panel says which happened. If the books were down at that moment, the button beside a voided invoice reads **Tell the books it is void** and says it again.
+
+---
+
+## Credit notes
+
+An invoice says what you charged. A credit note says how much of it you have since handed back. They are two documents and both belong in the file: a customer with a refund on their card statement and nothing on paper has nothing to give their own accountant, and a set of books still carrying the whole sale is a set of books paying VAT on money you no longer have.
+
+Credit notes are **on** wherever invoicing is on. **Settings → Shop → Invoices → Credit notes** if you would rather they were not, or want to change what they are called.
+
+### When one is raised
+
+Whenever a refund actually goes through. That covers all three ways money goes back: the **Refund** button on an order, approving a return request with the refund ticked, and the hourly tidy-up that settles a refund whose outcome was not confirmed at the time.
+
+Nothing is raised for a refund that failed or is still in flight - only money that has genuinely moved gets a document - and an order that was never invoiced has nothing to credit, so it gets nothing.
+
+Part refunds are the ordinary case, and the arithmetic is the point of the exercise. Send back one £261.60 chair from a £3,673.20 order and the credit note credits that £261.60, of which £43.60 is VAT, at the rate that chair was actually sold at. On a mixed basket each rate is credited at its own rate: handing back the zero-rated half of an order and the standard-rated half are the same money and completely different tax.
+
+### What they are called
+
+Credit note numbers look like `CN-000001`, and they run in a sequence of their own. They never borrow invoice numbers - an accountant who finds a gap in your invoice numbering deserves a better answer than "one of those was a refund".
+
+### What it looks like
+
+The same as your invoice, because it **is** your invoice layout. There is nothing else to design: the credit note is drawn by the same six blocks on the same **Invoice document** layout, so an afternoon spent on your letterhead does the job twice. It leads with its own number, names the invoice it credits underneath, prints no due date because nothing is due, and where an invoice says "Paid in full - thank you" this says the money has gone back. That last line is yours to word.
+
+Figures are printed as positive amounts under a "Credit note" heading, which is how a credit note is written and what your customer expects to read. A column of minus signs looks like a mistake.
+
+### What the customer sees
+
+Credit notes appear beside the invoice on their own order page in their account, and they get emailed a copy when one is raised - both switchable, the email under **Settings → Shop → Invoices → Credit notes** and the on-page link under **Who can see it**. The wording of that email lives with every other email on the site, under **Settings → Emails**. **Download PDF** works exactly as the invoice's does.
+
+### On the order
+
+A **Credit notes** panel appears on the order once there is something to show, listing each one with its number, the amount, the tax, the invoice it credits and what the books made of it. **View** and **PDF** beside each.
+
+There is no void here, and none coming. An invoice can be withdrawn because it may be wrong before anybody acts on it. A credit note follows money that has already left your account and arrived in somebody else's, and there is no document that undoes that - if one is raised in error the answer is to invoice again, which is what an accountant would tell you too.
+
+If a refund somehow has no credit note against it - the books were down, or credit notes were switched off at the time - the panel says so and offers **Raise the credit note**. Pressing it twice does not make two.
+
+### Sending it to your books
+
+If the **UK Bookkeeping** module is installed, every credit note goes to it as it is raised, split by VAT rate, and the sale is reduced by exactly that much. The original sale stays where it is - it did happen - and the credit is recorded against it in the period the money went back, which is what a credit note is and where it belongs. The books never date it back into a quarter you have already filed.
+
+The credit note PDF goes with it as evidence, exactly as the invoice does. What the books say comes back onto the panel in words, and **Send to the books again** repeats it if they were down. Sending the same credit note twice never credits the books twice.
+
+One thing the books will refuse: crediting an invoice they have never seen. If the sale was never handed over - invoicing was switched on after the fact, say - the panel says so and tells you to send that invoice to the books first. Filing a credit against nothing would push your turnover below what you actually sold, which is a worse fault than the one being fixed.
 
 ---
 
@@ -466,9 +579,11 @@ The look of every kind of shop page can be customised in **Appearance → Layout
 
 Shop Home, Product, Checkout, Confirmation and Cart always show one of these designs (a plain default is published from the moment Shop is switched on, so there's never a blank page). Category and Collection pages keep their current simple grid look until you publish a starter for them - nothing changes there until you actively pick one.
 
-The **Category** tab has two blocks worth knowing about. **Category Browser** shows a category's sub-categories as cards - or, with its "Show as" setting flipped to **Pills**, as a compact row of wrapping link chips, which suits pages where the sub-categories are shortcuts above a product grid rather than the main event. Drop it on the Category design and it works out which category it's on by itself, so one design serves the lot. (It's the same block you can put on Shop Home to show your top-level categories.) **Category Description** prints whatever you've written for the category - the designed version if you've built one, the plain paragraph if you haven't, and nothing at all if you've written neither, so a category you haven't got round to yet doesn't leave a hole. There's a starter called **Sub-categories First** that puts the two in the sensible order: heading, sub-category cards, description, then the products.
+The **Category** tab has two blocks worth knowing about. **Category Browser** shows a category's sub-categories as cards - or, with its "Show as" setting flipped to **Pills**, as a compact row of wrapping link chips, which suits pages where the sub-categories are shortcuts above a product grid rather than the main event. On a phone that row stops wrapping and becomes a single strip you swipe sideways: four sub-category names used to stack into four full-width rows, which is a lot of signposting to scroll past before reaching anything you can actually buy. The pill half-showing at the right edge is what tells a shopper there is more to swipe to. Drop it on the Category design and it works out which category it's on by itself, so one design serves the lot. (It's the same block you can put on Shop Home to show your top-level categories.) **Category Description** prints whatever you've written for the category - the designed version if you've built one, the plain paragraph if you haven't, and nothing at all if you've written neither, so a category you haven't got round to yet doesn't leave a hole. On a phone a plain written-up description is folded down to about four lines with a **Read more** under it, so a couple of decent paragraphs no longer push the products off the bottom of the screen - the whole thing is one tap away, and search engines are handed all of it either way. Desktop and tablet show the lot as before. A description you've *designed* in the builder is left exactly as you built it, on the grounds that folding someone's careful layout at an arbitrary line is not our call to make - if a designed description needs to be shorter on a phone, the builder's own device settings will do it properly. There's a starter called **Sub-categories First** that puts the two in the sensible order: heading, sub-category cards, description, then the products.
 
-**Collection Browser** does the same job for collections, and it is the one block you can also drop on an ordinary page rather than a shop one - which is how you get a single "all our collections" page. It lists every collection that has products in it, as cards or pills, with the number of products and a picture borrowed from the first item in each. Nothing to keep up to date: make a new collection, put something in it, and it appears. A collection with nothing in it is left off, so a half-built one never shows up as a promising tile leading to an empty page. The settings cover columns, the wording on the link, whether the description and the count are shown, and a cap if you only want the first few.
+**Collection Browser** does the same job for collections, and it is the one block you can also drop on an ordinary page rather than a shop one - which is how you get a single "all our collections" page. It lists every collection that has products in it, as cards or pills, with the number of products and a picture borrowed from the first item in each. Nothing to keep up to date: make a new collection, put something in it, and it appears. A collection with nothing in it is left off, so a half-built one never shows up as a promising tile leading to an empty page. The settings cover columns, the wording on the link, whether the description and the count are shown, and a cap if you only want the first few. If you have a companion add-on that keeps browsing pages of its own - the Filters add-on and its filter collections, for instance - the block grows an **Include** switch for it, so one page can list everything worth browsing by rather than making a shopper find two. The switch only appears when you actually have such an add-on installed.
+
+**Collection Description** is the collection twin of Category Description: drop it on the Collection layout and it prints that collection's description wherever you put it - the designed version when there is one, the plain paragraphs when there isn't, and nothing at all on a collection you haven't written up yet.
 
 The product grid shows each item as a card with its photo, price and a short line of detail, and can flag an item with small badges - **New**, **Low stock** or a **Trade price** - worked out from the product's tags and its stock level. Give a product the `new` or `trade` tag to earn one of those two; the low-stock badge appears on its own once stock drops to your warning threshold. For badges in your own wording and colours, switch them on for tags under **Shop → Catalogue → Tags** instead - that's also where the automatic **Sale** badge comes from. A product wearing several says all of them, side by side in the corner of its photo. The card's own design - where the photo, name, price and badge sit - comes from the **Product Card** layout described below, and that one design is used everywhere a product card shows up: the catalogue grid, the "you might also like" row, a featured collection, or a single pinned product.
 
@@ -523,7 +638,7 @@ From shop 0.1.198 the blocks that used to take life as they found it carry setti
 - The **product grid** can order its shelf: newest first (as always), best sellers first, price in either direction, or by name. It can carry a **heading** and a smaller line beside it, and you can reword the message shown when a shelf turns out to be empty.
 - A **featured collection** can take a heading of its own instead of the collection's name, the same ordering choices as the grid, and a **View all** link through to the full collection page for shoppers who want more than the sample.
 - The **category browser**'s cards can drop their little descriptions where you'd rather have a tighter grid of pictures and names.
-- The **category header**'s small line above the name - it has said *The range* since the day it appeared - is now yours to reword or remove, and the breadcrumb trail and the description each have an on/off switch. The **collection header** gets the same two switches.
+- The **category header**'s small line above the name - it said *The range* for a long while - is yours to reword or remove, and the breadcrumb trail and the description each have an on/off switch. The **collection header** gets the same two switches. (That little line now starts **empty** on a newly added header, so a category page opens with its own name unless you give it something else to say. Headers already on your pages keep whatever they are set to.)
 - The **promo banner** chooses which side its picture sits and how big it is, a filled or outline button, centred text if the mood takes you, and a line of small print under the button for the terms nobody reads but everybody needs.
 - Every **checkout step heading** is editable - Contact details, Delivery address, Delivery method, Payment method, Order review - along with the order summary's heading and its **Edit basket** link, the wording on the **Place order** button (the total stays on it no matter what you call it), and the padlock reassurance line beneath it, which steps aside entirely if you blank it.
 - The **back-in-stock form**'s invitation line, the hint inside the email box, the button and the thank-you message are all yours to reword.
@@ -550,7 +665,7 @@ The checkout used to keep the shopper's actual order rather quiet: a totals tabl
 
 **Things that arrive together are listed together.** With **Advanced Shipping** installed, the summary sorts itself into deliveries rather than a flat column of products each repeating its own date: one heading per arrival day, soonest at the top, with everything landing that day beneath it. Where a day's items are all on the same service the heading says the lot - "Flat-pack - by Tuesday 25th of August" - and the line-by-line repetition of that same sentence goes away, since it has already been said. Where one day brings a flat-packed desk and a built chair, the heading states the day and each product quietly names its own service underneath, because one heading cannot honestly speak for both. Anything with no delivery date to promise sits at the end of the list, unheaded. Nothing is grouped away from what it belongs with: an accessory bought with a desk stays under its desk wherever the desk lands.
 
-That summary is its own block, **Shop: Checkout - Order summary**, and the ready-made checkout designs all include it: the single-column ones put it first, so the shopper starts by seeing what they're buying, and the two-column one puts the whole summary down the left with the checkout steps alongside on the right - and the summary can be set to stay put while the page scrolls, so the order never disappears off the top while someone types their address. A summary that stays put also scrolls a long order **inside itself**, since a block pinned in place with fifteen items in it would otherwise hang its own foot below the bottom of the window with no way of reaching it. That is the **Scroll a long order inside the block** setting: Automatic (which means whenever it stays in view), Always, or Never if you would rather it simply ran down the page. Leave the height empty and it takes as much of the window as it can under whatever sticky offset you set; name a length instead if your own header maths says otherwise. On a phone none of it applies - the page does the scrolling, as it should. On a phone the summary starts folded away behind a Show link (the item count and total stay visible), because the fields are what a phone-sized screen is really there for. And a basket whose items have since been removed from the shop now says so plainly, rather than presenting a heading over thin air. The checkout page itself now gives a published design proper room to spread out, rather than squeezing everything into one narrow middle column. An existing published checkout design won't change by itself - open **Appearance → Layouts → Shop → Checkout** and drop the block in wherever suits, or pick a fresh starter.
+That summary is its own block, **Shop: Checkout - Order summary**, and the ready-made checkout designs all include it: the single-column ones put it first, so the shopper starts by seeing what they're buying, and the two-column one puts the whole summary down the left with the checkout steps alongside on the right - and the summary can be set to stay put while the page scrolls, so the order never disappears off the top while someone types their address. A summary that stays put also scrolls a long order **inside itself**, since a block pinned in place with fifteen items in it would otherwise hang its own foot below the bottom of the window with no way of reaching it. That is the **Scroll a long order inside the block** setting: Automatic (which means whenever it stays in view), Always, or Never if you would rather it simply ran down the page. Leave the height empty and it takes as much of the window as it can under whatever sticky offset you set; name a length instead if your own header maths says otherwise. Scrolling inside the summary no longer swallows the page, either: run the list to its end and the wheel carries straight on down the page, taking the summary with it, rather than leaving the whole checkout stuck under the mouse. And a long order now gets a stretch of page to itself. Reach the bottom of the checkout form, keep scrolling, and the summary stays put while the rest of the order goes past - however many items are left - and only then does the page carry on to the foot of the page. The checkout form holds its place for that stretch too, rather than sliding off the top just as somebody is checking the order against it: both columns sit still, only the order moves, and the two set off again together once it has all been seen. It works whichever way round the two columns happen to be, and it works with a trackpad, a touchscreen, the arrow keys or a dragged scrollbar, because it is the page's own scrolling doing it rather than anything clever intercepting your mouse. An order short enough to fit on screen changes nothing at all. On a phone none of it applies - the page does the scrolling, as it should. On a phone the summary starts folded away behind a Show link (the item count and total stay visible), because the fields are what a phone-sized screen is really there for. And a basket whose items have since been removed from the shop now says so plainly, rather than presenting a heading over thin air. The checkout page itself now gives a published design proper room to spread out, rather than squeezing everything into one narrow middle column. An existing published checkout design won't change by itself - open **Appearance → Layouts → Shop → Checkout** and drop the block in wherever suits, or pick a fresh starter.
 
 The delivery address can look itself up, too. With the [Address Lookup](Address-Lookup) module installed (and an Ideal Postcodes key entered), the shopper types the first line of their address into the ordinary Address line 1 field, picks the right one from the suggestions underneath, and the rest of the address fills itself in. Without the module - or if the lookup service is having a bad day - the fields simply behave as they always have.
 
@@ -562,9 +677,11 @@ The last step earns some trust as well. The place-order button now says exactly 
 
 Picking a payment method is now just that - picking one. The methods that finish somewhere else (PayPal, Instant Bank Pay) used to whisk the shopper off the moment they touched the radio button, before they'd so much as glanced at the total. Now nothing happens until **Place order** is pressed, and that button is the only thing that hands anyone over. Coming back afterwards without having paid starts the payment again properly rather than quietly waving the order through to the thank-you page, which is the sort of tidiness you only notice when it's missing. And paying that way now empties the basket on the way through, so nobody is thanked for an order they're apparently still carrying.
 
-And the payment methods no longer insist on being last. A shopper who fancies choosing how they'll pay before they've finished typing their address can now do exactly that: the choice is remembered, a line underneath says what's still needed, and the card fields (or the bank details) appear on their own the moment the rest is done. What holds the order back instead is the **Place order** button, which stays greyed out until everything is genuinely finished and tells you which bit is missing - a payment method, or a tickbox further down. Rather better than being told off for doing things in the wrong order by a page that put them in that order in the first place.
+And the payment methods no longer insist on being last. A shopper who fancies choosing how they'll pay before they've finished typing their address can now do exactly that: the choice is remembered, a line underneath says what's still needed, and the card fields (or the bank details) appear on their own the moment the rest is done. What holds the order back instead is the **Place order** button, which stays greyed out until everything is genuinely finished and says, in one line above it, which bits are missing - a box further up, a payment method, a tickbox, or all three at once. Rather better than being told off for doing things in the wrong order by a page that put them in that order in the first place.
 
-And when the total isn't showing at all, the order review now says why in as many words. Rather than a blanket "fill in your details above", it lists the boxes still waiting - Email, Postcode, whatever it happens to be, named exactly as the form above names them, your own wording included if you've renamed the business-name box. Each one is a link that takes the shopper straight to it, which on a long checkout saves a good deal of scrolling and squinting. An address typed into the email box that isn't quite an address gets a note of its own rather than being called blank, since telling somebody to fill in a field they have very obviously filled in helps nobody.
+**The total no longer hides until the form is finished.** The **Order review** step used to replace its own figures with a list of boxes still to fill in, so a shopper who wanted to know what the thing actually came to had to type in their whole address to find out - which is precisely backwards, since the total is half of what they are deciding on. The figures are now there from the moment there is a basket: subtotal, any delivery or service charges, discount, VAT and the Total, updating as details go in. What's still outstanding has simply moved down to sit above the **Place order** button, where it belongs, each bit of it still a link that takes the shopper straight to the box in question - and the button stays greyed out until every one of them is done. Where the postcode or the delivery choice is still to come, a line under the figures says so, so nobody mistakes an early total for free delivery.
+
+And whatever is holding the order up is now said once, in one red line, rather than twice. A list of unfinished boxes in one place and a separate "choose a payment method" note in another left the shopper to work out that the two added up to the same refusal, so they are now a single sentence: "Complete your email and full name above, and then choose a payment method above to place your order." Every outstanding bit in it - each box, the payment method, the tickboxes - is a link that takes the shopper straight there, which on a long checkout saves a good deal of scrolling and squinting. The boxes are named exactly as the form above names them, your own wording included if you've renamed the business-name box. An address typed into the email box that isn't quite an address is asked to be corrected rather than filled in, with a note saying what looks wrong with it, since telling somebody to fill in a field they have very obviously filled in helps nobody. The line is red, and readable in both the light and the dark version of your site.
 
 The thank-you page is straighter about what happens next, too. Pay by bank and the money is authorised on the spot but takes a few minutes to actually clear, which used to leave the page saying only that the order was "awaiting payment confirmation" - the same wording someone gets when they've been asked to go and make a bank transfer themselves, and quite the opposite meaning. It now says the payment has gone through and that clearing usually takes a few minutes, and then the page waits with them: it checks quietly in the background and announces the moment the payment clears, so nobody sits there jabbing refresh. It checks briskly for the first minute, eases off, and after five minutes stops and says so, since the confirmation email is coming either way. Wander off to another tab and it picks the thread back up when you return. If the payment doesn't clear, the page says so plainly, points out that nothing has been charged, and sends the shopper back to checkout with their basket still intact rather than thanking them for an order that never happened. Behind the scenes those failures now actually land: a bank payment that fell over after being authorised used to sit in your orders list looking like money still on its way, forever, and now shows as failed like it should.
 
@@ -586,7 +703,7 @@ Below that you can add as many of your own as you like: age confirmations, a not
 
 What matters most is what happens afterwards. Every tickbox the shopper was shown is recorded on the order **in the wording they saw on the day**, along with whether they ticked it and when. Rewrite your terms next month and past orders still show what was actually agreed to - which is rather the point of asking. It's all on the order in the admin, under **Agreed at checkout**.
 
-A required box that hasn't been ticked simply leaves the **Place order** button greyed out, with a line above it saying which boxes are wanted - no clicking a button to find out it wasn't going to work. And because a tickbox in a browser is only ever a suggestion, the order won't be created without the required ones ticked even if someone tries to go round the form.
+A required box that hasn't been ticked simply leaves the **Place order** button greyed out, and the line above it adds "tick the boxes marked *" to whatever else is outstanding, as a link that goes to the first of them - no clicking a button to find out it wasn't going to work. And because a tickbox in a browser is only ever a suggestion, the order won't be created without the required ones ticked even if someone tries to go round the form.
 
 ### The order confirmation
 

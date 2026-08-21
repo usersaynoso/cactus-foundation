@@ -17,6 +17,9 @@ export type LibrarySort =
   | 'largest_dim' | 'smallest_dim'
 export type LibraryTypeFilter = 'all' | 'image' | 'video' | 'model' | 'other'
 export type LibraryUseFilter = 'all' | 'in-use' | 'unused'
+// Aspect ratio, asked of the recorded pixel size rather than of the file name.
+// Only ever narrows to measured pictures - see SHAPE_FILTER_WHERE.
+export type LibraryShapeFilter = 'all' | 'square' | 'not-square'
 
 // A folder id scopes to that folder's direct contents; null = the library root;
 // 'all' drops the folder constraint (used when searching or filtering by tag).
@@ -28,6 +31,8 @@ export type LibraryQuery = {
   tag?: string
   type: LibraryTypeFilter
   use: LibraryUseFilter
+  /** 1:1 or anything but, judged on Media.width/height. */
+  shape: LibraryShapeFilter
   /**
    * Narrow to the images the bulk-optimise button would actually act on: raster
    * (not SVG) and not yet re-encoded. The "Optimisable" stat tile counts exactly
@@ -122,6 +127,36 @@ export const TYPE_FILTER_WHERE: Record<Exclude<LibraryTypeFilter, 'all'>, Prisma
   },
 }
 
+/**
+ * The Shape dropdown, as where clauses.
+ *
+ * Both sides insist on a measured picture. width/height are null for videos, 3D
+ * files, vectors and anything uploaded before pixel sizes were recorded, and a
+ * file whose proportions nobody knows is not evidence of being square or of not
+ * being square - so neither option claims it. That is why the page offers to
+ * measure the unmeasured while a shape filter is on, the same as the picture-size
+ * sorts do.
+ *
+ * The comparison is column-against-column (a Prisma field reference), not against
+ * a number: there is no single value "square" to test for.
+ */
+export const SHAPE_FILTER_WHERE: Record<Exclude<LibraryShapeFilter, 'all'>, Prisma.MediaWhereInput> = {
+  square: {
+    AND: [
+      { width: { not: null } },
+      { height: { not: null } },
+      { width: { equals: prisma.media.fields.height } },
+    ],
+  },
+  'not-square': {
+    AND: [
+      { width: { not: null } },
+      { height: { not: null } },
+      { NOT: { width: { equals: prisma.media.fields.height } } },
+    ],
+  },
+}
+
 function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   const and: Prisma.MediaWhereInput[] = []
 
@@ -140,6 +175,8 @@ function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   if (q.tag) and.push({ tags: { some: { tag: { name: q.tag } } } })
 
   if (q.type !== 'all') and.push(TYPE_FILTER_WHERE[q.type])
+
+  if (q.shape !== 'all') and.push(SHAPE_FILTER_WHERE[q.shape])
 
   // isOptimisableType from lib/media/limits.ts, expressed in SQL - a raster image
   // or a 3D model the optimiser handles, not already done. It cannot call that
@@ -220,6 +257,7 @@ export async function queryMediaLibrary(
  *  a chain of comparisons that quietly drops whatever was added last. */
 const SORT_VALUES = ['newest', 'oldest', 'name', 'name_desc', 'largest', 'smallest', 'largest_dim', 'smallest_dim'] as const
 const TYPE_VALUES = ['all', 'image', 'video', 'model', 'other'] as const
+const SHAPE_VALUES = ['all', 'square', 'not-square'] as const
 
 /** Parse raw query params into a validated LibraryQuery. */
 export function parseLibraryQuery(params: URLSearchParams, perPage: number, page: number): LibraryQuery {
@@ -237,6 +275,11 @@ export function parseLibraryQuery(params: URLSearchParams, perPage: number, page
     ? (rawType as LibraryTypeFilter)
     : 'all'
 
+  const rawShape = params.get('shape')
+  const shape: LibraryShapeFilter = (SHAPE_VALUES as readonly string[]).includes(rawShape ?? '')
+    ? (rawShape as LibraryShapeFilter)
+    : 'all'
+
   const rawUse = params.get('filter')
   const use: LibraryUseFilter = rawUse === 'in-use' || rawUse === 'unused' ? rawUse : 'all'
 
@@ -245,6 +288,7 @@ export function parseLibraryQuery(params: URLSearchParams, perPage: number, page
     search: params.get('q') || undefined,
     tag: params.get('tag') || undefined,
     type,
+    shape,
     use,
     optimisable: params.get('optimisable') === '1',
     sort,

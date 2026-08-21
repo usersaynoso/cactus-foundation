@@ -81,4 +81,14 @@ Two things ship in the Shop module itself to keep Google happy about all those v
 
 Neither needs any setting up; they are simply how the Shop behaves from 0.1.243.
 
+## If Merchant Center turns products down over their pictures
+
+The one to know about is **"Unsupported image type"**. It sounds like the picture is the wrong sort of file, and it almost never is - Google is perfectly happy with JPEG, PNG, GIF and WebP, which is everything the media library makes.
+
+What it usually means is that Google asked your storage for the picture, got a shrug instead, and took the shrug for the picture. Storage does that to a small share of requests - once or twice in a hundred - and Google is working through every image in your catalogue in one go, so a small share of a very large number is a lot of turned-down products. Variations bear the brunt simply because there are more of them.
+
+The cure is one click: **Settings → Media → Deploy Worker**. A current media service asks storage again before giving up, and answers the quick "is it there?" check Google makes before downloading anything, which older ones refused. Once it is redeployed, ask Merchant Center to fetch your feed again and the rejections clear on the next run.
+
+Genuinely broken pictures are a different message - Google says it could not find the image, not that it could not read it.
+
 **Wiki:** [Home](Home) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Advanced Shipping](Advanced-Shipping) · [Modules](Modules) · [Configuration reference](Configuration-reference)

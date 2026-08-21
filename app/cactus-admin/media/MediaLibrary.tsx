@@ -23,7 +23,7 @@ import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
 import { DIMENSION_SORTS, SORTS } from './types'
-import type { LibraryItem, TagInfo, Sort, TypeFilter, UseFilter, ViewMode } from './types'
+import type { LibraryItem, TagInfo, ShapeFilter, Sort, TypeFilter, UseFilter, ViewMode } from './types'
 
 type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
 // A context menu over a specific item (id set) or over empty grid space (id null).
@@ -244,6 +244,9 @@ export default function MediaLibrary({
   const [unmeasured, setUnmeasured] = useState<number | null>(null)
   const [measuring, setMeasuring] = useState<{ done: number; total: number } | null>(null)
   const [type, setType] = useState<TypeFilter>('all')
+  // Proportions, judged on the recorded pixel size. Only measured pictures can
+  // answer it, which is why it shares the sorts' "measure the rest" prompt.
+  const [shape, setShape] = useState<ShapeFilter>('all')
   const [use, setUse] = useState<UseFilter>('all')
   // Not part of the File type dropdown: this is the "Optimisable" stat tile's own
   // drill-down, showing exactly the images that tile counted rather than every
@@ -395,13 +398,14 @@ export default function MediaLibrary({
       const qs = new URLSearchParams({ page: String(pageNum), perPage: String(perPage), sort })
       qs.set('folder', folderScope)
       if (type !== 'all') qs.set('type', type)
+      if (shape !== 'all') qs.set('shape', shape)
       if (use !== 'all') qs.set('filter', use)
       if (optimisableOnly) qs.set('optimisable', '1')
       if (tagFilter) qs.set('tag', tagFilter)
       if (search) qs.set('q', search)
       return qs.toString()
     },
-    [perPage, sort, folderScope, type, use, optimisableOnly, tagFilter, search],
+    [perPage, sort, folderScope, type, shape, use, optimisableOnly, tagFilter, search],
   )
 
   const fetchItems = useCallback(async () => {
@@ -433,20 +437,25 @@ export default function MediaLibrary({
   }, [fetchItems])
 
   const dimensionSort = DIMENSION_SORTS.includes(sort)
+  // A shape filter leans on the same measurements as the picture-size sorts, and
+  // is harsher about missing ones: an unmeasured image is left out of the results
+  // rather than shuffled to the end. Same prompt, different sentence.
+  const shapeFilter = shape !== 'all'
+  const needsMeasurements = dimensionSort || shapeFilter
 
   // Ask how much of the library has never been measured, but only while a
   // picture-size sort is showing. Everything uploaded before pixel sizes were
   // recorded has none, and those rows sort last - which is honest, but needs
   // saying out loud rather than leaving someone to conclude the sort is broken.
   useEffect(() => {
-    if (!dimensionSort) return
+    if (!needsMeasurements) return
     let cancelled = false
     fetch('/api/admin/media/measure')
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => { if (!cancelled && typeof d?.remaining === 'number') setUnmeasured(d.remaining) })
       .catch(() => { /* the prompt simply doesn't appear */ })
     return () => { cancelled = true }
-  }, [dimensionSort])
+  }, [needsMeasurements])
 
   // Work through every unmeasured image, a batch per request. The server picks
   // the rows (whatever is still unmeasured, newest first), so this is a loop
@@ -1238,7 +1247,7 @@ export default function MediaLibrary({
     : 'other'
 
   function clearAllFilters() {
-    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setType('all'); setUse('all'); setOptimisableOnly(false)
+    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setType('all'); setShape('all'); setUse('all'); setOptimisableOnly(false)
   }
 
   const selectionActive = selected.size > 0
@@ -1261,7 +1270,7 @@ export default function MediaLibrary({
       ? { optimised: true, ids: unmarked.map((i) => i.id) }
       : { optimised: false, ids: eligible.map((i) => i.id) }
   }, [selectedItems])
-  const anyFilterActive = !!search || type !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
+  const anyFilterActive = !!search || type !== 'all' || shape !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
   return (
@@ -1296,8 +1305,8 @@ export default function MediaLibrary({
           folderCount={folders.length}
           activeFilter={activeFilter}
           onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
-          onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
-          onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setOptimisableOnly(true); setBrowseAll(true) }}
+          onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setShape('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
+          onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setShape('all'); setOptimisableOnly(true); setBrowseAll(true) }}
         />
       </Suspense>
 
@@ -1377,6 +1386,8 @@ export default function MediaLibrary({
             onSort={setSort}
             type={type}
             onType={setType}
+            shape={shape}
+            onShape={setShape}
             use={use}
             onUse={setUse}
             optimisableOnly={optimisableOnly}
@@ -1393,11 +1404,11 @@ export default function MediaLibrary({
             onClearAll={clearAllFilters}
           />
 
-          {/* Sorting by picture size can only sort what has been measured, and
-              a library built before pixel sizes were recorded has none. Rather
-              than let the sort look broken, say how many are unmeasured and
-              offer to go and measure them. */}
-          {dimensionSort && (unmeasured ?? 0) > 0 && (
+          {/* Sorting or filtering by picture size can only speak for what has
+              been measured, and a library built before pixel sizes were recorded
+              has none. Rather than let either look broken, say how many are
+              unmeasured and offer to go and measure them. */}
+          {needsMeasurements && (unmeasured ?? 0) > 0 && (
             <div
               style={{
                 display: 'flex',
@@ -1416,7 +1427,9 @@ export default function MediaLibrary({
               <span style={{ flex: '1 1 240px', minWidth: 0 }}>
                 {measuring
                   ? `Measuring images… ${measuring.done.toLocaleString('en-GB')} of ${measuring.total.toLocaleString('en-GB')}`
-                  : `${(unmeasured ?? 0).toLocaleString('en-GB')} image${unmeasured === 1 ? ' has' : 's have'} never been measured, so ${unmeasured === 1 ? 'it sits' : 'they sit'} at the end of this sort.`}
+                  : shapeFilter
+                    ? `${(unmeasured ?? 0).toLocaleString('en-GB')} image${unmeasured === 1 ? ' has' : 's have'} never been measured, so ${unmeasured === 1 ? 'its shape is' : 'their shapes are'} unknown and ${unmeasured === 1 ? 'it is' : 'they are'} left out of this filter.`
+                    : `${(unmeasured ?? 0).toLocaleString('en-GB')} image${unmeasured === 1 ? ' has' : 's have'} never been measured, so ${unmeasured === 1 ? 'it sits' : 'they sit'} at the end of this sort.`}
               </span>
               {canUpload && (
                 <button
