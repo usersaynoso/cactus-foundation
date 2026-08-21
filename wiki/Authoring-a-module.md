@@ -341,11 +341,42 @@ A module with its own public "listing" and "single item" pages (Directory's cate
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `groupLabel` | yes | Label for the top-level tab shown on the admin Layouts list/wizard (e.g. "Directory"). |
+| `groupLabel` | yes | Label for the top-level tab shown on the admin Layouts list/wizard (e.g. "Directory"). Still used when `host` names a module that is not in the build. |
+| `host` | no | Another module's name. Puts your layout types under **that** module's tab instead of opening one of your own - see below. |
 | `types[].key` | yes | camelCase layout type string, convention `<moduleName><Kind>` (e.g. `directoryCategory`). Becomes the value stored in `Layout.type`. |
 | `types[].label` | yes | Sub-tab label (e.g. "Category"). |
 | `types[].starterImport`/`starterExport` | no | Module-relative path (no extension) and named export of a `() => Array<{id, name, description, data}>` function providing starter templates for this type. Omit if you don't want to ship any starters. |
 | `types[].editorPreview` | no | `{ "className"?: string, "maxWidth"?: number }`. Only for a **block-internal** layout type - one your own surface stamps into a container of its own rather than rendering as a whole page. Describes that container so the standalone editor and the preview page can reproduce it. See below. |
+
+### Hosting your types under another module's tab: `host`
+
+An add-on whose pages are part of another module's surface should not open a
+second top-level tab for two entries. `quote-for-shop` is the case in point: a
+quote document is a Shop document, and a "Quotes" tab sitting next to "Shop"
+made the owner hunt in two places for one shop's paperwork. Name the module you
+belong to and your types become sub-tabs on its tab:
+
+```json
+"layoutTypes": {
+  "groupLabel": "Quotes",
+  "host": "shop",
+  "types": [ { "key": "quoteDocument", "label": "Quote document" } ]
+}
+```
+
+Only the tab moves. Each type still belongs to the module that declared it, and
+that is the module which has to be installed for it to appear, to be creatable,
+to be seeded with starters, or to be cleaned up when the module goes: a site with
+the Shop but no Quotes add-on sees the Shop tab without the two quote sub-tabs.
+Give your sub-tab labels enough to stand on ("Quote document", not "Document") -
+they sit beside the host's own labels with nothing to say whose they are.
+
+`host` is advisory. If it names a module that declares no layout types in this
+build, the generator warns and you keep your own tab, so a shop-less install is
+never left with types it cannot reach.
+
+Set `requiresModules` for the host as well - `host` describes where a tab is
+drawn, not what your module depends on.
 
 ### Block-internal layout types and `editorPreview`
 
