@@ -141,7 +141,9 @@ export async function GET(request: NextRequest) {
     const svgPath = path.join(process.cwd(), 'public', 'cactus.svg')
     const svgBuffer = await readFile(svgPath)
 
-    // Render the portrait SVG (980x1057) at 2x density then fit into 200x200
+    // Render the portrait SVG (238x403 - a PNG of the clay mark wrapped in SVG) at
+    // 2x density then fit into 200x200. librsvg decodes the embedded PNG data URI, so
+    // sharp still gets real pixels rather than an empty canvas.
     const pngBuffer = await sharp(svgBuffer, { density: 144 })
       .resize(200, 200, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()

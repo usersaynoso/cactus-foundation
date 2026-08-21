@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
 import { markdownToHtml } from '@/lib/markdown-client'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { readJsonResponse } from '@/lib/updates/read-json-response'
+import { TabStrip } from '@/components/admin/TabStrip'
+import { ModuleArt } from './ModuleArt'
+import { CardMenu } from './CardMenu'
 
 // The shape the module install/update/uninstall handlers answer with. Only the fields
 // the UI branches on - a killed function answers with none of them.
@@ -59,6 +62,9 @@ type CoreVersionModal = {
   currentVersion: string
 }
 
+/** Which shelf of the store is on screen. */
+type StoreTab = 'installed' | 'updates' | 'browse' | 'custom'
+
 const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> = {
   pending_install: { label: 'Pending', className: 'badge-yellow' },
   deploying: { label: 'Deploying', className: 'badge-blue' },
@@ -83,6 +89,45 @@ function formatModuleName(repoName: string): string {
     .join(' ')
 }
 
+/** A count pill next to a tab label. Omitted at zero - an empty shelf says so itself. */
+function tabLabel(text: string, count: number, tone = 'badge-gray'): ReactNode {
+  if (count <= 0) return text
+  return (
+    <>
+      {text}
+      <span className={`badge ${tone}`} style={{ marginLeft: '0.375rem' }}>{count}</span>
+    </>
+  )
+}
+
+function EmptyState({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="module-empty">
+      <h3>{title}</h3>
+      <p>{children}</p>
+    </div>
+  )
+}
+
+function LoadingGrid() {
+  return (
+    <div className="module-grid">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="card module-card">
+          <div className="module-card__art">
+            <span className="skeleton" style={{ position: 'absolute', inset: 0, borderRadius: 0 }} />
+          </div>
+          <div className="module-card__body">
+            <span className="skeleton" style={{ height: 15, width: '55%', borderRadius: 'var(--radius-sm)' }} />
+            <span className="skeleton" style={{ height: 11, width: '100%', borderRadius: 'var(--radius-sm)' }} />
+            <span className="skeleton" style={{ height: 11, width: '80%', borderRadius: 'var(--radius-sm)' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function ModulesPage() {
   const router = useRouter()
   const [entries, setEntries] = useState<DirectoryEntry[]>([])
@@ -104,6 +149,10 @@ export default function ModulesPage() {
   const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
   const [customUrl, setCustomUrl] = useState('')
   const [customChannel, setCustomChannel] = useState<'public' | 'beta'>('public')
+  // null until the owner picks a tab, so the landing shelf can follow the data
+  // (their own modules if they have any, the store if they haven't) without an effect.
+  const [tab, setTab] = useState<StoreTab | null>(null)
+  const [query, setQuery] = useState('')
 
   const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
     const sessionKey = `cactus-module-update-check-${installedId}`
@@ -396,14 +445,232 @@ export default function ModulesPage() {
 
   const installed = entries.filter((e) => e.installed)
   const available = entries.filter((e) => !e.installed)
-  const updatableCount = installed.filter((m) => m.status === 'update_available').length
+  const updatable = installed.filter((m) => m.status === 'update_available')
+  const updatableCount = updatable.length
+  const activeTab: StoreTab = tab ?? (installed.length > 0 ? 'installed' : 'browse')
 
-  if (loading) return <p>Loading&hellip;</p>
+  const q = query.trim().toLowerCase()
+  const matchesQuery = (e: DirectoryEntry) =>
+    !q ||
+    formatModuleName(e.repoName).toLowerCase().includes(q) ||
+    e.repoName.toLowerCase().includes(q) ||
+    (e.description ?? '').toLowerCase().includes(q)
+
+  const shownInstalled = installed.filter(matchesQuery)
+  const shownUpdatable = updatable.filter(matchesQuery)
+  const shownAvailable = available.filter(matchesQuery)
+
+  function installedCard(m: DirectoryEntry) {
+    const id = m.installedId ?? ''
+    const name = formatModuleName(m.repoName)
+    const busy = actionLoading[id]
+    const channel = m.updateChannel ?? 'public'
+
+    return (
+      <div key={id} className="card module-card">
+        <ModuleArt repoUrl={m.repoUrl} repoName={m.repoName} initial={moduleInitial(m.repoName)} />
+
+        <div className="module-card__body">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <div className="module-card__name" style={{ flex: 1 }}>{name}</div>
+            {m.status && (
+              <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`} style={{ flexShrink: 0 }}>
+                {STATUS_BADGE[m.status]?.label ?? m.status}
+              </span>
+            )}
+          </div>
+
+          {m.description && <div className="module-card__desc" title={m.description}>{m.description}</div>}
+
+          {m.lastError && (
+            <div className="alert alert-danger" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{m.lastError}</div>
+          )}
+
+          <div className="module-card__meta">
+            {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
+            {channel === 'beta' && <span className="badge badge-primary">Beta</span>}
+            {m.updateAvailable && <span className="badge badge-yellow">{showVersion(m.updateAvailable)} available</span>}
+            {checkingModules[id] && (
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Checking&hellip;</span>
+            )}
+          </div>
+        </div>
+
+        <div className="module-card__foot">
+          {m.status === 'update_available' ? (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={busy}
+                onClick={() => id && handleAction(id, 'update')}
+              >
+                {busy ? 'Updating…' : `Update to ${showVersion(m.updateAvailable)}`}
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setReleaseNotesFor(id)}>
+                What&rsquo;s new
+              </button>
+            </>
+          ) : m.status === 'inactive' ? (
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={busy}
+              onClick={() => id && handleAction(id, 'enable')}
+            >
+              {busy ? 'Enabling…' : 'Enable'}
+            </button>
+          ) : m.status === 'active' ? (
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Up to date</span>
+          ) : null}
+
+          <CardMenu label={`More actions for ${name}`}>
+            {(close) => (
+              <>
+                <button
+                  type="button"
+                  className="module-menu__item"
+                  disabled={!id || checkingModules[id]}
+                  onClick={() => { close(); if (id) checkModuleUpdate(id, true) }}
+                >
+                  Check for updates
+                </button>
+                {m.status === 'active' && (
+                  <button
+                    type="button"
+                    className="module-menu__item"
+                    disabled={busy}
+                    onClick={() => { close(); if (id) handleAction(id, 'disable') }}
+                  >
+                    Turn off
+                  </button>
+                )}
+                {m.status === 'inactive' && (
+                  <button
+                    type="button"
+                    className="module-menu__item"
+                    disabled={busy}
+                    onClick={() => { close(); if (id) handleAction(id, 'enable') }}
+                  >
+                    Turn on
+                  </button>
+                )}
+                <a className="module-menu__item" href={m.repoUrl} target="_blank" rel="noopener noreferrer">
+                  View the code
+                </a>
+
+                <div className="module-menu__sep" />
+                <div className="module-menu__label">Which releases</div>
+                {(['public', 'beta'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="module-menu__item"
+                    disabled={!id || channelSaving[id]}
+                    onClick={() => { close(); if (id) handleModuleChannelChange(id, c) }}
+                  >
+                    <span>{c === 'public' ? 'Finished releases' : 'Early (beta) releases'}</span>
+                    {channel === c && <span aria-hidden="true">&#10003;</span>}
+                  </button>
+                ))}
+
+                <div className="module-menu__sep" />
+                <button
+                  type="button"
+                  className="module-menu__item module-menu__item--danger"
+                  onClick={() => { close(); openUninstallModal(m) }}
+                >
+                  Uninstall
+                </button>
+              </>
+            )}
+          </CardMenu>
+        </div>
+      </div>
+    )
+  }
+
+  function availableCard(m: DirectoryEntry) {
+    const name = formatModuleName(m.repoName)
+    const busy = actionLoading[m.repoUrl]
+    const betaOnly = m.hasPublicRelease === false
+    const chosen = betaOnly ? 'beta' : (installChannel[m.repoUrl] ?? 'public')
+
+    return (
+      <div key={m.repoUrl} className="card module-card">
+        <ModuleArt repoUrl={m.repoUrl} repoName={m.repoName} initial={moduleInitial(m.repoName)} />
+
+        <div className="module-card__body">
+          <div className="module-card__name">{name}</div>
+          {m.description && <div className="module-card__desc" title={m.description}>{m.description}</div>}
+          <div className="module-card__meta">
+            {betaOnly
+              ? <span className="badge badge-primary">Beta only</span>
+              : chosen === 'beta' && <span className="badge badge-primary">Beta</span>}
+          </div>
+        </div>
+
+        <div className="module-card__foot">
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={busy}
+            onClick={() => handleInstall(m.repoUrl)}
+          >
+            {busy ? 'Installing…' : chosen === 'beta' ? 'Install beta' : 'Install'}
+          </button>
+
+          <CardMenu label={`More actions for ${name}`}>
+            {(close) => (
+              <>
+                <div className="module-menu__label">Which releases</div>
+                {betaOnly ? (
+                  <button type="button" className="module-menu__item" disabled>
+                    <span>Early (beta) releases</span>
+                    <span aria-hidden="true">&#10003;</span>
+                  </button>
+                ) : (
+                  (['public', 'beta'] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className="module-menu__item"
+                      disabled={busy}
+                      onClick={() => { close(); setInstallChannel((prev) => ({ ...prev, [m.repoUrl]: c })) }}
+                    >
+                      <span>{c === 'public' ? 'Finished releases' : 'Early (beta) releases'}</span>
+                      {chosen === c && <span aria-hidden="true">&#10003;</span>}
+                    </button>
+                  ))
+                )}
+                <div className="module-menu__sep" />
+                <a className="module-menu__item" href={m.repoUrl} target="_blank" rel="noopener noreferrer">
+                  View the code
+                </a>
+              </>
+            )}
+          </CardMenu>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Modules</h1>
+        <div>
+          <h1 className="page-title">Modules</h1>
+          <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+            Add features to your site, and keep the ones you already have current.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {updatableCount > 1 && (
+            <button className="btn btn-primary btn-sm" disabled={updatingAll} onClick={handleUpdateAll}>
+              {updatingAll ? 'Updating all…' : `Update all (${updatableCount})`}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm" disabled={refreshing || loading} onClick={handleRefresh}>
+            {refreshing ? 'Checking…' : 'Check for updates'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -435,239 +702,69 @@ export default function ModulesPage() {
         </div>
       )}
 
-      {/* Installed modules */}
-      <section style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>Installed</h2>
-          {updatableCount > 1 && (
-            <button
-              className="btn btn-primary btn-sm"
-              disabled={updatingAll}
-              onClick={handleUpdateAll}
-            >
-              {updatingAll ? 'Updating all…' : `Update all (${updatableCount})`}
-            </button>
-          )}
-        </div>
-
-        {installed.length === 0 ? (
-          <div className="alert alert-info">No modules installed yet.</div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 380px))', gap: '1.25rem' }}>
-            {installed.map((m) => (
-              <div key={m.installedId} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', marginBottom: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--color-primary-subtle)', color: 'var(--color-primary-dark)',
-                    fontSize: 'var(--text-base)', fontWeight: 700,
-                  }}>
-                    {moduleInitial(m.repoName)}
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', flex: 1, minWidth: 0 }}>{formatModuleName(m.repoName)}</div>
-                  {m.status && (
-                    <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`} style={{ flexShrink: 0 }}>
-                      {STATUS_BADGE[m.status]?.label ?? m.status}
-                    </span>
-                  )}
-                </div>
-
-                {m.description && (
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{m.description}</div>
-                )}
-
-                {m.lastError && (
-                  <div className="alert alert-danger" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{m.lastError}</div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {m.installedVersion && <span className="badge badge-gray">{showVersion(m.installedVersion)}</span>}
-                  {m.updateChannel === 'beta' && <span className="badge badge-primary">Beta</span>}
-                  {m.updateAvailable && (
-                    <span className="badge badge-yellow">{showVersion(m.updateAvailable)} available</span>
-                  )}
-                  <button
-                    type="button"
-                    title="Check for updates"
-                    aria-label="Check for updates"
-                    disabled={checkingModules[m.installedId ?? '']}
-                    onClick={() => m.installedId && checkModuleUpdate(m.installedId, true)}
-                    style={{
-                      background: 'none', border: 'none', padding: 0,
-                      display: 'inline-flex', alignItems: 'center',
-                      cursor: checkingModules[m.installedId ?? ''] ? 'default' : 'pointer',
-                      fontSize: '0.9rem', color: 'var(--color-text-muted)',
-                      animation: checkingModules[m.installedId ?? ''] ? 'cactus-spin 0.7s linear infinite' : 'none',
-                    }}
-                  >
-                    &#8635;
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Update channel</span>
-                  <div style={{
-                    display: 'inline-flex', padding: 2, gap: 2,
-                    background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
-                    opacity: channelSaving[m.installedId ?? ''] ? 0.6 : 1,
-                  }}>
-                    {(['public', 'beta'] as const).map((channel) => (
-                      <button
-                        key={channel}
-                        type="button"
-                        disabled={!m.installedId || channelSaving[m.installedId]}
-                        onClick={() => m.installedId && handleModuleChannelChange(m.installedId, channel)}
-                        style={{
-                          border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
-                          fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
-                          background: (m.updateChannel ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
-                          color: (m.updateChannel ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
-                        }}
-                      >
-                        {channel === 'public' ? 'Public' : 'Beta'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{
-                  display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center',
-                  marginTop: 'auto', paddingTop: '0.875rem', borderTop: '1px solid var(--color-border)',
-                }}>
-                  {m.status === 'update_available' && (
-                    <>
-                      {m.installedId && (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setReleaseNotesFor(m.installedId ?? null)}
-                        >
-                          Release notes
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={actionLoading[m.installedId ?? '']}
-                        onClick={() => m.installedId && handleAction(m.installedId, 'update')}
-                      >
-                        {actionLoading[m.installedId ?? ''] ? 'Updating…' : 'Update'}
-                      </button>
-                    </>
-                  )}
-                  {m.status === 'active' && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={actionLoading[m.installedId ?? '']}
-                      onClick={() => m.installedId && handleAction(m.installedId, 'disable')}
-                    >
-                      {actionLoading[m.installedId ?? ''] ? 'Disabling…' : 'Disable'}
-                    </button>
-                  )}
-                  {m.status === 'inactive' && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={actionLoading[m.installedId ?? '']}
-                      onClick={() => m.installedId && handleAction(m.installedId, 'enable')}
-                    >
-                      {actionLoading[m.installedId ?? ''] ? 'Enabling…' : 'Enable'}
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-destructive btn-sm"
-                    onClick={() => openUninstallModal(m)}
-                  >
-                    Uninstall
-                  </button>
-                </div>
-
-              </div>
-            ))}
-          </div>
+      <TabStrip
+        style={{ marginBottom: '1.5rem' }}
+        items={[
+          { key: 'installed', label: tabLabel('Installed', installed.length), active: activeTab === 'installed', onClick: () => setTab('installed') },
+          { key: 'updates', label: tabLabel('Updates available', updatableCount, 'badge-yellow'), active: activeTab === 'updates', onClick: () => setTab('updates') },
+          { key: 'browse', label: tabLabel('Browse', available.length), active: activeTab === 'browse', onClick: () => setTab('browse') },
+          { key: 'custom', label: 'Add your own', active: activeTab === 'custom', onClick: () => setTab('custom') },
+        ]}
+        trailing={activeTab === 'custom' ? undefined : (
+          <input
+            className="module-search"
+            type="search"
+            placeholder="Search modules"
+            aria-label="Search modules"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         )}
-      </section>
+      />
 
-      {/* Available modules */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 }}>Available</h2>
-          <button
-            className="btn btn-secondary btn-sm"
-            disabled={refreshing}
-            onClick={handleRefresh}
-          >
-            {refreshing ? 'Refreshing…' : 'Refresh directory'}
-          </button>
-        </div>
+      {activeTab === 'installed' && (
+        loading ? <LoadingGrid /> :
+        installed.length === 0 ? (
+          <EmptyState title="No modules yet">
+            Nothing installed so far. Have a look through <button type="button" className="btn-link" onClick={() => setTab('browse')}>Browse</button> and
+            pick out whatever your site could do with.
+          </EmptyState>
+        ) : shownInstalled.length === 0 ? (
+          <EmptyState title="Nothing matched">None of your installed modules match &ldquo;{query.trim()}&rdquo;.</EmptyState>
+        ) : (
+          <div className="module-grid">{shownInstalled.map(installedCard)}</div>
+        )
+      )}
 
-        {directoryUnavailable ? (
+      {activeTab === 'updates' && (
+        loading ? <LoadingGrid /> :
+        updatableCount === 0 ? (
+          <EmptyState title="Everything is current">
+            Every installed module is on its latest release. Nothing for you to do, which is the ideal state of affairs.
+          </EmptyState>
+        ) : shownUpdatable.length === 0 ? (
+          <EmptyState title="Nothing matched">No module waiting for an update matches &ldquo;{query.trim()}&rdquo;.</EmptyState>
+        ) : (
+          <div className="module-grid">{shownUpdatable.map(installedCard)}</div>
+        )
+      )}
+
+      {activeTab === 'browse' && (
+        loading ? <LoadingGrid /> :
+        directoryUnavailable ? (
           <div className="alert alert-warning">Module directory is currently unavailable.</div>
         ) : available.length === 0 ? (
-          <div className="alert alert-info">All available modules are already installed.</div>
+          <EmptyState title="You have the lot">
+            Every module in the directory is already installed. Impressive, if slightly alarming.
+          </EmptyState>
+        ) : shownAvailable.length === 0 ? (
+          <EmptyState title="Nothing matched">No module in the directory matches &ldquo;{query.trim()}&rdquo;.</EmptyState>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 380px))', gap: '1.25rem' }}>
-            {available.map((m) => (
-              <div key={m.repoUrl} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: 0 }}>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)',
-                    fontSize: 'var(--text-base)', fontWeight: 700,
-                  }}>
-                    {moduleInitial(m.repoName)}
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 'var(--text-base)', marginTop: 6 }}>{formatModuleName(m.repoName)}</div>
-                </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', flex: 1, lineHeight: 1.4 }}>{m.description}</div>
+          <div className="module-grid">{shownAvailable.map(availableCard)}</div>
+        )
+      )}
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Channel</span>
-                  {m.hasPublicRelease === false ? (
-                    <span className="badge badge-primary">Beta only</span>
-                  ) : (
-                    <div style={{
-                      display: 'inline-flex', padding: 2, gap: 2,
-                      background: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)',
-                    }}>
-                      {(['public', 'beta'] as const).map((channel) => (
-                        <button
-                          key={channel}
-                          type="button"
-                          disabled={actionLoading[m.repoUrl]}
-                          onClick={() => setInstallChannel((prev) => ({ ...prev, [m.repoUrl]: channel }))}
-                          style={{
-                            border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
-                            fontSize: 'var(--text-sm)', fontWeight: 500, cursor: 'pointer',
-                            background: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-primary)' : 'transparent',
-                            color: (installChannel[m.repoUrl] ?? 'public') === channel ? 'var(--color-on-primary)' : 'var(--color-text-muted)',
-                          }}
-                        >
-                          {channel === 'public' ? 'Public' : 'Beta'}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  className="btn btn-primary btn-sm"
-                  style={{ alignSelf: 'flex-start' }}
-                  disabled={actionLoading[m.repoUrl]}
-                  onClick={() => handleInstall(m.repoUrl)}
-                >
-                  {actionLoading[m.repoUrl]
-                    ? 'Installing…'
-                    : m.hasPublicRelease === false || (installChannel[m.repoUrl] ?? 'public') === 'beta' ? 'Install beta' : 'Install'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Custom module install */}
-      <section style={{ marginTop: '2.5rem' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 1rem' }}>Add a custom module</h2>
+      {activeTab === 'custom' && (
         <div className="card" style={{ maxWidth: 560 }}>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 0 }}>
             Install a module from any GitHub repository, including a private one in your own account. It needs a{' '}
@@ -722,7 +819,7 @@ export default function ModulesPage() {
             none. If in doubt, don&rsquo;t.
           </p>
         </div>
-      </section>
+      )}
 
       {/* Uninstall modal */}
       {uninstallModal && (
