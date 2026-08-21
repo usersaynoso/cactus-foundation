@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.275"
+      "version": "v0.1.276"
     },
     {
       "name": "address-lookup-for-shop",
@@ -138,7 +138,7 @@
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.10"
+      "version": "v0.2.11"
     }
   ]
 }
