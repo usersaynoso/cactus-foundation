@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1173",
+  "version": "0.5.1174",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:backup-roundtrip": "RUN_BACKUP_ROUNDTRIP=1 vitest run lib/backup/roundtrip.test.ts",
-    "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts",
+    "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/ledger-projection.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts",
     "check:module-pins": "CHECK_MODULE_PINS=1 vitest run lib/modules/pin-check.live.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:push": "echo 'Use prisma migrate dev instead of db push \u2014 see AGENTS.md' && exit 1",
