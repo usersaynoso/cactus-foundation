@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client'
+import type { ITXClientDenyList } from '@prisma/client/runtime/library'
 
 import { retryOnStalePlan } from './stale-plan'
 
@@ -74,6 +75,13 @@ function createPrismaClient() {
 // parameter should be typed with this rather than `PrismaClient`, or it stops
 // accepting the very client the app actually uses.
 export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>
+
+// The client handed to a `$transaction(async (tx) => ...)` callback. Same story
+// as above one level down: it is the extended client minus the handful of
+// methods that make no sense inside a transaction, so `Prisma.TransactionClient`
+// - which is the UNextended shape - does not describe it and will not accept it.
+// Anything taking a transaction as a parameter should be typed with this.
+export type PrismaTransactionClient = Omit<ExtendedPrismaClient, ITXClientDenyList>
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
