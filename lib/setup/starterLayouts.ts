@@ -314,10 +314,17 @@ export function planModuleSeeds<T extends { name: string; layoutsSeededAt?: Date
   })
 }
 
-/** The layout types each module in this build declares, keyed by module name. */
+/** The layout types each module in this build declares, keyed by module name.
+ *
+ * Keyed on the type's own module, not its group's: an add-on hosting its types
+ * under another module's tab (layoutTypes.host) still seeds and orphans as itself.
+ * Reading the group here would have credited the Shop with the Quotes add-on's
+ * layouts, and seeded them into a shop that has no such add-on. */
 export function declaredLayoutTypesByModule(): Record<string, string[]> {
   const out: Record<string, string[]> = {}
-  for (const group of moduleLayoutTypeGroups) out[group.moduleName] = group.types.map((t) => t.key)
+  for (const group of moduleLayoutTypeGroups) {
+    for (const t of group.types) (out[t.moduleName] ??= []).push(t.key)
+  }
   return out
 }
 

@@ -20,7 +20,7 @@ function getModuleNames() {
 
 const moduleNames = getModuleNames()
 const modulesInBuild = []
-const groups = []
+const declaredGroups = []
 const starterImports = []
 const starterEntries = []
 const embedOptionEntries = []
@@ -67,7 +67,10 @@ for (const moduleName of moduleNames) {
     // the class on that container, so without it every template of the type
     // renders identically - and an absolutely-positioned part escapes to the
     // canvas. Client-safe: a class name and a width, never a component.
-    types.push({ key: t.key, label: t.label, ...(t.editorPreview ? { editorPreview: t.editorPreview } : {}) })
+    // moduleName is the module that *owns* the type, which is not always the
+    // module whose group tab it appears under - see layoutTypes.host below.
+    // Everything that gates on "is this module installed" reads this one.
+    types.push({ key: t.key, label: t.label, moduleName, ...(t.editorPreview ? { editorPreview: t.editorPreview } : {}) })
 
     if (t.starterImport && t.starterExport) {
       const importPath = t.starterImport.replace(/^\.\//, `@/modules/${moduleName}/`)
@@ -95,8 +98,43 @@ for (const moduleName of moduleNames) {
   }
 
   if (types.length > 0) {
-    groups.push({ moduleName, groupLabel: layoutTypes.groupLabel, types })
+    declaredGroups.push({
+      moduleName,
+      groupLabel: layoutTypes.groupLabel,
+      host: typeof layoutTypes.host === 'string' ? layoutTypes.host : null,
+      types,
+    })
   }
+}
+
+// layoutTypes.host: "shop" means "my layout types belong under that module's tab,
+// not a tab of my own". An add-on module whose pages are part of another module's
+// surface - quote-for-shop's quote document is a Shop document - has no business
+// opening a second top-level tab in the Layouts list for two entries.
+//
+// Two passes, because a module may declare a host that has not been read yet
+// (module order is alphabetical, and "quote-for-shop" comes before "shop").
+// A host that declares no layout types of its own, or is not in this build, is no
+// host at all: the module keeps its own group rather than losing its types.
+const groups = []
+const groupByModule = new Map()
+for (const d of declaredGroups) {
+  if (d.host) continue
+  const group = { moduleName: d.moduleName, groupLabel: d.groupLabel, types: d.types }
+  groups.push(group)
+  groupByModule.set(d.moduleName, group)
+}
+for (const d of declaredGroups) {
+  if (!d.host) continue
+  const host = groupByModule.get(d.host)
+  if (host) {
+    host.types.push(...d.types)
+    continue
+  }
+  console.warn(`[generate-module-layout-types] ${d.moduleName} hosts into "${d.host}", which declares no layout types here - keeping its own group`)
+  const group = { moduleName: d.moduleName, groupLabel: d.groupLabel, types: d.types }
+  groups.push(group)
+  groupByModule.set(d.moduleName, group)
 }
 
 // ---------------------------------------------------------------------------
@@ -113,9 +151,12 @@ typesOut.push(`/** The host container a layout type is stamped into, for the edi
 typesOut.push(`export type ModuleLayoutEditorPreview = { className?: string; maxWidth?: number }`)
 typesOut.push(``)
 typesOut.push(`export type ModuleLayoutTypeGroup = {`)
+typesOut.push(`  /** The module whose tab these types appear under. */`)
 typesOut.push(`  moduleName: string`)
 typesOut.push(`  groupLabel: string`)
-typesOut.push(`  types: { key: string; label: string; editorPreview?: ModuleLayoutEditorPreview }[]`)
+typesOut.push(`  /** \`moduleName\` on a type is the module that owns it, which is the one that has`)
+typesOut.push(`   *  to be installed for it to count - not necessarily the group's module. */`)
+typesOut.push(`  types: { key: string; label: string; moduleName: string; editorPreview?: ModuleLayoutEditorPreview }[]`)
 typesOut.push(`}`)
 typesOut.push(``)
 typesOut.push(`/** Every module whose code was cloned into this build, layout types or not. */`)
@@ -126,7 +167,7 @@ typesOut.push(``)
 typesOut.push(`export const moduleLayoutTypeToGroup: Record<string, { moduleName: string; groupLabel: string; label: string; editorPreview?: ModuleLayoutEditorPreview }> = {}`)
 typesOut.push(`for (const group of moduleLayoutTypeGroups) {`)
 typesOut.push(`  for (const t of group.types) {`)
-typesOut.push(`    moduleLayoutTypeToGroup[t.key] = { moduleName: group.moduleName, groupLabel: group.groupLabel, label: t.label, editorPreview: t.editorPreview }`)
+typesOut.push(`    moduleLayoutTypeToGroup[t.key] = { moduleName: t.moduleName, groupLabel: group.groupLabel, label: t.label, editorPreview: t.editorPreview }`)
 typesOut.push(`  }`)
 typesOut.push(`}`)
 

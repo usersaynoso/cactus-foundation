@@ -24,10 +24,18 @@ export async function getInstalledModuleNames(): Promise<Set<string>> {
 }
 
 /** The module layout-type groups this site may actually offer: declared by a
- * module in the build AND installed here. */
+ * module in the build AND installed here.
+ *
+ * Filtered type by type rather than group by group, because a group is not always
+ * one module's - an add-on can host its types under another module's tab
+ * (layoutTypes.host), so the Shop tab on a site with the Quotes add-on carries two
+ * more sub-tabs than the same tab without it. Each type answers for its own module;
+ * a group left with nothing drops out entirely. */
 export async function getInstalledModuleLayoutGroups(): Promise<ModuleLayoutTypeGroup[]> {
   const installed = await getInstalledModuleNames()
-  return moduleLayoutTypeGroups.filter((g) => installed.has(g.moduleName))
+  return moduleLayoutTypeGroups
+    .map((g) => ({ ...g, types: g.types.filter((t) => installed.has(t.moduleName)) }))
+    .filter((g) => g.types.length > 0)
 }
 
 /** Server-side twin of isKnownLayoutType: a core type, or a module type whose
