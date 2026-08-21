@@ -13,6 +13,10 @@ const config = [
       '.next/**',
       'node_modules/**',
       '.claude/**',
+      // Python virtualenvs in the dated scratch folders agents leave in the repo
+      // root. Untracked, not project code, and site-packages ships bundled JS.
+      '**/.venv/**',
+      '**/site-packages/**',
     ],
   },
 ]
