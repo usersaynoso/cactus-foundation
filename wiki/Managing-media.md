@@ -116,6 +116,14 @@ Across the top sits a row of summary tiles, so you can see the state of your lib
 
 The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place. The Optimisable list arrives with a **Still to optimise** chip above it, which you can lift at any time to see everything again.
 
+#### Narrowing the unused pile by folder
+
+Every folder at once is the right starting point and the wrong finishing point: a few thousand spare files spread across a hundred folders is a list nobody works through. So while you're looking at the unused files, a **folder** button joins the controls, listing every folder that actually has something spare in it - each with its full path, how many files and how much space.
+
+It opens with everything ticked, which is exactly what the tile showed you. Untick the ones you'd rather leave alone - the client folder you daren't touch, the archive you keep on purpose - and they drop out of the list then and there. **Tick all** and **Untick all** are there for the sweeping gestures, and there's a small box to find a folder by name when there are more of them than patience. A tag appears under the controls saying how many folders you're looking at, with an × to put them all back.
+
+Folders with nothing spare in them aren't listed at all - a tick box that changes nothing is just something else to read. And as you delete, the list keeps itself honest: a folder you've just cleared out stops being offered.
+
 If part of your site can't be checked for some reason, the library errs on the side of caution and reports nothing as unused at all, rather than pointing you at files that may well be in use.
 
 All of these tiles are counted from Cactus's own records. If you want to know what your storage provider is really holding, see [Checking your storage](#checking-your-storage) at the bottom of the page.
@@ -128,7 +136,7 @@ Below that is a row of controls to help you find things in a hurry:
 - **Sort** - newest or oldest first, by name A-Z or Z-A, by **file size** (largest or smallest file first), or by **picture size** (biggest or smallest picture first). The last two are a different question from the first two: a scan of a postage stamp and a wall-sized photograph can weigh exactly the same on disc and be nothing alike on a page, so "biggest picture" sorts by how many pixels across and down a photo actually is.
 - **File type** - show everything, just images, just videos, just 3D files, or the odds and ends that are none of those (PDFs, zips and so on).
 - **Picture shape** - show everything, only square pictures, or only ones that aren't. Useful when you want the square ones for an icon or an avatar and would rather not eye up a whole folder to find them. Both narrowings show only pictures Cactus has measured: videos, 3D files and vectors have no shape to judge, and a picture whose proportions nobody has recorded yet is left out rather than guessed at - so if a folder looks emptier than you expected, measure the unmeasured ones and they'll join in.
-- **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar.
+- **Usage** - show everything, only files that are in use, or only the ones nothing points to. "In use" means referenced somewhere real: on a page or layout, as your logo or favicon, as a page's social-sharing image, or as a member's avatar. Once you're looking at the unused files across the whole library, a **folder** button appears beside it so you can leave whole folders out - see [Narrowing the unused pile by folder](#narrowing-the-unused-pile-by-folder).
 - **Tags** - narrow down to a single tag (see [Tags](#tags) below).
 - A **view switch** on the right flips between a **grid** of thumbnails and a tidy **list** - the list is handy when you want to eyeball names, sizes and folders down a column, and you can sort it by tapping the Name, Size, Dimensions or Uploaded headings. Cactus remembers both your chosen view and sort order for next time.
 
