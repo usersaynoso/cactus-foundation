@@ -22,7 +22,7 @@ If you read nothing else, read the **Non-negotiable rules** and **Traps that hav
 
 Cactus is a self-hostable website platform (Next.js app + Prisma/Postgres + a Puck page builder + an optional-module system). A site owner clicks "Deploy to Vercel", runs a setup wizard, and gets a CMS-driven site they administer through an admin UI (admin path is configurable, e.g. `/cactus-admin`, `/hq`, `/cacti`).
 
-**Important nuance:** the project was historically treated as "fresh installs only, no live sites". **That is no longer true.** There is at least one real live customer site (Deskwell / `dwoffice.furniture`). Schema changes are still designed as fresh-install end-states, but existing installs are real and must be reached by the deploy path (see Database section). Never assume "no live data".
+**Important nuance:** the project was historically treated as "fresh installs only, no live sites". **That is no longer true.** There is at least one real live customer site (Deskwell / `deskwell.co.uk` - see "The live customer site" below for where its own working notes live). Schema changes are still designed as fresh-install end-states, but existing installs are real and must be reached by the deploy path (see Database section). Never assume "no live data".
 
 ---
 
@@ -165,7 +165,7 @@ Backup/restore is the one feature whose bugs stay invisible until the worst mome
 - **Never name a Puck block field `visibility`.** Core injects a same-named responsive "hide" field and strips it from render props, silently disabling your field. Use `audience`, etc.
 - **Block-internal layout types** (`editorPreview`) let a layout type declare the container class/width its host surface stamps it into; RSC wrapping is opt-in via `standalone` (only `app/layout-preview/[id]` passes it) or cards double-wrap. Core learns only a class name and a width, never CSS.
 - **Take-over extension points** (`coveredSlots`) let a layout that already renders a job by hand tell a provider extension point to stand down, so you don't get two prices / two option pickers. Shop passes opaque block-type strings; only the provider knows what they mean (keeps module code out of core).
-- **Lesson:** the stale Tester DB pointed the wrong way on both of those bugs; the live Deskwell DB held the layout that actually proved them. Check a real install before theorising.
+- **Lesson:** the stale Tester DB pointed the wrong way on both of those bugs; the live customer DB held the layout that actually proved them. Check a real install before theorising.
 
 ---
 
@@ -182,41 +182,25 @@ Every module API route is served through the single core dispatcher `app/api/m/[
 - In an `after()` pass, order steps cheapest/most-important first. Never strand a critical cheap write (e.g. a delete) behind a slow import - if the function is torn down at 60s, the delete never runs and the UI may still show "success" (it only reflects the fast job the client polls).
 - A google-sheet import ground through ~921 variations then died before the variation delete; three prior "fixes" all fixed the delete *logic* while the delete never *ran*. Real fix: cheap delete BEFORE slow import, and make the import O(n) not O(n²).
 - On the OVH VPS DB (public-internet hop, not co-located), N+1 loops that were invisible on Neon now blow the 60s ceiling and hard-fail. When a read-only "preview" twin mirrors a write path, it must mirror its caching too.
-- Ground truth for these jobs is in the DB's own sync-log tables (e.g. Deskwell `gsp_sync_log`), not the UI.
+- Ground truth for these jobs is in the DB's own sync-log tables (e.g. `gsp_sync_log`), not the UI.
 
 ---
 
 ## Live infrastructure (real, operational)
 
-**Secrets themselves are NOT in this file.** All API keys, tokens and passwords live in the repo-root `.env` (gitignored). This section records *names and locations* only.
+**Secrets themselves are NOT in this file.** The repo-root `.env` is deliberately **blank** (since 2026-08-23): the platform carries no credentials. Every key below lives in `/Users/chris/Git Local/Deskwell/Claude/.env` and is exported into the shell per run when a task needs it - never written back into this repo. This section records *names* only.
 
-### Deskwell - the live customer site (`dwoffice.furniture`)
-
-- A real live Deskwell Office Furniture site on the Cactus platform. Admin path `/hq`.
-- **DB migrated off Neon to a self-hosted Postgres 18 on an OVH VPS on 2026-07-20** (Neon kept as fallback).
-  - VPS: Ubuntu 26.04, public IP `198.244.189.121`, hostname `db.dwoffice.furniture`. SSH as `ubuntu@$OVH_SERVER` with `$OVH_PASSWORD` (both in root `.env`). Passwordless sudo. Postgres config in `/etc/postgresql/18/main/`.
-  - DB `neondb` owned by `neondb_owner` (kept Neon's names so only connection strings changed). TLS-only, must be a CA-trusted (Let's Encrypt) cert - a self-signed cert breaks the Vercel build because `reconcile-core-schema.mjs` / `run-module-migrations.mjs` promote `sslmode=require` to `verify-full`.
-  - **PgBouncer** (transaction mode) on `:6432` added 2026-07-24 for connection pooling. Prisma datasource now has both `url` (pooled `:6432`, with `pgbouncer=true&connection_limit=1`) and `directUrl` (direct `:5432`, for migrations/DDL/advisory locks). Blast radius: once that schema change is released, EVERY install's next build needs `DIRECT_URL` set or `prisma migrate deploy` fails.
-  - **Keep the Vercel function region in Europe (lhr1/cdg1)** for any site on the OVH DB. `pgbouncer=true` makes Prisma wrap every query as `BEGIN; DEALLOCATE ALL; <query>; COMMIT` (~4 network round-trips per query), so latency between function and DB is multiplied by 4. Deskwell's cart was 7-8s because functions ran in US-East (iad1) against a France DB; moving to lhr1 fixed it. When an endpoint is slow, count its sequential Prisma queries and multiply by 4 before blaming the code. `pg_stat_statements` is not preloaded on the VPS - sample `pg_stat_activity` in a loop over SSH instead.
-  - **Backups:** `/usr/local/bin/backup-neondb.sh` via cron at 03:30 daily -> local `/var/backups/cactus-db/` (7-day) + rclone to B2 `Deskwell-Office-Furniture/Database-Backups/`. **B2 quirk:** the S3-compatible API rejects writes with `AccessDenied: not entitled` even with correct caps - use rclone's **native `b2` backend** (`type = b2`), not `type = s3`, and `--s3-no-check-bucket` for other B2 ops.
-- Site content lives in the DB, not code:
-  - **Headers/footers/etc. = `Layout` rows** (`type` in header/footer/infoPage/notFound/statusPage). The public renderer reads the `builderData` jsonb (a Puck tree), NOT `publishedData`. Sitewide = `displayConditions` includes `entire_site`.
-  - **Pages = `InfoPage`** (slug -> `/{slug}`). Its render field is the OPPOSITE of Layout: `renderInfoPage.tsx` renders `publishedData` for published pages, `builderData` for drafts - so a hand DB edit to a published page must write BOTH and keep them in sync.
-  - This tree is actively multi-edited; re-fetch fresh and apply with an optimistic md5 guard (`UPDATE ... WHERE md5(builderData::text)=<base>`; expect `UPDATE 1`).
-  - Editing DB *content* is data, not a schema migration, so the "no hand-applied DB" rule doesn't apply to pure content edits here - but there's still no build/tsc/eslint needed for content-only changes.
-- **Neon-era note:** the old Neon project for Deskwell was `polished-grass-93582672` (org `org-plain-mode-76236342`), reachable with the root `NEON_API_KEY`. An even older `withered-water-20662801` / `org-silent-dream-43516130` is gone. If you use the Neon API, list orgs first (`GET /users/me/organizations`), then projects (`GET /projects?org_id=...`).
-
-### Keys / tokens (all in repo-root `.env`)
+### Keys / tokens (all in the Deskwell folder's `.env`)
 
 - `VERCEL_API_TOKEN` - Vercel API token. **Note the name is `VERCEL_API_TOKEN`, not `VERCEL_TOKEN`** (older docs/memory say `VERCEL_TOKEN` and are wrong).
-- `NEON_API_KEY` - Neon API key (now scoped to the Deskwell org).
-- `OVH_SERVER` / `OVH_USER` / `OVH_PASSWORD` - the OVH VPS SSH credentials (also used by the backup round-trip test).
-- `B2_BUCKET_NAME` / `B2_ENDPOINT` / `B2_KEY_ID` / `B2_KEY` - Backblaze B2 for Deskwell media + DB backups.
+- `DATABASE_URL` / `DIRECT_URL` - **the live Deskwell customer database**, not a sandbox. Not set in this repo; if exported for a run: reads fine, writes only when asked that turn, nothing destructive, no DDL by hand (reconcile files only).
+- `OVH_SERVER` / `OVH_USER` / `OVH_PASSWORD` - the OVH VPS SSH credentials (used by the backup round-trip test, which provisions throwaway `cactus_rt_*` databases there).
+- `B2_BUCKET_NAME` / `B2_ENDPOINT` / `B2_KEY_ID` / `B2_KEY` - Backblaze B2 media storage credentials.
 - `psql` binary lives at `/opt/homebrew/opt/libpq/bin/psql`.
 
-### Deskwell shop media naming (B2)
+### The live customer site
 
-Canonical key: `media/shop/<master-category-slug>/<parent-product-slug>/<option-slug>.webp`, where `<option-slug>` is the variation's option labels joined by `-`, ordered by `svr_options.position` then `svr_options.name`. Second+ images get `-2`, `-3`. When renaming a shop image, THREE DB places must move together: `shp_product_media.url`, `Media.key`/`url`/`originalName`, and `Media.folderId`. Only ~1/3 of `shp_product_media` rows have a matching `Media` row, so always reconcile against a real bucket listing (B2 S3 listings can be stale - re-list after copying).
+One real site runs on this platform today: **Deskwell** (`deskwell.co.uk`, install repo `usersaynoso/deskwell-office-furniture`). Everything about running that site - its VPS, backups, media naming, catalogue, suppliers, content, 3D models - lives in its own working folder, **`/Users/chris/Git Local/Deskwell/Claude`** (`CLAUDE.md`, `notes/`, skills, and that folder's own Claude memory). Site work happens there. This repo is the platform: nothing Deskwell-specific belongs in core, in a public module, or in this file. Anything a site needs that the platform cannot do yet becomes a setting, a module, or an option that any site could switch on.
 
 ---
 
@@ -257,6 +241,13 @@ This file is a faithful distillation, but the original per-fact notes (with date
 
 ```
 ~/.claude/projects/-Users-chris-Git-Local-Cactus/memory/
+```
+
+Deskwell site knowledge (catalogue, 3D, suppliers, content) was split out on 2026-08-23 into the Deskwell working folder and its own memory:
+
+```
+/Users/chris/Git Local/Deskwell/Claude/
+~/.claude/projects/-Users-chris-Git-Local-Deskwell-Claude/memory/
 ```
 
 `MEMORY.md` there is the index; each `*.md` is one fact. On this machine another agent can read them directly. They are in Claude Code's own format (frontmatter + body) but the prose is plain. If this repo is moved to another machine, those files do not travel - this `AGENTS.md` is the portable copy.
