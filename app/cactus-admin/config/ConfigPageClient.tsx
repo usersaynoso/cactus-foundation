@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import type { MediaProviderType } from '@prisma/client'
 import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
@@ -625,6 +626,26 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react only to URL changes; the permission flags/tab lists are stable for a session
   }, [searchParams])
+
+  // Clicking a tab writes it back into the URL, so a refresh (or a pasted link)
+  // lands on the tab the admin was actually looking at instead of bouncing to
+  // General. General is the default, so it carries no param.
+  const syncTabUrl = useCallback((nextTab: string, nextSub: 'delivery' | 'templates') => {
+    setUrlParams({
+      tab: nextTab === 'general' ? null : nextTab,
+      sub: nextTab === 'email' && nextSub === 'templates' ? 'templates' : null,
+    }, { dropHash: true })
+  }, [])
+
+  const selectTab = useCallback((next: string) => {
+    setTab(next)
+    syncTabUrl(next, emailSubTab)
+  }, [emailSubTab, syncTabUrl])
+
+  const selectEmailSubTab = useCallback((next: 'delivery' | 'templates') => {
+    setEmailSubTab(next)
+    syncTabUrl('email', next)
+  }, [syncTabUrl])
 
   // Deep links carry a #section hash; pull that section into view once its tab has
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
@@ -1541,9 +1562,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       <TabStrip
         style={{ marginBottom: '2rem' }}
         items={[
-          ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => setTab(t) })),
-          ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => setTab('navigation') }] : []),
-          ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => setTab(t.id) })),
+          ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
+          ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
+          ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
         ]}
       />
 
@@ -1902,8 +1923,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {tab === 'email' && canManageEmailTemplates && (
         <TabStrip
           items={[
-            { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => setEmailSubTab('delivery') },
-            { key: 'templates', label: 'Templates', active: emailSubTab === 'templates', onClick: () => setEmailSubTab('templates') },
+            { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => selectEmailSubTab('delivery') },
+            { key: 'templates', label: 'Templates', active: emailSubTab === 'templates', onClick: () => selectEmailSubTab('templates') },
           ]}
         />
       )}

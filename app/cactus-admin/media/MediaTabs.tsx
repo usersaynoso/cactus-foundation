@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import VideoSettingsPanel from './VideoSettingsPanel'
 
 // Thin tab shell over the media page: the existing library on one tab, the video
@@ -47,15 +48,32 @@ export default function MediaTabs({
   // Built-in keys plus whatever module ids arrive, so the state is a plain string.
   const [tab, setTab] = useState<string>('library')
 
+  // Pick the tab out of the URL after mount, so a refresh stays where the admin
+  // was. After mount rather than during render, so the server-rendered markup and
+  // the first client render still agree. The library's own ?folder= bookkeeping
+  // lives alongside this and neither touches the other's key.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot read of the URL's tab on mount
+    if (t && (t === 'video' || moduleTabs.some((m) => m.id === t))) setTab(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only; the module tab list is fixed for the render
+  }, [])
+
+  // Library is the default, so it carries no param.
+  const selectTab = useCallback((next: string) => {
+    setTab(next)
+    setUrlParams({ tab: next === 'library' ? null : next })
+  }, [])
+
   const activeModuleTab = moduleTabs.find((t) => t.id === tab) ?? null
 
   return (
     <>
       <TabStrip
         items={[
-          { key: 'library', label: 'Library', active: tab === 'library', onClick: () => setTab('library') },
-          { key: 'video', label: 'Video', active: tab === 'video', onClick: () => setTab('video') },
-          ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: tab === t.id, onClick: () => setTab(t.id) })),
+          { key: 'library', label: 'Library', active: tab === 'library', onClick: () => selectTab('library') },
+          { key: 'video', label: 'Video', active: tab === 'video', onClick: () => selectTab('video') },
+          ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: tab === t.id, onClick: () => selectTab(t.id) })),
         ]}
       />
       <div hidden={tab !== 'library'}>{library}</div>

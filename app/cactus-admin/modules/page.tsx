@@ -8,6 +8,7 @@ import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import { ModuleArt } from './ModuleArt'
 import { CardMenu } from './CardMenu'
 
@@ -63,7 +64,8 @@ type CoreVersionModal = {
 }
 
 /** Which shelf of the store is on screen. */
-type StoreTab = 'installed' | 'updates' | 'browse' | 'custom'
+const STORE_TABS = ['installed', 'updates', 'browse', 'custom'] as const
+type StoreTab = (typeof STORE_TABS)[number]
 
 const STATUS_BADGE: Record<ModuleStatus, { label: string; className: string }> = {
   pending_install: { label: 'Pending', className: 'badge-yellow' },
@@ -153,6 +155,21 @@ export default function ModulesPage() {
   // (their own modules if they have any, the store if they haven't) without an effect.
   const [tab, setTab] = useState<StoreTab | null>(null)
   const [query, setQuery] = useState('')
+
+  // Pick the shelf out of the URL, so a refresh stays on it. After mount rather
+  // than during render: the fallback depends on what the modules fetch turns up,
+  // which the first render doesn't know either.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot read of the URL's tab on mount
+    if (t && (STORE_TABS as readonly string[]).includes(t)) setTab(t as StoreTab)
+  }, [])
+
+  // Clicking a shelf writes it back, so the refresh above has something to find.
+  const selectTab = useCallback((next: StoreTab) => {
+    setTab(next)
+    setUrlParams({ tab: next })
+  }, [])
 
   const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
     const sessionKey = `cactus-module-update-check-${installedId}`
@@ -705,10 +722,10 @@ export default function ModulesPage() {
       <TabStrip
         style={{ marginBottom: '1.5rem' }}
         items={[
-          { key: 'installed', label: tabLabel('Installed', installed.length), active: activeTab === 'installed', onClick: () => setTab('installed') },
-          { key: 'updates', label: tabLabel('Updates available', updatableCount, 'badge-yellow'), active: activeTab === 'updates', onClick: () => setTab('updates') },
-          { key: 'browse', label: tabLabel('Browse', available.length), active: activeTab === 'browse', onClick: () => setTab('browse') },
-          { key: 'custom', label: 'Add your own', active: activeTab === 'custom', onClick: () => setTab('custom') },
+          { key: 'installed', label: tabLabel('Installed', installed.length), active: activeTab === 'installed', onClick: () => selectTab('installed') },
+          { key: 'updates', label: tabLabel('Updates available', updatableCount, 'badge-yellow'), active: activeTab === 'updates', onClick: () => selectTab('updates') },
+          { key: 'browse', label: tabLabel('Browse', available.length), active: activeTab === 'browse', onClick: () => selectTab('browse') },
+          { key: 'custom', label: 'Add your own', active: activeTab === 'custom', onClick: () => selectTab('custom') },
         ]}
         trailing={activeTab === 'custom' ? undefined : (
           <input
@@ -726,7 +743,7 @@ export default function ModulesPage() {
         loading ? <LoadingGrid /> :
         installed.length === 0 ? (
           <EmptyState title="No modules yet">
-            Nothing installed so far. Have a look through <button type="button" className="btn-link" onClick={() => setTab('browse')}>Browse</button> and
+            Nothing installed so far. Have a look through <button type="button" className="btn-link" onClick={() => selectTab('browse')}>Browse</button> and
             pick out whatever your site could do with.
           </EmptyState>
         ) : shownInstalled.length === 0 ? (

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import { LayoutPreview } from '@/components/admin/LayoutPreview'
 import { useModuleLayoutGroups } from '@/components/admin/ModuleLayoutGroupsContext'
 import { CORE_TYPE_TABS, moduleGroupTabs, CORE_LAYOUT_TYPES } from '@/lib/layout/layout-type-tabs'
@@ -49,10 +50,20 @@ export default function NewLayoutPage() {
     ? `Pick a starting point for your ${activeGroup.groupLabel.toLowerCase()} pages. You can change everything afterwards.`
     : CORE_LAYOUT_TYPES.find((t) => t.key === activeType)?.description ?? ''
 
+  // Clicking a tab writes the type it lands on back into ?type=, so a refresh
+  // stays on the starters that were on screen instead of jumping to Header.
   function handleTopClick(key: string) {
     setActiveTop(key)
     setActiveModuleSub(null)
     setError('')
+    const group = moduleGroups.find((g) => g.moduleName === key) ?? null
+    setUrlParams({ type: group ? group.types[0]?.key ?? null : key })
+  }
+
+  function handleModuleSubClick(key: string) {
+    setActiveModuleSub(key)
+    setError('')
+    setUrlParams({ type: key })
   }
 
   async function handleChoose(template: StarterTemplate) {
@@ -116,7 +127,7 @@ export default function NewLayoutPage() {
             key: t.key,
             label: t.label,
             active: activeType === t.key,
-            onClick: () => { setActiveModuleSub(t.key); setError('') },
+            onClick: () => handleModuleSubClick(t.key),
           }))}
         />
       )}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAdminPath } from '@/components/admin/AdminPathContext'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import { LayoutPreview } from '@/components/admin/LayoutPreview'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import { useModuleLayoutGroups } from '@/components/admin/ModuleLayoutGroupsContext'
@@ -67,9 +68,15 @@ export default function LayoutBuilderPage() {
     [moduleGroups],
   )
 
-  const initialTop = tabs.some((t) => t.key === typeParam) ? typeParam! : 'all'
+  // ?type= carries a layout type, so a module's own type (e.g. gazetteEntry)
+  // selects its group tab *and* the sub-tab within it - the same reading the New
+  // Layout picker gives it.
+  const paramGroup = moduleGroups.find((g) => g.types.some((t) => t.key === typeParam)) ?? null
+  const initialTop = paramGroup
+    ? paramGroup.moduleName
+    : tabs.some((t) => t.key === typeParam) ? typeParam! : 'all'
   const [activeTop, setActiveTop] = useState<string>(initialTop)
-  const [activeModuleSub, setActiveModuleSub] = useState<string | null>(null)
+  const [activeModuleSub, setActiveModuleSub] = useState<string | null>(paramGroup ? typeParam : null)
   const [layouts, setLayouts] = useState<Layout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -126,9 +133,22 @@ export default function LayoutBuilderPage() {
     )
   }, [layouts, search])
 
+  // Clicking a tab writes the type it lands on into the URL, so a refresh (or a
+  // pasted link) opens the same shelf rather than falling back to All. "All" has
+  // no type of its own, so it carries no param.
   function handleTopClick(key: string) {
     setActiveTop(key)
     setActiveModuleSub(null)
+    const group = moduleGroups.find((g) => g.moduleName === key) ?? null
+    const nextType = group
+      ? group.types[0]?.key ?? null
+      : tabs.find((t) => t.key === key)?.type ?? null
+    setUrlParams({ type: nextType })
+  }
+
+  function handleModuleSubClick(key: string) {
+    setActiveModuleSub(key)
+    setUrlParams({ type: key })
   }
 
   async function handleDuplicate(id: string) {
@@ -208,7 +228,7 @@ export default function LayoutBuilderPage() {
       {activeGroup && (
         <TabStrip
           style={{ marginBottom: '1.5rem' }}
-          items={activeGroup.types.map((t) => ({ key: t.key, label: t.label, active: activeType === t.key, onClick: () => setActiveModuleSub(t.key) }))}
+          items={activeGroup.types.map((t) => ({ key: t.key, label: t.label, active: activeType === t.key, onClick: () => handleModuleSubClick(t.key) }))}
         />
       )}
 

@@ -7,6 +7,7 @@ import { DEFAULT_DESIGN_TOKENS, COLOUR_PRESETS, STATUS_KEYS, BADGE_COLOUR_KEYS, 
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 import { ColourPickerRow } from '@/components/admin/ColourPickerRow'
 import { BrandingTab, useBrandingState } from './BrandingTab'
 import GOOGLE_FONTS from '@/lib/design/google-fonts.json'
@@ -66,13 +67,21 @@ export default function StylesPage() {
     STYLE_TABS.includes(searchParams.get('tab') as StyleTab) ? (searchParams.get('tab') as StyleTab) : 'branding'
   )
 
-  // Follow the ?tab= param so a command-palette deep link opens the right styles
-  // section. UI clicks don't touch the URL, so this only reacts to real navigations.
+  // Follow the ?tab= param so a command-palette deep link (or the back button)
+  // opens the right styles section. Setting the tab it's already on is a no-op.
   useEffect(() => {
     const t = searchParams.get('tab')
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab to the URL param for deep links
     if (t && STYLE_TABS.includes(t as StyleTab)) setActiveTab(t as StyleTab)
   }, [searchParams])
+
+  // Clicking a tab writes it back into the URL, so a refresh lands on the section
+  // that was open rather than back on Branding. Branding is the default, so it
+  // carries no param.
+  const selectTab = useCallback((next: StyleTab) => {
+    setActiveTab(next)
+    setUrlParams({ tab: next === 'branding' ? null : next }, { dropHash: true })
+  }, [])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -457,7 +466,7 @@ export default function StylesPage() {
           ['images',     'Images'],
           ['formFields', 'Form Fields'],
           ['spacing',    'Spacing & Breakpoints'],
-        ] as const).map(([id, label]) => ({ key: id, label, active: activeTab === id, onClick: () => setActiveTab(id) }))}
+        ] as const).map(([id, label]) => ({ key: id, label, active: activeTab === id, onClick: () => selectTab(id) }))}
       />
 
       <div style={{ padding: '2rem' }}>
