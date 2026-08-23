@@ -830,7 +830,7 @@ function SiteHeaderBlock(props: any) {
 }
 
 function SplitBlock(props: any) {
-  const { puck, id, ratio, align = 'stretch', gap = 'md', padding, animationType, animationDuration, animationDelay } = props
+  const { puck, id, ratio, align = 'stretch', gap = 'md', stackOrder = 'left-first', padding, animationType, animationDuration, animationDelay } = props
   const alignMap: Record<string, string> = { stretch: 'stretch', start: 'flex-start', center: 'center', end: 'flex-end' }
 
   // `auto` sizes the left track to whatever width its content actually asks for
@@ -860,9 +860,20 @@ function SplitBlock(props: any) {
   const padBase = pickResponsive(normalizeResponsiveValue<string>(padding), 'desktop') ?? 'default'
   const css = responsiveMediaCssFor(`[data-split-id="${id}"]`, (d) => `align-items:${alignMap[pickResponsive(alignRv, d) ?? 'stretch'] ?? 'stretch'};gap:${GAP_MAP[pickResponsive(gapRv, d) ?? 'md'] ?? '1rem'};`)
 
+  // Once the split has collapsed to one column on a phone, the left column
+  // lands on top - fine for a hero beside its copy, wrong for a checkout whose
+  // order summary sits left of the steps: the shopper then scrolls past the
+  // whole basket to reach the first field. 'right-first' flips the stacking
+  // order at mobile only (the columns are grid children, so `order` moves them
+  // without touching the desktop ratio, which stays left-then-right).
+  const stackOrderCss = stackOrder === 'right-first'
+    ? `${mobileMediaQuery()}{[data-split-id="${id}"]>div:first-child{order:2;}[data-split-id="${id}"]>div:nth-child(2){order:1;}}`
+    : ''
+
   return (
     <>
       {css && <style>{css}</style>}
+      {stackOrderCss && <style>{stackOrderCss}</style>}
       <div data-split-id={id} className={`puck-split ${getPaddingClasses(padding)}`} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ display: 'grid', gridTemplateColumns: cols, alignItems: alignMap[alignBase] ?? 'stretch', gap: GAP_MAP[gapBase] ?? '1rem', marginBottom: padBase === 'none' ? 0 : '1.5rem' }}>
         <div>{puck?.renderDropZone?.({ zone: 'left', minEmptyHeight: 80 })}</div>
         <div>{puck?.renderDropZone?.({ zone: 'right', minEmptyHeight: 80 })}</div>
@@ -2985,10 +2996,11 @@ export const puckConfig = {
         ratio:   { type: 'select' as const, label: 'Column ratio', options: [{ value: '50/50', label: '50 / 50' }, { value: '60/40', label: '60 / 40' }, { value: '40/60', label: '40 / 60' }, { value: '70/30', label: '70 / 30' }, { value: '30/70', label: '30 / 70' }, { value: 'auto', label: 'Auto - left fits its content' }] },
         align:   { type: 'custom' as const, label: 'Vertical align', options: [{ value: 'stretch', label: 'Stretch' }, { value: 'start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'end', label: 'Bottom' }], render: ResponsiveSelectField },
         gap:     { type: 'custom' as const, label: 'Gap', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }], render: ResponsiveSelectField },
+        stackOrder: { type: 'select' as const, label: 'Order once stacked on a phone', options: [{ value: 'left-first', label: 'Left column first' }, { value: 'right-first', label: 'Right column first' }] },
         padding: paddingField,
         ...aosFields,
       },
-      defaultProps: { ratio: '50/50', align: 'stretch', gap: 'md', padding: 'none', ...aosDefaults },
+      defaultProps: { ratio: '50/50', align: 'stretch', gap: 'md', stackOrder: 'left-first', padding: 'none', ...aosDefaults },
       render: SplitBlock,
     },
     Spacer: {
