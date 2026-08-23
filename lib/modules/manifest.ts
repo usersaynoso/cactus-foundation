@@ -70,6 +70,17 @@ export const ModuleManifestSchema = z.object({
   // Permission keys this module declares. Convention: use _own/_any suffix where meaningful.
   permissions: z.array(z.string()).default([]),
   cookieCategories: z.array(CookieCategorySchema).default([]),
+  // Blocks core should place onto matching layouts when this module is FIRST
+  // installed, for blocks that draw nothing and exist only to say "run this
+  // module here". Never re-applied on update: an owner who deletes the block
+  // must not find it back. See lib/layout/auto-place-blocks.ts.
+  autoPlaceBlocks: z.array(z.object({
+    /** A puckBlocks type this module registers. */
+    type: z.string().min(1),
+    /** The layout type to place it on, e.g. "header". */
+    layoutType: z.string().min(1),
+    position: z.enum(['start', 'end']).optional(),
+  })).default([]),
   // External origins this module's front-end genuinely needs, per CSP fetch
   // directive. Collected across every installed module by
   // scripts/generate-module-csp.mjs and unioned into the site's own

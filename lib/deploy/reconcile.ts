@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { declaredLayoutTypesByModule, isModuleInBuild, seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
+import { autoPlaceModuleBlocks } from '@/lib/layout/auto-place-blocks'
 
 // Reconciles modules left in 'deploying' once the Vercel build reaches a terminal
 // state. Centralised so every "deploy finished" path (the Pro-plan webhook, the
@@ -53,6 +54,11 @@ export async function markModulesDeploySucceeded(): Promise<void> {
       if (!m.layoutsSeededAt && isModuleInBuild(m.name)) {
         try {
           const created = await seedModuleDefaultLayouts(prisma, m.name)
+          // Marker blocks the module asked core to place for it. Inside this
+          // `layoutsSeededAt` guard deliberately: the stamp is what makes it
+          // first-install-only, and re-adding a block the owner has since
+          // deleted would be core editing their site behind their back.
+          await autoPlaceModuleBlocks(prisma, m.name)
           if (created > 0 || !declaredLayoutTypesByModule()[m.name]?.length) {
             await prisma.module.update({
               where: { id: m.id },

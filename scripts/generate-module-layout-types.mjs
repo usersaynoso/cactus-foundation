@@ -20,6 +20,8 @@ function getModuleNames() {
 
 const moduleNames = getModuleNames()
 const modulesInBuild = []
+// moduleName -> the blocks it asks core to place on first install.
+const autoPlaceByModule = {}
 const declaredGroups = []
 const starterImports = []
 const starterEntries = []
@@ -46,6 +48,28 @@ for (const moduleName of moduleNames) {
   // two apart is what keeps seedPendingModuleLayouts() from stamping a module
   // whose code has not landed - see lib/setup/starterLayouts.ts.
   modulesInBuild.push(moduleName)
+
+  // Collected BEFORE the layoutTypes check below, which `continue`s past every
+  // module that declares none. A module can perfectly well auto-place a block
+  // into somebody else's layout type (a marker block for the site header, say)
+  // without owning a layout type of its own - google-tag being exactly that -
+  // and gathering this afterwards would silently skip all of them.
+  const autoPlace = Array.isArray(manifest.autoPlaceBlocks) ? manifest.autoPlaceBlocks : []
+  if (autoPlace.length > 0) {
+    const entries = []
+    for (const entry of autoPlace) {
+      if (!entry?.type || !entry?.layoutType) {
+        console.warn(`[generate-module-layout-types] ${moduleName}: autoPlaceBlocks entry needs both type and layoutType — skipping`)
+        continue
+      }
+      entries.push({
+        type: entry.type,
+        layoutType: entry.layoutType,
+        ...(entry.position === 'start' ? { position: 'start' } : {}),
+      })
+    }
+    if (entries.length > 0) autoPlaceByModule[moduleName] = entries
+  }
 
   const layoutTypes = manifest.layoutTypes
   if (!layoutTypes || !Array.isArray(layoutTypes.types) || layoutTypes.types.length === 0) continue
@@ -170,6 +194,13 @@ typesOut.push(`  for (const t of group.types) {`)
 typesOut.push(`    moduleLayoutTypeToGroup[t.key] = { moduleName: t.moduleName, groupLabel: group.groupLabel, label: t.label, editorPreview: t.editorPreview }`)
 typesOut.push(`  }`)
 typesOut.push(`}`)
+
+typesOut.push(``)
+typesOut.push(`/** Blocks a module asks core to place onto matching layouts when it is FIRST`)
+typesOut.push(` *  installed. See lib/layout/auto-place-blocks.ts - never re-applied on update. */`)
+typesOut.push(`export type ModuleAutoPlaceEntry = { type: string; layoutType: string; position?: 'start' | 'end' }`)
+typesOut.push(`const AUTO_PLACE_BLOCKS: Record<string, ModuleAutoPlaceEntry[]> = ${JSON.stringify(autoPlaceByModule, null, 2)}`)
+typesOut.push(`export function moduleAutoPlaceBlocks(): Record<string, ModuleAutoPlaceEntry[]> { return AUTO_PLACE_BLOCKS }`)
 
 writeFileSync(typesOutPath, typesOut.join('\n') + '\n')
 
