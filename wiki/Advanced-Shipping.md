@@ -114,8 +114,7 @@ It needs the **Shop** and **Product Attributes** modules installed.
   works out the offers from the services your items are actually offered, so
   there is nothing to configure: an upgrade only appears when it applies to at
   least two lines and the shopper is not already on it, and one it cannot put a
-  firm price on (a per-person service on an item with no people count) is not
-  offered at all rather than guessed at. Drop it under the countdown, above your
+  firm price on is not offered at all rather than guessed at. Drop it under the countdown, above your
   basket lines. A basket with one item in it never shows the row - that item's
   own picker already offers everything this could.
 - The **Delivery: basket arrivals summary** block goes underneath the basket
@@ -212,9 +211,8 @@ offered your default service (the one nominated in Delivery settings), it starts
 on the highest service in this list that it *is* offered - so put the one you
 would rather sell nearer the top. A newly added service joins the bottom.
 
-Every price row has an **Edit** button beside it, so a price rise, a longer lead
-time or a switch to per-person pricing is a change in place rather than a remove
-and a retype. The one thing Edit does not change is *where* the row applies - a
+Every price row has an **Edit** button beside it, so a price rise or a longer
+lead time is a change in place rather than a remove and a retype. The one thing Edit does not change is *where* the row applies - a
 row is defined by its scope, so to move a price somewhere else, remove it and
 add a new one.
 
@@ -228,24 +226,6 @@ to select each one in turn. Anything landing within the week shows just the
 weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday" can
 never be mistaken for the one three weeks off; past four weeks it adds the month
 too ("Monday 3rd Aug").
-
-### Pricing per person
-
-Some things are priced by how many people they are for, not by the line: a bench
-desk sold as a two, four or six-person unit, where a "delivered and built" price
-is really a price per seat. Any service price can be ticked **per person** on the
-Delivery services screen. When it is, the price is multiplied by a number read
-off one of the product's own attributes - you nominate which attribute carries
-that number in Delivery settings (say a "Seats" attribute whose values read "2
-People", "4 People", "6 People"). So a £50 build on a six-person desk shows as
-"+£300.00" in the basket and is charged, and saved on the order, exactly so.
-
-The number is read from the attribute value's text - the first whole number in it
-wins, so "6 People", "6" and "6-seat" all count as six. If a product set to a
-per-person service has no such number to read, that line is held back rather than
-guessed at: the shopper is asked to choose the number of people before it can be
-bought. A flat (not-per-person) service is unaffected and is charged once per
-line as before.
 
 ## Orders that are paid for later
 
@@ -305,8 +285,7 @@ and shipping tab you get four more tabs:
   dispatch, ship days, with a live "an order placed now would dispatch…"
   preview so you can spot a wrong cut-off before a shopper does), which
   attribute is your **shipping attribute** (the one that usually means "range"),
-  which attribute holds a **person count** for per-person pricing, your holiday
-  region, the default service shown before the
+  your holiday region, the default service shown before the
   shopper changes it, how the basket shows the picker: the **chosen service
   with the rest as chips** (the default), a compact **dropdown**, or **radio
   buttons** that list every option at once - and whether a product page names the
