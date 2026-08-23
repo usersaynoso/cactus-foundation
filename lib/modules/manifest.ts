@@ -244,6 +244,26 @@ export type ThemeManifest = z.infer<typeof ThemeManifestSchema>
 // Validation helpers
 // ---------------------------------------------------------------------------
 
+// The core version a manifest asks for, read straight off the raw JSON without
+// validating anything else.
+//
+// This exists because of the order the two checks have to run in. A module
+// written against a newer core can perfectly legitimately use a manifest field
+// this core's schema has never heard of - that is what `requiresCoreVersion` is
+// FOR - and validating first turns "update Cactus first" into a page of zod
+// internals about a field the owner has never seen. Worse, on the update path a
+// failed parse was swallowed, which skipped the version gate altogether and let
+// an install take a module its build could not compile.
+//
+// So: ask the raw JSON what it needs before asking the schema whether it is
+// well formed. Deliberately tolerant - anything that is not a semver-shaped
+// string is treated as "did not say", which lands on the ordinary parse error.
+export function readDeclaredCoreVersion(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = (raw as { requiresCoreVersion?: unknown }).requiresCoreVersion
+  return typeof value === 'string' && /^\d+\.\d+\.\d+/.test(value) ? value : null
+}
+
 export function parseModuleManifest(raw: unknown): ModuleManifest {
   return ModuleManifestSchema.parse(raw)
 }

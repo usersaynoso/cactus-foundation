@@ -7,6 +7,7 @@ import { errorResponse } from '@/lib/utils'
 import {
   fetchManifestFromRepo,
   parseModuleManifest,
+  readDeclaredCoreVersion,
   parseGitHubRepo,
   formatModuleDisplayName,
   validateTablePrefixUnique,
@@ -134,30 +135,44 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Fetch and validate the manifest at the tag being installed
-  let manifest
+  // Fetch the manifest at the tag being installed.
+  let raw: unknown
   try {
-    const raw = await fetchManifestFromRepo(repoUrl, 'cactus.module.json', release.tag)
-    manifest = parseModuleManifest(raw)
+    raw = await fetchManifestFromRepo(repoUrl, 'cactus.module.json', release.tag)
   } catch (err: unknown) {
     return errorResponse(`Manifest error: ${err instanceof Error ? err.message : 'Unknown error'}`)
   }
 
-  // Check the running core is new enough for this module. Installing anyway
-  // would commit the module into modules.json and break the site's next build
-  // on a missing core import - far worse than refusing here.
-  if (manifest.requiresCoreVersion && compareVersions(pkg.version, manifest.requiresCoreVersion) < 0) {
+  // Check the running core is new enough BEFORE validating the rest of the
+  // manifest. Installing anyway would commit the module into modules.json and
+  // break the site's next build on a missing core import - far worse than
+  // refusing here. The order matters as much as the check: a module built
+  // against a newer core may use a manifest field this core's schema has never
+  // heard of, which is precisely what requiresCoreVersion is for, and parsing
+  // first answered "update Cactus" with a page of validator internals about a
+  // field the owner has never seen.
+  const declaredCoreVersion = readDeclaredCoreVersion(raw)
+  if (declaredCoreVersion && compareVersions(pkg.version, declaredCoreVersion) < 0) {
     const displayName = formatModuleDisplayName(repoUrl)
     return NextResponse.json(
       {
-        error: `"${displayName}" needs Cactus v${manifest.requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
+        error: `"${displayName}" needs Cactus v${declaredCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
         code: 'core_version_required',
         moduleName: displayName,
-        requiredVersion: manifest.requiresCoreVersion,
+        requiredVersion: declaredCoreVersion,
         currentVersion: pkg.version,
       },
       { status: 409 }
     )
+  }
+
+  // Core is new enough, so anything the schema rejects now is a genuine fault
+  // in the manifest rather than this core being behind.
+  let manifest
+  try {
+    manifest = parseModuleManifest(raw)
+  } catch (err: unknown) {
+    return errorResponse(`Manifest error: ${err instanceof Error ? err.message : 'Unknown error'}`)
   }
 
   // Check tablePrefix uniqueness

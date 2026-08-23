@@ -57,10 +57,33 @@ type UninstallModal = {
   hasTeardown: boolean
 }
 
-type CoreVersionModal = {
-  moduleName: string
-  requiredVersion: string
-  currentVersion: string
+// A blocker the owner has to clear before the thing they clicked can work -
+// Cactus is too old, a sibling module is too old, and whatever else the API
+// grows next. These never belong in the red strip at the top of the page: it
+// scrolls away, it reads like a failure rather than an instruction, and the
+// instruction is the entire point. Anything the API refuses with a code ending
+// `_required` lands here instead, so a new prerequisite needs no UI change.
+type PrerequisiteModal = {
+  title: string
+  message: string
+  /** Only Cactus itself has somewhere else to send them. */
+  updatePanel: boolean
+}
+
+const PREREQUISITE_TITLES: Record<string, string> = {
+  core_version_required: 'Cactus needs updating first',
+  module_version_required: 'Another module needs sorting first',
+}
+
+function prerequisiteFrom(d: ModuleActionResponse, fallback: string): PrerequisiteModal | null {
+  if (typeof d.code !== 'string' || !d.code.endsWith('_required')) return null
+  return {
+    title: PREREQUISITE_TITLES[d.code] ?? 'Something needs doing first',
+    // Verbatim from the server, which is where the whole diagnostic lives and
+    // is already written for a site owner rather than a developer.
+    message: d.error ?? fallback,
+    updatePanel: d.code === 'core_version_required',
+  }
 }
 
 /** Which shelf of the store is on screen. */
@@ -142,7 +165,7 @@ export default function ModulesPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [releaseNotesFor, setReleaseNotesFor] = useState<string | null>(null)
   const [uninstallModal, setUninstallModal] = useState<UninstallModal | null>(null)
-  const [coreVersionModal, setCoreVersionModal] = useState<CoreVersionModal | null>(null)
+  const [prerequisiteModal, setPrerequisiteModal] = useState<PrerequisiteModal | null>(null)
   const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
   const [uninstalling, setUninstalling] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
@@ -318,8 +341,9 @@ export default function ModulesPage() {
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Install failed')
       const d = parsed.data ?? {}
       if (!parsed.ok) {
-        if (d.code === 'core_version_required') {
-          setCoreVersionModal({ moduleName: d.moduleName!, requiredVersion: d.requiredVersion!, currentVersion: d.currentVersion! })
+        const blocker = prerequisiteFrom(d, parsed.error ?? 'Install failed')
+        if (blocker) {
+          setPrerequisiteModal(blocker)
           return false
         }
         throw new Error(parsed.error ?? 'Install failed')
@@ -368,8 +392,9 @@ export default function ModulesPage() {
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Action failed')
       const d = parsed.data ?? {}
       if (!parsed.ok) {
-        if (d.code === 'core_version_required') {
-          setCoreVersionModal({ moduleName: d.moduleName!, requiredVersion: d.requiredVersion!, currentVersion: d.currentVersion! })
+        const blocker = prerequisiteFrom(d, parsed.error ?? 'Action failed')
+        if (blocker) {
+          setPrerequisiteModal(blocker)
           return
         }
         throw new Error(parsed.error ?? 'Action failed')
@@ -957,39 +982,43 @@ export default function ModulesPage() {
         )
       })()}
 
-      {/* Core version required modal */}
-      {coreVersionModal && (
+      {/* Prerequisite modal - Cactus too old, a sibling module too old, and
+          anything else the API refuses with a *_required code. */}
+      {prerequisiteModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={prerequisiteModal.title}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setCoreVersionModal(null) }}
+          onClick={(e) => { if (e.target === e.currentTarget) setPrerequisiteModal(null) }}
         >
           <div className="card" style={{ maxWidth: '480px', width: '100%', margin: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
-              <h2 className="card-title" style={{ margin: 0 }}>Cactus needs updating first</h2>
+              <h2 className="card-title" style={{ margin: 0 }}>{prerequisiteModal.title}</h2>
               <button
                 type="button"
                 aria-label="Close"
-                onClick={() => setCoreVersionModal(null)}
+                onClick={() => setPrerequisiteModal(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, color: 'var(--color-text-muted)' }}
               >
                 &times;
               </button>
             </div>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
-              &ldquo;{coreVersionModal.moduleName}&rdquo; needs Cactus v{coreVersionModal.requiredVersion} or newer -
-              this site is on v{coreVersionModal.currentVersion}. Update Cactus first from the update panel, then
-              install the module.
+              {prerequisiteModal.message}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setCoreVersionModal(null)}>
-                Cancel
+              <button className="btn btn-secondary" onClick={() => setPrerequisiteModal(null)}>
+                {prerequisiteModal.updatePanel ? 'Cancel' : 'Close'}
               </button>
-              <a className="btn btn-primary" href="config?tab=general">
-                Go to update panel
-              </a>
+              {prerequisiteModal.updatePanel && (
+                <a className="btn btn-primary" href="config?tab=general">
+                  Go to update panel
+                </a>
+              )}
             </div>
           </div>
         </div>

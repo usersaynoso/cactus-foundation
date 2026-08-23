@@ -12,7 +12,7 @@ import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage } from '@/lib/deploy/lock'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
-import { fetchManifestFromRepo, parseModuleManifest, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
+import { fetchManifestFromRepo, parseModuleManifest, readDeclaredCoreVersion, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
 import { pruneUninstalledModuleLayouts } from '@/lib/setup/starterLayouts'
 import pkg from '@/package.json'
@@ -106,16 +106,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // site's next build on a missing import. Skipped silently if the manifest
     // can't be fetched, so a transient GitHub hiccup never blocks an
     // otherwise-fine update.
-    let incoming: ModuleManifest | undefined
+    // Read the manifest AT the tag being installed, not HEAD - otherwise the
+    // requiresCoreVersion / requiresModules checks below judge unreleased code.
+    let rawIncoming: unknown
     try {
-      // Read the manifest AT the tag being installed, not HEAD - otherwise the
-      // requiresCoreVersion / requiresModules checks below judge unreleased code.
-      incoming = parseModuleManifest(await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json', release.tag))
+      rawIncoming = await fetchManifestFromRepo(mod.repoUrl, 'cactus.module.json', release.tag)
     } catch (err) {
-      console.warn(`[modules] Could not pre-check requirements for ${mod.name}:`, err)
+      console.warn(`[modules] Could not fetch the manifest to pre-check requirements for ${mod.name}:`, err)
     }
 
-    const requiresCoreVersion = incoming?.requiresCoreVersion
+    // The core-version gate reads the RAW manifest, deliberately, and runs
+    // before validation. A newer module version may legitimately use a manifest
+    // field this core's schema has never heard of - that is what
+    // requiresCoreVersion is for - and this used to parse first and swallow the
+    // failure, which left `incoming` undefined and skipped the gate entirely.
+    // The update then went ahead and broke the site's next build on an import
+    // the running core has not got, which is the exact outcome the gate exists
+    // to prevent.
+    const requiresCoreVersion = readDeclaredCoreVersion(rawIncoming)
     if (requiresCoreVersion && compareVersions(pkg.version, requiresCoreVersion) < 0) {
       const displayName = formatModuleDisplayName(mod.repoUrl)
       return NextResponse.json(
@@ -128,6 +136,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         },
         { status: 409 }
       )
+    }
+
+    // Validated only once the core version is known to be sufficient. Still
+    // tolerant of a parse failure, as before: the sibling-module checks below
+    // are a courtesy, and a transient GitHub hiccup should not block an
+    // otherwise-fine update. The check that must never be skipped is above.
+    let incoming: ModuleManifest | undefined
+    if (rawIncoming !== undefined) {
+      try {
+        incoming = parseModuleManifest(rawIncoming)
+      } catch (err) {
+        console.warn(`[modules] Could not pre-check sibling requirements for ${mod.name}:`, err)
+      }
     }
 
     if (incoming) {
