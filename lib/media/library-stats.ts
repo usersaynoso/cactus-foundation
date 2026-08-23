@@ -69,3 +69,41 @@ export async function computeLibraryStats(): Promise<LibraryStats> {
 
   return stats
 }
+
+/**
+ * The same "unused" verdict as the stat tile, broken down by the folder each
+ * file sits in - what the media page's folder filter lists while the Unused view
+ * is on. `folderId` null is the library root.
+ *
+ * Only folders with something unused in them come back. A folder with nothing
+ * spare has no business in a list whose whole job is "where is the reclaimable
+ * stuff", and listing it would invite unticking a box that changes nothing.
+ *
+ * Its own scan rather than a field on LibraryStats: the stat bar is computed
+ * once on the server at first paint and never refreshed, whereas this list has
+ * to be re-read after a deletion or it keeps offering folders that are now
+ * empty.
+ */
+export type UnusedFolderTally = { folderId: string | null; files: number; size: number }
+
+export async function computeUnusedByFolder(): Promise<UnusedFolderTally[]> {
+  const [rows, usage] = await Promise.all([
+    prisma.media.findMany({ select: { id: true, key: true, url: true, sizeBytes: true, folderId: true } }),
+    loadMediaUsageIndex(),
+  ])
+
+  // Keyed on the folder id with a separate slot for null, because a Map keyed on
+  // `string | null` is exactly what it says and needs no sentinel.
+  const tally = new Map<string | null, UnusedFolderTally>()
+  for (const r of rows) {
+    if (isMediaInUse(r, usage)) continue
+    const existing = tally.get(r.folderId)
+    if (existing) {
+      existing.files += 1
+      existing.size += r.sizeBytes
+    } else {
+      tally.set(r.folderId, { folderId: r.folderId, files: 1, size: r.sizeBytes })
+    }
+  }
+  return [...tally.values()]
+}

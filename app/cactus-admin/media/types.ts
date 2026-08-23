@@ -47,3 +47,15 @@ export const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: 'model', label: '3D files' },
   { value: 'other', label: 'Other files' },
 ]
+
+/**
+ * How the library root is spelt in a list of folder ids - `null` has none. Kept
+ * in step with ROOT_FOLDER_KEY in lib/media/library-query.ts, which is where the
+ * server reads it back; restated rather than imported because that module talks
+ * to Prisma and this one is loaded by client components.
+ */
+export const ROOT_FOLDER_KEY = 'root'
+
+/** One line of the Unused view's folder filter: a folder with something spare in
+ *  it, already resolved to the path the page shows. */
+export type UnusedFolderOption = { key: string; label: string; files: number; size: number }

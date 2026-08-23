@@ -1,7 +1,8 @@
 'use client'
 
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
-import { SHAPE_FILTERS, SORTS, TYPE_FILTERS, type ShapeFilter, type Sort, type TypeFilter, type UseFilter, type ViewMode, type TagInfo } from './types'
+import MediaFolderFilter from './MediaFolderFilter'
+import { SHAPE_FILTERS, SORTS, TYPE_FILTERS, type ShapeFilter, type Sort, type TypeFilter, type UnusedFolderOption, type UseFilter, type ViewMode, type TagInfo } from './types'
 
 // The filter/search/view row plus a chip strip beneath it summarising every
 // active narrowing, each chip individually removable. Keeps the controls tidy on
@@ -18,6 +19,9 @@ export default function MediaToolbar({
   onShape,
   use,
   onUse,
+  folderOptions,
+  excludedFolders,
+  onExcludedFolders,
   optimisableOnly,
   onOptimisableOnly,
   tagFilter,
@@ -43,6 +47,12 @@ export default function MediaToolbar({
   onShape: (v: ShapeFilter) => void
   use: UseFilter
   onUse: (v: UseFilter) => void
+  /** Folders holding unused files. Empty unless the Unused view is on, which is
+   *  the only place the folder narrowing is offered. */
+  folderOptions: UnusedFolderOption[]
+  /** Folders currently unticked in that list. */
+  excludedFolders: Set<string>
+  onExcludedFolders: (next: Set<string>) => void
   /** Set by the "Optimisable" stat tile rather than by a dropdown, so it only ever appears as a chip. */
   optimisableOnly: boolean
   onOptimisableOnly: (v: boolean) => void
@@ -71,6 +81,16 @@ export default function MediaToolbar({
   if (type !== 'all') chips.push({ key: 'type', label: TYPE_CHIP_LABELS[type], onRemove: () => onType('all') })
   if (shape !== 'all') chips.push({ key: 'shape', label: SHAPE_CHIP_LABELS[shape], onRemove: () => onShape('all') })
   if (use !== 'all') chips.push({ key: 'use', label: use === 'in-use' ? 'In use' : 'Not in use', onRemove: () => onUse('all') })
+  // Counted against the folders on offer, so an exclusion left over from a
+  // folder that has since been emptied doesn't put up a chip nothing can remove.
+  const excludedShown = folderOptions.filter((o) => excludedFolders.has(o.key)).length
+  if (excludedShown > 0) {
+    chips.push({
+      key: 'folders',
+      label: `Folders: ${folderOptions.length - excludedShown} of ${folderOptions.length}`,
+      onRemove: () => onExcludedFolders(new Set()),
+    })
+  }
   if (optimisableOnly) chips.push({ key: 'optimisable', label: 'Still to optimise', onRemove: () => onOptimisableOnly(false) })
   if (tagFilter) chips.push({ key: 'tag', label: `Tag: ${tagFilter}`, onRemove: () => onTagFilter('') })
 
@@ -118,6 +138,12 @@ export default function MediaToolbar({
           <option value="in-use">In use</option>
           <option value="unused">Not in use</option>
         </Select>
+        {/* Only on the Unused view, and only once there is more than one folder
+            to choose between - a single folder's worth of spare files needs no
+            narrowing. */}
+        {use === 'unused' && folderOptions.length > 1 && (
+          <MediaFolderFilter options={folderOptions} excluded={excludedFolders} onExcluded={onExcludedFolders} />
+        )}
         {tags.length > 0 && (
           <Select value={tagFilter} onChange={onTagFilter} label="Filter by tag">
             <option value="">All tags</option>

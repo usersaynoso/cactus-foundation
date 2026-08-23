@@ -25,6 +25,18 @@ export type LibraryShapeFilter = 'all' | 'square' | 'not-square'
 // 'all' drops the folder constraint (used when searching or filtering by tag).
 export type LibraryFolderScope = string | null | 'all'
 
+/**
+ * How the library root is named in a list of folder ids, where `null` has no
+ * spelling. Used by the folder exclusions below - the root holds files like any
+ * other folder and has to be tickable alongside them.
+ *
+ * The admin side spells it the same way (see app/cactus-admin/media/types.ts).
+ * It is restated there rather than imported because this module reaches Prisma,
+ * and a client component importing from here would drag the database client into
+ * the browser bundle.
+ */
+export const ROOT_FOLDER_KEY = 'root'
+
 export type LibraryQuery = {
   folder: LibraryFolderScope
   search?: string
@@ -33,6 +45,18 @@ export type LibraryQuery = {
   use: LibraryUseFilter
   /** 1:1 or anything but, judged on Media.width/height. */
   shape: LibraryShapeFilter
+  /**
+   * Folders to leave out, as folder ids with ROOT_FOLDER_KEY standing for the
+   * library root. Subtractive on purpose: the media page's folder filter opens
+   * with everything ticked, so what it has to carry is the handful of folders
+   * somebody has taken out - not the hundreds still in. That also means a folder
+   * nobody has heard of yet (one whose files only just went unused) is included
+   * by default rather than silently missing from an inclusion list.
+   *
+   * Independent of `folder` above, which scopes to one folder's direct contents.
+   * The page only offers this while browsing the whole tree.
+   */
+  excludeFolders: string[]
   /**
    * Narrow to the images the bulk-optimise button would actually act on: raster
    * (not SVG) and not yet re-encoded. The "Optimisable" stat tile counts exactly
@@ -157,7 +181,9 @@ export const SHAPE_FILTER_WHERE: Record<Exclude<LibraryShapeFilter, 'all'>, Pris
   },
 }
 
-function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
+/** Exported for library-query.test.ts: the folder exclusions have a NULL trap in
+ *  them (see below) that is worth asserting on rather than eyeballing. */
+export function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   const and: Prisma.MediaWhereInput[] = []
 
   if (q.folder !== 'all') and.push({ folderId: q.folder })
@@ -177,6 +203,17 @@ function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
   if (q.type !== 'all') and.push(TYPE_FILTER_WHERE[q.type])
 
   if (q.shape !== 'all') and.push(SHAPE_FILTER_WHERE[q.shape])
+
+  // Unticked folders. Spelt out as two clauses rather than one `notIn` because
+  // SQL's NOT IN never matches NULL: a library-root row (folderId null) would
+  // survive `folderId notIn [...]` whether or not the root itself was excluded,
+  // so the root is handled by its own clause and explicitly re-admitted in the
+  // other one.
+  if (q.excludeFolders.length > 0) {
+    const ids = q.excludeFolders.filter((f) => f !== ROOT_FOLDER_KEY)
+    if (q.excludeFolders.includes(ROOT_FOLDER_KEY)) and.push({ folderId: { not: null } })
+    if (ids.length > 0) and.push({ OR: [{ folderId: null }, { folderId: { notIn: ids } }] })
+  }
 
   // isOptimisableType from lib/media/limits.ts, expressed in SQL - a raster image
   // or a 3D model the optimiser handles, not already done. It cannot call that
@@ -280,6 +317,17 @@ export function parseLibraryQuery(params: URLSearchParams, perPage: number, page
     ? (rawShape as LibraryShapeFilter)
     : 'all'
 
+  // Deduped, so a hand-made (or double-submitted) query string can't grow the
+  // IN list without bound.
+  const excludeFolders = [
+    ...new Set(
+      (params.get('excludeFolders') ?? '')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean),
+    ),
+  ]
+
   const rawUse = params.get('filter')
   const use: LibraryUseFilter = rawUse === 'in-use' || rawUse === 'unused' ? rawUse : 'all'
 
@@ -289,6 +337,7 @@ export function parseLibraryQuery(params: URLSearchParams, perPage: number, page
     tag: params.get('tag') || undefined,
     type,
     shape,
+    excludeFolders,
     use,
     optimisable: params.get('optimisable') === '1',
     sort,

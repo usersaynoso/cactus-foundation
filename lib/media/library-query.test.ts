@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OPTIMISABLE_TYPE_WHERE, SHAPE_FILTER_WHERE, TYPE_FILTER_WHERE, parseLibraryQuery } from '@/lib/media/library-query'
+import { OPTIMISABLE_TYPE_WHERE, SHAPE_FILTER_WHERE, TYPE_FILTER_WHERE, buildWhere, parseLibraryQuery } from '@/lib/media/library-query'
 import {
   ACCEPTED_UPLOAD_TYPES,
   MODEL_EXTENSION_TYPES,
@@ -150,5 +150,47 @@ describe('parseLibraryQuery', () => {
     expect(parse({ sort: 'biggest' }).sort).toBe('newest')
     expect(parse({ type: 'audio' }).type).toBe('all')
     expect(parse({ shape: 'round' }).shape).toBe('all')
+  })
+})
+
+describe('folder exclusions', () => {
+  const parse = (params: Record<string, string>) =>
+    parseLibraryQuery(new URLSearchParams(params), 25, 1)
+
+  it('reads a comma-separated list and drops the duplicates', () => {
+    expect(parse({ excludeFolders: 'a, b ,a,' }).excludeFolders).toEqual(['a', 'b'])
+  })
+
+  it('is empty when nothing is excluded', () => {
+    expect(parse({}).excludeFolders).toEqual([])
+    expect(parse({ excludeFolders: '' }).excludeFolders).toEqual([])
+  })
+
+  it('adds no clause at all when nothing is excluded', () => {
+    const where = buildWhere(parse({ folder: 'all', filter: 'unused' }))
+    expect(JSON.stringify(where)).not.toContain('folderId')
+  })
+
+  // The one that has to be right. SQL's NOT IN never matches NULL, so a plain
+  // `folderId: { notIn: [...] }` would leave every library-root file in the
+  // results whatever the root's own tick box said - the root being the folder
+  // most likely to be full of forgotten uploads.
+  it('excludes a named folder without quietly excluding the root', () => {
+    const and = (buildWhere(parse({ folder: 'all', excludeFolders: 'f1' })).AND ?? []) as Record<string, unknown>[]
+    expect(and).toContainEqual({ OR: [{ folderId: null }, { folderId: { notIn: ['f1'] } }] })
+    expect(and).not.toContainEqual({ folderId: { not: null } })
+  })
+
+  it('excludes the root on its own, by name', () => {
+    const and = (buildWhere(parse({ folder: 'all', excludeFolders: 'root' })).AND ?? []) as Record<string, unknown>[]
+    expect(and).toContainEqual({ folderId: { not: null } })
+    // No id list: 'root' is a name for NULL, not a folder id to compare against.
+    expect(JSON.stringify(and)).not.toContain('notIn')
+  })
+
+  it('excludes the root and a folder together', () => {
+    const and = (buildWhere(parse({ folder: 'all', excludeFolders: 'root,f1' })).AND ?? []) as Record<string, unknown>[]
+    expect(and).toContainEqual({ folderId: { not: null } })
+    expect(and).toContainEqual({ OR: [{ folderId: null }, { folderId: { notIn: ['f1'] } }] })
   })
 })

@@ -22,8 +22,8 @@ import { preflightUploadError, isAcceptedUploadType, isOptimisableType, isVideoD
 import { formatBytes, filenameOf } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 import type { MediaCardItem } from './MediaCard'
-import { DIMENSION_SORTS, SORTS } from './types'
-import type { LibraryItem, TagInfo, ShapeFilter, Sort, TypeFilter, UseFilter, ViewMode } from './types'
+import { DIMENSION_SORTS, ROOT_FOLDER_KEY, SORTS } from './types'
+import type { LibraryItem, TagInfo, ShapeFilter, Sort, TypeFilter, UnusedFolderOption, UseFilter, ViewMode } from './types'
 
 type Clipboard = { mode: 'cut' | 'copy'; ids: string[] } | null
 // A context menu over a specific item (id set) or over empty grid space (id null).
@@ -128,6 +128,9 @@ const MEASURE_BATCH = 40
 // ids in one go - each item is a storage round trip server-side, so a big
 // selection needs splitting into several short requests rather than one long one.
 const DELETE_BATCH = 40
+// A stable empty list for the toolbar's folder filter, so handing it "nothing to
+// offer" doesn't make a new array every render.
+const EMPTY_FOLDER_OPTIONS: UnusedFolderOption[] = []
 const MOVE_BATCH = 40
 
 // Resolves the un-awaited stat scan (see the statsPromise prop) and renders the
@@ -252,6 +255,12 @@ export default function MediaLibrary({
   // drill-down, showing exactly the images that tile counted rather than every
   // image in the library.
   const [optimisableOnly, setOptimisableOnly] = useState(false)
+  // The Unused view's folder narrowing. Held as what has been *un*ticked (see
+  // MediaFolderFilter), and as folder keys rather than ids so the library root -
+  // which has no id - is one of the boxes.
+  const [excludedFolders, setExcludedFolders] = useState<Set<string>>(new Set())
+  /** Folders with something spare in them, as the server last counted them. */
+  const [unusedFolders, setUnusedFolders] = useState<{ folderId: string | null; files: number; size: number }[]>([])
   const [tagFilter, setTagFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -392,6 +401,18 @@ export default function MediaLibrary({
   /** True when the view is showing the whole tree rather than one folder. */
   const viewingAllFolders = folderScope === 'all'
 
+  // The folder narrowing only counts where it is on offer: the Unused view,
+  // across the whole tree. Derived rather than cleared, so stepping into a
+  // folder and back out again doesn't lose the ticks - but nothing is ever
+  // filtered by a control that isn't on screen to say so.
+  const folderFilterOffered = use === 'unused' && viewingAllFolders
+  // A sorted string, not the Set: this feeds the query builder's dependency
+  // list, and a fresh Set each render would refetch the grid forever.
+  const excludeFoldersParam = useMemo(
+    () => (folderFilterOffered ? [...excludedFolders].sort().join(',') : ''),
+    [folderFilterOffered, excludedFolders],
+  )
+
 
   const buildQuery = useCallback(
     (pageNum: number) => {
@@ -400,12 +421,13 @@ export default function MediaLibrary({
       if (type !== 'all') qs.set('type', type)
       if (shape !== 'all') qs.set('shape', shape)
       if (use !== 'all') qs.set('filter', use)
+      if (excludeFoldersParam) qs.set('excludeFolders', excludeFoldersParam)
       if (optimisableOnly) qs.set('optimisable', '1')
       if (tagFilter) qs.set('tag', tagFilter)
       if (search) qs.set('q', search)
       return qs.toString()
     },
-    [perPage, sort, folderScope, type, shape, use, optimisableOnly, tagFilter, search],
+    [perPage, sort, folderScope, type, shape, use, excludeFoldersParam, optimisableOnly, tagFilter, search],
   )
 
   const fetchItems = useCallback(async () => {
@@ -435,6 +457,29 @@ export default function MediaLibrary({
     if (firstRun.current) { firstRun.current = false; return }
     fetchItems()
   }, [fetchItems])
+
+  // Which folders currently hold unused files, for the folder filter's list.
+  // A whole-library scan, so it is asked for only while the Unused view is on -
+  // and asked again after a deletion, or it goes on offering folders that have
+  // just been emptied.
+  const refreshUnusedFolders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/media/unused-folders')
+      if (!res.ok) return
+      const d = await res.json()
+      if (Array.isArray(d.folders)) setUnusedFolders(d.folders)
+    } catch { /* the filter simply doesn't appear */ }
+  }, [])
+
+  useEffect(() => {
+    if (!folderFilterOffered) return
+    let cancelled = false
+    fetch('/api/admin/media/unused-folders')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => { if (!cancelled && Array.isArray(d?.folders)) setUnusedFolders(d.folders) })
+      .catch(() => { /* the filter simply doesn't appear */ })
+    return () => { cancelled = true }
+  }, [folderFilterOffered])
 
   const dimensionSort = DIMENSION_SORTS.includes(sort)
   // A shape filter leans on the same measurements as the picture-size sorts, and
@@ -820,12 +865,12 @@ export default function MediaLibrary({
         if (openId && ids.includes(openId)) setOpenId(null)
         pushToast('success', `Deleted ${deleted.length} item${deleted.length === 1 ? '' : 's'}`)
       }
-      await Promise.all([fetchItems(), refetchFolders()])
+      await Promise.all([fetchItems(), refetchFolders(), folderFilterOffered ? refreshUnusedFolders() : null])
     } catch (err) {
       pushToast('error', err instanceof Error ? err.message : 'Delete failed')
       // A run that stops half way through has still deleted whatever the earlier
       // batches got through, so the grid has to be refreshed either way.
-      await Promise.all([fetchItems(), refetchFolders()])
+      await Promise.all([fetchItems(), refetchFolders(), folderFilterOffered ? refreshUnusedFolders() : null])
     } finally { setBusy('') }
   }
 
@@ -1238,6 +1283,36 @@ export default function MediaLibrary({
   const currentTrail = useMemo(() => trailFor(currentFolderId, folders), [currentFolderId, folders])
   const clipboardIdSet = useMemo(() => new Set(clipboard?.mode === 'cut' ? clipboard.ids : []), [clipboard])
   const folderNameById = useMemo(() => new Map(folders.map((f) => [f.id, f.name])), [folders])
+
+  // The folder filter's rows: every folder the server found something spare in,
+  // labelled with its full path. Bare folder names are no use here - a library
+  // this size has four folders called "Images", and the whole list is on screen
+  // at once with no tree to place them in.
+  const unusedFolderOptions = useMemo<UnusedFolderOption[]>(() => {
+    const byId = new Map(folders.map((f) => [f.id, f]))
+    const pathOf = (id: string): string => {
+      const parts: string[] = []
+      let cursor: string | null = id
+      let guard = 0
+      while (cursor && guard++ < 50) {
+        const node = byId.get(cursor)
+        if (!node) break
+        parts.unshift(node.name)
+        cursor = node.parentId
+      }
+      // A folder the tree hasn't got (deleted between the two fetches) still has
+      // files counted against it, so it is named rather than dropped.
+      return parts.length > 0 ? parts.join(' / ') : 'Unknown folder'
+    }
+    return unusedFolders
+      .map((u) => ({
+        key: u.folderId ?? ROOT_FOLDER_KEY,
+        label: u.folderId ? pathOf(u.folderId) : 'Media (top level)',
+        files: u.files,
+        size: u.size,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'en-GB'))
+  }, [unusedFolders, folders])
   const folderName = useCallback((id: string | null) => (id ? folderNameById.get(id) ?? '—' : 'Media'), [folderNameById])
 
   const activeFilter: 'all' | 'unused' | 'optimisable' | 'other' =
@@ -1247,7 +1322,7 @@ export default function MediaLibrary({
     : 'other'
 
   function clearAllFilters() {
-    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setType('all'); setShape('all'); setUse('all'); setOptimisableOnly(false)
+    setSearch(''); setSearchInput(''); setSearchEverywhere(false); setTagFilter(''); setType('all'); setShape('all'); setUse('all'); setOptimisableOnly(false); setExcludedFolders(new Set())
   }
 
   const selectionActive = selected.size > 0
@@ -1270,7 +1345,7 @@ export default function MediaLibrary({
       ? { optimised: true, ids: unmarked.map((i) => i.id) }
       : { optimised: false, ids: eligible.map((i) => i.id) }
   }, [selectedItems])
-  const anyFilterActive = !!search || type !== 'all' || shape !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter
+  const anyFilterActive = !!search || type !== 'all' || shape !== 'all' || use !== 'all' || optimisableOnly || !!tagFilter || !!excludeFoldersParam
   const countLabel = items.length === 0 ? '' : items.length < total ? `Showing ${items.length} of ${total.toLocaleString('en-GB')}` : `${total.toLocaleString('en-GB')} item${total === 1 ? '' : 's'}`
 
   return (
@@ -1305,7 +1380,7 @@ export default function MediaLibrary({
           folderCount={folders.length}
           activeFilter={activeFilter}
           onShowAll={() => { clearAllFilters(); setBrowseAll(true); setCurrentFolderId(null) }}
-          onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setShape('all'); setUse('unused'); setOptimisableOnly(false); setBrowseAll(true) }}
+          onShowUnused={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setType('all'); setShape('all'); setUse('unused'); setOptimisableOnly(false); setExcludedFolders(new Set()); setBrowseAll(true) }}
           onShowOptimisable={() => { setSearch(''); setSearchInput(''); setTagFilter(''); setUse('all'); setType('all'); setShape('all'); setOptimisableOnly(true); setBrowseAll(true) }}
         />
       </Suspense>
@@ -1390,6 +1465,9 @@ export default function MediaLibrary({
             onShape={setShape}
             use={use}
             onUse={setUse}
+            folderOptions={folderFilterOffered ? unusedFolderOptions : EMPTY_FOLDER_OPTIONS}
+            excludedFolders={excludedFolders}
+            onExcludedFolders={setExcludedFolders}
             optimisableOnly={optimisableOnly}
             onOptimisableOnly={setOptimisableOnly}
             tagFilter={tagFilter}
