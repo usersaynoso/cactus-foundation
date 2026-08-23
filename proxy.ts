@@ -162,7 +162,13 @@ function buildCsp(): string {
     // stays forbidden, which is the clickjacking protection that matters.
     `frame-ancestors 'self'`,
     `base-uri 'self'`,
-    `form-action 'self' https://github.com${moduleOrigins('form-action')}`,
+    // A module that declared the bare wildcard collapses this to `*`: listing
+    // origins alongside it would be noise, since `*` already matches them. Only
+    // 3D Secure asks for it, and only because the shopper's bank decides which
+    // authentication host is used and no allowlist can cover them all.
+    moduleCspOrigins['form-action'].includes('*')
+      ? `form-action 'self' *`
+      : `form-action 'self' https://github.com${moduleOrigins('form-action')}`,
   ].join('; ')
 }
 

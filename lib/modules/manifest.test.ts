@@ -154,6 +154,23 @@ describe('cspOrigins', () => {
       .toEqual({ 'form-action': ['https://*.cardinalcommerce.com'] })
   })
 
+  // The bare wildcard, on form-action only. Naming 3D Secure hosts one at a
+  // time looked reasonable until a second authentication provider turned up on
+  // a live site - the challenge is served by whichever one the SHOPPER'S BANK
+  // uses, and that set has no end to it. An allowlist there does not produce a
+  // working checkout, it produces one that fails silently for whichever
+  // customers happen to bank in the wrong place.
+  it('allows the bare wildcard on form-action, because no allowlist can cover every bank', () => {
+    expect(parseModuleManifest({ ...MINIMAL, cspOrigins: { 'form-action': ['*'] } }).cspOrigins)
+      .toEqual({ 'form-action': ['*'] })
+  })
+
+  it('allows the bare wildcard NOWHERE else', () => {
+    for (const directive of ['script', 'style', 'img', 'font', 'connect', 'frame', 'media']) {
+      expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { [directive]: ['*'] } })).toThrow()
+    }
+  })
+
   it('is optional - which is what every module written before it said', () => {
     expect(parseModuleManifest(MINIMAL).cspOrigins).toBeUndefined()
   })

@@ -71,8 +71,16 @@ for (const moduleName of getModuleNames()) {
     }
     for (const raw of origins) {
       const origin = typeof raw === 'string' ? raw.trim().replace(/\/$/, '') : ''
+      // The bare wildcard is accepted for form-action and nowhere else. 3D
+      // Secure is served by whichever authentication provider the shopper's
+      // BANK uses, which no allowlist can enumerate - see the cspOrigins
+      // comment in lib/modules/manifest.ts.
+      if (origin === '*' && directive === 'form-action') {
+        collected[directive].add('*')
+        continue
+      }
       if (!ORIGIN_RE.test(origin)) {
-        console.warn(`[generate-module-csp] ${moduleName} asked for "${raw}" on ${directive}-src - ignored (https origins only)`)
+        console.warn(`[generate-module-csp] ${moduleName} asked for "${raw}" on ${directive} - ignored (https origins only)`)
         continue
       }
       collected[directive].add(origin)

@@ -43,6 +43,16 @@ const CookieCategorySchema = z.union([
 
 export type CookieCategoryDeclaration = z.infer<typeof CookieCategorySchema>
 
+// One https origin, optionally with a single leading "*." label. No paths, no
+// schemes other than https, no bare wildcard - see cspOrigins below for the one
+// directive that is allowed to relax the last of those.
+const CspOrigin = z.string().regex(
+  /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i,
+  'cspOrigins entries must be https origins, optionally with one leading *. label'
+)
+
+const CspOriginList = z.array(CspOrigin)
+
 const CronJobSchema = z.object({
   // Must resolve through the generic module router (app/api/m/[module]/[...path]),
   // so no module ever needs a hand-written entry in a committed core file.
@@ -113,13 +123,29 @@ export const ModuleManifestSchema = z.object({
   // ON this site may submit, to a named https origin, for as long as the module
   // is installed - it grants no ability to read anything, and an attacker who
   // could plant a form here would already be running script here.
-  cspOrigins: z.record(
-    z.enum(['script', 'style', 'img', 'font', 'connect', 'frame', 'media', 'form-action']),
-    z.array(z.string().regex(
-      /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i,
-      'cspOrigins entries must be https origins, optionally with one leading *. label'
-    ))
-  ).optional(),
+  cspOrigins: z.object({
+    script: CspOriginList.optional(),
+    style: CspOriginList.optional(),
+    img: CspOriginList.optional(),
+    font: CspOriginList.optional(),
+    connect: CspOriginList.optional(),
+    frame: CspOriginList.optional(),
+    media: CspOriginList.optional(),
+    // form-action alone may be given the bare wildcard `*`, and only because
+    // 3D Secure leaves no alternative. The challenge is served by whichever
+    // authentication provider the SHOPPER'S BANK uses - Cardinal, Arcot,
+    // Netcetera, Modirum, an issuer's own host - and that set cannot be
+    // enumerated by anybody. Naming them one at a time produces a checkout that
+    // works until a customer turns up with the wrong bank and then fails
+    // silently, which is worse than not offering card payment at all.
+    //
+    // It is a real trade-off and the site owner makes it by installing the
+    // module: form-action is defence in depth against exfiltration if the site
+    // ever has an XSS hole, and `*` gives that layer up. frame-ancestors and
+    // base-uri are untouched, connect-src still holds, and a module that does
+    // not ask for this does not get it.
+    'form-action': z.array(z.union([z.literal('*'), CspOrigin])).optional(),
+  }).strict().optional(),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
   teardown: z.array(z.string()).optional(),
   // Puck block registrations provided by this module.
