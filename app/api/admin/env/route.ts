@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await upsertVercelEnvVars(token, projectId, toWrite)
-    await recordDeploymentNeeded({ label: labelForEnvKeys(toWrite.map((v) => v.key)) })
+    await recordDeploymentNeeded({ label: await labelForEnvKeys(toWrite.map((v) => v.key)) })
     return NextResponse.json({ ok: true, written: toWrite.length, skipped })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

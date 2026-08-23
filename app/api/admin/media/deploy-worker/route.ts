@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await upsertVercelEnvVars(vercelToken, projectId, toWrite)
-    await recordDeploymentNeeded({ label: labelForEnvKeys(toWrite.map((v) => v.key)) })
+    await recordDeploymentNeeded({ label: await labelForEnvKeys(toWrite.map((v) => v.key)) })
   } catch (err: unknown) {
     // The Worker itself deployed fine; only saving the settings failed. Hand the
     // URL back so the admin can paste it manually rather than lose the deploy.
