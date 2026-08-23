@@ -80,7 +80,7 @@ A chair sticking out past the front edge of a desk is what tucking one under a d
 
 **If a layout is deleted somewhere else while you are working on it**, the planner says so and the next Save keeps what is on screen as a new one. It used to say that too, and then go on trying to save over the deleted copy for ever - and for a space it advised pressing **Start again**, which throws the space outline away, so following the instruction destroyed the work it was supposed to rescue.
 
-**Opening one again.** Everything saved is listed under **My spaces**, and every layout in it opens with a click - straight back into the planner with the space already drawn. A space has its own link for starting a fresh layout in it, which is the point of measuring once.
+**Opening one again.** Everything saved is listed under **My spaces**, and every layout in it opens with a click - straight back into the planner with the space already drawn. A space has its own link for starting a fresh layout in it, which is the point of measuring once. **My spaces** is a tab inside their account, with the same tabs across the top as the rest of it - and on a site with **Put the whole account on one page** switched on, it comes onto that page with everything else and the tab scrolls to it.
 
 **Throwing one away.** Every layout in that list has a **Delete** beside it, and so does every space. It asks once before it does it, and deleting a space takes its layouts with it - the confirmation says how many, so nobody finds that out afterwards. It is the customer's own list, so this is theirs to tidy rather than yours.
 
