@@ -38,6 +38,29 @@ It will not email somebody who has since ordered - the order list gets the final
 
 The wording lives with every other email on the site, under **Settings › Emails › Abandoned baskets**. Change it as you like, but the unsubscribe link is a required part of it and saving without it is refused.
 
+### The permission box in the checkout
+
+Switch the reminders on and you are offered one more thing: a tickbox in your checkout, so a shopper can say no before you have emailed them at all.
+
+It sits under the boxes a shopper has to tick, it is never compulsory, and it never holds an order up. It reads **"Don't email me about offers and similar products."** until you word it differently. Tick it and no reminder goes out on that basket; untick it and the basket is back where it was. A basket somebody has ticked it on says "No emails, please" in the list, so you are not left guessing why one was never chased.
+
+The box is one of the shop's own checkout tickboxes rather than anything new: the shop already lets you add, word and delete those, so switching this on writes the box into that list and switching it off takes it out again. Two consequences worth knowing:
+
+- It appears on **Settings › Shop › Checkout** alongside your own tickboxes. Re-word it there or here, as you prefer, and delete it there if you would rather not have it - the panel here will then tell you the box is missing rather than letting you believe shoppers are being asked.
+- Removing the module drops its own tables but cannot reach into the shop's settings, so the tickbox stays behind until you delete it there.
+
+Switching the reminders off, or the module off, takes the box out of the checkout with them: a permission question about emails nobody is sending is just another line in somebody's checkout.
+
+### Why the basket stopped
+
+Card and bank payments on a Cactus shop write no order at all until the money is committed - which is right, and which used to leave this list unable to tell a refused card from somebody who closed the tab in the aisle. It can now, because the checkout says both out loud as they happen:
+
+- **"Tried to pay, refused"** - they pressed *Place order* and the payment came back refused. The refusal is kept in the words the shopper was shown, so you are reading what they read rather than a code. These are the baskets most worth a reminder: they wanted it enough to reach for a card.
+- **"Sent to pay, never came back"** - they pressed *Place order*, were handed over to their bank or a card page, and that was the last of them. Nothing failed as far as anybody knows; they simply never finished.
+- Neither line means anybody was charged. If the money had moved there would be an order, and the basket would read "Came back" instead.
+
+Open a basket and the history spells it out with the time on it. A shopper who tries again after a refusal replaces the refusal with the new attempt, which is what actually happened.
+
 ### Deleting itself
 
 Everything older than your retention setting is deleted by the same hourly job - reminded, recovered or neither. This runs whether or not the reminders are switched on. You can also delete any single basket from the list.
@@ -81,6 +104,8 @@ This module holds a name, an address and a phone number belonging to somebody wh
 | Email a reminder | Off | The reminders. |
 | Wait before the reminder | 240 minutes | Since they last touched the basket. |
 | Reminders per basket | 1 | Capped at 3. |
+| Add an email permission box to the checkout | Off | Only offered once the reminders are on. Adds the tickbox described above. |
+| What the box says | "Don't email me about offers and similar products." | Up to 200 characters. Blank restores the wording we ship with. |
 
 ## Permissions
 
@@ -133,6 +158,10 @@ The second exists because the first depends on the shopper still being in the br
 **The list is empty.** Either nobody has agreed to Marketing cookies, or the tracker block has been deleted from the header layout, or the master switch is off. The settings panel tells you which of the first and third applies; the layout editor tells you about the second.
 
 **No reminders are going out.** Check in this order: reminders switched on, an email provider configured on the site, `SITE_URL` set, the wait elapsed, and the basket having an email address on it at all. A basket whose every product has since been deleted is skipped rather than sent as an empty list.
+
+**The permission box is not in my checkout.** It is on the shop's own tickbox list, and anything on that list can be deleted there. Open **Settings › Shop › Abandoned baskets** and save the page again to put it back. The panel warns you about this on its own, so you should not have to go looking.
+
+**Somebody unsubscribed - what happened?** The link in the email does two things at once: it stops that address getting basket reminders for good, and it marks their baskets the same way ticking the permission box in the checkout would. So the list says "No emails, please" against them, rather than leaving you wondering why the second reminder never went.
 
 **Someone says they unsubscribed and still got one.** They cannot have, from this: suppression is by address and is checked in the query that picks what to send. Check whether the email they received was an order confirmation, which is not a reminder and cannot be unsubscribed from.
 
