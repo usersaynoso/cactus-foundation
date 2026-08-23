@@ -93,12 +93,12 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.19"
+      "version": "v0.1.20"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.24"
+      "version": "v0.1.25"
     },
     {
       "name": "contact-form",

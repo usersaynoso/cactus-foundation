@@ -23,7 +23,7 @@ You can paste the whole thing Google gives you into either box - the two halves 
 2. Go to **Settings → Google Tag**.
 3. Paste in whichever IDs you have.
 4. Tick **Send measurements to Google**.
-5. Go to **Layouts**, open your **Header** layout, and add the **Google Tag** block. It shows nothing on the page - it just does the counting - but without it nothing is measured at all.
+5. The **Google Tag** block goes onto your header layout on its own when you install the module. It shows nothing on the page - it just does the counting. Move it or delete it if you would rather, and it stays moved or deleted; nothing puts it back. If you installed the module before this was automatic, add it yourself: **Layouts → your header layout → Google Tag**. Without it, nothing is measured at all.
 6. Sort your cookie banner out. See below. The settings page will tell you if something is amiss.
 
 ---
@@ -90,6 +90,8 @@ An order is only ever counted **once**, however many times the confirmation page
 **Give it a day.** Google Ads conversions can take a few hours to appear, and Analytics reports settle overnight. A quiet first afternoon is not a fault.
 
 **Your web address must match.** If the address registered in Google Ads is not the address your site actually runs on, conversions are recorded against nothing at all, silently. Check it if the orders are not showing up.
+
+**Your site's security policy already allows Google.** Cactus keeps a strict list of which outside companies may run anything on your pages, and this module adds Google's addresses to it when installed. You do not have to do anything - but it does mean the module has to be **installed and deployed** before Google's own "is the tag there?" check can succeed. If that check fails on a site where everything else looks right, an incomplete deployment is the first thing to rule out.
 
 **One block, not two.** Put the Google Tag block on the header layout only. It will not double-count if it ends up in the footer as well, but there is no reason to have two.
 
