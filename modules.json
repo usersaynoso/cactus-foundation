@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.292"
+      "version": "v0.1.293"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.158"
+      "version": "v0.1.159"
     },
     {
       "name": "product-addons-for-shop",
@@ -93,7 +93,7 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "gazette",
@@ -113,7 +113,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.28"
+      "version": "v0.1.29"
     },
     {
       "name": "gemini-watermark-remover",
@@ -128,7 +128,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.22"
+      "version": "v0.1.23"
     },
     {
       "name": "live-chat",

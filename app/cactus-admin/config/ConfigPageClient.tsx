@@ -600,8 +600,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   // Follow the ?tab= / ?sub= query params so command-palette deep links (and the
   // browser back button) land on the right tab, not just the one chosen at mount.
-  // Clicking a tab in the UI doesn't touch the URL, so this only fires on a real
-  // navigation; setting the tab it's already on is a no-op.
+  // Setting the tab it's already on is a no-op.
   useEffect(() => {
     const t = searchParams.get('tab')
     if (t) {
@@ -613,14 +612,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       if (valid) setTab(t)
     }
     const sub = searchParams.get('sub')
+    // ?sub= belongs to whichever tab is open - a module settings tab keeps its own
+    // sub-tab there too - so only read it as an email sub-tab when Email is the tab
+    // in play. Without that, a module that happened to name a sub-tab "delivery"
+    // (a shipping module, say) would drag the page onto Email.
+    const emailIsTheTab = !t || t === 'email'
     // The email templates editor used to hang off the Users tab; the old
     // ?sub=email-templates deep link still lands on it, wherever it moves to.
-    if (sub === 'templates' || sub === 'email-templates') {
+    if (sub === 'email-templates' || (sub === 'templates' && emailIsTheTab)) {
       if (canManageEmailTemplates) {
         setTab('email')
         setEmailSubTab('templates')
       }
-    } else if (sub === 'delivery') {
+    } else if (sub === 'delivery' && emailIsTheTab) {
       setTab('email')
       setEmailSubTab('delivery')
     }
