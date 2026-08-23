@@ -76,9 +76,13 @@ Product checks** to where you want it - under the price is the natural home.
 A **Checks** section in the admin product editor, alongside Downloads and
 Add-ons - the same grid, already expanded, for updating while you edit.
 
-### Admin → Product checks
+### Admin → Shop → Catalogue → Checks
 
-The working list: every catalogue product, the longest-unchecked first until
+The working list, as a tab on the Catalogue page beside Products, Categories
+and Collections rather than a link of its own in the sidebar - it is a view of
+the catalogue, so it sits with the rest of it.
+
+Every catalogue product, the longest-unchecked first until
 you say otherwise. Hidden variation children and archived products are left
 out.
 
