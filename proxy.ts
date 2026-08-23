@@ -143,7 +143,11 @@ function buildCsp(): string {
     // already got.
     `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}${moduleOrigins('connect')}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
-    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com${extraFrame}${moduleOrigins('frame')}`,
+    // As with form-action below: a declared bare wildcard collapses the
+    // directive, since `*` already matches everything a list beside it could.
+    moduleCspOrigins.frame.includes('*')
+      ? `frame-src 'self' *`
+      : `frame-src 'self' https://js.stripe.com https://hooks.stripe.com${extraFrame}${moduleOrigins('frame')}`,
     // blob: - product-3d-views-for-shop decodes Draco-compressed meshes off the main
     // thread, and three's DRACOLoader builds that worker the only way it can: it
     // fetches the decoder's source as text and turns it into a Blob URL, since the

@@ -160,13 +160,20 @@ describe('cspOrigins', () => {
   // uses, and that set has no end to it. An allowlist there does not produce a
   // working checkout, it produces one that fails silently for whichever
   // customers happen to bank in the wrong place.
-  it('allows the bare wildcard on form-action, because no allowlist can cover every bank', () => {
+  // Both halves of one 3D Secure step: the challenge is POSTed (form-action)
+  // into an iframe pointing at the same host (frame-src). A live Chrome console
+  // named three of those hosts in a single transaction - secure2.arcot.com,
+  // methodurl.vcas.visa.com and authentication.cardinalcommerce.com - which is
+  // the argument against an allowlist made about as plainly as it can be.
+  it('allows the bare wildcard on frame and form-action, because no allowlist can cover every bank', () => {
     expect(parseModuleManifest({ ...MINIMAL, cspOrigins: { 'form-action': ['*'] } }).cspOrigins)
       .toEqual({ 'form-action': ['*'] })
+    expect(parseModuleManifest({ ...MINIMAL, cspOrigins: { frame: ['*'] } }).cspOrigins)
+      .toEqual({ frame: ['*'] })
   })
 
   it('allows the bare wildcard NOWHERE else', () => {
-    for (const directive of ['script', 'style', 'img', 'font', 'connect', 'frame', 'media']) {
+    for (const directive of ['script', 'style', 'img', 'font', 'connect', 'media']) {
       expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { [directive]: ['*'] } })).toThrow()
     }
   })

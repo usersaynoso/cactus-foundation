@@ -129,10 +129,9 @@ export const ModuleManifestSchema = z.object({
     img: CspOriginList.optional(),
     font: CspOriginList.optional(),
     connect: CspOriginList.optional(),
-    frame: CspOriginList.optional(),
     media: CspOriginList.optional(),
-    // form-action alone may be given the bare wildcard `*`, and only because
-    // 3D Secure leaves no alternative. The challenge is served by whichever
+    // frame-src and form-action are the two that may be given the bare wildcard
+    // `*`, and only because 3D Secure leaves no alternative. The challenge is served by whichever
     // authentication provider the SHOPPER'S BANK uses - Cardinal, Arcot,
     // Netcetera, Modirum, an issuer's own host - and that set cannot be
     // enumerated by anybody. Naming them one at a time produces a checkout that
@@ -140,10 +139,16 @@ export const ModuleManifestSchema = z.object({
     // silently, which is worse than not offering card payment at all.
     //
     // It is a real trade-off and the site owner makes it by installing the
-    // module: form-action is defence in depth against exfiltration if the site
-    // ever has an XSS hole, and `*` gives that layer up. frame-ancestors and
-    // base-uri are untouched, connect-src still holds, and a module that does
-    // not ask for this does not get it.
+    // module: form-action is defence in depth against exfiltration, and
+    // frame-src against embedding hostile content, if the site ever has an XSS
+    // hole. `*` gives those layers up. frame-ancestors (who may frame US, the
+    // clickjacking protection), base-uri and connect-src are all untouched, and
+    // a module that does not ask for this does not get it.
+    // Both halves of the same 3D Secure step: the challenge is POSTed
+    // (form-action) into an iframe pointing at the same host (frame-src), and
+    // blocking either one leaves the shopper looking at a blank white modal at
+    // the moment their bank asks them to confirm the payment.
+    frame: z.array(z.union([z.literal('*'), CspOrigin])).optional(),
     'form-action': z.array(z.union([z.literal('*'), CspOrigin])).optional(),
   }).strict().optional(),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.

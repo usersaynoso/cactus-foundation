@@ -71,11 +71,12 @@ for (const moduleName of getModuleNames()) {
     }
     for (const raw of origins) {
       const origin = typeof raw === 'string' ? raw.trim().replace(/\/$/, '') : ''
-      // The bare wildcard is accepted for form-action and nowhere else. 3D
-      // Secure is served by whichever authentication provider the shopper's
-      // BANK uses, which no allowlist can enumerate - see the cspOrigins
-      // comment in lib/modules/manifest.ts.
-      if (origin === '*' && directive === 'form-action') {
+      // The bare wildcard is accepted for frame-src and form-action, and
+      // nowhere else. They are the two halves of one 3D Secure step - the
+      // challenge is POSTed into an iframe pointing at the same host - and that
+      // host is whichever authentication provider the shopper's BANK uses,
+      // which no allowlist can enumerate. See lib/modules/manifest.ts.
+      if (origin === '*' && (directive === 'form-action' || directive === 'frame')) {
         collected[directive].add('*')
         continue
       }
