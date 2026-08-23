@@ -234,7 +234,7 @@ Refunds go back through whichever payment method the customer used automatically
 
 ### Finding the orders you need
 
-Search by order number, name or email, then narrow it down: by status, by whether the money has arrived, by how much of the order has gone out, by date (last week, last month, or a range you pick), pre-orders only, or hiding cancelled ones. Sort by newest, oldest, biggest, smallest, customer name or status, and show 25, 50 or 100 at a time.
+Search by order number, company, name or email, then narrow it down: by status, by whether the money has arrived, by how much of the order has gone out, by date (last week, last month, or a range you pick), pre-orders only, or hiding cancelled ones. Sort by newest, oldest, biggest, smallest, customer or status, and show 25, 50 or 100 at a time. Where a company name was given, that's what the list calls the customer - both in the rows and in the A-Z sort - with the person who actually placed it on the line underneath. Businesses tend to be remembered by the business, not by whoever in the office was nearest the keyboard.
 
 Whatever you pick ends up in the web address, so a filtered list can be bookmarked, sent to someone else, or come back exactly as you left it with the back button.
 

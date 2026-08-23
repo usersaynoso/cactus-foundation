@@ -26,6 +26,7 @@ The **chat login** is created by the setup wizard for whoever runs it, and stays
 
 1. Install the module, open **Settings → Live Chat**.
 2. Paste a **Fly.io API token** and the connection URL of an **empty Postgres database**, pick an app name, and press *Build my chat server*. The module provisions the whole thing - app, volume, database schema, machine, IPs, inbox, webhook - in a couple of minutes.
+   - The machine runs the standard de-branded Chatwoot build published publicly at `ghcr.io/cactus-foundation-modules/chatwoot:latest`. An optional **Chat server image** field on the same form takes a different image reference (your own build, a pinned tag); leave it blank otherwise. `LIVECHAT_IMAGE` on the Vercel project changes the default for that install.
 3. Add the **Live Chat** block to a sitewide layout (usually the footer/header layout row).
 4. Each staff member pastes their personal Chatwoot access token under *My agent identity* so replies carry their own name, and installs the Chatwoot mobile app pointed at the chat server for push.
 
@@ -40,6 +41,7 @@ Installs managed centrally can instead be pre-provisioned with `LIVECHAT_*` envi
   - Staff with `livechat.view` get the agent console instead, which is a signed-in staff tool and is not gated this way.
 - **Nothing loads until the visitor clicks the bubble.** No script, no cookies, no contact record. Once clicked, the conversation opens directly - no "Start conversation" interstitial - it follows the visitor across pages while open, and the chat window follows the site's light/dark mode.
 - The **page journey** (this visit only, with rough dwell times) buffers in `sessionStorage` and leaves the browser only when a chat is opened - and only at all under the same permission as the bubble.
+- **The bubble can drop to its icon alone on phones.** Settings → Live Chat → Widget → *Hide the label on phones*. On screens narrower than 640px the wording disappears and the bubble becomes a round chat icon, which keeps it off sticky basket bars, filter rows and anything else that lives in the bottom corner of a small screen. Desktop keeps the full pill. Off by default.
 - Logged-in members are identified with a **server-computed HMAC**, so nobody can impersonate someone else's email by fiddling with the page.
 - **Retention**: a nightly job deletes resolved conversations older than the configured months (default 12) on the Chatwoot server and in the mirror. Keep the number in step with the site's privacy policy.
 - When core **Turnstile** is configured, opening chat runs a managed (invisible for most people) challenge first.

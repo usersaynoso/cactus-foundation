@@ -117,6 +117,62 @@ for three things reads as all three rather than the first one.
 Entries recorded before this changed keep their wording: the text that sat at the
 top is handed down to the lines the first time you open one to edit it.
 
+**"Date it was paid" starts empty, and empty means not paid yet.** Fill it in
+when the money actually moves. Until you do, the entry counts as outstanding: it
+sits under **Who owes what**, aged from the invoice date, and it shows in what
+you are owed or what you owe on the balance sheet. Filling it in is what settles
+the entry and moves the money through a bank account.
+
+It used to arrive pre-filled with today's date, which meant a bill typed in on
+the day it landed recorded itself as already paid unless you noticed and cleared
+the box. If you have entries from before this changed that you have not actually
+paid, open them and clear the date - they will move onto **Who owes what** where
+they belong, and the bank figure they were wrongly taken out of goes back up.
+
+**"Paid from" says which account the money moved through.** It only appears once
+you have set up an account under **Settings → Bookkeeping → Bank accounts**, and
+a new entry starts on the first account in that list. Change it when the money
+came from somewhere else: the card, the petty cash tin, or a balance you hold
+with a supplier. On a sale it reads "Paid into" and means the same thing the
+other way round.
+
+Getting this right is what keeps the bank column honest. An invoice paid out of
+a prepaid balance never touched the bank, and saying so is the difference
+between a bank figure that matches your statement and one that quietly does
+not.
+
+The box used to start on "Main current account", which sounds like one of yours
+and is not: it is a built-in account that exists so entries have somewhere to
+settle before you have set any accounts up. Leaving the box alone therefore put
+the payment somewhere you never reconcile, and the balance sheet grew a **Bank
+current account** line for money that had actually left your real account. If
+you have entries from before this changed, the reports page now names them - it
+says how many there are and what they add up to - and the fix is to open each
+one and set the account it was paid from or into. An older entry keeps whatever
+it was saved with until you do; nothing is moved behind your back.
+
+**Changing the VAT rate re-splits the figure you typed.** Type a total and put
+the line on 20%, and the VAT comes out of that total: £20.00 becomes £16.67 plus
+£3.33, and the total stays £20.00. Type the net figure instead, off an invoice
+that shows the two separately, and the VAT goes on top of it. Whichever box you
+last typed in is the one that holds still, which matters most on an entry brought
+in from a bank statement: the total there is the money that actually left the
+account, and it should not move because you told the entry what rate it was at.
+
+**"No receipt needed for this one" is a tickbox at the bottom of the top card.**
+Some entries are never going to have a receipt: money put onto a balance held
+with a supplier, a bank charge, a payment on account. Tick it and the entry stops
+counting as paperwork still owed - it drops off the "waiting for a receipt"
+figure on the overview, the nag on the entry goes, and the entries list shows a
+grey cross in the evidence column rather than a blank, so "dealt with" reads
+differently from "nobody has looked at this yet". Nothing else changes, and you
+can still attach something later if it turns up. Nothing ticks it for you: a
+receipt that is genuinely missing and one that is never coming look identical
+from here, and only you know which is which.
+
+The **Evidence** filter on the entries list now offers **Still needs one**, which
+means no receipt and not ticked, and **None needed** for the ticked ones.
+
 **Buying something that lasts: tick the box on that line.** When you pick a
 capital category - "Equipment and other capital purchases" - a tickbox appears on
 that line saying **Put this one on the asset register**, ticked already. Leave it
@@ -147,7 +203,7 @@ office costs" by default, alongside the phone bill and the printer paper, which
 is correct but tells you nothing.
 
 **Settings → Bookkeeping → Categories** is where you do it. A new category needs
-three things:
+three things, and has a fourth you can usually ignore:
 
 - **Name.** What you want to see in the list when you record something.
 - **Money in or money out.** Or either way, for the handful of things that go
@@ -155,6 +211,17 @@ three things:
 - **Where it belongs on the accounts.** Which box of the tax return it counts
   towards, in HMRC's own wording. Pick the one it would have gone in if you had
   not given it a category of its own.
+- **Which account it posts to.** Leave this on "Make one for it". An account is
+  set up behind the scenes, filed exactly where you said above, and you need
+  never think about it again. The one time to change it is when what you are
+  recording is not a cost at all, which is covered in the next section.
+
+Every category has an account behind it, and each row says which one under the
+category's name. That is the wiring rather than decoration: it is how a recorded
+entry becomes a debit and a credit on your books. Categories added on older
+versions of the module had none, and picked up an account the first time the
+site updated after this was fixed. If one of them landed somewhere daft,
+**Change** now lets you move it.
 
 That last one is the one that matters. A category is a way of seeing your own
 figures, not a way of changing them: splitting hosting out of office costs shows
@@ -184,6 +251,63 @@ ones** brings them back into view, with a button to put them back on the list.
 under and that did not arrive ready made. Anything else is put away instead,
 whatever the button says, because a return from six years ago can only explain
 itself if the categories it points at are still there.
+
+### Money you have paid a supplier in advance
+
+Some suppliers want paying before they will sell you anything. You put twenty
+pounds on the account, they email a statement saying so, and then each month
+they bill you for what you actually used and take it off the balance. Phone and
+messaging services do it, so do postage accounts and some advertising.
+
+The twenty pounds is not a cost. It is still your money, sitting with somebody
+else, and the statement they sent is not a VAT invoice and does not let you
+claim any VAT back. The cost, and the VAT with it, arrives later on each monthly
+invoice.
+
+Set it up once:
+
+1. **Settings → Bookkeeping → Bank accounts**, add one. Name it after the
+   supplier, something like "Acme prepaid balance", and set its type to **Cash**.
+   It is an account of yours that happens to be held by somebody else.
+2. **Settings → Bookkeeping → Categories**, add one. Call it something like
+   "Money on account with Acme", money out, filed wherever the supplier's bills
+   normally go. Then set **Which account it posts to** to the balance you just
+   made, rather than leaving it on "Make one for it".
+
+Then, from now on:
+
+- **When you top the balance up**, record it as an entry for the supplier on the
+  date the money left the bank, paid from your current account, using the
+  category you made. Put the VAT rate to **Outside the scope of VAT**, because
+  nothing has been sold to you yet. Attach the statement they sent. It reconciles
+  against the bank line like anything else, and it never reaches your VAT return
+  or your profit and loss account.
+- **When the monthly invoice arrives**, record it as an ordinary entry for the
+  supplier, with the real VAT on it and the category the cost actually belongs
+  to, and set **Paid from** to the prepaid balance. Attach the invoice. That is
+  the entry that puts the cost in your accounts and the VAT in box 4.
+
+The balance drains down as the invoices land, and the reports show what is left
+sitting with them under "Debtors and prepayments". If it ever goes below zero,
+either a top-up has not been recorded or an invoice has been billed to the wrong
+place.
+
+One thing worth checking on the first invoice: some overseas suppliers do not
+charge you UK VAT at all and print "reverse charge" instead. If yours does, pick
+**Services bought from overseas (reverse charge)** as the VAT treatment rather
+than the ordinary one, and the return works itself out from there.
+
+### Looking at a receipt you have attached
+
+Click the file's name and it opens in a new tab: PDFs and photographs are shown
+in the browser rather than saved to your computer first, which is rather the
+point of attaching them. There is a **Download** link beside each one when you do
+want the file itself.
+
+Anything that is not a PDF or an ordinary photograph is still sent as a download
+whichever link you click. That is deliberate and is not going to change: some
+file types can carry instructions of their own, and a file the browser is willing
+to run has no business being opened inside the admin.
 
 ### Sales handed over by your shop
 
@@ -327,6 +451,18 @@ a whole selection at once:
   between two accounts you own, where the other side is already recorded - with a
   note saying why, because "why is this one ignored" is the question somebody
   will ask in a year.
+
+**Ticking a line off fills in two things on the entries behind it.** The date it
+was paid, and which account it was paid from - both taken from the bank's own
+line, and both only where the entry does not already say. A date you typed
+yourself is never overwritten. This matters because an entry with no paid date
+still shows as owed to the supplier however green the statement line looks, and
+on cash accounting its VAT stays out of your return until it says it was paid.
+
+**Deleting an entry puts its statement line back on the pile.** The line goes
+back to unexplained rather than staying ticked off against something that no
+longer exists. If you need to undo a match without deleting anything, open the
+line and use **Not that one** beside the entry.
 
 ### When the amount does not match: card payouts
 

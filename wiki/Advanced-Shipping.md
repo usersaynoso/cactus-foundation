@@ -267,7 +267,7 @@ lead-time wording is the honest thing to leave behind anyway.
 
 ## Setting it up
 
-Everything lives on the shop's **Tax & shipping** page - **Shop → Sales** in the
+Everything lives on the shop's **Tax & shipping** page - **Shop → Trading** in the
 admin sidebar, then the **Tax & shipping** tab across the top. (It used to have a
 sidebar link of its own; the old link still works.) Alongside the shop's own tax
 and shipping tab you get four more tabs:
@@ -307,10 +307,14 @@ From 0.1.42 the module publishes each product's delivery time - working days to
 send, then working days on the road - for any other module that wants it. It
 publishes nothing about who is asking, and needs no setting up.
 
+From 0.1.46 it publishes the whole menu beside that headline: every service the
+product can actually be bought with, each with its own price and its own days.
+
 The first taker is [Google Shopping](Google-Shopping): install both and your
 product feed tells Google how long each product takes, so shoppers see "get it by
-Thursday" against your listings. Nothing changes for a shop running Advanced
-Shipping on its own.
+Thursday" against your listings - and, if you switch it on there, what each
+delivery service costs. Nothing changes for a shop running Advanced Shipping on
+its own.
 
 ## Changed in 0.1.18
 

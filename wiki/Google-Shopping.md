@@ -89,6 +89,29 @@ Products your delivery rules do not cover say nothing at all, and Google falls b
 
 **Worth knowing:** Google counts working days by its own calendar, set in Merchant Center under your shipping settings. The shop counts them by your shipping days and the bank holidays it syncs. Set the two to match, or dates can differ by a day around a bank holiday.
 
+## Delivery charges
+
+Separately from the dates above, the feed can carry your actual delivery charges - every service a product can be bought with, priced and dated, rather than the flat rates set up in your Merchant Center account. Find it under **Delivery** in the Google Shopping settings tab.
+
+It is off to start with, deliberately. Switching it on has a consequence worth being clear about: **for every product in the feed, your Merchant Center delivery rates stop applying and these charges take over.** That is the whole point of it, but it means a wrong charge here is a wrong charge on Google, not a harmless extra.
+
+Two things to fill in:
+
+- **Send your delivery charges with each product** - the switch itself. Greyed out on a shop with no module publishing delivery services, because there would be nothing to send.
+- **Country these charges apply to** - two letters, GB for the United Kingdom. Google will not take a delivery charge without knowing where it applies.
+
+What actually goes across, per product:
+
+- Every service that product is offered, by the name you gave it - "Flat-Pack", "Express Flat-Pack", "Installation".
+- Each one's price, with VAT added the same way the product's own price has VAT added.
+- Each one's own dispatch and delivery days, which can differ per service - an express service and an installation on the same desk carry their own timings.
+
+**What a shopper sees:** not a menu. Google takes the cheapest service a shopper can have and quotes that, so a product with a free option is advertised as free delivery, and the paid services simply sit behind it. The gain is accuracy on the free option and honest dates, not a picker on the search results.
+
+A service the shop cannot put a firm number on gets left out rather than misquoted. The rest still go.
+
+**On tax classes.** The charge follows the product: a variation uses its own tax class, or its parent listing's where it has none of its own, exactly as its price does. Only a product with no tax class anywhere - itself or its parent - sends its delivery charge without VAT, and that product is already selling at the wrong price too, so it is a catalogue problem rather than a delivery one.
+
 ## Duplicate pages, canonicals and structured data
 
 Two things ship in the Shop module itself to keep Google happy about all those variation links:

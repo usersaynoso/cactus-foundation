@@ -300,7 +300,7 @@ Alongside the catalogue itself, the sheet carries a **Suppliers** tab: every sup
 
 The **Discount** column is a plain number, no percent sign, so you can add it into your own sums without the sheet treating it as text. It's left blank for a supplier you've recorded no discount against.
 
-This one only travels one way. Push refreshes it; Pull never so much as glances at it, so editing it changes nothing on your site and nothing you type there survives the next Push. Suppliers and their catalogues are added and edited under **Shop → Suppliers**, which is where they belong.
+This one only travels one way. Push refreshes it; Pull never so much as glances at it, so editing it changes nothing on your site and nothing you type there survives the next Push. Suppliers and their catalogues are added and edited under **Shop → Trading → Suppliers**, which is where they belong.
 
 A supplier with no catalogues recorded still gets a row, with the catalogue columns left blank - "none recorded yet" being rather more useful than a silent absence.
 
