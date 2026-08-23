@@ -69,6 +69,11 @@ So this module separates the two:
   filtering work together, in any order, and the chosen sort joins the ticks in the page
   address so a sorted, filtered view can be shared. Switch it off per page with the
   block's "Sort by dropdown" setting.
+- Grids **open on Best selling** unless you say otherwise: the block's "Products start
+  sorted by" setting picks any of the orders above, and the page arrives already in it
+  rather than shuffling itself once it has loaded. Pick "Recommended" there to go back
+  to your own order. Pages built before this setting existed open on Best selling too,
+  which is what most shops wanted from their category pages in the first place.
 - A group that would offer fewer than two choices on a page doesn't appear at all -
   a heading with a single tick under it ("Height adjustable: Yes" on a page of
   sit-stand desks) is not a choice. The automatic Category section follows the same
@@ -120,7 +125,7 @@ So this module separates the two:
    can set your own hex colour (or a picture, for picture-swatch groups) on the filter row.
 4. **Page builder:** open a category or collection page's layout and drop on the
    **Shop: Filters & Product Grid** block. Pick columns, filter position, whether counts
-   show and whether the Sort by dropdown appears. On a Category, Collection or Tag
+   show, whether the Sort by dropdown appears and which order the grid starts in. On a Category, Collection or Tag
    layout you can leave the slug boxes empty - the page fills in whichever category,
    collection or tag the shopper is looking at, so one layout serves the lot. Set a slug
    by hand only when you are dropping the block somewhere else, such as a landing page
