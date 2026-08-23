@@ -22,6 +22,27 @@ const ModuleDependencySchema = z.object({
   minVersion: z.string().regex(/^\d+\.\d+\.\d+/, 'minVersion must be semver'),
 })
 
+// A cookie consent category a module asks the site to carry. It is offered to
+// the owner as a suggestion on the admin's GDPR tab and never installed behind
+// their back - the site's own banner config stays the only source of truth.
+//
+// Two forms, both permanent. The short form is a bare key ("live-chat"), which
+// is every module written before this schema grew up. The long form carries the
+// wording as well, so a suggestion the owner accepts arrives with a description
+// already written instead of an unexplained switch in the banner's manage panel.
+// Keys are folded to core's machine-readable shape by whoever consumes them, so
+// a module may word its key however it likes.
+const CookieCategorySchema = z.union([
+  z.string().min(1),
+  z.object({
+    key: z.string().min(1),
+    label: z.string().min(1).optional(),
+    description: z.string().optional(),
+  }),
+])
+
+export type CookieCategoryDeclaration = z.infer<typeof CookieCategorySchema>
+
 const CronJobSchema = z.object({
   // Must resolve through the generic module router (app/api/m/[module]/[...path]),
   // so no module ever needs a hand-written entry in a committed core file.
@@ -48,7 +69,7 @@ export const ModuleManifestSchema = z.object({
   navGroupLabel: z.string().optional(),
   // Permission keys this module declares. Convention: use _own/_any suffix where meaningful.
   permissions: z.array(z.string()).default([]),
-  cookieCategories: z.array(z.string()).default([]),
+  cookieCategories: z.array(CookieCategorySchema).default([]),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
   teardown: z.array(z.string()).optional(),
   // Puck block registrations provided by this module.
@@ -214,7 +235,7 @@ export const ThemeManifestSchema = z.object({
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Version must be semver'),
   description: z.string().optional(),
   author: z.string().optional(),
-  cookieCategories: z.array(z.string()).default([]),
+  cookieCategories: z.array(CookieCategorySchema).default([]),
 })
 
 export type ThemeManifest = z.infer<typeof ThemeManifestSchema>

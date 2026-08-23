@@ -79,6 +79,26 @@ function consentCategoryLabel(raw: string): string {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : raw
 }
 
+// A module's cookieCategories entry, in either of the two shapes the manifest
+// schema takes: a bare key, or a key with the wording already written. Declared
+// here rather than imported from lib/modules/manifest, which reaches for the
+// GitHub client and so has no business in a browser bundle.
+type ManifestCookieCategory = string | { key?: string; label?: string; description?: string }
+
+type CookieSuggestion = { key: string; label: string; description: string }
+
+function readCookieCategory(raw: ManifestCookieCategory): CookieSuggestion | null {
+  const source = typeof raw === 'string' ? { key: raw } : raw
+  if (!source || typeof source.key !== 'string') return null
+  const key = consentCategoryKey(source.key)
+  if (!key) return null
+  return {
+    key,
+    label: source.label?.trim() || consentCategoryLabel(source.key),
+    description: source.description?.trim() ?? '',
+  }
+}
+
 // Branding (logo/favicon/app icons + app identity) moved to the Styles page. These
 // SiteConfig keys - plus the GET's derived *Url preview fields - are owned there
 // now, so this page keeps them out of its config state and its Save payload, and
@@ -780,23 +800,29 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   }, [searchParams, loadGhStatus, config.adminPath, loading])
 
   // GDPR consent banner state
-  const [gdprSuggestions, setGdprSuggestions] = useState<Array<{ key: string; label: string }>>([])
+  const [gdprSuggestions, setGdprSuggestions] = useState<CookieSuggestion[]>([])
 
   const loadGdprSuggestions = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/modules')
       if (!res.ok) return
-      const data = (await res.json()) as { modules?: Array<{ status: string; manifest?: { cookieCategories?: string[] } | null }> }
-      const cats = new Map<string, string>()
+      const data = (await res.json()) as { modules?: Array<{ status: string; manifest?: { cookieCategories?: ManifestCookieCategory[] } | null }> }
+      const cats = new Map<string, CookieSuggestion>()
       for (const mod of (data.modules ?? [])) {
         if (mod.status === 'active' && mod.manifest?.cookieCategories) {
-          for (const c of mod.manifest.cookieCategories) {
-            const key = consentCategoryKey(c)
-            if (key) cats.set(key, consentCategoryLabel(c))
+          for (const raw of mod.manifest.cookieCategories) {
+            const suggestion = readCookieCategory(raw)
+            if (!suggestion) continue
+            // Two modules can ask for the same category - analytics is the
+            // obvious one. Keep whichever version brought wording with it, so a
+            // module that only names the key never blanks out a module that
+            // explained it.
+            const existing = cats.get(suggestion.key)
+            if (!existing || (!existing.description && suggestion.description)) cats.set(suggestion.key, suggestion)
           }
         }
       }
-      setGdprSuggestions([...cats].map(([key, label]) => ({ key, label })))
+      setGdprSuggestions([...cats.values()])
     } catch { /* ignore */ }
   }, [])
 
@@ -2181,11 +2207,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   {availableSuggestions.length > 0 && (
                     <div style={{ marginTop: '0.5rem' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Suggested by active modules:</span>
-                      {availableSuggestions.map(({ key, label }) => (
+                      {availableSuggestions.map(({ key, label, description }) => (
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setConsent({ categories: [...cats, { key, label, description: '', required: false, defaultOn: false }] })}
+                          title={description || undefined}
+                          onClick={() => setConsent({ categories: [...cats, { key, label, description, required: false, defaultOn: false }] })}
                           style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', marginRight: '0.375rem', marginBottom: '0.375rem', borderRadius: 9999, background: 'var(--color-primary-subtle)', border: '1px solid var(--color-primary-border)', color: 'var(--color-primary)', cursor: 'pointer' }}
                         >
                           + {label}
