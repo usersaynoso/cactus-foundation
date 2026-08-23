@@ -1,17 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { TabStrip } from '@/components/admin/TabStrip'
-import { ACCOUNT_SECTION_DEFS, type AccountSectionKey } from '@/lib/members/account-layout'
+import {
+  ACCOUNT_SECTION_DEFS,
+  accountExtrasInsertIndex,
+  accountSectionAnchor,
+  enabledAccountSectionKeys,
+  moduleAccountSectionAnchor,
+} from '@/lib/members/account-layout'
 import type { MembersConfig } from '@/lib/members/config'
 import type { MemberAccountNavItem } from '@/lib/members/account-nav'
-
-// Module tabs (Shop contributes Orders and Addresses) slot in after Security
-// rather than being appended to the lot. Appended, they came after Danger Zone
-// - the two tabs a member actually uses sitting past the one about deleting
-// their account, which reads as an afterthought.
-const SECTIONS_BEFORE_EXTRAS: AccountSectionKey[] = ['profile', 'security']
 
 // How far down the viewport a section has to have travelled before it counts as
 // the one being read: the sticky tab bar, plus a line of breathing room, plus
@@ -35,8 +35,8 @@ type Props = {
    * say there is nothing to choose. */
   notificationsAvailable?: boolean
   /** One-page account (`accountSinglePage`): the core tabs scroll to a section
-   * of the overview instead of loading a page each. Module tabs are untouched -
-   * they are whole pages of their own with their own data. */
+   * of the overview instead of loading a page each. A module tab joins them if
+   * it named a `sectionId`; one that did not stays a page. */
   singlePage?: boolean
 }
 
@@ -65,6 +65,22 @@ export default function AccountNav({
   // of its own, and lighting a core section tab there would be a lie.
   const spying = singlePage && pathname === basePath
 
+  // The one-page account's running order, which the tab bar and the overview
+  // page work out the same way from the same helpers. A module tab that named a
+  // `sectionId` is drawn into the page and gets an anchor; one that did not is
+  // still a page and has none.
+  const enabledKeys = enabledAccountSectionKeys(sections, notificationsAvailable)
+  const insertAt = accountExtrasInsertIndex(enabledKeys)
+  const inlineExtraKeys = singlePage ? extras.filter((e) => e.sectionId).map((e) => e.key) : []
+  // Joined and re-split so the effect below depends on the anchors themselves
+  // rather than on a fresh array every render.
+  const anchorKey = [
+    ...enabledKeys.slice(0, insertAt).map(accountSectionAnchor),
+    ...inlineExtraKeys.map(moduleAccountSectionAnchor),
+    ...enabledKeys.slice(insertAt).map(accountSectionAnchor),
+  ].join('|')
+  const anchors = useMemo(() => anchorKey.split('|').filter(Boolean), [anchorKey])
+
   useEffect(() => {
     // Nothing to watch, and nothing to reset either: every read of this state
     // is already gated on `spying`, so a stale anchor left behind by a previous
@@ -76,11 +92,11 @@ export default function AccountNav({
       const marker = window.scrollY + stickyHeaderOffset() + SPY_OFFSET
       let current: string | null = null
       let last: string | null = null
-      for (const def of ACCOUNT_SECTION_DEFS) {
-        const el = document.getElementById(def.anchor)
+      for (const anchor of anchors) {
+        const el = document.getElementById(anchor)
         if (!el) continue
-        last = def.anchor
-        if (el.getBoundingClientRect().top + window.scrollY <= marker) current = def.anchor
+        last = anchor
+        if (el.getBoundingClientRect().top + window.scrollY <= marker) current = anchor
       }
       // A last section too short to ever reach the marker would otherwise never
       // light its own tab, however far the member scrolled - so once there is no
@@ -103,7 +119,7 @@ export default function AccountNav({
       window.removeEventListener('resize', onScroll)
       if (frame) cancelAnimationFrame(frame)
     }
-  }, [spying])
+  }, [spying, anchors])
 
   // Scrolls rather than navigates, and only where there is something on the page
   // to scroll to. From a module tab the click is left alone: the href is a real
@@ -126,24 +142,18 @@ export default function AccountNav({
     window.history.replaceState(null, '', window.location.pathname)
   }, [spying])
 
-  const sectionItems = ACCOUNT_SECTION_DEFS.filter(
-    (s) => sections[s.key] && (s.key !== 'notifications' || notificationsAvailable),
-  ).map((s) => ({
-    key: s.key,
-    label: s.label,
-    href: singlePage ? `${basePath}#${s.anchor}` : `${basePath}${s.path}`,
-    active: singlePage
-      ? spying && activeAnchor === s.anchor
-      : isActive(pathname, `${basePath}${s.path}`, false),
-    onClick: singlePage ? (e: React.MouseEvent<HTMLElement>) => scrollToAnchor(e, s.anchor) : undefined,
-  }))
-
-  // Where the module tabs go. findIndex, not a fixed count: any of the sections
-  // can be switched off in settings, so the first tab that is not a
-  // before-extras one is the seam wherever it lands (and -1 means every enabled
-  // section belongs in front, so they go on the end).
-  const firstAfter = sectionItems.findIndex((item) => !SECTIONS_BEFORE_EXTRAS.includes(item.key))
-  const insertAt = firstAfter === -1 ? sectionItems.length : firstAfter
+  const sectionItems = enabledKeys.map((key) => {
+    const s = ACCOUNT_SECTION_DEFS.find((def) => def.key === key)!
+    return {
+      key: s.key,
+      label: s.label,
+      href: singlePage ? `${basePath}#${s.anchor}` : `${basePath}${s.path}`,
+      active: singlePage
+        ? spying && activeAnchor === s.anchor
+        : isActive(pathname, `${basePath}${s.path}`, false),
+      onClick: singlePage ? (e: React.MouseEvent<HTMLElement>) => scrollToAnchor(e, s.anchor) : undefined,
+    }
+  })
 
   const items = [
     {
@@ -156,24 +166,32 @@ export default function AccountNav({
       onClick: singlePage ? scrollToTop : undefined,
     },
     ...sectionItems.slice(0, insertAt),
-    ...extras.map((extra) => ({
-      // Namespaced so a module cannot collide with a built-in section key.
-      key: `x:${extra.key}`,
-      // .badge/.badge-primary rather than inline colours: it is the house pill
-      // and it is already the right way round in dark mode, where white on
-      // --color-primary only reaches 3.6:1.
-      label: extra.badge ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
-          {extra.label}
-          <span className="badge badge-primary">{extra.badge}</span>
-        </span>
-      ) : (
-        extra.label
-      ),
-      href: extra.href,
-      active: isActive(pathname, extra.href, false),
-      onClick: undefined,
-    })),
+    ...extras.map((extra) => {
+      // Drawn into the one page, or still a page of its own. Even an inlined tab
+      // keeps its page: somebody can arrive there from an email, and while they
+      // are on it the tab lights up from the path as it always did.
+      const inline = singlePage && Boolean(extra.sectionId)
+      const anchor = moduleAccountSectionAnchor(extra.key)
+      return {
+        // Namespaced so a module cannot collide with a built-in section key.
+        key: `x:${extra.key}`,
+        // .badge/.badge-primary rather than inline colours: it is the house pill
+        // and it is already the right way round in dark mode, where white on
+        // --color-primary only reaches 3.6:1.
+        label: extra.badge ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+            {extra.label}
+            <span className="badge badge-primary">{extra.badge}</span>
+          </span>
+        ) : (
+          extra.label
+        ),
+        href: inline ? `${basePath}#${anchor}` : extra.href,
+        active:
+          inline && spying ? activeAnchor === anchor : isActive(pathname, extra.href, false),
+        onClick: inline ? (e: React.MouseEvent<HTMLElement>) => scrollToAnchor(e, anchor) : undefined,
+      }
+    }),
     ...sectionItems.slice(insertAt),
   ]
 

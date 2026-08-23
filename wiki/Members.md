@@ -180,11 +180,11 @@ Switching any of the other four off takes its tab away, and its card off the ove
 
 It suits an account with three or four short sections on it, where a tab per page is more clicking than reading. Leave it off for a busier one: a long page of everything is its own kind of unhelpful.
 
-Switching a section off still removes it, here as everywhere - its tab, its card and now its stretch of the page go together. Tabs added by modules keep their own pages: a shop's order history holds rather more than a section's worth, and nobody wants it unrolled underneath their passkeys. And a member who'd bookmarked one of the old section addresses lands on the right part of the one page instead of a dead end.
+Switching a section off still removes it, here as everywhere - its tab, its card and now its stretch of the page go together. The sections come down the page in the order their tabs are listed across the top. Tabs added by modules come down with them where the module offers a section to draw: with the Shop installed, **Orders** and **Addresses & Phone Numbers** are stretches of the same page, sitting after **Account & Security** exactly where their tabs do, and their tabs scroll to them like any other. An individual order still opens on a page of its own - it has rather more on it than a summary - and every one of those module pages carries on working for a bookmark or a link in an email. And a member who'd bookmarked one of the old section addresses lands on the right part of the one page instead of a dead end.
 
 Turning the Profile tab off is not the same as hiding members from the public side of your site - that's [Public profile visibility](#public-profiles-and-directory), a few lines further down, and the two work independently.
 
-Installed modules can add tabs of their own here, and they slot in after **Account & Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses & Phone Numbers** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back - see [Shop](Shop#customer-accounts).
+Installed modules can add tabs of their own here, and they slot in after **Account & Security** - the things members actually came for shouldn't sit past the tab about deleting their account. With the Shop installed, members get **Orders** and **Addresses & Phone Numbers** there, and those pages sit inside the account with the same tabs across the top rather than dumping people on a bare page with no way back (on a one-page account they're part of the page instead) - see [Shop](Shop#customer-accounts).
 
 ### Changing their email address
 

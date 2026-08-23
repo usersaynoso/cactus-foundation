@@ -23,6 +23,16 @@ export type MemberAccountNavItem = {
   href: string
   /** Small count pill, for things waiting on the member. Falsy hides it. */
   badge?: number
+  /** The module's own `members.account-section` id that draws this tab's content
+   *  in full. Set it and the tab joins the one-page account: with
+   *  `accountSinglePage` on, the tab scrolls to that section instead of loading
+   *  `href`, exactly as a core section's tab does. Leave it off and the tab stays
+   *  a page in both shapes, which is the right answer for anything too big or
+   *  too stateful to unroll under somebody's passkeys.
+   *
+   *  The page at `href` carries on existing either way - it is what a bookmark,
+   *  an email link and anybody with JavaScript off still lands on. */
+  sectionId?: string
 }
 
 /** The slice of the member a provider gets. Deliberately narrow - a module has

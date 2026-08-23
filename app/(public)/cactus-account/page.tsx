@@ -6,7 +6,14 @@ import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
-import { accountSectionAnchor } from '@/lib/members/account-layout'
+import {
+  accountExtrasInsertIndex,
+  accountSectionAnchor,
+  enabledAccountSectionKeys,
+  moduleAccountSectionAnchor,
+  type AccountSectionKey,
+} from '@/lib/members/account-layout'
+import { getMemberAccountNavExtras } from '@/lib/members/account-nav'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import VerifyEmailNudge from '@/components/members/account/VerifyEmailNudge'
 import ContactDetailsCard from '@/components/members/account/ContactDetailsCard'
@@ -79,7 +86,7 @@ export default async function AccountIndexPage() {
 
   // One round of queries rather than a waterfall: this is the page every
   // signed-in member lands on, so it is the one worth not making them wait for.
-  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable] =
+  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable, navExtras] =
     await Promise.all([
       getMembersConfig(),
       prisma.member.findUnique({
@@ -105,6 +112,10 @@ export default async function AccountIndexPage() {
       }),
       prisma.module.findMany({ where: { ...INSTALLED_MODULE_WHERE }, select: { manifest: true } }),
       hasModuleNotificationCategories(),
+      // The same tabs the shell puts across the top. Read again here rather than
+      // threaded down, because it is this page that has to draw the sections
+      // those tabs point at, and in the same order.
+      getMemberAccountNavExtras({ id: member.id, email: member.email, emailVerified: member.emailVerified }),
     ])
 
   // Modules can append content here via the "members.account-section"
@@ -138,6 +149,48 @@ export default async function AccountIndexPage() {
     !record?.bio && 'a short bio',
     record?.avatarChoice === 'GENERATED' && 'a picture',
   ].filter((v): v is string => typeof v === 'string')
+
+  // The one-page account, in tab order. Building it from the shared list rather
+  // than a hand-written run of blocks is what stops the page and the tab bar
+  // disagreeing about where a section goes.
+  const sectionKeys = enabledAccountSectionKeys(sections, notificationsAvailable)
+  const extrasAt = accountExtrasInsertIndex(sectionKeys)
+  const sectionContent: Record<AccountSectionKey, React.ReactNode> = {
+    profile: <ProfileSection />,
+    security: <SecuritySection />,
+    notifications: <NotificationsSection />,
+    activity: <ActivitySection />,
+    dangerZone: <DangerZoneSection linkedToStaff={!!member.userId} />,
+  }
+  const renderSection = (key: AccountSectionKey) => (
+    <AccountSection key={key} anchor={accountSectionAnchor(key)}>
+      {sectionContent[key]}
+    </AccountSection>
+  )
+
+  // A module section a tab claimed is that tab's whole page drawn inline, and it
+  // belongs to the one-page shape alone - tabbed, it stays the page it was, or
+  // the overview would carry a second copy of somebody's entire order history.
+  // Anything unclaimed is the summary card it always was and appears in both.
+  const claimedSectionIds = new Set(
+    navExtras.map((extra) => extra.sectionId).filter((id): id is string => typeof id === 'string'),
+  )
+  const moduleCards = sectionIds
+    .filter((id) => !claimedSectionIds.has(id))
+    .map((id) => {
+      const Section = sectionComponents[id]
+      return Section ? <Section key={id} /> : null
+    })
+  const moduleSections = singlePage
+    ? navExtras.map((extra) => {
+        const Section = extra.sectionId ? sectionComponents[extra.sectionId] : undefined
+        return Section ? (
+          <AccountSection key={extra.key} anchor={moduleAccountSectionAnchor(extra.key)}>
+            <Section />
+          </AccountSection>
+        ) : null
+      })
+    : []
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
@@ -222,42 +275,21 @@ export default async function AccountIndexPage() {
         )}
       </div>
 
-      {sectionIds.map((id) => {
-        const Section = sectionComponents[id]
-        return Section ? <Section key={id} /> : null
-      })}
+      {/* One page or not, a module's contribution sits where its tab sits: after
+          Security, not at the top of the page. Tabbed, there is nothing else
+          below to be after, so the whole lot renders here. */}
+      {moduleCards}
 
       {/* One-page account. Each section is exactly the component its own page
           renders, so there is one copy of every one of them and no chance of
           the two shapes drifting apart. The same switches decide what appears:
-          a section turned off is as absent here as its tab is. */}
+          a section turned off is as absent here as its tab is, and they come in
+          the order their tabs are listed in - module sections included. */}
       {singlePage && (
         <>
-          {sections.profile && (
-            <AccountSection anchor={accountSectionAnchor('profile')}>
-              <ProfileSection />
-            </AccountSection>
-          )}
-          {sections.security && (
-            <AccountSection anchor={accountSectionAnchor('security')}>
-              <SecuritySection />
-            </AccountSection>
-          )}
-          {sections.notifications && notificationsAvailable && (
-            <AccountSection anchor={accountSectionAnchor('notifications')}>
-              <NotificationsSection />
-            </AccountSection>
-          )}
-          {sections.activity && (
-            <AccountSection anchor={accountSectionAnchor('activity')}>
-              <ActivitySection />
-            </AccountSection>
-          )}
-          {sections.dangerZone && (
-            <AccountSection anchor={accountSectionAnchor('dangerZone')}>
-              <DangerZoneSection linkedToStaff={!!member.userId} />
-            </AccountSection>
-          )}
+          {sectionKeys.slice(0, extrasAt).map(renderSection)}
+          {moduleSections}
+          {sectionKeys.slice(extrasAt).map(renderSection)}
         </>
       )}
     </div>
