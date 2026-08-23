@@ -58,7 +58,7 @@
     {
       "name": "gocardless-instant-bank-pay-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop",
-      "version": "v0.1.13"
+      "version": "v0.1.14"
     },
     {
       "name": "square-payment-for-shop",
