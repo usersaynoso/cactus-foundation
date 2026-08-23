@@ -30,6 +30,7 @@ import { getMembersConfigCached } from '@/lib/members/config'
 import { validateMemberSession } from '@/lib/members/session-core'
 import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
+import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-origins'
 
 // The media Worker's hostname for the img-src allowlist. Prefer an explicit
 // CLOUDFLARE_WORKER_HOSTNAME, but fall back to the hostname of
@@ -65,6 +66,20 @@ function extraOrigins(): string[] {
     .filter((o) => /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o))
 }
 
+// Origins the installed modules declared in their own manifests (see
+// scripts/generate-module-csp.mjs). A module whose front-end loads a third-party
+// SDK - a payment provider drawing its card fields in its own iframes, say -
+// says so in its manifest and the policy widens for exactly the directives it
+// named, for as long as that module is installed. Core learns no hostnames and
+// the owner has nothing to configure.
+//
+// Only ever appended to a directive that already lists explicit origins, so this
+// cannot turn a locked-down directive into a permissive one by accident.
+function moduleOrigins(directive: ModuleCspDirective): string {
+  const origins = moduleCspOrigins[directive] ?? []
+  return origins.map((o) => ` ${o}`).join('')
+}
+
 function buildCsp(): string {
   const workerHost = workerImageHost()
   const extras = extraOrigins()
@@ -77,6 +92,7 @@ function buildCsp(): string {
     'https://picsum.photos', 'https://fastly.picsum.photos',
     workerHost ? `https://${workerHost}` : '',
     ...extras,
+    ...moduleCspOrigins.img,
   ].filter(Boolean).join(' ')
   return [
     `default-src 'self'`,
@@ -95,16 +111,16 @@ function buildCsp(): string {
     // decoder (Draco/Meshopt) when reading a .glb, e.g. the admin "Detect from
     // model" button. It permits ONLY WebAssembly.compile/instantiate, not JS
     // eval() - strictly narrower than 'unsafe-eval', which stays banned.
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com${extraScript}`,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com${extraScript}${moduleOrigins('script')}`,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com${moduleOrigins('style')}`,
     `img-src ${imgSrc}`,
     // media-src - the library now stores video (mp4/webm). The <video> preview in
     // the admin media detail panel is served from the media Worker origin, and
     // media-src otherwise falls back to default-src 'self', which would block it
     // exactly the way img-src once blocked Worker-served images. blob: is included
     // for any client-generated clip a future feature might play back.
-    `media-src 'self' blob:${workerHost ? ` https://${workerHost}` : ''}`,
-    `font-src 'self' https://fonts.gstatic.com`,
+    `media-src 'self' blob:${workerHost ? ` https://${workerHost}` : ''}${moduleOrigins('media')}`,
+    `font-src 'self' https://fonts.gstatic.com${moduleOrigins('font')}`,
     // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
     // workerHost - direct-to-Worker PUT upload (admin > Media) fetches the Worker directly from the browser
     //
@@ -118,9 +134,9 @@ function buildCsp(): string {
     // rather than a factor. A blob: URL is same-origin, unguessable and readable
     // only by the document that made it, so this grants no reach the page hasn't
     // already got.
-    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}`,
+    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}${moduleOrigins('connect')}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
-    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com${extraFrame}`,
+    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com${extraFrame}${moduleOrigins('frame')}`,
     // blob: - product-3d-views-for-shop decodes Draco-compressed meshes off the main
     // thread, and three's DRACOLoader builds that worker the only way it can: it
     // fetches the decoder's source as text and turns it into a Blob URL, since the

@@ -25,6 +25,7 @@ const GENERATORS = [
   './generate-media-worker.mjs',
   './generate-module-email-templates.mjs',
   './generate-module-sms-templates.mjs',
+  './generate-module-csp.mjs',
 ]
 
 for (const generator of GENERATORS) {

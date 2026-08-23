@@ -98,3 +98,50 @@ describe('readDeclaredCoreVersion', () => {
     expect(readDeclaredCoreVersion([])).toBeNull()
   })
 })
+
+// cspOrigins widens the site's Content-Security-Policy, which makes it the one
+// manifest field where a lax schema is a security hole rather than a nuisance -
+// a module could otherwise reach a plain-http host, or slip a policy keyword
+// like 'unsafe-eval' past as though it were an origin.
+
+const MINIMAL = { name: 'thing', version: '1.0.0', tablePrefix: 'thg_' }
+
+describe('cspOrigins', () => {
+  it('takes https origins on the fetch directives a module may widen', () => {
+    const parsed = parseModuleManifest({
+      ...MINIMAL,
+      cspOrigins: { script: ['https://web.example.com'], frame: ['https://pay.example.com:8443'] },
+    })
+    expect(parsed.cspOrigins).toEqual({ script: ['https://web.example.com'], frame: ['https://pay.example.com:8443'] })
+  })
+
+  it('takes one leading wildcard label, for an SDK served off per-shard subdomains', () => {
+    expect(parseModuleManifest({ ...MINIMAL, cspOrigins: { connect: ['https://*.example.com'] } }).cspOrigins)
+      .toEqual({ connect: ['https://*.example.com'] })
+  })
+
+  it('refuses a plain-http origin', () => {
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ['http://example.com'] } })).toThrow()
+  })
+
+  it('refuses a policy keyword dressed up as an origin', () => {
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ["'unsafe-eval'"] } })).toThrow()
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ['*'] } })).toThrow()
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ['data:'] } })).toThrow()
+  })
+
+  it('refuses an origin carrying a path, which CSP would not honour anyway', () => {
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ['https://example.com/sdk.js'] } })).toThrow()
+  })
+
+  // frame-ancestors, base-uri and form-action are what keep the site itself from
+  // being framed or its forms redirected. No module gets to touch them.
+  it('refuses a directive that is not one of the seven fetch directives', () => {
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { 'frame-ancestors': ['https://example.com'] } })).toThrow()
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { default: ['https://example.com'] } })).toThrow()
+  })
+
+  it('is optional - which is what every module written before it said', () => {
+    expect(parseModuleManifest(MINIMAL).cspOrigins).toBeUndefined()
+  })
+})

@@ -70,6 +70,30 @@ export const ModuleManifestSchema = z.object({
   // Permission keys this module declares. Convention: use _own/_any suffix where meaningful.
   permissions: z.array(z.string()).default([]),
   cookieCategories: z.array(CookieCategorySchema).default([]),
+  // External origins this module's front-end genuinely needs, per CSP fetch
+  // directive. Collected across every installed module by
+  // scripts/generate-module-csp.mjs and unioned into the site's own
+  // Content-Security-Policy (see proxy.ts).
+  //
+  // This exists because a payment or mapping SDK that draws its own iframes
+  // cannot load at all under core's default policy, and the alternative was
+  // either naming the module's supplier in a committed core file (which no
+  // module may do) or asking the owner to fill in CSP_EXTRA_ORIGINS by hand
+  // before their checkout would take a card. Core still knows nothing about
+  // which module wants which origin, or why.
+  //
+  // Only these directives, and only https origins - a module cannot widen
+  // script-src to 'unsafe-eval', reach a plain-http host, or touch
+  // frame-ancestors/base-uri/form-action, which are the directives that keep
+  // the site itself from being framed or hijacked. One leading "*." wildcard
+  // label is allowed, since several SDKs serve from per-shard subdomains.
+  cspOrigins: z.record(
+    z.enum(['script', 'style', 'img', 'font', 'connect', 'frame', 'media']),
+    z.array(z.string().regex(
+      /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i,
+      'cspOrigins entries must be https origins, optionally with one leading *. label'
+    ))
+  ).optional(),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
   teardown: z.array(z.string()).optional(),
   // Puck block registrations provided by this module.
