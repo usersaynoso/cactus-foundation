@@ -119,9 +119,12 @@ So this module separates the two:
 3. A colour filter with no swatch borrows one from its ticked values automatically; you
    can set your own hex colour (or a picture, for picture-swatch groups) on the filter row.
 4. **Page builder:** open a category or collection page's layout and drop on the
-   **Shop: Filters & Product Grid** block. Set the category or collection slug in the
-   block's settings (or a tag), pick columns, filter position, whether counts show and
-   whether the Sort by dropdown appears.
+   **Shop: Filters & Product Grid** block. Pick columns, filter position, whether counts
+   show and whether the Sort by dropdown appears. On a Category, Collection or Tag
+   layout you can leave the slug boxes empty - the page fills in whichever category,
+   collection or tag the shopper is looking at, so one layout serves the lot. Set a slug
+   by hand only when you are dropping the block somewhere else, such as a landing page
+   that should always show one particular range.
 
 ## Filter collections - a page of its own for a filtered view
 
