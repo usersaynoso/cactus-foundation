@@ -37,6 +37,23 @@ Each product's editor gains a **Google Shopping** tab (on the parent product - v
 - **Condition** - New, Refurbished or Used, when it differs from the shop default.
 - **Keep this product out of the feed** - the product and all its variations sit Google Shopping out.
 
+### Jumping straight to a listing on Google
+
+Once the module knows which Merchant Center account the feed goes to, every product's **Google Shopping** tab opens with a short list of links - **one per variation** - that take you straight to that exact listing inside Merchant Center. Handy when Google has taken against one particular size and you want to see what it says about it, without hunting through a few thousand rows.
+
+To switch it on, fill in two boxes under **Shop → Settings → Google Shopping → Your Merchant Center account**:
+
+- **Account number** - the number Merchant Center shows at the top right of its own pages. Spaces and dashes are fine; only the digits are kept.
+- **Feed label** - whatever Merchant Center lists against your feed, usually the country you sell into (`GB` for a UK shop). Leave it blank and the links still work, Google just asks which feed you meant when you arrive.
+
+Neither has any effect on the feed itself, and nothing breaks if you never fill them in - the tab simply says so instead of offering links.
+
+A few things the list is honest about:
+
+- A **brand new product** takes a day or so to show up, because Google reads the feed on its own schedule. Until then the link arrives before the listing does.
+- Variations that are **switched off**, or whose hidden variation product is not active, get no link - they are not in the feed, so there would be nothing at the other end.
+- A product ticked **Keep this product out of the feed** gets no links at all, and says why.
+
 ### Where the brand comes from
 
 Three places, in this order, first one that has an answer wins:
