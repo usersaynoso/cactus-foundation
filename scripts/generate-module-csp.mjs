@@ -12,10 +12,10 @@
  * CSP_EXTRA_ORIGINS by hand before their checkout would take a card.
  *
  * Validated here as well as in the manifest schema, because this file is what
- * actually reaches the browser's policy: only the seven fetch directives below,
- * only https origins, at most one leading "*." label. Nothing a module declares can
- * add a keyword ('unsafe-eval'), reach a plain-http host, or touch
- * frame-ancestors / base-uri / form-action.
+ * actually reaches the browser's policy: only the directives below, only https
+ * origins, at most one leading "*." label. Nothing a module declares can add a
+ * keyword ('unsafe-eval'), reach a plain-http host, or touch frame-ancestors or
+ * base-uri.
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs'
@@ -28,8 +28,12 @@ const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const outPath = join(rootDir, 'lib', 'modules', 'csp-origins.ts')
 
-// Fetch directives a module may contribute to. Deliberately not the whole of CSP.
-const DIRECTIVES = ['script', 'style', 'img', 'font', 'connect', 'frame', 'media']
+// Directives a module may contribute to. Deliberately not the whole of CSP:
+// `frame-ancestors` (who may frame this site) and `base-uri` (what every
+// relative URL on the page resolves against) stay unreachable from a manifest.
+// `form-action` is here because 3D Secure cannot work without it - see the
+// cspOrigins comment in lib/modules/manifest.ts.
+const DIRECTIVES = ['script', 'style', 'img', 'font', 'connect', 'frame', 'media', 'form-action']
 
 const ORIGIN_RE = /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i
 
@@ -81,8 +85,10 @@ for (const moduleName of getModuleNames()) {
 const entries = DIRECTIVES.map((d) => [d, [...collected[d]].sort()])
 const total = entries.reduce((n, [, list]) => n + list.length, 0)
 
+// Keys are quoted because 'form-action' is not a bare identifier - an unquoted
+// one emits a file that will not parse.
 const body = entries
-  .map(([directive, list]) => `  ${directive}: [${list.map((o) => JSON.stringify(o)).join(', ')}],`)
+  .map(([directive, list]) => `  ${JSON.stringify(directive)}: [${list.map((o) => JSON.stringify(o)).join(', ')}],`)
   .join('\n')
 
 writeFileSync(
@@ -91,9 +97,9 @@ writeFileSync(
 // DO NOT EDIT BY HAND. Rewritten on every build and dev start.
 //
 // External origins the installed modules declared in their manifests, per CSP
-// fetch directive. proxy.ts unions these into the site's own policy.
+// directive. proxy.ts unions these into the site's own policy.
 
-export type ModuleCspDirective = 'script' | 'style' | 'img' | 'font' | 'connect' | 'frame' | 'media'
+export type ModuleCspDirective = 'script' | 'style' | 'img' | 'font' | 'connect' | 'frame' | 'media' | 'form-action'
 
 export const moduleCspOrigins: Record<ModuleCspDirective, string[]> = {
 ${body}

@@ -94,12 +94,27 @@ export const ModuleManifestSchema = z.object({
   // which module wants which origin, or why.
   //
   // Only these directives, and only https origins - a module cannot widen
-  // script-src to 'unsafe-eval', reach a plain-http host, or touch
-  // frame-ancestors/base-uri/form-action, which are the directives that keep
-  // the site itself from being framed or hijacked. One leading "*." wildcard
-  // label is allowed, since several SDKs serve from per-shard subdomains.
+  // script-src to 'unsafe-eval' or reach a plain-http host. One leading "*."
+  // wildcard label is allowed, since several SDKs serve from per-shard
+  // subdomains.
+  //
+  // `form-action` is the odd one out and was deliberately excluded at first, on
+  // the grounds that it is one of the directives protecting the site itself. It
+  // had to be let in: 3D Secure works by POSTing a challenge form to the card
+  // network's authentication server, and Square runs that POST inside an
+  // iframe it creates in OUR document - which inherits OUR policy. With
+  // form-action left at 'self' the shopper gets a blank white modal at the
+  // moment their bank asks them to confirm, and no card payment can complete.
+  //
+  // It is a narrower thing to grant than the two still withheld.
+  // `frame-ancestors` decides who may frame this site (clickjacking) and
+  // `base-uri` can silently re-point every relative URL on the page; both
+  // remain unreachable from a manifest. `form-action` only widens where a form
+  // ON this site may submit, to a named https origin, for as long as the module
+  // is installed - it grants no ability to read anything, and an attacker who
+  // could plant a form here would already be running script here.
   cspOrigins: z.record(
-    z.enum(['script', 'style', 'img', 'font', 'connect', 'frame', 'media']),
+    z.enum(['script', 'style', 'img', 'font', 'connect', 'frame', 'media', 'form-action']),
     z.array(z.string().regex(
       /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i,
       'cspOrigins entries must be https origins, optionally with one leading *. label'

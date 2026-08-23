@@ -134,11 +134,24 @@ describe('cspOrigins', () => {
     expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { script: ['https://example.com/sdk.js'] } })).toThrow()
   })
 
-  // frame-ancestors, base-uri and form-action are what keep the site itself from
-  // being framed or its forms redirected. No module gets to touch them.
-  it('refuses a directive that is not one of the seven fetch directives', () => {
+  // frame-ancestors decides who may frame this site; base-uri can silently
+  // re-point every relative URL on the page. Neither is reachable from a
+  // manifest, and neither has a use case that would justify it.
+  it('refuses a directive no module may widen', () => {
     expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { 'frame-ancestors': ['https://example.com'] } })).toThrow()
+    expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { 'base-uri': ['https://example.com'] } })).toThrow()
     expect(() => parseModuleManifest({ ...MINIMAL, cspOrigins: { default: ['https://example.com'] } })).toThrow()
+  })
+
+  // form-action was withheld to begin with, on the same reasoning as the two
+  // above, and had to be let in: 3D Secure POSTs its challenge form to the card
+  // network's authentication server from an iframe the payment SDK creates in
+  // our own document, which inherits our policy. With form-action at 'self' the
+  // shopper gets a blank modal at the moment their bank asks them to confirm,
+  // and no card payment on the site can complete.
+  it('allows form-action, which 3D Secure cannot do without', () => {
+    expect(parseModuleManifest({ ...MINIMAL, cspOrigins: { 'form-action': ['https://*.cardinalcommerce.com'] } }).cspOrigins)
+      .toEqual({ 'form-action': ['https://*.cardinalcommerce.com'] })
   })
 
   it('is optional - which is what every module written before it said', () => {

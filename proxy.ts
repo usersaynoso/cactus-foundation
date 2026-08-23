@@ -73,6 +73,13 @@ function extraOrigins(): string[] {
 // named, for as long as that module is installed. Core learns no hostnames and
 // the owner has nothing to configure.
 //
+// `form-action` is included, unlike `frame-ancestors` and `base-uri` which no
+// manifest can reach. It has to be: 3D Secure POSTs its challenge form to the
+// card network's authentication server, from an iframe the payment SDK creates
+// inside this document and which therefore inherits this policy. Left at
+// 'self', the shopper gets a blank modal at the moment their bank asks them to
+// confirm the payment.
+//
 // Only ever appended to a directive that already lists explicit origins, so this
 // cannot turn a locked-down directive into a permissive one by accident.
 function moduleOrigins(directive: ModuleCspDirective): string {
@@ -155,7 +162,7 @@ function buildCsp(): string {
     // stays forbidden, which is the clickjacking protection that matters.
     `frame-ancestors 'self'`,
     `base-uri 'self'`,
-    `form-action 'self' https://github.com`,
+    `form-action 'self' https://github.com${moduleOrigins('form-action')}`,
   ].join('; ')
 }
 
