@@ -694,7 +694,16 @@ export function buildTokenStyles(tokens: unknown): string {
   // `:not()` rather than a lower-specificity rule because the hover fill is
   // `!important` (it has to beat Puck's inline styles), and nothing but not
   // matching at all gets out of the way of that.
-  const notUnstyled = ':not([data-cactus-unstyled]):not([data-cactus-unstyled] *)'
+  //
+  // The `:where()` wrapper is load-bearing, not decoration. A bare
+  // `:not([attr])` contributes its argument's specificity, so
+  // `main button:not([data-cactus-unstyled]):not([data-cactus-unstyled] *)` is
+  // (0,2,2) - enough to outrank every module's own `.cls{background:none}` and
+  // repaint the storefront's filter heads, quantity steppers and everything
+  // else that draws a bare <button>. `:where()` counts as zero, so this reads
+  // (0,0,2), exactly the blanket weight it had before the opt-out arrived,
+  // while still not matching inside an unstyled subtree.
+  const notUnstyled = ':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))'
 
   if (ts?.links?.colour) scoped.push(`main a${notUnstyled}{color: var(--color-link);}`)
   if (ts?.links?.hoverColour) scoped.push(`main a${notUnstyled}:hover{color: var(--color-link-hover);}`)

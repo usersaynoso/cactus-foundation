@@ -24,7 +24,7 @@ describe('buildTokenStyles blanket element rules', () => {
   }
 
   const css = buildTokenStyles(tokens)
-  const OPT_OUT = ':not([data-cactus-unstyled]):not([data-cactus-unstyled] *)'
+  const OPT_OUT = ':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))'
 
   it.each([
     ['main a', 'links'],
@@ -54,5 +54,16 @@ describe('buildTokenStyles blanket element rules', () => {
 
   it('leaves the Button block\'s own variant hovers alone - they are ours to paint', () => {
     expect(css).toContain('main .cactus-btn[data-variant="primary"]:hover')
+  })
+
+  // The opt-out must cost nothing in specificity. A bare
+  // `:not([data-cactus-unstyled])` carries its argument's weight, which took
+  // `main button` from (0,0,2) to (0,2,2) - above every module's own
+  // `.flt-group-head{background:none}` and its like, so the site's button
+  // colour repainted filter heads, quantity steppers and every other bare
+  // <button> the platform draws. Wrapped in `:where()` it weighs nothing.
+  it('does not let the opt-out outrank a module\'s own button styling', () => {
+    expect(css).not.toMatch(/:not\(\[data-cactus-unstyled\]\)/)
+    expect(css).toContain(':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))')
   })
 })
