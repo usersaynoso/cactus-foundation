@@ -37,6 +37,7 @@ type Config = {
   notifyAdminOnPendingApproval: boolean
   profileVisibility: 'PUBLIC' | 'MEMBERS_ONLY' | 'HIDDEN'
   accountSinglePage: boolean
+  accountCollectOrganisation: boolean
   accountSectionsEnabled: {
     profile: boolean
     security: boolean
@@ -295,6 +296,21 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               exactly where they are and scroll to the right part instead of loading a fresh page. Tabs added by
               modules - a shop&apos;s orders, say - keep their own pages, since those hold rather more than a
               section&apos;s worth.
+            </p>
+          </div>
+          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Organisation name</p>
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.accountCollectOrganisation}
+                onChange={(e) => update('accountCollectOrganisation', e.target.checked)}
+              />
+              Ask members for an organisation name
+            </label>
+            <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>
+              A box beside their name on the account page, for the company, school or practice they buy on behalf of.
+              Off, the box goes and nothing new is saved into it - anything already there is left alone.
             </p>
           </div>
           <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area sections</p>

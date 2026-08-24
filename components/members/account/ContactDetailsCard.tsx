@@ -2,20 +2,29 @@
 
 import { useEffect, useState } from 'react'
 
-type Contact = { fullName: string | null }
+type Contact = { fullName: string | null; organisation: string | null }
 
-// The overview tab's editable "Your name" card, saved straight to the member
-// record and used to fill the checkout's name box in.
+// The overview tab's editable "Your details" card, saved straight to the member
+// record and used to fill the checkout's name and organisation boxes in.
 //
 // Not gated behind the Profile section switch. That one holds the public-profile
 // fields; this is the name an order is made out to, and the sites most likely to
 // want it (a shop whose members only exist to have somewhere to see their
 // orders) are exactly the sites that turn the public profile off.
 //
+// The organisation sits beside the name rather than on a delivery address: it is
+// who the member is, not where a parcel goes, so it stays the same however many
+// addresses they save. `collectOrganisation` is the site's own switch - off, the
+// box is gone and the route refuses to save one either.
+//
 // No phone number here on purpose: a number belongs to the address a parcel is
 // going to, so the shop keeps one per saved address instead.
-export default function ContactDetailsCard({ initial }: { initial: Contact }) {
+export default function ContactDetailsCard({ initial, collectOrganisation = true }: {
+  initial: Contact
+  collectOrganisation?: boolean
+}) {
   const [fullName, setFullName] = useState(initial.fullName ?? '')
+  const [organisation, setOrganisation] = useState(initial.organisation ?? '')
   const [saved, setSaved] = useState<Contact>(initial)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -30,6 +39,7 @@ export default function ContactDetailsCard({ initial }: { initial: Contact }) {
   }, [message])
 
   const dirty = fullName !== (saved.fullName ?? '')
+    || (collectOrganisation && organisation !== (saved.organisation ?? ''))
 
   async function handleSave() {
     setSaving(true)
@@ -39,12 +49,15 @@ export default function ContactDetailsCard({ initial }: { initial: Contact }) {
       const res = await fetch('/api/members/contact', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName }),
+        // The organisation is only sent by a site that asks for one. Sending it
+        // regardless would have a site with the box switched off posting an
+        // empty string over whatever the member had before it was switched off.
+        body: JSON.stringify({ fullName, ...(collectOrganisation ? { organisation } : {}) }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Failed to save')
-      setSaved({ fullName: d.fullName ?? null })
-      setMessage('Name updated.')
+      setSaved({ fullName: d.fullName ?? null, organisation: d.organisation ?? null })
+      setMessage('Details updated.')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -55,30 +68,55 @@ export default function ContactDetailsCard({ initial }: { initial: Contact }) {
   return (
     <div className="card" style={{ padding: 'var(--space-4)', display: 'grid', gap: 'var(--space-3)' }}>
       <div>
-        <h2 className="card-title" style={{ margin: 0 }}>Your name</h2>
+        <h2 className="card-title" style={{ margin: 0 }}>Your details</h2>
         <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-          Filled in for you at the checkout, so you only type it once.
+          Filled in for you at the checkout, so you only type them once.
         </p>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
       {message && <div className="alert alert-success">{message}</div>}
 
-      <div className="field" style={{ margin: 0, maxWidth: 320 }}>
-        <label htmlFor="member-full-name">Full name</label>
-        <input
-          id="member-full-name"
-          type="text"
-          autoComplete="name"
-          maxLength={120}
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
+      {/* Side by side where there is room, one under the other where there is
+          not. auto-fit rather than a media query: the card sits in a column
+          whose width depends on the account layout, so the breakpoint that
+          matters is this card's own, not the viewport's. */}
+      <div style={{
+        display: 'grid',
+        gap: 'var(--space-3)',
+        gridTemplateColumns: collectOrganisation ? 'repeat(auto-fit, minmax(220px, 1fr))' : '1fr',
+        maxWidth: collectOrganisation ? 680 : 320,
+      }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label htmlFor="member-full-name">Full name</label>
+          <input
+            id="member-full-name"
+            type="text"
+            autoComplete="name"
+            maxLength={120}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
+
+        {collectOrganisation && (
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="member-organisation">Organisation name (optional)</label>
+            <input
+              id="member-organisation"
+              type="text"
+              autoComplete="organization"
+              maxLength={120}
+              value={organisation}
+              onChange={(e) => setOrganisation(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div>
         <button className="btn btn-primary btn-sm" disabled={saving || !dirty} onClick={handleSave}>
-          {saving ? 'Saving…' : 'Save name'}
+          {saving ? 'Saving…' : 'Save details'}
         </button>
       </div>
     </div>

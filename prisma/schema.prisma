@@ -836,6 +836,11 @@ model Member {
   // belongs to a delivery address, not to the account (the shop keeps one per
   // saved address).
   fullName                  String?
+  // The organisation the member buys on behalf of - a company, a school, a
+  // practice. Kept on the account rather than on a delivery address: it is who
+  // the person is, not where a parcel goes, and it stays the same however many
+  // addresses they save. The shop checkout reads it to fill its own box in.
+  organisation              String?
   // FK to Media.id — plain string, no Prisma relation (mirrors ogImageId style)
   avatarMediaId             String?
   avatarChoice              AvatarChoice @default(GENERATED)

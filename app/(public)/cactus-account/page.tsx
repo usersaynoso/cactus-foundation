@@ -227,7 +227,10 @@ export default async function AccountIndexPage() {
 
       {/* Above the summary cards because it is the only thing on this page with
           anything to fill in - the rest are links to somewhere else. */}
-      <ContactDetailsCard initial={{ fullName: member.fullName }} />
+      <ContactDetailsCard
+        initial={{ fullName: member.fullName, organisation: member.organisation }}
+        collectOrganisation={config.accountCollectOrganisation}
+      />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
         {sections.security && (

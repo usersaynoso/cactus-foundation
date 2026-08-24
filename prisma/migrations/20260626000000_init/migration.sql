@@ -585,6 +585,7 @@ CREATE TABLE "Member" (
     "username" TEXT NOT NULL,
     "displayName" TEXT,
     "fullName" TEXT,
+    "organisation" TEXT,
     "avatarMediaId" TEXT,
     "avatarChoice" "AvatarChoice" NOT NULL DEFAULT 'GENERATED',
     "bio" TEXT,

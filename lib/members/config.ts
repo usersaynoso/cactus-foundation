@@ -85,6 +85,12 @@ export const MembersConfigSchema = z.object({
   // default: the tabbed shape is what every existing site already has, and a
   // busy account (a shop's, with orders and addresses on it) is a long page.
   accountSinglePage: z.boolean().default(false),
+  // Whether the account overview asks for an organisation name alongside the
+  // member's own name, and whether the contact route will save one. On by
+  // default: it is one optional box, and the sites that keep members at all are
+  // mostly the ones selling to businesses. A site with no use for it turns it
+  // off here and the box goes, rather than sitting there collecting nothing.
+  accountCollectOrganisation: z.boolean().default(true),
   accountSectionsEnabled: z.object({
     profile: z.boolean().default(true),
     security: z.boolean().default(true),
