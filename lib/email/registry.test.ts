@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listEmailTemplates } from '@/lib/email/registry'
+import { emailOverrideValue, listEmailTemplates } from '@/lib/email/registry'
 
 describe('email registry', () => {
   const templates = listEmailTemplates()
@@ -26,5 +26,27 @@ describe('email registry', () => {
     for (const t of templates) {
       expect(t.bodyHtml.split('\n').slice(1).join('\n').length, t.key).toBeGreaterThan(0)
     }
+  })
+
+  // A row holding a verbatim copy of the default used to count as an edit, so
+  // every email on a live site wore an "Edited" badge nobody earned - and worse,
+  // won over the default at send time, freezing that email's wording for good.
+  describe('emailOverrideValue', () => {
+    it('treats a copy of the default as no override', () => {
+      expect(emailOverrideValue('Hello', 'Hello')).toBeNull()
+    })
+
+    it('ignores whitespace either side of an otherwise identical copy', () => {
+      expect(emailOverrideValue('  Hello\n', 'Hello')).toBeNull()
+    })
+
+    it('keeps a genuine edit', () => {
+      expect(emailOverrideValue('Hello there', 'Hello')).toBe('Hello there')
+    })
+
+    it('passes null and undefined straight through', () => {
+      expect(emailOverrideValue(null, 'Hello')).toBeNull()
+      expect(emailOverrideValue(undefined, 'Hello')).toBeNull()
+    })
   })
 })

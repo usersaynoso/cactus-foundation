@@ -89,3 +89,13 @@ export function groupSmsTemplates(templates: RegisteredSmsTemplate[]): Array<{ g
   }
   return [...groups.values()].sort((a, b) => a.groupLabel.localeCompare(b.groupLabel))
 }
+
+/** The text twin of emailOverrideValue - see lib/email/registry.ts for why a
+ * stored copy identical to the default must not count as an override. */
+export function smsOverrideValue(stored: string | null | undefined, defaultValue: string): string | null {
+  if (stored === null || stored === undefined) return null
+  // Trimmed compare: the editor's own validation trims what it posts, so a copy
+  // that differs from the default by nothing but surrounding whitespace is not
+  // an edit either.
+  return stored.trim() === defaultValue.trim() ? null : stored
+}

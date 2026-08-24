@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { getEmailTemplateDef } from '@/lib/email/registry'
+import { emailOverrideValue, getEmailTemplateDef } from '@/lib/email/registry'
 import { missingRequiredTags } from '@/lib/email/render'
 
 const Body = z.object({
@@ -37,6 +37,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const patch = parsed.data
 
   const existing = await prisma.emailTemplate.findUnique({ where: { key } })
+
+  // Copy that matches the default is stored as null, not as a row saying the
+  // same thing twice. The editor posts all four fields on every save, so a
+  // change of wrapper or on/off switch would otherwise write the stock wording
+  // in as a permanent override and freeze the email on today's copy.
+  const subjectPatch = patch.subject === undefined ? undefined : emailOverrideValue(patch.subject, def.subject)
+  const bodyPatch = patch.bodyHtml === undefined ? undefined : emailOverrideValue(patch.bodyHtml, def.bodyHtml)
 
   // Validate against what the email would actually become, not just what this
   // request happens to carry - an edit that only touches the subject can still
@@ -72,15 +79,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     where: { key },
     create: {
       key,
-      subject: patch.subject ?? null,
-      bodyHtml: patch.bodyHtml ?? null,
+      subject: subjectPatch ?? null,
+      bodyHtml: bodyPatch ?? null,
       wrapperLayoutId: patch.wrapperLayoutId ?? null,
       isActive: patch.isActive ?? true,
       updatedById: user.id,
     },
     update: {
-      ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
-      ...(patch.bodyHtml !== undefined ? { bodyHtml: patch.bodyHtml } : {}),
+      ...(patch.subject !== undefined ? { subject: subjectPatch } : {}),
+      ...(patch.bodyHtml !== undefined ? { bodyHtml: bodyPatch } : {}),
       ...(patch.wrapperLayoutId !== undefined ? { wrapperLayoutId: patch.wrapperLayoutId } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       updatedById: user.id,

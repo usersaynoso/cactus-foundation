@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { smsSegments } from '@/lib/sms/render'
 import { normaliseSmsNumber } from '@/lib/sms/send'
+import { smsOverrideValue } from '@/lib/sms/registry'
 
 // The two pure halves of the text-message path. Rendering and sending both talk
 // to the database or to a provider and are covered by the routes that use them;
@@ -60,5 +61,22 @@ describe('normaliseSmsNumber', () => {
     expect(normaliseSmsNumber(null)).toBeNull()
     expect(normaliseSmsNumber('not a number')).toBeNull()
     expect(normaliseSmsNumber('+0123')).toBeNull()
+  })
+})
+
+// The text twin of the email editor's rule: a stored copy that says exactly
+// what the default says is not an edit, and must not win over the default.
+describe('smsOverrideValue', () => {
+  it('treats a copy of the default as no override', () => {
+    expect(smsOverrideValue('Order {{orderNumber}} shipped', 'Order {{orderNumber}} shipped')).toBeNull()
+  })
+
+  it('keeps a genuine edit', () => {
+    expect(smsOverrideValue('Order {{orderNumber}} is out', 'Order {{orderNumber}} shipped')).toBe('Order {{orderNumber}} is out')
+  })
+
+  it('passes null and undefined straight through', () => {
+    expect(smsOverrideValue(null, 'x')).toBeNull()
+    expect(smsOverrideValue(undefined, 'x')).toBeNull()
   })
 })

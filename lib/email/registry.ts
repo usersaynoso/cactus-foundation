@@ -372,3 +372,21 @@ export function groupEmailTemplates(templates: RegisteredEmailTemplate[]): Array
     return a.groupLabel.localeCompare(b.groupLabel)
   })
 }
+
+/**
+ * A stored copy that says exactly what the default says is not an edit, and
+ * must not be treated as one. Rows like that arrive easily - a save that only
+ * meant to change the wrapper still posts the wording back verbatim - and once
+ * one exists it wins over the default at send time, which quietly freezes that
+ * email on the day the row was written: later improvements to the stock copy
+ * never reach it, and the editor brands it "Edited" when nobody edited it.
+ *
+ * So: compare, never just check for presence. Null means "no override".
+ */
+export function emailOverrideValue(stored: string | null | undefined, defaultValue: string): string | null {
+  if (stored === null || stored === undefined) return null
+  // Trimmed compare: the editor's own validation trims what it posts, so a copy
+  // that differs from the default by nothing but surrounding whitespace is not
+  // an edit either.
+  return stored.trim() === defaultValue.trim() ? null : stored
+}

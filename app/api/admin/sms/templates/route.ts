@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { groupSmsTemplates, listSmsTemplates, MAX_SMS_TEMPLATE_LENGTH } from '@/lib/sms/registry'
+import { groupSmsTemplates, listSmsTemplates, MAX_SMS_TEMPLATE_LENGTH, smsOverrideValue } from '@/lib/sms/registry'
 import { getInstalledModuleNames } from '@/lib/layout/installed-layout-types'
 import { isSmsAvailable } from '@/lib/sms/send'
 
@@ -34,16 +34,19 @@ export async function GET() {
     source: group.source,
     templates: group.templates.map((def) => {
       const override = overridesByKey.get(def.key)
+      // Same rule as the email editor: a stored copy that says exactly what the
+      // default says is not an edit.
+      const bodyOverride = smsOverrideValue(override?.body, def.body)
       return {
         key: def.key,
         label: def.label,
         mergeTags: def.mergeTags,
         requiredTags: def.requiredTags ?? [],
         transactional: def.transactional,
-        body: override?.body ?? def.body,
+        body: bodyOverride ?? def.body,
         defaultBody: def.body,
         isActive: override?.isActive ?? true,
-        isOverridden: !!override?.body,
+        isOverridden: !!bodyOverride,
         updatedAt: override?.updatedAt ?? null,
       }
     }),

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { getSmsTemplateDef, MAX_SMS_TEMPLATE_LENGTH, missingRequiredSmsTags } from '@/lib/sms/registry'
+import { getSmsTemplateDef, MAX_SMS_TEMPLATE_LENGTH, missingRequiredSmsTags, smsOverrideValue } from '@/lib/sms/registry'
 
 const Body = z.object({
   body: z.string().trim().min(1).max(MAX_SMS_TEMPLATE_LENGTH).optional(),
@@ -34,6 +34,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const existing = await prisma.smsTemplate.findUnique({ where: { key } })
 
+  // Wording identical to the default is stored as null - see the email twin of
+  // this route for what a row saying the same thing twice costs.
+  const bodyPatch = patch.body === undefined ? undefined : smsOverrideValue(patch.body, def.body)
+
   const nextBody = patch.body ?? existing?.body ?? def.body
   const missing = missingRequiredSmsTags(def, nextBody)
   if (missing.length) {
@@ -56,12 +60,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     where: { key },
     create: {
       key,
-      body: patch.body ?? null,
+      body: bodyPatch ?? null,
       isActive: patch.isActive ?? true,
       updatedById: user.id,
     },
     update: {
-      ...(patch.body !== undefined ? { body: patch.body } : {}),
+      ...(patch.body !== undefined ? { body: bodyPatch } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       updatedById: user.id,
     },

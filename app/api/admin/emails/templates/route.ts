@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { groupEmailTemplates, listEmailTemplates } from '@/lib/email/registry'
+import { emailOverrideValue, groupEmailTemplates, listEmailTemplates } from '@/lib/email/registry'
 import { getInstalledModuleNames } from '@/lib/layout/installed-layout-types'
 
 // Every email this site can send, grouped by where it came from, with the
@@ -37,19 +37,24 @@ export async function GET() {
     source: group.source,
     templates: group.templates.map((def) => {
       const override = overridesByKey.get(def.key)
+      // A stored copy identical to the default is not an edit, whatever put it
+      // there, so the badge and the reset button go by what the copy says
+      // rather than by whether a row happens to exist.
+      const subjectOverride = emailOverrideValue(override?.subject, def.subject)
+      const bodyOverride = emailOverrideValue(override?.bodyHtml, def.bodyHtml)
       return {
         key: def.key,
         label: def.label,
         mergeTags: def.mergeTags,
         requiredTags: def.requiredTags ?? [],
         transactional: def.transactional,
-        subject: override?.subject ?? def.subject,
-        bodyHtml: override?.bodyHtml ?? def.bodyHtml,
+        subject: subjectOverride ?? def.subject,
+        bodyHtml: bodyOverride ?? def.bodyHtml,
         defaultSubject: def.subject,
         defaultBodyHtml: def.bodyHtml,
         wrapperLayoutId: override?.wrapperLayoutId ?? null,
         isActive: override?.isActive ?? true,
-        isOverridden: !!(override?.subject || override?.bodyHtml),
+        isOverridden: !!(subjectOverride || bodyOverride),
         updatedAt: override?.updatedAt ?? null,
       }
     }),
