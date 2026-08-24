@@ -1,7 +1,19 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-24 (**The "pick up where you left off" link in a basket reminder now actually brings the basket back - `abandoned-carts-for-shop` **0.1.7**, pinned by core **0.5.1261**, released.**) Chris: "links in abandoned cart emails, when clicked, are showing nothing in basket".
+Last updated: 2026-08-24 (**The two wallet buttons agree on hover - core **0.5.1263**, `square-payment-for-shop` **0.1.21**, released.**) Chris: "the apply pay button either needs to same hover effect, or the google pay hover effect needs removing so they match". Google's darkened under the pointer, Apple's did nothing.
+
+**Apple's button cannot be given one.** `-webkit-appearance: -apple-pay-button` is a control the operating system draws; there is no hover hook, and the compositing tricks that would work (a `filter` or `opacity` on a wrapper) are altering the appearance of somebody else's payment button, which their guidelines exist to stop. So the pair could only be made to agree by taking Google's off.
+
+**Google's hover is not a `:hover` rule**, which is why guessing at it would have gone wrong. Its script toggles a **`.hover` CLASS**, styled `.gpay-button.black.hover{background-color:rgb(60,64,67)}`, alongside `.active` (rgb(95,99,104)) and `.focus` (the focus ring). Established by loading `pay.js` on a blank page in the browser tool, calling `createButton` in TEST mode with our own options, and reading the 31 injected rules out of `document.styleSheets` - not by reasoning about it.
+
+**Fix**: `#sqp-google-pay-button .gpay-button.hover{background-color:#000}` in the module's own style block. The id beats Google's two classes on specificity, so **no `!important`** - which matters, because the rule sits one line away from the shorthand that erased the logo in 0.1.20. `background-color` longhand for the same reason. `.focus` and `.active` are deliberately untouched: Apple's native button has a press state too, so keeping Google's is what matching actually means rather than an oversight.
+
+**Verified on the real button before shipping**, same page: base and hover both `rgb(0, 0, 0)`, press still `rgb(95, 99, 104)`, focus outline still present, `background-image` still `dark/en.svg`. Worth keeping the technique - a third-party SDK's button can be inspected properly in a scratch page in about two minutes, and every guess made about this one so far has been wrong.
+
+Gates: `npm run typecheck` clean, `eslint` clean, `npm test` **2758 passed / 70 skipped**. No schema change. No wiki change - nothing here is owner-facing beyond the release note.
+
+Previous entry: 2026-08-24 (**The "pick up where you left off" link in a basket reminder now actually brings the basket back - `abandoned-carts-for-shop` **0.1.7**, pinned by core **0.5.1261**, released.**) Chris: "links in abandoned cart emails, when clicked, are showing nothing in basket".
 
 **The bug.** `lib/emails.ts` set `basketUrl` to a bare `${site}/shop/cart`. That works for exactly one shopper: the one who opens the email in the same browser the basket was built in. The shop's basket lives in that browser's `localStorage`, and its server-side copy (`shp_guest_carts`, shop 0.1.310) is keyed on the httpOnly `cactus_shop_cart_id` cookie - so a mail app opening the link in its own in-app browser, or the laptop opening a basket built on the phone, arrives with neither. Empty basket, under a heading promising their things were still there. The basket was never lost; nothing was putting it back.
 
