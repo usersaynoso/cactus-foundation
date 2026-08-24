@@ -55,6 +55,7 @@ import {
   ResponsiveUnitValueField,
   RichTextMenuWithLink,
 } from '@/lib/puck/fields/registry'
+import { borderWidthOf } from '@/lib/puck/borderValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
@@ -803,7 +804,7 @@ function SiteHeaderBlock(props: any) {
         height: height === 'auto' ? undefined : height,
         minHeight: height === 'auto' ? 48 : undefined,
         background: bgMode === 'transparent' ? 'transparent' : bgColor,
-        borderBottom: border?.show === 'show' ? `1px solid ${border?.color || 'var(--color-border)'}` : 'none',
+        borderBottom: border?.show === 'show' ? `${borderWidthOf(border)} solid ${border?.color || 'var(--color-border)'}` : 'none',
         position: sticky === 'yes' ? 'sticky' : 'relative',
         top: sticky === 'yes' ? 0 : undefined,
         zIndex: sticky === 'yes' ? 100 : undefined,
@@ -3940,6 +3941,7 @@ export const puckConfig = {
         // them and could not be made to match its neighbours.
         iconSize: { type: 'number' as const, label: 'Icon size (px)' },
         iconColour: signInColourField('Icon colour'),
+        hoverColour: signInColourField('Hover colour'),
         variant: { type: 'select' as const, label: 'Style', options: [
           { value: 'default', label: 'Default (round icon button)' },
           { value: 'bordered', label: 'Bordered pill' },
@@ -3953,7 +3955,7 @@ export const puckConfig = {
       // 'default' keeps the round icon button this block has always drawn, so
       // filling these defaults into a block saved before they existed changes
       // nothing on any site that has not opted in.
-      defaultProps: { style: 'segmented', iconSize: 18, iconColour: '', variant: 'default', bgColour: '', borderColour: '', borderRadius: 8 },
+      defaultProps: { style: 'segmented', iconSize: 18, iconColour: '', hoverColour: '', variant: 'default', bgColour: '', borderColour: '', borderRadius: 8 },
       // Keep the panel to what applies: only the single-icon styles draw the box
       // these fields describe (the segmented pill and the sun/moon switch are
       // multi-part controls with their own geometry), and the box colours mean
@@ -3964,7 +3966,7 @@ export const puckConfig = {
         // Trim by deletion, never by whitelist - the panel also carries fields
         // injected centrally (Visibility), which a whitelist would throw away.
         if (!['cycle', 'expand', 'dropdown'].includes(p.style)) {
-          for (const k of ['iconSize', 'iconColour', 'variant', 'bgColour', 'borderColour', 'borderRadius']) delete rest[k]
+          for (const k of ['iconSize', 'iconColour', 'hoverColour', 'variant', 'bgColour', 'borderColour', 'borderRadius']) delete rest[k]
           return rest
         }
         if (!p.variant || p.variant === 'default' || p.variant === 'plain') {
@@ -3974,8 +3976,8 @@ export const puckConfig = {
         }
         return rest
       },
-      render: ({ style, iconSize, iconColour, variant, bgColour, borderColour, borderRadius }: any) => (
-        <ThemeToggleClient style={style} appearance={{ iconSize, iconColour, variant, bgColour, borderColour, borderRadius }} />
+      render: ({ style, iconSize, iconColour, hoverColour, variant, bgColour, borderColour, borderRadius }: any) => (
+        <ThemeToggleClient style={style} appearance={{ iconSize, iconColour, hoverColour, variant, bgColour, borderColour, borderRadius }} />
       ),
     },
     CookieSettingsLink: {
@@ -4025,7 +4027,7 @@ export const puckConfig = {
       },
       defaultProps: {
         bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes',
-        border: { show: 'show', color: '' }, maxWidth: '1200px',
+        border: { show: 'show', color: '', width: '' }, maxWidth: '1200px',
         logoHeight: 40, showTextWithLogo: 'false', logoHomeUrl: '/',
         itemFontSize: 'medium', itemFontWeight: 'medium', itemColor: '', itemFontFamily: '', hoverColor: '', hoverBackground: '', activeColor: '', activeFontWeight: '', activeUnderline: 'none' as const, activeUnderlineColor: '', activeUnderlineThickness: '', activeUnderlineOffset: '', showDropdowns: 'hover', alignment: 'flex-start' as const, showMobileToggle: 'collapse', showTabletToggle: 'collapse',
       },
@@ -4070,11 +4072,11 @@ export const footerPuckConfig = {
       border:     { type: 'custom' as const, label: 'Border top', render: BorderField },
       maxWidth:   { type: 'select' as const, label: 'Content max-width', options: [{ value: 'none', label: 'Full width' }, { value: '720px', label: '720px' }, { value: '960px', label: '960px' }, { value: '1200px', label: '1200px' }] },
     },
-    defaultProps: { bgColor: '', paddingY: 'md', border: { show: 'show', color: '' }, maxWidth: '1200px' },
+    defaultProps: { bgColor: '', paddingY: 'md', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px' },
     render: ({ children, bgColor, paddingY, border, maxWidth }: any) => {
       const pyMap: Record<string, string> = { none: '0', sm: '2rem', md: '3rem', lg: '5rem' }
       return (
-        <footer style={{ background: bgColor || undefined, borderTop: border?.show === 'show' ? `1px solid ${border?.color || 'var(--admin-border, #e5e7eb)'}` : 'none' }}>
+        <footer style={{ background: bgColor || undefined, borderTop: border?.show === 'show' ? `${borderWidthOf(border)} solid ${border?.color || 'var(--admin-border, #e5e7eb)'}` : 'none' }}>
           <div style={{ maxWidth: maxWidth === 'none' ? '100%' : (maxWidth || '1200px'), margin: '0 auto', padding: `${pyMap[paddingY] ?? '3rem'} 1.5rem` }}>
             {children}
           </div>
@@ -4252,7 +4254,7 @@ const headerRootRender = ({
   // Which edges the border paints. 'show' is the pre-edge-picker value and still
   // means the bottom border alone, so headers saved before this look identical.
   const borderShow = border?.show ?? 'show'
-  const borderLine = `1px solid ${border?.color || 'var(--color-border, #e5e7eb)'}`
+  const borderLine = `${borderWidthOf(border)} solid ${border?.color || 'var(--color-border, #e5e7eb)'}`
   const borderTop = borderShow === 'top' || borderShow === 'both' ? borderLine : 'none'
   const borderBottom = borderShow === 'show' || borderShow === 'both' ? borderLine : 'none'
   const headerOffsetCss = sticky === 'yes'
@@ -4388,7 +4390,7 @@ export const headerPuckConfig = {
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
       shrinkHeight: { type: 'custom' as const, label: 'Shrunk height', units: ['px', 'rem'], render: UnitValueField },
     },
-    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {
       if (data.props?.shrinkOnScroll === 'yes') return fields
       const { shrinkHeight: _h, ...rest } = fields

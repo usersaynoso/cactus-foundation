@@ -4,13 +4,14 @@ import type { CustomFieldRender } from '@puckeditor/core'
 import { useSiteColours } from '@/lib/puck/useSiteColours'
 import { ColourSwatchButton, CustomColourSwatch } from '@/lib/puck/ColourSwatchButton'
 import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
+import { UnitValueInput } from '@/lib/puck/UnitValueField'
+import type { BorderFieldValue } from '@/lib/puck/borderValue'
 
-// 'show' means "the one edge this field is about" and predates there being a
-// choice of edge, so it stays the bottom border on a header and the top border
-// on a footer - every layout saved before the edge picker existed renders the
-// same. 'top' and 'both' only ever appear on a field that opted in via
-// `sides: true`.
-export type BorderFieldValue = { show: 'show' | 'hide' | 'top' | 'both'; color: string }
+// Value shape and the width default live in lib/puck/borderValue.ts so the RSC
+// render paths can read them without importing this client field.
+export type { BorderFieldValue } from '@/lib/puck/borderValue'
+
+const WIDTH_UNITS = ['px', 'rem', 'em']
 
 const EDGE_OPTIONS: Array<{ value: BorderFieldValue['show']; label: string }> = [
   { value: 'show', label: 'Bottom only' },
@@ -31,6 +32,7 @@ export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChan
     const options = (field as { sides?: boolean }).sides ? EDGE_OPTIONS : PLAIN_OPTIONS
     const show = value?.show ?? 'show'
     const color = value?.color ?? ''
+    const width = value?.width ?? ''
     // The border colour carries an optional dark-mode arm as `light-dark(l, d)`;
     // split it so both swatch rows stay in sync. See lib/puck/lightDark.ts.
     const { light, dark } = splitLightDark(color)
@@ -66,18 +68,27 @@ export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChan
         </label>
         <select
           value={show}
-          onChange={(e) => onChange({ show: e.target.value as BorderFieldValue['show'], color })}
+          onChange={(e) => onChange({ show: e.target.value as BorderFieldValue['show'], color, width })}
           style={{ width: '100%', padding: '0.375rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: '0.8125rem', fontFamily: 'inherit', marginBottom: '0.5rem' }}
         >
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {show !== 'hide' && (
           <>
+            <div style={{ marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.25rem' }}>Thickness</label>
+              <UnitValueInput
+                value={width}
+                placeholder="1"
+                units={WIDTH_UNITS}
+                onChange={(v) => onChange({ show, color, width: v ?? '' })}
+              />
+            </div>
             {swatchRow(
               light,
-              (v) => onChange({ show, color: composeLightDark(v, dark) }),
+              (v) => onChange({ show, color: composeLightDark(v, dark), width }),
               'None / transparent',
-              () => onChange({ show, color: composeLightDark('', dark) }),
+              () => onChange({ show, color: composeLightDark('', dark), width }),
             )}
             {/* Dark-mode override only once a light colour is set. */}
             {light && (
@@ -85,9 +96,9 @@ export const BorderField: CustomFieldRender<BorderFieldValue> = ({ value, onChan
                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.125rem' }}>Dark mode colour</label>
                 {swatchRow(
                   dark,
-                  (v) => onChange({ show, color: composeLightDark(light, v) }),
+                  (v) => onChange({ show, color: composeLightDark(light, v), width }),
                   'Same as light',
-                  () => onChange({ show, color: composeLightDark(light, '') }),
+                  () => onChange({ show, color: composeLightDark(light, '') , width }),
                 )}
               </div>
             )}

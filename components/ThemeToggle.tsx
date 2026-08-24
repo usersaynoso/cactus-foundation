@@ -19,6 +19,7 @@ export type ThemeToggleAppearance = {
   variant?: 'default' | 'bordered' | 'filled' | 'plain'
   iconSize?: number
   iconColour?: string
+  hoverColour?: string
   bgColour?: string
   borderColour?: string
   borderRadius?: number
@@ -33,7 +34,12 @@ export function themeToggleVars(a?: ThemeToggleAppearance): React.CSSProperties 
   if (!a) return undefined
   const vars: Record<string, string> = {}
   if (a.iconSize) vars['--tt-icon'] = `${a.iconSize}px`
+  // Picking an icon colour alone still pins the hover to it, which is what every
+  // block saved before the hover field existed relies on - the stylesheet's
+  // default hover (--color-primary) would otherwise appear on those blocks the
+  // moment they update. An explicit hover colour is applied after, so it wins.
   if (a.iconColour) { vars['--tt-fg'] = a.iconColour; vars['--tt-fg-hover'] = a.iconColour }
+  if (a.hoverColour) vars['--tt-fg-hover'] = a.hoverColour
   if (a.variant && a.variant !== 'default') {
     // Once it is dressed as a box rather than the sidebar's grey rail button,
     // the icon takes the same resting colour its neighbours use. The hover

@@ -54,6 +54,24 @@ describe('themeToggleVars', () => {
     expect(vars['--tt-bg-hover']).toBe(vars['--tt-bg'])
   })
 
+  it('pins hover to the icon colour when no hover colour is picked (pre-existing blocks)', () => {
+    const vars = themeToggleVars({ variant: 'plain', iconColour: 'var(--color-11)' }) as Record<string, string>
+    expect(vars['--tt-fg']).toBe('var(--color-11)')
+    expect(vars['--tt-fg-hover']).toBe('var(--color-11)')
+  })
+
+  it('lets an explicit hover colour win over the icon colour', () => {
+    const vars = themeToggleVars({ variant: 'plain', iconColour: 'var(--color-11)', hoverColour: 'var(--color-1)' }) as Record<string, string>
+    expect(vars['--tt-fg']).toBe('var(--color-11)')
+    expect(vars['--tt-fg-hover']).toBe('var(--color-1)')
+  })
+
+  it('applies a hover colour on its own, leaving the resting colour to the stylesheet', () => {
+    const vars = themeToggleVars({ hoverColour: 'var(--color-1)' }) as Record<string, string>
+    expect(vars['--tt-fg-hover']).toBe('var(--color-1)')
+    expect(vars['--tt-fg']).toBeUndefined()
+  })
+
   it('defaults the corner radius to the 8px the other two blocks default to', () => {
     const vars = themeToggleVars({ variant: 'bordered' }) as Record<string, string>
     expect(vars['--tt-radius']).toBe('8px')
