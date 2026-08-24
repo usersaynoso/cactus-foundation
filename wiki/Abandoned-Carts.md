@@ -94,6 +94,16 @@ Every attempt is written down, sent or not, and shown in the **Reminder** column
 
 Open a basket and the **Reminders** column lists the lot in order, with the subject line each one carried and who sent it. That history is deleted along with the basket when retention comes round, because it holds the same email address.
 
+#### When they actually go out
+
+The waiting time you set is the earliest a reminder may go, not the moment it goes. Reminders are sent by a check that runs **once an hour, on the hour** - so the real wait is your number plus up to an hour on top. Set fifteen minutes and a basket abandoned at 09:10 is emailed at 10:00; set four hours and the same basket is emailed at 14:00. Anything under an hour behaves much like an hour.
+
+The settings page says this in plain terms, and works the example out from whatever number you have actually typed rather than leaving you to do the arithmetic.
+
+On a basic hosting plan the check runs once a day instead of once an hour, and reminders land on the next day's check.
+
+**Before the first check has ever run**, the settings page says so outright rather than describing a schedule that is not yet happening - a site whose check has never fired looks exactly like a site where nothing was ever due, and the difference matters. It reads the same record as the line under the baskets list, so the two screens never disagree.
+
 ### The permission box in the checkout
 
 Switch the reminders on and you are offered one more thing: a tickbox in your checkout, so a shopper can say no before you have emailed them at all.
