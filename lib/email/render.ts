@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getEmailTemplateDef, missingRequiredTags, type RegisteredEmailTemplate } from '@/lib/email/registry'
 import { escapeHtml, interpolate } from '@/lib/email/blocks'
 import { getEmailPalette, resolveEmailWrapper, wrapEmailHtml } from '@/lib/email/wrapper'
+import { emailLogoUrl } from '@/lib/email/logo'
 
 // Renders one registered email: code default, overlaid with the admin's edit if
 // there is one, interpolated, then dropped into its wrapper design.
@@ -53,25 +54,22 @@ export type SiteEmailContext = {
  * the caller is. Kept as a set because a preview has to leave them alone. */
 const SITE_CONTEXT_TAGS: ReadonlySet<string> = new Set(['siteName', 'siteUrl', 'logoUrl', 'year'])
 
-function absolutise(url: string | null | undefined, siteUrl: string): string {
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  if (url.startsWith('/')) return `${siteUrl.replace(/\/$/, '')}${url}`
-  return url
-}
-
 export async function getSiteEmailContext(): Promise<SiteEmailContext> {
   const config = await prisma.siteConfig
     .findUnique({ where: { id: 'singleton' }, select: { siteName: true, logoMediaId: true } })
     .catch(() => null)
   const siteUrl = (process.env.SITE_URL ?? '').replace(/\/$/, '')
   const logo = config?.logoMediaId
-    ? await prisma.media.findUnique({ where: { id: config.logoMediaId }, select: { url: true } }).catch(() => null)
+    ? await prisma.media
+        .findUnique({ where: { id: config.logoMediaId }, select: { id: true, url: true, mimeType: true } })
+        .catch(() => null)
     : null
   return {
     siteName: config?.siteName ?? 'Cactus Foundation',
     siteUrl,
-    logoUrl: absolutise(logo?.url, siteUrl),
+    // Not simply the logo's own URL: an SVG or a WebP is a blank space in half
+    // the world's inboxes. See lib/email/logo.ts.
+    logoUrl: emailLogoUrl(logo, siteUrl),
     // Rendered fresh per send so a footer copyright line never goes stale.
     year: String(new Date().getFullYear()),
   }
