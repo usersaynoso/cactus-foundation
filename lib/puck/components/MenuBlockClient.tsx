@@ -46,11 +46,15 @@ const FLEX_PLACE: Record<MenuDropAlign, string> = { left: 'flex-start', center: 
 // the search magnifier). Those are all `stroke-width: 2` inside a 24-unit
 // viewBox rendered at 20px, which paints 2 x 20/24 = 1.667px - so a flat 2px
 // bar was reading 20% heavier than its neighbours. Round caps to match theirs.
+// `currentColor`, not a token: both collapsed triggers set an explicit `color`
+// (the nav button colour, falling back to var(--color-text)), so the bars follow
+// whatever the button was dressed in. Unset, the two are the same value and this
+// renders identically to the token it replaced.
 const HAMBURGER_BAR: React.CSSProperties = {
   display: 'block',
   width: 22,
   height: 20 * 2 / 24,
-  background: 'var(--color-text)',
+  background: 'currentColor',
   borderRadius: 2,
 }
 
@@ -427,7 +431,7 @@ function currentPageLabel(items: MenuItem[], pathname: string | null, fallback: 
 // reveal it via the cactus-nav-dd-* classes at whichever widths chose this
 // mode. Reuses MobileNavItem for the panel so the nested accordion behaves
 // like the hamburger drawer, just centred.
-function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, panelAlign = 'left', blockId, fit = false }: {
+function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, panelAlign = 'left', blockId, fit = false, buttonColour, buttonBackground, buttonBorderColour }: {
   items: MenuItem[]
   colours?: MenuLinkColours
   fontFamily?: string
@@ -436,6 +440,9 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
   panelAlign?: MenuDropAlign
   blockId?: string
   fit?: boolean
+  buttonColour?: string
+  buttonBackground?: string
+  buttonBorderColour?: string
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -477,9 +484,11 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
           fontSize: '0.9375rem',
           fontWeight: 500,
           fontFamily,
-          color: 'var(--color-text)',
-          background: 'none',
-          border: '1px solid var(--color-border)',
+          // Blank falls through to what the trigger has always drawn, so a menu
+          // nobody has dressed is byte-identical.
+          color: buttonColour || 'var(--color-text)',
+          background: buttonBackground || 'none',
+          border: `1px solid ${buttonBorderColour || 'var(--color-border)'}`,
           borderRadius: 6,
           cursor: 'pointer',
           // "Keep on one line" caps the trigger at the width it has been given -
@@ -499,9 +508,9 @@ function NavDropdown({ items, colours, fontFamily, className, fallbackLabel, pan
           </span>
         ) : current}
         <span aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
-          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
-          <span style={{ display: 'block', width: 16, height: 2, background: 'var(--color-text)', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor', borderRadius: 2 }} />
         </span>
       </button>
       {open && (
@@ -561,6 +570,12 @@ type Props = {
   dropdownAlign?: string
   fitOneLine?: string
   navButtonWidth?: ResponsiveValue<string> | string
+  // Dressing for the collapsed menu button - the hamburger and the
+  // "Dropdown (current page)" trigger both. Blank keeps what each has always
+  // drawn, so a menu nobody has touched renders identically.
+  navButtonColor?: string
+  navButtonBackground?: string
+  navButtonBorderColor?: string
   spacingShrunk?: '' | 'tight' | 'normal' | 'wide'
   itemFontSizeShrunk?: '' | 'small' | 'medium' | 'large'
   itemFontWeightShrunk?: '' | 'normal' | 'medium' | 'semibold' | 'bold'
@@ -596,6 +611,9 @@ export default function MenuBlockClient({
   dropdownAlign,
   fitOneLine,
   navButtonWidth,
+  navButtonColor,
+  navButtonBackground,
+  navButtonBorderColor,
   spacingShrunk,
   itemFontSizeShrunk,
   itemFontWeightShrunk,
@@ -864,8 +882,10 @@ export default function MenuBlockClient({
           aria-expanded={mobileOpen}
           onClick={() => { measureDrawerTop(); setMobileOpen((o) => !o) }}
           style={{
-            background: 'none',
-            border: 'none',
+            // Bars read `currentColor`, so this is what colours them.
+            color: navButtonColor || 'var(--color-text)',
+            background: navButtonBackground || 'none',
+            border: navButtonBorderColor ? `1px solid ${navButtonBorderColor}` : 'none',
             cursor: 'pointer',
             // No padding: in a header icon row the button sits next to bare
             // 20px icon links, and 0.5rem each side made its box ~18px wider
@@ -903,6 +923,9 @@ export default function MenuBlockClient({
           panelAlign={dropAlign}
           blockId={blockId}
           fit={fitEnabled}
+          buttonColour={navButtonColor}
+          buttonBackground={navButtonBackground}
+          buttonBorderColour={navButtonBorderColor}
         />
       )}
 

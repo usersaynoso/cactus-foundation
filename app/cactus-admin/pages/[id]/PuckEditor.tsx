@@ -215,6 +215,9 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
             dropdownAlign={props.dropdownAlign}
             fitOneLine={props.fitOneLine}
             navButtonWidth={props.navButtonWidth}
+            navButtonColor={props.navButtonColor}
+            navButtonBackground={props.navButtonBackground}
+            navButtonBorderColor={props.navButtonBorderColor}
             showDropdowns={props.showDropdowns ?? 'hover'}
             navToggle={props.navToggle}
             itemFontSize={props.itemFontSize}
