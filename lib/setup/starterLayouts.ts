@@ -8,6 +8,7 @@ import {
   type StarterTemplate,
 } from '@/lib/layout/starter-templates'
 import { moduleLayoutTypeGroups, moduleLayoutTypeToGroup, modulesInBuild } from '@/lib/layout/module-layout-types'
+import { autoPlaceModuleBlocks } from '@/lib/layout/auto-place-blocks'
 import pkg from '@/package.json'
 
 // Starter layouts are in-code templates (lib/layout/starter-templates.ts), not
@@ -339,6 +340,16 @@ export function declaredLayoutTypesByModule(): Record<string, string[]> {
  *
  * Modules absent from this build are skipped unstamped, so the deploy that brings
  * their code seeds them properly.
+ *
+ * Auto-placed marker blocks are placed here too, and for the same reason the
+ * layouts are. Both halves of an install belong to whichever path actually gets
+ * to run, and this one runs on a build that has the module's code - which is the
+ * whole point of it. Leaving the blocks to reconcile alone meant a module whose
+ * reconcile landed on the previous build never got them: recovery seeded the
+ * layouts, stamped the module, and shut the door on a placement that had never
+ * happened. A module with a marker block and no layout types of its own - an
+ * abandoned-basket tracker, a tag - came out of that installed, active,
+ * configured and doing absolutely nothing, with no way back.
  */
 export async function seedPendingModuleLayouts(db: typeof prisma): Promise<number> {
   const declaredTypes = declaredLayoutTypesByModule()
@@ -361,6 +372,10 @@ export async function seedPendingModuleLayouts(db: typeof prisma): Promise<numbe
   for (const mod of seedable) {
     try {
       await seedModuleDefaultLayouts(db, mod.name)
+      // Inside the same guard as the seed, and before the stamp: the stamp is
+      // what makes placement first-install-only, and re-adding a block the owner
+      // has since deleted would be core editing their site behind their back.
+      await autoPlaceModuleBlocks(db, mod.name)
       await db.module.update({ where: { id: mod.id }, data: { layoutsSeededAt: new Date() } })
       seeded++
     } catch (err) {
