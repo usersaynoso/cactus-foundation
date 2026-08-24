@@ -57,7 +57,7 @@ import {
 } from '@/lib/puck/fields/registry'
 import { borderWidthOf } from '@/lib/puck/borderValue'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
-import { ThemeToggle as ThemeToggleClient } from '@/components/ThemeToggle'
+import { ThemeToggleBlock } from '@/lib/puck/components/ThemeToggleBlock'
 import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/module-components'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 import LoginForm from '@/components/members/LoginForm'
@@ -3951,11 +3951,24 @@ export const puckConfig = {
         bgColour: signInColourField('Background colour'),
         borderColour: signInColourField('Border colour'),
         borderRadius: { type: 'number' as const, label: 'Corner radius (px)' },
+        // Audience, same field and wording as Icon Link. Keep this key as
+        // `audience`, never `visibility` — core owns a responsive-visibility
+        // field of that exact name on every block and strips it from render
+        // props, which would silently disable the gate.
+        //
+        // Unlike Icon Link this one defaults to 'admin': a colour-scheme
+        // control is a thing most site owners want to try before they show it
+        // to the public. Switch it to Everyone to publish it. The gate itself
+        // treats "no value saved" as admins-only too — see ThemeToggleRsc.
+        audience: { type: 'select' as const, label: 'Who can see this', options: [
+          { value: 'admin', label: 'Admins only' },
+          { value: 'everyone', label: 'Everyone' },
+        ] },
       },
       // 'default' keeps the round icon button this block has always drawn, so
       // filling these defaults into a block saved before they existed changes
       // nothing on any site that has not opted in.
-      defaultProps: { style: 'segmented', iconSize: 18, iconColour: '', hoverColour: '', variant: 'default', bgColour: '', borderColour: '', borderRadius: 8 },
+      defaultProps: { style: 'segmented', iconSize: 18, iconColour: '', hoverColour: '', variant: 'default', bgColour: '', borderColour: '', borderRadius: 8, audience: 'admin' },
       // Keep the panel to what applies: only the single-icon styles draw the box
       // these fields describe (the segmented pill and the sun/moon switch are
       // multi-part controls with their own geometry), and the box colours mean
@@ -3976,9 +3989,11 @@ export const puckConfig = {
         }
         return rest
       },
-      render: ({ style, iconSize, iconColour, hoverColour, variant, bgColour, borderColour, borderRadius }: any) => (
-        <ThemeToggleClient style={style} appearance={{ iconSize, iconColour, hoverColour, variant, bgColour, borderColour, borderRadius }} />
-      ),
+      // Editor-safe render: no audience gate (the canvas has to show the block
+      // whatever its audience, or it could not be selected to change it). The
+      // published half adds the gate in ThemeToggleRsc, around this exact
+      // component.
+      render: (props: any) => <ThemeToggleBlock {...props} />,
     },
     CookieSettingsLink: {
       label: 'Cookie Preferences',

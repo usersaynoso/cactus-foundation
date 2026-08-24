@@ -1903,6 +1903,31 @@ a:hover {
 }
 
 /* ============================================================
+   NAV TOGGLE — the hamburger (lib/puck/components/MenuBlockClient).
+   It lives in the same header icon row as .icon-link-trigger and
+   .theme-toggle-cycle, so its box has to measure the same as
+   theirs: three 22px bars and nothing else. The padding it used
+   to carry made it wider than its neighbours, which under
+   `justify-content: space-between` spent the difference as an
+   extra gap beside it and pushed a centred logo off-centre.
+   The tap target comes back as a transparent overlay instead -
+   an absolutely positioned pseudo-element takes no layout width,
+   so the row still measures the bars. The overlay reaches 8px
+   sideways, comfortably less than the gap between icons, so it
+   never covers a neighbour's icon.
+   ============================================================ */
+.cactus-nav-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -0.75rem -0.5rem;
+}
+.cactus-nav-toggle:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
    ICON LINK — frontend block (lib/puck/components/IconLinkBlock).
    A bare icon that links somewhere, built to sit in a header
    icon row next to the theme toggle: its resting and hover

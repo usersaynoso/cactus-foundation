@@ -26,6 +26,7 @@ import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
+import { ThemeToggleRsc } from '@/lib/puck/components/ThemeToggleRsc'
 import {
   MembersLoginRsc,
   MembersRegisterRsc,
@@ -121,6 +122,7 @@ const rscComponents = withSafeRichText({
   // Published render carries the 'Admins only' audience gate (session cookie
   // read), which the editor-safe render in config.tsx cannot.
   IconLink: { ...puckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
+  ThemeToggle: { ...puckConfig.components.ThemeToggle, render: wrapResponsiveRender(ThemeToggleRsc) },
   ...moduleRscComponentsWrapped,
 })
 
@@ -151,6 +153,7 @@ export const layoutPuckRscConfig = {
     TrustedMemberGate: { ...layoutPuckConfig.components.TrustedMemberGate, render: wrapResponsiveRender(TrustedMemberGateRsc) },
     MembersProfile: { ...layoutPuckConfig.components.MembersProfile, render: wrapResponsiveRender(MembersProfileRsc) },
     IconLink: { ...layoutPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
+    ThemeToggle: { ...layoutPuckConfig.components.ThemeToggle, render: wrapResponsiveRender(ThemeToggleRsc) },
     ...moduleRscComponentsWrapped,
   }),
 }
@@ -163,6 +166,7 @@ export const headerPuckRscConfig = {
     MembersAccountLink: { ...headerPuckConfig.components.MembersAccountLink, render: wrapResponsiveRender(MembersAccountLinkRsc) },
     MembersSignIn: { ...headerPuckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
     IconLink: { ...headerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
+    ThemeToggle: { ...headerPuckConfig.components.ThemeToggle, render: wrapResponsiveRender(ThemeToggleRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
     ...(moduleRscByLayoutTypeWrapped['header'] ?? {}),

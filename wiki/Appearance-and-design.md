@@ -219,7 +219,7 @@ You can have multiple menus and use them in different places - for example, a ma
 The **Menu** block's **Nav behaviour** setting decides how the menu appears at each screen size (desktop, tablet, mobile):
 
 - **Always show** - the full row of links, as-is.
-- **Collapse to hamburger** - the links fold away behind the usual three-line hamburger button that opens a drop-down panel.
+- **Collapse to hamburger** - the links fold away behind the usual three-line hamburger button that opens a drop-down panel. The button now measures exactly as wide as the three lines you can see, so it lines up with any icons sitting beside it in a header row instead of quietly claiming a bit more space than they do. It is still comfortably tappable: the touch area reaches past the lines without taking up room.
 - **Dropdown (current page)** - the menu shrinks to a single button showing the page you're currently on, with a little arrow; clicking it opens the full menu. Handy when space is tight but a hamburger feels like overkill.
 
 **Dropdown button width** applies to the **Dropdown (current page)** mode only, and can differ per screen size. **Fits its text** is how it has always behaved: the button is exactly as wide as the page name inside it. **Full width of its slot** stretches it across whatever space it was dropped into, with the three lines pushed over to the far right, so it lines up neatly with anything sitting directly above or below it - a search box in the same column, most often.

@@ -867,7 +867,15 @@ export default function MenuBlockClient({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            padding: '0.5rem',
+            // No padding: in a header icon row the button sits next to bare
+            // 20px icon links, and 0.5rem each side made its box ~18px wider
+            // than theirs. Under `space-between` that opened an extra gap on
+            // its side of the row and shoved a centred logo off-centre by half
+            // the difference. The tap target is restored by the transparent
+            // .cactus-nav-toggle::before overlay in globals.css, which costs no
+            // layout width.
+            padding: 0,
+            position: 'relative',
             flexDirection: 'column',
             justifyContent: 'center',
             // The button stacks its three bars, so alignItems is its horizontal
