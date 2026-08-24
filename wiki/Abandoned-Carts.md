@@ -79,6 +79,16 @@ It will not email somebody who has since ordered - the order list gets the final
 
 The wording lives with every other email on the site, under **Settings › Emails › Abandoned baskets**. Change it as you like, but the unsubscribe link is a required part of it and saving without it is refused.
 
+#### The link back to the basket
+
+The **"Pick up where you left off"** link in the reminder does what it says: it puts the things back in the shopper's basket and then shows it to them. It works from any browser, on any device - the phone the basket was built on, the laptop they read their email on, or the little browser their mail app opens links in, which is where most of them will click it.
+
+That last one matters more than it sounds. A basket is held for the browser it was built in, so a plain link to the basket page shows an empty basket to anybody who opens the email anywhere else - which, on a phone, is nearly everybody. The link in the email is not a plain link to the basket page for that reason.
+
+A few things it deliberately will not do. It never puts back anything the shopper typed into the checkout - no name, no address, no phone number - only the things they had picked. These links get forwarded and pasted about, and the things in a basket were listed in the email anyway, whereas somebody's address is nobody else's business. And a basket they have since ordered gives them their current basket rather than the finished one, so last week's reminder cannot refill a basket they have moved on from.
+
+If the shopper already has something in their basket when they click, the two are put together rather than one replacing the other. A thing in both keeps the larger of the two quantities, never the sum.
+
 #### Whether it actually went
 
 Every attempt is written down, sent or not, and shown in the **Reminder** column:
@@ -225,6 +235,8 @@ Each run is written down - when it went, how long it took, what it purged, sent,
 **No reminders are going out.** Start with the **Reminder** column, which now says why for each basket, and the line under the figures, which says whether the job that sends them is running at all. If it is running and the column says "Did not send", the reason is on the row. If nothing is running, check that the site has been live for more than an hour and that its scheduled jobs are set up. Otherwise, in order: reminders switched on, an email provider configured on the site, `SITE_URL` set, the wait elapsed, and the basket having an email address on it at all. A basket whose every product has since been deleted is skipped rather than sent as an empty list.
 
 **The permission box is not in my checkout.** Check three things: the reminders are switched on, the box itself is switched on under them, and the shop is on **0.1.309** or newer - the box is mounted on a fitting the shop only grew in that version, so an older shop simply has nowhere to put it. The box also stays hidden until the shopper has typed an email address.
+
+**The link in the email opens an empty basket.** Fixed in **0.1.7** of this module, which needs the shop on **0.1.310** or newer. Before that the email linked straight at the basket page, which only ever worked for a shopper opening the email in the same browser they built the basket in. Reminders sent by an older version carry the old link and cannot be mended after the fact; ones sent from 0.1.7 onwards bring the basket back wherever they are opened.
 
 **Why can I not email this person?** Open the basket. The Reminders column says which of the four it is: they unsubscribed, they ticked the box in the checkout, they never typed an address, or the basket has nothing left in it. The **Cannot be emailed** filter shows you all of them at once.
 
