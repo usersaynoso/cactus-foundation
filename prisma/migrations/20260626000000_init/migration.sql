@@ -362,6 +362,16 @@ CREATE TABLE "ModuleMigration" (
     CONSTRAINT "ModuleMigration_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "CronRun" (
+    "id" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "lastRunAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastStatus" TEXT,
+    "lastError" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CronRun_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE "DeployLock" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "lockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -472,6 +482,7 @@ CREATE INDEX "Layout_type_status_priority_updatedAt_idx" ON "Layout"("type", "st
 
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");
+CREATE UNIQUE INDEX "CronRun_path_key" ON "CronRun"("path");
 
 CREATE INDEX "ConsentRecord_consentId_createdAt_idx" ON "ConsentRecord"("consentId", "createdAt");
 CREATE INDEX "ConsentRecord_userId_idx" ON "ConsentRecord"("userId");

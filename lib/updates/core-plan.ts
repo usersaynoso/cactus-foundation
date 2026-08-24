@@ -5,8 +5,19 @@
 
 // A path is the install's OWN territory - never written or removed by the core sync -
 // when it is a module checkout, the submodule file, or the module registry.
+//
+// vercel.json joins them: core does not ship one (the platform repo is not a deployed
+// site), and the install's copy is written explicitly by syncCoreFromUpstream and by the
+// module registry sync. Letting the generic reconcile touch it would mean an upstream
+// tag that happens not to carry the file DELETING the only thing that registers the
+// site's cron - which is the exact failure this whole change exists to fix.
 export function isSkippedCorePath(path: string): boolean {
-  return path === '.gitmodules' || path === 'modules.json' || path.startsWith('modules/')
+  return (
+    path === '.gitmodules' ||
+    path === 'modules.json' ||
+    path === 'vercel.json' ||
+    path.startsWith('modules/')
+  )
 }
 
 export interface CoreTreeEntry {

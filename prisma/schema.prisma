@@ -599,6 +599,22 @@ model ModuleMigration {
   @@index([moduleName])
 }
 
+// One row per scheduled job the dispatcher knows about (see lib/cron/jobs.ts).
+// `lastRunAt` is what turns Vercel's tick into the job's own schedule: the dispatcher
+// asks whether the expression would have fired since this moment, which gives the same
+// answer whether it is woken hourly or once a day. Written BEFORE the job is invoked,
+// deliberately - a job that hangs must not be retried on every tick for ever.
+model CronRun {
+  id         String   @id @default(cuid())
+  // Path on this site, query string included. Unique: it is the job's identity.
+  path       String   @unique
+  lastRunAt  DateTime @default(now())
+  // Outcome of the last invocation, for the admin to look at when a job goes quiet.
+  lastStatus String?
+  lastError  String?
+  updatedAt  DateTime @default(now()) @updatedAt
+}
+
 // Singleton lock preventing two concurrent installs/updates
 model DeployLock {
   id       String   @id @default("singleton")

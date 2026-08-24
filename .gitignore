@@ -66,7 +66,6 @@ coverage/
 /lib/layout/module-layout-types.ts
 /lib/setup/module-starter-layouts.ts
 /lib/media/worker-source.generated.ts
-/vercel.json
 
 # Off-platform sequence worker service (its own repo, usersaynoso)
 /services/

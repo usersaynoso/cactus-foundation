@@ -6,6 +6,7 @@ import { parseGitHubRepo } from './manifest'
 import { getGithubClient } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { applyPinFloor, formatHeldPins } from './pin-floor'
+import { buildVercelJson, VERCEL_JSON_PATH } from '@/lib/cron/vercel-file'
 
 function getMainRepo(): { owner: string; repo: string } {
   const raw = process.env.GITHUB_REPO ?? ''
@@ -88,13 +89,30 @@ async function readModulesJson(
   return { content: { modules: [] }, fileSha: null }
 }
 
+// Reads a small text file from the repo, or null when it isn't there yet.
+async function readRepoTextFile(
+  octokit: Awaited<ReturnType<typeof getGithubClient>>,
+  owner: string,
+  repo: string,
+  path: string
+): Promise<string | null> {
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path })
+    if ('content' in data) return Buffer.from(data.content, 'base64').toString('utf8')
+  } catch {
+    // Not present.
+  }
+  return null
+}
+
 async function commitModulesJson(
   octokit: Awaited<ReturnType<typeof getGithubClient>>,
   owner: string,
   repo: string,
   updated: ModulesJson,
   message: string,
-  deleteGitmodules = false
+  deleteGitmodules = false,
+  extraFiles: Array<{ path: string; content: string }> = []
 ): Promise<{ commitSha: string }> {
   const jsonContent = JSON.stringify(updated, null, 2) + '\n'
   // Confirm the blob has replicated before it's referenced in the tree, closing the
@@ -116,6 +134,17 @@ async function commitModulesJson(
 
   if (deleteGitmodules) {
     treeItems.push({ path: '.gitmodules', mode: '100644', type: 'blob', sha: null })
+  }
+
+  // Same replication guarantee as modules.json above: the blob is confirmed present
+  // before createTree is allowed to reference it.
+  for (const file of extraFiles) {
+    const sha = await createReplicatedBlob(octokit, {
+      owner, repo,
+      content: Buffer.from(file.content).toString('base64'),
+      encoding: 'base64',
+    })
+    treeItems.push({ path: file.path, mode: '100644', type: 'blob', sha })
   }
 
   // One retryable, idempotent transaction: re-read HEAD each attempt and rebuild the
@@ -190,7 +219,16 @@ export async function syncModulesJson(
   const { entries: floored, held } = applyPinFloor(desired, content.modules)
   if (held.length > 0) console.warn(`[modules] ${formatHeldPins(held)}`)
 
-  if (normaliseModules(content.modules) === normaliseModules(floored)) {
+  // vercel.json has to BE in the commit Vercel builds, because that is when Vercel reads
+  // it - a file the build generates is a file nothing registers. It holds one entry that
+  // never changes (lib/cron/vercel-file.ts), so this is a one-off repair on the first
+  // sync after the update and a no-op on every sync after that. Checked here rather than
+  // in a migration because it is the repository, not the database, that is missing it.
+  const desiredVercelJson = buildVercelJson()
+  const currentVercelJson = await readRepoTextFile(octokit, owner, repo, VERCEL_JSON_PATH)
+  const vercelJsonStale = currentVercelJson !== desiredVercelJson
+
+  if (normaliseModules(content.modules) === normaliseModules(floored) && !vercelJsonStale) {
     return { committed: false }
   }
 
@@ -204,7 +242,8 @@ export async function syncModulesJson(
     repo,
     updated,
     'chore: sync module registry\n\n[cactus-deploy]',
-    deleteGitmodules
+    deleteGitmodules,
+    vercelJsonStale ? [{ path: VERCEL_JSON_PATH, content: desiredVercelJson }] : []
   )
   return { committed: true, commitSha }
 }

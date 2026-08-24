@@ -11,6 +11,8 @@ import { isGitHubConfigured, isLocalMode } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
 import { compareVersions } from './version'
 import { applyPinFloor, formatHeldPins, type RegistryPin } from '@/lib/modules/pin-floor'
+import { buildVercelJson, VERCEL_JSON_PATH } from '@/lib/cron/vercel-file'
+import { gitBlobSha } from '@/lib/github/blob-sha'
 import {
   assertWithinDeadline,
   msRemaining,
@@ -372,9 +374,21 @@ export async function syncCoreFromUpstream(
     baseTruncated: initialBase.truncated,
   })
 
-  // Already at target and no registry pin to write: return a graceful no-op (current
-  // HEAD, zero files) instead of throwing, so a re-run after a successful update is calm.
-  if (plan.writes.length === 0 && plan.deletes.length === 0 && !modulesJson) {
+  // vercel.json is the install's own file (isSkippedCorePath keeps the reconcile off it),
+  // but it is core that knows what belongs in it, and core that has to put it there the
+  // first time. It has to be present in the COMMIT: Vercel reads vercel.json when it
+  // creates the deployment, so the copy the build used to generate was written after the
+  // only moment anything would have looked at it, and no install has ever had a cron job
+  // registered. Blob shas are content-addressed, so this compares the desired content
+  // against the repo without fetching anything.
+  const desiredVercelJson = buildVercelJson()
+  const vercelJsonStale =
+    initialBase.shaByPath.get(VERCEL_JSON_PATH) !== gitBlobSha(desiredVercelJson)
+
+  // Already at target, no registry pin to write, and the cron file is right: return a
+  // graceful no-op (current HEAD, zero files) instead of throwing, so a re-run after a
+  // successful update is calm.
+  if (plan.writes.length === 0 && plan.deletes.length === 0 && !modulesJson && !vercelJsonStale) {
     return { commitSha: initialBase.headSha, fromVersion, toVersion, fileCount: 0 }
   }
 
@@ -445,6 +459,12 @@ export async function syncCoreFromUpstream(
     // JSON is text, so inline it too - no separate blob, no race.
     const jsonContent = JSON.stringify({ modules: entries }, null, 2) + '\n'
     treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
+  }
+
+  if (vercelJsonStale) {
+    treeEntries.push({
+      path: VERCEL_JSON_PATH, mode: '100644', type: 'blob', content: desiredVercelJson,
+    })
   }
 
   // adds/modifies for the user-facing count (deletions carry sha === null, excluded).

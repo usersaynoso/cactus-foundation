@@ -18,6 +18,9 @@ describe('isSkippedCorePath', () => {
     expect(isSkippedCorePath('.gitmodules')).toBe(true)
     expect(isSkippedCorePath('modules.json')).toBe(true)
     expect(isSkippedCorePath('modules/contact-form/index.ts')).toBe(true)
+    // The install's own cron registration - written explicitly by the sync, never by
+    // the generic reconcile, which would otherwise delete it on any tag that lacks it.
+    expect(isSkippedCorePath('vercel.json')).toBe(true)
   })
   it('treats ordinary core files as writable', () => {
     expect(isSkippedCorePath('lib/updates/core.ts')).toBe(false)
