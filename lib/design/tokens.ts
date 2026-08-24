@@ -678,8 +678,26 @@ export function buildTokenStyles(tokens: unknown): string {
   if (caption.colour) captionProps.push(`color: var(--caption-color);`)
   if (captionProps.length) scoped.push(`main .cactus-caption{${captionProps.join('')}}`)
 
-  if (ts?.links?.colour) scoped.push(`main a{color: var(--color-link);}`)
-  if (ts?.links?.hoverColour) scoped.push(`main a:hover{color: var(--color-link-hover);}`)
+  // Blanket element rules paint every button, link, image and field on the
+  // storefront. That is exactly right for the site's own content and quite
+  // wrong for a control somebody else drew: an Apple Pay or Google Pay button,
+  // a payment provider's own widget, a live-chat launcher. Those arrive with
+  // their brand's own look, are frequently required by that brand's guidelines
+  // to keep it, and are painted here into something the shopper does not
+  // recognise - or, in the case of the `!important` hover fill below, into a
+  // plain coloured rectangle with the logo scrubbed off it entirely.
+  //
+  // So anything inside a `data-cactus-unstyled` subtree is left alone. It is
+  // opt-OUT rather than opt-in on purpose: the site's own buttons must keep
+  // being styled without every block in the platform having to ask.
+  //
+  // `:not()` rather than a lower-specificity rule because the hover fill is
+  // `!important` (it has to beat Puck's inline styles), and nothing but not
+  // matching at all gets out of the way of that.
+  const notUnstyled = ':not([data-cactus-unstyled]):not([data-cactus-unstyled] *)'
+
+  if (ts?.links?.colour) scoped.push(`main a${notUnstyled}{color: var(--color-link);}`)
+  if (ts?.links?.hoverColour) scoped.push(`main a${notUnstyled}:hover{color: var(--color-link-hover);}`)
 
   if (btns) {
     const btnProps: string[] = [...typoProps(btns.typo ?? {})]
@@ -689,7 +707,7 @@ export function buildTokenStyles(tokens: unknown): string {
     if (btns.borderWidth)  btnProps.push(`border-width: ${cssValue(btns.borderWidth)};`)
     if (btns.borderRadius) btnProps.push(`border-radius: ${cssValue(btns.borderRadius)};`)
     if (btns.padding)      btnProps.push(`padding: ${cssValue(btns.padding)};`)
-    if (btnProps.length) scoped.push(`main button{${btnProps.join('')}}`)
+    if (btnProps.length) scoped.push(`main button${notUnstyled}{${btnProps.join('')}}`)
 
     // Hover: also target the Button block's <a class="cactus-btn">, scoped by
     // its data-variant attribute so a primary hover colour doesn't leak onto
@@ -698,7 +716,7 @@ export function buildTokenStyles(tokens: unknown): string {
     const hoverProps: string[] = []
     if (btns.hover?.textColour) hoverProps.push(`color: var(--btn-hover-text) !important;`)
     if (btns.hover?.bgColour)   hoverProps.push(`background: var(--btn-hover-bg) !important;`)
-    if (hoverProps.length) scoped.push(`main button:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
+    if (hoverProps.length) scoped.push(`main button${notUnstyled}:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
 
     const secHoverProps: string[] = []
     if (btns.secondary?.hover?.textColour) secHoverProps.push(`color: var(--btn-secondary-hover-text) !important;`)
@@ -716,7 +734,7 @@ export function buildTokenStyles(tokens: unknown): string {
     if (imgs.borderRadius) imgProps.push(`border-radius: ${cssValue(imgs.borderRadius)};`)
     if (imgs.borderColour) imgProps.push(`border-color: var(--img-border-color); border-style: solid;`)
     if (imgs.borderWidth)  imgProps.push(`border-width: ${cssValue(imgs.borderWidth)};`)
-    if (imgProps.length) scoped.push(`main img{${imgProps.join('')}}`)
+    if (imgProps.length) scoped.push(`main img${notUnstyled}{${imgProps.join('')}}`)
   }
 
   if (fields) {
@@ -725,11 +743,11 @@ export function buildTokenStyles(tokens: unknown): string {
     if (fields.bgColour)     fieldProps.push(`background: var(--field-bg);`)
     if (fields.borderColour) fieldProps.push(`border-color: var(--field-border);`)
     if (fields.borderRadius) fieldProps.push(`border-radius: ${cssValue(fields.borderRadius)};`)
-    if (fieldProps.length) scoped.push(`main input,main textarea,main select{${fieldProps.join('')}}`)
+    if (fieldProps.length) scoped.push(`main input${notUnstyled},main textarea${notUnstyled},main select${notUnstyled}{${fieldProps.join('')}}`)
 
     const labelProps: string[] = [...typoProps(fields.labelTypo ?? {})]
     if (fields.labelColour) labelProps.push(`color: var(--field-label-color);`)
-    if (labelProps.length) scoped.push(`main label{${labelProps.join('')}}`)
+    if (labelProps.length) scoped.push(`main label${notUnstyled}{${labelProps.join('')}}`)
   }
 
   // Grid ("Columns") and Split blocks render fixed CSS grid templates inline;

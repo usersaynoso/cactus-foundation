@@ -672,6 +672,22 @@ Four rules, three of them the same ones the address lookup learned:
 
 `square-payment-for-shop` is the worked example, and shows the shape worth copying: the mode is a **setting**, not a rewrite. Its hosted checkout page is still there, still the default, and an existing shop keeps it on updating - because on-page entry needs a credential nobody has been asked for yet, and a module update that silently switches a live shop's card payments off is not a feature.
 
+### Keeping the site's styling off a button you did not draw: `data-cactus-unstyled`
+
+The Styles → Buttons panel emits blanket rules - `main button`, `main button:hover`, and the same for links, images, fields and labels - and they reach every element of that kind on the storefront. That is right for the site's own content and wrong for anything a third party drew into your module: an Apple Pay or Google Pay button, a chat launcher, a provider's own widget. Those arrive with a look their brand requires, and shoppers recognise them by it.
+
+Put `data-cactus-unstyled` on the element that wraps them and core's blanket rules skip that whole subtree.
+
+```tsx
+<div data-cactus-unstyled="">
+  {/* whatever the SDK draws in here keeps its own look */}
+</div>
+```
+
+Worth knowing why this exists rather than an `!important` counter-rule of your own. The hover rule is `background` as a SHORTHAND and carries `!important` (it has to, to beat the Button block's inline base state), so it sets every background longhand - including `background-image`. A Google Pay button, whose logo *is* a background image, came out as a flat rectangle of the site's hover colour with the logo and the wording both gone. You cannot override that without knowing the image URL, which is the provider's to change. Not matching the rule at all is the only fix that does not need to know what the button looks like.
+
+Use it only for things you did not draw. Your module's own buttons should follow the site's styling like everything else - that is the whole point of the panel.
+
 ### Apple Pay and Google Pay: `shop.checkout-wallet-buttons`
 
 The sibling of the point above, and it exists because a wallet cannot be drawn from that one. Two constraints force it, both coming from the wallets rather than from shop. A wallet is handed the total when it is **built**, because its sheet quotes the figure the shopper approves - and `clientFields` from `getClientFields` is deliberately amount-free, while the amount on a payment intent does not exist until **Place order** has been pressed. And Apple Pay refuses to open its sheet unless `tokenize()` is called inside the button's own click handler with **nothing awaited in between**; Safari drops the user gesture otherwise and the sheet silently never opens, which is a bug with no error message anywhere.

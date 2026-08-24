@@ -51,6 +51,8 @@ A **live preview** sits pinned to the bottom of the tab, showing all three varia
 
 Everything on this tab is sitewide: change it here and every button on every page follows. When you want one button to stand apart without disturbing the rest, leave this tab alone and set that block's **Style** to **Custom** in the page editor instead - it gets its own colours, hover colours and border, and ignores the settings on this tab entirely.
 
+**One sort of button ignores this tab, and should.** Buttons that belong to somebody else - an Apple Pay or Google Pay button at the checkout, a live-chat launcher, a payment provider's own widget - keep the look their owner insists on, and your colours are not applied to them. That is deliberate: those brands set rules about how their buttons may appear, shoppers recognise them by exactly that appearance, and painting one in your own colours makes it less trustworthy rather than more. Everything the site itself draws still follows this tab as it always did.
+
 ### Images tab
 
 Control the border radius and border style applied to images.
