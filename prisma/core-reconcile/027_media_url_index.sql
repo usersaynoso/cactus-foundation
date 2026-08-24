@@ -1,0 +1,22 @@
+-- Media.url gets an index.
+--
+-- `key` has been unique and indexed since the beginning; `url` never had
+-- anything on it. That was fine while nothing looked a row up by url, and it
+-- stopped being fine as soon as several things did: shrinking a swatch to its
+-- small rendition, refiling a product image after a folder move, re-pointing a
+-- category picture, and the media reference rewriters generally. Each of those
+-- ran `WHERE "url" = $1` against an unindexed column, which is a sequential
+-- scan of the whole library every single time.
+--
+-- On the live install that was roughly 18,000 rows read per lookup against a
+-- 35,000-row table, and about 374 million rows over the database's life - more
+-- than any other core table by a wide margin, and all of it work that produced
+-- one row.
+--
+-- Deliberately not UNIQUE. Two rows may legitimately name the same url (a
+-- re-upload that lands on the same path, a row written by an import that only
+-- ever knew the address), and every caller takes the first match rather than
+-- assuming there is exactly one. A unique constraint here would turn a
+-- harmless duplicate into a failed save.
+
+CREATE INDEX IF NOT EXISTS "Media_url_idx" ON "Media"("url");

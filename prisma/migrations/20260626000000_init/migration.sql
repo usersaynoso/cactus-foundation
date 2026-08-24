@@ -459,6 +459,7 @@ CREATE INDEX "Media_createdAt_idx" ON "Media"("createdAt");
 CREATE INDEX "Media_provider_idx" ON "Media"("provider");
 CREATE INDEX "Media_folderId_idx" ON "Media"("folderId");
 CREATE INDEX "Media_pixels_idx" ON "Media"("pixels");
+CREATE INDEX "Media_url_idx" ON "Media"("url");
 
 CREATE UNIQUE INDEX "Folder_parentId_name_key" ON "Folder"("parentId", "name");
 CREATE INDEX "Folder_parentId_idx" ON "Folder"("parentId");

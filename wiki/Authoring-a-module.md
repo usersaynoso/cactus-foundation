@@ -613,6 +613,18 @@ A point may define **extra fields of its own** on top of these. The generator on
 
 A contribution doesn't have to be a React component. `component` just names an exported binding, so a point can equally collect a plain function (`contact-form.thread-messages`, `shop.cart-line-resolver`) or an object of several exports (`core.menu-entity-provider`, `shop.product-detail-parts`). The host module declares the contract as a TypeScript type in its own `lib/`, and the contributing module imports that type and satisfies it - `modules/shop/lib/line-meta.ts` and `modules/shop-variations/lib/line-resolver.ts` are the shortest example of the pair.
 
+#### `core.menu-entity-provider`: answer in batches
+
+A provider for this point offers `resolveEntity(kind, id)` so core can turn a saved menu item into a live label and href. It may also offer `resolveEntities(kind, ids)`, which answers a whole set of ids of one kind at once and returns a `Map` keyed by id, with anything it cannot resolve simply absent (exactly as `resolveEntity` returns `null` for it).
+
+**Offer it.** A menu is resolved on every single page render, and core used to walk the tree asking about one item at a time, each waiting for the last. A header with seven links to a module's content therefore cost seven round trips, one after another, before the page could be drawn. On a real install that made a single 48-row table the most-read thing in the database.
+
+Core now gathers every visible item's target up front and asks once per (module, kind) pair, then builds the tree without touching the database at all. A provider that offers only `resolveEntity` is still called per id, but concurrently rather than in sequence, so it is not left behind - it just keeps its query count where a batching provider drops to one.
+
+The visibility rule is unchanged, and belongs to the provider either way: return `publiclyVisible: false` for something the admin table should still show but a public menu should not (a draft post, a members-only board).
+
+One behaviour worth knowing: a provider that throws now loses only its own items from the menu. It no longer takes the whole navigation down with it.
+
 A `shop.cart-line-resolver` may also return an optional `control` - a small, declarative per-line picker (a `key`, a `label`, the current `value`, and a list of `options`). Shop renders it generically as a `<select>` on each basket line and, when it changes, writes the choice back into that line's meta and re-validates - so the contributing module never ships a React component into shop's cart, only data. `advanced-shipping-for-shop`'s delivery-tier picker (`modules/advanced-shipping-for-shop/lib/line-resolver.ts`) uses this: the same resolver call prices the chosen tier, snapshots the promised date onto the order line, and describes the picker the shopper changes.
 
 Each option may additionally carry a numeric `priceAdjust` - the same figure already baked into its label. When present, a new-enough shop moves the line price and subtotal the instant the shopper picks the option, then reconciles with the server's re-validate; the server-calculated price remains the only one that is ever charged. The field is optional both ways: a resolver that omits it simply leaves the price to catch up when the round-trip returns, and an older shop ignores it.

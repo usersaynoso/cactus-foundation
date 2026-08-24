@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { INSTALLED_MODULE_WHERE, getInstalledManifests } from '@/lib/modules/live-status'
 import type { ModuleManifest } from '@/lib/modules/manifest'
 
 // Live reads of every active module's `memberExtensions` manifest field (see
@@ -8,10 +8,7 @@ import type { ModuleManifest } from '@/lib/modules/manifest'
 // at build time. Same active-module filter as app/cactus-admin/config/page.tsx.
 
 async function getActiveModuleManifests(): Promise<ModuleManifest[]> {
-  const modules = await prisma.module.findMany({
-    where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
-  })
+  const modules = await getInstalledManifests()
   return modules
     .map((m) => m.manifest as unknown as ModuleManifest | null)
     .filter((m): m is ModuleManifest => !!m)

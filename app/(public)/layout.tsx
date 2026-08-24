@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { getSiteConfig as getSharedSiteConfig } from '@/lib/config/site'
 import { Render } from '@puckeditor/core/rsc'
 import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config.rsc'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
@@ -18,21 +19,15 @@ import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
 // Favicon / app-icon metadata is resolved once at the root layout
 // (app/layout.tsx + app/manifest.ts) so it applies on every route, not just
 // here — see lib/config/branding.ts.
-async function getSiteConfig() {
-  return prisma.siteConfig
-    .findUnique({
-      where: { id: 'singleton' },
-      select: {
-        siteName: true,
-        adminPath: true,
-        logoMediaId: true,
-        logoDarkMediaId: true,
-        designTokens: true,
-        consentBannerConfig: true,
-        privacyPolicyPageId: true,
-      },
-    })
-    .catch(() => null)
+//
+// The config row itself comes from the shared cache()d reader rather than a
+// narrow select of this layout's own. SiteConfig is a single ~5kB row that four
+// things on the render path all wanted - the root layout's branding, this
+// layout, the menu resolver and getPuckRenderMetadata - and because each asked
+// for a different set of columns, React's cache() had four different queries to
+// memoise rather than one. Same shape everywhere means one round trip.
+function getSiteConfig() {
+  return getSharedSiteConfig().catch(() => null)
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {

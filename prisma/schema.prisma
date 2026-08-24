@@ -391,6 +391,13 @@ model Media {
   @@index([provider])
   @@index([folderId])
   @@index([pixels])
+  // Several callers hold a served url and need the row behind it - a swatch
+  // being shrunk, a product image being refiled, a category picture being
+  // re-pointed. Without this, every one of those is a full scan of the library
+  // (35k rows on the live install, ~374M rows read across its lifetime). Not
+  // @unique: two rows may legitimately name the same url, and the callers all
+  // take the first match.
+  @@index([url])
 }
 
 // A folder in the media library. Folders nest (self-relation) to any depth; a

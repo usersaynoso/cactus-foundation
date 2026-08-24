@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
-import { getMenuEntityProvider } from '@/lib/modules/menu-entity-provider'
+import { getSiteConfig } from '@/lib/config/site'
+import { getMenuEntityProvider, type ResolvedMenuEntity } from '@/lib/modules/menu-entity-provider'
 
 export type PublicMenuItem = {
   id: string
@@ -59,7 +60,16 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
 
   type RawItem = (typeof items)[number]
 
-  async function resolveItem(item: RawItem): Promise<PublicMenuItem | null> {
+  // Every module-entity item's target, resolved up front in one batch per
+  // (module, kind) pair. This used to happen inside the tree walk below, which
+  // is recursive and sequential: each item awaited its own query, and the next
+  // item could not start until it finished. A header with seven category links
+  // therefore cost seven serial round trips on every page render, and the menu
+  // is on every page. Resolved here, it is one query per kind - and the walk
+  // that follows touches the database not at all.
+  const entities = await resolveMenuEntities(items, viewer)
+
+  function resolveItem(item: RawItem): PublicMenuItem | null {
     let label: string
     let href: string
 
@@ -74,9 +84,7 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
       href = `/${item.page.slug}`
     } else if (item.type === 'MODULE_ENTITY') {
       if (!item.moduleId || !item.entityKind || !item.entityId) return null
-      const provider = getMenuEntityProvider(item.moduleId)
-      if (!provider) return null
-      const resolved = await provider.resolveEntity(item.entityKind, item.entityId)
+      const resolved = entities.get(entityCacheKey(item.moduleId, item.entityKind, item.entityId))
       if (!resolved || !resolved.publiclyVisible) return null
       label = item.label ?? resolved.label
       href = resolved.href
@@ -93,13 +101,13 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
     }
   }
 
-  async function buildTree(parentId: string | null): Promise<PublicMenuItem[]> {
+  function buildTree(parentId: string | null): PublicMenuItem[] {
     const children = items.filter((i) => i.parentId === parentId)
     const result: PublicMenuItem[] = []
     for (const item of children) {
-      const resolved = await resolveItem(item)
+      const resolved = resolveItem(item)
       if (!resolved) continue
-      const nestedChildren = await buildTree(item.id)
+      const nestedChildren = buildTree(item.id)
       if (nestedChildren.length > 0) resolved.children = nestedChildren
       result.push(resolved)
     }
@@ -109,12 +117,76 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
   return buildTree(null)
 })
 
+function entityCacheKey(moduleId: string, kind: string, id: string): string {
+  return `${moduleId}\u0000${kind}\u0000${id}`
+}
+
+/**
+ * Resolve every module-entity target in one menu, batched per (module, kind).
+ *
+ * Only items this viewer could actually see are looked up: an item the audience
+ * gate is about to drop is not worth a query, and the gate is a pure function of
+ * data already in hand. Items whose subtree will be dropped with their parent
+ * are still resolved - working that out would mean walking the tree twice, and
+ * the saving is a handful of ids at most.
+ *
+ * A provider that offers `resolveEntities` answers a whole kind at once. One
+ * that does not is called per id but concurrently, so the round trips overlap
+ * even though there are still several of them. Either way nothing here is
+ * sequential, which was the actual cost.
+ */
+async function resolveMenuEntities(
+  items: { type: string; visibility: string; moduleId: string | null; entityKind: string | null; entityId: string | null }[],
+  viewer: MenuViewer,
+): Promise<Map<string, ResolvedMenuEntity>> {
+  const out = new Map<string, ResolvedMenuEntity>()
+
+  // (moduleId, kind) -> the ids that pair needs
+  const wanted = new Map<string, { moduleId: string; kind: string; ids: Set<string> }>()
+  for (const item of items) {
+    if (item.type !== 'MODULE_ENTITY') continue
+    if (!item.moduleId || !item.entityKind || !item.entityId) continue
+    if (!itemVisibleTo(item.visibility, viewer)) continue
+    const key = `${item.moduleId}\u0000${item.entityKind}`
+    const group = wanted.get(key) ?? { moduleId: item.moduleId, kind: item.entityKind, ids: new Set<string>() }
+    group.ids.add(item.entityId)
+    wanted.set(key, group)
+  }
+  if (wanted.size === 0) return out
+
+  await Promise.all(
+    [...wanted.values()].map(async ({ moduleId, kind, ids }) => {
+      const provider = getMenuEntityProvider(moduleId)
+      if (!provider) return
+      const idList = [...ids]
+      try {
+        if (provider.resolveEntities) {
+          const resolved = await provider.resolveEntities(kind, idList)
+          for (const [id, entity] of resolved) out.set(entityCacheKey(moduleId, kind, id), entity)
+          return
+        }
+        const resolved = await Promise.all(idList.map((id) => provider.resolveEntity(kind, id)))
+        idList.forEach((id, i) => {
+          const entity = resolved[i]
+          if (entity) out.set(entityCacheKey(moduleId, kind, id), entity)
+        })
+      } catch {
+        // A provider that falls over loses its own items from the menu, which is
+        // what a null answer already meant. It must not take the whole nav with
+        // it - the header is on every page, including the ones an admin would
+        // use to fix whatever broke.
+      }
+    }),
+  )
+  return out
+}
+
 export const resolveMainMenu = cache(async (viewer: MenuViewer = ANON_VIEWER): Promise<PublicMenuItem[]> => {
   try {
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { mainMenuId: true },
-    })
+    // Shared cache()d read, not a narrow select of its own - see
+    // lib/config/branding.ts for why every SiteConfig reader on the render path
+    // now asks for the same shape.
+    const config = await getSiteConfig()
 
     if (!config?.mainMenuId) return []
 

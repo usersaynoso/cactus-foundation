@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db/prisma'
+import { getSiteConfig } from '@/lib/config/site'
 
 // Cactus fall-back assets shipped in /public. Used whenever the admin hasn't
 // uploaded a custom equivalent, so a fresh install still has a full icon set.
@@ -53,23 +54,15 @@ const FALLBACK: ResolvedBranding = {
 // Best-effort: any DB failure yields the Cactus defaults rather than throwing,
 // since this runs in metadata resolution for every route.
 export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
-  const config = await prisma.siteConfig
-    .findUnique({
-      where: { id: 'singleton' },
-      select: {
-        siteName: true,
-        faviconMediaId: true,
-        faviconDarkMediaId: true,
-        appleTouchIconMediaId: true,
-        webManifest192MediaId: true,
-        webManifest512MediaId: true,
-        appName: true,
-        appShortName: true,
-        themeColor: true,
-        backgroundColor: true,
-      },
-    })
-    .catch(() => null)
+  // Read through the shared cache()d full-row helper rather than a narrow select
+  // of its own. SiteConfig is one row of about 5kB, and a public page render
+  // used to fetch it four separate times - here, in the public layout, in the
+  // menu resolver and in the Puck render metadata - each with a different
+  // `select`, which is precisely what stops React's cache() from collapsing
+  // them. One shape means one query. Still best-effort: this runs inside
+  // metadata resolution for every route, error pages included, so a database
+  // blip yields the Cactus defaults rather than a broken page.
+  const config = await getSiteConfig().catch(() => null)
 
   if (!config) return FALLBACK
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledManifests } from '@/lib/modules/live-status'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
@@ -110,7 +110,7 @@ export default async function AccountIndexPage() {
         take: 3,
         select: { id: true, type: true, source: true, createdAt: true },
       }),
-      prisma.module.findMany({ where: { ...INSTALLED_MODULE_WHERE }, select: { manifest: true } }),
+      getInstalledManifests(),
       hasModuleNotificationCategories(),
       // The same tabs the shell puts across the top. Read again here rather than
       // threaded down, because it is this page that has to draw the sections

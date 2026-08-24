@@ -1,5 +1,4 @@
-import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledManifests } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 
 // Tabs modules add to the member account nav (`members.account-nav`).
@@ -59,10 +58,7 @@ export async function getMemberAccountNavExtras(
   const providers = moduleExtensionPointComponents['members.account-nav'] ?? {}
   if (Object.keys(providers).length === 0) return []
 
-  const installed = await prisma.module.findMany({
-    where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
-  })
+  const installed = await getInstalledManifests()
 
   const ids: string[] = []
   for (const mod of installed) {

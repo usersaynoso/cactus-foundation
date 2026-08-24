@@ -53,3 +53,45 @@ export const INSTALLED_MODULE_WHERE = {
 export const getInstalledModules = cache(() =>
   prisma.module.findMany({ where: INSTALLED_MODULE_WHERE, select: { name: true, manifest: true } }),
 )
+
+// ── Installed manifests, memoised across requests ───────────────────────────
+//
+// Every extension point works the same way: look the point up in the generated
+// component registry, and if anything is registered, read the installed
+// modules' manifests to find out which of them declared it. That second half is
+// the same query every time - the same 29 rows, the same ~44kB of manifest JSON
+// - and it was being run once per gatherer. A single product page render asks
+// about the detail slot, the spec tab, the detail tabs, the detail images, the
+// gallery media, the canonical query, the social image, the sale price, the
+// saved-product hook, stock visibility, card prices and card extras, which is a
+// dozen identical round trips for an answer that changes only when a module is
+// installed or removed.
+//
+// The TTL rather than React `cache()`: these run from RSC renders, plain route
+// handlers and cart validation alike, and the answer is genuinely stable across
+// requests. 30 seconds is the window a module's own cart resolver had already
+// been using for exactly this, which is where the pattern was proved before
+// being promoted here.
+//
+// A rejected read clears the slot so the next call retries rather than caching
+// the failure. Callers keep their own error handling.
+const MANIFEST_TTL_MS = 30_000
+let manifestSlot: { promise: Promise<{ manifest: unknown }[]>; at: number } | null = null
+
+export function getInstalledManifests(): Promise<{ manifest: unknown }[]> {
+  const now = Date.now()
+  if (manifestSlot && now - manifestSlot.at < MANIFEST_TTL_MS) return manifestSlot.promise
+  const promise = prisma.module.findMany({
+    where: { ...INSTALLED_MODULE_WHERE },
+    select: { manifest: true },
+  })
+  const mine = { promise, at: now }
+  manifestSlot = mine
+  promise.catch(() => { if (manifestSlot === mine) manifestSlot = null })
+  return promise
+}
+
+/** Drop the memo above. Call after anything that installs or removes a module. */
+export function invalidateInstalledManifests(): void {
+  manifestSlot = null
+}
