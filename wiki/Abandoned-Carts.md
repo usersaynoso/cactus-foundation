@@ -42,14 +42,11 @@ The wording lives with every other email on the site, under **Settings › Email
 
 Switch the reminders on and you are offered one more thing: a tickbox in your checkout, so a shopper can say no before you have emailed them at all.
 
-It sits under the boxes a shopper has to tick, it is never compulsory, and it never holds an order up. It reads **"Don't email me about offers and similar products."** until you word it differently. Tick it and no reminder goes out on that basket; untick it and the basket is back where it was. A basket somebody has ticked it on says "No emails, please" in the list, so you are not left guessing why one was never chased.
+It sits directly under the email box on the contact step, which is the only place it reads as a question rather than as small print, and it appears once the shopper has typed an address - asking whether somebody minds being emailed is unanswerable before there is somebody to email. It is never compulsory and never holds an order up. It reads **"Don't email me about offers and similar products."** until you word it differently. Tick it and no reminder goes out on that basket; untick it and the basket is back where it was. A basket somebody has ticked it on says "No emails, please" in the list, so you are not left guessing why one was never chased.
 
-The box is one of the shop's own checkout tickboxes rather than anything new: the shop already lets you add, word and delete those, so switching this on writes the box into that list and switching it off takes it out again. Two consequences worth knowing:
+The box is drawn by the add-on, not by the shop, so a shop without this module installed has exactly the checkout it always had - and removing the module takes the box with it.
 
-- It appears on **Settings › Shop › Checkout** alongside your own tickboxes. Re-word it there or here, as you prefer, and delete it there if you would rather not have it - the panel here will then tell you the box is missing rather than letting you believe shoppers are being asked.
-- Removing the module drops its own tables but cannot reach into the shop's settings, so the tickbox stays behind until you delete it there.
-
-Switching the reminders off, or the module off, takes the box out of the checkout with them: a permission question about emails nobody is sending is just another line in somebody's checkout.
+Switching the reminders off, or the module off, takes the box out of the checkout too: a permission question about emails nobody is sending is just another line in somebody's checkout.
 
 ### Why the basket stopped
 
@@ -104,7 +101,7 @@ This module holds a name, an address and a phone number belonging to somebody wh
 | Email a reminder | Off | The reminders. |
 | Wait before the reminder | 240 minutes | Since they last touched the basket. |
 | Reminders per basket | 1 | Capped at 3. |
-| Add an email permission box to the checkout | Off | Only offered once the reminders are on. Adds the tickbox described above. |
+| Add an email permission box to the checkout | Off | Only offered once the reminders are on. Adds the tickbox described above, under the email box. |
 | What the box says | "Don't email me about offers and similar products." | Up to 200 characters. Blank restores the wording we ship with. |
 
 ## Permissions
@@ -159,7 +156,7 @@ The second exists because the first depends on the shopper still being in the br
 
 **No reminders are going out.** Check in this order: reminders switched on, an email provider configured on the site, `SITE_URL` set, the wait elapsed, and the basket having an email address on it at all. A basket whose every product has since been deleted is skipped rather than sent as an empty list.
 
-**The permission box is not in my checkout.** It is on the shop's own tickbox list, and anything on that list can be deleted there. Open **Settings › Shop › Abandoned baskets** and save the page again to put it back. The panel warns you about this on its own, so you should not have to go looking.
+**The permission box is not in my checkout.** Check three things: the reminders are switched on, the box itself is switched on under them, and the shop is on **0.1.309** or newer - the box is mounted on a fitting the shop only grew in that version, so an older shop simply has nowhere to put it. The box also stays hidden until the shopper has typed an email address.
 
 **Somebody unsubscribed - what happened?** The link in the email does two things at once: it stops that address getting basket reminders for good, and it marks their baskets the same way ticking the permission box in the checkout would. So the list says "No emails, please" against them, rather than leaving you wondering why the second reminder never went.
 
