@@ -76,7 +76,7 @@ This module holds a name, an address and a phone number belonging to somebody wh
 
 **The gate is enforced twice.** Once in the browser, and again on the server, where a request written by hand cannot slip past it.
 
-**No banner means no gate.** If your cookie banner is switched off, or carries no Marketing category, there is nothing for a shopper to agree to, and capture runs for everybody. The settings panel says so in red. That is your decision to make, and your exposure if you make it carelessly.
+**No banner means nothing recorded.** If your cookie banner is switched off, or carries no Marketing category, there is nothing for a shopper to agree to - so nothing is recorded at all. The module sits there switched on and idle, and the settings panel tells you exactly which switch is missing and where to find it. It does not fall back to recording everybody: a shopper who was never asked has not agreed, and what would be stored is a name, an address and a phone number belonging to somebody who never placed an order.
 
 **Every reminder carries a way out.** The unsubscribe link opens a page with a button on it rather than unsubscribing on the spot - mail scanners follow every link in an email, and one that acts on being fetched unsubscribes people who never asked. The suppression outlives the basket.
 
@@ -152,7 +152,7 @@ The second exists because the first depends on the shopper still being in the br
 
 ## Troubleshooting
 
-**The list is empty.** Either nobody has agreed to Marketing cookies, or the tracker block has been deleted from the header layout, or the master switch is off. The settings panel tells you which of the first and third applies; the layout editor tells you about the second.
+**The list is empty.** Either your banner has no Marketing switch for anyone to agree to, or nobody has agreed to it yet, or the tracker block has been deleted from the header layout, or the master switch is off. The settings panel tells you about all of those except the layout, and the layout editor tells you about that one.
 
 **No reminders are going out.** Check in this order: reminders switched on, an email provider configured on the site, `SITE_URL` set, the wait elapsed, and the basket having an email address on it at all. A basket whose every product has since been deleted is skipped rather than sent as an empty list.
 
