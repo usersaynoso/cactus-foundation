@@ -48,7 +48,15 @@ const config: NextConfig = {
       beforeFiles: [
         { source: '/favicon.ico', destination: '/api/branding/favicon' },
       ],
-      afterFiles: [],
+      // afterFiles, so a real file in /public/.well-known still wins and this
+      // only answers paths nothing else does. Domain-verification files (Apple
+      // Pay's, say) are demanded at a fixed path by whoever is checking, which
+      // is out of reach of a module's own /api/m/<module>/… routes - so core
+      // owns the path and asks the modules what belongs at it. See
+      // lib/well-known/providers.ts.
+      afterFiles: [
+        { source: '/.well-known/:path*', destination: '/api/well-known/:path*' },
+      ],
       fallback: [],
     }
   },
