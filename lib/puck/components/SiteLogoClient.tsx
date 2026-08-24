@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
+import { siteLogoAlign, siteLogoCellHeight, siteLogoImages } from '@/lib/puck/siteLogoAlign'
 import { sanitizeHref } from '@/lib/email-obfuscate'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 
@@ -8,6 +8,10 @@ type Props = {
   id?: string
   logoUrl?: string | null
   logoUrlDark?: string | null
+  // This block's own image, overriding the site-wide logo above. See
+  // siteLogoImages for how the two pairs combine.
+  imageUrl?: string
+  imageUrlDark?: string
   siteName?: string
   // cellHeight/cellHeightShrunk are the current field keys ("Element height" /
   // "Element height when shrunk"). logoHeight/logoHeightShrunk are accepted as a
@@ -29,6 +33,8 @@ export default function SiteLogoClient({
   id,
   logoUrl,
   logoUrlDark,
+  imageUrl,
+  imageUrlDark,
   siteName,
   cellHeight,
   cellHeightShrunk,
@@ -41,6 +47,8 @@ export default function SiteLogoClient({
   homeUrl = '/',
 }: Props) {
   const [hovered, setHovered] = useState(false)
+
+  const { light: lightSrc, dark: darkSrc } = siteLogoImages(imageUrl, imageUrlDark, logoUrl, logoUrlDark)
 
   // Per-breakpoint element height; siteLogoCellHeight handles the legacy
   // plain-number shape and the pre-rename logoHeight fallback.
@@ -70,7 +78,7 @@ export default function SiteLogoClient({
     onMouseLeave: () => setHovered(false),
   }
 
-  if (logoUrl) {
+  if (lightSrc) {
     // The logo image is sized by a shared --header-cell-height custom property
     // rather than a hard-coded height, so on shrink the override below just
     // swaps the variable. object-fit:contain + width:auto preserve the logo's
@@ -101,10 +109,10 @@ export default function SiteLogoClient({
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} data-site-logo style={logoImgStyle} />
-        {logoUrlDark && (
+        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo style={logoImgStyle} />
+        {darkSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
+          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>

@@ -54,3 +54,25 @@ export function siteLogoCellHeight(
     css: id ? responsiveMediaCssFor(`a[data-sitelogo-id="${id}"] img[data-site-logo]`, (d) => `--header-cell-height:${at(d)}px;`) : '',
   }
 }
+
+// Which pair of images the logo actually draws. `logoUrl`/`logoUrlDark` are the
+// site-wide logo, injected into every SiteLogo block by resolveTemplateData;
+// `imageUrl`/`imageUrlDark` are this block's own override, so one header can
+// show the full lockup on desktop and a compact mark on mobile (two blocks, one
+// hidden at each breakpoint) without the site having to choose between them.
+//
+// The override replaces the PAIR, never half of it: an override with no dark arm
+// falls back to its own light image rather than to the site's dark logo, which
+// would otherwise pair a mark in light mode with a lockup in dark. Returning
+// null for dark is what makes the render draw a single image with no
+// data-logo-variant, shown in both schemes.
+export function siteLogoImages(
+  imageUrl: string | null | undefined,
+  imageUrlDark: string | null | undefined,
+  logoUrl: string | null | undefined,
+  logoUrlDark: string | null | undefined,
+): { light: string | null; dark: string | null } {
+  const light = (imageUrl ?? '').trim()
+  if (light) return { light, dark: (imageUrlDark ?? '').trim() || null }
+  return { light: logoUrl || null, dark: logoUrlDark || null }
+}

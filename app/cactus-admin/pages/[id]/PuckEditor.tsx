@@ -190,8 +190,11 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     ...base,
     components: {
       ...base.components,
+      // Spread the PICKED SiteLogo, not the raw one: withImagePickerFields
+      // swaps its image URL fields for media pickers, and re-spreading the
+      // original would hand those fields back as plain text boxes.
       SiteLogo: {
-        ...puckConfig.components.SiteLogo,
+        ...base.components.SiteLogo,
         render: wrapResponsiveRender((props: any) => <SiteLogoEditorPreview {...props} />),
       },
       MenuBlock: {

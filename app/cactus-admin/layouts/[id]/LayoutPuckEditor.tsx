@@ -195,9 +195,13 @@ export default function LayoutPuckEditor({ initialData, onChange, onPublish, isP
     ...picked,
     components: {
       ...picked.components,
+      // Spread the PICKED SiteLogo, not the raw one: withImagePickerFields
+      // swaps its image URL fields for media pickers, and re-spreading the
+      // original would hand those fields back as plain text boxes - in the
+      // header editor, which is where a per-block logo image is most wanted.
       ...(('SiteLogo' in (baseConfig.components ?? {})) ? {
         SiteLogo: {
-          ...(baseConfig.components as any).SiteLogo,
+          ...(picked.components as any).SiteLogo,
           render: wrapResponsiveRender((props: any) => <SiteLogoEditorPreview {...props} />),
         },
       } : {}),

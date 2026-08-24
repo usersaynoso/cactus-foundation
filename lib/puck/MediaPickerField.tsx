@@ -318,6 +318,7 @@ export const OgImagePickerField: CustomFieldRender<string> = ({ value, onChange,
 const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   ImageBlock:     { mediaUrl: 'Image' },
   IconLink:       { iconUrl: 'Icon image (SVG or PNG)' },
+  SiteLogo:       { imageUrl: 'Logo image (leave blank for the site logo)', imageUrlDark: 'Logo image in dark mode' },
   Card:           { mediaUrl: 'Image' },
   Quote:          { mediaUrl: 'Photo (shown inside the quote, left of the text)' },
   ImageChipPanel: { mediaUrl: 'Image' },

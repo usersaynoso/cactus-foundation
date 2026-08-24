@@ -29,7 +29,7 @@ import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { imgLoading } from '@/lib/puck/imgLoading'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '@/lib/puck/blockHeight'
-import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight } from '@/lib/puck/siteLogoAlign'
+import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
@@ -2714,7 +2714,10 @@ function MembersSignInBlock(props: any) {
 // safe to live in the client-reachable base config (SiteHeaderBlock below
 // renders it directly, in both the editor and the real page).
 export function SiteLogoRsc(props: any) {
-  const { id, logoUrl, logoUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, align, homeUrl = '/' } = props
+  const { id, logoUrl, logoUrlDark, imageUrl, imageUrlDark, siteName, cellHeight, cellHeightShrunk, logoHeight, logoHeightShrunk, showTextWithLogo = 'false', showIcon = 'true', textColor, align, homeUrl = '/' } = props
+  // Block-level image override vs the site-wide logo - same helper the client
+  // half uses, so the two cannot disagree about which pair wins.
+  const { light: lightSrc, dark: darkSrc } = siteLogoImages(imageUrl, imageUrlDark, logoUrl, logoUrlDark)
   // cellHeight/cellHeightShrunk are the current field keys; logoHeight/
   // logoHeightShrunk are accepted as a fallback for pre-rename saved data and
   // for SiteHeaderBlock, which still passes logoHeight. Per-breakpoint via the
@@ -2727,7 +2730,7 @@ export function SiteLogoRsc(props: any) {
   // the published page cannot disagree about it.
   const { justifyContent, css: alignCss } = siteLogoAlign(id, align)
   const style: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent, gap: '0.5rem', fontWeight: 700, fontSize: '1.125rem', color: textColor || 'var(--color-text)', textDecoration: 'none' }
-  if (logoUrl) {
+  if (lightSrc) {
     // Shared --header-cell-height custom property drives the logo image height;
     // the shrink override just swaps the variable. Mirrors SiteLogoClient (the
     // editor render) exactly so editor and live markup stay identical.
@@ -2756,10 +2759,10 @@ export function SiteLogoRsc(props: any) {
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoUrl} alt={siteName ?? 'Logo'} data-logo-variant={logoUrlDark ? 'light' : undefined} data-site-logo style={logoImgStyle} />
-        {logoUrlDark && (
+        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo style={logoImgStyle} />
+        {darkSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrlDark} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
+          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>
@@ -3671,7 +3674,7 @@ export const puckConfig = {
       // own "Height" / "Shrunk height" so the two never read as duplicate
       // labels in the same sidebar. The render still falls back to the old
       // logoHeight/logoHeightShrunk keys for pre-rename saved data.
-      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, align: { type: 'custom' as const, label: 'Alignment', options: LOGO_ALIGN_OPTIONS, render: ResponsiveSelectField }, cellHeight: { type: 'custom' as const, label: 'Element height (px)', render: ResponsiveNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
+      fields: { homeUrl: { type: 'text' as const, label: 'Link URL (default: /)' }, imageUrl: { type: 'text' as const, label: 'Logo image (leave blank for the site logo)' }, imageUrlDark: { type: 'text' as const, label: 'Logo image in dark mode' }, align: { type: 'custom' as const, label: 'Alignment', options: LOGO_ALIGN_OPTIONS, render: ResponsiveSelectField }, cellHeight: { type: 'custom' as const, label: 'Element height (px)', render: ResponsiveNumberField }, cellHeightShrunk: { type: 'custom' as const, label: 'Element height when shrunk', render: ClearableNumberField }, showTextWithLogo: { type: 'select' as const, label: 'Show site name with image', options: [{ value: 'false', label: 'Image only' }, { value: 'true', label: 'Image + name' }] }, showIcon: { type: 'select' as const, label: 'Show cactus icon (text logo)', options: [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] }, textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> } },
       // No cellHeight default here on purpose: SiteLogoClient/SiteLogoRsc's own
       // `cellHeight ?? logoHeight ?? 40` fallback is the single source of
       // truth for the default. Puck backfills any missing prop from
@@ -3683,11 +3686,15 @@ export const puckConfig = {
       // already used - so backfilling it into blocks saved before the field
       // existed changes nothing (unlike cellHeight above, it has no legacy key
       // to shadow).
-      defaultProps: { homeUrl: '/', align: 'left' as const, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
-      resolveFields: (_data: any, { fields, appState }: any) => {
-        if (isHeaderShrinkEnabled(appState)) return fields
-        const { cellHeightShrunk: _s, ...rest } = fields
-        return rest
+      defaultProps: { homeUrl: '/', imageUrl: '', imageUrlDark: '', align: 'left' as const, showTextWithLogo: 'false', showIcon: 'true', textColor: '' },
+      resolveFields: (data: any, { fields, appState }: any) => {
+        const out: Record<string, any> = { ...fields }
+        // Shrunk height only means something while the header shrinks on scroll.
+        if (!isHeaderShrinkEnabled(appState)) delete out.cellHeightShrunk
+        // The dark arm is an override of an override: with no image picked the
+        // block is on the site logo, which brings its own dark version.
+        if (!data?.props?.imageUrl) delete out.imageUrlDark
+        return out
       },
       render: SiteLogoClient,
     },
