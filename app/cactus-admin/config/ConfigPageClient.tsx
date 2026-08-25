@@ -758,6 +758,28 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [ghBusy, setGhBusy] = useState(false)
   const [ghError, setGhError] = useState('')
 
+  // Manual "Purge everything now" button on Settings → Speed.
+  const [purging, setPurging] = useState(false)
+  const [purged, setPurged] = useState(false)
+  const [purgeError, setPurgeError] = useState('')
+
+  async function handlePurgeEverything() {
+    setPurging(true)
+    setPurgeError('')
+    setPurged(false)
+    try {
+      const res = await fetch('/api/admin/cache/purge', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Purge failed')
+      setPurged(true)
+      setTimeout(() => setPurged(false), 3000)
+    } catch (err) {
+      setPurgeError(err instanceof Error ? err.message : 'Purge failed')
+    } finally {
+      setPurging(false)
+    }
+  }
+
   const loadGhStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/github-app')
@@ -2080,6 +2102,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   grid: the card is defined inline, so rendering it as an element would
                   remount it - and drop focus out of the inputs - on every keystroke. */}
               {EnvSectionCard({ section: PAGE_CACHE_PURGE_SECTION })}
+            </div>
+          )}
+          {(config.pageCacheEnabled ?? false) && !!envStatus['CLOUDFLARE_ZONE_ID'] && (!!envStatus['CLOUDFLARE_PURGE_API_TOKEN'] || !!envStatus['CLOUDFLARE_API_TOKEN']) && (
+            <div id="speed-purge-now" className="field admin-anchor" style={{ maxWidth: '46rem' }}>
+              <label>Purge everything now</label>
+              <span className="field-hint" style={{ display: 'block', marginBottom: '0.5rem' }}>
+                Drops every stored copy on Cloudflare straight away, rather than waiting for each one to age out on its
+                own. Useful right after a change that does not go through a page save - a new theme, a bulk price
+                update - anything the automatic clearing above would not have caught.
+              </span>
+              {purgeError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{purgeError}</div>}
+              <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={purging} onClick={handlePurgeEverything}>
+                {purging ? 'Purging…' : purged ? '✓ Purged' : 'Purge everything now'}
+              </button>
             </div>
           )}
         </div>

@@ -83,6 +83,24 @@ export async function purgeCdnPaths(paths: string[]): Promise<void> {
   }
 }
 
+// Shared by purgeCdnEverything (silent, best-effort) and purgeCdnEverythingOrThrow
+// (the manual button's route, which needs to tell the owner it actually worked).
+async function requestPurgeEverything(token: string, zone: string): Promise<void> {
+  const res = await fetch(`${CF_API}/zones/${zone}/purge_cache`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ purge_everything: true }),
+    signal: AbortSignal.timeout(5_000),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Cloudflare returned ${res.status}: ${body}`)
+  }
+}
+
 /**
  * Drop Cloudflare's copy of everything on this zone.
  *
@@ -98,19 +116,20 @@ export async function purgeCdnEverything(): Promise<void> {
   if (!token || !zone) return
 
   try {
-    const res = await fetch(`${CF_API}/zones/${zone}/purge_cache`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ purge_everything: true }),
-      signal: AbortSignal.timeout(5_000),
-    })
-    if (!res.ok) {
-      console.warn(`[cdn-purge] Cloudflare returned ${res.status} for a full purge - copies will expire on their own`)
-    }
+    await requestPurgeEverything(token, zone)
   } catch (err) {
     console.warn('[cdn-purge] full purge failed - copies will expire on their own', err)
   }
+}
+
+/**
+ * Same full purge, for the "Purge everything now" button on Settings → Speed.
+ * Unlike purgeCdnEverything, this one is what tells the owner whether it
+ * actually worked - so it throws rather than swallowing the failure.
+ */
+export async function purgeCdnEverythingOrThrow(): Promise<void> {
+  const token = purgeToken()
+  const zone = zoneId()
+  if (!token || !zone) throw new Error('Cloudflare zone id and purge token are not both set')
+  await requestPurgeEverything(token, zone)
 }
