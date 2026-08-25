@@ -727,6 +727,31 @@ export function buildTokenStyles(tokens: unknown): string {
     if (btns.hover?.bgColour)   hoverProps.push(`background: var(--btn-hover-bg) !important;`)
     if (hoverProps.length) scoped.push(`main button${notUnstyled}:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
 
+    // The hover fill repaints the button and nothing inside it. Anything within
+    // that carries a colour of its own - a muted caption, an outlined marker, an
+    // icon drawn in currentColor off its own inline `color` - keeps that colour
+    // and now has to read against a fill chosen without it in mind, which is how
+    // a grey-on-surface detail ends up grey-on-strong-fill and unreadable.
+    //
+    // Marking an element `data-cactus-hover-fg` opts it into the hover
+    // foreground; `data-cactus-hover-border` does the same for its border. Both
+    // work on the button itself as well as on anything inside it, and both are
+    // scoped to the hover, so a marked element is untouched at rest. The
+    // foreground is the theme's own hover text colour where the site set one, so
+    // a marked child always agrees with the button around it; white otherwise,
+    // which is the readable answer on a fill strong enough to be worth setting
+    // (--color-text-inverse is white in both light and dark).
+    //
+    // Emitted only alongside a hover treatment: a site that sets neither hover
+    // colour has no repaint to keep up with, and these rules would then be white
+    // text on the element's ordinary background. !important for the same reason
+    // the rules above need it - the colours being overridden are inline.
+    if (btns.hover?.bgColour || btns.hover?.textColour) {
+      const hoverFg = 'var(--btn-hover-text, var(--color-text-inverse))'
+      scoped.push(`main button${notUnstyled}:hover[data-cactus-hover-fg],main button${notUnstyled}:hover [data-cactus-hover-fg]{color:${hoverFg} !important;}`)
+      scoped.push(`main button${notUnstyled}:hover[data-cactus-hover-border],main button${notUnstyled}:hover [data-cactus-hover-border]{border-color:${hoverFg} !important;}`)
+    }
+
     const secHoverProps: string[] = []
     if (btns.secondary?.hover?.textColour) secHoverProps.push(`color: var(--btn-secondary-hover-text) !important;`)
     if (btns.secondary?.hover?.bgColour)   secHoverProps.push(`background: var(--btn-secondary-hover-bg) !important;`)

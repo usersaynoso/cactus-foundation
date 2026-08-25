@@ -700,6 +700,26 @@ Worth knowing why this exists rather than an `!important` counter-rule of your o
 
 Use it only for things you did not draw. Your module's own buttons should follow the site's styling like everything else - that is the whole point of the panel.
 
+### Taking the hover colour with you: `data-cactus-hover-fg` and `data-cactus-hover-border`
+
+The other half of the same story, and the one that bites the buttons you *did* draw. The hover rule sets `background` and, where the site has picked one, `color` - on the button element. Nothing inside it moves. A button whose whole content is a word inherits that `color` and is fine; a button that is a small piece of layout is not. Anything within it carrying a colour of its own - a caption in `--color-text-muted`, an outlined marker, an SVG drawn in `currentColor` off its own inline `color` - keeps the colour it had, and that colour was chosen to read against the element's resting surface rather than against the site's hover fill.
+
+Mark such a part `data-cactus-hover-fg` and it takes the hover foreground for as long as the button is hovered; `data-cactus-hover-border` does the same for its border colour. Both also match the hovered button itself, so a button whose own colour is set inline can wear one too.
+
+```tsx
+<button data-cactus-hover-fg style={{ color: 'var(--color-text)' }}>
+  <span data-cactus-hover-fg data-cactus-hover-border style={{ border: '1.5px solid var(--color-border)', color: 'var(--color-text-muted)' }}>1</span>
+  Arm Option
+  <svg stroke="currentColor" data-cactus-hover-fg style={{ color: 'var(--color-text-muted)' }}>…</svg>
+</button>
+```
+
+The foreground is `var(--btn-hover-text, var(--color-text-inverse))`: the site's own hover text colour where it set one, so a marked part always agrees with the button around it, and white otherwise - `--color-text-inverse` is white in both light and dark, and white is the readable answer on a fill strong enough to be worth setting.
+
+Two things follow from where the rules are emitted. They exist **only** on a site that has set a hover background or a hover text colour, so on a site with neither, a marked element is exactly as it was and you have not quietly given it white-on-white. And they carry `!important` for the same reason the rules above do - the colours being overridden are inline, and inline beats an ordinary rule.
+
+Mark the parts that are muted or outlined against their resting surface. Leave alone anything that already brings its own strong fill and matched text, such as a filled marker in the primary colour: it stays legible on whatever lands behind it, and repainting it loses the distinction it was drawn to make.
+
 ### Apple Pay and Google Pay: `shop.checkout-wallet-buttons`
 
 The sibling of the point above, and it exists because a wallet cannot be drawn from that one. Two constraints force it, both coming from the wallets rather than from shop. A wallet is handed the total when it is **built**, because its sheet quotes the figure the shopper approves - and `clientFields` from `getClientFields` is deliberately amount-free, while the amount on a payment intent does not exist until **Place order** has been pressed. And Apple Pay refuses to open its sheet unless `tokenize()` is called inside the button's own click handler with **nothing awaited in between**; Safari drops the user gesture otherwise and the sheet silently never opens, which is a bug with no error message anywhere.
