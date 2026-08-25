@@ -30,6 +30,17 @@ If you collect consent under GDPR, there is a tick box for that too, which you c
 
 ---
 
+## What visitors see when they get it wrong
+
+The form no longer saves up its complaints until someone presses Send.
+
+- **Email address** - if what they have typed is not a valid address, they are told as soon as they move on to the next field, rather than after they have finished the whole form.
+- **Message** - a quiet grey note in the bottom corner of the message box counts them up to the ten characters the form asks for, and disappears once they get there. It is a nudge, not a telling-off. The proper warning in red only appears if they leave the message box still short, or press Send.
+
+An empty field they have not touched yet says nothing at all. Tabbing straight through a blank form does not turn it red - that is what Send is for.
+
+---
+
 ## The inbox
 
 Everything that comes in appears under **Inbox** in your admin sidebar. Open a message and you get the full conversation in one place: what they sent, when, and every reply that has gone back.
