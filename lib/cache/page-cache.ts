@@ -139,3 +139,29 @@ export function pageCacheControl(input: PageCacheDecisionInput): string | null {
 export function cdnCacheControl(ttl: number): string {
   return `public, s-maxage=${normalisePageCacheTtl(ttl)}`
 }
+
+/**
+ * What Vercel's own edge is told, when something downstream can be purged.
+ *
+ * CDN-Cache-Control above is read by every shared cache in the chain, and on a
+ * Vercel install that chain starts with Vercel's own Edge Network - which holds
+ * its copy for the full window like any other CDN, and, unlike Cloudflare, has
+ * no purge API to call. So a publish would drop Cloudflare's copy, Cloudflare
+ * would refill from Vercel, and Vercel would hand back the same stale page and
+ * have it cached for another window. Purging looked broken because the layer
+ * being purged was never the one holding the old page.
+ *
+ * Vercel-CDN-Cache-Control outranks CDN-Cache-Control at Vercel and is stripped
+ * before the response leaves it, so the copy moves one hop down the chain to the
+ * cache that can actually be emptied: Cloudflare still sees `s-maxage=<ttl>` and
+ * still answers nearly every request, and the purge on publish now lands on the
+ * only copy there is.
+ *
+ * Only worth doing when there IS something downstream to purge - see the caller.
+ * With no purge token configured nothing in the chain can be emptied anyway, the
+ * owner has already accepted "changes appear within the window", and Vercel
+ * holding the copy is the whole benefit of the switch rather than a bug.
+ */
+export function vercelCdnCacheControl(): string {
+  return 'public, s-maxage=0, must-revalidate'
+}

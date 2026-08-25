@@ -6,6 +6,7 @@ vi.mock('@/lib/modules/cache-cookies', () => ({
 
 import {
   cdnCacheControl,
+  vercelCdnCacheControl,
   pageCacheControl,
   normalisePageCacheTtl,
   cacheBypassCookieNames,
@@ -81,6 +82,32 @@ describe('cdnCacheControl', () => {
   it('carries no directive beyond public and s-maxage', () => {
     const directives = cdnCacheControl(300).split(',').map((d) => d.trim().split('=')[0])
     expect(directives.sort()).toEqual(['public', 's-maxage'])
+  })
+})
+
+// Vercel's edge reads CDN-Cache-Control too, and holds a copy nothing can purge.
+// A publish would drop Cloudflare's copy and Cloudflare would refill it from
+// Vercel's stale one, so the page carried on looking unchanged for the whole
+// window with both the automatic purge and the manual button working perfectly.
+describe('vercelCdnCacheControl', () => {
+  it('leaves Vercel holding nothing', () => {
+    expect(vercelCdnCacheControl()).toBe('public, s-maxage=0, must-revalidate')
+  })
+
+  // The point is to move the copy one hop down, not to switch shared caching off:
+  // whatever this says, Cloudflare must still be told the owner's window.
+  it('carries no window of its own, whatever the site chose', () => {
+    for (const ttl of PAGE_CACHE_TTL_OPTIONS) {
+      expect(vercelCdnCacheControl()).not.toContain(`s-maxage=${ttl}`)
+      expect(cdnCacheControl(ttl)).toBe(`public, s-maxage=${ttl}`)
+    }
+  })
+
+  // Vercel strips this header on the way out, but a self-hosted install emits it
+  // to whatever sits in front. It has to be inert there rather than a second
+  // opinion a generic CDN might act on.
+  it('names Vercel nowhere a generic cache would read it', () => {
+    expect(vercelCdnCacheControl()).not.toMatch(/no-store|private/)
   })
 })
 

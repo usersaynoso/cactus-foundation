@@ -24,7 +24,8 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
-import { cdnCacheControl, pageCacheControl } from '@/lib/cache/page-cache'
+import { cdnCacheControl, pageCacheControl, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
@@ -240,6 +241,15 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // switch sat there saying it was on. CDN-Cache-Control is not a header
     // Next.js touches. See lib/cache/page-cache.ts for the full note.
     res.headers.set('CDN-Cache-Control', cdnCacheControl(ttl))
+    // Vercel's edge reads that same header and keeps its own copy for the same
+    // window - one nothing can purge. On a site that CAN purge downstream, the
+    // copy has to sit downstream instead, or a publish drops Cloudflare's copy
+    // only for Cloudflare to refill it from Vercel's stale one. See
+    // vercelCdnCacheControl in lib/cache/page-cache.ts. Harmless off Vercel:
+    // no other cache reads a header with a vendor's name on it.
+    if (isCdnPurgeConfigured()) {
+      res.headers.set('Vercel-CDN-Cache-Control', vercelCdnCacheControl())
+    }
   }
   return res
 }
