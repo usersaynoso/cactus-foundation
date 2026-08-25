@@ -714,11 +714,16 @@ A grid you have already built keeps whatever it is set to - these are starting p
 a new one, not a change that sweeps through your pages. Same goes for **Products per
 page**, which now starts at twelve on a new grid rather than twenty-four.
 
-The trade with fetching as needed is that a search engine reads the page as it arrives,
-so only the first page of products is linked from it. Your sitemap still carries every
-product, so nothing is hidden from search - but on a shelf you rely on for internal links,
-weigh that up. And if a page fails to arrive, the grid says so and offers a **Try again**
-rather than quietly stopping.
+**Search engines still see every product.** Fetching as needed used to cost you internal
+links, because a search engine reads a page exactly as a shopper does the moment it
+arrives. So **Show more** is now a real link to the next page. Your shoppers never notice -
+their click is caught and the next products slide in where they always did - but a search
+engine simply follows it, and the one after that, until the shelf runs out. A **Previous**
+link appears past the first page, a shared link to page three lands on page three, and each
+page carries its own name rather than being another copy of page one. Nothing to switch on.
+
+And if a page fails to arrive, the grid says so and offers a **Try again** rather than
+quietly stopping.
 
 The same pair of settings appear on the **Filters & Product Grid** block, where filtering
 and sorting carry on working instantly either way - see [Shop filters](Shop-filters).

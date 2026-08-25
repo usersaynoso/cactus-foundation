@@ -271,6 +271,27 @@ Two things are worth knowing before you switch it on:
 If something goes wrong fetching a page - a wobbly connection, usually - the grid says
 so and offers a **Try again** rather than quietly stopping.
 
+### Search engines still see every product
+
+Fetching products as the shopper scrolls used to cost you internal links: a search engine
+reads a page exactly as a shopper does the moment it arrives, so it saw the first dozen
+products and nothing else. That is fixed, and it is worth knowing how, because the trick
+is invisible.
+
+**Show more** is a real link to the next page. Your shoppers never see it behave like one -
+their click is caught and the next products slide in where they always did. A search
+engine has no such trickery available to it, so it follows the link to page two, then page
+three, until the collection runs out. One control, one set of markup, two entirely
+different journeys through it.
+
+Alongside that: a **Previous** link appears past the first page so nobody can walk forward
+and find no way back; a shared link to page three lands on page three rather than starting
+again at the top; and each page carries its own name in the tab and tells search engines it
+is a page in its own right rather than a copy of the first. Right-click, middle-click and
+"open in new tab" all work properly on **Show more**, because it genuinely is an address.
+
+You do not have to do anything to switch this on.
+
 ## Practical notes
 
 - Sent with the page, the block renders every product it lists (capped at 100 unpaged,
