@@ -1622,6 +1622,18 @@ a:hover {
   visibility: hidden;
   z-index: 10;
 }
+/* The cycle button is the frontend header's single-icon variant, sitting in the
+   same row as .icon-link-trigger and .member-signin-trigger. The header is at
+   the very top of the page with nothing above it to hang into, so its tooltip
+   drops BELOW the icon like the rest of that family. The segmented control
+   above keeps hanging upwards - it only ever appears in the admin sidebar,
+   which has room. The hover rule's transform below wins on specificity, so
+   both directions still slide the same 2px into place. */
+.theme-toggle-cycle .theme-toggle-tip {
+  bottom: auto;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-2px);
+}
 .theme-toggle-btn:hover .theme-toggle-tip,
 .theme-toggle-btn:focus-visible .theme-toggle-tip,
 .theme-toggle-cycle:hover .theme-toggle-tip,
