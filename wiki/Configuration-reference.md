@@ -43,12 +43,56 @@ The preference is saved immediately and the update check refreshes straight away
 | Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
 | Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
 | Measure how fast pages feel for real visitors | Adds Vercel's Speed Insights to your pages: it times how quickly they load for the people actually using them and reports it to your Vercel dashboard. No cookies, nobody identified. Untick it and the script is never sent at all, rather than sent and told to keep quiet - useful if your Vercel plan charges for the measurements. | On |
+| Keep ready-made copies of your pages | Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the same one a minute earlier. Turn this on and a copy is kept for a short while and handed straight out instead - quicker for them, cheaper for you. Anyone signed in always gets a freshly built page. See **Speeding up your site** below. | Off |
+| How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes or 1 hour. | `5 minutes` |
+| My site's traffic goes through Cloudflare | Tick only if visitors genuinely reach your site through Cloudflare - in Cloudflare's DNS settings your site's record shows an **orange** cloud, not a grey one. It tells Cactus where to find a visitor's real location, which is what stops one person getting their password wrong from locking out everyone else nearby. Ticking it when it isn't true is worse than leaving it alone. | Off |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 
 ### Danger zone - Reset Everything
 
 At the bottom of the General tab is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.
+
+---
+
+## Speeding up your site
+
+### What is already fast
+
+Two things people usually ask for are already on, and there is no switch for either because neither needs one.
+
+**Compression.** Every page, stylesheet and script your site sends is already compressed before it leaves - with Brotli, which is a little better than gzip. Your host does it automatically. There is nothing to turn on and nothing to configure.
+
+**Long-lived files.** Stylesheets, scripts and fonts are already marked so a browser keeps them for a year and never asks for them twice.
+
+### What was slow, and the switch that fixes it
+
+Out of the box, every visit builds its page from scratch. A hundred people asking for the same page in the same minute means a hundred rebuilds and a hundred trips to the database, and each of those visitors waits for their own.
+
+**Settings → General → Keep ready-made copies of your pages** changes that. A finished page is kept for a short while and handed straight out to whoever asks next. It is usually the single biggest difference you can make to how quickly your site feels, and because a stored copy costs no work, it generally lowers your hosting bill rather than raising it.
+
+**Who never gets a stored copy:**
+
+- You, or anyone else signed in to the admin.
+- Any signed-in member.
+- Anything that isn't a straightforward page view - forms, checkouts, sign-ins.
+
+So nobody is ever handed a page meant for somebody else.
+
+**How long?** Editing a page clears its copy right away. The window you choose only governs how long something you changed *elsewhere* - a price, a menu, a product - might take to appear. Five minutes suits most sites. Pick an hour if your pages barely change and you want every last scrap of speed.
+
+**Turning it off** clears every stored copy immediately, so the site goes back to how it was straight away.
+
+### Getting it for free with Cloudflare
+
+The switch works with whatever sits in front of your site. If you would rather not pay your host for the traffic, Cloudflare will do the same job on its free plan, and if you already use Cloudflare for your domain's DNS you are most of the way there.
+
+1. In the Cloudflare dashboard, open your domain's **DNS** settings. Your site's main record probably shows a **grey** cloud, which means Cloudflare is only answering DNS questions and traffic goes straight past it. Click it so it turns **orange**.
+2. Under **SSL/TLS**, set the encryption mode to **Full (strict)**. Anything else and visitors get an endless redirect loop.
+3. Under **Caching → Cache Rules**, add a rule that applies to your whole site and sets it as **eligible for cache**. Cloudflare's free plan does not store pages by default, only images and scripts, so without this rule nothing changes.
+4. Back in Cactus, tick **My site's traffic goes through Cloudflare** in Settings → General. This one matters for safety rather than speed: without it, everyone arriving through the same Cloudflare location looks like a single visitor, and one person mistyping their password could lock the rest of them out of signing in.
+
+**Optional, but worth it.** Set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` (see the environment variables table) and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Everything works without them; you just wait a bit longer to see your own changes.
 
 ---
 
@@ -220,6 +264,8 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |
 | `CLOUDFLARE_WORKER_URL` | No | Your Cloudflare Worker's URL - the base every proxied media provider (B2, R2, S3, Spaces, Wasabi, MinIO, Vercel Blob, Supabase) serves images from. Set automatically by the admin **Deploy media Worker** flow: a `https://media.<your-domain>` Custom Domain when Cactus could attach one, otherwise the `https://<name>.<subdomain>.workers.dev` URL. |
 | `CLOUDFLARE_WORKER_HOSTNAME` | No | The Worker's bare hostname, used in the image security policy (CSP) and image host allowlist. Optional: when unset it is derived automatically from `CLOUDFLARE_WORKER_URL`, so you normally never set this by hand. |
+| `CLOUDFLARE_ZONE_ID` | No | Your domain's zone id in Cloudflare. Only used with **Keep ready-made copies of your pages**: with it, editing a page clears its stored copy immediately. Without it, everything still works - an edited page just waits out its window. Find it on your domain's overview page in the Cloudflare dashboard. |
+| `CLOUDFLARE_PURGE_API_TOKEN` | No | A Cloudflare API token with the **Zone → Cache Purge** permission, used with the above. If it's missing, Cactus falls back to `CLOUDFLARE_API_TOKEN`, which only works if that token happens to carry the purge permission as well - the one created for the media Worker does not. |
 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_ENDPOINT` | No | Backblaze B2 credentials. |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | No | Cloudflare R2 credentials. |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION` | No | AWS S3 credentials. |

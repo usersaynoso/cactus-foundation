@@ -66,7 +66,9 @@ note, and hover an aspect for its age.
 Same privacy as the product-page strip: it renders empty for everyone and only
 fills itself in once the site has confirmed who is looking, so a cached
 category page can never leak it to a shopper. A whole grid's worth of tiles is
-looked up in one go rather than one request per tile.
+looked up in one go rather than one request per tile, and a very large category
+- a few hundred listings on one page - is looked up in a couple of goes rather
+than one. Grids that size used to come back with no ticks at all.
 
 **Placing it:** in **Admin → Layouts → Shop → Product Card**, drag **Card:
 Product checks** to where you want it - under the price is the natural home.

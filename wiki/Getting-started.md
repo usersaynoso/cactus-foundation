@@ -64,6 +64,7 @@ cp .env.example .env.local
 | `EDGE_CONFIG`, `VERCEL_EDGE_CONFIG_ID` | Fast Edge Config reads |
 | `VERCEL_WEBHOOK_SECRET` | Automatic deploy status (Pro/Enterprise only) |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile bot protection |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_API_TOKEN` | Clearing cached pages the instant they are edited, when **Settings → General → Keep ready-made copies of your pages** is on. The page cache works fine without them - an edited page simply waits out its window. The token needs the **Zone → Cache Purge** permission. |
 | `SENTRY_DSN` | Error reporting |
 | `MEMBER_AREA_PATH` | Web address prefix for the member account area (see [Members](Members)). Defaults to `account`. Deploy-time only - changing it needs a redeploy. |
 | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Shop module - card payments via Stripe (see [Shop](Shop)). All three must be set before Stripe appears as a payment option at checkout. |
