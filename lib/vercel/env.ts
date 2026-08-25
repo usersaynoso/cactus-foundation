@@ -35,6 +35,10 @@ const SENSITIVE_KEYS = new Set([
   'TURNSTILE_SECRET_KEY',
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_GLOBAL_API_KEY',
+  // Same kind of secret as CLOUDFLARE_API_TOKEN above, just scoped to cache
+  // purging. Left plain it would be readable in the Vercel dashboard while its
+  // sibling was not, which is the sort of inconsistency nobody notices.
+  'CLOUDFLARE_PURGE_API_TOKEN',
 ])
 
 function envType(key: string): VercelEnvType {

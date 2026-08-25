@@ -124,7 +124,7 @@ export function getEnvStatus(): {
       set: !!process.env.CLOUDFLARE_WORKER_URL,
       gates: 'Media serving via Cloudflare Worker (proxied providers)',
     },
-    // Page cache (Settings → General → Speed). Both optional and both only used
+    // Page cache (Settings → Speed). Both optional and both only used
     // when the site sits behind Cloudflare: without them the cache still works,
     // an edited page just waits out its window instead of being cleared at once.
     {

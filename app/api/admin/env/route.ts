@@ -28,6 +28,9 @@ const ALLOWED_KEYS = new Set([
   ...ALL_PROVIDERS.flatMap(envKeysForProvider),
   // Media — Cloudflare credentials for auto-deploying the media Worker
   ...ALL_CLOUDFLARE_CREDENTIAL_KEYS,
+  // Speed - clearing stored page copies the instant a page is edited
+  'CLOUDFLARE_ZONE_ID',
+  'CLOUDFLARE_PURGE_API_TOKEN',
   // Integrations
   'GITHUB_API_TOKEN',
   'ENCRYPTION_KEY',

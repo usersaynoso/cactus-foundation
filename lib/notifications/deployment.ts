@@ -57,6 +57,12 @@ const INTEGRATION_KEYS = new Set([
   'NEXT_PUBLIC_SITE_URL',
 ])
 
+// Settings → Speed. Not folded into MEDIA_KEYS despite the shared CLOUDFLARE_
+// prefix: these two clear stored page copies and have nothing to do with where
+// images live, and the label is what recordDeploymentNeeded dedupes on - share
+// one and saving a purge token would quietly replace a pending media notice.
+const SPEED_KEYS = new Set(['CLOUDFLARE_ZONE_ID', 'CLOUDFLARE_PURGE_API_TOKEN'])
+
 // Spelled out rather than left to the fallback, which is what it used to be.
 // See labelForEnvKeys.
 const MEDIA_KEYS = new Set<string>([
@@ -106,6 +112,7 @@ export async function labelForEnvKeys(keys: string[]): Promise<string> {
   if (keys.some((k) => EMAIL_KEYS.has(k))) return 'Email settings updated'
   if (keys.some((k) => PAYMENT_KEYS.has(k))) return 'Payment provider keys updated'
   if (keys.some((k) => INTEGRATION_KEYS.has(k))) return 'Integration keys updated'
+  if (keys.some((k) => SPEED_KEYS.has(k))) return 'Page speed settings updated'
   if (keys.some((k) => MEDIA_KEYS.has(k))) return 'Media storage settings updated'
   const moduleName = await moduleClaimingEnvKeys(keys)
   return moduleName ? `${moduleName} settings updated` : 'Site settings updated'

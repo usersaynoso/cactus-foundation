@@ -57,7 +57,7 @@ type SiteConfig = {
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
 
-const TABS = ['general', 'email', 'media', 'gdpr', 'integrations'] as const
+const TABS = ['general', 'speed', 'email', 'media', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
 
 // Cookie category keys are machine-readable: lowercase, starting with a letter,
@@ -155,6 +155,20 @@ type MigrationJob = {
   migratedItems: number
   failedItemIds: Array<{ id: string; error: string }>
   cursor: string | null
+}
+
+// Settings → Speed. Both optional: without them the page cache still works, an
+// edited page simply waits out its window instead of being cleared at once. Lives
+// here rather than on Integrations because it is meaningless away from the cache
+// switch it serves.
+const PAGE_CACHE_PURGE_SECTION: EnvSection = {
+  id: 'page-cache-purge',
+  label: 'Clearing copies the moment you edit',
+  description: 'Optional. With these, editing a page clears the stored copy straight away instead of waiting out the window above.',
+  keys: [
+    { key: 'CLOUDFLARE_ZONE_ID', label: 'CLOUDFLARE_ZONE_ID', placeholder: 'On your domain\u2019s overview page in the Cloudflare dashboard' },
+    { key: 'CLOUDFLARE_PURGE_API_TOKEN', label: 'CLOUDFLARE_PURGE_API_TOKEN', type: 'password', placeholder: 'API token with Zone \u2192 Cache Purge', hint: 'Needs the Zone \u2192 Cache Purge permission. The token made for your media files does not have it.' },
+  ],
 }
 
 const INTEGRATION_SECTIONS: EnvSection[] = [
@@ -1318,6 +1332,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   const tabLabels: Record<Tab, string> = {
     general: 'General',
+    speed: 'Speed',
     email: 'Email', media: 'Media', gdpr: 'GDPR & Legal', integrations: 'Integrations',
   }
 
@@ -1683,115 +1698,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
             </span>
           </div>
-          <div id="general-page-cache" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.pageCacheEnabled ?? false}
-                onChange={(e) => set('pageCacheEnabled', e.target.checked)}
-              />
-              Keep ready-made copies of your pages
-            </label>
-            <span className="field-hint">
-              Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the
-              same page a minute earlier. Turn this on and a copy is kept for a short while and handed straight out
-              instead, which is a good deal quicker for them and a good deal cheaper for you.
-              {' '}Anyone signed in - you, your staff, your members - always gets a freshly built page, so nobody is ever
-              handed somebody else&apos;s.
-            </span>
-          </div>
-          {(config.pageCacheEnabled ?? false) && (
-            <div id="general-page-cache-window" className="field admin-anchor">
-              <label>How long to keep a copy</label>
-              {/* Mirrors PAGE_CACHE_TTL_OPTIONS in lib/cache/page-cache.ts, which is
-                  also what the save endpoint validates against. Listed here rather
-                  than imported so this client component doesn't pull a server-side
-                  module into the browser bundle. */}
-              <select
-                value={String(config.pageCacheTtl ?? 300)}
-                onChange={(e) => set('pageCacheTtl', Number(e.target.value))}
-              >
-                <option value="60">1 minute</option>
-                <option value="300">5 minutes (recommended)</option>
-                <option value="900">15 minutes</option>
-                <option value="3600">1 hour</option>
-              </select>
-              <span className="field-hint">
-                How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
-                straight away, so this is really about how long anything you change somewhere else - a price, a menu, a
-                product - might take to show up. Five minutes suits most sites. Pick a longer window if your pages
-                rarely change and you want every last scrap of speed.
-              </span>
-            </div>
-          )}
-          <div id="general-cloudflare" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.behindCloudflare ?? false}
-                onChange={(e) => set('behindCloudflare', e.target.checked)}
-              />
-              My site&apos;s traffic goes through Cloudflare
-            </label>
-            <span className="field-hint">
-              Only tick this if visitors genuinely reach your site through Cloudflare - in Cloudflare&apos;s own DNS
-              settings, your site&apos;s record shows an orange cloud rather than a grey one. It tells us where to look
-              for a visitor&apos;s real location, which is what stops one person getting their password wrong from
-              accidentally locking out everyone else in the same part of the country. Ticking it when it is not true is
-              worse than leaving it alone, so if you are not sure, leave it alone.
-            </span>
-          </div>
-          {(config.pageCacheEnabled ?? false) && (
-            <div
-              id="general-cloudflare-setup"
-              className="admin-anchor"
-              style={{
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius)',
-                background: 'var(--color-bg-subtle)',
-                padding: '1rem 1.25rem',
-                marginBottom: 'var(--form-gap)',
-              }}
-            >
-              <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Setting Cloudflare up to do the storing</strong>
-              <p style={{ margin: '0 0 0.75rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Ready-made copies work with whatever sits in front of your site, including your host&apos;s own setup, so
-                you can ignore all of this if you are happy as you are. Cloudflare will do the same job on its free plan,
-                which is worth knowing if you would rather not pay for the traffic. Four steps, all in the Cloudflare
-                dashboard bar the last.
-              </p>
-              <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>DNS</strong> - find your site&apos;s record. It probably shows a <em>grey</em> cloud, which
-                  means Cloudflare answers questions about your address but your visitors never actually go through it.
-                  Click the cloud so it turns <em>orange</em>.
-                </li>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>SSL/TLS</strong> - set the encryption mode to{' '}
-                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Full (strict)</code>.
-                  Miss this one and visitors get bounced back and forth until their browser gives up, so do it before
-                  step 1 if you would rather not have a wobbly minute.
-                </li>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>Caching → Cache Rules</strong> - add a rule covering your whole site and set it to{' '}
-                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Eligible for cache</code>.
-                  Left alone, the free plan stores pictures and scripts but never pages, so without this rule nothing
-                  above actually happens.
-                </li>
-                <li>
-                  <strong>Back here</strong> - tick the Cloudflare box above. That one is about safety rather than
-                  speed: without it everyone arriving through the same Cloudflare location looks like a single visitor.
-                </li>
-              </ol>
-              <p style={{ margin: '0.75rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Optional afterwards: set <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>CLOUDFLARE_ZONE_ID</code> and{' '}
-                <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>CLOUDFLARE_PURGE_API_TOKEN</code>{' '}
-                (Settings → Integrations) and editing a page clears Cloudflare&apos;s copy the moment you save, instead
-                of waiting out the window you chose above. The token needs the <em>Zone → Cache Purge</em> permission -
-                the one made for your media files does not have it.
-              </p>
-            </div>
-          )}
           <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>
@@ -2060,6 +1966,124 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         </div>
       )}
 
+      {tab === 'speed' && (
+        <div>
+          <div id="speed-page-cache" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.pageCacheEnabled ?? false}
+                onChange={(e) => set('pageCacheEnabled', e.target.checked)}
+              />
+              Keep ready-made copies of your pages
+            </label>
+            <span className="field-hint">
+              Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the
+              same page a minute earlier. Turn this on and a copy is kept for a short while and handed straight out
+              instead, which is a good deal quicker for them and a good deal cheaper for you.
+              {' '}Anyone signed in - you, your staff, your members - always gets a freshly built page, so nobody is ever
+              handed somebody else&apos;s.
+            </span>
+          </div>
+          {(config.pageCacheEnabled ?? false) && (
+            <div id="speed-page-cache-window" className="field admin-anchor">
+              <label>How long to keep a copy</label>
+              {/* Mirrors PAGE_CACHE_TTL_OPTIONS in lib/cache/page-cache.ts, which is
+                  also what the save endpoint validates against. Listed here rather
+                  than imported so this client component doesn't pull a server-side
+                  module into the browser bundle. */}
+              <select
+                value={String(config.pageCacheTtl ?? 300)}
+                onChange={(e) => set('pageCacheTtl', Number(e.target.value))}
+              >
+                <option value="60">1 minute</option>
+                <option value="300">5 minutes (recommended)</option>
+                <option value="900">15 minutes</option>
+                <option value="3600">1 hour</option>
+              </select>
+              <span className="field-hint">
+                How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
+                straight away, so this is really about how long anything you change somewhere else - a price, a menu, a
+                product - might take to show up. Five minutes suits most sites. Pick a longer window if your pages
+                rarely change and you want every last scrap of speed.
+              </span>
+            </div>
+          )}
+          <div id="speed-cloudflare" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.behindCloudflare ?? false}
+                onChange={(e) => set('behindCloudflare', e.target.checked)}
+              />
+              My site&apos;s traffic goes through Cloudflare
+            </label>
+            <span className="field-hint">
+              Only tick this if visitors genuinely reach your site through Cloudflare - in Cloudflare&apos;s own DNS
+              settings, your site&apos;s record shows an orange cloud rather than a grey one. It tells us where to look
+              for a visitor&apos;s real location, which is what stops one person getting their password wrong from
+              accidentally locking out everyone else in the same part of the country. Ticking it when it is not true is
+              worse than leaving it alone, so if you are not sure, leave it alone.
+            </span>
+          </div>
+          {(config.pageCacheEnabled ?? false) && (
+            <div
+              id="speed-cloudflare-setup"
+              className="admin-anchor"
+              style={{
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius)',
+                background: 'var(--color-bg-subtle)',
+                padding: '1rem 1.25rem',
+                marginBottom: 'var(--form-gap)',
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Setting Cloudflare up to do the storing</strong>
+              <p style={{ margin: '0 0 0.75rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                Ready-made copies work with whatever sits in front of your site, including your host&apos;s own setup, so
+                you can ignore all of this if you are happy as you are. Cloudflare will do the same job on its free plan,
+                which is worth knowing if you would rather not pay for the traffic. Four steps, all in the Cloudflare
+                dashboard bar the last.
+              </p>
+              <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <strong>DNS</strong> - find your site&apos;s record. It probably shows a <em>grey</em> cloud, which
+                  means Cloudflare answers questions about your address but your visitors never actually go through it.
+                  Click the cloud so it turns <em>orange</em>.
+                </li>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <strong>SSL/TLS</strong> - set the encryption mode to{' '}
+                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Full (strict)</code>.
+                  Miss this one and visitors get bounced back and forth until their browser gives up, so do it before
+                  step 1 if you would rather not have a wobbly minute.
+                </li>
+                <li style={{ marginBottom: '0.5rem' }}>
+                  <strong>Caching → Cache Rules</strong> - add a rule covering your whole site and set it to{' '}
+                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Eligible for cache</code>.
+                  Left alone, the free plan stores pictures and scripts but never pages, so without this rule nothing
+                  above actually happens.
+                </li>
+                <li>
+                  <strong>Back here</strong> - tick the Cloudflare box above. That one is about safety rather than
+                  speed: without it everyone arriving through the same Cloudflare location looks like a single visitor.
+                </li>
+              </ol>
+              <p style={{ margin: '0.75rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                Optional afterwards: fill in the two boxes below and editing a page clears Cloudflare’s copy the
+                moment you save, instead of waiting out the window you chose above.
+              </p>
+            </div>
+          )}
+          {(config.pageCacheEnabled ?? false) && (
+            <div id="speed-page-cache-purge" className="admin-anchor" style={{ maxWidth: '46rem', marginTop: 'var(--form-gap)' }}>
+              {/* Plain function call (not JSX) for the same reason as the Integrations
+                  grid: the card is defined inline, so rendering it as an element would
+                  remount it - and drop focus out of the inputs - on every keystroke. */}
+              {EnvSectionCard({ section: PAGE_CACHE_PURGE_SECTION })}
+            </div>
+          )}
+        </div>
+      )}
       {tab === 'email' && canManageEmailTemplates && (
         <TabStrip
           items={[

@@ -45,6 +45,7 @@ export type AdminSearchEntry = {
 // requires value, so the table below stays readable.
 const S = {
   general: 'Settings › General',
+  speed: 'Settings › Speed',
   email: 'Settings › Email',
   media: 'Settings › Media & storage',
   gdpr: 'Settings › GDPR & Legal',
@@ -58,6 +59,7 @@ const S = {
 export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   // ── Settings: the tabs themselves ──────────────────────────────────────────
   { id: 'tab-general', label: 'General settings', section: 'Settings', path: '/config?tab=general', requires: '/config', keywords: ['basics', 'site details'] },
+  { id: 'tab-speed', label: 'Speed settings', section: 'Settings', path: '/config?tab=speed', requires: '/config', keywords: ['speed', 'cache', 'caching', 'performance', 'faster', 'cloudflare', 'cdn'] },
   { id: 'tab-email', label: 'Email settings', section: 'Settings', path: '/config?tab=email', requires: '/config', keywords: ['mail', 'smtp', 'brevo', 'sender'] },
   { id: 'tab-media', label: 'Media & storage settings', section: 'Settings', path: '/config?tab=media', requires: '/config', keywords: ['storage', 'uploads', 'provider', 'images', 's3', 'r2', 'bucket'] },
   { id: 'tab-gdpr', label: 'GDPR & Legal', section: 'Settings', path: '/config?tab=gdpr', requires: '/config', keywords: ['consent', 'cookies', 'privacy', 'legal', 'data protection'] },
@@ -71,10 +73,11 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'general-status', label: 'Site status (live / coming soon / maintenance)', section: S.general, path: '/config?tab=general#general-status', requires: '/config', keywords: ['maintenance', 'coming soon', 'offline', 'take down', 'publish'] },
   { id: 'general-seo', label: 'Hide from search engines', section: S.general, path: '/config?tab=general#general-seo', requires: '/config', keywords: ['noindex', 'crawlers', 'robots', 'seo', 'google'] },
   { id: 'general-speed-insights', label: 'Page speed measurement (Speed Insights)', section: S.general, path: '/config?tab=general#general-speed-insights', requires: '/config', keywords: ['speed insights', 'vercel', 'analytics', 'performance', 'web vitals', 'page speed', 'tracking'] },
-  { id: 'general-page-cache', label: 'Keep ready-made copies of pages (page cache)', section: S.general, path: '/config?tab=general#general-page-cache', requires: '/config', keywords: ['cache', 'caching', 'cdn', 'speed', 'faster', 'performance', 'gzip', 'compression', 'page cache', 'cloudflare', 'slow site'] },
-  { id: 'general-page-cache-window', label: 'How long to keep a copy (cache window)', section: S.general, path: '/config?tab=general#general-page-cache-window', requires: '/config', keywords: ['cache', 'ttl', 'window', 'stale', 'expiry', 'how long', 'speed'] },
-  { id: 'general-cloudflare', label: 'Traffic goes through Cloudflare', section: S.general, path: '/config?tab=general#general-cloudflare', requires: '/config', keywords: ['cloudflare', 'proxy', 'orange cloud', 'cdn', 'ip address', 'rate limit', 'lockout'] },
-  { id: 'general-cloudflare-setup', label: 'How to set Cloudflare up to store pages', section: S.general, path: '/config?tab=general#general-cloudflare-setup', requires: '/config', keywords: ['cloudflare', 'cache rule', 'ssl', 'full strict', 'orange cloud', 'dns', 'setup', 'free cdn', 'eligible for cache'] },
+  { id: 'speed-page-cache', label: 'Keep ready-made copies of pages (page cache)', section: S.speed, path: '/config?tab=speed#speed-page-cache', requires: '/config', keywords: ['cache', 'caching', 'cdn', 'speed', 'faster', 'performance', 'gzip', 'compression', 'page cache', 'cloudflare', 'slow site'] },
+  { id: 'speed-page-cache-window', label: 'How long to keep a copy (cache window)', section: S.speed, path: '/config?tab=speed#speed-page-cache-window', requires: '/config', keywords: ['cache', 'ttl', 'window', 'stale', 'expiry', 'how long', 'speed'] },
+  { id: 'speed-cloudflare', label: 'Traffic goes through Cloudflare', section: S.speed, path: '/config?tab=speed#speed-cloudflare', requires: '/config', keywords: ['cloudflare', 'proxy', 'orange cloud', 'cdn', 'ip address', 'rate limit', 'lockout'] },
+  { id: 'speed-cloudflare-setup', label: 'How to set Cloudflare up to store pages', section: S.speed, path: '/config?tab=speed#speed-cloudflare-setup', requires: '/config', keywords: ['cloudflare', 'cache rule', 'ssl', 'full strict', 'orange cloud', 'dns', 'setup', 'free cdn', 'eligible for cache'] },
+  { id: 'speed-page-cache-purge', label: 'Clear stored copies the moment a page is edited', section: S.speed, path: '/config?tab=speed#speed-page-cache-purge', requires: '/config', keywords: ['cloudflare zone id', 'purge', 'api token', 'cache purge', 'clear cache', 'stale page', 'CLOUDFLARE_ZONE_ID', 'CLOUDFLARE_PURGE_API_TOKEN'] },
   { id: 'general-locale', label: 'Timezone, date & time format', section: S.general, path: '/config?tab=general#general-locale', requires: '/config', keywords: ['timezone', 'time zone', 'date format', 'locale', 'clock'] },
   { id: 'general-admin-path', label: 'Admin path & trusted-browser login', section: S.general, path: '/config?tab=general#general-admin-path', requires: '/config', keywords: ['admin url', 'login path', 'slug', 'trust device', 'remember me', 'otp'] },
   { id: 'general-backup', label: 'Download a backup', section: S.general, path: '/config?tab=general#general-backup', requires: '/config', keywords: ['backup', 'export', 'download', 'save database', 'sql'] },
