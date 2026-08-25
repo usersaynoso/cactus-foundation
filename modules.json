@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.324"
+      "version": "v0.1.325"
     },
     {
       "name": "address-lookup-for-shop",
@@ -63,7 +63,7 @@
     {
       "name": "square-payment-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/square-payment-for-shop",
-      "version": "v0.1.22"
+      "version": "v0.1.23"
     },
     {
       "name": "advanced-shipping-for-shop",

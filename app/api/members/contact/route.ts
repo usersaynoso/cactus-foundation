@@ -16,7 +16,15 @@ import { getMembersConfig } from '@/lib/members/config'
 
 export async function GET() {
   const member = await getMemberFromCookie()
-  if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Nothing to say, said quietly. Every shopper's checkout asks this on the way
+  // in - that is how the contact block finds out whether it has a name to fill
+  // itself in with - so a guest is the ordinary answer and not a failure. As a
+  // 401 it put a red line in the console of every checkout a shopper ever
+  // opened. 204 rather than a 200 carrying nulls, so a caller cannot mistake
+  // "nobody is signed in" for "signed in, no name on file" and blank a box the
+  // shopper has typed into. PATCH below keeps its 401: a stranger writing to an
+  // account is a genuine error.
+  if (!member) return new NextResponse(null, { status: 204 })
 
   return NextResponse.json({
     // Sent alongside so a caller filling in a contact form (the shop checkout
