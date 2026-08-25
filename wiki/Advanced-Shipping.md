@@ -93,7 +93,7 @@ It needs the **Shop** and **Product Attributes** modules installed.
   can only honestly promise what all of them share. This needs a shop new enough
   to understand delivery groups; an older one simply lists each item with its own
   delivery line, exactly as before.
-- On the basket's sticky checkout bar: **"everything by Friday"** beside the
+- On the basket's sticky checkout bar: **"Everything gets to you by Friday"** beside the
   item count - the last of the basket's own delivery dates, which is when the
   whole order has actually landed. It follows the shopper down a long basket,
   and it disappears when nothing in the basket has a delivery date to promise.
