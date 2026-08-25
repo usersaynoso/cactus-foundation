@@ -55,6 +55,8 @@ const config: NextConfig = {
         // probes both apple-touch paths at the root when it wants an icon and
         // the document has none, and those must answer with the site's own,
         // not Cactus's.
+        { source: '/favicon-16x16.png', destination: '/api/branding/favicon?icon=icon-16' },
+        { source: '/favicon-32x32.png', destination: '/api/branding/favicon?icon=icon-32' },
         { source: '/apple-touch-icon.png', destination: '/api/branding/favicon?icon=apple-touch' },
         { source: '/apple-touch-icon-precomposed.png', destination: '/api/branding/favicon?icon=apple-touch' },
         { source: '/web-app-manifest-192x192.png', destination: '/api/branding/favicon?icon=icon-192' },

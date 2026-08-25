@@ -19,19 +19,56 @@ export async function generateMetadata(): Promise<Metadata> {
   const icon: IconEntry[] = []
   if (b.faviconUrl) {
     // Addresses on THIS origin, not the media host the icon actually lives on.
-    // /favicon.ico proxies the bytes (see app/api/branding/favicon/route.ts):
-    // browsers fetch a tab icon last and at the lowest priority going, so
-    // pointing them at a third-party host put it behind every product image on
-    // that host, and a single dropped fetch left that page's tab blank until
-    // the browser's favicon cache aged out.
+    // /favicon.ico proxies the bytes (see app/api/branding/favicon/route.ts).
+    //
+    // Labelled with what that address ACTUALLY answers, because an untyped
+    // link was the whole Safari defect: once the 16/32 renditions exist the
+    // route wraps them into a real ICO container (image/x-icon), and until
+    // then it hands back the uploaded media verbatim, so the media row's own
+    // mime is the honest label. No label at all only when the mime is unknown.
+    const composes =
+      !!(b.icon16Url && b.icon32Url) &&
+      (!b.faviconMimeType || b.faviconMimeType.startsWith('image/png'))
+    const icoMeta: Partial<IconEntry> = composes
+      ? { type: 'image/x-icon', sizes: '16x16 32x32' }
+      : b.faviconMimeType
+        ? { type: b.faviconMimeType }
+        : {}
+    const darkMeta: Partial<IconEntry> = b.faviconDarkMimeType ? { type: b.faviconDarkMimeType } : {}
     if (b.faviconDarkUrl) {
       // Both scoped by colour scheme so the favicon follows the browser/OS
       // dark setting (favicons can't read the in-site theme toggle).
-      icon.push({ url: BRANDING_DEFAULTS.favIco, media: '(prefers-color-scheme: light)' })
-      icon.push({ url: BRANDING_DEFAULTS.favIcoDark, media: '(prefers-color-scheme: dark)' })
+      icon.push({ url: BRANDING_DEFAULTS.favIco, media: '(prefers-color-scheme: light)', ...icoMeta })
+      icon.push({ url: BRANDING_DEFAULTS.favIcoDark, media: '(prefers-color-scheme: dark)', ...darkMeta })
     } else {
-      icon.push({ url: BRANDING_DEFAULTS.favIco })
+      icon.push({ url: BRANDING_DEFAULTS.favIco, ...icoMeta })
     }
+
+    // A branded site used to stop there, and that single untyped entry was the
+    // whole defect: /favicon.ico is an address ending .ico that answers with
+    // PNG bytes, because the generated favicon is a PNG. Chrome sniffs its way
+    // through that and WebKit's icon loader does not, so Safari showed a blank
+    // tab on EVERY page of a site whose icon was reachable, decodable and
+    // correct - while an install with no custom favicon, which has always
+    // emitted a typed svg + png pair below, was fine. Anything typed and sized
+    // here is something WebKit cannot argue with.
+    //
+    // Scoped to light when a dark favicon exists, so the .ico pair above still
+    // owns the dark case rather than being silently outranked; there is no
+    // dark 16/32 to offer.
+    const media = b.faviconDarkUrl ? '(prefers-color-scheme: light)' : undefined
+    const png = (url: string, sizes: string): IconEntry =>
+      media ? { url, sizes, type: 'image/png', media } : { url, sizes, type: 'image/png' }
+
+    // Only when the admin has actually generated them. Falling back to the
+    // bundled Cactus 16/32 here would advertise somebody else's logo on a
+    // branded site, which is the leak /favicon.ico itself was fixed for.
+    if (b.icon16Url) icon.push(png(BRANDING_DEFAULTS.favicon16, '16x16'))
+    if (b.icon32Url) icon.push(png(BRANDING_DEFAULTS.favicon32, '32x32'))
+    // The 192 has existed on every branded install since icons were generated
+    // at all, so this gives a site that has not re-generated yet a typed PNG
+    // candidate today rather than after the owner remembers to press a button.
+    if (b.icon192Url) icon.push(png(BRANDING_DEFAULTS.icon192, '192x192'))
   } else {
     icon.push({ url: BRANDING_DEFAULTS.faviconSvg, type: 'image/svg+xml' })
     icon.push({ url: BRANDING_DEFAULTS.faviconPng, sizes: '96x96', type: 'image/png' })

@@ -172,7 +172,7 @@ Module layout types come with their own starting points, same as headers and foo
 
 ### App icon and favicons
 
-Rather than making you prepare a pile of differently-sized image files, you upload **one square app icon** (at least 512×512) and Cactus generates the whole set for you: the browser favicon, the Apple touch icon (for "add to home screen" on iPhone and iPad), and the installable-app icons (192 and 512).
+Rather than making you prepare a pile of differently-sized image files, you upload **one square app icon** (at least 512×512) and Cactus generates the whole set for you: the browser favicon at three sizes (16, 32 and 96), the Apple touch icon (for "add to home screen" on iPhone and iPad), and the installable-app icons (192 and 512).
 
 Every generated icon is then shown in its own box, so if you'd rather hand-pick a particular one - say a simpler design for the tiny favicon - just upload a replacement into that box. Your override sticks; re-uploading the source app icon regenerates the others but leaves the ones you set by hand.
 
@@ -202,6 +202,10 @@ Your favicon is used for everything the site serves, not only its pages. Ask a b
 Your icon is also handed out from your own web address rather than from wherever the picture is stored. That sounds like an implementation detail and is not: a browser fetches the tab icon dead last, after everything else on the page, and if that one request gets lost in the crowd it remembers the blank tab for that page and does not try again for a good while. On a busy shop page - hundreds of products, hundreds of pictures, all from the same picture store - the icon was regularly the request that lost. Serving it from your own address puts it on a road that is already open. If you ever saw a favicon on most pages but not all of them, that was this.
 
 **That now covers the whole icon set, not only the tab icon.** The Apple touch icon and the two installable-app icons were still being handed out from the picture store, so on Apple devices - where that icon is the one used for tabs, bookmarks, the start page and the home screen - the busiest pages of a shop could still come up blank while the quiet ones were fine. All four now come from your own address. Ask the site for `/apple-touch-icon.png` directly and you get yours as well, which matters because iPhones and iPads go looking for it there of their own accord.
+
+**If Safari has been showing you a blank tab, this is why.** Until now a site with its own favicon offered browsers exactly one tab icon, at an address ending `.ico`, with nothing said about what sort of picture it actually was. Chrome takes that on trust and works it out. Safari does not, and quietly showed nothing at all - on every page, however small, even while the icon itself was perfectly reachable and correct. Oddly, a site using the plain Cactus icon was never affected, because that one always came properly labelled. Turning on your own branding made it worse, which is rather the opposite of the intention.
+
+Your site now hands browsers properly labelled icons at 16 and 32 as well, which is what a tab is actually drawn from. **You will want to re-generate your icons for this to take effect**: go to Appearance → Styles → Branding, upload your app icon again, and press Save. Sites that have not done so yet fall back to the 192 icon, which is properly labelled too, so nobody is left with a blank tab in the meantime.
 
 Changing the favicon takes up to an hour to show everywhere, since browsers hold on to tab icons rather firmly. A hard refresh hurries it along.
 

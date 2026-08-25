@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
       logoDarkMediaId: null,
       faviconMediaId: null,
       faviconDarkMediaId: null,
+      favicon16MediaId: null,
+      favicon32MediaId: null,
       appIconMediaId: null,
       appleTouchIconMediaId: null,
       webManifest192MediaId: null,

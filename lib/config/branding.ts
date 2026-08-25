@@ -20,6 +20,13 @@ export const BRANDING_DEFAULTS = {
   // the media host queues behind every product image on it. The bundled Cactus
   // files sit at cactus- prefixed names so the route can redirect to them
   // without meeting the rewrite coming back the other way.
+  // The typed, sized PNG candidates. A .ico address answering with PNG bytes is
+  // what WebKit's icon loader refuses, so these give it something it cannot
+  // argue with. Null until the admin re-generates their icon set.
+  favicon16: '/favicon-16x16.png',
+  favicon16Fallback: '/cactus-favicon-16x16.png',
+  favicon32: '/favicon-32x32.png',
+  favicon32Fallback: '/cactus-favicon-32x32.png',
   appleTouch: '/apple-touch-icon.png',
   appleTouchFallback: '/cactus-apple-touch-icon.png',
   icon192: '/web-app-manifest-192x192.png',
@@ -36,6 +43,14 @@ export type ResolvedBranding = {
   // Custom icon URLs (null => fall back to the Cactus defaults above).
   faviconUrl: string | null
   faviconDarkUrl: string | null
+  // Mime types of the two favicon media rows, so the root layout can label the
+  // .ico links truthfully (the bytes behind /favicon.ico are whatever the admin
+  // uploaded - usually PNG) and the icon route can tell a real hand-uploaded
+  // .ico from a PNG it should wrap into one.
+  faviconMimeType: string | null
+  faviconDarkMimeType: string | null
+  icon16Url: string | null
+  icon32Url: string | null
   appleTouchUrl: string | null
   icon192Url: string | null
   icon512Url: string | null
@@ -49,6 +64,10 @@ export type ResolvedBranding = {
 const FALLBACK: ResolvedBranding = {
   faviconUrl: null,
   faviconDarkUrl: null,
+  faviconMimeType: null,
+  faviconDarkMimeType: null,
+  icon16Url: null,
+  icon32Url: null,
   appleTouchUrl: null,
   icon192Url: null,
   icon512Url: null,
@@ -81,26 +100,33 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
   const ids = [
     config.faviconMediaId,
     config.faviconDarkMediaId,
+    config.favicon16MediaId,
+    config.favicon32MediaId,
     config.appleTouchIconMediaId,
     config.webManifest192MediaId,
     config.webManifest512MediaId,
   ].filter((v): v is string => !!v)
 
-  const urlById = new Map<string, string>()
+  const byId = new Map<string, { url: string; mimeType: string }>()
   if (ids.length > 0) {
     const rows = await prisma.media
-      .findMany({ where: { id: { in: ids } }, select: { id: true, url: true } })
+      .findMany({ where: { id: { in: ids } }, select: { id: true, url: true, mimeType: true } })
       .catch(() => [])
-    for (const r of rows) urlById.set(r.id, r.url)
+    for (const r of rows) byId.set(r.id, { url: r.url, mimeType: r.mimeType })
   }
 
-  const urlOf = (id: string | null) => (id ? urlById.get(id) ?? null : null)
+  const urlOf = (id: string | null) => (id ? byId.get(id)?.url ?? null : null)
+  const mimeOf = (id: string | null) => (id ? byId.get(id)?.mimeType ?? null : null)
 
   const siteName = config.siteName?.trim() || null
 
   return {
     faviconUrl: urlOf(config.faviconMediaId),
     faviconDarkUrl: urlOf(config.faviconDarkMediaId),
+    faviconMimeType: mimeOf(config.faviconMediaId),
+    faviconDarkMimeType: mimeOf(config.faviconDarkMediaId),
+    icon16Url: urlOf(config.favicon16MediaId),
+    icon32Url: urlOf(config.favicon32MediaId),
     appleTouchUrl: urlOf(config.appleTouchIconMediaId),
     icon192Url: urlOf(config.webManifest192MediaId),
     icon512Url: urlOf(config.webManifest512MediaId),

@@ -15,6 +15,8 @@ type BrandingConfig = {
   logoDarkMediaId: string | null
   faviconMediaId: string | null
   faviconDarkMediaId: string | null
+  favicon16MediaId: string | null
+  favicon32MediaId: string | null
   appIconMediaId: string | null
   appleTouchIconMediaId: string | null
   webManifest192MediaId: string | null
@@ -28,16 +30,18 @@ type BrandingConfig = {
 const EMPTY_BRANDING: BrandingConfig = {
   logoMediaId: null, logoDarkMediaId: null,
   faviconMediaId: null, faviconDarkMediaId: null,
+  favicon16MediaId: null, favicon32MediaId: null,
   appIconMediaId: null, appleTouchIconMediaId: null,
   webManifest192MediaId: null, webManifest512MediaId: null,
   appName: null, appShortName: null, themeColor: null, backgroundColor: null,
 }
 
-type MediaField = 'logoMediaId' | 'logoDarkMediaId' | 'faviconMediaId' | 'faviconDarkMediaId' | 'appIconMediaId' | 'appleTouchIconMediaId' | 'webManifest192MediaId' | 'webManifest512MediaId'
-type PreviewKey = 'logo' | 'logoDark' | 'favicon' | 'faviconDark' | 'appIcon' | 'appleTouch' | 'icon192' | 'icon512'
+type MediaField = 'logoMediaId' | 'logoDarkMediaId' | 'faviconMediaId' | 'faviconDarkMediaId' | 'favicon16MediaId' | 'favicon32MediaId' | 'appIconMediaId' | 'appleTouchIconMediaId' | 'webManifest192MediaId' | 'webManifest512MediaId'
+type PreviewKey = 'logo' | 'logoDark' | 'favicon' | 'faviconDark' | 'favicon16' | 'favicon32' | 'appIcon' | 'appleTouch' | 'icon192' | 'icon512'
 
 const EMPTY_PREVIEWS: Record<PreviewKey, string | null> = {
   logo: null, logoDark: null, favicon: null, faviconDark: null,
+  favicon16: null, favicon32: null,
   appIcon: null, appleTouch: null, icon192: null, icon512: null,
 }
 
@@ -94,6 +98,8 @@ export function useBrandingState(): BrandingState {
         logoDarkMediaId: (c.logoDarkMediaId as string | null) ?? null,
         faviconMediaId: (c.faviconMediaId as string | null) ?? null,
         faviconDarkMediaId: (c.faviconDarkMediaId as string | null) ?? null,
+        favicon16MediaId: (c.favicon16MediaId as string | null) ?? null,
+        favicon32MediaId: (c.favicon32MediaId as string | null) ?? null,
         appIconMediaId: (c.appIconMediaId as string | null) ?? null,
         appleTouchIconMediaId: (c.appleTouchIconMediaId as string | null) ?? null,
         webManifest192MediaId: (c.webManifest192MediaId as string | null) ?? null,
@@ -112,6 +118,8 @@ export function useBrandingState(): BrandingState {
         logoDark: (c.logoDarkUrl as string | null) ?? null,
         favicon: (c.faviconUrl as string | null) ?? null,
         faviconDark: (c.faviconDarkUrl as string | null) ?? null,
+        favicon16: (c.icon16Url as string | null) ?? null,
+        favicon32: (c.icon32Url as string | null) ?? null,
         appIcon: (c.appIconUrl as string | null) ?? null,
         appleTouch: (c.appleTouchUrl as string | null) ?? null,
         icon192: (c.icon192Url as string | null) ?? null,
@@ -165,6 +173,8 @@ export function useBrandingState(): BrandingState {
       setConfig((p) => ({
         ...p,
         faviconMediaId: d.favicon.id,
+        favicon16MediaId: d.favicon16.id,
+        favicon32MediaId: d.favicon32.id,
         appleTouchIconMediaId: d.appleTouch.id,
         webManifest192MediaId: d.icon192.id,
         webManifest512MediaId: d.icon512.id,
@@ -172,11 +182,13 @@ export function useBrandingState(): BrandingState {
       setPreviews((p) => ({
         ...p,
         favicon: d.favicon.url,
+        favicon16: d.favicon16.url,
+        favicon32: d.favicon32.url,
         appleTouch: d.appleTouch.url,
         icon192: d.icon192.url,
         icon512: d.icon512.url,
       }))
-      setIconGenNote('Generated the favicon, Apple touch icon and app icons from your image. Press Save branding to apply, or replace any individual one below.')
+      setIconGenNote('Generated the favicons (16, 32 and 96), Apple touch icon and app icons from your image. Press Save branding to apply, or replace any individual one below.')
     } catch (err: unknown) {
       setIconGenError(err instanceof Error ? err.message : 'Icon generation failed')
     } finally {
@@ -391,7 +403,9 @@ function PreviewFrame({ title, children }: { title: string; children: ReactNode 
 // icon" or "web manifest 192" mean something to a non-technical site owner.
 // Purely illustrative - not pixel-accurate to any real OS chrome.
 function IconPreviewGallery({ previews, config, siteName }: { previews: Record<PreviewKey, string | null>; config: BrandingConfig; siteName: string }) {
-  const favicon = previews.favicon ?? previews.appIcon
+  // The 32 first: it is the one a browser actually draws in a tab, so the
+  // mock-up should show what the tab really gets rather than the 96.
+  const favicon = previews.favicon32 ?? previews.favicon ?? previews.appIcon
   const appleIcon = previews.appleTouch ?? previews.appIcon
   const androidIcon = previews.icon192 ?? previews.icon512 ?? previews.appIcon
   const splashIcon = previews.icon512 ?? previews.appIcon
@@ -526,6 +540,22 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
         square
         onUploaded={(m) => b.applyMedia('faviconDarkMediaId', 'faviconDark', m)}
         onRemove={() => b.clearMedia('faviconDarkMediaId', 'faviconDark')}
+      />
+      <BrandingImageField
+        label="Favicon (16×16)"
+        hint="The tiny tab icon, handed to browsers as a properly labelled PNG. Safari is fussier than Chrome about this and will show a blank tab without it. Auto-filled from your app icon."
+        previewUrl={previews.favicon16}
+        square
+        onUploaded={(m) => b.applyMedia('favicon16MediaId', 'favicon16', m)}
+        onRemove={() => b.clearMedia('favicon16MediaId', 'favicon16')}
+      />
+      <BrandingImageField
+        label="Favicon (32×32)"
+        hint="The same icon at the size most browsers actually draw in a tab. Auto-filled from your app icon."
+        previewUrl={previews.favicon32}
+        square
+        onUploaded={(m) => b.applyMedia('favicon32MediaId', 'favicon32', m)}
+        onRemove={() => b.clearMedia('favicon32MediaId', 'favicon32')}
       />
       <BrandingImageField
         label="Apple touch icon"

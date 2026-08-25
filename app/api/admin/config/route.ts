@@ -25,11 +25,13 @@ export async function GET() {
   const lookup = (id: string | null) =>
     id ? prisma.media.findUnique({ where: { id }, select: { url: true } }).catch(() => null) : Promise.resolve(null)
 
-  const [logo, logoDark, favicon, faviconDark, appIcon, appleTouch, icon192, icon512] = await Promise.all([
+  const [logo, logoDark, favicon, faviconDark, icon16, icon32, appIcon, appleTouch, icon192, icon512] = await Promise.all([
     lookup(config.logoMediaId),
     lookup(config.logoDarkMediaId),
     lookup(config.faviconMediaId),
     lookup(config.faviconDarkMediaId),
+    lookup(config.favicon16MediaId),
+    lookup(config.favicon32MediaId),
     lookup(config.appIconMediaId),
     lookup(config.appleTouchIconMediaId),
     lookup(config.webManifest192MediaId),
@@ -42,6 +44,8 @@ export async function GET() {
     logoDarkUrl: logoDark?.url ?? null,
     faviconUrl: favicon?.url ?? null,
     faviconDarkUrl: faviconDark?.url ?? null,
+    icon16Url: icon16?.url ?? null,
+    icon32Url: icon32?.url ?? null,
     appIconUrl: appIcon?.url ?? null,
     appleTouchUrl: appleTouch?.url ?? null,
     icon192Url: icon192?.url ?? null,
@@ -170,6 +174,8 @@ const Patch = z.object({
   logoDarkMediaId: z.string().optional().nullable(),
   faviconMediaId: z.string().optional().nullable(),
   faviconDarkMediaId: z.string().optional().nullable(),
+  favicon16MediaId: z.string().optional().nullable(),
+  favicon32MediaId: z.string().optional().nullable(),
   appIconMediaId: z.string().optional().nullable(),
   appleTouchIconMediaId: z.string().optional().nullable(),
   webManifest192MediaId: z.string().optional().nullable(),

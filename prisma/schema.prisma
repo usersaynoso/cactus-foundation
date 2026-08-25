@@ -234,6 +234,11 @@ model SiteConfig {
   // Apple touch icon and PWA icons below are auto-generated from it on upload,
   // each still independently replaceable. Kept for reference / re-generation.
   appIconMediaId         String?
+  // 16 and 32 square PNGs. Browsers are handed these as typed, sized
+  // candidates alongside /favicon.ico, because a .ico address answering with
+  // PNG bytes is exactly what WebKit's icon loader will not take.
+  favicon16MediaId       String?
+  favicon32MediaId       String?
   appleTouchIconMediaId  String?
   webManifest192MediaId  String?
   webManifest512MediaId  String?

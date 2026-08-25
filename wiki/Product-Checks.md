@@ -70,6 +70,13 @@ looked up in one go rather than one request per tile, and a very large category
 - a few hundred listings on one page - is looked up in a couple of goes rather
 than one. Grids that size used to come back with no ticks at all.
 
+Asking "who is looking" costs a shopper one quiet question per visit and then
+nothing further, and their browser is no longer told off for asking. It used to
+be answered with a refusal, which browsers treat as an error worth complaining
+about - so every shopper on every category page collected a red line in the
+developer console for something entirely routine. Nothing about what staff see
+has changed.
+
 **Placing it:** in **Admin → Layouts → Shop → Product Card**, drag **Card:
 Product checks** to where you want it - under the price is the natural home.
 

@@ -10,6 +10,12 @@ import type { MediaProviderType } from '@prisma/client'
 // The icon set generated from a single square source image. Each becomes its own
 // Media row so it can be swapped/overridden independently on the Branding tab.
 const SIZES = [
+  // 16 and 32 exist so the root layout can offer typed, sized PNG candidates at
+  // .png addresses. /favicon.ico answers with PNG bytes, which Chrome sniffs
+  // its way through and WebKit's icon loader will not - see
+  // app/api/branding/favicon/route.ts.
+  { key: 'favicon16', size: 16, opaque: false, name: 'favicon-16x16.png' },
+  { key: 'favicon32', size: 32, opaque: false, name: 'favicon-32x32.png' },
   { key: 'favicon', size: 96, opaque: false, name: 'favicon.png' },
   // Apple flattens transparency to black, so the touch icon gets an opaque
   // white backing; the others keep their alpha (browsers/Android handle it).

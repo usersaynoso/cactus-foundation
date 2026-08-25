@@ -153,6 +153,8 @@ CREATE TABLE "SiteConfig" (
     "faviconMediaId" TEXT,
     "faviconDarkMediaId" TEXT,
     "appIconMediaId" TEXT,
+    "favicon16MediaId" TEXT,
+    "favicon32MediaId" TEXT,
     "appleTouchIconMediaId" TEXT,
     "webManifest192MediaId" TEXT,
     "webManifest512MediaId" TEXT,
