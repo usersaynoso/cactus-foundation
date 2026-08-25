@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.332"
+      "version": "v0.1.333"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.166"
+      "version": "v0.1.167"
     },
     {
       "name": "product-addons-for-shop",
@@ -48,7 +48,7 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.40"
+      "version": "v0.1.41"
     },
     {
       "name": "product-attributes-for-shop",
@@ -83,7 +83,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.31"
+      "version": "v0.1.32"
     },
     {
       "name": "reviews-for-shop",
@@ -98,7 +98,7 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.20"
+      "version": "v0.1.21"
     },
     {
       "name": "gazette",
@@ -133,7 +133,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.29"
+      "version": "v0.1.30"
     },
     {
       "name": "live-chat",

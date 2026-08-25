@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
+import { mediaPublicOrigin } from '@/lib/media/public-origin'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
 import { isSpeedInsightsEnabled } from '@/lib/config/site'
@@ -81,6 +82,11 @@ export default async function RootLayout({
   // generateMetadata already made.
   const branding = await resolveBranding()
 
+  // The host this install's photography is served from, named early so the
+  // connection to it is open by the time the first <img> is parsed. Null on an
+  // install with no separate media host - see lib/media/public-origin.ts.
+  const mediaOrigin = mediaPublicOrigin()
+
   return (
     <html
       lang="en"
@@ -88,6 +94,11 @@ export default async function RootLayout({
       style={{ '--cactus-theme-color': branding.themeColor } as React.CSSProperties}
     >
       <head>
+        {/* No crossOrigin, unlike the font one below: pictures are fetched in
+            no-cors mode, and a connection opened in CORS mode is a different
+            pool the <img> requests would not reuse - the tag would look right
+            and buy nothing. */}
+        {mediaOrigin && <link rel="preconnect" href={mediaOrigin} />}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router: layout.tsx is the correct place for fonts; this rule was written for Pages Router */}
