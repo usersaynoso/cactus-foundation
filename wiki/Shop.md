@@ -703,13 +703,16 @@ it always did.
 Beneath that, **Where the later pages come from** decides how the extra products get to
 the shopper:
 
-- **Sent with the page** builds every product into the page when it loads, so paging
-  through them is instant. This is the default and it is right up to a couple of hundred
-  products.
 - **Fetched as the shopper reaches them** builds only the first page in and asks the shop
   for the rest as they are needed. On a big shelf this is the difference between a page
-  that loads and one that does not - a live 432-product page was sending 14.6 MB before
-  it drew a single word.
+  that loads and one that does not - a live page was sending 14.6 MB before it drew a
+  single word. A grid you add from now on starts here.
+- **Sent with the page** builds every product into the page when it loads, so paging
+  through them is instant. Worth having on a short list; punishing on a long one.
+
+A grid you have already built keeps whatever it is set to - these are starting points for
+a new one, not a change that sweeps through your pages. Same goes for **Products per
+page**, which now starts at twelve on a new grid rather than twenty-four.
 
 The trade with fetching as needed is that a search engine reads the page as it arrives,
 so only the first page of products is linked from it. Your sitemap still carries every
@@ -812,7 +815,9 @@ One place the trolley now keeps quiet: the basket page. The whole basket is alre
 
 It behaves itself, too. The panel closes on the **Esc** key, on a click of the dimmed page behind it, or on the cross in its corner, and the page underneath stops scrolling while it's open so a shopper can't lose their place. Keyboard users are put inside the panel when it opens and back on the trolley when it shuts.
 
-The wording and the look are yours: the heading, the subtotal label, both button labels, the "your basket is empty" message and the keep-shopping link are all editable, the buttons take colours from your own palette, and you can set how wide the panel is, how round the buttons are, and whether it comes in from the right or the left. Product photos and the delivery picker can each be switched off if you'd rather keep it lean. Leave **View full basket** blank and that button simply isn't there.
+The wording and the look are yours: the heading, the subtotal label, both button labels, the "your basket is empty" message and the keep-shopping link are all editable, and you can set how wide the panel is, how round the buttons are, and whether it comes in from the right or the left. Product photos and the delivery picker can each be switched off if you'd rather keep it lean. Leave **View full basket** blank and that button simply isn't there.
+
+The two buttons now dress themselves separately. **Checkout** and **View full basket** each get a background colour, a border colour and a text colour, plus a second set of all three for when the mouse is over them, and every one of those carries its own dark mode colour underneath. Every swatch row also tells you what it is for, which, we admit, it had been quietly failing to do. Leave a hover colour blank and that part simply doesn't change under the cursor. Leave the whole lot blank and the buttons look precisely as they always have.
 
 The trolley itself has a **Hover colour** as well. Leave it blank and it warms to your site's main colour under the mouse, the same as the theme toggle, the Icon Link and the members sign-in button, so the whole row of header icons answers the cursor in one voice.
 

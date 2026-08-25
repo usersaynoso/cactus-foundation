@@ -235,15 +235,20 @@ you re-tick the new name in the picker.
 When a page carries more products than anybody wants to scroll past in one go, the
 block's **When there are more products than fit** setting decides what happens: nothing
 (the first page and no more), a **Show more** button, **numbered pages**, or **load more
-as the shopper scrolls**. **Products per page** sets how many are on screen at a time.
+as the shopper scrolls**. **Products per page** sets how many are on screen at a time; a
+new grid starts at twelve, which is four rows of three, on the reasoning that the opening
+screenful is the thing every shopper waits for. Leave it blank and it follows **Number of
+products** instead.
 
 Underneath that sits **Where the later pages come from**, and on a big collection it is
 the setting that matters most:
 
 | Choice | What it does | When to pick it |
 | --- | --- | --- |
-| **Sent with the page** | Every matching product is built into the page when it loads. Pressing "Show more" reveals things that were already there, so it is instant. | Up to a couple of hundred products. It is what every page did before this setting existed, and it is still the default. |
-| **Fetched as the shopper reaches them** | Only the first page is built in. The rest are fetched as the shopper scrolls or pages through them. | A big collection. This is the one that turns a page nobody could load on a phone into an ordinary one. |
+| **Fetched as the shopper reaches them** | Only the first page is built in. The rest are fetched as the shopper scrolls or pages through them. | Almost always, and it is what a newly added grid now starts on. This is the one that turns a page nobody could load on a phone into an ordinary one. |
+| **Sent with the page** | Every matching product is built into the page when it loads. Pressing "Show more" reveals things that were already there, so it is instant. | A short list where you would rather the shopper never waited even a moment between pages. |
+
+**Grids you already have keep what they were set to.** These are starting points for a grid you add from now on - nothing on a page you have already built changes on its own, so if a collection is still sending the whole catalogue, open its grid and switch it over yourself.
 
 To put a number on it: one live collection of 432 products was sending **14.6 MB** to
 every visitor and taking the best part of twenty seconds to arrive, almost all of it
