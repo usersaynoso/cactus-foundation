@@ -24,7 +24,7 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
-import { pageCacheControl } from '@/lib/cache/page-cache'
+import { cdnCacheControl, pageCacheControl } from '@/lib/cache/page-cache'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
@@ -120,7 +120,15 @@ function buildCsp(): string {
     // decoder (Draco/Meshopt) when reading a .glb, e.g. the admin "Detect from
     // model" button. It permits ONLY WebAssembly.compile/instantiate, not JS
     // eval() - strictly narrower than 'unsafe-eval', which stays banned.
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com${extraScript}${moduleOrigins('script')}`,
+    //
+    // https://static.cloudflareinsights.com - the Web Analytics beacon Cloudflare
+    // injects into the HTML itself when a site is proxied through it and analytics
+    // are on. Nothing in this codebase asks for it and nothing here can stop it:
+    // the tag is added downstream of the app, so the only alternatives were an
+    // error on every page of every Cloudflare-fronted install, or asking each
+    // owner to fill in CSP_EXTRA_ORIGINS by hand. An install not behind Cloudflare
+    // never loads it, and the host is Cloudflare's own.
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://static.cloudflareinsights.com${extraScript}${moduleOrigins('script')}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com${moduleOrigins('style')}`,
     `img-src ${imgSrc}`,
     // media-src - the library now stores video (mp4/webm). The <video> preview in
@@ -143,7 +151,11 @@ function buildCsp(): string {
     // rather than a factor. A blob: URL is same-origin, unguessable and readable
     // only by the document that made it, so this grants no reach the page hasn't
     // already got.
-    `connect-src 'self' blob: https://api.stripe.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}${moduleOrigins('connect')}`,
+    //
+    // https://cloudflareinsights.com - where that same beacon posts its timings.
+    // Allowing the script but not its report just moves the console error along
+    // one line.
+    `connect-src 'self' blob: https://api.stripe.com https://cloudflareinsights.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}${moduleOrigins('connect')}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
     // As with form-action below: a declared bare wildcard collapses the
     // directive, since `*` already matches everything a list beside it could.
@@ -219,7 +231,16 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     header: (name) => request.headers.get(name),
     hasCookie: (name) => request.cookies.has(name),
   })
-  if (value) res.headers.set('Cache-Control', value)
+  if (value) {
+    res.headers.set('Cache-Control', value)
+    // The header that actually reaches the wire on Vercel, and the one Cloudflare
+    // reads in preference to Cache-Control. Next.js rewrites Cache-Control for a
+    // rendered page on that platform whatever the proxy set, which is why the
+    // first version of this feature did nothing at all on a live site while the
+    // switch sat there saying it was on. CDN-Cache-Control is not a header
+    // Next.js touches. See lib/cache/page-cache.ts for the full note.
+    res.headers.set('CDN-Cache-Control', cdnCacheControl(ttl))
+  }
   return res
 }
 

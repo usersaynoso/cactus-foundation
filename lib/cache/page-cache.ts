@@ -102,9 +102,40 @@ export function pageCacheControl(input: PageCacheDecisionInput): string | null {
   const ttl = normalisePageCacheTtl(input.ttl)
   // max-age=0 keeps the visitor's OWN browser out of it: they revalidate every
   // time and so never sit on a stale copy of a page they might have just been
-  // told was updated. s-maxage is the part a CDN reads. stale-while-revalidate
-  // lets the CDN answer instantly from an expired copy while it refreshes in
-  // the background, so the one unlucky visitor who arrives at the moment the
-  // window closes does not pay for the re-render either.
+  // told was updated. s-maxage is the part a shared cache reads.
+  // stale-while-revalidate lets it answer instantly from an expired copy while
+  // it refreshes in the background, so the one unlucky visitor who arrives at
+  // the moment the window closes does not pay for the re-render either.
+  //
+  // On a self-hosted install this is the header that does the work. On Vercel it
+  // is overwritten before it reaches the wire - see cdnCacheControl below, which
+  // is the one that actually survives there.
   return `public, max-age=0, s-maxage=${ttl}, stale-while-revalidate=${ttl}`
+}
+
+/**
+ * The same decision, expressed in the header a CDN reads in preference to
+ * Cache-Control.
+ *
+ * This exists because the first attempt did not work on Vercel and the site
+ * carried on answering `no-store` with the switch on. Next.js writes its own
+ * Cache-Control for a rendered page; on a self-hosted server it skips that when
+ * one is already present (`sendRenderResult` in next/dist/server/send-payload.js)
+ * and the proxy's header wins, but Vercel does not use that path and overwrites
+ * it. Proxy-set headers DO otherwise survive there - the site's CSP and HSTS
+ * arrive intact - so the problem was only ever this one header name.
+ *
+ * CDN-Cache-Control (RFC 9213) is not a header Next.js has any opinion about, so
+ * nothing overwrites it, and Cloudflare reads it in PREFERENCE to Cache-Control
+ * (precedence: Cloudflare-CDN-Cache-Control > CDN-Cache-Control > Cache-Control).
+ * The result is the split we wanted anyway: shared caches keep a copy, the
+ * visitor's own browser is still told `no-store` by Next and keeps none.
+ *
+ * Deliberately plainer than the Cache-Control above: `public` and `s-maxage`
+ * only. Cloudflare answers BYPASS rather than caching when it meets a directive
+ * it will not honour in this position, and a header that silently disables the
+ * feature is worse than one that carries no niceties.
+ */
+export function cdnCacheControl(ttl: number): string {
+  return `public, s-maxage=${normalisePageCacheTtl(ttl)}`
 }

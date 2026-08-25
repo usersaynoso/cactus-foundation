@@ -5,6 +5,7 @@ vi.mock('@/lib/modules/cache-cookies', () => ({
 }))
 
 import {
+  cdnCacheControl,
   pageCacheControl,
   normalisePageCacheTtl,
   cacheBypassCookieNames,
@@ -57,6 +58,29 @@ describe('cacheBypassCookieNames', () => {
   it('is sorted and free of duplicates', () => {
     const names = cacheBypassCookieNames()
     expect(names).toEqual([...new Set(names)].sort())
+  })
+})
+
+// The header that survives on Vercel, where Next.js rewrites Cache-Control for a
+// rendered page regardless of what the proxy set. Getting this wrong is not a
+// visible failure - the switch reads as on and the site quietly carries on
+// answering no-store, which is exactly what happened the first time.
+describe('cdnCacheControl', () => {
+  it('carries the chosen window', () => {
+    expect(cdnCacheControl(300)).toBe('public, s-maxage=300')
+    expect(cdnCacheControl(3600)).toBe('public, s-maxage=3600')
+  })
+
+  it('falls back to the default window rather than trusting a junk value', () => {
+    expect(cdnCacheControl(999999)).toBe(`public, s-maxage=${DEFAULT_PAGE_CACHE_TTL}`)
+  })
+
+  // Cloudflare answers BYPASS rather than caching when it meets a directive it
+  // will not honour in this header, so a well-meant extra silently switches the
+  // whole feature off. Keep it to public + s-maxage.
+  it('carries no directive beyond public and s-maxage', () => {
+    const directives = cdnCacheControl(300).split(',').map((d) => d.trim().split('=')[0])
+    expect(directives.sort()).toEqual(['public', 's-maxage'])
   })
 })
 
