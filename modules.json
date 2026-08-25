@@ -53,7 +53,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.64"
+      "version": "v0.1.65"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
