@@ -15,6 +15,16 @@ Gates: `npx tsc --noEmit` clean, `eslint .` **No issues found**, `npm test` **29
 
 **Not cleaned up on the live site.** The 258 orphans are a destructive write on a customer's library and were not asked for - they are listed under Unused for the owner to clear.
 
+Also 2026-08-25 (**A saved add-on is now one line with an Edit button on it** - `product-addons-for-shop`, `components/admin/ProductAddonsEditor.tsx`, no API or schema change.
+
+The Add-ons section on a product's edit screen rendered every link fully expanded, so a desk carrying eight accessories was a page of settled rules nobody was reading. `LinkEditor` now holds an `expanded` flag and returns just its header row when closed: the add-on's name, "2 of 5", the up/down arrows, **Edit** and **Remove**. Edit toggles to Close, and `patchLink` was changed to return a boolean so **Save add-on rules** can close the card over a save that actually landed - a refusal leaves it open with the draft and the error both still on screen. The freshly linked add-on opens itself: the POST already answers with `{ link }`, so its id is kept in `openLinkId` and passed down as `startExpanded`.
+
+Three read-outs ride on the closed line, because hiding them behind Edit would be the one way this change could cost somebody a sale: that the add-on is switched off, how many warnings stand against it, and whether there are unsaved rules in it. The **Offered on the product page** tick moved off the header into the open card, since the closed line is a list entry rather than a control strip. Draft state survives closing - the component stays mounted, same as it already survives a reorder.
+
+`LinkEditor` is exported now so `components/admin/ProductAddonsEditor.test.tsx` (new, 7 tests, jsdom + `createRoot`) can drive it: what the closed line carries, Edit/Close, the just-added card starting open, and the save that closes only over a `true`.
+
+Gates: `npx tsc --noEmit` clean, `eslint .` **No issues found**, `npx vitest run` **2960 passed / 70 skipped, 0 failed**. Wiki: `Product-Add-ons.md`.
+
 Also 2026-08-25 (**Category pages drew 5.3 MB of fabric photography to paint some dots, and rendered every product to show two dozen - a third swatch size, filter renditions, and a windowed grid.** Core **0.5.1299** (the helpers) and **0.5.1300** (the pins), `product-attributes-for-shop` **0.1.66**, `filters-for-shop` **0.1.42**, `shop-variations` **0.1.168**.
 
 **Measured on the live catalogue, not guessed.** `/shop/categories/office-chairs`: 24 card swatches at 400px cost **1.2 MB**, and ten 16px filter dots cost **4.1 MB** (the filter pictures are 1395 x 1395, up to 627 KB each). Cold TTFB 8-13s, warm-instance repeats included, against ~2s for a page with no filter grid.
