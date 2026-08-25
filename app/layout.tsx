@@ -42,7 +42,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon,
       shortcut: BRANDING_DEFAULTS.favIco,
-      apple: b.appleTouchUrl ?? BRANDING_DEFAULTS.appleTouch,
+      // Always this origin's address, custom icon or not: the route behind it
+      // resolves the branding and proxies the bytes. Pointing straight at the
+      // media host put Safari's icon fetch at the back of a queue several
+      // hundred product images long on a busy category page.
+      apple: BRANDING_DEFAULTS.appleTouch,
     },
     appleWebApp: {
       title: b.shortName,

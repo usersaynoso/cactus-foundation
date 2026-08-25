@@ -15,9 +15,17 @@ export const BRANDING_DEFAULTS = {
   // app/api/branding/favicon/route.ts), so the fall-back file has to sit at an
   // address that route can redirect to without meeting itself coming back.
   favIcoFallback: '/cactus-favicon.ico',
+  // Addresses on THIS origin, all three routed to the branding icon route by
+  // next.config.ts, for the same reason /favicon.ico is: an icon fetched from
+  // the media host queues behind every product image on it. The bundled Cactus
+  // files sit at cactus- prefixed names so the route can redirect to them
+  // without meeting the rewrite coming back the other way.
   appleTouch: '/apple-touch-icon.png',
+  appleTouchFallback: '/cactus-apple-touch-icon.png',
   icon192: '/web-app-manifest-192x192.png',
+  icon192Fallback: '/cactus-web-app-manifest-192x192.png',
   icon512: '/web-app-manifest-512x512.png',
+  icon512Fallback: '/cactus-web-app-manifest-512x512.png',
   name: 'Cactus Foundation',
   shortName: 'Cactus',
   themeColor: '#ffffff',

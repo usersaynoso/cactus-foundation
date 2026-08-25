@@ -201,6 +201,8 @@ Your favicon is used for everything the site serves, not only its pages. Ask a b
 
 Your icon is also handed out from your own web address rather than from wherever the picture is stored. That sounds like an implementation detail and is not: a browser fetches the tab icon dead last, after everything else on the page, and if that one request gets lost in the crowd it remembers the blank tab for that page and does not try again for a good while. On a busy shop page - hundreds of products, hundreds of pictures, all from the same picture store - the icon was regularly the request that lost. Serving it from your own address puts it on a road that is already open. If you ever saw a favicon on most pages but not all of them, that was this.
 
+**That now covers the whole icon set, not only the tab icon.** The Apple touch icon and the two installable-app icons were still being handed out from the picture store, so on Apple devices - where that icon is the one used for tabs, bookmarks, the start page and the home screen - the busiest pages of a shop could still come up blank while the quiet ones were fine. All four now come from your own address. Ask the site for `/apple-touch-icon.png` directly and you get yours as well, which matters because iPhones and iPads go looking for it there of their own accord.
+
 Changing the favicon takes up to an hour to show everywhere, since browsers hold on to tab icons rather firmly. A hard refresh hurries it along.
 
 ### Your logo in emails

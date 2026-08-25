@@ -17,8 +17,11 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     icons: [
       // purpose 'any' (not 'maskable') because an admin-supplied icon has no
       // guaranteed safe-zone padding; 'maskable' would let launchers crop it.
-      { src: b.icon192Url ?? BRANDING_DEFAULTS.icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: b.icon512Url ?? BRANDING_DEFAULTS.icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      // This origin's addresses rather than the media host's, for the reason
+      // in app/api/branding/favicon/route.ts - the route behind them resolves
+      // the branding and proxies the bytes.
+      { src: BRANDING_DEFAULTS.icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: BRANDING_DEFAULTS.icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
     ],
     theme_color: b.themeColor,
     background_color: b.backgroundColor,
