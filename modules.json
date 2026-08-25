@@ -48,12 +48,12 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.42"
+      "version": "v0.1.43"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.66"
+      "version": "v0.1.67"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
