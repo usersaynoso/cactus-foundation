@@ -630,7 +630,7 @@ The **Category** tab has two blocks worth knowing about. **Category Browser** sh
 
 **Collection Description** is the collection twin of Category Description: drop it on the Collection layout and it prints that collection's description wherever you put it - the designed version when there is one, the plain paragraphs when there isn't, and nothing at all on a collection you haven't written up yet.
 
-**Collection Links** is the footer's one. Drop it on your footer design and it prints a short list of links to your collections - a *different random handful on every page a visitor opens*, so the footer never goes stale, no single collection hogs the spot, and every one of them gets its turn in front of shoppers and search engines alike, which is rather the point. You choose the heading, how many links to show, whether they stack like a footer column or run along one wrapping row, and the wording of an optional link to the full collections page (leave it blank to drop it). Colours can be left alone - it inherits the footer's own - or set per part to match your other columns. Only collections with products in them are ever drawn, same rule as the Collection Browser, so a half-built one never gets a footer billing.
+**Collection Links** is the footer's one. Drop it on your footer design and it prints a short list of links to your collections - a *different random handful on every page a visitor opens*, so the footer never goes stale, no single collection hogs the spot, and every one of them gets its turn in front of shoppers and search engines alike, which is rather the point. You choose the heading, how many links to show, whether they stack like a footer column or run along one wrapping row, and the wording of an optional link to the full collections page (leave it blank to drop it). Colours can be left alone - it inherits the footer's own - or set per part, from the same swatches as every other block: your site's own palette from Appearance, a separate dark mode colour for each one, and a box for anything exotic. The text, the links, the colour links turn on hover and the little chevrons all take their own. Only collections with products in them are ever drawn, same rule as the Collection Browser, so a half-built one never gets a footer billing.
 
 The product grid shows each item as a card with its photo, price and a short line of detail, and can flag an item with small badges - **New**, **Low stock** or a **Trade price** - worked out from the product's tags and its stock level. Give a product the `new` or `trade` tag to earn one of those two; the low-stock badge appears on its own once stock drops to your warning threshold. For badges in your own wording and colours, switch them on for tags under **Shop → Catalogue → Tags** instead - that's also where the automatic **Sale** badge comes from. A product wearing several says all of them, side by side in the corner of its photo. The card's own design - where the photo, name, price and badge sit - comes from the **Product Card** layout described below, and that one design is used everywhere a product card shows up: the catalogue grid, the "you might also like" row, a featured collection, or a single pinned product.
 
@@ -691,6 +691,34 @@ From shop 0.1.198 the blocks that used to take life as they found it carry setti
 - The **back-in-stock form**'s invitation line, the hint inside the email box, the button and the thank-you message are all yours to reword.
 - On the **product card**, the name and the short description can each be capped at one, two or three lines, so one long-winded product can't make its card twice the height of its neighbours; anything longer trims off with an ellipsis. The **badge** piece can switch each kind of badge - New, stock, trade - on or off individually, for shops that find "Low stock" a bit much on a browsing page.
 - The **related products** strip can lie down as a sideways-scrolling carousel instead of a grid, and the **you might also like** strip takes a cap on how many suggestions it offers.
+
+### Paging a long shelf
+
+A grid pointed at a big category does not have to put the lot on one page. **When there
+are more products than fit** offers a **Show more** button, **numbered pages**, or
+**load more as the shopper scrolls**, with **Products per page** deciding how many are on
+screen at a time. Leave it off and the grid shows the number you set and stops, exactly as
+it always did.
+
+Beneath that, **Where the later pages come from** decides how the extra products get to
+the shopper:
+
+- **Sent with the page** builds every product into the page when it loads, so paging
+  through them is instant. This is the default and it is right up to a couple of hundred
+  products.
+- **Fetched as the shopper reaches them** builds only the first page in and asks the shop
+  for the rest as they are needed. On a big shelf this is the difference between a page
+  that loads and one that does not - a live 432-product page was sending 14.6 MB before
+  it drew a single word.
+
+The trade with fetching as needed is that a search engine reads the page as it arrives,
+so only the first page of products is linked from it. Your sitemap still carries every
+product, so nothing is hidden from search - but on a shelf you rely on for internal links,
+weigh that up. And if a page fails to arrive, the grid says so and offers a **Try again**
+rather than quietly stopping.
+
+The same pair of settings appear on the **Filters & Product Grid** block, where filtering
+and sorting carry on working instantly either way - see [Shop filters](Shop-filters).
 
 ### The cart, your way
 

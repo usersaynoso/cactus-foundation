@@ -199,6 +199,8 @@ You can also upload a **dark-mode logo** and a **dark-mode favicon**. Both are o
 
 Your favicon is used for everything the site serves, not only its pages. Ask a browser for `/sitemap.xml`, `/robots.txt` or any other file the site hands out and there is no page for the icon to be attached to, so the browser falls back to asking the site for `/favicon.ico` directly - and that now answers with **your** icon rather than the Cactus one. Before, a site with its own branding showed somebody else's logo on the tab of its own sitemap, which is not a good look for something you might well be showing a client.
 
+Your icon is also handed out from your own web address rather than from wherever the picture is stored. That sounds like an implementation detail and is not: a browser fetches the tab icon dead last, after everything else on the page, and if that one request gets lost in the crowd it remembers the blank tab for that page and does not try again for a good while. On a busy shop page - hundreds of products, hundreds of pictures, all from the same picture store - the icon was regularly the request that lost. Serving it from your own address puts it on a road that is already open. If you ever saw a favicon on most pages but not all of them, that was this.
+
 Changing the favicon takes up to an hour to show everywhere, since browsers hold on to tab icons rather firmly. A hard refresh hurries it along.
 
 ### Your logo in emails

@@ -230,11 +230,47 @@ Because rules match by name and label, they survive re-imports that recreate opt
 The flip side: rename an option value everywhere and the filter stops covering it until
 you re-tick the new name in the picker.
 
+## Paging a long list
+
+When a page carries more products than anybody wants to scroll past in one go, the
+block's **When there are more products than fit** setting decides what happens: nothing
+(the first page and no more), a **Show more** button, **numbered pages**, or **load more
+as the shopper scrolls**. **Products per page** sets how many are on screen at a time.
+
+Underneath that sits **Where the later pages come from**, and on a big collection it is
+the setting that matters most:
+
+| Choice | What it does | When to pick it |
+| --- | --- | --- |
+| **Sent with the page** | Every matching product is built into the page when it loads. Pressing "Show more" reveals things that were already there, so it is instant. | Up to a couple of hundred products. It is what every page did before this setting existed, and it is still the default. |
+| **Fetched as the shopper reaches them** | Only the first page is built in. The rest are fetched as the shopper scrolls or pages through them. | A big collection. This is the one that turns a page nobody could load on a phone into an ordinary one. |
+
+To put a number on it: one live collection of 432 products was sending **14.6 MB** to
+every visitor and taking the best part of twenty seconds to arrive, almost all of it
+cards for products nobody scrolled to. Switched to fetched-as-needed, the visitor gets
+the first two dozen and nothing else until they ask.
+
+Two things are worth knowing before you switch it on:
+
+- **Filtering and sorting stay instant.** They never depended on the cards being on the
+  page, only on the small index behind them, which is still sent in full. Ticking a
+  colour still cuts the list the moment you tick it; if the page it lands on has not
+  been fetched yet, those cards arrive a moment later.
+- **Search engines see the first page.** A crawler reads the page as a shopper does at
+  the moment it arrives, so only the first lot of products are linked from it. Your
+  sitemap still lists every product, so nothing goes missing - but if you rely on a big
+  collection page to pass link weight around your catalogue, that is the trade you are
+  making. On a page of forty products it makes no odds. On a page of four hundred, the
+  page nobody can load was not passing much either.
+
+If something goes wrong fetching a page - a wobbly connection, usually - the grid says
+so and offers a **Try again** rather than quietly stopping.
+
 ## Practical notes
 
-- The block renders every product it lists (capped at 100) and filters instantly on the
-  page - right for catalogues this platform aims at, not for thousands of products on one
-  page.
+- Sent with the page, the block renders every product it lists (capped at 100 unpaged,
+  500 paged) and filters instantly. Fetched as needed, it renders the first page and
+  asks for the rest - see above.
 - Sorting works on the same set, for the same reason: it re-orders the products the page
   is already showing, not the whole catalogue behind it. On a page carrying the full
   category that is the same thing; on a page with a lower product limit, the cheapest

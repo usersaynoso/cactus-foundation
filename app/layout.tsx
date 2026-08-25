@@ -17,13 +17,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const icon: IconEntry[] = []
   if (b.faviconUrl) {
+    // Addresses on THIS origin, not the media host the icon actually lives on.
+    // /favicon.ico proxies the bytes (see app/api/branding/favicon/route.ts):
+    // browsers fetch a tab icon last and at the lowest priority going, so
+    // pointing them at a third-party host put it behind every product image on
+    // that host, and a single dropped fetch left that page's tab blank until
+    // the browser's favicon cache aged out.
     if (b.faviconDarkUrl) {
       // Both scoped by colour scheme so the favicon follows the browser/OS
       // dark setting (favicons can't read the in-site theme toggle).
-      icon.push({ url: b.faviconUrl, media: '(prefers-color-scheme: light)' })
-      icon.push({ url: b.faviconDarkUrl, media: '(prefers-color-scheme: dark)' })
+      icon.push({ url: BRANDING_DEFAULTS.favIco, media: '(prefers-color-scheme: light)' })
+      icon.push({ url: BRANDING_DEFAULTS.favIcoDark, media: '(prefers-color-scheme: dark)' })
     } else {
-      icon.push({ url: b.faviconUrl })
+      icon.push({ url: BRANDING_DEFAULTS.favIco })
     }
   } else {
     icon.push({ url: BRANDING_DEFAULTS.faviconSvg, type: 'image/svg+xml' })
@@ -35,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: 'A minimal, extensible CMS',
     icons: {
       icon,
-      shortcut: b.faviconUrl ?? BRANDING_DEFAULTS.favIco,
+      shortcut: BRANDING_DEFAULTS.favIco,
       apple: b.appleTouchUrl ?? BRANDING_DEFAULTS.appleTouch,
     },
     appleWebApp: {

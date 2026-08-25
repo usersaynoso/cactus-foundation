@@ -8,6 +8,9 @@ export const BRANDING_DEFAULTS = {
   faviconSvg: '/favicon.svg',
   faviconPng: '/favicon-96x96.png',
   favIco: '/favicon.ico',
+  // Same route, dark variant. Both are on this origin so a tab icon never
+  // depends on a cross-origin fetch - see app/api/branding/favicon/route.ts.
+  favIcoDark: '/favicon.ico?scheme=dark',
   // The bundled Cactus icon itself. /favicon.ico is a route now (see
   // app/api/branding/favicon/route.ts), so the fall-back file has to sit at an
   // address that route can redirect to without meeting itself coming back.
