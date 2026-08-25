@@ -21,7 +21,12 @@ import {
   getAosProps,
   getStickyStyle,
   SiteLogoRsc,
-} from '@/lib/puck/config'
+} from '@/lib/puck/config.core'
+// config.core, NOT config: the wrapper in config.tsx imports the module block
+// CLIENT map, and importing it from here would put all 118 of those components
+// into the browser bundle of every public page - which is exactly what this
+// split exists to stop. Nothing here needs them: every module block's RSC half
+// is spread over the core config below. Guarded by config.core.test.ts.
 import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
