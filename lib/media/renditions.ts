@@ -88,9 +88,32 @@ export async function generateImageRenditions(
         .webp({ quality: 80 })
         .toBuffer()
 
-      // buildLibraryUploadKey dedupes a name collision with the usual "-2"
-      // rather than overwriting.
       const fileName = `${baseName}-${spec.suffix}.webp`
+
+      // This rendition may already exist. The name is derived from the ORIGINAL's
+      // own key and it is filed in the original's own folder, so a webp of that
+      // name there is this rendition of this picture and nothing else - made by
+      // an earlier run, or by another module that shrank the same library item.
+      //
+      // Reusing it rather than minting one matters more than it sounds. Without
+      // this, `buildLibraryUploadKey` dedupes the collision with the usual "-2",
+      // so a backfill over a shop where several values share one fabric wrote a
+      // fresh identical file per value. On the catalogue this was written for
+      // that was 258 files nothing pointed at, 10 MB of them.
+      //
+      // Matched on `originalName` rather than `key`, because a duplicate minted
+      // before this existed carries the "-2" in its key and the plain name here;
+      // oldest first, so repeated runs converge on one file rather than drifting.
+      const existing = await prisma.media.findFirst({
+        where: { folderId: media.folderId, mimeType: 'image/webp', originalName: fileName },
+        select: { url: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (existing) {
+        out[spec.suffix] = existing.url
+        continue
+      }
+
       const key = await buildLibraryUploadKey(media.provider, 'image/webp', fileName, folderPath || undefined)
       const uploaded = await uploadMedia(shrunk, 'image/webp', media.provider, fileName, folderPath || undefined, false, key)
 
