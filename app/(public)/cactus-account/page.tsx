@@ -4,7 +4,7 @@ import { getInstalledManifests } from '@/lib/modules/live-status'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
 import {
   accountExtrasInsertIndex,

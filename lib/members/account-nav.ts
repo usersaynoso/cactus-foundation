@@ -1,5 +1,5 @@
 import { getInstalledManifests } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 // Tabs modules add to the member account nav (`members.account-nav`).
 //

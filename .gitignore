@@ -55,6 +55,7 @@ coverage/
 /lib/modules/router.ts
 /lib/modules/settings-tabs.ts
 /lib/modules/extension-points.ts
+/lib/modules/extension-points.public.ts
 /lib/modules/sms-providers.ts
 /lib/modules/email-templates.ts
 /lib/modules/sms-templates.ts

@@ -1,7 +1,33 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-25 (**The page cache did nothing on Vercel; it now sets the header that survives there - core **0.5.1287**.** Measured on the live install after 0.5.1286 landed: `pageCacheEnabled=t`, `pageCacheTtl=3600`, `behindCloudflare=t` all correctly stored and read, Cloudflare's Cache Rule live and matching (`cf-cache-status: BYPASS`, up from `DYNAMIC`) - and every page still answering `cache-control: private, no-cache, no-store`. The feature was inert on the one platform it shipped to.
+Last updated: 2026-08-25 (**The 690KB of JavaScript was module ADMIN screens, reached through the extension-point map - core **0.5.1288**.** Third diagnosis of the same symptom, and the first with a trace rather than a theory. 0.5.1286 removed a real import edge that was not the one carrying the bytes (byte-identical result, same class-name counts). The actual chain, from a graph walk rather than reasoning:
+
+```
+app/(public)/page.tsx -> lib/puck/renderInfoPage.tsx -> lib/puck/config.rsc.tsx
+  -> lib/modules/module-rsc-components.ts
+  -> modules/search/components/puck/SiteSearchResultsBlock.rsc.tsx
+  -> lib/modules/extension-points.ts            <- the flat map
+  -> modules/abandoned-carts-for-shop/components/admin/AbandonedCartsTab.tsx
+```
+
+**What the strings in the bundle actually were.** `abc-detail-line` lives in `abandoned-carts-for-shop/components/**admin**/`, and the `p3d-` hits are `Product3dEditor`/`FabricConfigPanel`, also admin. They were never Puck blocks - which is why two fixes aimed at the block maps changed nothing.
+
+**The structural cause.** `lib/modules/extension-points.ts` is ONE flat object holding all 122 contributed extension points, 25 of them admin screens. Any consumer of any point statically imports every point's implementation, and 25 files reachable from the homepage consume it - shop's card-media/card-price/detail-tabs, search's query, core's media reference-rewriters. Measured: **807 files reachable from the homepage, 60 of them module admin components**, including a 107KB VariationsPanel, a 58KB FabricConfigPanel and a 44KB AbandonedCartsScreen. 746KB of source, 627KB of it in 36 `'use client'` files, none of it rendered on a public page.
+
+**Why the obvious fixes were rejected.** Moving admin entries to a second file breaks module lookups (shop-variations' ProductVariationsSection and contact-form's InboxPanel read the map at their current pins, and a missing point returns `{}` - a silently vanishing admin tab, the exact failure this codebase keeps getting bitten by). Lazy-wrapping with `next/dynamic` reaches only 6 of the 25 direct admin imports: the rest are Server Components (`InboxPanel` uses `next/headers`) whose weight is a client panel imported one level down, and `next/dynamic` on a Server Component forces a client boundary and breaks it.
+
+**What made the split safe.** Checked, not assumed: the nine points an admin component contributes to (`core.inbox-tabs`, `core.media-tabs`, `core.admin-dashboard-widgets`, `admins.account-section`, `shop.orders-tabs`, `shop.products-tabs`, `shop.tax-shipping-tabs`, `shop.product-editor-sections`, `shop.product-editor-media-sections`) are read **only** from `app/cactus-admin/**`. No public-path file reads one - verified by grepping every reachable public-path consumer against that list.
+
+**The change.** `scripts/generate-module-extension-points.mjs` now emits a second gitignored file, `lib/modules/extension-points.public.ts` (`modulePublicExtensionPointComponents`), identical bar every entry whose `import` resolves under `/components/admin/`. Classified by directory rather than a manifest field on purpose: no module has to declare anything, and a new module cannot silently regress it. Core's six public-path consumers switched (`lib/media/reference-rewriters.ts`, `lib/media/usage-providers.ts`, `lib/well-known/providers.ts`, `lib/members/account-nav.ts`, `lib/modules/menu-entity-provider.ts`, `app/(public)/cactus-account/page.tsx`).
+
+**Core alone changes nothing, and that is expected.** Re-measured after switching core's six: 807 -> 808 reachable. The edge is entirely module-side - 21 files in shop (18), search (3) and shop-variations (1). Switching those takes it to **737 reachable and 6 module admin files**, matching the simulation exactly. Those are three module releases, each needing `requiresCoreVersion: 0.5.1288`; the win lands as they ship, and core is safe on its own in the meantime.
+
+**Guard**: `lib/modules/extension-points-public.test.ts` - the public map imports nothing under components/admin, is a strict subset of the full map, and each of core's six public consumers imports the public one and not the full one.
+
+**Checks**: `npm run typecheck` clean, `eslint .` **No issues found**, full `npm test` **2864 pass / 0 fail / 70 skipped**. Backup gate does not apply. Byte saving still unmeasured - the file-graph numbers are real, the bundle numbers need a deploy.)
+
+Previous entry: 2026-08-25 (**The page cache did nothing on Vercel; it now sets the header that survives there - core **0.5.1287**.** Measured on the live install after 0.5.1286 landed: `pageCacheEnabled=t`, `pageCacheTtl=3600`, `behindCloudflare=t` all correctly stored and read, Cloudflare's Cache Rule live and matching (`cf-cache-status: BYPASS`, up from `DYNAMIC`) - and every page still answering `cache-control: private, no-cache, no-store`. The feature was inert on the one platform it shipped to.
 
 **The mistake.** 0.5.1281's verification read `sendRenderResult` in `next/dist/server/send-payload.js` (`if (cacheControl && !res.getHeader('Cache-Control'))`) and `router-server.js` applying the proxy's `resHeaders` to `res` before `invokeRender`, concluded the proxy's header wins, and shipped. **That is the self-hosted path. Vercel does not use it** and rewrites `Cache-Control` for a rendered page regardless. Reading the source was right; assuming the platform matched it was not.
 

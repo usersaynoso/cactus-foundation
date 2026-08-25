@@ -1,4 +1,4 @@
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 // Contract for the "core.media-reference-rewriters" extension point.
 //

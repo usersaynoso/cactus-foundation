@@ -1,4 +1,4 @@
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 // Contract for the "core.menu-entity-provider" extension point: a module
 // contributes one provider, keyed by its own module id, so the admin menu
