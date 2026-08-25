@@ -12,6 +12,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
+import { purgeCdnPaths } from '@/lib/cache/cdn-purge'
 
 const HISTORY_CAP = 10
 
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   revalidatePath(`/${updated.slug}`)
   if (page.slug !== updated.slug) revalidatePath(`/${page.slug}`)
+  await purgeCdnPaths([`/${updated.slug}`, `/${page.slug}`, '/'])
 
   return NextResponse.json({ ok: true, slug: updated.slug })
 }

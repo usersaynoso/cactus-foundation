@@ -19,10 +19,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
 import {
   getAdminPathCached,
+  getPageCacheCached,
   getSiteStatusCached,
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
+import { pageCacheControl } from '@/lib/cache/page-cache'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
@@ -186,6 +188,40 @@ const SECURITY_HEADERS: [string, string][] = [
   ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), publickey-credentials-create=(self), publickey-credentials-get=(self)'],
   ['Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload'],
 ]
+
+// Adds a shared-cache Cache-Control to a public page response when the site
+// owner has turned the page cache on (Settings > General > Speed) and this
+// particular request is safe to share. Applied at exactly one place: the final
+// pass-through at the bottom of proxy(), after the setup gate, the admin and
+// member path rewrites, the site-status gate and the members-only gate have all
+// had their say. Anything that returned before that point - an admin page, an
+// API call, a redirect, a coming-soon page, a members-only block - is never
+// given a cache header at all.
+//
+// Only ever ADDS a header. When the answer is "not cacheable" the response is
+// left exactly as it is, and Next.js goes on emitting whatever it would have
+// emitted anyway. See lib/cache/page-cache.ts for why that asymmetry matters.
+//
+// The header has to be set here rather than in the page: a Server Component
+// cannot set response headers, and the route segment config that can
+// (`revalidate`) is a build-time constant, so it could never be driven by a
+// switch in the database. Next.js only writes its own Cache-Control if one is
+// not already present on the response (sendRenderResult in
+// next/dist/server/send-payload.js), and proxy headers are applied to the
+// response before the render runs - so this one wins.
+async function withPageCache(request: NextRequest, res: NextResponse): Promise<NextResponse> {
+  const { enabled, ttl } = await getPageCacheCached()
+  if (!enabled) return res
+  const value = pageCacheControl({
+    enabled,
+    ttl,
+    method: request.method,
+    header: (name) => request.headers.get(name),
+    hasCookie: (name) => request.cookies.has(name),
+  })
+  if (value) res.headers.set('Cache-Control', value)
+  return res
+}
 
 function withSecurity(res: NextResponse): NextResponse {
   // Security headers serve no purpose on localhost and actively break Turbopack
@@ -490,7 +526,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  return withSecurity(NextResponse.next())
+  return withSecurity(await withPageCache(request, NextResponse.next()))
 }
 
 export const config = {

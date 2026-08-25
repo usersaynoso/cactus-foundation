@@ -200,6 +200,26 @@ model SiteConfig {
   // Defaults on: it's the right answer for almost every site. The Image block is
   // deliberately exempt either way - see ImageBlock in lib/puck/config.tsx.
   lazyLoadImages         Boolean    @default(true)
+  // Settings > General > Speed. Off by default: a cached page is the right
+  // answer for a brochure site and the wrong one for anything that renders per
+  // visitor, and core cannot tell which this install is. When on, proxy.ts adds
+  // a shared-cache Cache-Control to public GETs that carry no session or basket
+  // cookie, so a CDN (Cloudflare, Vercel's own, whatever sits in front) answers
+  // repeat visits without waking a function. A request that carries one of
+  // those cookies is left exactly as it is today - no header added, nothing to
+  // cache, nobody served somebody else's basket.
+  pageCacheEnabled       Boolean    @default(false)
+  // Seconds a shared cache may hold a public page. Constrained to the set in
+  // lib/cache/page-cache.ts on the way in; stale-while-revalidate is derived
+  // from it rather than stored, so there is one number to reason about.
+  pageCacheTtl           Int        @default(300)
+  // Settings > General > Speed. True when the site's traffic is proxied through
+  // Cloudflare, which is the only condition under which the CF-Connecting-IP
+  // header may be believed. See clientIpFromHeaders in lib/auth/rate-limit.ts:
+  // behind a proxy, the last x-forwarded-for hop is the PROXY, so every visitor
+  // through one Cloudflare location would otherwise share a single rate-limit
+  // bucket and one person fumbling a password would lock out a region.
+  behindCloudflare       Boolean    @default(false)
   privacyPolicyPageId    String?
   termsPageId            String?
   logoMediaId            String?

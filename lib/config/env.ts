@@ -124,6 +124,23 @@ export function getEnvStatus(): {
       set: !!process.env.CLOUDFLARE_WORKER_URL,
       gates: 'Media serving via Cloudflare Worker (proxied providers)',
     },
+    // Page cache (Settings → General → Speed). Both optional and both only used
+    // when the site sits behind Cloudflare: without them the cache still works,
+    // an edited page just waits out its window instead of being cleared at once.
+    {
+      name: 'CLOUDFLARE_ZONE_ID',
+      description: 'Cloudflare zone id for this site\u2019s domain. Enables clearing cached pages the moment they are edited.',
+      required: false,
+      set: !!process.env.CLOUDFLARE_ZONE_ID,
+      gates: 'Instant clearing of cached pages after an edit',
+    },
+    {
+      name: 'CLOUDFLARE_PURGE_API_TOKEN',
+      description: 'Cloudflare API token with Zone \u2192 Cache Purge permission. Falls back to CLOUDFLARE_API_TOKEN, which only works if that token also carries the purge permission.',
+      required: false,
+      set: !!(process.env.CLOUDFLARE_PURGE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN),
+      gates: 'Instant clearing of cached pages after an edit',
+    },
     ...MEDIA_PROVIDER_ENV_STATUS(),
     {
       name: 'GITHUB_API_TOKEN',

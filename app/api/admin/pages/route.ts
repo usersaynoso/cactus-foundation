@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { parsePaginationParams, generateSlug, errorResponse } from '@/lib/utils'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { revalidatePath } from 'next/cache'
+import { purgeCdnPaths } from '@/lib/cache/cdn-purge'
 
 const Body = z.object({
   title: z.string().min(1).max(200),
@@ -88,7 +89,13 @@ export async function POST(request: NextRequest) {
     return created
   })
 
-  if (status === 'published') revalidatePath(`/${slug}`)
+  if (status === 'published') {
+    revalidatePath(`/${slug}`)
+    // '/' too: the homepage is where a new page most often shows up first,
+    // in a menu or a list, and it is the one URL a visitor is most likely to
+    // be handed from a cache.
+    await purgeCdnPaths([`/${slug}`, '/'])
+  }
 
   return NextResponse.json(page, { status: 201 })
 }
@@ -114,6 +121,7 @@ export async function DELETE(request: NextRequest) {
   const pages = await prisma.infoPage.findMany({ where: { id: { in: ids } }, select: { id: true, slug: true } })
   await prisma.infoPage.deleteMany({ where: { id: { in: ids } } })
   for (const p of pages) revalidatePath(`/${p.slug}`)
+  await purgeCdnPaths([...pages.map((p) => `/${p.slug}`), '/'])
 
   return NextResponse.json({ ok: true, deleted: pages.length })
 }

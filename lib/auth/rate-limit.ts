@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { isBehindCloudflare } from '@/lib/config/site'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
 import type { NextRequest } from 'next/server'
@@ -58,7 +59,24 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
 // (login OTP email-bombing, contact-form spam). What the caller cannot forge is
 // the entry the trusted proxy appended itself: the LAST hop. x-real-ip (set by
 // the platform edge) is the fallback when there's no forwarded chain at all.
-export function clientIpFromHeaders(get: (name: string) => string | null): string {
+//
+// Behind Cloudflare the last hop is CLOUDFLARE, not the visitor: every request
+// from one Cloudflare location arrives wearing the same address, so a per-IP
+// limit stops being per-IP and one person fumbling a password locks out
+// everybody sharing that location. CF-Connecting-IP is the header that still
+// holds the real client there - but it is also a header anyone can type, so it
+// is believed ONLY when the site owner has said the site really is proxied
+// through Cloudflare (Settings > General > Speed). Off by default; a site that
+// is not behind Cloudflare and trusted this header would be handing out a
+// forgeable client IP, which is the exact hole the last-hop rule above closed.
+export function clientIpFromHeaders(
+  get: (name: string) => string | null,
+  opts?: { trustCloudflare?: boolean }
+): string {
+  if (opts?.trustCloudflare) {
+    const cf = get('cf-connecting-ip')?.trim()
+    if (cf) return cf
+  }
   const hops = (get('x-forwarded-for') ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -71,11 +89,12 @@ export function clientIpFromHeaders(get: (name: string) => string | null): strin
 // Accepts an optional NextRequest for use in API route handlers.
 // Without one, reads headers from the Next.js request context via next/headers.
 export async function getClientIp(request?: NextRequest): Promise<string> {
+  const trustCloudflare = await isBehindCloudflare()
   if (request) {
-    return clientIpFromHeaders((name) => request.headers.get(name))
+    return clientIpFromHeaders((name) => request.headers.get(name), { trustCloudflare })
   }
   const headersList = await headers()
-  return clientIpFromHeaders((name) => headersList.get(name))
+  return clientIpFromHeaders((name) => headersList.get(name), { trustCloudflare })
 }
 
 export async function checkRateLimit(

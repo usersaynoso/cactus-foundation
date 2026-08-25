@@ -25,6 +25,7 @@ const GENERATORS = [
   './generate-module-email-templates.mjs',
   './generate-module-sms-templates.mjs',
   './generate-module-csp.mjs',
+  './generate-module-cache-cookies.mjs',
 ]
 
 for (const generator of GENERATORS) {

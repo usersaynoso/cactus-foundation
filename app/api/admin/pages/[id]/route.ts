@@ -6,6 +6,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { revalidatePath } from 'next/cache'
+import { purgeCdnPaths } from '@/lib/cache/cdn-purge'
 
 const Patch = z.object({
   title:           z.string().min(1).max(200).optional(),
@@ -109,6 +110,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   revalidatePath(`/${updated.slug}`)
   if (page.slug !== updated.slug) revalidatePath(`/${page.slug}`)
+  await purgeCdnPaths([`/${updated.slug}`, `/${page.slug}`, '/'])
 
   return NextResponse.json({ ...updated, menuIds: menuIds ?? [] })
 }
@@ -130,5 +132,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   await prisma.infoPage.delete({ where: { id } })
   revalidatePath(`/${page.slug}`)
+  await purgeCdnPaths([`/${page.slug}`, '/'])
   return NextResponse.json({ ok: true })
 }

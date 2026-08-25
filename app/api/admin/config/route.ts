@@ -6,6 +6,8 @@ import { hasPermission } from '@/lib/permissions/check'
 import { isBlocklisted } from '@/lib/config/site'
 import { syncToEdgeConfig, waitForAdminPathPropagation } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { PAGE_CACHE_TTL_OPTIONS } from '@/lib/cache/page-cache'
+import { purgeCdnEverything } from '@/lib/cache/cdn-purge'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
@@ -145,6 +147,16 @@ const Patch = z.object({
   status: z.enum(['live', 'comingSoon', 'maintenance']).optional(),
   hideFromCrawlers: z.boolean().optional(),
   speedInsightsEnabled: z.boolean().optional(),
+  pageCacheEnabled: z.boolean().optional(),
+  // Constrained to the offered windows rather than any integer: the value is
+  // written straight into a Cache-Control that a CDN will honour for exactly
+  // that long, and a fat-fingered 3000000 is a month of a stale front page.
+  pageCacheTtl: z
+    .number()
+    .int()
+    .refine((n) => (PAGE_CACHE_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
+    .optional(),
+  behindCloudflare: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
   emailFromAddress: z.string().email().optional().nullable(),
@@ -222,6 +234,20 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updated = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
+
+  // The page cache reads its settings through a short in-memory TTL, so a change
+  // would take effect within seconds anyway - but "within seconds" is not what an
+  // owner who just unticked a box and reloaded the page expects to see, so clear
+  // it now. A copy already sitting in a CDN is a separate problem: nothing
+  // downstream knows the switch moved, so it would go on being handed out for the
+  // rest of the window. Throw the lot away instead - best effort, never fatal.
+  if (rest.pageCacheEnabled !== undefined || rest.pageCacheTtl !== undefined) {
+    invalidateSiteConfigCache()
+    if (rest.pageCacheEnabled === false || rest.pageCacheTtl !== undefined) {
+      await purgeCdnEverything()
+    }
+  }
+  if (rest.behindCloudflare !== undefined) invalidateSiteConfigCache()
 
   // Mirror changes to Edge Config
   const edgeUpdates: { adminPath?: string; siteStatus?: SiteStatus } = {}

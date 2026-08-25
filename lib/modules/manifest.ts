@@ -151,6 +151,21 @@ export const ModuleManifestSchema = z.object({
     frame: z.array(z.union([z.literal('*'), CspOrigin])).optional(),
     'form-action': z.array(z.union([z.literal('*'), CspOrigin])).optional(),
   }).strict().optional(),
+  // Cookies whose presence means "this request is personal, never let a shared
+  // cache hold the answer". Collected by scripts/generate-module-cache-cookies.mjs
+  // into lib/modules/cache-cookies.ts and honoured by the Settings > General >
+  // Speed page cache (lib/cache/page-cache.ts).
+  //
+  // The shop's basket cookie is the case this exists for: a page rendered while
+  // somebody is carrying a basket must not be served to the next visitor, and
+  // core has no business knowing what the shop calls that cookie. Core's own
+  // admin and member session cookies are always honoured and never need
+  // declaring. A module that sets a cookie which changes nothing a visitor sees
+  // (a dismissed banner, a chosen tab) should NOT list it - every name here
+  // narrows how much of the site can be cached at all.
+  cacheBypassCookies: z.array(
+    z.string().regex(/^[A-Za-z0-9!#$%&'*+._|~^-]+$/, 'cacheBypassCookies entries must be cookie names')
+  ).optional(),
   // PascalCase table names owned by this module, used during uninstall with code_and_data mode.
   teardown: z.array(z.string()).optional(),
   // Puck block registrations provided by this module.

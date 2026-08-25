@@ -59,6 +59,7 @@ coverage/
 /lib/modules/email-templates.ts
 /lib/modules/sms-templates.ts
 /lib/modules/csp-origins.ts
+/lib/modules/cache-cookies.ts
 /lib/puck/module-components.ts
 /lib/puck/module-rsc-components.ts
 /lib/puck/module-embed-options.ts
