@@ -705,6 +705,15 @@ export function buildTokenStyles(tokens: unknown): string {
   // while still not matching inside an unstyled subtree.
   const notUnstyled = ':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))'
 
+  // A disabled control is not offering anything, so it must not light up when
+  // the pointer crosses it. The hover fill below is `!important` and outranks
+  // the `:not(:disabled)` guard a module puts on its own hover rule, which is
+  // how a quantity stepper sitting at its floor still wore the site's hover
+  // colour on the minus it had already refused. Zero-specificity `:where()`
+  // for the same reason as above - the guard changes what matches, never how
+  // heavily.
+  const notDisabled = ':not(:where(:disabled))'
+
   if (ts?.links?.colour) scoped.push(`main a${notUnstyled}{color: var(--color-link);}`)
   if (ts?.links?.hoverColour) scoped.push(`main a${notUnstyled}:hover{color: var(--color-link-hover);}`)
 
@@ -725,7 +734,7 @@ export function buildTokenStyles(tokens: unknown): string {
     const hoverProps: string[] = []
     if (btns.hover?.textColour) hoverProps.push(`color: var(--btn-hover-text) !important;`)
     if (btns.hover?.bgColour)   hoverProps.push(`background: var(--btn-hover-bg) !important;`)
-    if (hoverProps.length) scoped.push(`main button${notUnstyled}:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
+    if (hoverProps.length) scoped.push(`main button${notUnstyled}${notDisabled}:hover,main .cactus-btn[data-variant="primary"]:hover{${hoverProps.join('')}}`)
 
     // The hover fill repaints the button and nothing inside it. Anything within
     // that carries a colour of its own - a muted caption, an outlined marker, an
@@ -748,8 +757,22 @@ export function buildTokenStyles(tokens: unknown): string {
     // the rules above need it - the colours being overridden are inline.
     if (btns.hover?.bgColour || btns.hover?.textColour) {
       const hoverFg = 'var(--btn-hover-text, var(--color-text-inverse))'
-      scoped.push(`main button${notUnstyled}:hover[data-cactus-hover-fg],main button${notUnstyled}:hover [data-cactus-hover-fg]{color:${hoverFg} !important;}`)
-      scoped.push(`main button${notUnstyled}:hover[data-cactus-hover-border],main button${notUnstyled}:hover [data-cactus-hover-border]{border-color:${hoverFg} !important;}`)
+      scoped.push(`main button${notUnstyled}${notDisabled}:hover[data-cactus-hover-fg],main button${notUnstyled}${notDisabled}:hover [data-cactus-hover-fg]{color:${hoverFg} !important;}`)
+      scoped.push(`main button${notUnstyled}${notDisabled}:hover[data-cactus-hover-border],main button${notUnstyled}${notDisabled}:hover [data-cactus-hover-border]{border-color:${hoverFg} !important;}`)
+
+      // `data-cactus-hover-fg="inherit"` asks for the button's OWN colour rather
+      // than the theme's hover text colour. The two are the same thing on a site
+      // that set a hover text colour, and only differ on one that set a hover
+      // background alone: there the button's label keeps the colour it had, and a
+      // child taking the white fallback would then be the odd one out - which is
+      // the very mismatch these rules exist to stop. Wanted wherever a marked
+      // part has to agree with the label beside it rather than merely be legible:
+      // a price under an option's name, a "Selected" line under the same.
+      //
+      // Emitted after the rule above on purpose. An attribute selector weighs the
+      // same with a value as without, and both are `!important`, so the later of
+      // the two wins and the plain rule stays the default.
+      scoped.push(`main button${notUnstyled}${notDisabled}:hover[data-cactus-hover-fg="inherit"],main button${notUnstyled}${notDisabled}:hover [data-cactus-hover-fg="inherit"]{color:inherit !important;}`)
     }
 
     const secHoverProps: string[] = []

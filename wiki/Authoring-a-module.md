@@ -716,6 +716,19 @@ Mark such a part `data-cactus-hover-fg` and it takes the hover foreground for as
 
 The foreground is `var(--btn-hover-text, var(--color-text-inverse))`: the site's own hover text colour where it set one, so a marked part always agrees with the button around it, and white otherwise - `--color-text-inverse` is white in both light and dark, and white is the readable answer on a fill strong enough to be worth setting.
 
+Give it the value `inherit` - `data-cactus-hover-fg="inherit"` - and the part takes **the button's own colour** for the duration instead. The two are the same thing on a site that has set a hover text colour. They differ on a site that has set a hover background alone: there the button's label keeps the colour it was resting in, and a child on the white fallback becomes the one part that does not match, which is the very mismatch this attribute exists to stop. Reach for `inherit` where a marked part has to agree with a label beside it rather than merely stay legible - a price under an option's name, a "Selected" line under the same:
+
+```tsx
+<span style={{ display: 'grid', justifyItems: 'center' }}>
+  <span>{value.label}</span>
+  <span data-cactus-hover-fg="inherit" style={{ color: 'var(--color-text-muted)' }}>{priceHint}</span>
+</span>
+```
+
+Plain `data-cactus-hover-fg` stays the default; only the exact value `inherit` picks the other behaviour.
+
+Neither rule reaches a **disabled** button. A control the page has greyed out is not offering anything, so it takes no hover fill and needs no repaint to keep up with. Your own `:not(:disabled)` guard on your own hover rule cannot hold the site's fill off, since that one is `!important` - which is why the guard lives beside it here instead.
+
 Two things follow from where the rules are emitted. They exist **only** on a site that has set a hover background or a hover text colour, so on a site with neither, a marked element is exactly as it was and you have not quietly given it white-on-white. And they carry `!important` for the same reason the rules above do - the colours being overridden are inline, and inline beats an ordinary rule.
 
 Mark the parts that are muted or outlined against their resting surface. Leave alone anything that already brings its own strong fill and matched text, such as a filled marker in the primary colour: it stays legible on whatever lands behind it, and repainting it loses the distinction it was drawn to make.

@@ -25,6 +25,7 @@ describe('buildTokenStyles blanket element rules', () => {
 
   const css = buildTokenStyles(tokens)
   const OPT_OUT = ':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))'
+  const NOT_DISABLED = ':not(:where(:disabled))'
 
   it.each([
     ['main a', 'links'],
@@ -49,7 +50,38 @@ describe('buildTokenStyles blanket element rules', () => {
 
   it('still styles the site\'s own buttons', () => {
     expect(css).toContain(`main button${OPT_OUT}{`)
-    expect(css).toContain(`main button${OPT_OUT}:hover`)
+    expect(css).toContain(`main button${OPT_OUT}${NOT_DISABLED}:hover`)
+  })
+
+  // A disabled control is not on offer, so it must not light up under the
+  // pointer. The rule is `!important`, so a module's own `:not(:disabled)`
+  // guard cannot hold it off - the guard has to be here. The resting rule is
+  // deliberately not guarded: a disabled button still wears the site's colours,
+  // it simply does not react.
+  it('never paints a hover state onto a disabled button', () => {
+    // The opt-out has a comma inside it, so it is folded to a token first -
+    // otherwise a per-selector regex stops halfway through it.
+    const flat = css.split(OPT_OUT).join('@OPT@')
+    const hovers = flat.match(/main button[^{,]*:hover[^{,]*/g) ?? []
+    expect(hovers.length).toBeGreaterThan(0)
+    for (const rule of hovers) expect(rule).toContain(NOT_DISABLED)
+    expect(css).toContain(`main button${OPT_OUT}{`)
+  })
+
+  // A marked child normally takes the theme's hover text colour. `inherit` asks
+  // for the button's own instead, which is the same thing wherever a hover text
+  // colour is set and the only right answer where only a hover background is:
+  // the label keeps its resting colour there, so a child on the white fallback
+  // would be the one part that did not match.
+  it('lets a marked child take the button\'s own hover colour with "inherit"', () => {
+    const plain = css.indexOf(':hover[data-cactus-hover-fg]')
+    const inherited = css.indexOf(':hover[data-cactus-hover-fg="inherit"]')
+    expect(plain).toBeGreaterThan(-1)
+    expect(inherited).toBeGreaterThan(-1)
+    expect(css).toMatch(/\[data-cactus-hover-fg="inherit"\][^{]*\{color:inherit !important;\}/)
+    // Same weight, both !important - so the specific one has to come second or
+    // the plain rule quietly wins and the child is white again.
+    expect(inherited).toBeGreaterThan(plain)
   })
 
   it('leaves the Button block\'s own variant hovers alone - they are ours to paint', () => {
