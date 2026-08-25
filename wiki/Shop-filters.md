@@ -131,6 +131,26 @@ So this module separates the two:
    by hand only when you are dropping the block somewhere else, such as a landing page
    that should always show one particular range.
 
+## Smaller copies of picture swatches
+
+A filter that shows a picture rather than a flat colour usually borrows that picture
+from a product, where it is kept big on purpose - the [3D views](Product-3D-views) paint
+the actual file onto a model, and a shrunken one would look like porridge. In the filter
+panel the same picture is drawn as a dot about the size of a full stop. On a real
+catalogue that worked out at four megabytes of fabric photography to paint ten circles,
+which is not a good trade for anybody.
+
+The filters screen has a **Make copies** button under "Smaller copies for the shop".
+Press it once and every picture filter gets small copies made for the filter bar to use
+instead; press it again whenever you like, since anything already sorted is passed over.
+Pictures you pick from now on get their copies straight away, so this is only ever
+catching up with the past.
+
+Nothing changes about how you choose a picture, and nothing changes about how the filter
+looks - it is the same photograph, just not the enormous version of it. A filter whose
+picture cannot be shrunk (one hosted outside your media library, say) keeps drawing what
+it always drew.
+
 ## Filter collections - a page of its own for a filtered view
 
 Shoppers search for "green office chairs", not for "office chairs, then colour, then

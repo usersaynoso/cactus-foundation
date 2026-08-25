@@ -927,6 +927,63 @@ It exists because the alternative was worse in a way worth spelling out. Setting
 - **Contributed cells save themselves.** The rest of the table registers its edits with the product editor's single Save button, and this deliberately does not. The columns this point exists for carry uploads, and holding a 40 MB file in memory as a pending edit - lost on a tab change, applied later - would be a lie that costs the admin their upload. Weigh it the other way for a column of typed-in text.
 - **`label` and `order` ride along on the manifest entry.** Same trick as `shop.product-editor-sections`, with the same fallback rule: a manifest written before the field existed will not have it.
 
+## Core helpers a module may import
+
+A module must never import another module's code. Where two modules want the same
+machinery, it belongs in core and both import it from there.
+
+**Shrunk copies of a library picture** - `lib/media/renditions.ts`:
+
+```ts
+import { generateImageRenditions } from '@/lib/media/renditions'
+
+const made = await generateImageRenditions(url, [
+  { maxPx: 400, suffix: 'small' },
+  { maxPx: 128, suffix: 'tiny' },
+], { worthwhileBytes: 100_000 })
+// -> { small: 'https://.../oak-small.webp' | null, tiny: ... }
+```
+
+One download and decode feeds every size, so ask for all of them in one call rather than
+once each. Each copy is filed beside its original, in the same folder, named
+`<original>-<suffix>.webp`, and marked as already optimised. A `null` back means there was
+nothing worth making - the url is not a library item, the format is not one to shrink
+(only JPEG, PNG and WEBP are), or the original is already inside `maxPx` and under
+`worthwhileBytes`. It never throws: a failure is logged and comes back `null`, because
+this runs inside ordinary saves and losing an owner's edit over a thumbnail would be the
+tail wagging the dog. Store what you get, and fall back to the next size up when reading.
+
+Registering a `core.media-reference-rewriters` and a `core.media-usage-providers` entry
+for the copies' columns is not optional: each copy is its own library item with its own
+url, so without them a move or an optimise strands them and the library offers them up as
+unused.
+
+**The swatch sizes, and what to say about them** - `lib/media/swatch-renditions.ts`. Client-safe
+(no sharp, no prisma), so an admin screen can import it. `SWATCH_SMALL_MAX_PX` (400) is
+sized for a product page's enlarged hover preview; `SWATCH_TINY_MAX_PX` (128) for dots and
+little tiles on listings. `describeSwatchRenditions(full, small, tiny, files)` returns the
+three boxes an admin screen draws, each with a title, the sentence to put in its tooltip,
+and whether the storefront is currently drawing it. Use these rather than inventing your
+own numbers, or three modules will tell one owner three different stories about the same
+three files.
+
+**The admin's own tooltip** - `components/admin/Tooltip.tsx`:
+
+```tsx
+import { AdminTooltip } from '@/components/admin/Tooltip'
+
+<AdminTooltip title="Tiny copy" body="5 KB, 128 x 128. Drawn by category cards and filter lists.">
+  <SomeLittleBox />
+</AdminTooltip>
+```
+
+Portalled to `<body>` and fixed-positioned, so a table cell or a scroll container cannot
+clip it; shown at once on hover **or** keyboard focus; flips above or below by available
+room. Reach for it wherever a tooltip is carrying real information rather than repeating a
+label - a native `title` waits about a second, cannot be styled, wraps however the browser
+fancies, and never appears for a keyboard user at all. If you wrap a control that also
+sets `title`, turn the native one off so the two do not stack.
+
 ## Module cron jobs
 
 A module can register scheduled jobs by declaring `cronJobs` in `cactus.module.json`:
