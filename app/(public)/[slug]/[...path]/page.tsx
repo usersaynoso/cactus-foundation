@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { resolveModulePublicPage } from '@/lib/modules/router'
+import { resolveModulePublicPage } from '@/lib/modules/router.public'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'

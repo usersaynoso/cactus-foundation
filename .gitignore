@@ -53,6 +53,7 @@ coverage/
 # Regenerated on every build; committing one would bake one install's module list
 # into the template. Never commit these.
 /lib/modules/router.ts
+/lib/modules/router.public.ts
 /lib/modules/settings-tabs.ts
 /lib/modules/extension-points.ts
 /lib/modules/extension-points.public.ts

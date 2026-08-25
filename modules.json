@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.331"
+      "version": "v0.1.332"
     },
     {
       "name": "address-lookup-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.7"
+      "version": "v0.1.8"
     },
     {
       "name": "stock-import-for-shop",
@@ -133,7 +133,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.28"
+      "version": "v0.1.29"
     },
     {
       "name": "live-chat",

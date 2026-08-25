@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
-import { resolveModulePublicPage, resolveModuleRootSlugPage } from '@/lib/modules/router'
+import { resolveModulePublicPage, resolveModuleRootSlugPage } from '@/lib/modules/router.public'
 import type { Metadata } from 'next'
 
 type Props = {

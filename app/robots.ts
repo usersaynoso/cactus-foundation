@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
-import { collectModuleRobotsDisallow } from '@/lib/modules/router'
+import { collectModuleRobotsDisallow } from '@/lib/modules/router.public'
 
 // Metadata routes are statically cached at build time by default. This one
 // reads the live SiteConfig, so it must render per request — otherwise

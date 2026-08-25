@@ -529,7 +529,7 @@ Block settings should live entirely in the block's Puck field definitions - not 
 
 A module can optionally own a top-level public URL segment by declaring `publicBasePath` in its manifest (e.g. `"gazette"`). This is generic, reusable infrastructure - core has no knowledge of any specific module's public routes, only the mechanism.
 
-`scripts/generate-module-router.mjs` scans every installed module's `app/public/<base>/` directory (same manifest-driven pattern as the admin/API scan) and emits four additional exports into the gitignored `lib/modules/router.ts`:
+`scripts/generate-module-router.mjs` scans every installed module's `app/public/<base>/` directory (same manifest-driven pattern as the admin/API scan) and emits these exports into the gitignored `lib/modules/router.public.ts` (see **Why the router is two files** below):
 
 - `resolveModulePublicPage(base, path)` - resolves a module's `page.tsx` for a given base + path, matching literal segments before dynamic `[param]` segments so resolution is deterministic.
 - `dispatchModulePublicRoute(base, path, method, req)` - resolves and invokes a module's `route.ts` handler.
@@ -541,6 +541,24 @@ A module can optionally own a top-level public URL segment by declaring `publicB
 `app/sitemap.ts` escapes every URL for XML on the way out (`escapeSitemapEntries`, `lib/seo/sitemap-xml.ts`, core 0.5.1151). Next interpolates each entry's `url` into `<loc>${item.url}</loc>` unescaped, so a single raw `&` from a query string is read as the start of an entity reference and the parser stops dead at that line - which loses every entry below it, not merely that one. Escaping is done once in that funnel rather than per module; the corollary is that a module's `getPublicSitemapEntries` must hand its URLs over **raw**, since anything pre-escaped comes out double-escaped.
 
 Both scans are deliberately **independent of `publicBasePath`** (core 0.5.1150). What a module puts in `sitemap.xml` or `robots.txt` has nothing to do with whether it serves public pages under a prefix of its own: `ultimate-seo`'s admin-managed entries and `shop-variations`' per-combination product URLs are both about *other* modules' pages. Until 0.5.1150 the two `existsSync` checks sat behind the `if (!base) continue` guard in the generator, so a module without a public base of its own was never collected - the ultimate-seo Sitemap & robots screen saved rules and changed nothing at all.
+
+#### Why the router is two files
+
+The generator writes **two** files, not one, and the split is load-bearing:
+
+- `lib/modules/router.ts` - `API_ROUTES`, `PAGE_LOADERS`, `dispatchModuleApi`, `resolveModulePage`, `MODULES_IN_BUILD`. Imported only from `app/cactus-admin/**` and `app/api/m/**`.
+- `lib/modules/router.public.ts` - everything listed above. Imported only from `app/(public)/**`, `app/sitemap.ts` and `app/robots.ts`.
+
+Both are gitignored and rewritten on every build and dev start.
+
+The reason is that **Next.js ships a client component to the browser if a route's server graph can reach it at all**, rendered or not, and a lazy `() => import(...)` is an edge it follows. Only `import type` and a real `next/dynamic` boundary cost nothing. While both halves shared one file, `app/(public)/[slug]/page.tsx` - the route behind every info page, category and product - could reach `PAGE_LOADERS`, and therefore every module's admin screens, and therefore the Puck editor those screens import along with its 118 client blocks. Measured on a live site in August 2026: **5.5 MB** of uncompressed JavaScript on a category listing, of which about **2.2 MB** was admin code the page never renders. Splitting the tables took the same route to **3.0 MB**.
+
+Nothing in the toolchain notices this on its own. `tsc` and `eslint` see nothing wrong, the build succeeds, and the only symptom is weight. Two things guard it instead:
+
+- `lib/modules/router-split.test.ts` fails if the public half gains an admin loader, if it imports the admin half, or if any file under `app/(public)` (plus `sitemap.ts`, `robots.ts`, `not-found.tsx`) imports `@/lib/modules/router` or the full `@/lib/modules/extension-points` map. It scans the tree rather than checking a hand-kept list.
+- `node scripts/analyse-public-bundle.mjs` walks the same graph from a route entry and prints client-component weight by module, without needing a build. `--why modules/shop` prints the shortest import trail in; `--offenders` lists files a public request can reach that still import the full extension-point map.
+
+The same rule is why `lib/modules/extension-points.public.ts` exists alongside `lib/modules/extension-points.ts`. **Anything a public request can reach must import the public map.**
 
 Core resolves requests to a module's public base through three routes, in order:
 

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
-import { collectModuleSitemapEntries } from '@/lib/modules/router'
+import { collectModuleSitemapEntries } from '@/lib/modules/router.public'
 import { escapeSitemapEntries } from '@/lib/seo/sitemap-xml'
 
 // Reads live published pages + module entries, so it must render per request.

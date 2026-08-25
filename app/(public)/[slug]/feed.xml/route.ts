@@ -1,4 +1,4 @@
-import { dispatchModulePublicRoute } from '@/lib/modules/router'
+import { dispatchModulePublicRoute } from '@/lib/modules/router.public'
 
 export const dynamic = 'force-dynamic'
 
