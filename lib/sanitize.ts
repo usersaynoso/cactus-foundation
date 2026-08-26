@@ -6,6 +6,8 @@ import {
   ALLOWED_ATTR,
   RICHTEXT_ALLOWED_TAGS,
   RICHTEXT_ALLOWED_ATTR,
+  EMAIL_HTML_ALLOWED_TAGS,
+  EMAIL_HTML_ALLOWED_ATTR,
 } from '@/lib/sanitize-config'
 
 // DOMPurify needs a DOM environment.
@@ -72,6 +74,40 @@ export function sanitizeRichText(html: string): string {
     ADD_ATTR: ['target'],
     FORCE_BODY: true,
   })
+}
+
+// Cleans hand-written email HTML - a signature pasted out of Outlook, a block
+// of markup an owner wrote themselves. Wider than sanitizeRichText because email
+// layout is table attributes rather than CSS, and narrower than trusting the
+// input because the author is a member of staff, not the site owner: a stored
+// `onerror=` would run in a customer's inbox, not in the admin.
+export function sanitizeEmailHtml(html: string): string {
+  if (!html) return ''
+  return getPurifier().sanitize(html, {
+    ALLOWED_TAGS: EMAIL_HTML_ALLOWED_TAGS,
+    ALLOWED_ATTR: EMAIL_HTML_ALLOWED_ATTR,
+    ADD_ATTR: ['target'],
+    FORCE_BODY: true,
+  })
+}
+
+/** Flattens sanitised HTML to the plain-text alternative an email also carries.
+ * Block-level tags become line breaks first, or a table-based signature reads as
+ * one long run-on line in a text-only client. */
+export function emailHtmlToPlainText(html: string): string {
+  return sanitizeEmailHtml(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|h[1-6]|li|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 // Published RichText: sanitise FIRST, obfuscate emails AFTER. The order is the

@@ -34,3 +34,25 @@ export const ALLOWED_ATTR = [
 export const RICHTEXT_ALLOWED_TAGS = [...ALLOWED_TAGS, 'u', 'span', 'div']
 
 export const RICHTEXT_ALLOWED_ATTR = [...ALLOWED_ATTR, 'style', 'colspan', 'rowspan']
+
+// Allow-list for hand-written email HTML - a pasted corporate signature, most
+// often. Email markup is a different dialect to page markup: layout is nested
+// <table> with presentational attributes (cellpadding, cellspacing, border,
+// align, valign, bgcolor), because half the world's inboxes still ignore CSS
+// layout entirely. Stripping those attributes doesn't harden the HTML, it just
+// collapses the design.
+//
+// What is NOT here is the part that matters: no script, no iframe, no object,
+// no on* handler, no style element. DOMPurify drops an attribute that isn't on
+// this list, so `onerror=` and friends go regardless of how they were written,
+// and its own URI check still refuses a javascript: href.
+export const EMAIL_HTML_ALLOWED_TAGS = [
+  ...RICHTEXT_ALLOWED_TAGS,
+  'tfoot', 'caption', 'colgroup', 'col', 'center', 'font', 'small', 'big', 'sub', 'sup',
+]
+
+export const EMAIL_HTML_ALLOWED_ATTR = [
+  ...RICHTEXT_ALLOWED_ATTR,
+  'cellpadding', 'cellspacing', 'border', 'align', 'valign', 'bgcolor',
+  'background', 'face', 'color', 'size', 'span', 'dir', 'role', 'lang',
+]

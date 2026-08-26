@@ -10,6 +10,7 @@ import {
   type EmailRenderContext,
   type EmailRootProps,
 } from '@/lib/email/blocks'
+import { EMAIL_SIGNATURE_ROOT_DEFAULTS } from '@/lib/email/signature'
 
 // Puck config for the `emailWrapper` layout type.
 //
@@ -356,3 +357,55 @@ export const emailPuckConfig = {
 }
 
 export type EmailPuckConfig = typeof emailPuckConfig
+
+// ---------------------------------------------------------------------------
+// Signature variant
+// ---------------------------------------------------------------------------
+
+// The same blocks, minus the Message slot, minus the page-and-card shell. A
+// signature is a fragment that lands inside a message somebody else has already
+// written, so there is nothing here to set a page background on and no card to
+// centre - see lib/email/signature.ts, whose shell this canvas mirrors.
+
+function EmailSignatureRoot({ children, ...props }: EmailRootProps & { children?: React.ReactNode }) {
+  const root: EmailRootProps = { ...EMAIL_SIGNATURE_ROOT_DEFAULTS, ...props }
+  const ctx = editorContext(root)
+  const background = resolveColour(typeof root.background === 'string' ? root.background : '', ctx, '')
+  const width = Number(root.contentWidth) || 520
+
+  return (
+    <EmailRootContext.Provider value={root}>
+      {/* White, not the page background: the canvas is standing in for the
+          inside of a reply, which is the card, not the page behind it. */}
+      <div style={{ background: '#ffffff', padding: '24px 16px', minHeight: '100%' }}>
+        <div style={{ maxWidth: width, background: background || undefined }}>{children}</div>
+      </div>
+    </EmailRootContext.Provider>
+  )
+}
+
+// Everything except the Message slot. Dropping it from the picker rather than
+// leaving it to be skipped at render time means the owner never places a block
+// that silently does nothing.
+const { EmailBodySlot: _signatureBodySlot, ...signatureComponents } = components
+
+export const emailSignaturePuckConfig = {
+  categories: {
+    content: { title: 'Content', components: ['EmailHeading', 'EmailText', 'EmailImage', 'EmailTwoColumn'], defaultExpanded: true },
+    chrome: { title: 'Logo and links', components: ['EmailLogo', 'EmailButton', 'EmailSocialRow', 'EmailFooterText'], defaultExpanded: true },
+    spacing: { title: 'Spacing', components: ['EmailDivider', 'EmailSpacer'], defaultExpanded: false },
+  },
+  root: {
+    fields: {
+      background: colourField('Background (token id or hex, blank for none)'),
+      contentWidth: { type: 'number' as const, label: 'Width (px)', min: 240, max: 800 },
+      fontFamily: { type: 'text' as const, label: 'Font (token id, or a full font stack)' },
+    },
+    defaultProps: { ...EMAIL_SIGNATURE_ROOT_DEFAULTS },
+    render: EmailSignatureRoot,
+  },
+  components: signatureComponents,
+}
+
+export type EmailSignaturePuckConfig = typeof emailSignaturePuckConfig
+

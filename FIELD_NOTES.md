@@ -1,7 +1,38 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**The 3D viewer flickering to a wrong or black model, on option changes and on nothing at all** - `product-3d-views-for-shop` **0.1.98**, pinned by core.)
+Last updated: 2026-08-26 (**Signatures on contact-form replies come in three kinds now - rich text, pasted HTML, or built from email blocks - and the two emails a visitor gets finally carry the site's email design** - `contact-form` **0.1.37**, `contact-form-reply-catcher` **0.1.11**, core **0.5.1329**.)
+
+A signature was one markdown string, appended to the reply body with `\n\n` and rendered as one markdown document (`sendReply`, `modules/contact-form/lib/email.ts`). That could only ever be markdown: a pasted corporate signature - nested tables, inline styles, a logo - has its angle brackets stripped by `markdownToHtml` before `marked` ever sees them, by design.
+
+**Three kinds, all three stored side by side.** `cf_user_profiles` gains `signature_kind` (`markdown` | `html` | `puck`, default `markdown`), `signature_html`, `signature_puck` (jsonb), plus four per-person fields - `full_name`, `job_title`, `phone_display`, `phone_e164`. Switching kind never discards the other two, so switching back gets the old one straight back. Module migration `002_signature_kinds.sql`, and `001_initial.sql` edited to match for fresh installs.
+
+**Merge tags are what make one HTML blob serve a whole team.** `{{FULL_NAME}}`, `{{JOB_TITLE}}`, `{{EMAIL}}`, `{{PHONE_DISPLAY}}`, `{{PHONE_E164}}`, filled from those profile fields (name falls back to the account's display name, email always comes from the account). Core's `User` carries a display name and an email and nothing else usable - its only phone number is encrypted and is for sign-in codes - which is why the fields live on the module's own row. Core's `{{siteName}}` / `{{year}}` still work alongside them.
+
+**Core gained three generic pieces, none of them naming a module.**
+- `sanitizeEmailHtml()` + `emailHtmlToPlainText()` (`lib/sanitize.ts`, allow-lists in `lib/sanitize-config.ts`). Email markup is a different dialect to page markup - `cellpadding`, `cellspacing`, `border`, `align`, `valign`, `bgcolor` are layout, not decoration - so `sanitizeRichText`'s list would have collapsed any real signature. What stays out is the part that matters: no script, no iframe, no `on*` handler. A pasted `onerror=` fallback goes on save.
+- `lib/email/signature.ts` - walks a Puck data blob through the same `EMAIL_BLOCK_HTML` renderers a wrapper uses, minus the page/card shell: a signature is a fragment inside somebody else's message. `EmailBodySlot` is skipped rather than rendered, or a signature carrying one would paste the whole reply in twice. Deliberately prisma-free, because the editor canvas imports its defaults and that import runs in the browser.
+- `emailSignaturePuckConfig` (`lib/puck/email-config.tsx`) - the same blocks minus the Message slot, with a three-field root (background, width, font) and its own canvas root mirroring that shell.
+
+**Send path.** `renderSignature()` (`modules/contact-form/lib/signature.ts`) turns whichever kind into one `{ html, text }` pair; `sendReply` renders the body and the signature separately and joins them with an inline-styled rule (a bare `<hr>` gets Outlook's own 3D default). The plain-text alternative is the body's markdown-to-text plus the signature flattened. Only the block-built kind touches the database (site palette, site name), so a markdown signature still costs no extra reads.
+
+**Sent replies keep what was sent, not a recipe for re-making it.** `cf_contact_submission_replies` gains `signature_snapshot_kind` and `signature_snapshot_html`; `signature_snapshot` keeps its old meaning (the markdown source) and a NULL kind is a reply from before this change. `ThreadMessageContribution` gains optional `bodyHtml`, rendered under the body on white with `color-scheme: light` pinned - an email signature carries fixed colours the admin's dark mode would fight.
+
+**Admin.** `my-signature` is now kind picker + details + the right editor + a server-rendered preview (the block kind resolves site colours server-side, so a preview drawn any other way could disagree with the email). `SignaturePuckEditor` mounts Puck inline in a 560px box with its header overridden away, `next/dynamic` so the Puck bundle only arrives if the block kind is picked - same approach as the Gazette post editor. `ReplyComposer` now shows the signature as rendered HTML beneath the composer instead of folding its markdown into the preview tab.
+
+`contact-form-reply-catcher` **0.1.11** gets the same treatment on its own merged timeline: its local `TimelineEntry` gains `bodyHtml`, fed from `signatureSnapshotHtml` with the old markdown source as the fallback for pre-0.1.37 replies. Its `requiresModules` floor moves to `contact-form` **0.1.37**, because it now reads a field that did not exist before - which is the mechanism doing its job rather than a coupling to work around.
+
+**The two emails a VISITOR receives were never wrapped, and now are.** The owner notification always went through `renderEmailTemplate`, which drops the body into the site's wrapper on its way out. The auto-reply and the inbox reply did not: they are free text rather than a registered template, so `sendEmail` got bare `markdownToHtml` output - no logo, no site colours, no footer, nothing like the rest of the site's email. New `getContactEmailContext()` in `modules/contact-form/lib/email.ts` resolves palette + wrapper + site values in one go, and both now go out through `wrapEmailHtml`.
+
+The wrapper is the site's **default** - `resolveEmailWrapper(null)`, the highest-priority published one, the same resolution core uses for a template that names none. Deliberately not a setting: the contact form's config lives on the Puck block, so a picker there would let one form on one page disagree with another about what the whole site's email looks like, and an owner who genuinely wants a different look for replies can publish a second wrapper and promote it. With nothing published at all, `wrapEmailHtml` still returns a tidy centred card, which is a better floor than what these two sent before.
+
+That context is threaded through `sendReply` and into `renderSignature`, so one reply reads the site config once rather than twice - the block-built signature kind needs the same palette the wrapper does. The plain-text alternative is deliberately left unwrapped: a wrapper is a picture frame, and there is nothing in it a text-only reader wants.
+
+New `modules/contact-form/lib/signature.test.ts` (10 tests) holds the real pasted signature this was built for and pins what survives it: every presentational table attribute, the inline styles, the image, and merge tags inside `mailto:`/`tel:` hrefs. The only thing removed is the `onerror` fallback on the logo - and that pointed at a relative local file no inbox could have loaded anyway.
+
+Gates: `npm run typecheck` clean, `eslint .` **No issues found**, `npx vitest run` **3163 passed / 93 skipped, 0 failed**, and `npm run test:backup-roundtrip` a real **3 passed** against a throwaway database on the OVH VPS (module migration SQL changed, so the gate applies).
+
+Previous entry: 2026-08-26 (**The 3D viewer flickering to a wrong or black model, on option changes and on nothing at all** - `product-3d-views-for-shop` **0.1.98**, pinned by core.)
 
 Chris, on the Impulse panel-end desk with a pedestal add-on: swapping an option or an add-on made the 3D model "freak out" - a black model for a split second, then the right one. And after it had settled, simply dragging the model would do the same thing again.
 
@@ -2660,7 +2691,7 @@ Modules live in `/modules` (gitignored), cloned at build time by `scripts/checko
 
 ### Contact Form
 
-- Slug: `contact-form` (table prefix `cf_`), repo `github.com/cactus-foundation-modules/contact-form`, manifest version 0.1.26 (registry pin v0.1.26).
+- Slug: `contact-form` (table prefix `cf_`), repo `github.com/cactus-foundation-modules/contact-form`, manifest version 0.1.37 (registry pin v0.1.37, `requiresCoreVersion` 0.5.1329).
 - A contact form placed on any page or layout through the Puck builder, configured per-block. Submissions land in an admin inbox with read/archive state, a markdown reply composer with per-admin signatures, notification and auto-reply emails, Turnstile and per-block rate limiting, GDPR consent capture, per-block retention, and CSV export.
 
 **Database**
@@ -2692,7 +2723,7 @@ Table prefix: `cf_`
 
 Admin pages (served through `/cactus-admin/m/contact-form/…`): `inbox` (list, tabs, bulk actions - `SubmissionList.tsx`), `inbox/[id]` (detail + reply thread incl. caught replies + `ReplyComposer` markdown editor), `my-signature` (markdown signature editor).
 
-Both `inbox` and `inbox/[id]` publish extension points other modules can contribute to (permission-filtered live from `Module.manifest`, resolved via the generated `lib/modules/extension-points.ts`, see `scripts/generate-module-extension-points.mjs` above): `contact-form.inbox-actions` (button row on `inbox`, left of "Edit My Signature", receives `{adminPath}`), `contact-form.submission-detail` (component block on `inbox/[id]`, rendered after the merged Replies thread and before the reply composer, receives `{submissionId}`; currently no consumers), and `contact-form.thread-messages` (data contract, not a component - contributing modules export an async `(submissionId) => Promise<ThreadMessageContribution[]>`, `{id, createdAt, senderLabel, body, badge?}` per `modules/contact-form/lib/types.ts`; core merges the results with the submission's own replies by `createdAt` into one chronological "Replies" list, giving any message with a truthy `badge` a muted `--color-bg-subtle`/`--color-border-strong` card instead of the default `--color-accent` border - `badge` is not rendered as visible text, it's purely the style trigger). `contact-form.inbox-actions` and `contact-form.thread-messages` are currently consumed only by `contact-form-reply-catcher` (Caught Replies button + inline caught-reply timeline entries, muted card colour, no visible label).
+Both `inbox` and `inbox/[id]` publish extension points other modules can contribute to (permission-filtered live from `Module.manifest`, resolved via the generated `lib/modules/extension-points.ts`, see `scripts/generate-module-extension-points.mjs` above): `contact-form.inbox-actions` (button row on `inbox`, left of "Edit My Signature", receives `{adminPath}`), `contact-form.submission-detail` (component block on `inbox/[id]`, rendered after the merged Replies thread and before the reply composer, receives `{submissionId}`; currently no consumers), and `contact-form.thread-messages` (data contract, not a component - contributing modules export an async `(submissionId) => Promise<ThreadMessageContribution[]>`, `{id, createdAt, senderLabel, body, bodyHtml?, badge?}` per `modules/contact-form/lib/types.ts` - `body` is markdown, `bodyHtml` is pre-rendered trusted markup shown beneath it (the sent signature); core merges the results with the submission's own replies by `createdAt` into one chronological "Replies" list, giving any message with a truthy `badge` a muted `--color-bg-subtle`/`--color-border-strong` card instead of the default `--color-accent` border - `badge` is not rendered as visible text, it's purely the style trigger). `contact-form.inbox-actions` and `contact-form.thread-messages` are currently consumed only by `contact-form-reply-catcher` (Caught Replies button + inline caught-reply timeline entries, muted card colour, no visible label).
 
 **Puck Blocks**
 
@@ -2718,7 +2749,7 @@ None.
 
 ### Contact Form Reply Catcher
 
-- Slug: `contact-form-reply-catcher` (table prefix `rc_`), manifest version 0.1.6. Not in `modules.json` (present on disk only; not part of the shipped registry).
+- Slug: `contact-form-reply-catcher` (table prefix `rc_`), repo `github.com/cactus-foundation-modules/reply-catcher`, manifest version 0.1.11 (registry pin v0.1.11). `requiresModules`: `contact-form` >= 0.1.37.
 - Polls the site admin's real mailbox (plain IMAP or Outlook OAuth) and threads submitter replies - and the admin's own personally-sent replies - back into the contact-form inbox, so conversations continued over ordinary email stay visible in Cactus. Read-only against the mailbox: never marks read, moves, or deletes.
 
 **Database**
