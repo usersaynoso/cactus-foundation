@@ -341,6 +341,7 @@ export const emailPuckConfig = {
       patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
       patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode (Apple Mail and Outlook for Mac only)' },
       patternSize: { type: 'number' as const, label: 'Pattern size (px, blank for the image\u2019s own size)', min: 0, max: 2000 },
+      patternSizeDark: { type: 'number' as const, label: 'Pattern size in dark mode (px, blank = same as light)', min: 0, max: 2000 },
       cardBackground: colourField('Card background (token id or hex)'),
       cardBorderColour: colourField('Card border (token id or hex, blank for none)'),
       contentWidth: { type: 'number' as const, label: 'Card width (px)', min: 320, max: 800 },

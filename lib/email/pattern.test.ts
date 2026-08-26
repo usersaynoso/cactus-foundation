@@ -60,6 +60,18 @@ describe('email background pattern', () => {
     expect(html).toContain('background-image:url(https://cdn.example.com/dots.svg)')
   })
 
+  it('sizes the dark tile differently when asked, with no dark image involved', () => {
+    const html = wrap({ patternImage: 'https://cdn.example.com/dots.svg', patternSize: 120, patternSizeDark: 240 })
+    expect(html).toContain('@media (prefers-color-scheme: dark)')
+    expect(html).toContain('background-size:240px !important;')
+    expect(html).toContain('name="color-scheme" content="light dark"')
+  })
+
+  it('leaves dark mode alone when the dark size matches the light one', () => {
+    const html = wrap({ patternImage: 'https://cdn.example.com/dots.svg', patternSize: 120, patternSizeDark: 120 })
+    expect(html).not.toContain('prefers-color-scheme')
+  })
+
   it('adds the dark rule and the both-schemes declaration only when a dark pattern is set', () => {
     const light = wrap({ patternImage: 'https://cdn.example.com/light.svg' })
     expect(light).not.toContain('prefers-color-scheme')

@@ -31,6 +31,43 @@ describe('patternBackground', () => {
     expect(patternCss('abc', { patternImage: '/a.svg' })).toContain('inset:-1px 0')
   })
 
+  it('can size the tile differently in dark mode', () => {
+    const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '120px', patternSizeDark: '240px' })
+    expect(css).toContain('background-size:120px')
+    expect(css).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:240px !important;}')
+    expect(css).toContain('@media(prefers-color-scheme:dark)')
+  })
+
+  it('takes a dark size with no dark image, and vice versa', () => {
+    expect(patternCss('abc', { patternImage: '/a.svg', patternSizeDark: '240px' })).toContain('background-size:240px !important')
+    const imageOnly = patternCss('abc', { patternImage: '/a.svg', patternImageDark: '/b.svg' })
+    expect(imageOnly).toContain('background-image:url("/b.svg")')
+    expect(imageOnly).not.toContain('!important')
+  })
+
+  // Dark sizes cascade desktop -> tablet -> mobile like every other responsive
+  // field, and the two conditions are combined into ONE query: nested @media is
+  // not something every browser this runs in supports.
+  it('sizes the dark tile per breakpoint through one combined query', () => {
+    const css = patternCss('abc', { patternSize: { desktop: '120px', mobile: '60px' }, patternSizeDark: { desktop: '240px', mobile: '100px' }, patternImage: '/a.svg' })
+    expect(css).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:240px !important;}')
+    expect(css).toMatch(/@media\(max-width:\d+px\)\{\[data-theme="dark"\][^}]+background-size:100px !important;\}\}/)
+    expect(css).toMatch(/@media\(prefers-color-scheme:dark\) and \(max-width:\d+px\)/)
+    expect(css).not.toContain('background-size:auto !important')
+  })
+
+  // A dark size left blank at every breakpoint means "same as light" - not
+  // 'auto', which would quietly undo the light size.
+  it('leaves the light size alone when only a dark IMAGE is set', () => {
+    const css = patternCss('abc', { patternSize: '120px', patternImage: '/a.svg', patternImageDark: '/b.svg' })
+    expect(css).toContain('background-size:120px')
+    expect(css).not.toContain('background-size:auto')
+  })
+
+  it('says nothing about dark mode when neither a dark image nor a dark size is set', () => {
+    expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '120px' })).not.toContain('data-theme="dark"')
+  })
+
   it('rounds a fractional pixel size, which would tile with seams', () => {
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '240.5px' })).toContain('background-size:241px')
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '0.2px' })).toContain('background-size:1px')

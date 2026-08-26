@@ -4,6 +4,7 @@ import {
   EMAIL_BLOCK_HTML,
   EMAIL_ROOT_DEFAULTS,
   emailShell,
+  emailPatternSize,
   emailPatternStyle,
   emailPatternUrl,
   escapeHtml,
@@ -124,9 +125,15 @@ export function renderWrapperInner(data: PuckData, ctx: EmailRenderContext): str
 // will show the light pattern in its dark theme; nothing an author can write
 // changes that.
 function patternDarkHead(root: EmailRootProps): string {
+  if (!emailPatternUrl(root)) return ''
   const dark = emailPatternUrl(root, 'patternImageDark')
-  if (!dark || !emailPatternUrl(root)) return ''
-  return `<style>@media (prefers-color-scheme: dark){.${EMAIL_PATTERN_CLASS}{background-image:url(${dark}) !important;}}</style>`
+  // A dark size on its own is reason enough for the block: the same tile often
+  // needs to be bigger to read against a dark background.
+  const darkSize = emailPatternSize(root, { dark: true })
+  const sizeChanged = darkSize !== emailPatternSize(root)
+  if (!dark && !sizeChanged) return ''
+  const decls = `${dark ? `background-image:url(${dark}) !important;` : ''}${sizeChanged && darkSize > 0 ? `background-size:${darkSize}px !important;` : ''}`
+  return `<style>@media (prefers-color-scheme: dark){.${EMAIL_PATTERN_CLASS}{${decls}}}</style>`
 }
 
 function documentShell(inner: string, ctx: EmailRenderContext, root: EmailRootProps, title: string): string {

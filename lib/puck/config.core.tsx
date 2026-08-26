@@ -52,6 +52,7 @@ import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages, 
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 import { hasPattern, patternCss, patternHostStyle, type PatternProps } from '@/lib/puck/patternBackground'
+import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
 // is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
 // so a direct import here opens a client boundary on the RSC path and drags the whole
@@ -264,15 +265,16 @@ const PATTERN_FIELDS = {
   patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
   patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode' },
   patternSize: { type: 'custom' as const, label: 'Pattern size (blank = original size)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
+  patternSizeDark: { type: 'custom' as const, label: 'Pattern size in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
 }
-const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '' }
+const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '' }
 
 // The dark-mode pattern and the size only mean anything once a pattern is
 // picked, so they stay out of the panel until one is - same applicable-only
 // rule the rest of the block fields follow.
 function trimPatternFields(props: any, fields: Record<string, any>): Record<string, any> {
   if (props?.patternImage) return fields
-  const { patternImageDark: _d, patternSize: _s, ...rest } = fields
+  const { patternImageDark: _d, patternSize: _s, patternSizeDark: _sd, ...rest } = fields
   return rest
 }
 
@@ -979,13 +981,13 @@ function SectionBlock(props: any) {
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
-    patternImage = '', patternImageDark = '', patternSize = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '',
   } = props
 
   // Tiling pattern. Painted on this section's ::before rather than its own
   // background, so it can sit on top of a background photo and carry a separate
   // image for dark mode - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
   const patternOn = hasPattern(pattern)
   const patternStyles = patternCss(id, pattern)
 
@@ -1565,6 +1567,17 @@ function cssColourValue(value: string): string {
   return String(value ?? '').replace(/[<>{};]/g, '')
 }
 
+// A see-through version of a colour that may carry a dark-mode arm. Each arm is
+// mixed separately rather than wrapping the whole `light-dark(l, d)` in one
+// color-mix - the same rule SectionBgColorField's opacity slider follows, and
+// the reason a translucent colour rides color-mix at all is that rgba() cannot
+// wrap a `var(--color-N)` swatch.
+function fadeColour(value: string, percent: number): string {
+  const mix = (arm: string) => (arm ? `color-mix(in srgb, ${arm} ${percent}%, transparent)` : '')
+  const { light, dark } = splitLightDark(value)
+  return composeLightDark(mix(light), mix(dark))
+}
+
 function ButtonLink(props: any) {
   const {
     id, label, href, variant, align, padding, puck,
@@ -1805,10 +1818,10 @@ function PhoneBlock(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // Tiling pattern over whatever the preset/custom background paints, with its
   // own dark-mode image - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
   const patternStyles = patternCss(id, pattern)
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
@@ -1816,16 +1829,30 @@ function CTABanner(props: any) {
     light: { bg: 'var(--color-bg-subtle)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
     brand: { bg: 'var(--color-primary)', text: 'var(--color-bg)', sub: 'rgba(255,255,255,0.85)' },
   }
-  // 'custom' paints this banner's own picked colours; each one left blank falls
-  // back to the Light preset it started from. The sub-text rides the picked
-  // text colour at 75% so it always reads against the same background.
-  const t = background === 'custom'
-    ? {
-        bg: bgColor || 'var(--color-bg-subtle)',
-        text: textColor || 'var(--color-fg)',
-        sub: textColor ? `color-mix(in srgb, ${textColor} 75%, transparent)` : 'var(--color-muted)',
-      }
+  // 'custom' paints this banner's own picked background; blank falls back to the
+  // Light preset it started from.
+  const preset = background === 'custom'
+    ? { ...bgs.light!, bg: bgColor || 'var(--color-bg-subtle)', text: 'var(--color-fg)' }
     : bgs[background] ?? bgs.light!
+  // Text colour is NOT tied to the custom background any more. An owner picking
+  // the Brand preset and wanting darker headings on it had nowhere to say so -
+  // the picker only appeared once the background was set to Custom, which meant
+  // giving up the preset to change the words on it. Every colour here carries
+  // its own dark-mode arm through the shared `light-dark()` encoding, so one
+  // field covers both schemes (lib/puck/lightDark.ts). The sub-text rides the
+  // picked text colour at 75% so it always reads against the same background.
+  const t = {
+    bg: preset.bg,
+    text: textColor || preset.text,
+    sub: textColor ? fadeColour(textColor, 75) : preset.sub,
+  }
+  // The banner's one link is its button. `linkColor` paints its label, blank
+  // keeping the derived colour that reads against whichever fill it sits on;
+  // the hover arm has to be a rule rather than an inline style.
+  const linkBase = background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)'
+  const linkCss = linkHoverColor
+    ? `[data-cta-id="${id}"] a:hover{color:${cssColourValue(linkHoverColor)} !important;}`
+    : ''
   // Height of the banner: the existing "Padding (left/right)" field only ever set
   // padding-left/right (via the cactus-pad-* classes), so the coloured box had
   // nothing holding it off the text above and below it. Per-breakpoint like every
@@ -1837,7 +1864,7 @@ function CTABanner(props: any) {
   const pyCss = responsiveMediaCssFor(`[data-cta-id="${id}"]`, (d) => `padding-top:${pyAt(d)};padding-bottom:${pyAt(d)};`)
   return (
     <>
-      {pyCss && <style>{pyCss}</style>}
+      {(pyCss || linkCss) && <style>{`${pyCss}${linkCss}`}</style>}
       {patternStyles && <style>{patternStyles}</style>}
       <section
         data-cta-id={id}
@@ -1852,7 +1879,7 @@ function CTABanner(props: any) {
         {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{protectText(heading, obfuscate)}</h2>}
         {subtext && <p style={{ margin: '0 0 1.5rem', color: t!.sub, fontSize: '1rem', lineHeight: 1.65 }}>{protectText(subtext, obfuscate)}</p>}
         {ctaLabel && ctaHref && (
-          <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: background === 'brand' ? 'var(--color-primary)' : 'var(--color-bg)', borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
+          <a {...emailSafeHref(ctaHref, obfuscate)} style={{ display: 'inline-block', padding: '0.75rem 1.75rem', background: background === 'brand' ? 'var(--color-bg)' : 'var(--color-primary)', color: linkColor || linkBase, borderRadius: 6, fontWeight: 600, textDecoration: 'none', fontSize: '1rem' }}>
             {maskEmailText(ctaLabel, obfuscate)}
           </a>
         )}
@@ -1971,7 +1998,7 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
-    patternImage = '', patternImageDark = '', patternSize = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
@@ -1979,7 +2006,7 @@ function Hero(props: any) {
   // Tiling pattern, painted on this hero's ::before so it can sit on top of the
   // gradient/colour/photo already there and carry its own dark-mode image - see
   // lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
   const patternStyles = patternCss(id, pattern)
 
   const bgType = bg.mode ?? 'gradient'
@@ -2879,10 +2906,10 @@ const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4r
 // `<BlockName>-<nanoid>`.
 const PAGE_PATTERN_ID = 'cactus-page-root'
 
-const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '' }: any) => {
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '' }: any) => {
   const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
   const padding = pagePaddingYMap[paddingY] ?? '0'
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
   const patternStyles = patternCss(PAGE_PATTERN_ID, pattern)
   return (
     <div
@@ -3367,19 +3394,24 @@ export const puckConfig = {
         background: { type: 'select' as const, label: 'Background', options: [{ value: 'light', label: 'Light' }, { value: 'white', label: 'White (bordered)' }, { value: 'brand', label: 'Brand colour' }, { value: 'custom', label: 'Custom colours' }] },
         bgColor: { type: 'custom' as const, label: 'Background colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        linkColor: { type: 'custom' as const, label: 'Link colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        linkHoverColor: { type: 'custom' as const, label: 'Link hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         paddingY: { type: 'custom' as const, label: 'Vertical padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
         ...PATTERN_FIELDS,
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, bgColor: '', textColor: '', padding: 'none', paddingY: 'none' as const, ...PATTERN_DEFAULTS, ...STICKY_DEFAULTS, ...aosDefaults },
-      // The three presets carry their own colours, so the per-block colour
-      // pickers only appear on Custom.
+      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, bgColor: '', textColor: '', linkColor: '', linkHoverColor: '', padding: 'none', paddingY: 'none' as const, ...PATTERN_DEFAULTS, ...STICKY_DEFAULTS, ...aosDefaults },
+      // Only the BACKGROUND colour belongs to the Custom option - the three
+      // presets bring their own fill, so a background picker beside them would
+      // paint nothing. Text and link colours are overrides that apply on top of
+      // any of them and stay listed throughout: hiding them behind Custom meant
+      // an owner had to abandon a preset to recolour the words on it.
       resolveFields: (data: any, { fields }: any) => {
         const p = data.props ?? {}
         if (p.background === 'custom') return trimPatternFields(p, fields)
-        const { bgColor: _bg, textColor: _tx, ...rest } = fields
+        const { bgColor: _bg, ...rest } = fields
         return trimPatternFields(p, rest)
       },
       render: CTABanner,

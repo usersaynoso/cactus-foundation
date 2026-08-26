@@ -327,19 +327,27 @@ export function emailPatternUrl(root: EmailRootProps, key: 'patternImage' | 'pat
   return patternUrl(str(root, key), { requireAbsolute: true }) ?? ''
 }
 
+/** The tile size in whole pixels, 0 for "leave it at its own size". `dark: true`
+ * reads the dark override and falls back to the light size when it is unset. */
+export function emailPatternSize(root: EmailRootProps, { dark = false }: { dark?: boolean } = {}): number {
+  const raw = dark ? num(root, 'patternSizeDark', 0) : num(root, 'patternSize', 0)
+  const size = dark && raw <= 0 ? num(root, 'patternSize', 0) : raw
+  return size > 0 ? Math.max(1, Math.round(size)) : 0
+}
+
 /** Inline background declarations for the pattern, or '' when there is none.
  * Always ends in `;` so it concatenates into a style attribute cleanly. */
 export function emailPatternStyle(root: EmailRootProps): string {
   const url = emailPatternUrl(root)
   if (!url) return ''
-  const size = num(root, 'patternSize', 0)
+  const size = emailPatternSize(root)
   // url() is left unquoted deliberately: this lands inside a double-quoted HTML
   // style attribute, and patternUrl has already refused any URL carrying a
   // quote, bracket, brace, angle bracket, backslash, semicolon or whitespace.
   // `0 0`, not `center`: centring a repeated background lands the tile grid on a
   // fractional pixel and hairline seams appear between the tiles (same reason as
   // the site's version - see lib/puck/patternBackground.ts).
-  return `background-image:url(${url});background-repeat:repeat;background-position:0 0;${size > 0 ? `background-size:${Math.max(1, Math.round(size))}px;` : ''}`
+  return `background-image:url(${url});background-repeat:repeat;background-position:0 0;${size > 0 ? `background-size:${size}px;` : ''}`
 }
 
 export const EMAIL_ROOT_DEFAULTS: EmailRootProps = {
@@ -347,6 +355,7 @@ export const EMAIL_ROOT_DEFAULTS: EmailRootProps = {
   patternImage: '',
   patternImageDark: '',
   patternSize: 0,
+  patternSizeDark: 0,
   cardBackground: '#ffffff',
   cardBorderColour: '',
   contentWidth: 600,

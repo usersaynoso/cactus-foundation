@@ -25,6 +25,8 @@ import {
   normalizeResponsiveValue,
   pickResponsive,
   responsiveMediaCssFor,
+  tabletMediaQuery,
+  mobileMediaQuery,
   type Device,
   type ResponsiveValue,
 } from '@/lib/puck/responsiveValue'
@@ -33,6 +35,11 @@ export type PatternProps = {
   patternImage?: string
   patternImageDark?: string
   patternSize?: ResponsiveValue<string> | string
+  /** Dark-mode override for the tile size. Left blank entirely = use the light
+   * size, so a block that only wants a different image is unaffected. Set at one
+   * breakpoint, it cascades to the narrower ones like every other responsive
+   * field here - set a dark mobile size too if it should differ there. */
+  patternSizeDark?: ResponsiveValue<string> | string
 }
 
 // Everything below is interpolated straight into a <style> tag, so both the URL
@@ -72,6 +79,8 @@ function cssSize(raw: string | undefined): string {
   return v
 }
 
+const DEVICES = ['desktop', 'tablet', 'mobile'] as const
+
 export function hasPattern(props: PatternProps): boolean {
   return cssUrl(props.patternImage) !== null
 }
@@ -104,6 +113,18 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   const sizeRv = normalizeResponsiveValue<string>(props.patternSize)
   const sizeAt = (d: Device) => cssSize(pickResponsive(sizeRv, d))
 
+  // Dark mode can want the tile at a different size - a pattern with more air in
+  // it usually needs to be bigger to read the same against a dark background.
+  // A device with no dark value of its own resolves the normal way (desktop ->
+  // tablet -> mobile) and only falls through to the LIGHT size once that cascade
+  // comes up empty - never to 'auto', which would quietly undo the light size.
+  const darkSizeRv = normalizeResponsiveValue<string>(props.patternSizeDark)
+  const hasDarkSize = DEVICES.some((d) => (darkSizeRv[d] ?? '').trim() !== '')
+  const darkSizeAt = (d: Device) => {
+    const raw = (pickResponsive(darkSizeRv, d) ?? '').trim()
+    return raw ? cssSize(raw) : sizeAt(d)
+  }
+
   // `background-position:0 0`, NOT `center`. Centring a REPEATED background puts
   // the tile grid's origin at (box - tile) / 2, which is a fractional pixel most
   // of the time; the browser then draws every tile boundary on a half-pixel and
@@ -125,9 +146,31 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   // Mirrors the dark-mode logo swap in globals.css: the explicit `data-theme`
   // arm covers a visitor who has chosen a theme, the media query covers the
   // "follow my system" default, where nothing is stamped on <html> at all.
-  if (dark) {
-    rules.push(`[data-theme="dark"] ${selector}{background-image:${dark};}`)
-    rules.push(`@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) ${selector}{background-image:${dark};}}`)
+  if (dark || hasDarkSize) {
+    const chosen = `[data-theme="dark"] ${selector}`
+    const system = `:root:not([data-theme="light"]) ${selector}`
+    // The size carries !important because the light breakpoint rules below do
+    // (they have to beat an inline style on other blocks, see
+    // responsiveMediaCssFor) and an important declaration beats a plain one
+    // whatever the specificity. The image needs none: nothing else sets it.
+    const decls = (d: Device) =>
+      `${dark ? `background-image:${dark};` : ''}${hasDarkSize ? `background-size:${darkSizeAt(d)} !important;` : ''}`
+    rules.push(`${chosen}{${decls('desktop')}}`)
+    rules.push(`@media(prefers-color-scheme:dark){${system}{${decls('desktop')}}}`)
+
+    // Breakpoints, for the dark size only - the image does not change with the
+    // viewport. A breakpoint whose resolved dark size matches desktop's emits
+    // nothing, same rule responsiveMediaCssFor follows.
+    if (hasDarkSize) {
+      for (const [query, device] of [[tabletMediaQuery(), 'tablet'], [mobileMediaQuery(), 'mobile']] as const) {
+        if (darkSizeAt(device) === darkSizeAt('desktop')) continue
+        const decl = `background-size:${darkSizeAt(device)} !important;`
+        rules.push(`${query}{${chosen}{${decl}}}`)
+        // Nested @media is not something every browser this has to run in
+        // supports, so the two conditions are combined into one query instead.
+        rules.push(`@media(prefers-color-scheme:dark) and ${query.replace(/^@media\s*/, '')}{${system}{${decl}}}`)
+      }
+    }
   }
 
   const sizeCss = responsiveMediaCssFor(selector, (d) => `background-size:${sizeAt(d)};`)
