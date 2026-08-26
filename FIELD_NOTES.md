@@ -1,7 +1,19 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**The intermittent SSH refusals were us locking ourselves out, and OpenSSH was right to do it** - core **0.5.1324**.)
+Last updated: 2026-08-26 (**An invoice number's hyphen that is genuinely not in the file, recovered from the filename** - `uk-bookkeeping` **0.2.23**, pushed and released, pinned by core **0.5.1325**.)
+
+Chris re-uploaded the Anthropic invoice and the number came back `C1DC111A 0012` where it is `C1DC111A-0012`. The previous entry called that close enough on the grounds that a bank reference match strips punctuation anyway. Wrong call: a different invoice number is not a shorter one, and it is the field a human reads back to a supplier.
+
+**Why the hyphen cannot be recovered from the file, written down so nobody spends an afternoon on it.** The glyph is font F5 (Inter-SemiBold), code `0x055E`. Chased through every place a PDF can say what a glyph is: (1) the **ToUnicode CMap** maps it to `U+0000`, which is the CMap declaring "no character" rather than omitting it; (2) the **embedded subset font's own `cmap`** holds 35 entries and none reaches glyph 1374 - subsetters keep only what they need; (3) the **`post` table is version 3.0**, which by definition carries no glyph names. `maxp` says 1682 glyphs and the file describes three dozen of them. The only remaining witness is the outline, and reading an outline is OCR. So there is nothing on the page to read, at any effort.
+
+**The fix does not guess the character - it refuses to, and finds a second source that agrees on every character that COULD be read.** `numberFromFilename` in `lib/document-reading.ts`: the invoicing systems that produce these name the download after the number, so `Invoice-C1DC111A-0012.pdf` carries the spelling. The match is on alphanumerics only, in order, and must be a **whole run** - nothing alphanumeric either side - so only the punctuation between them may differ, which is exactly the part that was unreadable. Three guards keep it honest: a key under four alphanumerics matches half the filenames ever written; a filename differing by one digit is a DIFFERENT invoice and is ignored; and a match that is the tail of a longer run (`0012` inside `Invoice-990012.pdf`) is somebody else's reference. `scan001.pdf` and `invoice.pdf` agree with nothing and change nothing.
+
+**Considered and rejected**: emitting `U+FFFD` for an unmapped glyph (it would flow into `plain`, which the live bank-statement importer also reads, and those glyphs previously vanished silently - a visible regression for a cosmetic gain); inferring the punctuation from the glyph's advance width in `/W` (a hyphen and an en dash are both about a third of an em, so it would be a coin flip dressed up as arithmetic); and keeping the merge from inserting a space there, which cannot be done because at merge time a gap left by a dropped glyph and a real word space are the same thing.
+
+Six new tests, four of them asserting it does NOT fire. Gates: `tsc --noEmit` clean, `eslint .` **No issues found**, full `vitest run` **3140 pass / 0 fail / 93 skip**. No schema change, so no backup round-trip gate. Nothing needs re-uploading: **Read again** re-reads the stored file, and the stored filename is what it reads it with.
+
+Also 2026-08-26 (**The intermittent SSH refusals were us locking ourselves out, and OpenSSH was right to do it** - core **0.5.1324**.)
 
 Three "Permission denied (publickey,password)" failures during one afternoon of gated live suites, each one succeeding on an immediate retry with no change. A password that works nine times out of ten is not a wrong password, so it was worth the look.
 
