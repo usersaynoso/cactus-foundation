@@ -1,7 +1,21 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**Deskwell's live invoice and quote now carry the designed layouts, and a coloured divider stopped losing its colour in the PDF** - `shop` **0.1.338**, `quote-for-shop` **0.1.20**, core **0.5.1332**.)
+Last updated: 2026-08-26 (**An invoice showed a broken image where the logo should be, because it had snapshotted a URL to a file that no longer exists** - `shop` **0.1.339**, core **0.5.1334**.)
+
+Chris, on the newly designed documents: "logo is not loading - 404". Not caused by the redesign - the redesign made it large and obvious.
+
+**The mechanism.** `shp_invoices.seller` is a JSONB snapshot taken when the invoice is raised, so that a later settings edit can never rewrite paperwork already sent. `logoUrl` rode along in it. But a stored URL is a promise about a file the invoice does not own: Deskwell replaced the logo on the 25th, the new files landed under `/media/identity/` with nanoid prefixes, the old file went, and the two invoices raised on the **24th** kept `https://media.deskwell.co.uk/media/footwell-lockup-a-transparent-2.svg` - a confirmed **404**, on the page, in the PDF, and on the copies already sent. This is [[reference_product_media_url_drift]] reaching a new table: moving media re-points `Media` and nothing else.
+
+**Fix, platform.** `renderInvoiceDocument` now reads the site's current logo (in parallel with resolving the layout) and prefers it, falling back to the snapshot when there is no logo or the lookup fails. That one function is the only way in for all three surfaces - invoice page, credit note page, and the PDF, which is a browser printing the first. Split out as pure `preferLiveLogo(ctx, url)` with six tests, including that it never mutates the row it was handed and that name/address/VAT/company number - the things the snapshot genuinely is for - are untouched. The quote document already resolved its logo live; no change.
+
+**Fix, data.** Both Deskwell invoices repointed to the current logo so they are right today rather than after the next update (`seller.logoUrl` only, nothing financial; backup + `ROLLBACK-logo.sql` written first, both verified 200 after). Credit notes: none exist, nothing to do.
+
+**Worth knowing:** the invoice header's "business name in words" is set to `auto`, which hides the name whenever `logoUrl` is non-empty - including when it 404s. So a dead logo reads as a blank corner rather than a fallback, which is why nobody spotted it sooner. Not changed: detecting a 404 needs a fetch, and a document render is not the place for one.
+
+Checks: `tsc --noEmit` clean, `eslint .` **0 errors 0 warnings**, `npm test` **3225 passed / 93 skipped**. Invoice re-rendered from the live layout row with the real logo and screenshotted - the lockup sits at ~300px wide, which is the `max-width` on the "large" size doing its job on a 6.5:1 logo.
+
+Previous entry: Last updated: 2026-08-26 (**Deskwell's live invoice and quote now carry the designed layouts, and a coloured divider stopped losing its colour in the PDF** - `shop` **0.1.338**, `quote-for-shop` **0.1.20**, core **0.5.1332**.)
 
 Chris updated the install onto shop 0.1.337 / quote-for-shop 0.1.19 / core 0.5.1331, then: "ive updated". Proven live from the 20:44 build log's own `[checkout-modules] … at v0.1.337` / `v0.1.19` lines rather than from core's `modules.json`, per the standing rule.
 
