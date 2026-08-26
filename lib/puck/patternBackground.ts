@@ -46,6 +46,21 @@ export type PatternProps = {
    * `snapPatternWidth`. Absent on a block last edited before this existed, in
    * which case nothing is snapped and the size renders exactly as typed. */
   patternRatio?: string
+  /** The tile's own base colour as `#rrggbb`, sampled in the editor - and only
+   * when the tile proved FULLY opaque, because it is painted as the pattern
+   * layer's background-color. Snapping keeps tile joins on whole pixels at the
+   * scale we control, but browser zoom, a fit-scaled editor canvas or a
+   * fractionally-scaled display put every edge back on a fraction, where edge
+   * antialiasing lets whatever is behind bleed through - a gold section colour
+   * showed through a dark teal tile as an orange grid. With the tile's own
+   * colour underneath, whatever bleeds through a join IS the tile colour, at
+   * every scale there is. An opaque tile hides what is behind it anyway, so
+   * backing it changes nothing else; a tile with any transparency never gets
+   * one (empty string), because it genuinely shows the host through its body. */
+  patternEdge?: string
+  /** Same, sampled from the dark-mode tile. Empty when there is no dark image
+   * (the light colour already applies) or the dark tile is not fully opaque. */
+  patternEdgeDark?: string
 }
 
 // Everything below is interpolated straight into a <style> tag, so both the URL
@@ -166,6 +181,14 @@ function cssSizeValues(raw: string | undefined, ratio: { w: number; h: number } 
   return [v]
 }
 
+// The backing colour is emitted into a style tag, so it is allow-listed like
+// the url: only the exact #rrggbb shape resolvePatternData produces is
+// accepted, anything else is dropped rather than rendered.
+function cssEdge(raw: string | undefined): string | null {
+  const v = (raw ?? '').trim()
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null
+}
+
 // One or two background-size declarations from the values above, in fallback
 // order so the snapped one wins wherever round() is understood.
 function sizeDecls(vals: string[], important: boolean): string {
@@ -204,6 +227,11 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   const selector = `[data-pattern-id="${id}"]::before`
 
   const ratio = parsePatternRatio(props.patternRatio)
+  const edge = cssEdge(props.patternEdge)
+  // A dark IMAGE is a different file; backing it with the light tile's colour
+  // could be exactly the clash this exists to prevent, so a dark tile only gets
+  // the colour sampled from itself, or none.
+  const darkEdge = cssEdge(props.patternEdgeDark)
   const sizeRv = normalizeResponsiveValue<string>(props.patternSize)
   const sizeValsAt = (d: Device) => cssSizeValues(pickResponsive(sizeRv, d), ratio)
 
@@ -237,7 +265,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   // the bleed back off, which is why Section only clips when it has a reason to.
   const rules: string[] = [
     `${selector}{content:"";position:absolute;inset:-1px 0;z-index:-1;pointer-events:none;border-radius:inherit;` +
-      `background-image:${light};background-repeat:repeat;background-position:0 0;${sizeDecls(sizeValsAt('desktop'), false)}}`,
+      `${edge ? `background-color:${edge};` : ''}background-image:${light};background-repeat:repeat;background-position:0 0;${sizeDecls(sizeValsAt('desktop'), false)}}`,
   ]
 
   // Mirrors the dark-mode logo swap in globals.css: the explicit `data-theme`
@@ -251,7 +279,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     // responsiveMediaCssFor) and an important declaration beats a plain one
     // whatever the specificity. The image needs none: nothing else sets it.
     const decls = (d: Device) =>
-      `${dark ? `background-image:${dark};` : ''}${hasDarkSize ? sizeDecls(darkValsAt(d), true) : ''}`
+      `${dark ? `${darkEdge ? `background-color:${darkEdge};` : ''}background-image:${dark};` : ''}${hasDarkSize ? sizeDecls(darkValsAt(d), true) : ''}`
     rules.push(`${chosen}{${decls('desktop')}}`)
     rules.push(`@media(prefers-color-scheme:dark){${system}{${decls('desktop')}}}`)
 

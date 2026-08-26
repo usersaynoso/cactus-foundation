@@ -53,11 +53,17 @@ describe('resolveData never touches the typed size', () => {
     expect(out.props?.patternSize ?? out.props.patternSize).toBe('6rem')
   })
 
-  it('drops a stale measurement when the pattern is removed', async () => {
-    const data = { props: { patternImage: '', patternRatio: '660x472', patternSize: '96px' } }
+  it('drops stale measurements when the pattern is removed', async () => {
+    const data = { props: { patternImage: '', patternRatio: '660x472', patternEdge: '#1b3e44', patternSize: '96px' } }
     const out = await section.resolveData(data, { changed: { patternImage: true } })
     expect(out.props.patternRatio).toBe('')
+    expect(out.props.patternEdge).toBe('')
     expect(out.props.patternSize).toBe('96px')
+  })
+
+  it('passes through by identity once measured and sampled', async () => {
+    const data = { props: { patternImage: '/a.svg', patternRatio: '660x472', patternEdge: '#1b3e44', patternSize: '96px' } }
+    expect(await section.resolveData(data, { changed: { heading: true } })).toBe(data)
   })
 })
 

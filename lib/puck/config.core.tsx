@@ -276,7 +276,7 @@ const PATTERN_FIELDS = {
   patternSize: { type: 'custom' as const, label: 'Pattern size (blank = original size)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
   patternSizeDark: { type: 'custom' as const, label: 'Pattern size in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
 }
-const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternRatio: '' }
+const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternRatio: '', patternEdge: '', patternEdgeDark: '' }
 
 // Measures the tile so the render can snap the size to one that cannot draw a
 // join line.
@@ -304,22 +304,70 @@ async function measureTile(url: string): Promise<{ w: number; h: number } | null
   })
 }
 
+// The tile's base colour, for the pattern layer to carry as its own
+// background-color - the scale-proof half of the join fix (see `patternEdge` in
+// lib/puck/patternBackground.ts). Empty string means "no colour": the tile has
+// transparency somewhere (backing it would hide whatever the owner put behind),
+// or its host does not allow pixel reads, or it would not load. The alpha scan
+// is the guard that matters - an opaque-cornered but hollow tile (a frame)
+// must NOT be declared opaque, so every pixel is checked, on a copy capped at
+// 512px so a photographic tile does not stall the editor.
+async function sampleTileColour(url: string): Promise<string> {
+  if (typeof window === 'undefined' || !patternUrl(url)) return ''
+  const img = await new Promise<HTMLImageElement | null>((resolve) => {
+    const i = new Image()
+    i.crossOrigin = 'anonymous'
+    i.onload = () => resolve(i)
+    i.onerror = () => resolve(null)
+    i.src = url
+  })
+  if (!img || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return ''
+  try {
+    const scale = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight))
+    const w = Math.max(1, Math.round(img.naturalWidth * scale))
+    const h = Math.max(1, Math.round(img.naturalHeight * scale))
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const g = c.getContext('2d')
+    if (!g) return ''
+    g.drawImage(img, 0, 0, w, h)
+    const d = g.getImageData(0, 0, w, h).data
+    for (let i = 3; i < d.length; i += 4) if ((d[i] ?? 0) < 255) return ''
+    return `#${[d[0] ?? 0, d[1] ?? 0, d[2] ?? 0].map((n) => n.toString(16).padStart(2, '0')).join('')}`
+  } catch {
+    // Tainted canvas - the image host sends no CORS header. No colour, no harm.
+    return ''
+  }
+}
+
 async function resolvePatternData(data: any, { changed }: any): Promise<any> {
   const props = data?.props ?? {}
   const image: string = props.patternImage ?? ''
   if (!image) {
-    // Pattern removed - drop the stale measurement so a different tile picked
-    // later cannot be snapped against the old one's proportions.
-    return props.patternRatio ? { ...data, props: { ...props, patternRatio: '' } } : data
+    // Pattern removed - drop the stale measurements so a different tile picked
+    // later cannot inherit the old one's proportions or colour.
+    return props.patternRatio || props.patternEdge || props.patternEdgeDark
+      ? { ...data, props: { ...props, patternRatio: '', patternEdge: '', patternEdgeDark: '' } }
+      : data
   }
-  // Measure only when the picture changed or has never been measured; every
-  // other edit to the block passes straight through untouched.
-  if (!changed?.patternImage && parsePatternRatio(props.patternRatio)) return data
+  // Work only when a picture changed or was never measured (patternEdge being
+  // undefined, not '', marks data from before sampling existed); every other
+  // edit - crucially every keystroke in the size fields - passes straight
+  // through BY IDENTITY so the editor has nothing to dispatch.
+  const stale = !parsePatternRatio(props.patternRatio) || props.patternEdge === undefined
+  if (!changed?.patternImage && !changed?.patternImageDark && !stale) return data
+
   const measured = await measureTile(image)
   if (!measured) return data
-  const ratio = `${measured.w}x${measured.h}`
-  if (ratio === props.patternRatio) return data
-  return { ...data, props: { ...props, patternRatio: ratio } }
+  const darkImage: string = props.patternImageDark ?? ''
+  const patch = {
+    patternRatio: `${measured.w}x${measured.h}`,
+    patternEdge: await sampleTileColour(image),
+    patternEdgeDark: darkImage ? await sampleTileColour(darkImage) : '',
+  }
+  const dirty = Object.entries(patch).some(([k, v]) => (props[k] ?? '') !== v)
+  return dirty ? { ...data, props: { ...props, ...patch } } : data
 }
 
 // The dark-mode pattern and the size only mean anything once a pattern is
@@ -1034,13 +1082,13 @@ function SectionBlock(props: any) {
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', patternEdge = '', patternEdgeDark = '',
   } = props
 
   // Tiling pattern. Painted on this section's ::before rather than its own
   // background, so it can sit on top of a background photo and carry a separate
   // image for dark mode - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio, patternEdge, patternEdgeDark }
   const patternOn = hasPattern(pattern)
   const patternStyles = patternCss(id, pattern)
 
@@ -1871,10 +1919,10 @@ function PhoneBlock(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', patternEdge = '', patternEdgeDark = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // Tiling pattern over whatever the preset/custom background paints, with its
   // own dark-mode image - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio, patternEdge, patternEdgeDark }
   const patternStyles = patternCss(id, pattern)
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
@@ -2051,7 +2099,7 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', patternEdge = '', patternEdgeDark = '',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
@@ -2059,7 +2107,7 @@ function Hero(props: any) {
   // Tiling pattern, painted on this hero's ::before so it can sit on top of the
   // gradient/colour/photo already there and carry its own dark-mode image - see
   // lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio, patternEdge, patternEdgeDark }
   const patternStyles = patternCss(id, pattern)
 
   const bgType = bg.mode ?? 'gradient'
@@ -2959,10 +3007,10 @@ const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4r
 // `<BlockName>-<nanoid>`.
 const PAGE_PATTERN_ID = 'cactus-page-root'
 
-const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '' }: any) => {
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', patternEdge = '', patternEdgeDark = '' }: any) => {
   const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
   const padding = pagePaddingYMap[paddingY] ?? '0'
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio, patternEdge, patternEdgeDark }
   const patternStyles = patternCss(PAGE_PATTERN_ID, pattern)
   return (
     <div
@@ -4679,6 +4727,18 @@ export const fullPagePuckConfig = puckConfig
 
 const MODULE_LAYOUT_CATEGORY_KEYS = ['layout', 'typography', 'actions', 'media', 'content'] as const
 
+// The one block from the chrome-only 'site' category that a module layout gets
+// anyway. A module layout is not always a page: the invoice and the quote are
+// paperwork, and paperwork has a letterhead on it. The letterhead is the site's
+// own logo, so the block that draws it has to reach layouts that are neither the
+// header nor the footer - otherwise every document module ends up drawing its
+// own logo, with its own size fields, out of its own snapshot of the URL.
+//
+// Only SiteLogo. The rest of that category is genuinely header-and-footer
+// business: a menu, a login button, a cookie link and a theme toggle have no
+// place on a product card, let alone on an invoice a customer prints.
+const MODULE_LAYOUT_SITE_BLOCKS = ['SiteLogo'] as const
+
 // Blocks that are still registered and fully renderable but no longer offered
 // in any picker: the dynamic `Grid` that Grid2/Grid3/Grid4 replaced, and `Split`,
 // retired in v0.5.1053 because it cannot work inside a slot.
@@ -4697,12 +4757,16 @@ const RETIRED_BLOCKS = ['Split', 'Grid'] as const
 // Shared by both the editor (here) and the RSC render path (lib/puck/config.rsc.tsx)
 // so the "module declares its own blocks" wiring only exists in one place.
 export function getModuleLayoutSharedParts() {
-  const sharedCategories = Object.fromEntries(
-    MODULE_LAYOUT_CATEGORY_KEYS.map((k) => [k, puckConfig.categories[k]])
-  )
+  const sharedCategories = {
+    ...Object.fromEntries(
+      MODULE_LAYOUT_CATEGORY_KEYS.map((k) => [k, puckConfig.categories[k]])
+    ),
+    site: { title: 'Site', components: [...MODULE_LAYOUT_SITE_BLOCKS], defaultExpanded: false },
+  }
   const sharedComponents = Object.fromEntries(
     [
       ...MODULE_LAYOUT_CATEGORY_KEYS.flatMap((k) => puckConfig.categories[k].components),
+      ...MODULE_LAYOUT_SITE_BLOCKS,
       ...RETIRED_BLOCKS,
     ]
       .filter((name) => (puckConfig.components as any)[name])

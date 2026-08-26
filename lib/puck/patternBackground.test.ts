@@ -149,6 +149,45 @@ describe('patternBackground', () => {
     })
   })
 
+  // Snapping keeps joins whole at the scale we control; browser zoom, a
+  // fit-scaled editor canvas or a fractionally-scaled display put every edge
+  // back on a fraction, where antialiasing bleeds the HOST's colour through -
+  // a gold section behind a dark teal tile showed an orange grid. The pattern
+  // layer therefore carries the tile's own sampled colour as its background,
+  // so what bleeds through a join is the tile colour at any scale.
+  describe('tile base colour behind the pattern', () => {
+    it('paints the sampled colour under the tile', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternEdge: '#1B3E44' })
+      expect(css).toContain('background-color:#1b3e44;background-image:')
+    })
+
+    it('emits no colour when none was sampled - a transparent tile must show its host', () => {
+      expect(patternCss('abc', { patternImage: '/a.svg' })).not.toContain('background-color')
+      expect(patternCss('abc', { patternImage: '/a.svg', patternEdge: '' })).not.toContain('background-color')
+    })
+
+    it('drops anything that is not the exact #rrggbb the sampler produces', () => {
+      for (const bad of ['red', '#fff', 'rgb(1,2,3)', '#12345g', 'url(x)']) {
+        expect(patternCss('abc', { patternImage: '/a.svg', patternEdge: bad }), bad).not.toContain('background-color')
+      }
+    })
+
+    it('backs a dark tile only with its own sampled colour, never the light one', () => {
+      const both = patternCss('abc', { patternImage: '/a.svg', patternImageDark: '/b.svg', patternEdge: '#f5efdf', patternEdgeDark: '#1b3e44' })
+      expect(both).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-color:#1b3e44;background-image:')
+      const noDarkSample = patternCss('abc', { patternImage: '/a.svg', patternImageDark: '/b.svg', patternEdge: '#f5efdf' })
+      expect(noDarkSample).toMatch(/\[data-theme="dark"\] \[data-pattern-id="abc"\]::before\{background-image:/)
+    })
+
+    it('lets the light colour stand in dark mode when the same tile serves both', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternEdge: '#f5efdf', patternSizeDark: '240px' })
+      // dark arm exists for the size, but sets no colour of its own - the base
+      // rule's background-color simply keeps applying
+      expect(css).toContain('background-color:#f5efdf;')
+      expect(css).not.toContain('background-color:#f5efdf !important')
+    })
+  })
+
   it('rounds a fractional pixel size, which would tile with seams', () => {
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '240.5px' })).toContain('background-size:241px')
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '0.2px' })).toContain('background-size:1px')
