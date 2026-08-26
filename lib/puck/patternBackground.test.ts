@@ -17,6 +17,27 @@ describe('patternBackground', () => {
     expect(css).toContain('background-size:auto')
   })
 
+  // Centring a REPEATED background lands the tile grid on a fractional pixel and
+  // the browser draws hairline gaps between the tiles.
+  it('starts the tile grid at the corner, never centred', () => {
+    const css = patternCss('abc', { patternImage: '/a.svg' })
+    expect(css).toContain('background-position:0 0')
+    expect(css).not.toContain('background-position:center')
+  })
+
+  // Two blocks stacked flush show a hairline of the page between them whenever
+  // their heights land on a fractional pixel.
+  it('bleeds a pixel top and bottom so neighbours overlap the seam', () => {
+    expect(patternCss('abc', { patternImage: '/a.svg' })).toContain('inset:-1px 0')
+  })
+
+  it('rounds a fractional pixel size, which would tile with seams', () => {
+    expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '240.5px' })).toContain('background-size:241px')
+    expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '0.2px' })).toContain('background-size:1px')
+    // Other units are relative to things this cannot resolve - passed through.
+    expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '12.5rem' })).toContain('background-size:12.5rem')
+  })
+
   it('swaps the image in dark mode, chosen theme or system default', () => {
     const css = patternCss('abc', { patternImage: '/a.svg', patternImageDark: '/b.svg' })
     expect(css).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-image:url("/b.svg");}')

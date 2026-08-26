@@ -336,7 +336,10 @@ export function emailPatternStyle(root: EmailRootProps): string {
   // url() is left unquoted deliberately: this lands inside a double-quoted HTML
   // style attribute, and patternUrl has already refused any URL carrying a
   // quote, bracket, brace, angle bracket, backslash, semicolon or whitespace.
-  return `background-image:url(${url});background-repeat:repeat;background-position:center;${size > 0 ? `background-size:${size}px;` : ''}`
+  // `0 0`, not `center`: centring a repeated background lands the tile grid on a
+  // fractional pixel and hairline seams appear between the tiles (same reason as
+  // the site's version - see lib/puck/patternBackground.ts).
+  return `background-image:url(${url});background-repeat:repeat;background-position:0 0;${size > 0 ? `background-size:${Math.max(1, Math.round(size))}px;` : ''}`
 }
 
 export const EMAIL_ROOT_DEFAULTS: EmailRootProps = {

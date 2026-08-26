@@ -1029,13 +1029,16 @@ function SectionBlock(props: any) {
     // link lands with the heading visible rather than tucked under the nav.
     scrollMarginTop: '5rem',
     // Only clip when the section actually paints something to a rounded/edged
-    // box (radius, background image, pattern tile, overlay scrim, shadow, scan
-    // beam). Worth knowing for the pattern: turning one on starts clipping, and
-    // an overflow:hidden ancestor silently disables a sticky descendant. A plain
+    // box (radius, background image, overlay scrim, shadow, scan beam). A
+    // pattern deliberately does NOT join that list: its layer bleeds a pixel top
+    // and bottom to cover the hairline two stacked sections show between them,
+    // and clipping here would trim exactly that pixel back off. It also keeps a
+    // plain patterned section from gaining an overflow context, which silently
+    // disables `position: sticky` in every descendant. A plain
     // section leaves overflow visible so a `position: sticky` descendant - e.g.
     // a sticky image column inside a Grid - isn't trapped by an overflow context
     // it doesn't need. overflow:hidden on an ancestor silently kills sticky.
-    overflow: (borderRadius !== 'none' || bgImage || patternOn || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
+    overflow: (borderRadius !== 'none' || bgImage || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
   }
 
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)

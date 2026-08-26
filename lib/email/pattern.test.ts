@@ -28,6 +28,9 @@ describe('email background pattern', () => {
     const shell = emailShell({ patternImage: 'https://cdn.example.com/dots.svg' }, ctx, '<p>x</p>')
     expect(shell).toContain('background-image:url(https://cdn.example.com/dots.svg)')
     expect(shell).toContain('background-repeat:repeat')
+    // Centred repeats tile from a fractional pixel and show seams.
+    expect(shell).toContain('background-position:0 0')
+    expect(shell).not.toContain('background-position:center')
     // Word-engine Outlook ignores the CSS and tiles this instead.
     expect(shell).toContain('background="https://cdn.example.com/dots.svg"')
     expect(shell).toContain(`class="${EMAIL_PATTERN_CLASS}"`)
@@ -37,6 +40,7 @@ describe('email background pattern', () => {
     expect(emailPatternStyle({ patternImage: 'https://x.test/a.svg' })).not.toContain('background-size')
     expect(emailPatternStyle({ patternImage: 'https://x.test/a.svg', patternSize: 120 })).toContain('background-size:120px')
     expect(emailPatternStyle({ patternImage: 'https://x.test/a.svg', patternSize: 0 })).not.toContain('background-size')
+    expect(emailPatternStyle({ patternImage: 'https://x.test/a.svg', patternSize: 120.6 })).toContain('background-size:121px')
   })
 
   it('refuses a relative path - an inbox has no origin to resolve it against', () => {

@@ -58,9 +58,18 @@ function cssUrl(raw: string | undefined): string | null {
 
 const SIZE_RE = /^(auto|cover|contain|\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh))$/
 
+// A fractional pixel width is a seam waiting to happen: the browser tiles at the
+// fractional size, the rounding error accumulates down the grid, and every few
+// rows a hairline of whatever sits behind the pattern shows through. Whole
+// pixels are the only size we can guarantee tile cleanly, so a px value is
+// rounded to one. Other units are relative to things we cannot resolve here and
+// are passed through as typed.
 function cssSize(raw: string | undefined): string {
   const v = (raw ?? '').trim()
-  return SIZE_RE.test(v) ? v : 'auto'
+  if (!SIZE_RE.test(v)) return 'auto'
+  const px = /^(\d+(?:\.\d+)?)px$/.exec(v)
+  if (px) return `${Math.max(1, Math.round(Number(px[1])))}px`
+  return v
 }
 
 export function hasPattern(props: PatternProps): boolean {
@@ -95,9 +104,22 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   const sizeRv = normalizeResponsiveValue<string>(props.patternSize)
   const sizeAt = (d: Device) => cssSize(pickResponsive(sizeRv, d))
 
+  // `background-position:0 0`, NOT `center`. Centring a REPEATED background puts
+  // the tile grid's origin at (box - tile) / 2, which is a fractional pixel most
+  // of the time; the browser then draws every tile boundary on a half-pixel and
+  // hairline gaps appear between the tiles, showing whatever is behind the
+  // pattern - white, on a page that has not been given a background of its own.
+  // A tiling pattern has no centre worth honouring, so it starts at the corner.
+  // The layer bleeds a pixel above and below its block on purpose. Two blocks
+  // stacked flush still show a hairline of the page between them whenever their
+  // heights land on a fractional pixel - each box's background is snapped to
+  // device pixels on its own - and a patterned block over a pale page shows that
+  // as a white line. A pixel of overlap covers it, and a decorative tile
+  // overhanging by a pixel is invisible. Hosts that clip (anything rounded) trim
+  // the bleed back off, which is why Section only clips when it has a reason to.
   const rules: string[] = [
-    `${selector}{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;` +
-      `background-image:${light};background-repeat:repeat;background-position:center;background-size:${sizeAt('desktop')};}`,
+    `${selector}{content:"";position:absolute;inset:-1px 0;z-index:-1;pointer-events:none;border-radius:inherit;` +
+      `background-image:${light};background-repeat:repeat;background-position:0 0;background-size:${sizeAt('desktop')};}`,
   ]
 
   // Mirrors the dark-mode logo swap in globals.css: the explicit `data-theme`
