@@ -126,11 +126,26 @@ describe('patternBackground', () => {
       }
     })
 
-    // rem/%/vw resolve against things patternCss cannot see, so they are passed
-    // through untouched; the editor converts them to px when it measures.
-    it('passes a non-px size through untouched', () => {
+    // A rem size cannot be snapped in arithmetic - its px value depends on font
+    // sizes only the browser knows - so the browser is handed the same sum as
+    // CSS round(), with the typed value kept as the fallback declaration for
+    // browsers without it. The live site's hero was 6rem, which is why this
+    // matters: it must not need retyping in px to come out clean.
+    it('snaps a rem size in the browser via round(), typed value as fallback', () => {
       const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '6rem', patternRatio: '660x472' })
+      expect(css).toContain('background-size:6rem;background-size:max(82.5px,round(nearest,6rem,82.5px));')
+    })
+
+    it('leaves rem alone when the tile was never measured', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '6rem' })
       expect(css).toContain('background-size:6rem;')
+      expect(css).not.toContain('round(')
+    })
+
+    it('passes %/vw through untouched even with a measurement', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '50%', patternRatio: '660x472' })
+      expect(css).toContain('background-size:50%;')
+      expect(css).not.toContain('round(')
     })
   })
 

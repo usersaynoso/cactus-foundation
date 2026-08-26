@@ -51,7 +51,7 @@ import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '
 import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
-import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternUrl, snapPatternWidth, type PatternProps } from '@/lib/puck/patternBackground'
+import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternUrl, type PatternProps } from '@/lib/puck/patternBackground'
 import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
 // is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
@@ -278,17 +278,19 @@ const PATTERN_FIELDS = {
 }
 const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternRatio: '' }
 
-// Measures the tile and snaps the size to one that cannot draw a join line.
+// Measures the tile so the render can snap the size to one that cannot draw a
+// join line.
 //
 // Runs in the editor (resolveData), never on the server: it needs a real image
 // decode to learn the tile's proportions, and `patternCss` is a pure sync
 // function shared by the editor and the RSC render, so it cannot do this itself.
-// What it stores - `patternRatio`, e.g. "660x472" - is all the render path needs.
+// What it stores - `patternRatio`, e.g. "660x472" - is all the render needs.
 //
-// It also converts a rem/%/em size to px, because those are exactly the sizes
-// that cannot be snapped later: `6rem` is 96px, 96px on a 660x472 tile is
-// 68.6545px tall, and that fraction is the bug. The conversion uses the editor's
-// own root font size rather than assuming 16.
+// It writes patternRatio and NOTHING ELSE. resolveData fires on every keystroke
+// in every field, and an earlier version also rewrote patternSize here - so the
+// size box snapped back to 82.5 under the owner's fingers and became untypeable.
+// The owner's fields are theirs; the nudge to a clean size happens at render, in
+// cssSizeValues, where it costs nothing and fights nobody.
 //
 // Deliberately quiet: if the image will not load (a typo, a dead url, an offline
 // editor) it changes nothing at all and the block renders exactly as it did.
@@ -302,34 +304,6 @@ async function measureTile(url: string): Promise<{ w: number; h: number } | null
   })
 }
 
-function pxValue(raw: string, rootFontPx: number): number | null {
-  const m = /^\s*(\d+(?:\.\d+)?)\s*(px|rem|em)\s*$/.exec(raw)
-  if (!m) return null
-  const n = Number(m[1])
-  // em on the ::before resolves against the block's own font size, which is not
-  // knowable here; rem always resolves against the root. Treating a stray em as
-  // rem is closer than leaving a value that is guaranteed to seam.
-  return m[2] === 'px' ? n : n * rootFontPx
-}
-
-// Snap one responsive size (or a plain string) in place, leaving anything this
-// cannot resolve - '', 'auto', '%', 'vw' - exactly as the owner typed it.
-function snapSizeValue(value: any, ratio: { w: number; h: number }, rootFontPx: number): any {
-  const one = (raw: any) => {
-    if (typeof raw !== 'string' || !raw.trim()) return raw
-    const px = pxValue(raw, rootFontPx)
-    if (px === null || !(px > 0)) return raw
-    const snapped = snapPatternWidth(px, ratio)
-    return `${String(Number(snapped.toFixed(6)))}px`
-  }
-  if (value && typeof value === 'object') {
-    const out: Record<string, any> = { ...value }
-    for (const d of ['desktop', 'tablet', 'mobile']) if (d in out) out[d] = one(out[d])
-    return out
-  }
-  return one(value)
-}
-
 async function resolvePatternData(data: any, { changed }: any): Promise<any> {
   const props = data?.props ?? {}
   const image: string = props.patternImage ?? ''
@@ -338,24 +312,14 @@ async function resolvePatternData(data: any, { changed }: any): Promise<any> {
     // later cannot be snapped against the old one's proportions.
     return props.patternRatio ? { ...data, props: { ...props, patternRatio: '' } } : data
   }
-  const known = parsePatternRatio(props.patternRatio)
-  // Re-measure only when the picture changed or has never been measured.
-  const measured = !changed?.patternImage && known ? known : await measureTile(image)
+  // Measure only when the picture changed or has never been measured; every
+  // other edit to the block passes straight through untouched.
+  if (!changed?.patternImage && parsePatternRatio(props.patternRatio)) return data
+  const measured = await measureTile(image)
   if (!measured) return data
-
-  const rootFontPx = (() => {
-    if (typeof window === 'undefined') return 16
-    const n = parseFloat(getComputedStyle(document.documentElement).fontSize)
-    return Number.isFinite(n) && n > 0 ? n : 16
-  })()
-
-  const patch: Record<string, any> = { patternRatio: `${measured.w}x${measured.h}` }
-  for (const key of ['patternSize', 'patternSizeDark']) {
-    const next = snapSizeValue(props[key], measured, rootFontPx)
-    if (JSON.stringify(next) !== JSON.stringify(props[key])) patch[key] = next
-  }
-  if (patch.patternRatio === props.patternRatio && Object.keys(patch).length === 1) return data
-  return { ...data, props: { ...props, ...patch } }
+  const ratio = `${measured.w}x${measured.h}`
+  if (ratio === props.patternRatio) return data
+  return { ...data, props: { ...props, patternRatio: ratio } }
 }
 
 // The dark-mode pattern and the size only mean anything once a pattern is

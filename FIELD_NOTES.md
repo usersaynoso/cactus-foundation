@@ -149,6 +149,16 @@ Chris asked for this off the back of the Anthropic invoice, which says "Tax to b
 
 **Gates**: `tsc --noEmit` clean, `eslint .` **No issues found**, full `vitest run` **3134 pass / 0 fail / 93 skip**, both gated live suites **23 pass**. Schema changed, so the backup round-trip gate ran for real against the OVH VPS: **3 passed, no skip**. Migrations 001-017 also applied twice in order to a throwaway database with the new CHECK asserted in both directions. Wiki updated.
 
+Also 2026-08-26 (**The pattern size box became untypeable - snapping moved out of resolveData and into the render, where it belongs.** Working tree only, not released.)
+
+Chris: "omg i cant type in the pattern size box anymore. keeps going to 82.5". Direct consequence of 0.5.1330's `resolvePatternData`: Puck fires `resolveData` on every keystroke in every field, and the resolver rewrote `patternSize` through `snapSizeValue` - so typing "9" on the way to "96" was snapped to 82.5 before the next digit landed. **A resolver must never rewrite the field the owner is currently typing in.** The stored value is the owner's; only the rendered value is ours.
+
+**Where snapping lives now: `cssSizeValues` in patternBackground.ts, render only.** A px size is snapped in arithmetic as before. A rem/em size - the live site's actual case, `6rem` - cannot be converted in a pure sync function, so the browser is handed the sum as CSS: `background-size:6rem;background-size:max(82.5px,round(nearest,6rem,82.5px));`. The typed value rides first as the fallback, so a browser without `round()` (pre-2023) keeps exactly the pre-snapping behaviour; the `max()` stops a tiny size rounding to zero; %/vw pass through untouched since a viewport-relative tile cannot land whole anyway. Verified on the live hero: computed `background-size` comes back **82.5px** from the round() arm, joins on device rows 246/364/482, no line, and the stored `6rem` untouched. This also deletes the rem->px conversion the resolver used to do - no owner value is rewritten for any reason now.
+
+**`resolvePatternData` is measurement-only**: stores `patternRatio` when the image changes or was never measured, clears it when the pattern is removed, returns the data object **by identity** in every other case so Puck has nothing to dispatch. `snapSizeValue`/`pxValue`/root-font reading all deleted from config.core.tsx.
+
+**Tests**: `pattern-snap.test.ts` gained a regression trio driven through the real `Section.resolveData`: mid-typing change returns the identical object (`toBe`, not `toEqual`), a re-measure keeps a rem size as typed, and removing the pattern clears the ratio without touching the size. `patternBackground.test.ts` swaps "rem passes through" for the round()-pair assertion plus unmeasured-rem and %-passthrough cases. Full `lib/puck` 114 pass, tsc and eslint clean.
+
 Also 2026-08-26 (**The pale line across a tiling pattern, found properly this time, and 0.5.1326 reverted.** Working tree only, not released.)
 
 Chris: "random white horizontal lines in patterns". Took three attempts; the first two are recorded because both were confidently wrong.

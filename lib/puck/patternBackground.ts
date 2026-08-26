@@ -132,18 +132,44 @@ export function patternTileHeight(px: number, ratio: { w: number; h: number } | 
   return ratio ? px * ratio.h / ratio.w : null
 }
 
-// Only a px value can be snapped: rem/em/% resolve against things this cannot
-// see here, so they are passed through as typed and the editor converts them to
-// px when it measures (resolvePatternData). Without a measurement a px value is
-// still rounded to a whole number, which is what this did before snapping
-// existed - it does not fix the join, but it is no worse.
-function cssSize(raw: string | undefined, ratio: { w: number; h: number } | null): string {
+// All snapping happens HERE, at render, and nowhere else. The editor stores the
+// size exactly as the owner typed it - an earlier version rewrote the field
+// through resolveData and the box snapped back under the owner's fingers, which
+// is how "I can't type in the pattern size box" happened. Rendering a nudged
+// value while storing the typed one costs nothing: the editor preview and the
+// published page share this function, so they agree with each other.
+//
+// A px value is snapped in arithmetic. A rem/em value cannot be - what it is in
+// pixels depends on font sizes only the browser knows - so the browser is asked
+// to do the same sum itself with CSS round(), which resolves the unit first:
+//   background-size:6rem;                            <- fallback, typed value
+//   background-size:max(82.5px,round(nearest,6rem,82.5px));
+// A browser without round() drops the second declaration and keeps the typed
+// size - exactly the pre-snapping behaviour, never anything worse. The max()
+// stops a tiny size rounding to zero. %/vw/vh pass through untouched: a tile
+// sized relative to the viewport cannot land on whole pixels anyway.
+//
+// Returns one value (typed === rendered) or two (fallback + snapped), for the
+// caller to emit as consecutive background-size declarations.
+function cssSizeValues(raw: string | undefined, ratio: { w: number; h: number } | null): string[] {
   const v = (raw ?? '').trim()
-  if (!SIZE_RE.test(v)) return 'auto'
+  if (!SIZE_RE.test(v)) return ['auto']
   const px = /^(\d+(?:\.\d+)?)px$/.exec(v)
-  if (!px) return v
-  const n = Number(px[1])
-  return ratio ? `${fmt(snapPatternWidth(n, ratio))}px` : `${Math.max(1, Math.round(n))}px`
+  if (px) {
+    const n = Number(px[1])
+    return [ratio ? `${fmt(snapPatternWidth(n, ratio))}px` : `${Math.max(1, Math.round(n))}px`]
+  }
+  if (ratio && /^(\d+(?:\.\d+)?)(rem|em)$/.test(v)) {
+    const step = fmt(patternSizeStep(ratio.w, ratio.h).width)
+    return [v, `max(${step}px,round(nearest,${v},${step}px))`]
+  }
+  return [v]
+}
+
+// One or two background-size declarations from the values above, in fallback
+// order so the snapped one wins wherever round() is understood.
+function sizeDecls(vals: string[], important: boolean): string {
+  return vals.map((x) => `background-size:${x}${important ? ' !important' : ''};`).join('')
 }
 
 const DEVICES = ['desktop', 'tablet', 'mobile'] as const
@@ -179,7 +205,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
 
   const ratio = parsePatternRatio(props.patternRatio)
   const sizeRv = normalizeResponsiveValue<string>(props.patternSize)
-  const sizeAt = (d: Device) => cssSize(pickResponsive(sizeRv, d), ratio)
+  const sizeValsAt = (d: Device) => cssSizeValues(pickResponsive(sizeRv, d), ratio)
 
   // Dark mode can want the tile at a different size - a pattern with more air in
   // it usually needs to be bigger to read the same against a dark background.
@@ -191,9 +217,9 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   // tile's measurement rather than carrying a second ratio for the sake of it.
   const darkSizeRv = normalizeResponsiveValue<string>(props.patternSizeDark)
   const hasDarkSize = DEVICES.some((d) => (darkSizeRv[d] ?? '').trim() !== '')
-  const darkSizeAt = (d: Device) => {
+  const darkValsAt = (d: Device) => {
     const raw = (pickResponsive(darkSizeRv, d) ?? '').trim()
-    return raw ? cssSize(raw, ratio) : sizeAt(d)
+    return raw ? cssSizeValues(raw, ratio) : sizeValsAt(d)
   }
 
   // `background-position:0 0`, NOT `center`. Centring a REPEATED background puts
@@ -211,7 +237,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   // the bleed back off, which is why Section only clips when it has a reason to.
   const rules: string[] = [
     `${selector}{content:"";position:absolute;inset:-1px 0;z-index:-1;pointer-events:none;border-radius:inherit;` +
-      `background-image:${light};background-repeat:repeat;background-position:0 0;background-size:${sizeAt('desktop')};}`,
+      `background-image:${light};background-repeat:repeat;background-position:0 0;${sizeDecls(sizeValsAt('desktop'), false)}}`,
   ]
 
   // Mirrors the dark-mode logo swap in globals.css: the explicit `data-theme`
@@ -225,7 +251,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     // responsiveMediaCssFor) and an important declaration beats a plain one
     // whatever the specificity. The image needs none: nothing else sets it.
     const decls = (d: Device) =>
-      `${dark ? `background-image:${dark};` : ''}${hasDarkSize ? `background-size:${darkSizeAt(d)} !important;` : ''}`
+      `${dark ? `background-image:${dark};` : ''}${hasDarkSize ? sizeDecls(darkValsAt(d), true) : ''}`
     rules.push(`${chosen}{${decls('desktop')}}`)
     rules.push(`@media(prefers-color-scheme:dark){${system}{${decls('desktop')}}}`)
 
@@ -234,8 +260,8 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     // nothing, same rule responsiveMediaCssFor follows.
     if (hasDarkSize) {
       for (const [query, device] of [[tabletMediaQuery(), 'tablet'], [mobileMediaQuery(), 'mobile']] as const) {
-        if (darkSizeAt(device) === darkSizeAt('desktop')) continue
-        const decl = `background-size:${darkSizeAt(device)} !important;`
+        if (sizeDecls(darkValsAt(device), true) === sizeDecls(darkValsAt('desktop'), true)) continue
+        const decl = sizeDecls(darkValsAt(device), true)
         rules.push(`${query}{${chosen}{${decl}}}`)
         // Nested @media is not something every browser this has to run in
         // supports, so the two conditions are combined into one query instead.
@@ -244,7 +270,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     }
   }
 
-  const sizeCss = responsiveMediaCssFor(selector, (d) => `background-size:${sizeAt(d)};`)
+  const sizeCss = responsiveMediaCssFor(selector, (d) => sizeDecls(sizeValsAt(d), false))
   if (sizeCss) rules.push(sizeCss)
 
   return rules.join('\n')
