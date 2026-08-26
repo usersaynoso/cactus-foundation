@@ -321,18 +321,30 @@ The wording boxes underneath - the heading, an opening line, how to pay, your te
 
 ### Designing what it looks like
 
-The invoice is a layout, like the shop's other pages. **Appearance → Layouts → New**, pick **Invoice document**, and you get the same builder you use everywhere else with six blocks made for the job:
+The invoice is a layout, like the shop's other pages. **Appearance → Layouts → New**, pick **Invoice document**, and you get the same builder you use everywhere else with ten blocks made for the job:
 
 | Block | What it prints |
 | --- | --- |
+| Document style | Nothing of its own. Sets the colours, the spacing and the rule thickness for every other block at once |
 | Heading | Your logo, the heading, the invoice and order numbers, the date and any due date |
 | From and to | Your details and registration numbers, who it is for, and the delivery address when it differs |
+| Notice panel | A sentence of your own before the figures - how to pay, what the order was, when it falls due |
 | Items | What was bought, with options and an optional rate column. Product codes are off unless you turn them on |
 | Totals | Subtotal, discount, delivery, tax and the total |
 | Tax summary | Net, tax and gross at each rate. This is the block that makes it a VAT invoice |
-| Payment and terms | How to pay, your terms and the footer line, which sits centred unless you move it |
+| Payment and terms | How to pay and your terms, one under the other or side by side |
+| Footer | The line at the foot of company paperwork: where to find you, your company number and your VAT number |
+| Divider | A rule, for the gaps the blocks either side of it do not rule themselves |
 
-Every block takes a font of its own and its own labels, so an invoice can be made to look like your letterhead rather than like everyone else's. Three starters come with it: a standard invoice, one with the tax rate against every line for a shop selling at more than one rate, and a plain one.
+Every block takes a font of its own and its own labels, so an invoice can be made to look like your letterhead rather than like everyone else's. Four starters come with it: a standard invoice, a **designed** one with all the above in place, one with the tax rate against every line for a shop selling at more than one rate, and a plain one.
+
+**Start with Document style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on six blocks. Leave any of them blank and that part keeps the look it had.
+
+Then the blocks themselves take the details: how big the heading and the logo are, which way round they sit, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the invoice number sits in that list or on its own above it, whether your details or the customer's come first, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether "How to pay" and "Terms" stack or sit side by side. Every label on the document is a text box - "Description" can read "Item", "Unit price" can read "Unit ex VAT".
+
+**Placeholders.** The Notice panel and the Footer are sentences you write, and they take placeholders in double braces so one wording covers every invoice: `{{INVOICE_NUMBER}}`, `{{ORDER_NUMBER}}`, `{{INVOICE_DATE}}`, `{{TAX_POINT}}`, `{{DUE_DATE}}`, `{{TOTAL}}`, `{{CUSTOMER_NAME}}`, `{{CUSTOMER_COMPANY}}`, `{{BUSINESS_NAME}}`, `{{BUSINESS_EMAIL}}`, `{{BUSINESS_PHONE}}`, `{{BUSINESS_ADDRESS}}`, `{{VAT_NUMBER}}`, `{{COMPANY_NUMBER}}` and `{{SITE_URL}}`. A placeholder with nothing behind it on a particular invoice disappears and takes its stray comma or full stop with it, so an order with no payment terms does not go out reading "due by ." One you have mistyped stays on the page instead, so you can see it on the sample invoice in the builder and fix it before anybody is invoiced.
+
+**The tax summary knows when to keep quiet.** Set it to appear only when there is more than one rate and a shop selling everything at 20% drops the table - the totals row already says "VAT at 20%", if you have asked it to. The table comes back on its own the first time an invoice carries two rates, with nobody having to remember.
 
 Two things the invoice leaves out on purpose. Your **business name in words** is printed only where there is no logo, since most logos have the name drawn into them already and printing it twice beside itself looks like a mistake - the Heading block will print it always, or never, if you would rather. And **delivery dates never appear on an invoice**. They belong on the confirmation email, where they are still a live question; an invoice is read months later by an accountant, by which time "by Wednesday the 2nd" is either history or wrong.
 
@@ -669,6 +681,8 @@ If you'd rather a plainer set of jump-links - the same idea with none of the tab
 The **Product Card** sub-tab does the same for the little product cards, with **Standard** (photo on top), **Overlay** (the name and price floating over the photo) and **Horizontal** (photo on the left, details on the right) to choose from. Design it once and it applies to every card across the shop.
 
 If you have the Variations module, the Product Card sub-tab also offers a **Card: Variation options** piece. Drag it onto the card and every product that has options set to show there summarises them: a row of colour or fabric swatches, or a plain comma-separated list of sizes, each behind whatever heading you chose. Which options appear, what they are called and how many are shown before a "+4" is decided per product on its Variations tab. See [Shop variations](Shop-variations) for that half.
+
+If you have the Advanced Shipping module, the same sub-tab offers a **Card: Delivery** piece: a line under the price reading *"Delivery in as little as 4 days."*, with *"Installation available."* after it where installation is one of the services that product is offered. The figure is worked out from that product's own delivery services, so a shopper can compare how quickly two things could arrive without opening either. Size, colour (with its own dark-mode colour), alignment, the space above and below, and an option to shrink the wording onto one line are all set on the piece. See [Advanced Shipping](Advanced-Shipping) for the rest.
 
 The **Card: Short description** piece has a fourth setting alongside its 1, 2 and 3 line caps: **Fill the spare space**. Cards in a row are all drawn to the height of the tallest one, so a product with fewer options than its neighbours used to sit above a band of empty card. Set to fill, the short description pours into exactly that band - as many whole lines as fit, ending with an ellipsis where the writing runs on - and never a line more, so it cannot stretch the card or the row. The tallest card in a row shows no description at all (it has no spare space to fill), a card with a little shows a little, and the same card may show four lines on a desktop and one on a phone, because the space itself changes with the screen. Products with no short description are unaffected either way.
 

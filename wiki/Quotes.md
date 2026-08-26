@@ -81,17 +81,34 @@ Two things a quote genuinely does not know, and both are handled honestly rather
 
 Under **Appearance → Layouts → Quotes** you get two designable layouts.
 
-**Quote document** is the quote: what the shopper sees in the panel, what they see at their own web address, and what comes out of the PDF - all three from the one layout, so they can never disagree with each other. Five blocks to arrange as you like:
+**Quote document** is the quote: what the shopper sees in the panel, what they see at their own web address, and what comes out of the PDF - all three from the one layout, so they can never disagree with each other. Ten blocks to arrange as you like:
 
 | Block | What it puts on the page |
 |---|---|
+| Quote: Document style | Nothing of its own. Sets the colours, the spacing and the rule thickness for every other block at once |
 | Quote: Heading | Your logo and name, the quote number, the code, the date and the expiry |
 | Quote: Prepared for | Who it is for, and whatever they wrote when they asked |
+| Quote: Who it is between | The same, with your own trading address and details beside theirs |
+| Quote: Notice panel | A sentence of your own before the figures - how long the price holds, and what to do about it |
 | Quote: Items | The list, with optional pictures and product codes |
 | Quote: Totals | Subtotal, any delivery or service charges, tax, total |
-| Quote: Notes and terms | Your reply, the validity line and your terms |
+| Quote: Notes and terms | Your reply, the validity line, an optional delivery column and your terms |
+| Quote: Footer | The line at the foot of company paperwork: where to find you, your company number and your VAT number |
+| Quote: Divider | A rule, for the gaps the blocks either side of it do not rule themselves |
 
-Three starters come with it: **Standard quote** (published for you, so the feature works the moment you install it), **With pictures**, and **Just the list** for shops that would rather not print a total they have not agreed to.
+Four starters come with it: **Standard quote** (published for you, so the feature works the moment you install it), **Designed quote** with all the above in place, **With pictures**, and **Just the list** for shops that would rather not print a total they have not agreed to.
+
+### Making it look like your paperwork
+
+**Start with Quote: Document style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on five blocks. Leave any of them blank and that part keeps the look it had.
+
+Then the blocks take the details: how big the heading and logo are, which way round they sit, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the quote number sits in that list or on its own above it, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether your delivery wording and your terms stack or sit side by side. Every label is a text box.
+
+**Your own address on a quote.** **Quote: Prepared for** names the customer and stops there, which is fine for a quote read on screen. **Quote: Who it is between** puts your own trading name, address and contact details beside theirs, which is what a quote wants once it is going to be printed, forwarded round somebody's office and put in a folder. Those details are the ones you already gave under **Settings → Shop → Invoices** - a quote becomes an order becomes an invoice, and it would be worse than useless for the three to disagree about who is selling. Fill that form in and the column appears; leave it and the column stays off rather than printing blanks.
+
+**Placeholders.** The Notice panel and the Footer are sentences you write, and they take placeholders in double braces so one wording covers every quote: `{{QUOTE_NUMBER}}`, `{{QUOTE_CODE}}`, `{{QUOTE_DATE}}`, `{{VALID_UNTIL}}`, `{{QUOTE_URL}}`, `{{TOTAL}}`, `{{CUSTOMER_NAME}}`, `{{CUSTOMER_COMPANY}}`, `{{BUSINESS_NAME}}`, `{{BUSINESS_EMAIL}}`, `{{BUSINESS_PHONE}}`, `{{BUSINESS_ADDRESS}}`, `{{VAT_NUMBER}}`, `{{COMPANY_NUMBER}}` and `{{SITE_URL}}`. A placeholder with nothing behind it disappears and takes its stray comma or full stop with it - a quote with no expiry date does not go out saying "This quote holds until ." One you have mistyped stays on the page instead, so you can see it on the sample quote in the builder and fix it before anybody gets one.
+
+**The tax row can name the rate.** **Quote: Totals** has a box for it: type `20` and the row reads "VAT at 20%". Left empty it just says VAT, which is what it has always said. A quote does not carry a rate breakdown of its own the way an invoice does, which is why this is typed rather than worked out.
 
 **Quote request page** is where the checkout used to be. Two blocks - the shopper's list and the form - with a one-column and a two-column starter.
 
@@ -99,11 +116,11 @@ The wording that fills these in (heading, introduction, validity line, terms) li
 
 ### Choosing the type
 
-Every one of the five blocks has a **Font** box. Leave it empty and that part of the quote uses the typefaces you set under **Appearance → Styles** - headings in your heading font, everything else in your body font. Fill it in and that block uses whatever you pick instead, whether that is one of your own named fonts or anything from the Google catalogue.
+Every block has a **Font** box. Leave it empty and that part of the quote uses the typefaces you set under **Appearance → Styles** - headings in your heading font, everything else in your body font. Fill it in and that block uses whatever you pick instead, whether that is one of your own named fonts or anything from the Google catalogue.
 
 ### Your name beside your logo
 
-**Quote: Heading** has a **Shop name beside the logo** switch. Turn it off if your logo already has the name drawn into it - otherwise the quote says who you are twice, which looks like a mistake because it rather is one.
+**Quote: Heading** has a **Shop name in words** setting. Leave it on **Only when there is no logo** and it sorts itself out: most logos already have the name drawn into them, and printing it again beside the picture looks like a mistake because it rather is one - but a shop with no logo still gets a name at the top rather than an empty half of a heading. **Always** and **Never** are there if you would rather decide it yourself.
 
 ### Pictures, and how big
 
