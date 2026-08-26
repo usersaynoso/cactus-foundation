@@ -51,6 +51,7 @@ import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '
 import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
+import { hasPattern, patternCss, patternHostStyle, type PatternProps } from '@/lib/puck/patternBackground'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
 // is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
 // so a direct import here opens a client boundary on the RSC path and drags the whole
@@ -251,6 +252,29 @@ const STICKY_FIELDS = {
   stickyOffset: { type: 'custom' as const, label: 'Sticky offset', units: ['px', 'rem', 'vh'], render: UnitValueField },
 }
 const STICKY_DEFAULTS = { sticky: 'off', stickyOffset: '' }
+
+// Decorative tiling background pattern - offered by Section and the CTA Banner.
+// The two image fields are plain text here and swapped for the media library
+// picker in lib/puck/MediaPickerField.tsx (withImagePickerFields), same as every
+// other image field. The dark-mode one is an override: left blank, the light
+// pattern is used in both schemes. Size is per-breakpoint because a tile that
+// reads nicely at 240px on desktop is usually far too coarse on a phone; blank
+// leaves the image at its natural size. See lib/puck/patternBackground.ts.
+const PATTERN_FIELDS = {
+  patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
+  patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode' },
+  patternSize: { type: 'custom' as const, label: 'Pattern size (blank = original size)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
+}
+const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '' }
+
+// The dark-mode pattern and the size only mean anything once a pattern is
+// picked, so they stay out of the panel until one is - same applicable-only
+// rule the rest of the block fields follow.
+function trimPatternFields(props: any, fields: Record<string, any>): Record<string, any> {
+  if (props?.patternImage) return fields
+  const { patternImageDark: _d, patternSize: _s, ...rest } = fields
+  return rest
+}
 
 // position:sticky only travels while the block's parent is taller than the
 // block, and is silently disabled by any overflow:hidden ancestor - both are
@@ -955,7 +979,15 @@ function SectionBlock(props: any) {
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
+    patternImage = '', patternImageDark = '', patternSize = '',
   } = props
+
+  // Tiling pattern. Painted on this section's ::before rather than its own
+  // background, so it can sit on top of a background photo and carry a separate
+  // image for dark mode - see lib/puck/patternBackground.ts.
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const patternOn = hasPattern(pattern)
+  const patternStyles = patternCss(id, pattern)
 
   const paddingYMap = PADDING_Y_MAP
   const maxWidthMap: Record<string, string> = { none: '100%', narrow: '720px', standard: '960px', wide: '1200px', full: '100%', edge: '100%' }
@@ -988,16 +1020,22 @@ function SectionBlock(props: any) {
     boxShadow: shadowMap[boxShadow] ?? 'none',
     border: borderStyle !== 'none' ? `${borderWidth} ${borderStyle} ${borderColor}` : undefined,
     borderRadius: radiusMap[borderRadius] ?? '0',
+    // A pattern's ::before rides at z-index:-1, which only stays inside this
+    // section if the section is a stacking context of its own. Sticky sections
+    // already are (they carry a z-index); everything else needs saying.
+    isolation: patternOn ? 'isolate' : undefined,
     // The section id doubles as an in-page anchor target (see `id` on the div
     // below). Keep the scrolled-to top clear of a sticky header so a `#section`
     // link lands with the heading visible rather than tucked under the nav.
     scrollMarginTop: '5rem',
     // Only clip when the section actually paints something to a rounded/edged
-    // box (radius, background image, overlay scrim, shadow, scan beam). A plain
+    // box (radius, background image, pattern tile, overlay scrim, shadow, scan
+    // beam). Worth knowing for the pattern: turning one on starts clipping, and
+    // an overflow:hidden ancestor silently disables a sticky descendant. A plain
     // section leaves overflow visible so a `position: sticky` descendant - e.g.
     // a sticky image column inside a Grid - isn't trapped by an overflow context
     // it doesn't need. overflow:hidden on an ancestor silently kills sticky.
-    overflow: (borderRadius !== 'none' || bgImage || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
+    overflow: (borderRadius !== 'none' || bgImage || patternOn || (overlayColor && overlayOpacity > 0) || boxShadow !== 'none' || bgType === 'grid-scan') ? 'hidden' : 'visible',
   }
 
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
@@ -1053,7 +1091,8 @@ function SectionBlock(props: any) {
   })
 
   return (
-    <div id={id || undefined} style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
+    <div id={id || undefined} data-pattern-id={patternOn ? id : undefined} style={outerStyle} className={bgType === 'grid-scan' ? 'cactus-section-grid-scan' : undefined} {...aosAttrs}>
+      {patternStyles && <style>{patternStyles}</style>}
       {bgType === 'grid-scan' && <div className="cactus-section-scan-beam" aria-hidden="true" />}
       {overlayColor && overlayOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: overlayColor, opacity: overlayOpacity / 100, pointerEvents: 'none' }} />
@@ -1763,7 +1802,11 @@ function PhoneBlock(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', padding, paddingY = 'none', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  // Tiling pattern over whatever the preset/custom background paints, with its
+  // own dark-mode image - see lib/puck/patternBackground.ts.
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const patternStyles = patternCss(id, pattern)
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
     white: { bg: 'var(--color-bg)', text: 'var(--color-fg)', sub: 'var(--color-muted)' },
@@ -1792,10 +1835,15 @@ function CTABanner(props: any) {
   return (
     <>
       {pyCss && <style>{pyCss}</style>}
+      {patternStyles && <style>{patternStyles}</style>}
       <section
         data-cta-id={id}
+        data-pattern-id={hasPattern(pattern) ? id : undefined}
         className={getPaddingClasses(padding)}
-        style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop'), ...getStickyStyle(sticky, stickyOffset) }}
+        // patternHostStyle sits BEFORE the sticky style: a sticky banner's own
+        // position has to win, and it is already a stacking context in its own
+        // right, so the pattern layer still stays put inside it.
+        style={{ background: t!.bg, border: background === 'white' ? '1px solid var(--color-border)' : 'none', borderRadius: 8, textAlign: 'center', marginBottom: '2rem', paddingTop: pyAt('desktop'), paddingBottom: pyAt('desktop'), ...patternHostStyle(pattern), ...getStickyStyle(sticky, stickyOffset) }}
         {...getAosProps(animationType, animationDuration, animationDelay)}
       >
         {heading && <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.75rem', fontWeight: 800, color: t!.text, lineHeight: 1.25 }}>{protectText(heading, obfuscate)}</h2>}
@@ -2853,6 +2901,7 @@ export const puckConfig = {
         bg: { type: 'custom' as const, label: 'Background type', render: SectionBgColorField },
         bgImage: { type: 'text' as const, label: 'Background image URL' },
         bgSize: { type: 'select' as const, label: 'Image size', options: [{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'repeat', label: 'Tile' }] },
+        ...PATTERN_FIELDS,
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> },
         overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         paddingY: { type: 'custom' as const, label: 'Vertical padding', options: SECTION_PADDING_Y_OPTIONS, render: ResponsiveSelectField },
@@ -2871,7 +2920,7 @@ export const puckConfig = {
         opacity: { type: 'select' as const, label: 'Opacity', options: [{ value: '100', label: '100%' }, { value: '90', label: '90%' }, { value: '75', label: '75%' }, { value: '50', label: '50%' }] },
         ...aosFields,
       },
-      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', paddingX: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
+      defaultProps: { bg: { mode: 'none', color: '' }, bgImage: '', bgSize: 'cover', ...PATTERN_DEFAULTS, overlayColor: '', overlayOpacity: 0, paddingY: 'lg', maxWidth: 'standard', maxWidthCustom: '', paddingX: '', contentAlign: 'top', textColor: '', sticky: 'off', stickyOffset: '0px', boxShadow: 'none', borderStyle: 'none', borderColor: 'var(--color-border)', borderWidth: '1px', borderRadius: 'none', opacity: '100', ...aosDefaults },
       // Only applicable fields survive: the image picker/size belong to the
       // 'image' background (though they stay visible while a legacy block still
       // carries an image under another mode, so a painting value is never
@@ -2893,7 +2942,7 @@ export const puckConfig = {
         const mw = p.maxWidth
         const mwVals = typeof mw === 'string' ? [mw] : [mw?.desktop, mw?.tablet, mw?.mobile]
         if (!mwVals.includes('custom')) delete rest.maxWidthCustom
-        return rest
+        return trimPatternFields(p, rest)
       },
       render: SectionBlock,
     },
@@ -3289,16 +3338,18 @@ export const puckConfig = {
         textColor: { type: 'custom' as const, label: 'Text colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
         paddingY: { type: 'custom' as const, label: 'Vertical padding (top/bottom)', options: PADDING_Y_OPTIONS, render: ResponsiveSelectField },
+        ...PATTERN_FIELDS,
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, bgColor: '', textColor: '', padding: 'none', paddingY: 'none' as const, ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { heading: 'Ready to get started?', subtext: '', ctaLabel: 'Get in touch', ctaHref: '#', background: 'light' as const, bgColor: '', textColor: '', padding: 'none', paddingY: 'none' as const, ...PATTERN_DEFAULTS, ...STICKY_DEFAULTS, ...aosDefaults },
       // The three presets carry their own colours, so the per-block colour
       // pickers only appear on Custom.
       resolveFields: (data: any, { fields }: any) => {
-        if (data.props?.background === 'custom') return fields
+        const p = data.props ?? {}
+        if (p.background === 'custom') return trimPatternFields(p, fields)
         const { bgColor: _bg, textColor: _tx, ...rest } = fields
-        return rest
+        return trimPatternFields(p, rest)
       },
       render: CTABanner,
     },

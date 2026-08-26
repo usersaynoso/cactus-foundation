@@ -323,7 +323,8 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   Quote:          { mediaUrl: 'Photo (shown inside the quote, left of the text)' },
   ImageChipPanel: { mediaUrl: 'Image' },
   Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)' },
-  Section:        { bgImage: 'Background image' },
+  Section:        { bgImage: 'Background image', patternImage: 'Background pattern (image or SVG)', patternImageDark: 'Background pattern in dark mode' },
+  CTABanner:      { patternImage: 'Background pattern (image or SVG)', patternImageDark: 'Background pattern in dark mode' },
   // Email wrapper blocks. An email cannot reach a relative path, so what these
   // store has to be the absolute media URL the picker already hands back.
   EmailLogo:      { src: 'Logo image (leave blank for the site logo)' },
