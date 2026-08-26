@@ -27,15 +27,11 @@ describe('CTA Banner colour fields', () => {
     expect(bare).not.toContain('patternImageDark')
     expect(bare).not.toContain('patternSize')
     expect(bare).not.toContain('patternSizeDark')
-    expect(bare).not.toContain('patternHeight')
-    expect(bare).not.toContain('patternHeightDark')
 
     const patterned = fieldsFor({ background: 'light', patternImage: '/a.svg' })
     expect(patterned).toContain('patternImageDark')
     expect(patterned).toContain('patternSize')
     expect(patterned).toContain('patternSizeDark')
-    expect(patterned).toContain('patternHeight')
-    expect(patterned).toContain('patternHeightDark')
   })
 
   // Every colour on this block carries its own dark arm through the shared

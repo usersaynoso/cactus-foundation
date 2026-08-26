@@ -51,7 +51,7 @@ import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '
 import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
-import { hasPattern, patternCss, patternHostStyle, type PatternProps } from '@/lib/puck/patternBackground'
+import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternUrl, snapPatternWidth, type PatternProps } from '@/lib/puck/patternBackground'
 import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
 // is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
@@ -262,27 +262,108 @@ const STICKY_DEFAULTS = { sticky: 'off', stickyOffset: '' }
 // reads nicely at 240px on desktop is usually far too coarse on a phone; blank
 // leaves the image at its natural size.
 //
-// The height is the seam control: size on its own sets the width and lets the
-// image's proportions decide the height, which is a fractional pixel for most
-// widths of a non-square tile, and hairlines of the page then show between the
-// rows. Set both in whole pixels and every row lands on a device pixel. See
-// lib/puck/patternBackground.ts.
+// There is deliberately NO height field. `background-size` sets the width and
+// the browser derives the height, which for a non-square tile is nearly always
+// a fraction of a pixel - and that fraction is what draws the pale line across
+// the pattern at every tile join. The cure is not letting an owner type a height
+// (0.5.1326 did, and a stretched tile draws a seam of its own) but measuring the
+// tile and snapping the width to one whose height comes out whole.
+// `resolvePatternData` below measures; `snapPatternWidth` in
+// lib/puck/patternBackground.ts snaps.
 const PATTERN_FIELDS = {
   patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
   patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode' },
   patternSize: { type: 'custom' as const, label: 'Pattern size (blank = original size)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
-  patternHeight: { type: 'custom' as const, label: 'Pattern tile height (blank = keep proportions)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
   patternSizeDark: { type: 'custom' as const, label: 'Pattern size in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
-  patternHeightDark: { type: 'custom' as const, label: 'Pattern tile height in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
 }
-const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternHeight: '', patternHeightDark: '' }
+const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternRatio: '' }
+
+// Measures the tile and snaps the size to one that cannot draw a join line.
+//
+// Runs in the editor (resolveData), never on the server: it needs a real image
+// decode to learn the tile's proportions, and `patternCss` is a pure sync
+// function shared by the editor and the RSC render, so it cannot do this itself.
+// What it stores - `patternRatio`, e.g. "660x472" - is all the render path needs.
+//
+// It also converts a rem/%/em size to px, because those are exactly the sizes
+// that cannot be snapped later: `6rem` is 96px, 96px on a 660x472 tile is
+// 68.6545px tall, and that fraction is the bug. The conversion uses the editor's
+// own root font size rather than assuming 16.
+//
+// Deliberately quiet: if the image will not load (a typo, a dead url, an offline
+// editor) it changes nothing at all and the block renders exactly as it did.
+async function measureTile(url: string): Promise<{ w: number; h: number } | null> {
+  if (typeof window === 'undefined' || !patternUrl(url)) return null
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null)
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+function pxValue(raw: string, rootFontPx: number): number | null {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(px|rem|em)\s*$/.exec(raw)
+  if (!m) return null
+  const n = Number(m[1])
+  // em on the ::before resolves against the block's own font size, which is not
+  // knowable here; rem always resolves against the root. Treating a stray em as
+  // rem is closer than leaving a value that is guaranteed to seam.
+  return m[2] === 'px' ? n : n * rootFontPx
+}
+
+// Snap one responsive size (or a plain string) in place, leaving anything this
+// cannot resolve - '', 'auto', '%', 'vw' - exactly as the owner typed it.
+function snapSizeValue(value: any, ratio: { w: number; h: number }, rootFontPx: number): any {
+  const one = (raw: any) => {
+    if (typeof raw !== 'string' || !raw.trim()) return raw
+    const px = pxValue(raw, rootFontPx)
+    if (px === null || !(px > 0)) return raw
+    const snapped = snapPatternWidth(px, ratio)
+    return `${String(Number(snapped.toFixed(6)))}px`
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = { ...value }
+    for (const d of ['desktop', 'tablet', 'mobile']) if (d in out) out[d] = one(out[d])
+    return out
+  }
+  return one(value)
+}
+
+async function resolvePatternData(data: any, { changed }: any): Promise<any> {
+  const props = data?.props ?? {}
+  const image: string = props.patternImage ?? ''
+  if (!image) {
+    // Pattern removed - drop the stale measurement so a different tile picked
+    // later cannot be snapped against the old one's proportions.
+    return props.patternRatio ? { ...data, props: { ...props, patternRatio: '' } } : data
+  }
+  const known = parsePatternRatio(props.patternRatio)
+  // Re-measure only when the picture changed or has never been measured.
+  const measured = !changed?.patternImage && known ? known : await measureTile(image)
+  if (!measured) return data
+
+  const rootFontPx = (() => {
+    if (typeof window === 'undefined') return 16
+    const n = parseFloat(getComputedStyle(document.documentElement).fontSize)
+    return Number.isFinite(n) && n > 0 ? n : 16
+  })()
+
+  const patch: Record<string, any> = { patternRatio: `${measured.w}x${measured.h}` }
+  for (const key of ['patternSize', 'patternSizeDark']) {
+    const next = snapSizeValue(props[key], measured, rootFontPx)
+    if (JSON.stringify(next) !== JSON.stringify(props[key])) patch[key] = next
+  }
+  if (patch.patternRatio === props.patternRatio && Object.keys(patch).length === 1) return data
+  return { ...data, props: { ...props, ...patch } }
+}
 
 // The dark-mode pattern and the size only mean anything once a pattern is
 // picked, so they stay out of the panel until one is - same applicable-only
 // rule the rest of the block fields follow.
 function trimPatternFields(props: any, fields: Record<string, any>): Record<string, any> {
   if (props?.patternImage) return fields
-  const { patternImageDark: _d, patternSize: _s, patternSizeDark: _sd, patternHeight: _h, patternHeightDark: _hd, ...rest } = fields
+  const { patternImageDark: _d, patternSize: _s, patternSizeDark: _sd, ...rest } = fields
   return rest
 }
 
@@ -989,13 +1070,13 @@ function SectionBlock(props: any) {
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '',
   } = props
 
   // Tiling pattern. Painted on this section's ::before rather than its own
   // background, so it can sit on top of a background photo and carry a separate
   // image for dark mode - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
   const patternOn = hasPattern(pattern)
   const patternStyles = patternCss(id, pattern)
 
@@ -1826,10 +1907,10 @@ function PhoneBlock(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // Tiling pattern over whatever the preset/custom background paints, with its
   // own dark-mode image - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
   const patternStyles = patternCss(id, pattern)
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
@@ -2006,7 +2087,7 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
@@ -2014,7 +2095,7 @@ function Hero(props: any) {
   // Tiling pattern, painted on this hero's ::before so it can sit on top of the
   // gradient/colour/photo already there and carry its own dark-mode image - see
   // lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
   const patternStyles = patternCss(id, pattern)
 
   const bgType = bg.mode ?? 'gradient'
@@ -2914,10 +2995,10 @@ const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4r
 // `<BlockName>-<nanoid>`.
 const PAGE_PATTERN_ID = 'cactus-page-root'
 
-const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '' }: any) => {
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternRatio = '' }: any) => {
   const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
   const padding = pagePaddingYMap[paddingY] ?? '0'
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternRatio }
   const patternStyles = patternCss(PAGE_PATTERN_ID, pattern)
   return (
     <div
@@ -2955,6 +3036,9 @@ export const puckConfig = {
       paddingY: { type: 'select' as const, label: 'Padding above/below content', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
     },
     defaultProps: { bg: { mode: 'none', color: '' }, ...PATTERN_DEFAULTS, paddingY: 'none' },
+    // Measures the tile and snaps the size so a join cannot fall on a fraction
+    // of a pixel - see resolvePatternData.
+    resolveData: resolvePatternData,
     render: pageRootRender,
   },
   components: (() => {
@@ -3010,6 +3094,9 @@ export const puckConfig = {
         if (!mwVals.includes('custom')) delete rest.maxWidthCustom
         return trimPatternFields(p, rest)
       },
+      // Measures the tile and snaps the size so a join cannot fall on a fraction
+      // of a pixel - see resolvePatternData.
+      resolveData: resolvePatternData,
       render: SectionBlock,
     },
     Grid: {
@@ -3422,6 +3509,9 @@ export const puckConfig = {
         const { bgColor: _bg, ...rest } = fields
         return trimPatternFields(p, rest)
       },
+      // Measures the tile and snaps the size so a join cannot fall on a fraction
+      // of a pixel - see resolvePatternData.
+      resolveData: resolvePatternData,
       render: CTABanner,
     },
     // A lone icon that links somewhere — made for header icon rows, so its
@@ -3614,6 +3704,9 @@ export const puckConfig = {
         if (!p.cta2Label) delete rest.cta2Variant
         return trimPatternFields(p, rest)
       },
+      // Measures the tile and snaps the size so a join cannot fall on a fraction
+      // of a pixel - see resolvePatternData.
+      resolveData: resolvePatternData,
       render: Hero,
     },
     Card: {

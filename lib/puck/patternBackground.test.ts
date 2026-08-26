@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasPattern, patternCss, patternHostStyle, patternUrl } from '@/lib/puck/patternBackground'
+import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternSizeStep, patternTileHeight, patternUrl, snapPatternWidth } from '@/lib/puck/patternBackground'
 
 describe('patternBackground', () => {
   it('emits nothing at all when no pattern is picked', () => {
@@ -68,57 +68,69 @@ describe('patternBackground', () => {
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '120px' })).not.toContain('data-theme="dark"')
   })
 
-  // A width on its own leaves the height to the image's proportions, which is a
-  // fractional pixel for most widths of a non-square tile: a 660x472 tile drawn
-  // 96px wide is 68.65px tall, and hairlines of the page show between the rows.
-  // Giving both axes in whole pixels is the cure.
-  describe('tile height', () => {
-    it('emits width only when no height is given, exactly as before', () => {
-      expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '96px' })).toContain('background-size:96px;')
+  // THE join bug. `background-size` sets the width and the browser derives the
+  // height from the image's proportions: a 660x472 tile drawn 96px wide is
+  // 68.6545px tall, so every join lands part-way through a device pixel, the
+  // tile's last row renders light, and a pale line crosses the pattern once per
+  // tile. Measured on the live site: joins at device y 265.3 / 402.6 / 539.9.
+  // Snapping the width so the height is whole puts them on 246 / 364 / 482.
+  describe('snapping the tile so its height is a whole number', () => {
+    it('reduces the ratio and halves it while the height stays whole', () => {
+      expect(patternSizeStep(660, 472)).toEqual({ width: 82.5, height: 59 })   // 165:118
+      expect(patternSizeStep(225, 400)).toEqual({ width: 0.5625, height: 1 })  // 9:16
+      expect(patternSizeStep(800, 800)).toEqual({ width: 1, height: 1 })       // square
     })
 
-    it('emits both axes when a height is given, each rounded to a whole pixel', () => {
-      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '96.4px', patternHeight: '68.65px' })
-      expect(css).toContain('background-size:96px 69px;')
+    it('snaps a width to the nearest one with a whole height', () => {
+      const r = { w: 660, h: 472 }
+      expect(snapPatternWidth(96, r)).toBe(82.5)
+      expect(snapPatternWidth(160, r)).toBe(165)
+      expect(patternTileHeight(snapPatternWidth(96, r), r)).toBe(59)
+      expect(patternTileHeight(snapPatternWidth(160, r), r)).toBe(118)
     })
 
-    it('takes a height with no width - the width stays proportional', () => {
-      expect(patternCss('abc', { patternImage: '/a.svg', patternHeight: '118px' })).toContain('background-size:auto 118px;')
+    it('leaves a square tile alone - it was never able to land fractionally', () => {
+      expect(snapPatternWidth(80, { w: 800, h: 800 })).toBe(80)
     })
 
-    it('cascades the height desktop -> tablet -> mobile like the width', () => {
+    it('never snaps to zero, however small the size', () => {
+      expect(snapPatternWidth(1, { w: 660, h: 472 })).toBe(82.5)
+      expect(snapPatternWidth(0, { w: 660, h: 472 })).toBe(0)
+    })
+
+    it('emits the snapped width in the css', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '96px', patternRatio: '660x472' })
+      expect(css).toContain('background-size:82.5px;')
+      expect(css).not.toContain('96px')
+    })
+
+    it('snaps the dark size too, and each breakpoint', () => {
       const css = patternCss('abc', {
-        patternImage: '/a.svg',
-        patternSize: { desktop: '165px', mobile: '82px' },
-        patternHeight: { desktop: '118px', mobile: '59px' },
+        patternImage: '/a.svg', patternRatio: '660x472',
+        patternSize: { desktop: '160px', mobile: '96px' }, patternSizeDark: '300px',
       })
-      expect(css).toContain('background-size:165px 118px;')
-      expect(css).toMatch(/@media\(max-width:\d+px\)\{\[data-pattern-id="abc"\]::before\{background-size:82px 59px !important\}\}/)
+      expect(css).toContain('background-size:165px;')
+      expect(css).toMatch(/@media\(max-width:\d+px\)\{[^}]*background-size:82\.5px !important\}/)
+      expect(css).toContain('background-size:330px !important;')
     })
 
-    it('gives dark mode its own height, falling back to the light one', () => {
-      const both = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternSizeDark: '330px', patternHeightDark: '236px' })
-      expect(both).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:330px 236px !important;}')
-
-      // A dark WIDTH with no dark height keeps the light height - the author has
-      // to give the wider dark tile its own, and the fallback says so plainly
-      // rather than quietly going proportional again.
-      const widthOnly = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternSizeDark: '330px' })
-      expect(widthOnly).toContain('background-size:330px 118px !important;')
-
-      // A dark HEIGHT with no dark width keeps the light width.
-      const heightOnly = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternHeightDark: '236px' })
-      expect(heightOnly).toContain('background-size:165px 236px !important;')
+    it('does nothing without a measurement, so old blocks render as before', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '96px' })
+      expect(css).toContain('background-size:96px;')
     })
 
-    it('opens the dark arm for a dark height alone, with no dark image or width', () => {
-      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeightDark: '236px' })
-      expect(css).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:165px 236px !important;}')
-      expect(css).toContain('@media(prefers-color-scheme:dark)')
+    it('ignores a malformed or zero measurement rather than dividing by it', () => {
+      for (const bad of ['', 'x', '660', '660x', '0x472', '660x0', '-660x472']) {
+        expect(parsePatternRatio(bad), bad).toBeNull()
+        expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '96px', patternRatio: bad })).toContain('background-size:96px;')
+      }
     })
 
-    it('says nothing about dark mode when only light axes are set', () => {
-      expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px' })).not.toContain('data-theme="dark"')
+    // rem/%/vw resolve against things patternCss cannot see, so they are passed
+    // through untouched; the editor converts them to px when it measures.
+    it('passes a non-px size through untouched', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '6rem', patternRatio: '660x472' })
+      expect(css).toContain('background-size:6rem;')
     })
   })
 

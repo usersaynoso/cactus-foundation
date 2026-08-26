@@ -40,19 +40,12 @@ export type PatternProps = {
    * breakpoint, it cascades to the narrower ones like every other responsive
    * field here - set a dark mobile size too if it should differ there. */
   patternSizeDark?: ResponsiveValue<string> | string
-  /** Tile HEIGHT, and the cure for hairline seams across a non-square tile.
-   * `patternSize` alone sets the width and leaves the height to the image's own
-   * proportions, which lands on a fractional pixel for all but a lucky few
-   * widths - a 660x472 tile drawn 96px wide is 68.65px tall, the rounding error
-   * accumulates down the grid, and every few rows a hairline of whatever sits
-   * behind the pattern shows through. Setting a whole-pixel height alongside a
-   * whole-pixel width makes every row land on a device pixel. The half-percent
-   * of stretch that costs is invisible on decoration. Blank = proportional, as
-   * before. */
-  patternHeight?: ResponsiveValue<string> | string
-  /** Dark-mode override for the tile height, same "blank = use the light one"
-   * rule as `patternSizeDark`. */
-  patternHeightDark?: ResponsiveValue<string> | string
+  /** The tile's intrinsic pixel size as `"660x472"`, measured in the editor when
+   * the pattern is picked (see resolvePatternData in lib/puck/config.core.tsx)
+   * and never shown as a field. It exists so the size can be snapped - see
+   * `snapPatternWidth`. Absent on a block last edited before this existed, in
+   * which case nothing is snapped and the size renders exactly as typed. */
+  patternRatio?: string
 }
 
 // Everything below is interpolated straight into a <style> tag, so both the URL
@@ -78,22 +71,79 @@ function cssUrl(raw: string | undefined): string | null {
 
 const SIZE_RE = /^(auto|cover|contain|\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh))$/
 
-// A fractional pixel size is a seam waiting to happen: the browser tiles at the
-// fractional size, the rounding error accumulates across the grid, and every few
-// rows or columns a hairline of whatever sits behind the pattern shows through.
-// Whole pixels are the only size we can guarantee tile cleanly, so a px value is
-// rounded to one. Other units are relative to things we cannot resolve here and
-// are passed through as typed.
-//
-// This only ever fixes the axis it is given. An unset height is `auto`, which the
-// browser derives from the image's own proportions and is fractional for all but
-// a lucky few widths - see `patternHeight`.
-function cssSize(raw: string | undefined): string {
+/** `"660x472"` -> `{ w: 660, h: 472 }`. Anything else is treated as unmeasured. */
+export function parsePatternRatio(raw: string | undefined): { w: number; h: number } | null {
+  const m = /^(\d+)x(\d+)$/.exec((raw ?? '').trim())
+  if (!m) return null
+  const w = Number(m[1]), h = Number(m[2])
+  return w > 0 && h > 0 ? { w, h } : null
+}
+
+const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
+
+/**
+ * The smallest step in tile WIDTH that keeps the tile's HEIGHT a whole number,
+ * and the height step that goes with it.
+ *
+ * This is the whole fix, so it is worth stating why. `background-size` sets the
+ * width; the browser derives the height from the image's own proportions. Draw a
+ * 660x472 tile 96px wide and it is 68.6545px tall, so every join after the first
+ * lands part-way through a device pixel, the tile's last row is rendered light,
+ * and you get a pale line across the pattern once per tile. A square tile cannot
+ * do this - whole width in, whole height out - which is exactly why the one
+ * square pattern on the site never showed it.
+ *
+ * Reduce the ratio to a/b. A height of `m*b` gives a width of `m*a`, so whole
+ * multiples always work. Halves work too whenever b is still even, and so on
+ * down: dividing both by 2^k leaves the height a whole number for as long as
+ * 2^k divides b, and the width a finite decimal (dividing by two always is).
+ * Taking k as far as it goes gives the finest honest grid of sizes - for
+ * 660x472 that is every 82.5px (height 59px), for 225x400 every 0.5625px
+ * (height 1px), for a square tile every 1px.
+ *
+ * NOT done by stretching the tile to a whole height with a two-value
+ * `background-size`: a stretched tile rasterises through a different path and
+ * draws its own seam, which is the mistake shipped in 0.5.1326 and reverted.
+ */
+export function patternSizeStep(w: number, h: number): { width: number; height: number } {
+  const g = gcd(w, h)
+  let a = w / g, b = h / g
+  while (b % 2 === 0) { a /= 2; b /= 2 }
+  return { width: a, height: b }
+}
+
+/** Trim float noise without lying about the value - 82.5, not 82.50000000001. */
+const fmt = (n: number) => String(Number(n.toFixed(6)))
+
+/**
+ * Snap a tile width to the nearest one whose height is a whole number. Returns
+ * the width unchanged when the tile has never been measured, so a block from
+ * before this existed renders exactly as it did.
+ */
+export function snapPatternWidth(px: number, ratio: { w: number; h: number } | null): number {
+  if (!ratio || !(px > 0)) return px
+  const step = patternSizeStep(ratio.w, ratio.h)
+  const k = Math.max(1, Math.round(px / step.width))
+  return k * step.width
+}
+
+/** The tile height a given width produces, for the editor's helper text. */
+export function patternTileHeight(px: number, ratio: { w: number; h: number } | null): number | null {
+  return ratio ? px * ratio.h / ratio.w : null
+}
+
+// Only a px value can be snapped: rem/em/% resolve against things this cannot
+// see here, so they are passed through as typed and the editor converts them to
+// px when it measures (resolvePatternData). Without a measurement a px value is
+// still rounded to a whole number, which is what this did before snapping
+// existed - it does not fix the join, but it is no worse.
+function cssSize(raw: string | undefined, ratio: { w: number; h: number } | null): string {
   const v = (raw ?? '').trim()
   if (!SIZE_RE.test(v)) return 'auto'
   const px = /^(\d+(?:\.\d+)?)px$/.exec(v)
-  if (px) return `${Math.max(1, Math.round(Number(px[1])))}px`
-  return v
+  if (!px) return v
+  const n = Number(px[1])
+  return ratio ? `${fmt(snapPatternWidth(n, ratio))}px` : `${Math.max(1, Math.round(n))}px`
 }
 
 const DEVICES = ['desktop', 'tablet', 'mobile'] as const
@@ -127,47 +177,24 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   const dark = cssUrl(props.patternImageDark)
   const selector = `[data-pattern-id="${id}"]::before`
 
+  const ratio = parsePatternRatio(props.patternRatio)
   const sizeRv = normalizeResponsiveValue<string>(props.patternSize)
-  const sizeAt = (d: Device) => cssSize(pickResponsive(sizeRv, d))
-
-  // The height is optional and omitted entirely when blank, so a block that has
-  // never been given one emits `background-size:<width>` exactly as before.
-  const heightRv = normalizeResponsiveValue<string>(props.patternHeight)
-  const heightAt = (d: Device) => {
-    const raw = (pickResponsive(heightRv, d) ?? '').trim()
-    return raw ? cssSize(raw) : ''
-  }
-  const pairAt = (d: Device) => {
-    const h = heightAt(d)
-    return h ? `${sizeAt(d)} ${h}` : sizeAt(d)
-  }
+  const sizeAt = (d: Device) => cssSize(pickResponsive(sizeRv, d), ratio)
 
   // Dark mode can want the tile at a different size - a pattern with more air in
   // it usually needs to be bigger to read the same against a dark background.
   // A device with no dark value of its own resolves the normal way (desktop ->
   // tablet -> mobile) and only falls through to the LIGHT size once that cascade
   // comes up empty - never to 'auto', which would quietly undo the light size.
+  // The dark image is a different FILE and may well be a different shape, but in
+  // practice a pack ships both arms at one size, so it is snapped on the light
+  // tile's measurement rather than carrying a second ratio for the sake of it.
   const darkSizeRv = normalizeResponsiveValue<string>(props.patternSizeDark)
   const hasDarkSize = DEVICES.some((d) => (darkSizeRv[d] ?? '').trim() !== '')
   const darkSizeAt = (d: Device) => {
     const raw = (pickResponsive(darkSizeRv, d) ?? '').trim()
-    return raw ? cssSize(raw) : sizeAt(d)
+    return raw ? cssSize(raw, ratio) : sizeAt(d)
   }
-
-  // Same rule for the height: blank in dark mode means "whatever light does",
-  // which includes light's own blank - a dark tile at a different width still
-  // wants a matching whole-pixel height, and the author has to give it one.
-  const darkHeightRv = normalizeResponsiveValue<string>(props.patternHeightDark)
-  const hasDarkHeight = DEVICES.some((d) => (darkHeightRv[d] ?? '').trim() !== '')
-  const darkHeightAt = (d: Device) => {
-    const raw = (pickResponsive(darkHeightRv, d) ?? '').trim()
-    return raw ? cssSize(raw) : heightAt(d)
-  }
-  const darkPairAt = (d: Device) => {
-    const h = darkHeightAt(d)
-    return h ? `${darkSizeAt(d)} ${h}` : darkSizeAt(d)
-  }
-  const hasDarkSizing = hasDarkSize || hasDarkHeight
 
   // `background-position:0 0`, NOT `center`. Centring a REPEATED background puts
   // the tile grid's origin at (box - tile) / 2, which is a fractional pixel most
@@ -184,13 +211,13 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
   // the bleed back off, which is why Section only clips when it has a reason to.
   const rules: string[] = [
     `${selector}{content:"";position:absolute;inset:-1px 0;z-index:-1;pointer-events:none;border-radius:inherit;` +
-      `background-image:${light};background-repeat:repeat;background-position:0 0;background-size:${pairAt('desktop')};}`,
+      `background-image:${light};background-repeat:repeat;background-position:0 0;background-size:${sizeAt('desktop')};}`,
   ]
 
   // Mirrors the dark-mode logo swap in globals.css: the explicit `data-theme`
   // arm covers a visitor who has chosen a theme, the media query covers the
   // "follow my system" default, where nothing is stamped on <html> at all.
-  if (dark || hasDarkSizing) {
+  if (dark || hasDarkSize) {
     const chosen = `[data-theme="dark"] ${selector}`
     const system = `:root:not([data-theme="light"]) ${selector}`
     // The size carries !important because the light breakpoint rules below do
@@ -198,17 +225,17 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     // responsiveMediaCssFor) and an important declaration beats a plain one
     // whatever the specificity. The image needs none: nothing else sets it.
     const decls = (d: Device) =>
-      `${dark ? `background-image:${dark};` : ''}${hasDarkSizing ? `background-size:${darkPairAt(d)} !important;` : ''}`
+      `${dark ? `background-image:${dark};` : ''}${hasDarkSize ? `background-size:${darkSizeAt(d)} !important;` : ''}`
     rules.push(`${chosen}{${decls('desktop')}}`)
     rules.push(`@media(prefers-color-scheme:dark){${system}{${decls('desktop')}}}`)
 
     // Breakpoints, for the dark size only - the image does not change with the
     // viewport. A breakpoint whose resolved dark size matches desktop's emits
     // nothing, same rule responsiveMediaCssFor follows.
-    if (hasDarkSizing) {
+    if (hasDarkSize) {
       for (const [query, device] of [[tabletMediaQuery(), 'tablet'], [mobileMediaQuery(), 'mobile']] as const) {
-        if (darkPairAt(device) === darkPairAt('desktop')) continue
-        const decl = `background-size:${darkPairAt(device)} !important;`
+        if (darkSizeAt(device) === darkSizeAt('desktop')) continue
+        const decl = `background-size:${darkSizeAt(device)} !important;`
         rules.push(`${query}{${chosen}{${decl}}}`)
         // Nested @media is not something every browser this has to run in
         // supports, so the two conditions are combined into one query instead.
@@ -217,7 +244,7 @@ export function patternCss(id: string | undefined, props: PatternProps): string 
     }
   }
 
-  const sizeCss = responsiveMediaCssFor(selector, (d) => `background-size:${pairAt(d)};`)
+  const sizeCss = responsiveMediaCssFor(selector, (d) => `background-size:${sizeAt(d)};`)
   if (sizeCss) rules.push(sizeCss)
 
   return rules.join('\n')
