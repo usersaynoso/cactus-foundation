@@ -1,5 +1,17 @@
 import { isEmailConfigured } from '@/lib/config/env'
 
+/** A file travelling with the email. `content` is the raw bytes - base64 is done
+ *  here, once, rather than at every call site, because Brevo wants base64 and
+ *  nodemailer wants the buffer and a caller should not have to know which
+ *  transport the site is on. */
+export type EmailAttachment = {
+  filename: string
+  content: Buffer | Uint8Array
+  /** Defaults to application/pdf, which is what every attachment sent so far
+   *  is. SMTP reads it; Brevo works it out from the filename either way. */
+  contentType?: string
+}
+
 export type EmailPayload = {
   to: string
   subject: string
@@ -7,6 +19,23 @@ export type EmailPayload = {
   text: string
   replyTo?: string
   cc?: string[]
+  attachments?: EmailAttachment[]
+}
+
+// Brevo's API caps a whole message at 10MB including its attachments, and an
+// oversized one is refused outright - which would take the email down with it.
+// A document that will not fit is dropped and the email goes without it: the
+// link in the body still reaches it, and a customer with no email at all is a
+// worse outcome than a customer with no attachment.
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+
+function usableAttachments(attachments: EmailAttachment[] | undefined): EmailAttachment[] {
+  if (!attachments?.length) return []
+  return attachments.filter((file) => {
+    if (file.content.byteLength <= MAX_ATTACHMENT_BYTES) return true
+    console.error(`[email] attachment "${file.filename}" is too big to send (${file.content.byteLength} bytes) - sending without it.`)
+    return false
+  })
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<void> {
@@ -23,6 +52,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 
 async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<void> {
   const config = await getEmailConfig()
+  const files = usableAttachments(payload.attachments)
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -37,6 +67,14 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<voi
       subject: payload.subject,
       htmlContent: payload.html,
       textContent: payload.text,
+      ...(files.length
+        ? {
+            attachment: files.map((file) => ({
+              name: file.filename,
+              content: Buffer.from(file.content).toString('base64'),
+            })),
+          }
+        : {}),
     }),
   })
   if (!res.ok) {
@@ -66,6 +104,15 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
     subject: payload.subject,
     html: payload.html,
     text: payload.text,
+    ...(usableAttachments(payload.attachments).length
+      ? {
+          attachments: usableAttachments(payload.attachments).map((file) => ({
+            filename: file.filename,
+            content: Buffer.from(file.content),
+            contentType: file.contentType ?? 'application/pdf',
+          })),
+        }
+      : {}),
   })
 }
 
