@@ -4,7 +4,10 @@ import {
   EMAIL_BLOCK_HTML,
   EMAIL_ROOT_DEFAULTS,
   emailShell,
+  emailPatternStyle,
+  emailPatternUrl,
   escapeHtml,
+  EMAIL_PATTERN_CLASS,
   interpolate,
   resolveEmailFont,
   type EmailBlockName,
@@ -104,6 +107,28 @@ export function renderWrapperInner(data: PuckData, ctx: EmailRenderContext): str
   return parts.join('')
 }
 
+// The dark-mode half of the background pattern. Two things have to be true for
+// a mail client to honour it, and both are opt-in on the wrapper carrying a dark
+// pattern - an owner who sets only the light one gets byte-for-byte the document
+// core has always sent:
+//
+//  * the media query has to exist at all, which means a <style> block; there is
+//    no inline equivalent of `prefers-color-scheme`, and
+//  * the document has to declare that it handles both schemes. While it says
+//    `light` only (the long-standing default here), Apple Mail and Outlook for
+//    Mac apply their OWN dark treatment and ignore the author's dark styles.
+//
+// Declaring `light dark` therefore does more than enable the pattern swap: it
+// also stops those clients auto-darkening the rest of the email, which is the
+// trade an owner accepts by setting a dark pattern. Gmail honours neither and
+// will show the light pattern in its dark theme; nothing an author can write
+// changes that.
+function patternDarkHead(root: EmailRootProps): string {
+  const dark = emailPatternUrl(root, 'patternImageDark')
+  if (!dark || !emailPatternUrl(root)) return ''
+  return `<style>@media (prefers-color-scheme: dark){.${EMAIL_PATTERN_CLASS}{background-image:url(${dark}) !important;}}</style>`
+}
+
 function documentShell(inner: string, ctx: EmailRenderContext, root: EmailRootProps, title: string): string {
   const preheaderRaw = typeof root.preheader === 'string' ? root.preheader : ''
   const preheader = preheaderRaw ? interpolate(preheaderRaw, ctx.vars, true) : ''
@@ -112,9 +137,16 @@ function documentShell(inner: string, ctx: EmailRenderContext, root: EmailRootPr
   const preheaderHtml = preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${preheader}${'&#847;&zwnj;&nbsp;'.repeat(30)}</div>`
     : ''
+  const darkHead = patternDarkHead(root)
+  const schemes = darkHead ? 'light dark' : 'light'
+  // The pattern rides the <body> too, not only the outer table: the table is as
+  // tall as its content, and on a short email in a tall window the client paints
+  // the body behind the rest. Same class, so the dark rule reaches both.
+  const patternStyle = emailPatternStyle(root)
+  const bodyClass = patternStyle ? ` class="${EMAIL_PATTERN_CLASS}"` : ''
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="color-scheme" content="light" /><meta name="supported-color-schemes" content="light" /><title>${escapeHtml(title)}</title></head>
-<body style="margin:0;padding:0;background-color:${resolvePageBackground(root, ctx)};-webkit-font-smoothing:antialiased;">${preheaderHtml}${inner}</body></html>`
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="color-scheme" content="${schemes}" /><meta name="supported-color-schemes" content="${schemes}" /><title>${escapeHtml(title)}</title>${darkHead}</head>
+<body${bodyClass} style="margin:0;padding:0;background-color:${resolvePageBackground(root, ctx)};${patternStyle}-webkit-font-smoothing:antialiased;">${preheaderHtml}${inner}</body></html>`
 }
 
 function resolvePageBackground(root: EmailRootProps, ctx: EmailRenderContext): string {

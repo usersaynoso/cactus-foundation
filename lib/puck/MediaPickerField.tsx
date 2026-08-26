@@ -331,6 +331,16 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   EmailImage:     { src: 'Image' },
 }
 
+// The same, for a config's ROOT fields - which are not a component and so cannot
+// be keyed by name. Every config that has a root with image fields is listed
+// here by the field names it uses; a config whose root has none of them is
+// skipped, so one shared list covers the page root and the email wrapper root
+// without either editor knowing about it.
+const ROOT_IMAGE_PICKER_FIELDS: Record<string, string> = {
+  patternImage: 'Background pattern (image or SVG)',
+  patternImageDark: 'Background pattern in dark mode',
+}
+
 // Same again for fields holding a self-hosted video URL (an mp4/webm in the
 // media library, not a YouTube or Vimeo link - those stay plain text fields).
 const VIDEO_PICKER_FIELDS: Record<string, Record<string, string>> = {
@@ -360,7 +370,24 @@ export function withImagePickerFields<C>(config: C): C {
   }
   swap(IMAGE_PICKER_FIELDS, ImageUrlPickerField)
   swap(VIDEO_PICKER_FIELDS, VideoUrlPickerField)
-  return { ...cfg, components } as C
+
+  // Root fields, same treatment. The root is rebuilt only when it actually
+  // carries one of the named fields, so a config without them is returned with
+  // its own root object untouched (identity included).
+  const cfgRoot = (config as { root?: { fields?: Record<string, unknown> } }).root
+  let root = cfgRoot
+  if (cfgRoot?.fields) {
+    const fields = { ...cfgRoot.fields }
+    let changed = false
+    for (const [fieldName, label] of Object.entries(ROOT_IMAGE_PICKER_FIELDS)) {
+      if (!(fieldName in fields)) continue
+      fields[fieldName] = { type: 'custom' as const, label, render: ImageUrlPickerField }
+      changed = true
+    }
+    if (changed) root = { ...cfgRoot, fields }
+  }
+
+  return { ...cfg, components, ...(root ? { root } : {}) } as C
 }
 
 // For ImageBlock.mediaUrl field — stores the Worker URL directly so the server

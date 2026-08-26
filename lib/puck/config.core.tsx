@@ -2870,11 +2870,27 @@ export function SiteLogoRsc(props: any) {
 // straight through any Section set to "Full bleed".
 const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4rem', lg: '6rem' }
 
-const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none' }: any) => {
+// The page root has no Puck id of its own (root props carry none), and there is
+// only ever one on a render, so its pattern layer keys off a fixed attribute
+// value instead. No Section can collide with it: Puck ids are always
+// `<BlockName>-<nanoid>`.
+const PAGE_PATTERN_ID = 'cactus-page-root'
+
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '' }: any) => {
   const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
   const padding = pagePaddingYMap[paddingY] ?? '0'
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const patternStyles = patternCss(PAGE_PATTERN_ID, pattern)
   return (
-    <div style={{ background, paddingTop: padding, paddingBottom: padding }}>
+    <div
+      data-pattern-id={hasPattern(pattern) ? PAGE_PATTERN_ID : undefined}
+      // clip:false - this wrapper is the ancestor of every Section on the page,
+      // and an overflow:hidden ancestor silently kills `position: sticky` in all
+      // of them (sticky headers, sticky image columns). Nothing here is rounded,
+      // so there is nothing a tile could escape past anyway.
+      style={{ background, ...patternHostStyle(pattern, { clip: false }), paddingTop: padding, paddingBottom: padding }}
+    >
+      {patternStyles && <style>{patternStyles}</style>}
       {children}
     </div>
   )
@@ -2894,9 +2910,13 @@ export const puckConfig = {
   root: {
     fields: {
       bg:       { type: 'custom' as const, label: 'Page background', render: PageBgColorField },
+      // No resolveFields here: Puck's root has no field-trimming hook, so unlike
+      // the blocks the dark picker and the size stay listed whether or not a
+      // pattern is set. Three fields is a tolerable price for the whole page.
+      ...PATTERN_FIELDS,
       paddingY: { type: 'select' as const, label: 'Padding above/below content', options: [{ value: 'none', label: 'None' }, { value: 'sm', label: 'Small' }, { value: 'md', label: 'Medium' }, { value: 'lg', label: 'Large' }] },
     },
-    defaultProps: { bg: { mode: 'none', color: '' }, paddingY: 'none' },
+    defaultProps: { bg: { mode: 'none', color: '' }, ...PATTERN_DEFAULTS, paddingY: 'none' },
     render: pageRootRender,
   },
   components: (() => {

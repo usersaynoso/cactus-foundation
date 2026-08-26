@@ -17,6 +17,8 @@
 // (lib/email/render.ts). Both go through toHtml(), so what the editor previews
 // is byte-for-byte what gets posted.
 
+import { patternUrl } from '@/lib/puck/patternBackground'
+
 export type EmailRenderContext = {
   /** The message itself, already interpolated. Dropped in by EmailBodySlot. */
   bodyHtml: string
@@ -292,12 +294,56 @@ export function emailShell(root: EmailRootProps, ctx: EmailRenderContext, inner:
   const outerPad = num(root, 'outerPadding', 24)
   const border = resolveColour(str(root, 'cardBorderColour'), ctx, '')
   const borderStyle = border ? `border:1px solid ${border};` : ''
+  const pattern = emailPatternUrl(root)
+  // The `background` ATTRIBUTE, not just the CSS: Outlook on Windows renders
+  // through Word, which ignores background-image on a table but does tile the
+  // old HTML attribute. Both are emitted so the pattern shows in either engine.
+  const patternAttr = pattern ? ` background="${escapeHtml(pattern)}"` : ''
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;background-color:${pageBg};margin:0;padding:0;"><tr><td align="center" style="padding:${outerPad}px 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${width}" style="border-collapse:collapse;width:100%;max-width:${width}px;background-color:${cardBg};${radius ? `border-radius:${radius}px;` : ''}${borderStyle}overflow:hidden;"><tr><td style="padding:0;">${inner}</td></tr></table></td></tr></table>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"${patternAttr}${pattern ? ` class="${EMAIL_PATTERN_CLASS}"` : ''} style="border-collapse:collapse;width:100%;background-color:${pageBg};${emailPatternStyle(root)}margin:0;padding:0;"><tr><td align="center" style="padding:${outerPad}px 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${width}" style="border-collapse:collapse;width:100%;max-width:${width}px;background-color:${cardBg};${radius ? `border-radius:${radius}px;` : ''}${borderStyle}overflow:hidden;"><tr><td style="padding:0;">${inner}</td></tr></table></td></tr></table>`
+}
+
+// ---------------------------------------------------------------------------
+// Background pattern
+// ---------------------------------------------------------------------------
+
+// A tiling pattern behind the card, the email-shaped half of the same feature
+// the Section/Hero/CTA Banner blocks carry on the site (lib/puck/patternBackground.ts).
+// Three differences forced by the medium:
+//
+//  * The URL must be ABSOLUTE. An inbox has no origin to resolve `/media/...`
+//    against, so a same-origin path - which the site blocks accept happily - is
+//    refused here rather than sent as a broken image.
+//  * There is no ::before. Email clients do not render pseudo-elements, so the
+//    pattern is an inline background on the outer table (plus the `background`
+//    attribute, for Word-engine Outlook).
+//  * The size is one number of pixels, not a per-breakpoint value. Outlook
+//    ignores background-size entirely and tiles at the image's natural size, so
+//    the setting is a request rather than a promise - said plainly on the field.
+export const EMAIL_PATTERN_CLASS = 'cactus-email-pattern'
+
+/** The chosen pattern's absolute URL, or '' when there isn't a usable one. */
+export function emailPatternUrl(root: EmailRootProps, key: 'patternImage' | 'patternImageDark' = 'patternImage'): string {
+  return patternUrl(str(root, key), { requireAbsolute: true }) ?? ''
+}
+
+/** Inline background declarations for the pattern, or '' when there is none.
+ * Always ends in `;` so it concatenates into a style attribute cleanly. */
+export function emailPatternStyle(root: EmailRootProps): string {
+  const url = emailPatternUrl(root)
+  if (!url) return ''
+  const size = num(root, 'patternSize', 0)
+  // url() is left unquoted deliberately: this lands inside a double-quoted HTML
+  // style attribute, and patternUrl has already refused any URL carrying a
+  // quote, bracket, brace, angle bracket, backslash, semicolon or whitespace.
+  return `background-image:url(${url});background-repeat:repeat;background-position:center;${size > 0 ? `background-size:${size}px;` : ''}`
 }
 
 export const EMAIL_ROOT_DEFAULTS: EmailRootProps = {
   pageBackground: '',
+  patternImage: '',
+  patternImageDark: '',
+  patternSize: 0,
   cardBackground: '#ffffff',
   cardBorderColour: '',
   contentWidth: 600,

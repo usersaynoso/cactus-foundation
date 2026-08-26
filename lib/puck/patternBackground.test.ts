@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasPattern, patternCss, patternHostStyle } from '@/lib/puck/patternBackground'
+import { hasPattern, patternCss, patternHostStyle, patternUrl } from '@/lib/puck/patternBackground'
 
 describe('patternBackground', () => {
   it('emits nothing at all when no pattern is picked', () => {
@@ -52,5 +52,19 @@ describe('patternBackground', () => {
 
   it('makes the host a clipped stacking context once a pattern is on', () => {
     expect(patternHostStyle({ patternImage: '/a.svg' })).toEqual({ isolation: 'isolate', overflow: 'hidden', position: 'relative' })
+  })
+
+  // The page root wraps every Section on the page, and an overflow:hidden
+  // ancestor silently disables position:sticky in all of them.
+  it('can make that stacking context without clipping', () => {
+    expect(patternHostStyle({ patternImage: '/a.svg' }, { clip: false })).toEqual({ isolation: 'isolate', position: 'relative' })
+    expect(patternHostStyle({}, { clip: false })).toEqual({})
+  })
+
+  // An inbox has no origin to resolve a same-origin path against.
+  it('can insist on an absolute URL, for the email wrapper', () => {
+    expect(patternUrl('/media/a.svg')).toBe('/media/a.svg')
+    expect(patternUrl('/media/a.svg', { requireAbsolute: true })).toBeNull()
+    expect(patternUrl('https://cdn.test/a.svg', { requireAbsolute: true })).toBe('https://cdn.test/a.svg')
   })
 })

@@ -20,6 +20,7 @@
 // stacking context for the negative z-index to stay inside it - see
 // `patternHostStyle`.
 
+import type React from 'react'
 import {
   normalizeResponsiveValue,
   pickResponsive,
@@ -41,12 +42,18 @@ export type PatternProps = {
 // the pattern is dropped rather than rendered. Failing closed here is the point:
 // a rejected pattern is a missing decoration, an accepted one could close the
 // declaration and inject arbitrary CSS into the page.
-function cssUrl(raw: string | undefined): string | null {
+export function patternUrl(raw: string | undefined, { requireAbsolute = false }: { requireAbsolute?: boolean } = {}): string | null {
   const url = (raw ?? '').trim()
   if (!url) return null
-  if (!url.startsWith('/') && !/^https?:\/\//i.test(url)) return null
-  if (/["'()\\\s;{}]/.test(url)) return null
-  return `url("${url}")`
+  const absolute = /^https?:\/\//i.test(url)
+  if (!absolute && (requireAbsolute || !url.startsWith('/'))) return null
+  if (/["'()\\\s;{}<>]/.test(url)) return null
+  return url
+}
+
+function cssUrl(raw: string | undefined): string | null {
+  const url = patternUrl(raw)
+  return url === null ? null : `url("${url}")`
 }
 
 const SIZE_RE = /^(auto|cover|contain|\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh))$/
@@ -67,9 +74,13 @@ export function hasPattern(props: PatternProps): boolean {
 // spill past a rounded corner. Returned as a patch rather than spread blindly by
 // the caller - Section and the CTA Banner both compute `position` and `overflow`
 // of their own, and a sticky block's `position` must win.
-export function patternHostStyle(props: PatternProps): { isolation: 'isolate'; overflow: 'hidden'; position: 'relative' } | Record<string, never> {
+// `clip: false` for a host that must NOT gain an overflow context - the page
+// root wraps every Section on the page, and overflow:hidden on an ancestor
+// silently disables `position: sticky` in all of them. It has no rounded corners
+// for a tile to escape past either, so there is nothing to clip.
+export function patternHostStyle(props: PatternProps, { clip = true }: { clip?: boolean } = {}): React.CSSProperties {
   if (!hasPattern(props)) return {}
-  return { isolation: 'isolate', overflow: 'hidden', position: 'relative' }
+  return { isolation: 'isolate', position: 'relative', ...(clip ? { overflow: 'hidden' as const } : {}) }
 }
 
 // The <style> body for one block instance, keyed on `[data-pattern-id="<id>"]`.

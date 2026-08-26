@@ -2,6 +2,7 @@ import React from 'react'
 import {
   EMAIL_BLOCK_HTML,
   EMAIL_ROOT_DEFAULTS,
+  emailPatternStyle,
   resolveEmailFont,
   resolveColour,
   type EmailBlockName,
@@ -272,6 +273,20 @@ const components = {
 // list in as children - so the values are read from the same props and kept in
 // step by hand. Block markup, which is the part that actually has to survive an
 // inbox, still comes from one place.
+// `background-image:url(x);background-repeat:repeat;` -> { backgroundImage: …,
+// backgroundRepeat: … }. Only ever fed the output of emailPatternStyle, which is
+// a fixed handful of declarations with no nested semicolons.
+function styleObject(css: string): React.CSSProperties {
+  const out: Record<string, string> = {}
+  for (const decl of css.split(';')) {
+    const i = decl.indexOf(':')
+    if (i < 1) continue
+    const prop = decl.slice(0, i).trim().replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+    out[prop] = decl.slice(i + 1).trim()
+  }
+  return out as React.CSSProperties
+}
+
 function EmailRoot({ children, ...props }: EmailRootProps & { children?: React.ReactNode }) {
   const root: EmailRootProps = { ...EMAIL_ROOT_DEFAULTS, ...props }
   const ctx = editorContext(root)
@@ -282,9 +297,15 @@ function EmailRoot({ children, ...props }: EmailRootProps & { children?: React.R
   const radius = Number(root.cardRadius) || 0
   const outerPad = Number(root.outerPadding) || 0
 
+  // The pattern's inline declarations come from the same function the sent email
+  // uses, parsed back into React's style object so the canvas cannot drift from
+  // the inbox. Light arm only: the canvas is not a mail client, and the dark one
+  // is a media query the sent document carries in its own <style>.
+  const patternStyle = styleObject(emailPatternStyle(root))
+
   return (
     <EmailRootContext.Provider value={root}>
-      <div style={{ background: pageBg, padding: `${outerPad}px 12px`, minHeight: '100%' }}>
+      <div style={{ background: pageBg, ...patternStyle, padding: `${outerPad}px 12px`, minHeight: '100%' }}>
         <div
           style={{
             maxWidth: width,
@@ -313,6 +334,13 @@ export const emailPuckConfig = {
     fields: {
       preheader: { type: 'text' as const, label: 'Preview line (shown next to the subject in the inbox)' },
       pageBackground: colourField('Page background (token id or hex)'),
+      // Swapped for the media library picker by withImagePickerFields, same as
+      // the site's blocks. The URL an email carries has to be absolute, which is
+      // exactly what the picker stores, and a hand-typed relative path is
+      // refused at render rather than sent as a broken image.
+      patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
+      patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode (Apple Mail and Outlook for Mac only)' },
+      patternSize: { type: 'number' as const, label: 'Pattern size (px, blank for the image\u2019s own size)', min: 0, max: 2000 },
       cardBackground: colourField('Card background (token id or hex)'),
       cardBorderColour: colourField('Card border (token id or hex, blank for none)'),
       contentWidth: { type: 'number' as const, label: 'Card width (px)', min: 320, max: 800 },
