@@ -66,6 +66,8 @@ interface ModuleEntry {
   name: string
   repoUrl: string
   version: string
+  // Input to applyPinFloor only - never written to the registry file.
+  lastFailedVersion?: string | null
 }
 
 interface ModulesJson {
@@ -232,8 +234,18 @@ export async function syncModulesJson(
     return { committed: false }
   }
 
+  // Sorted by name, because the order this arrives in is whatever the Module table's
+  // findMany happened to return - physical row order, which shuffles as rows are
+  // updated. Every sync therefore rewrote the whole file in a fresh order, and
+  // `git log -p modules.json` showed twenty modules moving about with the one real
+  // version bump buried among them. That history is exactly what you reach for when
+  // asking "did that module actually update?", and it was unreadable. normaliseModules
+  // already sorts before comparing, so this only changes what is written, never
+  // whether a commit happens.
   const updated: ModulesJson = {
-    modules: floored.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version })),
+    modules: [...floored]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version })),
   }
   const deleteGitmodules = await hasGitmodules(octokit, owner, repo)
   const { commitSha } = await commitModulesJson(

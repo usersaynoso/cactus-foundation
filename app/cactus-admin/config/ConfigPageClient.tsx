@@ -6,7 +6,7 @@ import { setUrlParams } from '@/lib/admin/tab-url'
 import type { MediaProviderType } from '@prisma/client'
 import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
-import { announceRedeployStarted } from '@/lib/deploy-status-client'
+import { announceRedeployStarted, useDeployInFlight } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
@@ -271,6 +271,7 @@ function UpdatesPanel() {
   const [showNotes, setShowNotes] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const deployInFlight = useDeployInFlight()
   const [updateError, setUpdateError] = useState('')
   const [modulesWithUpdates, setModulesWithUpdates] = useState<ModuleUpdateInfo[]>([])
   const [updateModulesToo, setUpdateModulesToo] = useState(true)
@@ -427,9 +428,11 @@ function UpdatesPanel() {
         <button
           className="btn btn-primary"
           style={{ fontSize: 'var(--text-sm)' }}
+          disabled={deployInFlight}
+          title={deployInFlight ? 'A deployment is running - updates resume once it is live' : undefined}
           onClick={() => { setUpdateError(''); setShowConfirm(true) }}
         >
-          Update now
+          {deployInFlight ? 'Deploying…' : 'Update now'}
         </button>
       </div>
     )

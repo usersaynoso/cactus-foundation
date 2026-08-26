@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ModuleStatus } from '@prisma/client'
 import { markdownToHtml } from '@/lib/markdown-client'
-import { announceRedeployStarted } from '@/lib/deploy-status-client'
+import { announceRedeployStarted, useDeployInFlight } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { TabStrip } from '@/components/admin/TabStrip'
@@ -170,6 +170,7 @@ export default function ModulesPage() {
   const [uninstalling, setUninstalling] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
   const [updatingAll, setUpdatingAll] = useState(false)
+  const deployInFlight = useDeployInFlight()
   const [channelSaving, setChannelSaving] = useState<Record<string, boolean>>({})
   const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
   const [customUrl, setCustomUrl] = useState('')
@@ -426,10 +427,10 @@ export default function ModulesPage() {
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Update failed')
       if (!parsed.ok) throw new Error(parsed.error ?? 'Update failed')
       const d = parsed.data ?? {}
+      const failed: string[] = d.failed ?? []
       if (d.redeployTriggered) {
         announceRedeployStarted()
       } else {
-        const failed: string[] = d.failed ?? []
         const updatedCount = d.updated ?? 0
         if (updatedCount > 0) {
           setNotice(
@@ -440,6 +441,15 @@ export default function ModulesPage() {
         } else {
           setNotice('No updates available.')
         }
+      }
+      // Say so whichever branch ran. A batch that triggered a redeploy used to
+      // announce the deploy and drop this on the floor, so a module skipped for
+      // an unmet requirement just sat on the Updates tab afterwards with no
+      // explanation, looking for all the world like the button had missed it.
+      if (failed.length > 0) {
+        setError(
+          `Not included in this update: ${failed.join(', ')}. ${failed.length === 1 ? 'It stays' : 'They stay'} on the Updates tab - try again once this deployment is live.`
+        )
       }
       await loadDirectory()
       router.refresh()
@@ -543,10 +553,11 @@ export default function ModulesPage() {
             <>
               <button
                 className="btn btn-primary btn-sm"
-                disabled={busy}
+                disabled={busy || deployInFlight}
+                title={deployInFlight ? 'A deployment is running - updates resume once it is live' : undefined}
                 onClick={() => id && handleAction(id, 'update')}
               >
-                {busy ? 'Updating…' : `Update to ${showVersion(m.updateAvailable)}`}
+                {busy ? 'Updating…' : deployInFlight ? 'Deploying…' : `Update to ${showVersion(m.updateAvailable)}`}
               </button>
               <button className="btn btn-secondary btn-sm" onClick={() => setReleaseNotesFor(id)}>
                 What&rsquo;s new
@@ -705,8 +716,13 @@ export default function ModulesPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {updatableCount > 1 && (
-            <button className="btn btn-primary btn-sm" disabled={updatingAll} onClick={handleUpdateAll}>
-              {updatingAll ? 'Updating all…' : `Update all (${updatableCount})`}
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={updatingAll || deployInFlight}
+              title={deployInFlight ? 'A deployment is running - updates resume once it is live' : undefined}
+              onClick={handleUpdateAll}
+            >
+              {updatingAll ? 'Updating all…' : deployInFlight ? 'Deploying…' : `Update all (${updatableCount})`}
             </button>
           )}
           <button className="btn btn-secondary btn-sm" disabled={refreshing || loading} onClick={handleRefresh}>

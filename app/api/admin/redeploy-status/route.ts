@@ -30,6 +30,16 @@ export async function DELETE() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
+  // Read the tracked deployment id BEFORE clearing it. Reading it back afterwards
+  // always returned null, so getLatestDeploymentStatus fell through to "whatever
+  // landed most recently on this project" - the exact misattribution its own comment
+  // warns against. Dismissing the status bar then reconciled these modules against a
+  // stranger's build: someone else's green push promoted a pendingVersion whose code
+  // was never deployed, and someone else's red one rolled a healthy update back.
+  const tracked = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { pendingRedeployId: true },
+  })
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: { pendingRedeployId: null, pendingRedeployAt: null },
@@ -39,16 +49,21 @@ export async function DELETE() {
   await prisma.deployLock.deleteMany({})
   // Reconcile any modules still 'deploying' against the real deployment outcome rather
   // than assuming success - dismissing a failed deploy must not mark it active.
-  const deploying = await prisma.module.findMany({ where: { status: 'deploying' }, select: { id: true } })
+  const deploying = await prisma.module.findMany({
+    where: { status: 'deploying' },
+    select: { id: true, deployId: true },
+  })
   if (deploying.length > 0) {
-    // Key the check on the deploy we actually triggered, not whatever landed most
-    // recently on the project - see getLatestDeploymentStatus.
-    const pending = await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } })
-    const deployStatus = await getLatestDeploymentStatus(pending?.pendingRedeployId)
+    // Prefer the deployment the modules themselves are riding on. The site marker
+    // has just been cleared above and self-expires anyway, so it is the weaker
+    // record of the two - see the note in the modules check-status route.
+    const moduleDeployId = deploying.find((m) => m.deployId && m.deployId !== 'pending')?.deployId
+    const trackedId = moduleDeployId ?? tracked?.pendingRedeployId
+    const deployStatus = await getLatestDeploymentStatus(trackedId)
     if (deployStatus === 'READY') {
-      await markModulesDeploySucceeded()
+      await markModulesDeploySucceeded(trackedId)
     } else if (deployStatus === 'ERROR') {
-      await markModulesDeployFailed('Vercel deployment failed')
+      await markModulesDeployFailed('Vercel deployment failed', trackedId)
     }
     // BUILDING / UNKNOWN: leave as 'deploying'; the next Modules-page check reconciles.
   }

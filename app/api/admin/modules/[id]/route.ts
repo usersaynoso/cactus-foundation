@@ -10,7 +10,8 @@ import { compareVersions } from '@/lib/updates/core'
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
-import { getActiveDeployLock, acquireDeployLock, lockBusyMessage } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE } from '@/lib/deploy/lock'
+import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, readDeclaredCoreVersion, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
@@ -60,16 +61,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (mod.status !== 'deploying') {
       return NextResponse.json({ status: mod.status })
     }
-    // Key the check on the deploy we actually triggered, not whatever landed most
-    // recently on the project - see getLatestDeploymentStatus.
-    const pendingDeploy = await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } })
-    const deployStatus = await getLatestDeploymentStatus(pendingDeploy?.pendingRedeployId)
+    // Key the check on THIS module's own deployment. It used to read
+    // SiteConfig.pendingRedeployId, which doubles as the admin's live status marker
+    // and self-expires after four minutes - shorter than a slow build. Once expired
+    // it read null, and getLatestDeploymentStatus(null) quietly answers about
+    // "whatever landed most recently on this project" instead. A build belonging to
+    // somebody else could then promote a pendingVersion whose code was never
+    // deployed, or roll back an update that was perfectly healthy.
+    //
+    // Module.deployId outlives that expiry: it is cleared only when this module is
+    // actually reconciled. The site marker is still the fallback for a row queued by
+    // an older build with no deployId of its own.
+    const trackedId = mod.deployId && mod.deployId !== 'pending'
+      ? mod.deployId
+      : (await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } }))?.pendingRedeployId
+    const deployStatus = await getLatestDeploymentStatus(trackedId)
     if (deployStatus === 'READY') {
-      await markModulesDeploySucceeded()
+      await markModulesDeploySucceeded(trackedId)
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
-      return NextResponse.json({ status: 'active' })
+      const refreshed = await prisma.module.findUnique({ where: { id }, select: { status: true } })
+      return NextResponse.json({ status: refreshed?.status ?? 'active' })
     } else if (deployStatus === 'ERROR') {
-      await markModulesDeployFailed('Vercel deployment failed')
+      await markModulesDeployFailed('Vercel deployment failed', trackedId)
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
       const refreshed = await prisma.module.findUnique({ where: { id }, select: { status: true } })
       return NextResponse.json({ status: refreshed?.status ?? 'failed' })
@@ -97,6 +110,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const lock = await getActiveDeployLock()
     if (lock) return errorResponse(lockBusyMessage(lock), 409)
+
+    // And the build the last update started, which outlives that lock by minutes.
+    const inFlight = await getDeployInFlight()
+    if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
 
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
@@ -177,7 +194,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    await acquireDeployLock(`module:${mod.name}`)
+    if (!await acquireDeployLock(`module:${mod.name}`)) return errorResponse(LOCK_RACE_MESSAGE, 409)
 
     try {
       // Commit modules.json and redeploy immediately: the git push auto-deploys and the
@@ -199,6 +216,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           pendingVersion: release.tag,
           updateAvailable: null,
           updateNotes: null,
+          deployId: 'pending',
           ...(incoming ? { manifest: incoming as object } : {}),
         },
       })
@@ -216,6 +234,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             pendingVersion: null,
             updateAvailable: null,
             updateNotes: null,
+            deployId: null,
           },
         })
         try {
@@ -288,6 +307,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const lock = await getActiveDeployLock()
   if (lock) return errorResponse(lockBusyMessage(lock), 409)
 
+  // Uninstall pushes a modules.json commit of its own, so it stacks builds the
+  // same way an update does.
+  const inFlight = await getDeployInFlight()
+  if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
+
   const manifest = mod.manifest as { teardown?: string[] } | null
 
   if (mode === 'code_and_data') {
@@ -300,7 +324,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
   }
 
-  await acquireDeployLock(`module:uninstall:${mod.name}`)
+  if (!await acquireDeployLock(`module:uninstall:${mod.name}`)) return errorResponse(LOCK_RACE_MESSAGE, 409)
 
   const droppedTables: string[] = []
 

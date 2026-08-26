@@ -58,6 +58,18 @@ export async function startDeferredRedeploy(
       } catch (err) {
         console.error('[redeploy] Failed to persist pendingRedeployId:', err)
       }
+      // Same id onto the modules riding this build. The site marker doubles as the
+      // admin's live status and self-expires after four minutes, which is shorter
+      // than a slow build; the module rows keep theirs until the build is
+      // reconciled, so a terminal event can always be matched to the right modules.
+      try {
+        await prisma.module.updateMany({
+          where: { status: 'deploying', deployId: 'pending' },
+          data: { deployId: uid },
+        })
+      } catch (err) {
+        console.error('[redeploy] Failed to persist module deployId:', err)
+      }
     }
 
     // Poll Vercel for the deployment created after we started (used when we don't
@@ -143,7 +155,12 @@ export async function startDeferredRedeploy(
       const synced = await syncModulesJson(
         // Ship the in-flight target while a deploy is mid-flight (pendingVersion);
         // it's promoted to `version` only once the deploy succeeds.
-        modules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.pendingVersion ?? m.version }))
+        modules.map((m) => ({
+          name: m.name,
+          repoUrl: m.repoUrl,
+          version: m.pendingVersion ?? m.version,
+          lastFailedVersion: m.lastFailedVersion,
+        }))
       )
       committed = synced.committed
     } catch (err) {

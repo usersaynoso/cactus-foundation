@@ -1,4 +1,5 @@
 'use client'
+import { useSyncExternalStore } from 'react'
 import { translateLogLine } from '@/lib/deploy-log-translator'
 
 // Client-side singleton that tracks an in-flight redeploy for the whole admin
@@ -45,6 +46,20 @@ export function subscribeDeployStatus(cb: () => void): () => void {
   return () => {
     listeners.delete(cb)
   }
+}
+
+// True while a build the site started is still running.
+//
+// Every install, update, uninstall and redeploy route refuses inside that window
+// with a 409 (see lib/deploy/in-flight.ts): a second commit stacks a second build
+// on the first, and whichever lands first promotes every module queued for
+// either. This is how the buttons that call them grey out, so nobody has to
+// discover the rule by being refused.
+//
+// Server-renders false and stays false on the first client render, so the button
+// hydrates matching its SSR markup and only then flips.
+export function useDeployInFlight(): boolean {
+  return useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus).active
 }
 
 export function deployStateLabel(state: string, failed: boolean): string {

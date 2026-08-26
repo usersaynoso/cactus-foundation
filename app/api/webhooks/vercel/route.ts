@@ -44,34 +44,44 @@ export async function POST(request: NextRequest) {
 
   const deploymentId = event.payload?.deployment?.id
 
+  // Only reconcile when this event is about the deployment we're actually
+  // tracking - a webhook for some unrelated deployment on the same Vercel
+  // project (e.g. a manual redeploy) must not promote pendingVersion or release
+  // the gate early. While the tracked marker is still the 'pending' sentinel
+  // (real id not resolved yet), fall back to reconciling anyway - that's the
+  // only signal we have at that point.
+  //
+  // This guard applies to failure just as much as to success, which it did not
+  // used to. Any deployment.error or deployment.canceled on the project - a
+  // preview build, somebody's push, a deployment the owner cancelled by hand in
+  // the Vercel dashboard - marked EVERY module mid-deploy as failed, however
+  // healthy the build we were actually waiting on. Paired with what 'failed'
+  // means downstream (dropped from modules.json on the next build), cancelling
+  // an unrelated deployment could quietly strip working modules off the site.
+  const cfg = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { pendingRedeployId: true },
+  })
+  const tracked = cfg?.pendingRedeployId
+  const isTrackedDeployment = tracked === 'pending' || (!!deploymentId && deploymentId === tracked)
+
+  if (!isTrackedDeployment) {
+    return NextResponse.json({ ok: true, ignored: 'untracked deployment' })
+  }
+
   // Reconcile any modules left in 'deploying' against the deployment outcome.
   if (event.type === 'deployment.succeeded') {
-    // Only reconcile when this event is about the deployment we're actually
-    // tracking - a webhook for some unrelated deployment on the same Vercel
-    // project (e.g. a manual redeploy) must not promote pendingVersion or
-    // release the gate early. While the tracked marker is still the 'pending'
-    // sentinel (real id not resolved yet), fall back to reconciling anyway -
-    // that's the only signal we have at that point.
-    const cfg = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { pendingRedeployId: true },
+    await markModulesDeploySucceeded(deploymentId)
+    // Release the deploy lock
+    await prisma.deployLock.deleteMany({})
+    // Deployment is live - release the redeploy gate for any non-null marker.
+    await prisma.siteConfig.updateMany({
+      where: { id: 'singleton', NOT: { pendingRedeployId: null } },
+      data: { pendingRedeployId: null, pendingRedeployAt: null },
     })
-    const tracked = cfg?.pendingRedeployId
-    const isTrackedDeployment = tracked === 'pending' || (!!deploymentId && deploymentId === tracked)
-
-    if (isTrackedDeployment) {
-      await markModulesDeploySucceeded()
-      // Release the deploy lock
-      await prisma.deployLock.deleteMany({})
-      // Deployment is live - release the redeploy gate for any non-null marker.
-      await prisma.siteConfig.updateMany({
-        where: { id: 'singleton', NOT: { pendingRedeployId: null } },
-        data: { pendingRedeployId: null, pendingRedeployAt: null },
-      })
-      invalidateSiteConfigCache()
-    }
+    invalidateSiteConfigCache()
   } else if (event.type === 'deployment.error' || event.type === 'deployment.canceled') {
-    await markModulesDeployFailed(`Deployment ${event.type}`)
+    await markModulesDeployFailed(`Deployment ${event.type}`, deploymentId)
     await prisma.deployLock.deleteMany({})
     // Resolve 'pending' to the real deployment ID so the redeploying page can show failure state
     if (deploymentId) {

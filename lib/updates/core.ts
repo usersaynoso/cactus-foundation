@@ -248,7 +248,8 @@ export type SyncResult = {
   fileCount: number
 }
 
-export type ModuleRegistryEntry = { name: string; repoUrl: string; version: string }
+// `lastFailedVersion` is an input to applyPinFloor only - never written to the file.
+export type ModuleRegistryEntry = { name: string; repoUrl: string; version: string; lastFailedVersion?: string | null }
 
 // Pure reconciliation planner (drift-proof, unit-tested) lives in its own dependency-free
 // module; imported for use below and re-exported so external importers keep one entry point.
@@ -457,7 +458,14 @@ export async function syncCoreFromUpstream(
     if (held.length > 0) console.warn(`[core-update] ${formatHeldPins(held)}`)
 
     // JSON is text, so inline it too - no separate blob, no race.
-    const jsonContent = JSON.stringify({ modules: entries }, null, 2) + '\n'
+    // Sorted by name and reduced to the three fields the registry holds: `entries`
+    // arrives in Module-table order (which shuffles between reads) and may carry
+    // lastFailedVersion, which is an input to the floor above and has no business
+    // in the committed file. Same treatment as syncModulesJson.
+    const registry = [...entries]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.version }))
+    const jsonContent = JSON.stringify({ modules: registry }, null, 2) + '\n'
     treeEntries.push({ path: 'modules.json', mode: '100644', type: 'blob', content: jsonContent })
   }
 

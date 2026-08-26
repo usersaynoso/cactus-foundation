@@ -9,14 +9,42 @@ import { autoPlaceModuleBlocks } from '@/lib/layout/auto-place-blocks'
 // success and failure mean - in particular, that the confirmed `version` only moves
 // to the in-flight `pendingVersion` when the deploy actually succeeds.
 //
-// The deploy lock is a singleton, so in practice only one module is ever 'deploying'
-// at a time; we still operate on the whole set to match the webhook's batch semantics.
+// These operate on the whole 'deploying' set, which is right for a bulk "update all"
+// (one build carries every queued module) and load-bearing for the guarantee that
+// keeps it honest: every module in that set must belong to the SAME build.
+//
+// The deploy lock does not provide that guarantee, whatever it looks like. It is
+// released before the build it triggers even starts, so a second update inside the
+// build window used to queue its own modules into 'deploying' alongside the first
+// batch - and then the first build landing promoted the lot, recording modules as
+// installed off a build whose code never contained them. lib/deploy/in-flight.ts is
+// what actually holds the line now: no install, update or uninstall may start while
+// a build is running.
+
+// The modules a given deployment outcome is entitled to reconcile.
+//
+// Callers that know which deployment finished pass its id, and then only modules
+// riding on that deployment are touched. Module.deployId carries 'pending' until
+// startDeferredRedeploy resolves the real id, and those match too - the id was not
+// knowable when the row was queued, and the build is still ours.
+//
+// Passing nothing keeps the old behaviour of reconciling everything in 'deploying'.
+// That is still right for a caller with no id to offer (the owner dismissing the
+// status bar on a deploy nobody can name), and wrong to rely on anywhere else: the
+// reason this argument exists is that "whatever finished most recently on this
+// Vercel project" was being taken as an answer about our modules, and a stranger's
+// build could promote a pendingVersion whose code was never deployed.
+async function deployingModulesFor(deploymentId?: string | null) {
+  const deploying = await prisma.module.findMany({ where: { status: 'deploying' } })
+  if (!deploymentId) return deploying
+  return deploying.filter((m) => !m.deployId || m.deployId === 'pending' || m.deployId === deploymentId)
+}
 
 // Promote modules whose deployment succeeded: the in-flight pendingVersion becomes
 // the confirmed installed version. `pendingVersion ?? version` leaves install flows
 // (which never set pendingVersion) on the version they shipped with.
-export async function markModulesDeploySucceeded(): Promise<void> {
-  const deploying = await prisma.module.findMany({ where: { status: 'deploying' } })
+export async function markModulesDeploySucceeded(deploymentId?: string | null): Promise<void> {
+  const deploying = await deployingModulesFor(deploymentId)
   await Promise.all(
     deploying.map(async (m) => {
       await prisma.module.update({
@@ -28,6 +56,10 @@ export async function markModulesDeploySucceeded(): Promise<void> {
           updateAvailable: null,
           updateNotes: null,
           lastError: null,
+          // This module just built. Whatever failed before is history, and leaving
+          // it would let pin-floor lower a pin it has no business lowering.
+          lastFailedVersion: null,
+          deployId: null,
         },
       })
       // Seed the module's default layouts, now that a deploy carrying its code has
@@ -83,20 +115,43 @@ export async function markModulesDeploySucceeded(): Promise<void> {
 }
 
 // Roll back modules whose deployment failed: keep the confirmed (still-live) version
-// and drop the in-flight target. A module that was mid-update (updateAvailable set)
-// reverts cleanly to 'update_available' so the admin can simply retry - the failure
-// reason was already surfaced by the deploy status bar, so we don't leave a stale
-// error on the row. A failed install (no updateAvailable) becomes 'failed' with the
-// reason, since there is no prior version to fall back to.
-export async function markModulesDeployFailed(reason: string): Promise<void> {
-  const deploying = await prisma.module.findMany({ where: { status: 'deploying' } })
+// and drop the in-flight target. A module that was mid-update reverts cleanly to
+// 'update_available' so the admin can simply retry - the failure reason was already
+// surfaced by the deploy status bar, so we don't leave a stale error on the row. A
+// failed install becomes 'failed' with the reason, since there is no prior version
+// to fall back to.
+//
+// The two are told apart by pendingVersion, which is set by every update path and
+// by no install path. It used to be updateAvailable, which cannot work: all three
+// update routes null updateAvailable at the moment they queue the module, so by the
+// time this runs it is ALWAYS null and every failed update was recorded as a failed
+// install. That is not a cosmetic mislabel. 'failed' is one of the two statuses
+// lib/deploy/redeploy.ts excludes from modules.json, so the next successful build
+// stopped checking the module out at all - and run-module-migrations.mjs skips it
+// too. A module that was working perfectly, whose update merely failed to build,
+// silently vanished from the site on the following deploy.
+export async function markModulesDeployFailed(reason: string, deploymentId?: string | null): Promise<void> {
+  const deploying = await deployingModulesFor(deploymentId)
   await Promise.all(
     deploying.map((m) =>
       prisma.module.update({
         where: { id: m.id },
-        data: m.updateAvailable
-          ? { status: 'update_available', pendingVersion: null, lastError: null }
-          : { status: 'failed', pendingVersion: null, lastError: reason },
+        data: m.pendingVersion
+          ? {
+              status: 'update_available',
+              // Put back what queueing this update cleared, or the row returns to
+              // the Updates tab with nothing to offer: the card renders "Update to"
+              // with an empty version and the badge disappears.
+              updateAvailable: m.pendingVersion,
+              // Remember which tag it was. modules.json was committed pinning it
+              // before this build ran, and pin-floor will not lower a pin without
+              // being told the higher one is the broken one - see pin-floor.ts.
+              lastFailedVersion: m.pendingVersion,
+              pendingVersion: null,
+              deployId: null,
+              lastError: null,
+            }
+          : { status: 'failed', pendingVersion: null, deployId: null, lastError: reason },
       })
     )
   )

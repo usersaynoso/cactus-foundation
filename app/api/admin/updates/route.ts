@@ -14,9 +14,11 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret } from '@/lib/vercel/cron-secret'
-import { getActiveDeployLock, acquireDeployLock, lockBusyMessage } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE } from '@/lib/deploy/lock'
+import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { findModuleUpdates } from '@/lib/modules/updates'
-import { deadlineFromNow, isDeadlineError } from '@/lib/updates/deadline'
+import { fetchModuleRequirements, resolveUpdateBatch } from '@/lib/modules/compat'
+import { deadlineFromNow, isDeadlineError, ROUTE_WORK_BUDGET_MS } from '@/lib/updates/deadline'
 import { gitHubOutageNote } from '@/lib/github/health'
 
 export const maxDuration = 60
@@ -67,6 +69,12 @@ export async function GET(request: NextRequest) {
 const PostBody = z.object({ updateModules: z.boolean().optional() })
 
 export async function POST(request: NextRequest) {
+  // The 60s ceiling starts here, not where the deadline is computed below. By that
+  // point the handler has already spent several round trips on GitHub, Vercel and
+  // the deploy checks, so a budget measured from there can outlive the function it
+  // is supposed to finish inside - which is the hard kill it exists to avoid.
+  const routeStartedAt = Date.now()
+
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
@@ -103,6 +111,15 @@ export async function POST(request: NextRequest) {
     return errorResponse(lockBusyMessage(lock), 409)
   }
 
+  // And the build the last install/update started, which outlives that lock by
+  // minutes. A core update on top of an in-flight module deploy is the worst
+  // version of this: it pins every module at pendingVersion ?? version into its
+  // own commit, so it inherits targets whose build has not landed yet.
+  const inFlight = await getDeployInFlight()
+  if (inFlight) {
+    return errorResponse(deployInFlightMessage(inFlight), 409)
+  }
+
   // Fetch current status to get version numbers
   const cfg = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
@@ -135,11 +152,12 @@ export async function POST(request: NextRequest) {
 
   // Acquire deploy lock. The expiry it carries is what stops a hard-killed run from
   // blocking every later attempt for a quarter of an hour.
-  await acquireDeployLock('cactus-core-update')
+  if (!await acquireDeployLock('cactus-core-update')) return errorResponse(LOCK_RACE_MESSAGE, 409)
 
   // Give the sync a budget that ends a little before this function's 60s ceiling, so a
   // slow GitHub produces a real error message and a released lock rather than a kill.
-  const deadlineAt = deadlineFromNow()
+  // Net of what the checks above already spent.
+  const deadlineAt = deadlineFromNow(ROUTE_WORK_BUDGET_MS - (Date.now() - routeStartedAt))
 
   // Captured before the sync push so startDeferredRedeploy's poll reliably picks up
   // the Vercel build that push triggers (the deploy lock guarantees no other
@@ -147,6 +165,9 @@ export async function POST(request: NextRequest) {
   const deployStartedAt = Date.now()
 
   let queuedModules: Awaited<ReturnType<typeof findModuleUpdates>> = []
+  // Module updates found but held back as incompatible, reported so the admin
+  // knows why they are still sitting on the Modules page afterwards.
+  let skippedModules: string[] = []
 
   try {
     // Queue any modules with an available update into the SAME build the core sync is
@@ -158,12 +179,48 @@ export async function POST(request: NextRequest) {
     // as the core sync. Reconciled to 'active' by the existing redeploying-screen poll /
     // webhook once this deploy lands (lib/deploy/reconcile.ts), same as a solo module update.
     if (updateModules) {
-      queuedModules = await findModuleUpdates()
+      const found = await findModuleUpdates()
+
+      // Run the same compatibility gate the Modules page runs, which this path
+      // was missing entirely: it queued every latest tag blindly, so a module
+      // whose new version needs a newer sibling got pinned into the commit and
+      // broke the build on a missing import - taking the core update down with
+      // it, since they share one deploy.
+      //
+      // Judged against the core version this deploy is MOVING TO, not the one
+      // running: core and modules land in the same commit, so a module that
+      // requires the incoming core is satisfied by the build that carries it.
+      // Same reason the batch may satisfy its own module chain.
+      const installed = await prisma.module.findMany({
+        select: { name: true, version: true, status: true },
+      })
+      const candidates = await Promise.all(
+        found.map(async (m) => ({
+          module: m,
+          name: m.name,
+          tag: m.latestTag,
+          requirements: await fetchModuleRequirements(m.repoUrl, m.latestTag),
+        }))
+      )
+      const { accepted, blocked } = resolveUpdateBatch({
+        candidates,
+        coreVersion: latestVersion,
+        installed,
+      })
+      if (blocked.length > 0) {
+        console.warn(
+          `[updates] Not bundling ${blocked.length} module update(s) with this core update: ` +
+            blocked.map((b) => `${b.candidate.name} (${b.reason})`).join('; ')
+        )
+      }
+      skippedModules = blocked.map((b) => `${b.candidate.name}: ${b.reason}`)
+
+      queuedModules = accepted.map((c) => c.module)
       await Promise.all(
         queuedModules.map((m) =>
           prisma.module.update({
             where: { id: m.id },
-            data: { status: 'deploying', pendingVersion: m.latestTag, updateAvailable: null, updateNotes: null },
+            data: { status: 'deploying', pendingVersion: m.latestTag, updateAvailable: null, updateNotes: null, deployId: 'pending' },
           })
         )
       )
@@ -175,7 +232,12 @@ export async function POST(request: NextRequest) {
     // untouched modules floating on whatever upstream HEAD happens to be at build time.
     const allModules = await prisma.module.findMany()
     const modulesJson = allModules.length > 0
-      ? allModules.map((m) => ({ name: m.name, repoUrl: m.repoUrl, version: m.pendingVersion ?? m.version }))
+      ? allModules.map((m) => ({
+          name: m.name,
+          repoUrl: m.repoUrl,
+          version: m.pendingVersion ?? m.version,
+          lastFailedVersion: m.lastFailedVersion,
+        }))
       : undefined
 
     await syncCoreFromUpstream(currentVersion, latestVersion, modulesJson, { deadlineAt })
@@ -203,13 +265,13 @@ export async function POST(request: NextRequest) {
         queuedModules.map((m) =>
           prisma.module.update({
             where: { id: m.id },
-            data: { status: 'pending_deploy', version: m.latestTag, pendingVersion: null },
+            data: { status: 'pending_deploy', version: m.latestTag, pendingVersion: null, deployId: null },
           })
         )
       )
       // No Vercel creds: fall back to the deferred-notification flow.
       await recordDeploymentNeeded({ label: `Cactus core updated to v${latestVersion}` })
-      return NextResponse.json({ ok: true, moduleUpdatesQueued: queuedModules.length })
+      return NextResponse.json({ ok: true, moduleUpdatesQueued: queuedModules.length, moduleUpdatesSkipped: skippedModules })
     }
   } catch (err: unknown) {
     // Nothing was pushed (or the push itself failed), so roll any queued module rows
@@ -248,5 +310,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ ok: true, redeployTriggered: true, moduleUpdatesQueued: queuedModules.length })
+  return NextResponse.json({ ok: true, redeployTriggered: true, moduleUpdatesQueued: queuedModules.length, moduleUpdatesSkipped: skippedModules })
 }

@@ -42,3 +42,68 @@ describe('applyPinFloor', () => {
     expect(text).toContain('Update the module')
   })
 })
+
+describe('applyPinFloor and a build that failed', () => {
+  const sv = (version: string, lastFailedVersion?: string) => ({
+    name: 'shop-variations',
+    repoUrl: 'https://github.com/cactus-foundation-modules/shop-variations',
+    version,
+    ...(lastFailedVersion ? { lastFailedVersion } : {}),
+  })
+
+  // The wedge. modules.json is committed pinning the new tag BEFORE the build
+  // runs, so a failed update leaves the repo on a version that cannot build while
+  // the database rolls back to the one that could. Without the exception the floor
+  // holds the broken pin, and every later deploy - core, another module, a
+  // settings change - rebuilds it and fails identically. The site cannot deploy
+  // anything at all until the module's author publishes a higher version.
+  it('lowers past the exact version whose build failed', () => {
+    const { entries, held } = applyPinFloor(
+      [sv('v0.1.168', 'v0.1.169')],
+      [{ name: 'shop-variations', version: 'v0.1.169' }]
+    )
+
+    expect(entries[0]?.version).toBe('v0.1.168')
+    expect(held).toEqual([])
+  })
+
+  // The floor's original job, unchanged: a pin moved forward in git that the
+  // database never heard about is drift, and drift is held.
+  it('still holds a higher pin that is not the failed one', () => {
+    const { entries, held } = applyPinFloor(
+      [sv('v0.1.168', 'v0.1.169')],
+      [{ name: 'shop-variations', version: 'v0.1.170' }]
+    )
+
+    expect(entries[0]?.version).toBe('v0.1.170')
+    expect(held).toHaveLength(1)
+  })
+
+  it('holds when nothing has been recorded as failed', () => {
+    const { entries, held } = applyPinFloor(
+      [sv('v0.1.168')],
+      [{ name: 'shop-variations', version: 'v0.1.169' }]
+    )
+
+    expect(entries[0]?.version).toBe('v0.1.169')
+    expect(held).toHaveLength(1)
+  })
+
+  // The exception is per module, never a blanket licence to lower.
+  it('does not let one module’s failure lower another’s pin', () => {
+    const { entries, held } = applyPinFloor(
+      [
+        sv('v0.1.168', 'v0.1.169'),
+        { name: 'shop', repoUrl: 'https://github.com/cactus-foundation-modules/shop', version: 'v0.1.335' },
+      ],
+      [
+        { name: 'shop-variations', version: 'v0.1.169' },
+        { name: 'shop', version: 'v0.1.336' },
+      ]
+    )
+
+    expect(entries.find((e) => e.name === 'shop-variations')?.version).toBe('v0.1.168')
+    expect(entries.find((e) => e.name === 'shop')?.version).toBe('v0.1.336')
+    expect(held.map((h) => h.name)).toEqual(['shop'])
+  })
+})

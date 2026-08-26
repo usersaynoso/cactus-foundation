@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
+import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
 
@@ -33,6 +34,15 @@ export async function POST(_request: NextRequest, { params }: Params) {
     return errorResponse('Deployment already initiated for this notification', 409)
   }
 
+  // deployInitiatedAt only stops THIS notification firing twice; it says nothing
+  // about a build somebody else's action started. Firing into one is worse here
+  // than anywhere else, because the transaction below first sweeps every
+  // pending_deploy module into 'deploying' - so the build already running lands,
+  // and markModulesDeploySucceeded() promotes the lot, including modules whose
+  // code is only in the commit this request is about to push.
+  const inFlight = await getDeployInFlight()
+  if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
+
   const now = new Date()
 
   // Mark notification as actioned and flip pending_deploy modules to deploying
@@ -43,7 +53,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
     }),
     prisma.module.updateMany({
       where: { status: 'pending_deploy' },
-      data: { status: 'deploying' },
+      data: { status: 'deploying', deployId: 'pending' },
     }),
   ])
   invalidateSiteConfigCache()

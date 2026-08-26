@@ -546,6 +546,20 @@ model Module {
   // Target version while a deploy is in flight; promoted to `version` only once the
   // deploy succeeds, dropped on failure. null when not mid-update.
   pendingVersion  String?
+  // The tag whose build FAILED, kept after the row is rolled back. modules.json is
+  // committed before the build runs, so a failed update leaves the repo pinned to a
+  // version that cannot build - and pin-floor, which exists to stop a pin moving
+  // backwards, then refuses to lower it. Every later deploy of anything keeps the
+  // broken pin and fails the same way. Recording the tag is what lets pin-floor make
+  // the one exception it should: a version this site has actually watched fail.
+  // Cleared as soon as any deploy for this module succeeds.
+  lastFailedVersion String?
+  // Which Vercel deployment this module's in-flight change is riding on: 'pending'
+  // until the id is resolved, then the real one. Reconcile matches on it, so a
+  // deployment that is not this module's cannot promote or roll it back.
+  // SiteConfig.pendingRedeployId cannot serve: it doubles as the admin's live status
+  // marker and self-expires after four minutes, which is shorter than a slow build.
+  deployId        String?
   // Short unique namespace for this module's database tables
   tablePrefix     String       @unique
   status          ModuleStatus @default(pending_install)

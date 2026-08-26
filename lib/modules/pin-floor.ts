@@ -29,6 +29,9 @@ export interface PinnedModule {
   name: string
   repoUrl: string
   version: string
+  // A tag this site has actually watched fail to build (Module.lastFailedVersion).
+  // The floor does not apply against it - see applyPinFloor.
+  lastFailedVersion?: string | null
 }
 
 // An entry as it appears in the repo's modules.json today. `version` is optional
@@ -55,6 +58,19 @@ export interface PinFloorResult {
 // holds now. Entries absent from `desired` stay absent: an uninstalled or deliberately
 // excluded module must still be removable, so this only ever raises a version, never
 // resurrects an entry.
+//
+// The one exception to the floor is a pin this site has watched fail to build
+// (`lastFailedVersion`). The floor's whole premise is that a higher pin is a better
+// pin - someone moved it forward in git for a reason the database never heard about.
+// A tag whose build we watched fail is the case where that premise is false, and
+// holding it is not caution but a wedge: modules.json is committed before the build
+// runs, so a failed update leaves the repo pinned to code that cannot build, and every
+// later deploy of anything keeps it and fails the same way. The site could not deploy
+// at all until the module's author published a higher version.
+//
+// Narrow deliberately. Only a version equal to the one recorded as failed is lowered
+// past, and only for the module that recorded it. Any other backwards move is still
+// drift, and still held.
 export function applyPinFloor(desired: PinnedModule[], pinned: RegistryPin[]): PinFloorResult {
   const pinnedByName = new Map<string, RegistryPin>()
   for (const entry of pinned) pinnedByName.set(entry.name, entry)
@@ -63,6 +79,12 @@ export function applyPinFloor(desired: PinnedModule[], pinned: RegistryPin[]): P
   const entries = desired.map((module) => {
     const current = pinnedByName.get(module.name)?.version
     if (!current || compareVersions(current, module.version) <= 0) return module
+
+    if (module.lastFailedVersion && compareVersions(current, module.lastFailedVersion) === 0) {
+      // The pin in git IS the build we watched fail. Lower it back to the version
+      // the database still considers installed, which is the last one that built.
+      return module
+    }
 
     held.push({ name: module.name, wanted: module.version, kept: current })
     return { ...module, version: current }

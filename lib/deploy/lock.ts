@@ -57,15 +57,39 @@ export async function getActiveDeployLock(): Promise<DeployLockRow | null> {
 
 // Takes the lock, stamping how long this holder's work can credibly run. Callers
 // that hold it for something other than a single 60s request pass their own holdMs.
-export async function acquireDeployLock(lockedBy: string, holdMs: number = DEFAULT_LOCK_HOLD_MS) {
-  return prisma.deployLock.create({
-    data: {
-      id: 'singleton',
-      lockedBy,
-      expiresAt: new Date(Date.now() + holdMs),
-    },
-  })
+//
+// Returns false when someone else got there first. The row is a singleton, so two
+// requests that both pass getActiveDeployLock() and then both write here mean the
+// second hits a unique-constraint violation. Losing that race is the correct
+// outcome and callers must answer 409 - but an uncaught Prisma error is not a 409,
+// it is a 500 with a stack trace, from a route whose whole job is to be careful.
+export async function acquireDeployLock(
+  lockedBy: string,
+  holdMs: number = DEFAULT_LOCK_HOLD_MS
+): Promise<boolean> {
+  try {
+    await prisma.deployLock.create({
+      data: {
+        id: 'singleton',
+        lockedBy,
+        expiresAt: new Date(Date.now() + holdMs),
+      },
+    })
+    return true
+  } catch (err) {
+    // Only a unique-constraint violation means "someone else holds it". Anything
+    // else - the database refusing connections, most likely - is not a race, and
+    // reporting it as one would answer a broken database with a cheerful "try
+    // again in a moment" while the real failure goes unlogged.
+    if ((err as { code?: string })?.code === 'P2002') return false
+    throw err
+  }
 }
+
+// The 409 for losing that race. Deliberately the same shape of answer as
+// lockBusyMessage, because from the owner's side it is the same situation.
+export const LOCK_RACE_MESSAGE =
+  'Another install or update started a moment before this one. Wait for it to finish, then try again.'
 
 // Whole seconds until a held lock frees itself, floored at 1 so the message never
 // reads "try again in 0 seconds".

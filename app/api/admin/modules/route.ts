@@ -14,7 +14,11 @@ import {
   validatePublicBasePathUnique,
 } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
-import { checkModuleUpdateCompat } from '@/lib/modules/compat'
+import {
+  fetchModuleRequirements,
+  resolveUpdateBatch,
+  type UpdateCandidate,
+} from '@/lib/modules/compat'
 import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 import { getLatestRelease } from '@/lib/modules/github'
 import { getGithubClient, getGithubConnectionStatus } from '@/lib/github/client'
@@ -23,7 +27,8 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret, cronSecretSatisfied } from '@/lib/vercel/cron-secret'
-import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, DEFAULT_LOCK_HOLD_MS } from '@/lib/deploy/lock'
+import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE, DEFAULT_LOCK_HOLD_MS } from '@/lib/deploy/lock'
+import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { compareVersions } from '@/lib/updates/core'
 import pkg from '@/package.json'
 
@@ -121,6 +126,12 @@ export async function POST(request: NextRequest) {
   const lock = await getActiveDeployLock()
   if (lock) {
     return errorResponse(lockBusyMessage(lock), 409)
+  }
+
+  // And the build the last one started, which outlives that lock by minutes.
+  const inFlight = await getDeployInFlight()
+  if (inFlight) {
+    return errorResponse(deployInFlightMessage(inFlight), 409)
   }
 
   // Resolve the release first: the manifest is read AT this tag (not HEAD), so
@@ -280,7 +291,7 @@ export async function POST(request: NextRequest) {
     // admin sees live deploy status in the shell. The module ships as 'deploying'.
     await prisma.module.update({
       where: { name: manifest.name },
-      data: { status: 'deploying', version: release.tag },
+      data: { status: 'deploying', version: release.tag, deployId: 'pending' },
     })
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
@@ -289,7 +300,7 @@ export async function POST(request: NextRequest) {
       // No Vercel creds: fall back to the deferred-notification flow.
       await prisma.module.update({
         where: { name: manifest.name },
-        data: { status: 'pending_deploy' },
+        data: { status: 'pending_deploy', deployId: null },
       })
       await recordDeploymentNeeded({ label: `Module '${manifest.name}' installed` })
       return NextResponse.json({ ok: true, name: manifest.name, status: 'pending_deploy' })
@@ -341,50 +352,68 @@ export async function PATCH(request: NextRequest) {
   const lock = await getActiveDeployLock()
   if (lock) return errorResponse(lockBusyMessage(lock), 409)
 
+  const inFlight = await getDeployInFlight()
+  if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
+
   const pending = await prisma.module.findMany({ where: { status: 'update_available' } })
   if (pending.length === 0) {
     return NextResponse.json({ ok: true, updated: 0, failed: [] })
   }
 
-  // The current installed set, judged against each incoming manifest's declared
-  // dependencies. Mirrors the single-module update path's requiresModules check.
+  // The installed set as it stands BEFORE this batch - the starting point
+  // resolveUpdateBatch grows as it accepts modules, so a chain released together
+  // can satisfy itself inside one build. Mirrors the single-module update path's
+  // requiresModules check otherwise.
   const installed = await prisma.module.findMany({
     select: { name: true, version: true, status: true },
   })
 
-  await acquireDeployLock('modules:update-all')
+  if (!await acquireDeployLock('modules:update-all')) return errorResponse(LOCK_RACE_MESSAGE, 409)
 
   const updated: { id: string; name: string; tag: string }[] = []
   const failed: string[] = []
 
   try {
+    // Resolve each candidate's release and declared requirements ONCE.
+    // resolveUpdateBatch re-judges them across rounds and must not re-fetch.
+    const candidates: UpdateCandidate<(typeof pending)[number]>[] = []
     for (const mod of pending) {
       const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
       if (!release) {
         failed.push(mod.name)
         continue
       }
-
-      // Same compat gate the single-module path runs: an incoming version that
-      // needs a newer core or sibling module would break the site's next build on
-      // a missing import. Drop it from this batch (never write it to modules.json)
-      // and report why, instead of pinning every latest tag blindly.
-      const incompatReason = await checkModuleUpdateCompat({
-        repoUrl: mod.repoUrl,
-        coreVersion: pkg.version,
-        installed,
-        ref: release.tag,
+      candidates.push({
+        module: mod,
+        name: mod.name,
+        tag: release.tag,
+        // Read AT the tag being installed, not HEAD, so the requirements judged
+        // are the ones that version actually ships with.
+        requirements: await fetchModuleRequirements(mod.repoUrl, release.tag),
       })
-      if (incompatReason) {
-        failed.push(`${formatModuleDisplayName(mod.repoUrl)}: ${incompatReason}`)
-        continue
-      }
+    }
 
+    // Same compat gate the single-module path runs: an incoming version that
+    // needs a newer core or sibling module would break the site's next build on
+    // a missing import. Drop it from this batch (never write it to modules.json)
+    // and report why, instead of pinning every latest tag blindly - but let the
+    // batch satisfy its own chain, since it all ships in one commit.
+    const { accepted, blocked } = resolveUpdateBatch({
+      candidates,
+      coreVersion: pkg.version,
+      installed,
+    })
+
+    for (const b of blocked) {
+      failed.push(`${formatModuleDisplayName(b.candidate.module.repoUrl)}: ${b.reason}`)
+    }
+
+    for (const c of accepted) {
       await prisma.module.update({
-        where: { id: mod.id },
-        data: { status: 'deploying', pendingVersion: release.tag, updateAvailable: null, updateNotes: null },
+        where: { id: c.module.id },
+        data: { status: 'deploying', pendingVersion: c.tag, updateAvailable: null, updateNotes: null, deployId: 'pending' },
       })
-      updated.push({ id: mod.id, name: mod.name, tag: release.tag })
+      updated.push({ id: c.module.id, name: c.module.name, tag: c.tag })
     }
   } finally {
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
@@ -400,7 +429,7 @@ export async function PATCH(request: NextRequest) {
     for (const m of updated) {
       await prisma.module.update({
         where: { id: m.id },
-        data: { status: 'pending_deploy', version: m.tag, pendingVersion: null, updateAvailable: null, updateNotes: null },
+        data: { status: 'pending_deploy', version: m.tag, pendingVersion: null, updateAvailable: null, updateNotes: null, deployId: null },
       })
       try {
         await clearAlert(`module-update:${m.id}`)
