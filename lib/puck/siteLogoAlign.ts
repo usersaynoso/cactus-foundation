@@ -76,3 +76,29 @@ export function siteLogoImages(
   if (light) return { light, dark: (imageUrlDark ?? '').trim() || null }
   return { light: logoUrl || null, dark: logoUrlDark || null }
 }
+
+// Fine vertical positioning. Alignment above handles the horizontal, and the
+// header column centres the logo vertically, but "centred" is not always where
+// a lockup looks right - the optical centre of a logo with descenders, or with
+// whitespace baked into the image, sits a few pixels off the geometric one.
+//
+// A transform, deliberately, not margin/top: it moves the painted logo without
+// changing the <a>'s box, so nudging it can never re-flow the header, change
+// its height, or shove the row's other cells about. Unset (or 0) emits no
+// transform and no CSS at all, so every logo saved before this field existed
+// renders byte-identically. Positive nudges down, negative up.
+export function siteLogoNudge(
+  id: string | undefined,
+  nudgeY: ResponsiveValue<number> | number | undefined,
+): { transform: string | undefined; css: string } {
+  const rv = normalizeResponsiveValue<number>(nudgeY)
+  const at = (d: Device) => {
+    const v = pickResponsive(rv, d)
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0
+  }
+  const decl = (d: Device) => (at(d) === 0 ? 'transform:none;' : `transform:translateY(${at(d)}px);`)
+  return {
+    transform: at('desktop') === 0 ? undefined : `translateY(${at('desktop')}px)`,
+    css: id ? responsiveMediaCssFor(`a[data-sitelogo-id="${id}"]`, decl) : '',
+  }
+}

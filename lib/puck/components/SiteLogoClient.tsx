@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { siteLogoAlign, siteLogoCellHeight, siteLogoImages } from '@/lib/puck/siteLogoAlign'
+import { siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { sanitizeHref } from '@/lib/email-obfuscate'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 
@@ -25,6 +25,8 @@ type Props = {
   showIcon?: string | boolean
   textColor?: string
   align?: ResponsiveValue<string> | string
+  // Fine vertical offset in px, per breakpoint. Positive nudges down.
+  nudgeY?: ResponsiveValue<number> | number
   homeUrl?: string
   [key: string]: unknown
 }
@@ -44,6 +46,7 @@ export default function SiteLogoClient({
   showIcon = 'true',
   textColor,
   align,
+  nudgeY,
   homeUrl = '/',
 }: Props) {
   const [hovered, setHovered] = useState(false)
@@ -60,6 +63,8 @@ export default function SiteLogoClient({
   // Alignment: see siteLogoAlign - SiteLogoRsc does exactly this, from the same
   // helper, so the two halves cannot drift apart.
   const { justifyContent, css: alignCss } = siteLogoAlign(id, align)
+  // Vertical nudge - same helper as the RSC half, same reason.
+  const { transform: nudgeTransform, css: nudgeCss } = siteLogoNudge(id, nudgeY)
 
   const style: React.CSSProperties = {
     display: 'flex',
@@ -71,6 +76,7 @@ export default function SiteLogoClient({
     color: hovered ? 'var(--color-primary)' : (textColor || 'var(--color-text)'),
     textDecoration: 'none',
     transition: 'color 0.15s',
+    ...(nudgeTransform ? { transform: nudgeTransform } : null),
   }
 
   const events = {
@@ -103,6 +109,7 @@ export default function SiteLogoClient({
     return (
       <a href={href} data-sitelogo-id={id} style={style} {...events}>
         {alignCss && <style>{alignCss}</style>}
+        {nudgeCss && <style>{nudgeCss}</style>}
         {cellHCss && <style>{cellHCss}</style>}
         <style>{`header[data-shrink-ready] img[data-site-logo]{transition:height 0.25s ease;}`}</style>
         {cellHShrunk && (
@@ -122,6 +129,7 @@ export default function SiteLogoClient({
   return (
     <a href={href} data-sitelogo-id={id} style={style} {...events}>
       {alignCss && <style>{alignCss}</style>}
+      {nudgeCss && <style>{nudgeCss}</style>}
       {showIconBool && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/cactus.svg" alt="Cactus Foundation" style={{ height: 28, width: 28, flexShrink: 0 }} />

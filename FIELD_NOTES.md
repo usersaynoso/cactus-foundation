@@ -1,7 +1,15 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**A module was promoted 80 seconds before its build finished, caught by watching a real update** - core **0.5.1312**. Reconcile no longer answers from a deployment that started before we pushed. Follows the six-fault sweep in 0.5.1311.)
+Last updated: 2026-08-26 (**Two header-editing nuisances: the search box's fake dropdown, and a logo you cannot nudge** - core **0.5.1313**, `search` **v0.1.31**.)
+
+**The Search Box block drew a preview of its own results dropdown on the canvas.** Editor half only (`modules/search/components/puck/SiteSearchBlock.tsx`, the `showGhostDropdown` branch), shown whenever "Results appear" was anything other than the results page. In a header layout that ghost panel is taller than the field itself, so it covered whatever sat below and made the header unworkable to edit. Removed - the canvas draws the box alone. The live render never had it, so no published page changes.
+
+**`SiteLogo` gained a per-breakpoint `nudgeY` field** ("Nudge down (px, minus = up)", `ResponsiveNumberField`, no `defaultProps` entry - same reasoning as `cellHeight`). Vertical placement in a header column is the column's job and centring is right nearly always; optical centring is the exception - whitespace baked into a logo image, descenders in a wordmark. `siteLogoNudge()` in `lib/puck/siteLogoAlign.ts` is the shared helper, called by both render halves (`SiteLogoClient` and the `SiteLogoRsc` twin in `config.core.tsx`) for the usual anti-drift reason. It emits a **transform**, deliberately, not a margin or `top`: the `<a>`'s box is unchanged, so a nudge can never re-flow the header row, alter its height, or shove the other cells about. 0 or unset emits no transform and no CSS, so blocks saved before the field render byte-identically.
+
+Gates: `npm run typecheck` clean, `eslint` clean on the changed files, `vitest run lib/puck` **80 passed, 0 failed**. No backup round-trip: no schema, migration or `lib/backup/**` touched. Wiki: `Appearance-and-design.md`.
+
+Also 2026-08-26 (**A module was promoted 80 seconds before its build finished, caught by watching a real update** - core **0.5.1312**. Reconcile no longer answers from a deployment that started before we pushed. Follows the six-fault sweep in 0.5.1311.)
 
 **What was asked for.** A product's add-ons (accessories) offer a count "per one main unit" - one screen per desk, one pedestal per desk. Nothing multiplied that by how many of the main product the shopper was actually buying: four desks and a recommended-count add-on still offered the figure worked out for one.
 
