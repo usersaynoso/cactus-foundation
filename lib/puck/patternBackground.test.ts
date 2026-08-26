@@ -68,6 +68,60 @@ describe('patternBackground', () => {
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '120px' })).not.toContain('data-theme="dark"')
   })
 
+  // A width on its own leaves the height to the image's proportions, which is a
+  // fractional pixel for most widths of a non-square tile: a 660x472 tile drawn
+  // 96px wide is 68.65px tall, and hairlines of the page show between the rows.
+  // Giving both axes in whole pixels is the cure.
+  describe('tile height', () => {
+    it('emits width only when no height is given, exactly as before', () => {
+      expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '96px' })).toContain('background-size:96px;')
+    })
+
+    it('emits both axes when a height is given, each rounded to a whole pixel', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '96.4px', patternHeight: '68.65px' })
+      expect(css).toContain('background-size:96px 69px;')
+    })
+
+    it('takes a height with no width - the width stays proportional', () => {
+      expect(patternCss('abc', { patternImage: '/a.svg', patternHeight: '118px' })).toContain('background-size:auto 118px;')
+    })
+
+    it('cascades the height desktop -> tablet -> mobile like the width', () => {
+      const css = patternCss('abc', {
+        patternImage: '/a.svg',
+        patternSize: { desktop: '165px', mobile: '82px' },
+        patternHeight: { desktop: '118px', mobile: '59px' },
+      })
+      expect(css).toContain('background-size:165px 118px;')
+      expect(css).toMatch(/@media\(max-width:\d+px\)\{\[data-pattern-id="abc"\]::before\{background-size:82px 59px !important\}\}/)
+    })
+
+    it('gives dark mode its own height, falling back to the light one', () => {
+      const both = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternSizeDark: '330px', patternHeightDark: '236px' })
+      expect(both).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:330px 236px !important;}')
+
+      // A dark WIDTH with no dark height keeps the light height - the author has
+      // to give the wider dark tile its own, and the fallback says so plainly
+      // rather than quietly going proportional again.
+      const widthOnly = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternSizeDark: '330px' })
+      expect(widthOnly).toContain('background-size:330px 118px !important;')
+
+      // A dark HEIGHT with no dark width keeps the light width.
+      const heightOnly = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px', patternHeightDark: '236px' })
+      expect(heightOnly).toContain('background-size:165px 236px !important;')
+    })
+
+    it('opens the dark arm for a dark height alone, with no dark image or width', () => {
+      const css = patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeightDark: '236px' })
+      expect(css).toContain('[data-theme="dark"] [data-pattern-id="abc"]::before{background-size:165px 236px !important;}')
+      expect(css).toContain('@media(prefers-color-scheme:dark)')
+    })
+
+    it('says nothing about dark mode when only light axes are set', () => {
+      expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '165px', patternHeight: '118px' })).not.toContain('data-theme="dark"')
+    })
+  })
+
   it('rounds a fractional pixel size, which would tile with seams', () => {
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '240.5px' })).toContain('background-size:241px')
     expect(patternCss('abc', { patternImage: '/a.svg', patternSize: '0.2px' })).toContain('background-size:1px')

@@ -260,21 +260,29 @@ const STICKY_DEFAULTS = { sticky: 'off', stickyOffset: '' }
 // other image field. The dark-mode one is an override: left blank, the light
 // pattern is used in both schemes. Size is per-breakpoint because a tile that
 // reads nicely at 240px on desktop is usually far too coarse on a phone; blank
-// leaves the image at its natural size. See lib/puck/patternBackground.ts.
+// leaves the image at its natural size.
+//
+// The height is the seam control: size on its own sets the width and lets the
+// image's proportions decide the height, which is a fractional pixel for most
+// widths of a non-square tile, and hairlines of the page then show between the
+// rows. Set both in whole pixels and every row lands on a device pixel. See
+// lib/puck/patternBackground.ts.
 const PATTERN_FIELDS = {
   patternImage: { type: 'text' as const, label: 'Background pattern (image or SVG)' },
   patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode' },
   patternSize: { type: 'custom' as const, label: 'Pattern size (blank = original size)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
+  patternHeight: { type: 'custom' as const, label: 'Pattern tile height (blank = keep proportions)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
   patternSizeDark: { type: 'custom' as const, label: 'Pattern size in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
+  patternHeightDark: { type: 'custom' as const, label: 'Pattern tile height in dark mode (blank = same as light)', units: ['px', 'rem', '%'], render: ResponsiveUnitValueField },
 }
-const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '' }
+const PATTERN_DEFAULTS = { patternImage: '', patternImageDark: '', patternSize: '', patternSizeDark: '', patternHeight: '', patternHeightDark: '' }
 
 // The dark-mode pattern and the size only mean anything once a pattern is
 // picked, so they stay out of the panel until one is - same applicable-only
 // rule the rest of the block fields follow.
 function trimPatternFields(props: any, fields: Record<string, any>): Record<string, any> {
   if (props?.patternImage) return fields
-  const { patternImageDark: _d, patternSize: _s, patternSizeDark: _sd, ...rest } = fields
+  const { patternImageDark: _d, patternSize: _s, patternSizeDark: _sd, patternHeight: _h, patternHeightDark: _hd, ...rest } = fields
   return rest
 }
 
@@ -981,13 +989,13 @@ function SectionBlock(props: any) {
     animationType = 'none', animationDuration = 'normal', animationDelay = 'none',
     boxShadow = 'none', borderStyle = 'none', borderColor = 'var(--color-border)',
     borderWidth = '1px', borderRadius = 'none', opacity = '100',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '',
   } = props
 
   // Tiling pattern. Painted on this section's ::before rather than its own
   // background, so it can sit on top of a background photo and carry a separate
   // image for dark mode - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
   const patternOn = hasPattern(pattern)
   const patternStyles = patternCss(id, pattern)
 
@@ -1818,10 +1826,10 @@ function PhoneBlock(props: any) {
 }
 
 function CTABanner(props: any) {
-  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, heading, subtext, ctaLabel, ctaHref, background, bgColor = '', textColor = '', linkColor = '', linkHoverColor = '', padding, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // Tiling pattern over whatever the preset/custom background paints, with its
   // own dark-mode image - see lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
   const patternStyles = patternCss(id, pattern)
   const obfuscate = !puck?.isEditing
   const bgs: Record<string, { bg: string; text: string; sub: string }> = {
@@ -1998,7 +2006,7 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
-    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '',
+    patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
@@ -2006,7 +2014,7 @@ function Hero(props: any) {
   // Tiling pattern, painted on this hero's ::before so it can sit on top of the
   // gradient/colour/photo already there and carry its own dark-mode image - see
   // lib/puck/patternBackground.ts.
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
   const patternStyles = patternCss(id, pattern)
 
   const bgType = bg.mode ?? 'gradient'
@@ -2906,10 +2914,10 @@ const pagePaddingYMap: Record<string, string> = { none: '0', sm: '2rem', md: '4r
 // `<BlockName>-<nanoid>`.
 const PAGE_PATTERN_ID = 'cactus-page-root'
 
-const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '' }: any) => {
+const pageRootRender = ({ children, bg = { mode: 'none', color: '' }, paddingY = 'none', patternImage = '', patternImageDark = '', patternSize = '', patternSizeDark = '', patternHeight = '', patternHeightDark = '' }: any) => {
   const background = bg.mode === 'color' ? (bg.color || undefined) : undefined
   const padding = pagePaddingYMap[paddingY] ?? '0'
-  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark }
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize, patternSizeDark, patternHeight, patternHeightDark }
   const patternStyles = patternCss(PAGE_PATTERN_ID, pattern)
   return (
     <div
