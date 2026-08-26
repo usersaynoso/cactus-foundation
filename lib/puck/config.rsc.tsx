@@ -6,7 +6,7 @@
 // LayoutPuckEditor.tsx), so none of that can live there — only here, where
 // every consumer is a Server Component.
 
-import React from 'react'
+import React, { cache } from 'react'
 import {
   puckConfig,
   footerPuckConfig,
@@ -28,6 +28,8 @@ import {
 // split exists to stop. Nothing here needs them: every module block's RSC half
 // is spread over the core config below. Guarded by config.core.test.ts.
 import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
+import { getSiteConfig } from '@/lib/config/site'
+import { prisma } from '@/lib/db/prisma'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
@@ -199,6 +201,41 @@ function moduleLayoutStandaloneRoot(layoutType: string) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SiteLogo on a module layout
+// ---------------------------------------------------------------------------
+//
+// Everywhere else, the site-wide logo is put onto every SiteLogo block by
+// resolveTemplateData before the layout is handed to <Render> - the header, the
+// footer, the status pages and the 404 all do that. Module layouts have no such
+// step: each is rendered by whatever module owns it (the invoice document, the
+// quote document, a stamped product card), and every one of those would have to
+// learn to fill in a core block's props - one more thing to get wrong, in a
+// module pinned separately from the core that defines the block.
+//
+// So the block fetches its own. getSiteConfig is React cache()d and the media
+// row is looked up through the same per-request cache, so a page rendering the
+// block twenty times still costs two queries.
+const moduleLayoutSiteBranding = cache(async (): Promise<{ logoUrl: string | null; logoDarkUrl: string | null; siteName: string }> => {
+  const config = await getSiteConfig().catch(() => null)
+  const lookup = (id: string | null | undefined) =>
+    id ? prisma.media.findUnique({ where: { id }, select: { url: true } }).catch(() => null) : Promise.resolve(null)
+  const [light, dark] = await Promise.all([lookup(config?.logoMediaId), lookup(config?.logoDarkMediaId)])
+  return { logoUrl: light?.url ?? null, logoDarkUrl: dark?.url ?? null, siteName: config?.siteName ?? '' }
+})
+
+async function SiteLogoWithSiteBranding(props: any) {
+  const { logoUrl, logoDarkUrl, siteName } = await moduleLayoutSiteBranding()
+  return <SiteLogoRsc {...props} logoUrl={logoUrl} logoUrlDark={logoDarkUrl} siteName={siteName} />
+}
+
+// Rendered as an element rather than called, so wrapResponsiveRender - which
+// invokes the render function directly - still gets a plain React element back
+// and the awaiting happens where React expects it, inside the async component.
+function SiteLogoModuleLayoutRsc(props: any) {
+  return <SiteLogoWithSiteBranding {...props} />
+}
+
 // `standalone: true` means this layout is being rendered on its own rather than
 // stamped into a host surface's container - the layout preview page is the only
 // such caller. It then draws the container the layout type declares, so the
@@ -225,6 +262,12 @@ export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standa
       // hold here too, not just on the page/header/footer configs.
       ...(sharedComponents.IconLink
         ? { IconLink: { ...sharedComponents.IconLink, render: wrapResponsiveRender(IconLinkRsc) } }
+        : {}),
+      // The shared set also includes SiteLogo, whose editor half is a client
+      // component. Published pages get the RSC one, with the site's own logo
+      // read for it - see SiteLogoWithSiteBranding above.
+      ...(sharedComponents.SiteLogo
+        ? { SiteLogo: { ...sharedComponents.SiteLogo, render: wrapResponsiveRender(SiteLogoModuleLayoutRsc) } }
         : {}),
       ...modBlocks,
     }),
