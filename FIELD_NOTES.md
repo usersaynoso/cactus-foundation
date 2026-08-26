@@ -1,7 +1,15 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**Background patterns on the Section and CTA Banner blocks, with a separate image for dark mode** - core, working tree, unreleased.)
+Last updated: 2026-08-26 (**The Hero block takes the same background pattern as Section and CTA Banner** - core **0.5.1315**.)
+
+**Follow-on from 0.5.1314**, which added the pattern to Section and CTA Banner. Nothing new in `lib/puck/patternBackground.ts` - the Hero simply consumes it: `...PATTERN_FIELDS` on the block, `...PATTERN_DEFAULTS` in its defaults, `trimPatternFields` on the tail of its existing `resolveFields`, `data-pattern-id` + the `<style>` on its `<section>`, and the `Hero` entry in `IMAGE_PICKER_FIELDS` (`lib/puck/MediaPickerField.tsx`) gained `patternImage`/`patternImageDark` alongside the background and side images it already had.
+
+**One ordering trap:** the Hero's `<section>` sets `position:'relative'` unconditionally, and `patternHostStyle` sets it too, so the spread has to come BEFORE the hero's own declaration (`tsc` catches this as TS2783 - 'position' is specified more than once). Spread first, hero's `position` last: with no pattern the helper returns `{}` and the hero keeps the relative positioning it has always had; with one, `isolation:isolate` and `overflow:hidden` still land. Section and the CTA Banner both compute `position` conditionally, which is why neither hit this.
+
+Gates: `tsc --noEmit` clean, `eslint .` **No issues found**, full `vitest run` **3033 pass / 0 fail / 70 skipped**. No dev server, per standing rule. `wiki/Managing-pages.md` Hero row and the patterns section updated to name all three blocks.
+
+Also 2026-08-26 (**Background patterns on the Section and CTA Banner blocks, with a separate image for dark mode** - core, working tree, unreleased.)
 
 **What was asked for.** Both blocks to take a tiling pattern (image or SVG) as a background, with a size control, and a different pattern for light and dark mode.
 

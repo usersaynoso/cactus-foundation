@@ -322,7 +322,7 @@ const IMAGE_PICKER_FIELDS: Record<string, Record<string, string>> = {
   Card:           { mediaUrl: 'Image' },
   Quote:          { mediaUrl: 'Photo (shown inside the quote, left of the text)' },
   ImageChipPanel: { mediaUrl: 'Image' },
-  Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)' },
+  Hero:           { bgImage: 'Background image', imageUrl: 'Side image (right-image layout)', patternImage: 'Background pattern (image or SVG)', patternImageDark: 'Background pattern in dark mode' },
   Section:        { bgImage: 'Background image', patternImage: 'Background pattern (image or SVG)', patternImageDark: 'Background pattern in dark mode' },
   CTABanner:      { patternImage: 'Background pattern (image or SVG)', patternImageDark: 'Background pattern in dark mode' },
   // Email wrapper blocks. An email cannot reach a relative path, so what these

@@ -1968,9 +1968,16 @@ function Hero(props: any) {
     id, heading, subheading, ctaLabel, ctaHref, cta2Label, cta2Href, cta2Variant = 'outline',
     bg = { mode: 'gradient', color: '' }, bgImage = '', overlayColor = '', overlayOpacity = 0,
     layout = 'centered', imageUrl = '', textScheme = 'dark', minHeight = 'auto',
+    patternImage = '', patternImageDark = '', patternSize = '',
     padding, animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck,
   } = props
   const obfuscate = !puck?.isEditing
+
+  // Tiling pattern, painted on this hero's ::before so it can sit on top of the
+  // gradient/colour/photo already there and carry its own dark-mode image - see
+  // lib/puck/patternBackground.ts.
+  const pattern: PatternProps = { patternImage, patternImageDark, patternSize }
+  const patternStyles = patternCss(id, pattern)
 
   const bgType = bg.mode ?? 'gradient'
   const bgColor = bg.color ?? ''
@@ -2036,7 +2043,8 @@ function Hero(props: any) {
     <>
       {minHeightCss && <style>{minHeightCss}</style>}
       {layoutCss && <style>{layoutCss}</style>}
-      <section data-hero-id={id} className={getPaddingClasses(padding)} style={{ position: 'relative', ...bgStyle, borderRadius: 8, marginBottom: '2rem', minHeight: minH[pickResponsive(minHeightRv, 'desktop') ?? 'auto'] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layoutBase === 'right-image' ? 'space-between' : undefined, gap: layoutBase === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
+      {patternStyles && <style>{patternStyles}</style>}
+      <section data-hero-id={id} data-pattern-id={hasPattern(pattern) ? id : undefined} className={getPaddingClasses(padding)} style={{ ...bgStyle, ...patternHostStyle(pattern), position: 'relative', borderRadius: 8, marginBottom: '2rem', minHeight: minH[pickResponsive(minHeightRv, 'desktop') ?? 'auto'] ?? 'auto', display: 'flex', alignItems: 'center', justifyContent: layoutBase === 'right-image' ? 'space-between' : undefined, gap: layoutBase === 'right-image' ? '3rem' : undefined, flexWrap: 'wrap' }}
         {...getAosProps(animationType, animationDuration, animationDelay)}>
         {inner}
       </section>
@@ -3517,6 +3525,7 @@ export const puckConfig = {
         cta2Label: { type: 'text' as const, label: 'Second CTA label' }, cta2Href: { type: 'text' as const, label: 'Second CTA URL' },
         cta2Variant: { type: 'select' as const, label: 'Second CTA style', options: [{ value: 'outline', label: 'Outline' }, { value: 'solid', label: 'Solid' }] },
         bg: { type: 'custom' as const, label: 'Background', render: HeroBgColorField }, bgImage: { type: 'text' as const, label: 'Background image URL' },
+        ...PATTERN_FIELDS,
         overlayColor: { type: 'custom' as const, label: 'Overlay colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} /> }, overlayOpacity: { type: 'number' as const, label: 'Overlay opacity (0–100)', min: 0, max: 100 },
         layout: { type: 'custom' as const, label: 'Layout', options: [{ value: 'centered', label: 'Centred text' }, { value: 'left', label: 'Left-aligned text' }, { value: 'right-image', label: 'Text + image (right)' }], render: ResponsiveSelectField },
         imageUrl: { type: 'text' as const, label: 'Side image URL (right-image layout)' },
@@ -3524,7 +3533,7 @@ export const puckConfig = {
         minHeight: { type: 'custom' as const, label: 'Min height', options: [{ value: 'auto', label: 'Auto' }, { value: 'half', label: '50vh' }, { value: 'full', label: 'Full screen (100vh)' }], render: ResponsiveSelectField },
         padding: paddingField, ...aosFields,
       },
-      defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
+      defaultProps: { heading: 'Welcome', subheading: '', ctaLabel: '', ctaHref: '', cta2Label: '', cta2Href: '', cta2Variant: 'outline', bg: { mode: 'gradient', color: '' }, bgImage: '', ...PATTERN_DEFAULTS, overlayColor: '', overlayOpacity: 0, layout: 'centered', imageUrl: '', textScheme: 'dark', minHeight: 'auto', padding: 'none', ...aosDefaults },
       // Only applicable fields survive: the background image belongs to the
       // 'image' background (but stays visible while a legacy block still
       // carries one under another mode); overlay opacity needs an overlay
@@ -3540,7 +3549,7 @@ export const puckConfig = {
         const layouts = typeof l === 'string' ? [l] : [l?.desktop, l?.tablet, l?.mobile]
         if (!layouts.includes('right-image')) delete rest.imageUrl
         if (!p.cta2Label) delete rest.cta2Variant
-        return rest
+        return trimPatternFields(p, rest)
       },
       render: Hero,
     },
