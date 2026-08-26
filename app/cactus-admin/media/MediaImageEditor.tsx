@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
+import { previewSrc } from './format'
 
 // Aspect presets. `ratio` is width/height; null means free-form (no lock).
 const PRESETS: { key: string; label: string; ratio: number | null }[] = [
@@ -316,7 +317,7 @@ export default function MediaImageEditor({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imgRef}
-              src={item.url}
+              src={previewSrc(item)}
               alt={item.altText ?? ''}
               onLoad={measure}
               draggable={false}

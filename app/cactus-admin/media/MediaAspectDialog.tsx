@@ -4,6 +4,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
 import { useFocusTrap } from './useFocusTrap'
 import { runBulkImageJob } from './bulkImageJob'
+import { previewSrc } from './format'
 
 // "Change ratio" — reshape one or many images to a new aspect ratio by padding
 // them out. Nothing is cropped and nothing is stretched, which is the whole
@@ -223,10 +224,10 @@ export default function MediaAspectDialog({
               <div style={{ position: 'relative', aspectRatio: `${ratio.w} / ${ratio.h}`, maxHeight: '38vh', maxWidth: '100%', background: padBackground, border: '1px solid var(--color-border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {fillKind === 'blur' && (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={preview.url} alt="" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(14px)', transform: 'scale(1.1)' }} />
+                  <img src={previewSrc(preview)} alt="" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(14px)', transform: 'scale(1.1)' }} />
                 )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={preview.url} alt={preview.altText ?? ''} style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+                <img src={previewSrc(preview)} alt={preview.altText ?? ''} style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
-import { formatBytes, filenameOf, fileKind, optimiseHint } from './format'
+import { formatBytes, filenameOf, fileKind, optimiseHint, previewSrc } from './format'
 import { isModelDirectType } from '@/lib/media/limits'
 
 export type MediaCardItem = {
@@ -110,15 +110,21 @@ export default function MediaCard({
       }}
     >
       <div style={{ position: 'relative' }}>
+        {/* A square well, with the picture fitted inside it rather than cropped
+            to fill it. The tile used to be 4:3 and `cover`, which meant every
+            thumbnail was the same shape whatever shape the file was - so a
+            reshape or a resize changed nothing anyone could see, and a portrait
+            image looked landscape. Letterboxing costs a little space and shows
+            the truth. */}
         <button
           type="button"
           onClick={() => onOpen(item.id)}
           aria-label={`Open ${filename}`}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', aspectRatio: '4 / 3', padding: 0, border: 'none', background: 'var(--color-bg-subtle)', cursor: 'zoom-in', overflow: 'hidden' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', aspectRatio: '1 / 1', padding: 0, border: 'none', background: 'var(--color-bg-subtle)', cursor: 'zoom-in', overflow: 'hidden' }}
         >
           {isImage && !broken ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={item.url} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={previewSrc(item)} alt={item.altText ?? ''} loading="lazy" onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
           ) : (
             <span style={{ fontSize: '2.25rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : isModel ? '3D model - open it to turn it around' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : isModel ? '🧊' : '📄'}</span>
           )}

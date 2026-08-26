@@ -148,6 +148,8 @@ The first time you choose one of the picture-size sorts, a note appears above th
 
 Whenever a filter is on, a little tag appears under the controls spelling out what you're looking at ("Images only", "3D files only", "Square only", "Not in use", and so on). Each has an × to lift just that one, or **Clear all** to start fresh. A small line above the files tells you how many there are, so you always know how big the set you're looking at is. If a search or filter turns up nothing, the empty message offers a one-click **Clear filters** to get everything back.
 
+Thumbnails sit in a square well and show the whole picture inside it rather than cropping it to fit, so a tall photo looks tall and a wide banner looks wide - you can tell at a glance what shape a file actually is. And when you change a picture - crop it, reshape it, resize it, optimise it or swap the file - the thumbnail updates there and then, rather than making you wander into another folder and back to see it.
+
 Each file carries a small **in use** dot (green) or unused (grey) marker. Files you've already slimmed down wear a green **✓ Optimised** badge, and any tags you've added show as little chips. Any photo that's missing its alt text gets a small **Alt?** flag in the corner, so gaps in your descriptions are easy to spot and fix. If a file's preview can't be loaded, you'll see a tidy placeholder rather than a broken-image icon.
 
 Got a big library? Just keep scrolling - more files load in automatically as you go, no need to click through pages.
@@ -290,7 +292,7 @@ Modern phones and cameras produce enormous pictures. A photo straight off a dece
 
 Where **Change ratio** above changes an image's *shape*, resizing keeps the shape exactly as it is and changes the *size*. Nothing is cropped and nothing is squashed - the whole picture is simply scaled down.
 
-Pick how big you want it: **Extra large** (2400px), **Large** (1600px), **Medium** (1000px) or **Small** (600px). Those numbers are the longest edge, so a landscape photo and a portrait one both come out sensibly sized without you having to think about which way round it is. Want something specific? Type a width, a height, or both into the boxes. Leave one blank and it simply follows along, keeping the proportions.
+Pick how big you want it: **Extra large** (2400px), **Large** (1920px), **Medium** (1000px) or **Small** (600px). Those numbers are the longest edge, so a landscape photo and a portrait one both come out sensibly sized without you having to think about which way round it is. Want something specific? Type a width, a height, or both into the boxes. Leave one blank and it simply follows along, keeping the proportions.
 
 For a single picture, Cactus tells you what you're getting before you commit - the size it is now, and the size it's about to become.
 

@@ -66,3 +66,31 @@ export function optimiseHint(mimeType: string, done: boolean): string {
   }
   return done ? 'Re-encoded to WebP to save space' : 'Optimise (re-encode to WebP)'
 }
+
+/**
+ * The url to draw an item's preview from, stamped with a fingerprint of the
+ * bytes behind it.
+ *
+ * Editing an image in place - optimise, crop, reshape, resize, replace - keeps
+ * the same storage key, so the url never changes. That is deliberate (every
+ * reference to it survives), but it left the library showing the old picture:
+ * React sees an identical `src` and never re-requests it, and the browser and
+ * the media Worker both hold the previous bytes under that address. The only
+ * way to see the new one was to walk into another folder and back, which
+ * unmounted the `<img>` and forced a fresh request.
+ *
+ * Size-and-dimensions is the fingerprint because it is already on the wire and
+ * it moves whenever the pixels do: a reshape or a resize changes the dimensions,
+ * an optimise or a replacement changes the byte count. An item nobody has
+ * touched keeps the same src across refetches and folder hops, so this costs no
+ * extra downloads - the url only changes when the picture actually has.
+ *
+ * The parameter means nothing to the media Worker (it reads only the
+ * image-resizing ones) beyond putting the request in a cache slot of its own,
+ * which is the entire point.
+ */
+export function previewSrc(item: { url: string; sizeBytes: number; width: number | null; height: number | null }): string {
+  const fingerprint = `${item.sizeBytes}-${item.width ?? 0}x${item.height ?? 0}`
+  const separator = item.url.includes('?') ? '&' : '?'
+  return `${item.url}${separator}v=${fingerprint}`
+}

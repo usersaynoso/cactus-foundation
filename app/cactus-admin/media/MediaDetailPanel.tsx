@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { LibraryItem, TagInfo } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind } from './format'
+import { formatBytes, formatDate, filenameOf, fileKind, previewSrc } from './format'
 import { useFocusTrap } from './useFocusTrap'
 import { isModelDirectType, isOptimisableType } from '@/lib/media/limits'
 
@@ -200,9 +200,9 @@ export default function MediaDetailPanel({
               <ModelPreview url={item.url} mimeType={item.mimeType} />
             ) : isImage && !broken ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={item.url} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
+              <img src={previewSrc(item)} alt={item.altText ?? ''} onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, objectFit: 'contain', display: 'block' }} />
             ) : isVideo && !broken ? (
-              <video src={item.url} controls playsInline preload="metadata" onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, display: 'block' }} />
+              <video src={previewSrc(item)} controls playsInline preload="metadata" onError={() => setBroken(true)} style={{ maxWidth: '100%', maxHeight: 288, display: 'block' }} />
             ) : (
               <span style={{ fontSize: '4rem' }} title={broken ? 'Preview unavailable' : isVideo ? 'Video' : undefined}>{broken ? '🚫' : isVideo ? '🎬' : '📄'}</span>
             )}

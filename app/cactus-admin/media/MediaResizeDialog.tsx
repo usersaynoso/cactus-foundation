@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryItem } from './types'
 import { useFocusTrap } from './useFocusTrap'
-import { filenameOf } from './format'
+import { filenameOf, previewSrc } from './format'
 import { runBulkImageJob } from './bulkImageJob'
 
 // "Resize" — scale one or many images down to fit inside a box. The sibling of
@@ -14,10 +14,10 @@ import { runBulkImageJob } from './bulkImageJob'
 
 // Longest-edge presets, in the sizes a website actually wants: a full-width
 // banner, a content image, a thumbnail. Labelled by what they're for, because
-// "1600" means nothing to someone who just wants their photos smaller.
+// "1920" means nothing to someone who just wants their photos smaller.
 const PRESETS: { key: string; label: string; hint: string; px: number }[] = [
   { key: '2400', label: 'Extra large', hint: '2400px', px: 2400 },
-  { key: '1600', label: 'Large', hint: '1600px', px: 1600 },
+  { key: '1920', label: 'Large', hint: '1920px', px: 1920 },
   { key: '1000', label: 'Medium', hint: '1000px', px: 1000 },
   { key: '600', label: 'Small', hint: '600px', px: 600 },
 ]
@@ -45,7 +45,7 @@ export default function MediaResizeDialog({
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef)
 
-  const [presetKey, setPresetKey] = useState('1600')
+  const [presetKey, setPresetKey] = useState('1920')
   const [customW, setCustomW] = useState('')
   const [customH, setCustomH] = useState('')
   const [mode, setMode] = useState<'replace' | 'new'>('new')
@@ -229,7 +229,7 @@ export default function MediaResizeDialog({
             <div style={{ display: 'flex', justifyContent: 'center', background: 'var(--color-bg-subtle)', borderRadius: 'var(--radius)', padding: '1rem' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={preview.url}
+                src={previewSrc(preview)}
                 alt={preview.altText ?? ''}
                 onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                 style={{ maxWidth: '100%', maxHeight: '32vh', objectFit: 'contain', display: 'block' }}

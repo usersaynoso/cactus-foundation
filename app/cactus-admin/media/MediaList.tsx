@@ -2,7 +2,7 @@
 
 import { type CSSProperties, type DragEvent, type MouseEvent, useState } from 'react'
 import type { LibraryItem, Sort } from './types'
-import { formatBytes, formatDate, filenameOf, fileKind, optimiseHint } from './format'
+import { formatBytes, formatDate, filenameOf, fileKind, optimiseHint, previewSrc } from './format'
 import { isModelDirectType } from '@/lib/media/limits'
 
 // The dense alternative to the grid: one row per file with sortable columns.
@@ -108,7 +108,7 @@ export default function MediaList({
                   />
                 </td>
                 <td style={{ width: '3.5rem' }}>
-                  <ListThumb url={item.url} alt={item.altText ?? ''} isImage={isImage} isVideo={item.mimeType.startsWith('video/')} isModel={isModelDirectType(item.mimeType)} />
+                  <ListThumb url={previewSrc(item)} alt={item.altText ?? ''} isImage={isImage} isVideo={item.mimeType.startsWith('video/')} isModel={isModelDirectType(item.mimeType)} />
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
