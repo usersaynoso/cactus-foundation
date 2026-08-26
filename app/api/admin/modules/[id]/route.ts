@@ -11,7 +11,7 @@ import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordModuleUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE } from '@/lib/deploy/lock'
-import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
+import { getDeployInFlight, deployInFlightMessage, deploymentStatusForReconcile } from '@/lib/deploy/in-flight'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, readDeclaredCoreVersion, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
 import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
@@ -72,10 +72,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Module.deployId outlives that expiry: it is cleared only when this module is
     // actually reconciled. The site marker is still the fallback for a row queued by
     // an older build with no deployId of its own.
+    const cfg = await prisma.siteConfig.findFirst({
+      select: { pendingRedeployId: true, pendingRedeployAt: true },
+    })
     const trackedId = mod.deployId && mod.deployId !== 'pending'
       ? mod.deployId
-      : (await prisma.siteConfig.findFirst({ select: { pendingRedeployId: true } }))?.pendingRedeployId
-    const deployStatus = await getLatestDeploymentStatus(trackedId)
+      : cfg?.pendingRedeployId
+    // deploymentStatusForReconcile, not getLatestDeploymentStatus: during the few
+    // seconds between the redeploy sentinel being written and the real deployment
+    // id being polled back, BOTH ids read 'pending', and the newest deployment on
+    // the project is still the previous, successful one. Answering from that
+    // promotes this module off a build that never carried it.
+    const deployStatus = await deploymentStatusForReconcile({
+      trackedId,
+      since: cfg?.pendingRedeployAt,
+    })
     if (deployStatus === 'READY') {
       await markModulesDeploySucceeded(trackedId)
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })

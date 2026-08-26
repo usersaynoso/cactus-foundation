@@ -68,24 +68,71 @@ export async function getDeployInFlight(): Promise<DeployInFlight | null> {
   return (await newestProductionBuildRunning()) ? { deploymentId: 'latest', startedAt } : null
 }
 
-async function newestProductionBuildRunning(): Promise<boolean> {
+type ProductionDeployment = { uid: string; created: number; readyState?: string }
+
+async function newestProductionDeployment(): Promise<ProductionDeployment | null> {
   const token = process.env.VERCEL_API_TOKEN
   const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) return false
+  if (!token || !projectId) return null
 
   try {
     const res = await fetch(
       `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&target=production&limit=1`,
       { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
     )
-    if (!res.ok) return false
-    const data = (await res.json()) as { deployments?: Array<{ readyState?: string }> }
-    const state = data.deployments?.[0]?.readyState
-    return state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING'
+    if (!res.ok) return null
+    const data = (await res.json()) as { deployments?: ProductionDeployment[] }
+    return data.deployments?.[0] ?? null
   } catch {
     // An API that will not answer must not lock the owner out of their own admin.
-    return false
+    return null
   }
+}
+
+function isRunning(state: string | undefined): boolean {
+  return state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING'
+}
+
+async function newestProductionBuildRunning(): Promise<boolean> {
+  return isRunning((await newestProductionDeployment())?.readyState)
+}
+
+// The deployment status a RECONCILE decision may act on - promoting a module's
+// pendingVersion, or rolling it back. Stricter than getLatestDeploymentStatus,
+// and it has to be.
+//
+// getLatestDeploymentStatus answers about "the newest deployment on this project"
+// when handed no id or the 'pending' sentinel. As a display fallback that is the
+// best available answer; as the basis for a reconcile it is a trap, because the
+// newest deployment during that window is the PREVIOUS one, and it is READY.
+//
+// Watched happen on 2026-08-26. startDeferredRedeploy writes the sentinel
+// synchronously and only learns the real deployment id from a poll seconds later.
+// A Modules-page status check landing inside that gap read READY off the build
+// before ours and promoted reviews-for-shop to v0.1.12 while the build carrying
+// v0.1.12 still had 80 seconds to run. It succeeded, so the row happened to end up
+// true - had it failed, the database would have claimed a version the site was not
+// running, and lastFailedVersion would never have been set to rescue the pin.
+//
+// So: a specific id is answered about specifically. Without one, a deployment that
+// STARTED BEFORE we pushed can never be the answer, and we say UNKNOWN instead -
+// which every caller already treats as "leave it deploying and ask again later".
+export async function deploymentStatusForReconcile(args: {
+  trackedId?: string | null
+  since?: Date | null
+}): Promise<'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'> {
+  if (args.trackedId && args.trackedId !== 'pending') {
+    return getLatestDeploymentStatus(args.trackedId)
+  }
+
+  const newest = await newestProductionDeployment()
+  if (!newest) return 'UNKNOWN'
+  if (args.since && newest.created <= args.since.getTime()) return 'UNKNOWN'
+
+  if (isRunning(newest.readyState)) return 'BUILDING'
+  if (newest.readyState === 'READY') return 'READY'
+  if (newest.readyState === 'ERROR' || newest.readyState === 'CANCELED') return 'ERROR'
+  return 'UNKNOWN'
 }
 
 // The 409 an install / update gets while a build is still running. Says what to

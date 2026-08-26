@@ -1,7 +1,7 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-26 (**Six faults in the update/deploy path, found after "Update all" moved one module of three** - core **0.5.1311**. Updating is now blocked while a build runs; a batch can satisfy its own dependency chain; a failed update no longer deletes the module or wedges every later deploy. Schema: `Module.lastFailedVersion`, `Module.deployId`.)
+Last updated: 2026-08-26 (**A module was promoted 80 seconds before its build finished, caught by watching a real update** - core **0.5.1312**. Reconcile no longer answers from a deployment that started before we pushed. Follows the six-fault sweep in 0.5.1311.)
 
 **What was asked for.** A product's add-ons (accessories) offer a count "per one main unit" - one screen per desk, one pedestal per desk. Nothing multiplied that by how many of the main product the shopper was actually buying: four desks and a recommended-count add-on still offered the figure worked out for one.
 
@@ -91,6 +91,20 @@ Also 2026-08-25 (**Category pages drew 5.3 MB of fabric photography to paint som
 Gates: `npx tsc --noEmit` clean, `eslint .` **No issues found**, `npm test` **2923 passed / 70 skipped, 0 failed**, `npm run test:backup-roundtrip` **3 passed, real run against a provisioned OVH database** (module migration SQL changed, so the gate applies).
 
 **Not verified end to end.** The DB figures above are measured; the resulting TTFB is not - that needs the release to be live, and cutting the release is where this job ends. **`requiresCoreVersion` on the two modules that import the new core helpers is 0.5.1299**; `shop-variations` needs nothing new from core and keeps 0.5.1288. **Both backfills still need pressing on the live site**: Make copies on Shop > Catalogue > Attributes, and again on Shop > Catalogue > Filters.
+
+Also 2026-08-26 (**Caught in the act: a module promoted 80 seconds before the build carrying it finished** - core **0.5.1312**. Watching a real `reviews-for-shop` update land, to prove out the deploy-tracking work in 0.5.1311.
+
+**Three of four held.** The in-flight gate read `BLOCKED` for the whole build and flipped to `allowed` the moment it went READY. The registry write came out sorted - the one-off reordering commit, `02135ac4`, one release later than predicted because the code that writes `modules.json` during an update is the build currently RUNNING, not the one being installed. `SiteConfig.pendingRedeployId` resolved from the sentinel to a real deployment id and cleared itself when the client finished.
+
+**The fourth did not.** `reviews-for-shop` was already `active` at v0.1.12 - `pendingVersion` and `deployId` both cleared - at 01:41:08 UTC. The deployment carrying v0.1.12 was created 01:40:49 and did not reach READY until **01:42:10**. Promoted roughly eighty seconds early, off the back of the build BEFORE it.
+
+**`Module.deployId` could not have caught it, and that is the lesson.** `startDeferredRedeploy` writes the sentinel synchronously and only learns the real deployment id from a poll seconds later. Inside that gap `Module.deployId` and `SiteConfig.pendingRedeployId` BOTH read `'pending'`, and `getLatestDeploymentStatus('pending')` deliberately falls through to "newest deployment on this project" - which at that instant is the previous, successful one. 0.5.1311 gave every module its own id but left the window in which that id does not exist yet. Same misattribution, one layer down.
+
+**Benign this time, purely because the build passed.** Had it failed, the database would have claimed v0.1.12 while the site served v0.1.11, and - because the promotion path clears `pendingVersion` - `markModulesDeployFailed` would never have recorded `lastFailedVersion`, so the pin-floor rescue added the same day would not have armed either. The precise failure the whole 0.5.1311 job was about.
+
+**The fix is to stop guessing.** New `deploymentStatusForReconcile()` in `lib/deploy/in-flight.ts`: a resolved id is asked about specifically; without one, a deployment that STARTED BEFORE we pushed can never be the answer, so it returns `UNKNOWN` - which every caller already treats as "leave it deploying and ask again later". The cutoff is `SiteConfig.pendingRedeployAt`, which already existed, so no further schema change. Wired into the Modules-page check-status poll and the dismiss path; the Vercel webhook is unaffected, it always has a real id. 6 tests, one of them the observed case: sentinel id, previous build green and finished before the push, expect `UNKNOWN`.
+
+**Only watching a live update found this** - every idle check passed, and would have gone on passing. Nothing was updated on the install afterwards; the live row is correct because the build did succeed. Gates: `tsc --noEmit` clean, `eslint` clean, `npm test` **3025 pass**.)
 
 Also 2026-08-26 (**Updating during a deploy, and the four ways a deploy could lie about what it installed** - core **0.5.1311**. Chris: three modules showed updates, "Update all" moved one, and clicking the other two mid-build left him unsure any of it had landed: "can you check what actually updated".
 

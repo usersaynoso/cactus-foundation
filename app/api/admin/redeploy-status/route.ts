@@ -4,7 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { invalidateSiteConfigCache, getPendingRedeployIdCached, getAdminPathCached } from '@/lib/config/site'
 import { errorResponse } from '@/lib/utils'
-import { getLatestDeploymentStatus } from '@/lib/modules/github'
+import { deploymentStatusForReconcile } from '@/lib/deploy/in-flight'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 
 // No permission gate beyond session, intentionally: the admin shell's deploy
@@ -38,7 +38,7 @@ export async function DELETE() {
   // was never deployed, and someone else's red one rolled a healthy update back.
   const tracked = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
-    select: { pendingRedeployId: true },
+    select: { pendingRedeployId: true, pendingRedeployAt: true },
   })
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
@@ -59,7 +59,14 @@ export async function DELETE() {
     // record of the two - see the note in the modules check-status route.
     const moduleDeployId = deploying.find((m) => m.deployId && m.deployId !== 'pending')?.deployId
     const trackedId = moduleDeployId ?? tracked?.pendingRedeployId
-    const deployStatus = await getLatestDeploymentStatus(trackedId)
+    // Strict: with no resolved id, a deployment that started before this redeploy
+    // did cannot be its outcome. Better to leave the modules 'deploying' for the
+    // next check than to promote them off the previous build - see
+    // deploymentStatusForReconcile.
+    const deployStatus = await deploymentStatusForReconcile({
+      trackedId,
+      since: tracked?.pendingRedeployAt,
+    })
     if (deployStatus === 'READY') {
       await markModulesDeploySucceeded(trackedId)
     } else if (deployStatus === 'ERROR') {

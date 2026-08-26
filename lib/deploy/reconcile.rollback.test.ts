@@ -146,3 +146,80 @@ describe('per-module deployment matching', () => {
     expect(eligible(rows).map((m) => m.name)).toEqual(['shop', 'gazette', 'twilio', 'legacy'])
   })
 })
+
+// The status a reconcile is allowed to act on. Mirrors
+// deploymentStatusForReconcile in lib/deploy/in-flight.ts.
+function reconcileStatus(args: {
+  trackedId?: string | null
+  since?: number | null
+  newest?: { created: number; readyState: string } | null
+  byId?: 'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'
+}) {
+  if (args.trackedId && args.trackedId !== 'pending') return args.byId ?? 'UNKNOWN'
+  const n = args.newest
+  if (!n) return 'UNKNOWN'
+  if (args.since && n.created <= args.since) return 'UNKNOWN'
+  if (['BUILDING', 'QUEUED', 'INITIALIZING'].includes(n.readyState)) return 'BUILDING'
+  if (n.readyState === 'READY') return 'READY'
+  if (n.readyState === 'ERROR' || n.readyState === 'CANCELED') return 'ERROR'
+  return 'UNKNOWN'
+}
+
+describe('deploymentStatusForReconcile', () => {
+  const pushedAt = 1_000_000
+
+  // Observed live on 2026-08-26. The redeploy sentinel is written synchronously
+  // and the real deployment id only arrives from a poll seconds later. A status
+  // check landing in that gap saw the PREVIOUS build - green, and finished before
+  // we pushed - and promoted reviews-for-shop to v0.1.12 while the build carrying
+  // v0.1.12 still had 80 seconds to run.
+  it('refuses to answer from a build that finished before we pushed', () => {
+    expect(
+      reconcileStatus({
+        trackedId: 'pending',
+        since: pushedAt,
+        newest: { created: pushedAt - 5_000, readyState: 'READY' },
+      })
+    ).toBe('UNKNOWN')
+  })
+
+  it('accepts a build that started after we pushed', () => {
+    expect(
+      reconcileStatus({
+        trackedId: 'pending',
+        since: pushedAt,
+        newest: { created: pushedAt + 3_000, readyState: 'READY' },
+      })
+    ).toBe('READY')
+  })
+
+  it('reports our own build as still running', () => {
+    expect(
+      reconcileStatus({
+        trackedId: 'pending',
+        since: pushedAt,
+        newest: { created: pushedAt + 3_000, readyState: 'BUILDING' },
+      })
+    ).toBe('BUILDING')
+  })
+
+  // A resolved id is asked about directly - no guessing needed.
+  it('asks about a specific deployment when it has one', () => {
+    expect(reconcileStatus({ trackedId: 'dpl_ours', byId: 'ERROR' })).toBe('ERROR')
+  })
+
+  it('is UNKNOWN when there is no deployment to look at', () => {
+    expect(reconcileStatus({ trackedId: null, since: pushedAt, newest: null })).toBe('UNKNOWN')
+  })
+
+  // A cancelled build is a failure, and must still roll modules back.
+  it('treats a cancelled build as a failure', () => {
+    expect(
+      reconcileStatus({
+        trackedId: 'pending',
+        since: pushedAt,
+        newest: { created: pushedAt + 3_000, readyState: 'CANCELED' },
+      })
+    ).toBe('ERROR')
+  })
+})
