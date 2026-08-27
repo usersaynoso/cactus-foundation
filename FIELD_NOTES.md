@@ -1,7 +1,33 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The running PDF footer printed over the document and lost its rule** - core **unreleased, in the working tree**. No module change.)
+Last updated: 2026-08-27 (**Reorder levels, and the nightly job that drafts the orders** - `purchase-orders` **0.1.6**, core **0.5.1356**.)
+
+Stage 7 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_reorder_rules` came out of `001_initial.sql` in Stage 1 exactly as the plan specified and needed nothing adding, so the backup round-trip gate did not apply. `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always. No core code at all: core carries the pin, the version and this file.
+
+**purchase-orders 0.1.6 - reordering.**
+
+- **`lib/reordering.ts` is pure** - no database, no clock, no config reader - and is the whole of the arithmetic. `planReorder(facts)` turns rules + catalogue counts + what is on order + supplier terms into suggestions and one plan per supplier. 35 tests in `lib/reordering.test.ts`. The nightly job and the button on the tab both hand it the same facts, which is the only way somebody can press "raise these" having read a screen and be sure they get what they were looking at.
+- **`lib/reorder.ts`** is every read and write: rules CRUD, `searchReorderProducts` (only `track_inventory = true` products - a level on something nobody counts can never be crossed), `gatherReorderFacts` (four queries, never one per rule), `markRulesSuggested`. Every catalogue read is guarded by `hasCatalogue` and swallows its own error, so a site whose shop was removed can still open the tab and delete the orphaned rules.
+- **`lib/reorder-run.ts`** is the impure runner shared by the cron and the button. Everything it raises is a **DRAFT**; it never approves, sends or emails.
+- **New routes**: `admin/reorder` GET/POST, `admin/reorder/[id]` PUT/DELETE, `admin/reorder/raise` POST, and the cron `cron/reorder` GET/POST. Reading needs `purchase-orders.access`; writing and raising need `purchase-orders.create`. The generator sorts API patterns literal-first, so `admin/reorder/raise` is matched before `admin/reorder/[id]` - verified in the generated `lib/modules/router.ts`.
+- **First `cronJobs` entry for this module**: `/api/m/purchase-orders/cron/reorder` at `0 6 * * *`, `CRON_SECRET` bearer, dispatched by core's one Vercel cron like every other module's.
+- **New screen** `components/admin/ReorderScreen.tsx` replaces the placeholder on the Reorder tab. Its `CatalogueOption` type is declared in the file rather than imported from `lib/reorder.ts`: that file reaches for the database, and a client component must not carry an import edge to it (the trap `lib/bill-file-kinds.ts` was split out for in Stage 5).
+- **New setting `reorderAutomatic`** (default **false**), own card on the settings tab, disabled without a catalogue.
+- **`createOrder` gained two things**: an optional `source` (`{kind, ref}`, defaulting to `MANUAL`) so a reorder is stamped `REORDER` with the rule ids behind it, and a `userId` widened to `string | null` because the nightly job has no user. The column always allowed it.
+- **Checks**: `npm run typecheck` clean, `eslint .` clean, **3775 tests green** (up from 3734; 41 new). One unrelated core test (`lib/puck/module-layout-site-logo.test.tsx`) timed out under full-suite load and passes on its own. No `npm run build`.
+
+**Five decisions worth knowing:**
+
+1. **What is already on order counts, drafts included.** Without it the job raises an identical draft every night until a fortnight of them are sitting there. The cost is that a draft nobody ever sends holds its products back for ever - said out loud on the screen and in the wiki, because the fix is to cancel the draft.
+2. **A minimum order value HOLDS the order rather than padding it out.** A job that quietly adds four hundred pounds of something nobody asked for to clear a minimum is a job switched off within the week. Carriage goes the other way: under the threshold the charge goes on the draft, because the supplier will add it regardless.
+3. **Whole lots, enough to get back above the level.** `reorderQuantity` buys `ceil((point + 1 - available) / qty)` lots. One lot would leave a long-neglected product still under its level and the job would suggest it again tomorrow, for ever; an exact top-up would order seven of a box of twelve.
+4. **The price is what THAT supplier last charged**, keyed `<productId>::<supplierId>`, falling back to the catalogue's cost price. Two suppliers stocking the same chair at different prices do not borrow each other's.
+5. **`reorderAutomatic` defaults to OFF, which is a departure from the plan.** The plan asked for a daily cron and said nothing about a switch. An update that quietly starts raising purchase orders on a live site is not one anybody would thank us for, so the job holds off until the owner says otherwise - the tab still works everything out and the buttons still raise orders meanwhile. Naming suppliers on `admin/reorder/raise` overrides both brakes, the switch and the minimum, because a person has looked at the screen and decided.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**The running PDF footer printed over the document and lost its rule** - core **unreleased, in the working tree**. No module change.)
 
 **Two faults, one cause and one that is Chrome's, both only ever visible on paper.** `lib/documents/pdf.ts` only.
 
