@@ -8,6 +8,13 @@ import { POPULAR_FONTS, MAX_FONT_SEARCH_RESULTS } from '@/lib/design/font-option
 type Props = {
   value: string
   onChange: (value: string) => void
+  /** Drawn above the input. Puck labels its own field types but NOT
+   *  `type: 'custom'`, which owns the whole row and is expected to head itself -
+   *  the same contract SiteColourField and UnitValueField already keep. Without
+   *  it a font picker sits in the panel as a bare text box saying "Site font",
+   *  with nothing to say which font it sets. Optional, because a caller that
+   *  draws its own heading around this must not get two. */
+  label?: string
 }
 
 const inputStyle: React.CSSProperties = {
@@ -35,7 +42,7 @@ const optionStyle = (selected: boolean): React.CSSProperties => ({
 // Appearance → Styles) first, then the Google Fonts catalogue - same shape as
 // the Styles page's FontPickerField, restyled for the Puck panel. Stores the
 // family value; leaving it empty inherits the surrounding/site font.
-export function SiteFontField({ value, onChange }: Props) {
+export function SiteFontField({ value, onChange, label }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -58,6 +65,11 @@ export function SiteFontField({ value, onChange }: Props) {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
+      {label && (
+        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.375rem' }}>
+          {label}
+        </label>
+      )}
       <input
         type="text"
         value={value ?? ''}

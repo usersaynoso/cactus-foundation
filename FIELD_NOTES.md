@@ -1,7 +1,21 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The running footer printed nothing, and every custom field in the document editor was unlabelled** - `shop` **0.1.348**, `quote-for-shop` **0.1.24**, core unreleased, in the working tree.)
+Last updated: 2026-08-27 (**Audited every document block for the label fault, and found one more in core** - `shop` **0.1.349**, `quote-for-shop` **0.1.25**, core unreleased, in the working tree.)
+
+Chris: "did you check all invoice, purchase order and quote blocks?" - fair, because the previous entry fixed the SHARED HELPERS and then claimed the blocks were fixed, which is an inference rather than a check.
+
+**There is no purchase order document.** Nothing in the platform draws one - no layout type, no blocks, no route. The only "purchase order" string in the tree is in `uk-bookkeeping/lib/document-reading.ts`, a list of document kinds for classifying paperwork a supplier sends IN. Building one would be new work, not a gap in this.
+
+**Audited rather than reasoned about.** Two new tests walk every document block, render every `type: 'custom'` field, and assert it declares a label AND draws it: `modules/shop/components/puck/invoice-field-labels.test.tsx` (13 blocks) and `modules/quote-for-shop/components/puck/doc-field-labels.test.tsx` (12 blocks). 137 checks each, all green. The widget itself renders nothing in a test - the field registry is only populated inside the admin editor and its proxies return null everywhere else - which is exactly what makes this a fair test of the WRAPPER: the label has to come from the module's own markup. Verified by stripping `radiusField`'s label and watching 5 go red.
+
+**One more found, in core.** `SiteColourField` takes a `label` and all 45 call sites in `config.core.tsx` pass it. `SiteFontField` had **no label prop at all**, so its three call sites - `Phone`, `MenuBlock`, `SiteHeader` - drew a bare text box reading "Site font". `Phone` is in the module-layout shared `actions` category, so it is offered on the invoice and quote layouts too. Given the optional `label` prop `SiteColourField` already had, and passed at all three sites. Optional deliberately: the modules wrap it in their own `labelled()` and must not get two.
+
+**Every `*Pt` size field is converted** - no `ptField` call sites remain in either module (the export stays, with its note about the legacy point values a saved layout may still carry).
+
+3535 tests green, up from 3261: the two audits.
+
+Previous entry: Last updated: 2026-08-27 (**The running footer printed nothing, and every custom field in the document editor was unlabelled** - `shop` **0.1.348**, `quote-for-shop` **0.1.24**, core unreleased, in the working tree.)
 
 Chris: "new footer is not showing on any of the pdfs. lots of block options do not have labels so ive no idea what they relate to. i cant work out how to change the radius size of the line items header."
 

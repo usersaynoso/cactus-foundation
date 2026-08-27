@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.348"
+      "version": "v0.1.349"
     },
     {
       "name": "address-lookup-for-shop",
@@ -73,7 +73,7 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.24"
+      "version": "v0.1.25"
     },
     {
       "name": "abandoned-carts-for-shop",
