@@ -1,7 +1,27 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Correction: one shared PDF footer, not one per document type** - `shop` **0.1.347**, `quote-for-shop` **0.1.23**, core unreleased, in the working tree.)
+Last updated: 2026-08-27 (**The running footer printed nothing, and every custom field in the document editor was unlabelled** - `shop` **0.1.348**, `quote-for-shop` **0.1.24**, core unreleased, in the working tree.)
+
+Chris: "new footer is not showing on any of the pdfs. lots of block options do not have labels so ive no idea what they relate to. i cant work out how to change the radius size of the line items header."
+
+**The footer printed nothing, on every page, of every document.** `captureRunningFooter` swept the whole printed page for `<style>` and put the lot into Chrome's `footerTemplate`, on the reasoning that the footer should be drawn by the same rules as the document. What it actually copied in was the document page's own chrome-stripping rule:
+
+```
+body > *:not(main) { display: none !important; }
+```
+
+In the template, the footer's wrapper IS a direct child of body and is not `main`. The rule matched it and hid the entire footer. **Fixed by scoping the capture to `region!.querySelectorAll('style')`** - every document part emits the shared invoice stylesheet itself, so the region already carries everything its own blocks need, and nothing the page says about page chrome comes with it. Plus `RUNNING_FOOTER_FORCE` appended AFTER the captured CSS (`display: block !important`, `visibility: visible !important`) as belt and braces.
+
+**Why the previous session's "verified with puppeteer" did not catch it.** The harness hand-built the HTML - real `INVOICE_DOC_CSS`, invented page shell. `BARE_CSS` was never in it, so the one rule that breaks this was never present. Rendering a PDF and counting footers was the right instinct and the wrong fixture: **a harness that reconstructs the page proves the harness, not the page.** Reproduced properly this time by copying `BARE_CSS` verbatim out of the page component and putting the region inside `<main>`: A (shipped) 0 footers, B (scoped) 2 of 2 pages. Then fixed, then re-rendered.
+
+**Guard added: `modules/shop/lib/pdf-footer-scope.test.ts`.** Source-text assertions, because nothing else in the suite can see this - it needs a browser and a PDF. Two ends pinned: the document pages still carry the `body > *:not(main)` rule (the hazard is real), and `invoice-pdf.ts` reads `<style>` from the region and NOT from `document`. Verified the guard by reverting the fix and watching it go red, then restoring.
+
+**Every `type: 'custom'` field in both document editors was unlabelled.** Puck draws the label for its own field types and not for custom ones - a custom field owns the whole row and is expected to head itself, which is why core's widgets all read `field.label` and draw a `<label>` (`UnitValueField.tsx`, `BgColorField.tsx`, `MenuSelectField.tsx`). This module's `fontField` and `colourField` never did, and v0.1.346 added ~30 more size/radius/space menus on top - a panel of unlabelled boxes all reading "Default". **Pre-existing, made much worse.** Fixed with a `labelled(label, control)` helper in `invoice-shared.tsx` and `doc-shared.tsx`, in core's own label style, used by every custom field in both modules. Also `headingFontField`, replacing the `{ ...type custom, render: fontField.render }` inline that carried no label of its own.
+
+The line-item heading radius was findable all along (`headRadius`, `--shp-inv-thead-radius`) - it was one of the unlabelled boxes. Label now says "Column heading corners (needs a filled band)", since the radius does nothing on a ruled head.
+
+Previous entry: Last updated: 2026-08-27 (**Correction: one shared PDF footer, not one per document type** - `shop` **0.1.347**, `quote-for-shop` **0.1.23**, core unreleased, in the working tree.)
 
 Chris, right after the previous entry shipped: "omg no, i didnt want different footers for quote invoice and proformas, i wanted 1 footer that's can be used on all quotes invoice and proformas." The three-type design below (`shopInvoiceFooter` / `shopProformaFooter` / `quoteDocumentFooter`) was wrong - undone within the hour, before any of it reached an install.
 
