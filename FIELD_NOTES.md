@@ -1,7 +1,35 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The document engine moves to core** - core **0.5.1347**, `shop` **0.1.352**, `quote-for-shop` **0.1.28**.)
+Last updated: 2026-08-27 (**Purchase Orders module, first release** - `purchase-orders` **0.1.0**, core **0.5.1348**.)
+
+Stage 1 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). New standalone module, `requiresModules: []`, table prefix `po_`, repo `cactus-foundation-modules/purchase-orders`, pinned in `modules.json` at `v0.1.0`.
+
+**The WHOLE schema is in `migrations/001_initial.sql`** - fifteen tables and three sequences, including the ones whose screens arrive in Stages 2-9. Editing an applied migration never re-runs on an existing install, so a half-schema now is a new numbered file later for every table that was forgotten. Types are restricted to `text` / `integer` / `numeric` / `boolean` / `date` / `timestamptz` / `jsonb`, all of which `isSupportedUdtName` already has a branch for. **No generated and no identity columns anywhere** - the dump excludes them and their values are lost on restore.
+
+- `po_suppliers`, `po_orders`, `po_order_lines`, `po_revisions`, `po_receipts`, `po_receipt_lines`, `po_returns`, `po_return_lines`, `po_bills`, `po_bill_lines`, `po_reorder_rules`, `po_portal_tokens`, `po_portal_events`, `po_audit_log`, `po_settings`. Sequences `po_number_seq`, `po_receipt_number_seq`, `po_return_number_seq`.
+- **No cross-module foreign key exists or ever will.** `po_suppliers.shop_supplier_id` is a link plus a `shop_supplier_name` snapshot; `po_order_lines.product_id`, `po_orders.source_ref` and `po_bills.attachment_media_id` are bare ids. Shop may not be installed, and a shop supplier can be renamed or deleted underneath us.
+- **Received / invoiced / returned are derived, never stored.** There is no `qty_received` column: `lib/progress.ts` holds one `LINE_PROGRESS_SQL` fragment of correlated subqueries over `po_receipt_lines` / `po_bill_lines` / `po_return_lines`, and everything that needs those figures interpolates it. A stored counter drifts the first time a receipt is deleted.
+
+**`lib/capabilities.ts` is the single source of `{ hasCatalogue, hasInventory, hasBooks }`**, and nothing else in the module is allowed to ask the question its own way. Presence is probed by TABLE (`information_schema.tables` for `shp_products` / `bk_transactions`), not by a `Module` row - a module row can exist for a whole deploy before its migration has run. `hasInventory` reads the `core.inventory-adjuster` extension point, which nothing registers for until Stage 3, so it is honestly false today. Written now even though only `hasCatalogue` is consumed, because every later stage depends on it existing.
+
+**Every capability-gated surface shows an honest empty state naming the missing module** rather than vanishing. All seven tabs (Orders, Receiving, Bills, Returns, Suppliers, Reorder, Reports) are present from the first release; the five whose screens come later say so.
+
+**Routes** (all under `/api/m/purchase-orders/admin/`): `settings` GET/PATCH, `suppliers` GET/POST, `suppliers/[id]` PUT/DELETE, `orders` GET/POST, `orders/[id]` GET/PUT/DELETE, `orders/[id]/transition` POST, `catalogue` GET. **Admin pages**: `orders`, `orders/[id]`, `receiving`, `bills`, `returns`, `suppliers`, `reorder`, `reports`. `orders/new` is served by `orders/[id]` with `id === 'new'` - `resolveModulePage` iterates the generated loaders in sorted order and `[id]` sorts before any literal sibling, so a separate `orders/new` page would never be reached.
+
+**Permissions**: `purchase-orders.access|create|approve|receive|bills|settings`, resolved in ONE place (`lib/permissions.ts`, one `hasPermissions` round trip) so a screen and the route behind it cannot disagree. `canAccess` is satisfied by any of the working permissions, so a role granted only `approve` is not left on a forbidden page.
+
+**Lifecycle**: ten statuses, one transition table in `lib/lifecycle.ts`, one route that may write `po_orders.status`, and an audit line for every transition. `send` accepts `DRAFT` as well as `APPROVED` - a site with approvals switched off must not be made to approve anything. Editing is refused past `SENT` (the revision/snapshot flow is Stage 2) rather than quietly rewriting what the supplier was sent.
+
+**Money is integer arithmetic in `lib/totals.ts`, and strings on the wire.** Quantities carry 3 decimal places and unit costs 4, so a line is worked out at 7 and rounded to the penny ONCE - rounding per unit first puts 250 units at £1.005 a pound out against the supplier's invoice. An order-level discount reduces the tax in proportion; carriage is taxed at its own rate, defaulting to the highest rate on the order. Totals are recomputed server-side on every save; the browser's copy exists only so the numbers move while somebody types.
+
+**`emailTemplates` ships with its three templates rather than as an empty group** (a deliberate small departure from the plan, which put the group in Stage 1 and the templates in Stage 2). A group heading with nothing under it reads as broken in Settings > Emails. Nothing sends them yet.
+
+Card art in all three places (`public/module-art/purchase-orders.webp`, the module's own `module-art.webp`, the README), prompt added as entry 32 in `plans/module-card-art-prompts.md`, module added to the core README list and to `wiki/Purchase-Orders.md`.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, 3575 tests green (25 new). `npm run test:backup-roundtrip` a **real PASS** (3 tests, no skips). **Worth knowing: that round-trip applies the CORE init migration only** - `lib/backup/roundtrip.test.ts` reads `prisma/migrations/.../migration.sql` and nothing else, so no `po_` table carried a row through it. The proof that every new column type is serialisable is the static `lib/backup/schema-coverage.test.ts`, which does parse every module migration and runs in plain `npm test`.
+
+Previous entry: Last updated: 2026-08-27 (**The document engine moves to core** - core **0.5.1347**, `shop` **0.1.352**, `quote-for-shop` **0.1.28**.)
 
 Stage 0 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). No schema anywhere, so no backup gate. Nothing about any published layout, any saved data or any printed PDF changes.
 

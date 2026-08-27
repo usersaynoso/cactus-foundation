@@ -149,6 +149,11 @@
       "name": "google-tag",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-tag",
       "version": "v0.1.4"
+    },
+    {
+      "name": "purchase-orders",
+      "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
+      "version": "v0.1.0"
     }
   ]
 }

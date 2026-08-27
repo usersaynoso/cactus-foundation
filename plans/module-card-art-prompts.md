@@ -1,6 +1,6 @@
 # Cactus module card art - image generator prompts
 
-31 images, one per module. All share one style block so the set reads as a family.
+32 images, one per module. All share one style block so the set reads as a family.
 
 ## Spec
 
@@ -215,4 +215,10 @@ Three ascending rounded cream clay bars standing on a low clay slab, a single te
 
 ```
 A cream clay shopping basket tipped slightly onto its side and left standing alone on a low clay slab, one rounded terracotta item still sitting inside it and a single cream clay footprint leading away from it. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
+```
+
+## 32. Purchase Orders -> `purchase-orders.webp`
+
+```
+A cream clay filing tray with a single rounded clay order docket standing upright in it and a small pale sand parcel box resting beside the tray, one terracotta tab clipped to the docket's top edge. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
 ```
