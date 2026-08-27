@@ -10,8 +10,11 @@ corporation tax computation out of the same records at the end of the year.
 
 **It does:** records what you spend and what you take, keeps the receipt with the
 entry, works out your VAT return from those records, and files it with HMRC. It
-reads a bank statement - CSV or PDF - and ties it back to what you have already
-recorded, so you can see whether the two agree. Behind all that it keeps one
+takes receipts and invoices the day they arrive, before there is an entry to
+attach them to, reads what it can off them, and offers them back to you against
+the right payment when your statement comes in. It reads a bank statement - CSV
+or PDF - and ties it back to what you have already recorded, so you can see
+whether the two agree. Behind all that it keeps one
 proper set of double-entry books, which is what lets it give you a profit and
 loss account, a balance sheet that adds up, a trial balance, and the full history
 of any single account down to the receipt. It keeps a register of your equipment
@@ -292,10 +295,34 @@ sitting with them under "Debtors and prepayments". If it ever goes below zero,
 either a top-up has not been recorded or an invoice has been billed to the wrong
 place.
 
-One thing worth checking on the first invoice: some overseas suppliers do not
-charge you UK VAT at all and print "reverse charge" instead. If yours does, pick
-**Services bought from overseas (reverse charge)** as the VAT treatment rather
-than the ordinary one, and the return works itself out from there.
+### When your supplier charges no VAT and you account for it yourself
+
+Some suppliers do not charge you UK VAT at all. An overseas one selling you
+software or advertising, and a UK builder working under the construction rules,
+both print **reverse charge** on the invoice and leave the VAT off it. That does
+not mean there is no VAT on the purchase. It means **you** account for it, on
+both sides of your own return: it goes in box 1 as owed and in box 4 as
+reclaimed, so it costs you nothing and the two cancel out.
+
+Pick the right one under **VAT treatment** on the entry - *Services bought from
+overseas (reverse charge)* or *UK reverse charge* - and three things follow on
+their own:
+
+- **The VAT box goes to nothing and stays there.** Nothing is what your supplier
+  charged you, so nothing is what the entry records. Your supplier is shown owed
+  what they actually invoiced, and the entry matches the payment on your bank
+  statement, which means it reconciles like any other.
+- **The total is what you paid.** Not what you paid plus VAT that never changed
+  hands.
+- **The rate still matters.** Set it to the rate the purchase *would* have been
+  at in the UK, which is nearly always the standard rate. Your return is worked
+  out from that, so a wrong rate here is a wrong figure in boxes 1 and 4.
+
+A receipt dropped on the **Receipts** tab is read for this too: an invoice
+carrying the words "reverse charge", the EU wording, or the construction wording
+is spotted and comes back with the treatment already set and the rate set to
+standard. As with everything else it reads, you can change it before it becomes
+an entry.
 
 ### Looking at a receipt you have attached
 
@@ -308,6 +335,71 @@ Anything that is not a PDF or an ordinary photograph is still sent as a download
 whichever link you click. That is deliberate and is not going to change: some
 file types can carry instructions of their own, and a file the browser is willing
 to run has no business being opened inside the admin.
+
+### Receipts, before you have typed anything
+
+Paperwork does not arrive in the order the books want it. The invoice comes by
+email on the day, the bank statement turns up three weeks later, and the entry
+gets typed at the weekend. So you do not have to have an entry before you can
+keep a receipt.
+
+**Bookkeeping → Receipts** is a pile of everything you have uploaded and not yet
+filed against anything. Drop invoices and receipts on it the moment they land -
+one at a time or forty at once - and forget about them.
+
+**What it makes of a PDF.** As each one arrives it is read: who it is from, their
+invoice number, the invoice date, the total, whether there was VAT on it and how
+much, and - where the invoice says so - whether it is one of the ones where your
+supplier charges nothing and you account for the VAT yourself. Everything it works out is shown on the card, and everything is a
+guess you can change. **Fix details** opens the lot for editing.
+
+Putting a name right is worth the ten seconds. It is not a chore because the
+software failed - it is how it learns. Your bank prints `SQ *THE COFFEE SHOP
+1234` and the invoice says "The Coffee Shop Limited", and nothing on earth
+connects those two except somebody saying so once. Say it once, and every later
+invoice from them, and every later statement line, knows.
+
+**Photographs are kept but not read.** A photo of a till receipt has no text in
+it, only a picture of some, and reading that needs a different kind of machinery
+altogether - somebody else's service, an account, and a bill for every receipt.
+So a photo uploads, files and counts as evidence exactly like a PDF; it simply
+arrives with nothing filled in, and says so. Type the supplier in once and it is
+remembered.
+
+**Two ways to use the pile.**
+
+- **From the receipt.** Press **Record an entry** on any card and the entry form
+  opens with the supplier, the date, the invoice number and the amounts already
+  in it. Check them, say what it was for, save. The receipt is attached on the
+  way through.
+- **From the entry.** Recording an entry the ordinary way shows a **Receipts
+  already uploaded** panel above the form. Pick one and it fills the form in the
+  same way. The same panel is on an entry you have already saved, where it
+  attaches straight away.
+
+Nothing in the pile is nagging you. A receipt can sit there for as long as you
+like, and it is still safely stored and still in your media library the whole
+time.
+
+**Read again** re-reads a PDF. Worth it once you have dealt with a supplier a
+few times: a name it could not place on their first invoice is one it knows by
+their third. It leaves anything you have corrected by hand alone unless you ask
+it twice.
+
+**Throw away** removes the receipt from the pile, and asks one more question
+before it does: whether to delete the file itself as well.
+
+Left unticked - which is how it starts - only the receipt leaves the list, and
+the file stays in your media library exactly where it was. Tick it and the file
+goes from the library and from storage for good, which is not something that can
+be undone, so the box says so.
+
+Two things will stop it even when you have ticked the box, and it tells you
+which: the same file being evidence on another entry as well, and anything else
+on your site still pointing at it. In both cases the receipt still leaves the
+list and only the file is spared. Deleting from the media library also needs
+permission to do that - if you have not got it, you are told before anything is
+removed rather than afterwards.
 
 ### Sales handed over by your shop
 
@@ -384,6 +476,47 @@ outside the scope of VAT: all three carry no VAT, but only the shop's own tax
 table knows which it meant, and it only records the rate. If you sell something
 genuinely outside the scope, record that one by hand.
 
+### Purchases from elsewhere on this site
+
+The same arrangement in the other direction. If this site also runs the
+**Purchase Orders** module, approving a supplier's invoice there files it here
+as an expense on its own - one line per line on their invoice, each under the
+category and VAT treatment somebody chose while checking it against the
+delivery. Nobody keys a purchase in twice.
+
+There is nothing to switch on and nothing to set up. It appears when both
+modules are installed and does nothing at all when they are not, and the switch
+that governs it - **Put approved bills straight into the books** - lives with
+the rest of the purchasing settings, since that is where the person doing the
+buying looks.
+
+**The invoice comes with it**, as a link to the file already in your media
+library rather than a second copy of it. One document, in one place, and the
+purchasing module's own housekeeping knows it is spoken for.
+
+**The VAT is the VAT on their invoice.** A supplier who rounds line by line
+where the software rounds once lands a penny or two out on a long invoice, and
+the figure in your accounts has to be the one on the document anybody would be
+shown. Where an invoice says reverse charge applies, no VAT goes on the line at
+all: the rate is carried across and the return works the notional figure out
+from it, which is what puts the same amount in box 1 and box 4.
+
+**Withdrawing a bill takes the purchase back out.** Exactly as a voided sale
+does: removed outright while the return it belongs to is still open, and
+reversed in the open period once that return has been filed or the money has
+been matched to a bank line.
+
+**A supplier credit reduces what you spent.** When goods go back and the credit
+arrives, the expense and the input VAT come off, dated the day the credit
+arrived. Unlike a sales credit note, this does not insist the purchase is
+already here - goods often go back long before the invoice turns up, and the
+credit is real either way. Where the purchasing module can point at exactly one
+posted invoice for that order, the entry corrects it; otherwise it stands on its
+own.
+
+Each bill and each credit is recorded once and once only, and anything refused
+here comes back in plain words on the bill itself, with a button to try again.
+
 ### Importing a bank statement
 
 First, tell it where your money sits. **Settings → Bookkeeping → Bank accounts**
@@ -442,6 +575,18 @@ a whole selection at once:
   closely enough to be sure, it is offered with the reason it was offered, so you
   can disagree. Where two entries are equally plausible, nothing is offered at
   all: a wrong match looks explained, so nobody ever looks at it again.
+- **Say which invoice it was.** If the receipt is already sitting in
+  **Receipts**, it is offered here with a paperclip beside it, and why it was
+  offered. Press **That is the invoice** and the entry is written for you: the
+  amount and the date paid from the bank, and the supplier, the invoice number,
+  the invoice date and the VAT from the invoice itself. The VAT is taken exactly
+  as your supplier printed it rather than worked out again from a rate - their
+  rounding is the record, and they have already told us. The receipt ends up
+  attached to the entry it paid for. You still say what it was for, because that
+  is the one thing neither the bank nor the invoice knows. If the right receipt
+  is in the pile but was not offered - a part payment, a photograph, an invoice
+  dated months from the payment - **Pick a receipt** shows you the whole pile to
+  choose from.
 - **Record it as a new entry.** The date, the name, the reference and the amount
   come straight off the bank's own line, so the only thing to supply is what it
   was for. The category comes pre-picked from what you filed that name under last
@@ -451,6 +596,13 @@ a whole selection at once:
   between two accounts you own, where the other side is already recorded - with a
   note saying why, because "why is this one ignored" is the question somebody
   will ask in a year.
+
+**An invoice is only offered where it means something.** Its total has to be
+this payment to the penny, or the name has to be an unmistakable match, and
+never neither - the same rule as for entries, and for the same reason. A
+suggestion that is wrong and plausible is worse than none at all, because it
+looks explained and nobody looks again. A photograph nothing could be read off
+is therefore not offered against anything until you have told it who it is from.
 
 **Ticking a line off fills in two things on the entries behind it.** The date it
 was paid, and which account it was paid from - both taken from the bank's own

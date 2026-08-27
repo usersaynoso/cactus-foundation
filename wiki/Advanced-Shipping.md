@@ -71,6 +71,15 @@ It needs the **Shop** and **Product Attributes** modules installed.
   the services that combination can actually be bought with. Worth doing if your
   range is broad enough that the row reads as a list of things the shopper
   cannot have rather than a nudge towards something better.
+- **On a product card**, in a category, a collection or one of your filter
+  pages: **"Delivery in as little as 4 days."** under the price, and
+  **"Installation available."** after it where installation is one of the
+  services that product is offered. It is a floor rather than a promise for a
+  particular version - the exact date for whichever one a shopper settles on is
+  on the product page - and a product no delivery service reaches, or one your
+  stock rules will not promise a date for, simply says nothing rather than
+  guessing. See *Putting the delivery line on your product cards* below for how
+  to add it.
 - In the basket: each line states what it has already chosen - a ticked bar
   reading **"Arrives by Thursday 6th of August"**, the service name beside it and the price
   on the right (**Free**, or what it adds). Every other service for that line
@@ -227,6 +236,43 @@ weekday ("Monday"); past a week it adds the date ("Monday 3rd") so "Monday" can
 never be mistaken for the one three weeks off; past four weeks it adds the month
 too ("Monday 3rd Aug").
 
+## Putting the delivery line on your product cards
+
+Go to **Layouts > Shop > Product Card** and drag in the **Card: Delivery**
+piece, under the price. Design the card once and every grid in the shop prints
+it: categories, collections, your filter pages, tag pages, the related and
+featured strips, and search results.
+
+What it says is worked out from the delivery services that product is actually
+offered - the soonest date any of them could manage, counted from today with
+your cut-off, dispatch time, shipping days and bank holidays all taken into
+account. On a product sold in several versions the answer comes from the
+versions rather than the listing, for the same reason the product page's picker
+does.
+
+The piece carries these settings:
+
+- **Wording**, with `{days}` standing in for the figure. The default is
+  *"Delivery in as little as {days} days."* If you would rather count in working
+  days, say so in the wording and set **Count the days as** to match. Where the
+  answer is a single day it reads "1 day", not "1 days".
+- **Word that marks a service as installation** and the **line to add** when one
+  is offered. Both are yours to change: a shop that calls it Fitting, or
+  Assembly, sets that here and the extra line follows.
+- **Text size**, **text colour** - picked from your site palette, with a
+  separate colour for dark mode - **alignment**, and the **space above** and
+  **below**, each set on its own.
+- **Shrink the wording to fit on one line.** Cards are narrow and the sentence
+  is as long as the number in it, so on a four-across grid it can wrap where a
+  two-across one would not. Switch this on and the line measures the card it
+  landed in and takes the type down just far enough. It will not shrink past the
+  smallest size you could have set by hand, so a sentence with nowhere left to
+  go wraps as normal rather than being squeezed into something nobody can read.
+
+If a product is missing its line, it has no delivery service reaching it. The
+**Missing shipping rules** tab under Tax & shipping lists exactly which products
+those are.
+
 ## Orders that are paid for later
 
 Some orders are placed today and paid for later. A **bank transfer** (or cash) is
@@ -248,7 +294,10 @@ Advanced Shipping handles that on its own, with nothing to switch on:
 - **Until the money arrives**, the order shows each item's delivery as a lead
   time instead of a date - "Standard Delivery - 5 working days from when your
   payment reaches us" - on the thank-you page, in the customer's account, and in
-  your admin. No date is promised, because none can be.
+  your admin. No date is promised, because none can be. If the shop sends
+  proforma invoices, the same lead time is printed against every line on the
+  proforma, which is where the person deciding whether to pay actually reads it
+  (see [Shop](Shop) → Proforma invoices).
 - **The moment the payment lands** - you marking a transfer received, or the bank
   confirming an authorised payment has cleared - every line is re-dated from that
   day and reads as a proper date again. The confirmation email only goes out at

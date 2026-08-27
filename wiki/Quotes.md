@@ -50,13 +50,13 @@ Prices are **today's**, and anything that has moved since they saved is spelled 
 
 Everything arrives under **Shop → Quotes**.
 
-The list shows saved baskets and quote requests together - they are the same thing at different stages, and you want one answer to "what is outstanding?", not two lists to reconcile. Filter by status (New, Sent, Won, Lost, Expired) or by kind, and search by number, code, name, email or company. A code is found with or without its dash, so pasting one out of a link works. Past twenty-five, the list pages.
+The list shows saved baskets and quote requests together - they are the same thing at different stages, and you want one answer to "what is outstanding?", not two lists to reconcile. Filter by status (New, Sent, Won, Lost, Expired) or by kind, and search by number, code, name, email, company or their own reference. A code is found with or without its dash, so pasting one out of a link works. Past twenty-five, the list pages.
 
 Open one and you can:
 
 - **Price it.** Change any quantity or unit price. On a shop that withholds prices, this is where the figures come from in the first place.
 - **Add or remove lines.** For everything the customer could not put in the basket themselves - installation, a delivery charge, a bespoke item - and for the one they have thought better of. The running total under the table shows the subtotal, the VAT and what they will actually pay as you type.
-- **Correct the customer's details.** Name, company, email, telephone. Somebody who parked a basket without leaving an email and then rang up is the whole reason this is here.
+- **Correct the customer's details.** Name, company, their own reference, email, telephone. Somebody who parked a basket without leaving an email and then rang up is the whole reason this is here.
 - **Change how long it stands.** The "valid until" date is yours to move - extending a quote by a month is the commonest thing anybody ever asks of one. Clear the date entirely for a quote that never lapses.
 - **Write a reply.** It goes on the quote document and in the email. The customer reads this one.
 - **Make internal notes.** The customer never sees these.
@@ -75,6 +75,8 @@ Two things a quote genuinely does not know, and both are handled honestly rather
 - **There is no delivery address**, because nobody was asked for one. The order is created with the customer's name and empty address lines, and carries an internal note telling whoever picks it up to collect an address before dispatch.
 - **There is no payment.** The order is created unpaid, set to bank transfer, which is how most quoted work is settled. Change it on the order if that is not you.
 
+Their own reference goes across with it. If the shop asks for one - **Settings → Shop → Checkout → Their own order reference** - the box appears on the quote request form and on the quote screen, and whatever is in it lands on the order, and from there on the invoice. Nobody gets asked for the same number twice, which is one fewer place for it to be mistyped. It is always optional on a quote, whatever the checkout insists on, for the sensible reason that a purchase order is usually raised *after* a price has been agreed - demanding one up front would be asking for a number that does not exist yet.
+
 ---
 
 ## Designing the quote itself
@@ -86,9 +88,12 @@ Under **Appearance → Layouts → Quotes** you get two designable layouts.
 | Block | What it puts on the page |
 |---|---|
 | Quote: Document style | Nothing of its own. Sets the colours, the spacing and the rule thickness for every other block at once |
-| Quote: Heading | Your logo and name, the quote number, the code, the date and the expiry |
+| Site Logo | Your letterhead. This one is not the quote module's block but the site's own, the same one your header uses |
+| Quote: Heading | The heading, the quote number, the code, the date and the expiry |
 | Quote: Prepared for | Who it is for, and whatever they wrote when they asked |
 | Quote: Who it is between | The same, with your own trading address and details beside theirs |
+| Quote: From | Your own trading name, address and details on their own, to place where you like |
+| Quote: To | Who it is for on its own, with whatever they wrote |
 | Quote: Notice panel | A sentence of your own before the figures - how long the price holds, and what to do about it |
 | Quote: Items | The list, with optional pictures and product codes |
 | Quote: Totals | Subtotal, any delivery or service charges, tax, total |
@@ -102,13 +107,25 @@ Four starters come with it: **Standard quote** (published for you, so the featur
 
 **Start with Quote: Document style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on five blocks. Leave any of them blank and that part keeps the look it had.
 
-Then the blocks take the details: how big the heading and logo are, which way round they sit, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the quote number sits in that list or on its own above it, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether your delivery wording and your terms stack or sit side by side. Every label is a text box.
+Then the blocks take the details: how big the heading is and which side it sits on, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the quote number sits in that list or on its own above it, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether your delivery wording and your terms stack or sit side by side. Every label is a text box.
 
 **Your own address on a quote.** **Quote: Prepared for** names the customer and stops there, which is fine for a quote read on screen. **Quote: Who it is between** puts your own trading name, address and contact details beside theirs, which is what a quote wants once it is going to be printed, forwarded round somebody's office and put in a folder. Those details are the ones you already gave under **Settings → Shop → Invoices** - a quote becomes an order becomes an invoice, and it would be worse than useless for the three to disagree about who is selling. Fill that form in and the column appears; leave it and the column stays off rather than printing blanks.
 
 **Placeholders.** The Notice panel and the Footer are sentences you write, and they take placeholders in double braces so one wording covers every quote: `{{QUOTE_NUMBER}}`, `{{QUOTE_CODE}}`, `{{QUOTE_DATE}}`, `{{VALID_UNTIL}}`, `{{QUOTE_URL}}`, `{{TOTAL}}`, `{{CUSTOMER_NAME}}`, `{{CUSTOMER_COMPANY}}`, `{{BUSINESS_NAME}}`, `{{BUSINESS_EMAIL}}`, `{{BUSINESS_PHONE}}`, `{{BUSINESS_ADDRESS}}`, `{{VAT_NUMBER}}`, `{{COMPANY_NUMBER}}` and `{{SITE_URL}}`. A placeholder with nothing behind it disappears and takes its stray comma or full stop with it - a quote with no expiry date does not go out saying "This quote holds until ." One you have mistyped stays on the page instead, so you can see it on the sample quote in the builder and fix it before anybody gets one.
 
 **The tax row can name the rate.** **Quote: Totals** has a box for it: type `20` and the row reads "VAT at 20%". Left empty it just says VAT, which is what it has always said. A quote does not carry a rate breakdown of its own the way an invoice does, which is why this is typed rather than worked out.
+
+**From and To as separate blocks.** **Quote: Who it is between** draws both columns together and still does. **Quote: From** and **Quote: To** are the same two columns as two blocks, so you can put your own details up under the letterhead and the customer's down beside the dates, size them differently, or drop either into a column block with something else. Your telephone number is a switch on both.
+
+**Sizes are menus now.** Every run of text on the document still has a size setting beside it; they are menus of pixel sizes rather than boxes you type points into, which is the unit everything else in the admin uses. Leave one on **Default** and that text keeps the size it has always had. A size you set before the change is still exactly the size it was, and the menu offers it back to you as its own option.
+
+**Rounded column headings, and the room round them.** With the item table's headings on a shaded band, **Quote: Items** lets you round the corners to any radius you like, put those corners on the outer ends of the band or on every heading cell, set the space above, below and either side of them, choose how wide the item column is, and have the headings read as you typed them rather than IN SMALL CAPITALS. All of it starts on Default, which is the look you already have.
+
+**Rows that have nothing to say are no longer printed.** A quote with no expiry date used to leave a gap in the heading where the "Valid until" line would have been. It does not any more, and the Date and Valid until rows have Show/Hide switches of their own.
+
+**Page settings: paper, margins and scale.** Open the quote layout and click nothing, and the panel on the right is the sheet itself: paper size, portrait or landscape, a margin for each of the four edges, the scale everything prints at, and whether backgrounds and shading print at all. These apply to the PDF and to printing the page from your own browser, so the two finally agree. Deliberately the same settings the shop's invoice uses - a quote and the invoice it becomes end up in the same folder on somebody's desk.
+
+**A footer on every page, not just the last one.** The Footer block on the document prints once, after the last line - fine on a one-page quote and no use on a five-page one. The repeating footer for this isn't a quote setting at all: it's the one shared by everything your site prints, at **Appearance → Layouts → Document Footer**. Design it once and it covers invoices, credit notes, proformas and quotes together, so the quote that turns into an order carries the same footer the invoice does rather than a second one you'd have to keep in step. If you designed one under Shop's older **PDF footer** tab, it has moved here, name and blocks intact - that tab has gone, and there is nothing for you to redo. If you design a tall one, the quote's bottom margin is opened up to fit it, so the small print no longer lands on top of your last few lines. Nothing is published for you: no footer layout means the PDF looks exactly as it did.
 
 **Quote request page** is where the checkout used to be. Two blocks - the shopper's list and the form - with a one-column and a two-column starter.
 
@@ -118,9 +135,15 @@ The wording that fills these in (heading, introduction, validity line, terms) li
 
 Every block has a **Font** box. Leave it empty and that part of the quote uses the typefaces you set under **Appearance → Styles** - headings in your heading font, everything else in your body font. Fill it in and that block uses whatever you pick instead, whether that is one of your own named fonts or anything from the Google catalogue.
 
-### Your name beside your logo
+### Your logo
 
-**Quote: Heading** has a **Shop name in words** setting. Leave it on **Only when there is no logo** and it sorts itself out: most logos already have the name drawn into them, and printing it again beside the picture looks like a mistake because it rather is one - but a shop with no logo still gets a name at the top rather than an empty half of a heading. **Always** and **Never** are there if you would rather decide it yourself.
+Your logo is its own block. It used to be a switch on **Quote: Heading**; it is now the site's own **Site Logo**, dropped above the heading, which means it can be moved, resized, nudged, given a different picture for this document, or left off altogether without touching anything else. It takes the logo from **Settings → Identity**, the same one your site header uses, so the two can never drift apart. With no logo uploaded it prints your shop's name instead.
+
+**If you designed your quote before this changed**, your published layout has a Heading block that no longer prints a logo, and no Site Logo block yet. Open the layout, drag **Site Logo** in above the heading, and publish. Nothing else moves.
+
+### Sizes in points
+
+Every run of text on the quote has a size box beside it, measured in points the way printed paperwork is: the heading, the quote number, the dates, the customer's name and their message, the addresses, the registration lines, the table's column headings, the item rows, the product codes, the detail under a line, the totals, the total itself, the delivery note, your reply, the validity line, the terms, the notice panel and both lines of the footer. Leave a box empty and that text keeps the size it has always had, so a quote you were happy with stays exactly as it was. Typing 9 into the small print and 11 into the item rows is how you get a long list onto one page.
 
 ### Pictures, and how big
 

@@ -75,7 +75,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `requiresModules` | `Array<{name: string, minVersion: string}>` | Optional. Other modules that must already be installed and active, at or above `minVersion`, before this one can be installed. The install route rejects the install with a clear message if a dependency is missing or too old, and the update route re-checks the incoming release's dependencies the same way, so raising a `minVersion` in a new release refuses to land on a site whose dependency is still behind. Uninstalling a module that another active module still depends on is blocked the same way, in reverse. |
 | `cronJobs` | `Array<{path: string, schedule: string}>` | Optional. Scheduled jobs this module needs. `path` must be under `/api/m/<your-module-name>/...` (it's dispatched through the same generic module router as any other module API route, and a path outside your own module is refused). `schedule` is a five-field cron expression, UTC. Core runs these itself, off one Vercel cron entry - see [Module cron jobs](#module-cron-jobs) below for what that means for how precisely your schedule is honoured. |
 | `cspOrigins` | `Record<'script'\|'style'\|'img'\|'font'\|'connect'\|'frame'\|'media'\|'form-action', string[]>` | Optional. External origins your module's **front-end** genuinely needs, per Content-Security-Policy fetch directive. Every installed module's entries are collected by `scripts/generate-module-csp.mjs` into the gitignored `lib/modules/csp-origins.ts` and unioned into the site's policy in `proxy.ts` - so a third-party SDK that draws its own iframes (a payment provider's card fields, a map) loads with nothing for the site owner to configure, and stops being trusted the moment your module is uninstalled. Origins only: `https://` scheme, host, optional port, and at most one leading `*.` label - `https://web.example.com`, `https://*.example.com`, `https://pay.example.com:8443`. **No paths, no `data:`, no `*`, and no policy keywords** - `'unsafe-eval'` is rejected as an origin rather than passed through, and `frame-ancestors` and `base-uri` cannot be touched from a manifest at all. `form-action` **can** be, since 0.5.1239: 3D Secure POSTs its challenge form to the card network's authentication server from an iframe the payment SDK creates inside the site's own document, so the site's own `form-action` governs it - and at `'self'` the shopper gets a blank modal instead of their bank's confirmation step. It and `frame-src` are the only directives that accept a bare `*` (0.5.1241 and 0.5.1242 - one 3D Secure step needs both, since the challenge is POSTed into an iframe pointing at the same host), because the challenge host is chosen by the *shopper's bank* and cannot be enumerated - an allowlist there fails silently for customers who happen to bank elsewhere. Ask for `*` only when you genuinely cannot know the origin in advance; it is a real trade the site owner makes by installing you. Declare only what you actually load: this widens a security policy for every page of somebody else's site. If your service lives on a subdomain of the owner's own site rather than a fixed vendor host, it is not knowable at authoring time - that is what `CSP_EXTRA_ORIGINS` is for. |
-| `cacheBypassCookies` | `string[]` | Optional. Cookie names whose presence means "this request is personal, never let a shared cache hold the answer". Collected by `scripts/generate-module-cache-cookies.mjs` into the gitignored `lib/modules/cache-cookies.ts` and honoured by the site owner's page cache (Settings → General → Speed). Core's own `cactus_session` and `cactus_member_session` are always honoured and never need declaring. **Declare a cookie only if your module renders genuinely different HTML for a visitor carrying it.** A cookie that changes nothing server-rendered - a dismissed banner, a chosen tab, an id your client-side code reads back through your own API - should not be listed: every name here narrows how much of the owner's site can be cached at all. The shop is the worked example of *not* declaring one: its basket cookie is only ever read inside its own cart API, the basket is fetched client-side and never server-rendered into a page, so listing it would have cost every returning shopper their caching for the thirty days the cookie lives while preventing no leak whatsoever. Cookie names only, no values, no wildcards. |
+| `cacheBypassCookies` | `string[]` | Optional. Cookie names whose presence means "this request is personal, never let a shared cache hold the answer". Collected by `scripts/generate-module-cache-cookies.mjs` into the gitignored `lib/modules/cache-cookies.ts` and honoured by the site owner's page cache (Settings → Speed). Core's own `cactus_session` and `cactus_member_session` are always honoured and never need declaring. **Declare a cookie only if your module renders genuinely different HTML for a visitor carrying it.** A cookie that changes nothing server-rendered - a dismissed banner, a chosen tab, an id your client-side code reads back through your own API - should not be listed: every name here narrows how much of the owner's site can be cached at all. The shop is the worked example of *not* declaring one: its basket cookie is only ever read inside its own cart API, the basket is fetched client-side and never server-rendered into a page, so listing it would have cost every returning shopper their caching for the thirty days the cookie lives while preventing no leak whatsoever. Cookie names only, no values, no wildcards. |
 | `autoPlaceBlocks` | `Array<{ type, layoutType, position? }>` | Optional. Blocks core should drop onto matching layouts **when your module is first installed**. For marker blocks only - a block that draws nothing and exists to say "run this module on every page using this layout". `type` is one of your own `puckBlocks` types; `layoutType` is the layout to place it on (`header`, `footer`, or any registered type); `position` is `'end'` (default) or `'start'`. Placement runs from whichever install path gets there first - `markModulesDeploySucceeded()` in `lib/deploy/reconcile.ts`, or `seedPendingModuleLayouts()` on a request path when that reconcile ran on a build without your code - and both sit behind the same `Module.layoutsSeededAt` stamp. **First install only, and deliberately so**: an owner who deletes the block, or moves it somewhere they prefer, must never find it back after an update - that is core editing their site behind their back. It is also never added twice: presence is judged across the whole layout document, zones included. Both the draft and the published copy are written, since an invisible block is not something an owner can notice and publish, but a layout that has never been published stays unpublished. Do **not** use this for anything a visitor can see. See `lib/layout/auto-place-blocks.ts`. |
 
 ### Permission key convention
@@ -352,6 +352,125 @@ A module with its own public "listing" and "single item" pages (Directory's cate
 | `types[].label` | yes | Sub-tab label (e.g. "Category"). |
 | `types[].starterImport`/`starterExport` | no | Module-relative path (no extension) and named export of a `() => Array<{id, name, description, data}>` function providing starter templates for this type. Omit if you don't want to ship any starters. |
 | `types[].editorPreview` | no | `{ "className"?: string, "maxWidth"?: number }`. Only for a **block-internal** layout type - one your own surface stamps into a container of its own rather than rendering as a whole page. Describes that container so the standalone editor and the preview page can reproduce it. See below. |
+| `types[].pageSettingsImport`/`pageSettingsExport` | no | Module-relative path (no extension) and named export of a `{ fields, defaultProps, before }` object giving this type **page settings** - the root-level fields the layout editor shows with nothing selected. See below. |
+
+### Page settings: `pageSettingsImport` / `pageSettingsExport`
+
+Some settings belong to the sheet rather than to any block on it. A PDF's paper
+size, its margins and the scale it prints at are the worked example: no block
+draws them, and putting them on one block would mean an owner who deleted that
+block lost the page.
+
+Declare an export shaped like Puck's own root config and core hands it to both
+the editor and the published render:
+
+```json
+{ "key": "shopInvoice", "label": "Invoice document",
+  "pageSettingsImport": "./lib/doc-page-settings", "pageSettingsExport": "shopDocPageSettings" }
+```
+
+```tsx
+export const shopDocPageSettings = {
+  fields: { pageSize: { type: 'select', label: 'Paper', options: [...] }, /* … */ },
+  defaultProps: { pageSize: 'a4' },
+  before: ShopDocPageStyle,   // optional
+}
+```
+
+- `fields` and `defaultProps` are ordinary Puck root config. The values land in
+  the layout's `builderData.root.props`, where your own server code can read them
+  back - `docPageSetupFromLayout()` in `lib/documents/page-settings` does exactly
+  that on the way into the PDF renderer.
+- `before` is an optional component handed the root props and rendered **ahead
+  of** the layout's blocks. It is where a document turns its page settings into an
+  `@page` rule; it wraps nothing, so a type with page settings and one without
+  produce the same tree around the blocks themselves.
+- A type that declares none keeps `root.fields` undefined, which is what the
+  layout editor reads to hide the root panel entirely - so a Product Card gains
+  nothing it has no use for.
+
+**It has to be client-safe.** The generated `lib/puck/module-layout-roots.ts` is
+imported by the editor config *and* the published RSC config, so anything
+reachable from this export that touches `next/headers`, Prisma or any other
+server-only API poisons the editor bundle. Keep it to plain data, plain functions
+and components that only ever emit markup.
+
+Defaults are the compatibility contract, as everywhere else: make them exactly
+what the layout did before the settings existed, or every published layout of the
+type changes the day you ship them.
+
+### Printing a document: `lib/documents`
+
+A module that prints paperwork - an invoice, a quote, a purchase order - does not
+write its own PDF machinery. Core carries it, in `lib/documents`:
+
+| Import | What it gives you |
+|---|---|
+| `lib/documents/page-settings` | `documentPageSettings` (paper, margins, orientation, scale - point your type's `pageSettingsExport` at it rather than writing your own), `documentFooterPageSettings`, `docPageSetupFromLayout()`, `DocumentFooterRegion` and the `@page` emitter. **Client-safe.** |
+| `lib/documents/pdf` | `renderDocumentPdf({ path, pageSetup, footerCss, label })`, `printPath()`, `documentPdfFilename()` and `DocumentPdfUnavailableError`. Server only. |
+| `lib/documents/footer` | `renderDocumentRunningFooter(ctx)` - the shared repeating footer, as a React tree. Server only, and heavier than the printer: it reads layouts and every module's RSC block map, so keep it out of your PDF route and on the document page. |
+| `lib/documents/context` | `injectDocumentContext(data, ctx, partTypes)` - clones the saved layout and attaches your document to the blocks that read it, once, by reference. |
+
+The shape of a document module is then:
+
+1. **A layout type of your own** for the document itself, with
+   `pageSettingsExport` pointing at core's `documentPageSettings`, and part-blocks
+   that read `_ctx`.
+2. **A public page** that renders that layout, strips the site chrome, and - when
+   `print=1` - renders `renderDocumentRunningFooter(ctx)` inside
+   `<DocumentFooterRegion>`.
+3. **A route** that calls `renderDocumentPdf({ path: printPath(yourPage, token) })`.
+
+Two things that will bite otherwise:
+
+- **The running footer is `documentFooter`, and it is core's.** Do not declare a
+  footer layout type of your own. Add `"documentFooter"` to the `layoutTypes` of
+  any of your blocks that belong on one (small print, a page number, a rule) and
+  they turn up in its picker beside every other module's. One footer, designed
+  once, on everything the site prints - which is rather the point, and the reason
+  the shop's own copy of it was retired rather than kept alongside.
+
+  Starter templates for it go in a top-level `layoutStarters` in your manifest,
+  not in `layoutTypes.types`:
+
+  ```json
+  "layoutStarters": [
+    { "layoutType": "documentFooter", "import": "./lib/starterLayouts", "export": "documentFooterStarters" }
+  ]
+  ```
+
+  They are appended to whatever the type already offers, so several modules can
+  each put their own footer on the menu, and they are never seeded on install -
+  publishing a footer for somebody would silently redesign every document their
+  site prints.
+- **The print URL must not be world-readable.** `printPath()` puts a token in the
+  query string because the headless browser fetches your page over HTTP and
+  carries no session. Sign it, check it, and keep the page out of the search
+  index.
+
+Purchase Orders is the shortest worked example of the whole shape: a
+`purchaseOrderDocument` layout type of its own with thirteen part-blocks, a public
+page at `/purchase-order/<number>`, and `lib/print-token.ts` signing an HMAC over
+the order number *and an expiry thirty minutes out*.
+
+**A second document on the same module** is the same shape again, with two things
+worth copying. Purchase Orders' returns note is a `purchaseReturnDocument` layout
+type with eight part-blocks of its own - but its **Document style** and **Divider**
+blocks are the order's, declared on both layout types in the manifest rather than
+written twice, and its blocks render the same CSS classes. A business that has
+designed one of its documents has designed both, and there is one stylesheet to
+keep right rather than two. Its public page is nested at
+`/purchase-order/returns/<number>` rather than claiming a second `publicBasePath`,
+because a module gets exactly one - two segments deep, so it can never collide with
+the order's own single-segment page. And its token is signed under its own subject
+string (`purchase-return:` rather than `purchase-order:`), so a token minted for one
+document cannot open the other. That page also opens for a
+signed-in user holding the module's own read permission, so the link keeps working
+after the token behind it has aged out - which is what lets one page serve both the
+printer and a human. How long a token should live is a judgement about the
+document: an invoice is a customer's own record and its token never expires, a
+purchase order is what you pay your suppliers and its token is measured in
+minutes.
 
 ### Hosting your types under another module's tab: `host`
 
@@ -407,7 +526,7 @@ Then tag any `puckBlocks[]` entries this layout type should offer, in addition t
 ]
 ```
 
-`scripts/generate-module-layout-types.mjs` runs on every `npm run build`/`npm run dev`, alongside the Puck block generator. It writes two gitignored files: `lib/layout/module-layout-types.ts` (pure data - the groups list and a flat type→group lookup, consumed by the admin Layouts list/picker, `LayoutPuckEditor.tsx`, `app/layout-preview/[id]/page.tsx`, and `DisplayConditionsPanel.tsx`) and `lib/setup/module-starter-layouts.ts` (the starter-template loader functions, merged into core's catalogue by `lib/layout/starter-templates.ts`). Your tagged blocks additionally appear in `moduleComponentsByLayoutType`/`moduleRscComponentsByLayoutType` (from `lib/puck/module-components.ts`), scoped per layout type - core's `getModuleLayoutPuckConfig(type)`/`getModuleLayoutPuckRscConfig(type)` build an editor config from those blocks plus the shared layout/typography/actions/media/content categories (no site/members chrome, which doesn't make sense on a module content page).
+`scripts/generate-module-layout-types.mjs` runs on every `npm run build`/`npm run dev`, alongside the Puck block generator. It writes two gitignored files: `lib/layout/module-layout-types.ts` (pure data - the groups list and a flat type→group lookup, consumed by the admin Layouts list/picker, `LayoutPuckEditor.tsx`, `app/layout-preview/[id]/page.tsx`, and `DisplayConditionsPanel.tsx`) and `lib/setup/module-starter-layouts.ts` (the starter-template loader functions, merged into core's catalogue by `lib/layout/starter-templates.ts`). Your tagged blocks additionally appear in `moduleComponentsByLayoutType`/`moduleRscComponentsByLayoutType` (from `lib/puck/module-components.ts`), scoped per layout type - core's `getModuleLayoutPuckConfig(type)`/`getModuleLayoutPuckRscConfig(type)` build an editor config from those blocks plus the shared layout/typography/actions/media/content categories, and one block out of the site category: `SiteLogo`. The rest of that category stays out (a menu, a login button, a theme toggle mean nothing on a module content page), but a module layout is not always a page - the invoice and the quote are paperwork, and paperwork has a letterhead. That letterhead is core's `SiteLogo` rather than a picture field inside each document module, so every document on the site draws the same logo the same way. Its published render (`SiteLogoWithSiteBranding` in `lib/puck/config.rsc.tsx`) fetches the site's logo itself through a React `cache()`d read, because module layouts never pass through `resolveTemplateData` - the step that fills `logoUrl`/`siteName` in on the header, the footer and the status pages. `lib/puck/module-layout-site-logo.test.tsx` covers both halves.
 
 **Keep your starter file pure data.** It must not import anything server-only (no prisma, no `next/headers`): the admin's new-layout picker imports the merged catalogue directly in the browser to draw a preview of each template. Plain object literals and local helpers, nothing more - which is what every existing module's `lib/starterLayouts.ts` already is.
 
@@ -524,6 +643,7 @@ The slot name (`shop.payments`) is a free string owned by the hosting module - c
 | `core.menu-entity-provider` | Menu editor | Data contract, not a component - lets a module's content appear as menu link targets. |
 | `core.media-reference-rewriters` | Nowhere visible - runs on media edits | Data contract, not a component. A module that stores media urls in its **own** tables registers one async rewriter `({oldUrl,newUrl,oldKey,newKey}) => Promise<void>`; core runs every registered one as the final step of a media reference rewrite, so when the library moves a blob (optimise to WebP, rename, resize, crop, replace) the module's url columns follow it instead of 404ing. Shop uses it for product images (`shp_product_media`), shop-variations for image swatches (`svr_option_values`). Contract in `lib/media/reference-rewriters.ts`. A rewriter may throw: it runs **before** the old blob is deleted, so a failure aborts with the old url still serving. |
 | `core.media-usage-providers` | Nowhere visible - feeds the media library's **Unused** count | Data contract, not a component. A module that references media from its **own** tables registers one async provider `() => Promise<string[]>` returning the raw reference strings those columns hold - media urls, storage keys or `Media` ids, in any mixture, and JSON columns can be returned whole as text. Core folds them into the same haystack it scans page and layout builder JSON with, so the item counts as in use. Register one whenever your module stores a media reference anywhere, or every image your module owns is counted as unused and offered up for bulk deletion. Contract in `lib/media/usage-providers.ts`. If a provider throws, core logs it and treats the **entire** library as in use rather than trusting a half-built index. |
+| `core.inventory-adjuster` | Nowhere visible - runs when something needs a stock count changed | Data contract, not a component. A module that keeps stock counts registers one adjuster `{ label, adjust(adjustments) => Promise<outcomes> }`; anything that needs a count moved (goods arriving on a purchase order, a stocktake, a hire going out) asks core for whatever is registered instead of importing the counting module - whose files are not in the build at all on an install without it. `adjust` is a **batch**: a delivery is a dozen lines, and a dozen round trips is a dozen chances for half of them to land. An adjustment is `{ productId, delta, reason, ref?, userId?, note? }` and an outcome is `{ productId, ok, before, after, message? }`, answered in the order asked. Contract in `lib/inventory/adjusters.ts`. **Do not throw for an ordinary refusal** - an unknown product, one that keeps no count, a move that would go negative - because the caller has already filed the paperwork that prompted it and cannot unfile it; return `ok: false` with a message a person can read. `getInventoryAdjuster()` returns **one**, not all: two modules both counting the same product would each apply the delta and a delivery of six would put twelve on the shelf. Shop registers `shopInventoryAdjuster` (`lib/stock.ts`), which also clears the low-stock reminder and tells the back-in-stock subscribers. |
 | `core.well-known-files` | Nowhere visible - serves `/.well-known/…` | Data contract, not a component. A module that needs a verification file served at a fixed path under `/.well-known/` registers one async provider `() => Promise<Record<string, string>>`, keyed by the path after `/.well-known/` and valued with the file's contents. Core owns the path and knows nothing else - no filenames, no providers, no contents - because the path is fixed by whoever is doing the checking and is out of reach of your own `/api/m/<module>/…` routes. Apple Pay is why it exists: Apple fetches `/.well-known/apple-developer-merchantid-domain-association`, follows no redirect to anywhere more convenient, and refuses its sheet on a domain that has not answered. Contract in `lib/well-known/providers.ts`. Served `text/plain` with `nosniff`, `afterFiles` so a real file in `/public/.well-known` still wins, and a provider that throws is skipped rather than 500ing the path. Return `{}` while the owner has pasted nothing in: an empty file with a 200 reads to a verifying party as a **failed** check, where a 404 reads as an absent one. |
 | `admins.account-section` | Admin **Account settings** page | Per-admin self-service sections, rendered above the Delete account card (e.g. Twilio's SMS login codes card). Omit `permission` for self-service features every admin should see. |
 | `members.account-section` | Member account overview page | Per-member sections (e.g. Shop's latest-order card, Twilio's text-message sign-in codes). No permission filtering - members have no permission keys. A section named by a `members.account-nav` item's `sectionId` is treated differently: it is the tab's own content, so it is drawn **only** on the one-page account, in the tab's place in the running order. Everything else is a card on the overview in both shapes. |

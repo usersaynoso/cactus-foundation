@@ -43,15 +43,22 @@ The preference is saved immediately and the update check refreshes straight away
 | Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
 | Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
 | Measure how fast pages feel for real visitors | Adds Vercel's Speed Insights to your pages: it times how quickly they load for the people actually using them and reports it to your Vercel dashboard. No cookies, nobody identified. Untick it and the script is never sent at all, rather than sent and told to keep quiet - useful if your Vercel plan charges for the measurements. | On |
-| Keep ready-made copies of your pages | Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the same one a minute earlier. Turn this on and a copy is kept for a short while and handed straight out instead - quicker for them, cheaper for you. Anyone signed in always gets a freshly built page. See **Speeding up your site** below. | Off |
-| How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes or 1 hour. | `5 minutes` |
-| My site's traffic goes through Cloudflare | Tick only if visitors genuinely reach your site through Cloudflare - in Cloudflare's DNS settings your site's record shows an **orange** cloud, not a grey one. It tells Cactus where to find a visitor's real location, which is what stops one person getting their password wrong from locking out everyone else nearby. Ticking it when it isn't true is worse than leaving it alone. | Off |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 
 ### Danger zone - Reset Everything
 
 At the bottom of the General tab is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.
+
+### Speed settings
+
+A tab of its own, because these three belong together: they are the ones that decide how quickly a page reaches a visitor.
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Keep ready-made copies of your pages | Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the same one a minute earlier. Turn this on and a copy is kept for a short while and handed straight out instead - quicker for them, cheaper for you. Anyone signed in always gets a freshly built page. See **Speeding up your site** below. | Off |
+| How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes or 1 hour. | `5 minutes` |
+| My site's traffic goes through Cloudflare | Tick only if visitors genuinely reach your site through Cloudflare - in Cloudflare's DNS settings your site's record shows an **orange** cloud, not a grey one. It tells Cactus where to find a visitor's real location, which is what stops one person getting their password wrong from locking out everyone else nearby. Ticking it when it isn't true is worse than leaving it alone. | Off |
 
 ---
 
@@ -69,7 +76,7 @@ Two things people usually ask for are already on, and there is no switch for eit
 
 Out of the box, every visit builds its page from scratch. A hundred people asking for the same page in the same minute means a hundred rebuilds and a hundred trips to the database, and each of those visitors waits for their own.
 
-**Settings → General → Keep ready-made copies of your pages** changes that. A finished page is kept for a short while and handed straight out to whoever asks next. It is usually the single biggest difference you can make to how quickly your site feels, and because a stored copy costs no work, it generally lowers your hosting bill rather than raising it.
+**Settings → Speed → Keep ready-made copies of your pages** changes that. A finished page is kept for a short while and handed straight out to whoever asks next. It is usually the single biggest difference you can make to how quickly your site feels, and because a stored copy costs no work, it generally lowers your hosting bill rather than raising it.
 
 **Who never gets a stored copy:**
 
@@ -90,9 +97,11 @@ The switch works with whatever sits in front of your site. If you would rather n
 1. In the Cloudflare dashboard, open your domain's **DNS** settings. Your site's main record probably shows a **grey** cloud, which means Cloudflare is only answering DNS questions and traffic goes straight past it. Click it so it turns **orange**.
 2. Under **SSL/TLS**, set the encryption mode to **Full (strict)**. Anything else and visitors get an endless redirect loop.
 3. Under **Caching → Cache Rules**, add a rule that applies to your whole site and sets it as **eligible for cache**. Cloudflare's free plan does not store pages by default, only images and scripts, so without this rule nothing changes.
-4. Back in Cactus, tick **My site's traffic goes through Cloudflare** in Settings → General. This one matters for safety rather than speed: without it, everyone arriving through the same Cloudflare location looks like a single visitor, and one person mistyping their password could lock the rest of them out of signing in.
+4. Back in Cactus, tick **My site's traffic goes through Cloudflare** in Settings → Speed. This one matters for safety rather than speed: without it, everyone arriving through the same Cloudflare location looks like a single visitor, and one person mistyping their password could lock the rest of them out of signing in.
 
-**Optional, but worth it.** Set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` (see the environment variables table) and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Everything works without them; you just wait a bit longer to see your own changes.
+**Optional, but worth it.** Fill in `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` in the **Clearing copies the moment you edit** card at the bottom of Settings → Speed, and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Like every credential entered through the admin, they take effect on the next deployment. Everything works without them; you just wait a bit longer to see your own changes.
+
+Once both are set (and live - after that next deployment) a **Purge everything now** button appears underneath, for anything that does not go through a page save: a new theme, a bulk price change. It calls Cloudflare directly and tells you straight away whether it worked, rather than waiting quietly for pages to age out.
 
 ---
 
@@ -145,7 +154,13 @@ A fresh site starts with three to choose from - **Default Email** (logo, message
 
 Colour boxes take either a colour name from your Styles page (`primary`, `text`) or a plain hex code. The first is the better habit: change your site's colours and your emails follow.
 
-There is no Conditions tab on an email wrapper. Which email uses which design is set per email on the Templates tab, not by a page rule.
+**Background patterns work here too**, with the caveats email always brings. The wrapper's own settings (click the page background, not a block) take a **Background pattern**, a **Pattern size** in pixels, a **Background pattern in dark mode** and a **Pattern size in dark mode** - the same tile often wants to be bigger to read against a dark background, and either dark setting on its own is enough to make the difference. The pattern tiles behind the message card, in the email itself rather than only in the builder. Three things worth knowing before you reach for one:
+
+- The picture has to come from your media library, so it has an address the recipient's email program can actually fetch. A pattern is a background, and many email programs block images until the reader clicks "show images" - so treat it as decoration, never as something the message needs to make sense.
+- **Pattern size is a request, not a promise.** Outlook on Windows tiles the picture at its own natural size and ignores the setting entirely. Pick a picture that already tiles at roughly the size you want and the setting becomes a nicety rather than a necessity.
+- **The dark mode pattern only reaches some programs** - Apple Mail, Mail on iPhone and iPad, and Outlook for Mac. Gmail does its own thing with dark mode and shows the light pattern regardless. Setting one also tells those programs that you have handled dark mode yourself, so they stop applying their own automatic darkening to the rest of the email. That is usually what you want if you have gone to the trouble, but it is a change to the whole email, not just the pattern - leave the dark box empty and nothing about your emails changes.
+
+There is no Conditions tab on an email wrapper. Which email uses which design is set per email on the Templates tab, not by a page rule. A couple of emails are not on that tab at all - the contact form's reply and its auto-reply are free text you write on the day rather than a template - and those always use the site default, which is one more reason to keep the top of the priority order pointed at the design you actually want.
 
 ---
 

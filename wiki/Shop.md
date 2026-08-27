@@ -325,9 +325,13 @@ The invoice is a layout, like the shop's other pages. **Appearance → Layouts �
 
 | Block | What it prints |
 | --- | --- |
-| Document style | Nothing of its own. Sets the colours, the spacing and the rule thickness for every other block at once |
-| Heading | Your logo, the heading, the invoice and order numbers, the date and any due date |
-| From and to | Your details and registration numbers, who it is for, and the delivery address when it differs |
+| Style | Nothing of its own. Sets the colours, the spacing and the rule thickness for every other block at once |
+| Site Logo | Your letterhead. This one is not the shop's block but the site's own, the same one your header uses |
+| Heading | The heading, the invoice and order numbers, the date and any due date |
+| From | Your details, your registration numbers and, if you want it, your telephone number |
+| To | Who it is for, and the delivery address when it differs from theirs |
+| From and to (both columns) | Both of the above as one block. What every invoice designed before the split uses, and it carries on working |
+| Page number | "Page 2 of 3". Only says anything on the Document Footer layout - see below, and it is only offered there |
 | Notice panel | A sentence of your own before the figures - how to pay, what the order was, when it falls due |
 | Items | What was bought, with options and an optional rate column. Product codes are off unless you turn them on |
 | Totals | Subtotal, discount, delivery, tax and the total |
@@ -336,17 +340,47 @@ The invoice is a layout, like the shop's other pages. **Appearance → Layouts �
 | Footer | The line at the foot of company paperwork: where to find you, your company number and your VAT number |
 | Divider | A rule, for the gaps the blocks either side of it do not rule themselves |
 
-Every block takes a font of its own and its own labels, so an invoice can be made to look like your letterhead rather than like everyone else's. Four starters come with it: a standard invoice, a **designed** one with all the above in place, one with the tax rate against every line for a shop selling at more than one rate, and a plain one.
+Every block takes a font of its own, a size for each run of text it prints, and its own labels, so an invoice can be made to look like your letterhead rather than like everyone else's. Four starters come with it: a standard invoice, a **designed** one with all the above in place, one with the tax rate against every line for a shop selling at more than one rate, and a plain one.
 
-**Start with Document style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on six blocks. Leave any of them blank and that part keeps the look it had.
+**From and To are now two blocks.** They used to be one, which was fine as long as you wanted them side by side and the same size. Separately you can put your own details up under the letterhead and the customer's down beside the dates, size them differently, or drop either into a column block with something else. Both carry a switch for the telephone number - yours prints as it always did, theirs is off unless you ask for it. If your invoice already uses the old block nothing changes: it is still there, still works, and is now called **From and to (both columns)**.
 
-Then the blocks themselves take the details: how big the heading and the logo are, which way round they sit, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the invoice number sits in that list or on its own above it, whether your details or the customer's come first, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether "How to pay" and "Terms" stack or sit side by side. Every label on the document is a text box - "Description" can read "Item", "Unit price" can read "Unit ex VAT".
+**Your logo is its own block.** It used to be a switch on the Heading block; it is now the site's own **Site Logo**, dropped above the heading, which means it can be moved, resized, nudged, given a different picture for this document, or left off altogether without touching anything else. It takes the logo from **Settings → Identity**, so replacing the logo there changes every invoice, including old ones - which is what you want, since nobody reprints a two-year-old invoice hoping to see the old mark on it.
 
-**Placeholders.** The Notice panel and the Footer are sentences you write, and they take placeholders in double braces so one wording covers every invoice: `{{INVOICE_NUMBER}}`, `{{ORDER_NUMBER}}`, `{{INVOICE_DATE}}`, `{{TAX_POINT}}`, `{{DUE_DATE}}`, `{{TOTAL}}`, `{{CUSTOMER_NAME}}`, `{{CUSTOMER_COMPANY}}`, `{{BUSINESS_NAME}}`, `{{BUSINESS_EMAIL}}`, `{{BUSINESS_PHONE}}`, `{{BUSINESS_ADDRESS}}`, `{{VAT_NUMBER}}`, `{{COMPANY_NUMBER}}` and `{{SITE_URL}}`. A placeholder with nothing behind it on a particular invoice disappears and takes its stray comma or full stop with it, so an order with no payment terms does not go out reading "due by ." One you have mistyped stays on the page instead, so you can see it on the sample invoice in the builder and fix it before anybody is invoiced.
+**If you designed your invoice before this changed**, your published layout has a Heading block that no longer prints a logo, and no Site Logo block yet. Open the layout, drag **Site Logo** in above the heading, and publish. Nothing else moves.
+
+**Sizes.** Every run of text on the document has a size menu beside it: the heading, the invoice number, the dates, the addresses, the registration lines, the table's column headings, the item rows, the product codes, the options under a line, the totals, the total itself, the tax summary, the payment wording, the notice panel and both lines of the footer. Leave one on **Default** and that text keeps the size it has always had, so an invoice you were happy with stays exactly as it was. Dropping the small print to 10px and the item rows to 13px is how you get a long order onto one page.
+
+These used to be boxes you typed a number of points into. They are menus of pixel sizes now, which is the unit everything else in the admin uses and the unit the builder is showing you. If you set a size before the change, it is still exactly the size it was, and the menu offers it back to you as its own option so you can see what you have.
+
+**Page settings: paper, margins and scale.** Open the invoice layout and click nothing, and the panel on the right is the sheet itself: paper size (A4, A5, A3, Letter, Legal, Tabloid), portrait or landscape, a margin for each of the four edges, and the scale everything prints at. Set the scale to 80% and a five-page order becomes a four-page one; leave it at 100% and nothing moves. You can also turn backgrounds and shading off entirely, which your ink budget may thank you for. These apply to the PDF **and** to printing the page from your own browser, so the two finally agree.
+
+**One footer, on every page, on everything.** The Footer block on the document itself prints once, after the last line - fine on a one-page invoice, no use on a four-page one. So there is a separate layout, printed into the bottom margin of every page of the PDF. Design it once and it covers the lot - invoices, credit notes, proformas, and quotes too, if you have that module. The **Page number** block is the one that counts the pages, and it only works here - it is filled in by the thing doing the printing, which is the only thing that knows how many pages there were.
+
+These blocks now read **Document: Style**, **Document: Notice panel**, **Document: Footer**, **Document: Divider** and **Document: Page number** in the block list, where they used to say "Invoice:". They were never only the invoice's - the credit note, the proforma, the quote and a purchase order all draw with them - and a block called "Invoice: Page number" at the foot of a purchase order was a small lie told several times a day.
+
+**It lives at Appearance → Layouts → Document Footer**, which is Cactus's own rather than the shop's - so when you add something that prints paperwork of its own, it turns up on the same designed strip instead of asking you to build a second one. There used to be a second, shop-only **PDF footer** tab as well, which was one footer too many for anybody's good: it has gone, and anything you designed under it has moved across to Document Footer with the same name, the same blocks and the same settings. Nothing to redo, nothing to publish again, one entry in the list where there were two.
+
+**Two blocks are deliberately not offered on it.** **Style** is not, because the look of a document is set on the document, and a footer quietly disagreeing with the invoice above it is not a feature. **Footer** is not either, because the whole layout is the footer - one inside the other was a matryoshka doll nobody asked for. Small print that used to go in the Footer block goes in the **Notice panel** instead, set to **Small print**: the same wording, the same `{{PLACEHOLDERS}}`, no box round it. **If you already had a Footer block on a footer layout, it will no longer print - swap it for a Notice panel.**
+
+Two things worth knowing. The footer sits **in the bottom margin**, and it now makes its own room: design a taller one and the document's bottom margin is opened up to fit it rather than the small print being printed over your last few lines. Your own margin setting is the floor, never the ceiling, so a generous margin stays generous. And nothing is published for you: no Document Footer means the PDF looks exactly as it did.
+
+**Start with Style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on six blocks. Leave any of them blank and that part keeps the look it had.
+
+Then the blocks themselves take the details: how big the heading is and which side it sits on, whether the rule underneath is a hairline or thick in your colour, whether the dates read as two ruled columns or one line each ("Issued 6 April 2026"), whether the invoice number sits in that list or on its own above it, whether your details or the customer's come first, whether the table headings sit on a shaded band, whether the total is simply bold or set large above an accent rule, and whether "How to pay" and "Terms" stack or sit side by side. Every label on the document is a text box - "Description" can read "Item", "Unit price" can read "Unit ex VAT".
+
+**Rounded column headings, and the room round them.** With the item table's headings on a shaded band, **Items** lets you round the corners to any radius you like, put those corners on the outer ends of the band or on every heading cell, and set the space above, below and either side of them. The same block sets how much room an item row gets, how wide the description column is, and whether the headings read IN SMALL CAPITALS or exactly as you typed them. Where the Style block sets a corner radius for the whole document, this one overrides it for this table alone. Every one of those menus starts on Default, which is the look you already have. The tax summary has a matching corner setting for its own headings.
+
+**Rows that have nothing to say are no longer printed.** An invoice with no due date used to leave a gap in the heading where the "Due by" line would have been. It does not any more - a line with nothing beside it is not a line. The Date and Due by rows also have Show/Hide switches of their own now, for a shop that would rather not print either.
+
+**Their own reference gets a row.** Where a customer has given you their purchase order number, the heading prints it under the order number. It arrives switched on and needs nothing doing: an invoice raised before you started asking has no number on it, and a row with nothing beside it is not a row. Rename that row, or hide it, on the **Heading** block like any other - leave the label blank and it reads whatever you called the box in Shop settings.
+
+**Paid invoices can drop the payment details.** **Payment and terms** has an **Once it has been paid** setting: leave off how to pay and the terms, leave off just how to pay, or print both anyway. Money already in the bank does not need a set of bank details beside it, and a customer reading one on a settled invoice reasonably wonders whether they have been billed twice. New blocks leave both off; an invoice layout you designed earlier keeps printing them until you say otherwise.
+
+**Placeholders.** The Notice panel and the Footer are sentences you write, and they take placeholders in double braces so one wording covers every invoice: `{{INVOICE_NUMBER}}`, `{{ORDER_NUMBER}}`, `{{INVOICE_DATE}}`, `{{TAX_POINT}}`, `{{DUE_DATE}}`, `{{TOTAL}}`, `{{CUSTOMER_NAME}}`, `{{CUSTOMER_COMPANY}}`, `{{CUSTOMER_REFERENCE}}`, `{{BUSINESS_NAME}}`, `{{BUSINESS_EMAIL}}`, `{{BUSINESS_PHONE}}`, `{{BUSINESS_ADDRESS}}`, `{{VAT_NUMBER}}`, `{{COMPANY_NUMBER}}` and `{{SITE_URL}}`. A placeholder with nothing behind it on a particular invoice disappears and takes its stray comma or full stop with it, so an order with no payment terms does not go out reading "due by ." One you have mistyped stays on the page instead, so you can see it on the sample invoice in the builder and fix it before anybody is invoiced.
 
 **The tax summary knows when to keep quiet.** Set it to appear only when there is more than one rate and a shop selling everything at 20% drops the table - the totals row already says "VAT at 20%", if you have asked it to. The table comes back on its own the first time an invoice carries two rates, with nobody having to remember.
 
-Two things the invoice leaves out on purpose. Your **business name in words** is printed only where there is no logo, since most logos have the name drawn into them already and printing it twice beside itself looks like a mistake - the Heading block will print it always, or never, if you would rather. And **delivery dates never appear on an invoice**. They belong on the confirmation email, where they are still a live question; an invoice is read months later by an accountant, by which time "by Wednesday the 2nd" is either history or wrong.
+One thing the invoice leaves out on purpose: **delivery dates never appear on an invoice**. They belong on the confirmation email, where they are still a live question; an invoice is read months later by an accountant, by which time "by Wednesday the 2nd" is either history or wrong.
 
 You do not have to design anything to start. Until you publish a layout of your own, invoices print with the standard arrangement above.
 
@@ -384,6 +418,54 @@ Whatever the books say comes back onto the order's invoice panel in words - "Rec
 
 ---
 
+## Proforma invoices
+
+Somebody orders three desks on bank transfer. Their accounts department will not release the money without a document to file against it, and you cannot give them a VAT invoice, because a VAT invoice is a record of a payment and nobody has paid. The order sits there. Everybody waits.
+
+A **proforma invoice** is the document that unblocks that. It says what is owed, how to pay it, and how long each item takes once the money lands - and it says on its face that it is not a VAT invoice, so nobody tries to reclaim the tax on it. The real invoice still follows, in its own time, with its own number.
+
+Proformas are **off** until you switch them on: **Settings → Shop → Invoices → Send a proforma invoice on orders nobody has paid yet**. It is a switch of its own, not a sub-setting of invoicing - a shop can send proformas without invoicing anything, and the other way round.
+
+### Which orders get one
+
+Any order settled by hand: bank transfer, cash, and anything else where the money arrives later rather than at the checkout. Cards and the like are paid at the moment of ordering, so there is nothing to send a request for payment about.
+
+The proforma stays available after the money arrives, and restates itself as paid. A buyer who paid last spring still has it in their filing, and taking the link off them at the moment it cleared would be a strange thing to do to somebody's paperwork.
+
+### What is on it
+
+- **Numbered with the order number**, not an invoice number. It is not an invoice, so it does not eat one - a gap in your invoice numbering is a question you would rather not be asked.
+- **Your trading details and your VAT registration**, exactly as they appear on your invoices. Same business, same paper.
+- **How to pay**, taken straight from whatever you have written for that payment method on the **Payments** tab. The proforma, the thank-you page and the "here is how to pay" email therefore quote the same account details, and editing them in one place changes all three.
+- **Lead times against every line.** This is the one place they appear on paperwork, and deliberately: an unpaid line reads "5 working days from when your payment reaches us" rather than a date, because nothing is dispatched before it is paid for and a date would be a promise from a starting gun that has not fired. It needs the **Advanced Shipping** module to have anything to say; without it the lines simply carry their options as usual.
+- **Terms saying the clock has not started.** Your own words, in **Settings → Shop → Invoices → Proforma invoices**. The default says nothing is dispatched and no lead time begins until payment clears, which is the thing customers most often assume the opposite of.
+- **"This is not a VAT invoice"**, in the panel at the top, in whatever words you choose.
+
+Unlike an invoice, a proforma is **not frozen**. An invoice is a record of a day and is kept exactly as it was issued; a proforma is a live request against an order that can still change, so it is drawn fresh every time it is opened and always shows what is actually owed today.
+
+### Designing it
+
+Its own layout, under **Appearance → Layouts → Shop → Proforma document**. The same blocks your invoice is built from, so if you have laid one out you already know how - and there is a **Standard** and a **Designed** template to start from, exactly as there is for the invoice.
+
+It is a separate layout on purpose. The two documents disagree in half a dozen places at once, and editing the request-for-payment should never be able to disturb the document your accountant reads.
+
+The written blocks take one extra placeholder here: `{{PROFORMA_NOTICE}}`, which is the "this is not a VAT invoice" line from your settings. On an invoice it prints nothing at all, so it cannot go astray.
+
+It has page settings of its own too, so a proforma can be on different paper or at different margins from the invoice that follows it. The **Document Footer** is the same one your invoice uses - one footer, designed once, on every document you send.
+
+Until you make a layout of your own, proformas print with the standard arrangement.
+
+### Where it turns up
+
+- **On the thank-you page**, under the bank details, as **Download your proforma invoice**.
+- **On the customer's own order page**, beside the printable receipt - until the real invoice is raised, at which point the proforma link goes and the invoice takes its place. A proforma says in as many words that it is not a VAT invoice, and having both sitting there is how somebody ends up handing their bookkeeper the wrong one.
+- **Attached to the "we have your order, here is how to pay" email**, as a PDF. This is the one that matters: that email is what gets forwarded to whoever actually presses the button at the bank, and a file they can file beats a link they have to click. Switch it off in settings if you would rather it did not.
+- **On the order in the admin**, as a **Proforma** card with **View** and **PDF** - handy when somebody rings up asking for it again.
+
+Every link is signed, so it works from a forwarded email without anybody signing in, and it carries nothing personal in the address itself. If printing a PDF is not possible on your hosting, switch **Offer PDF downloads** off and every link falls back to the on-screen copy.
+
+---
+
 ## Credit notes
 
 An invoice says what you charged. A credit note says how much of it you have since handed back. They are two documents and both belong in the file: a customer with a refund on their card statement and nothing on paper has nothing to give their own accountant, and a set of books still carrying the whole sale is a set of books paying VAT on money you no longer have.
@@ -404,7 +486,7 @@ Credit note numbers look like `CN-000001`, and they run in a sequence of their o
 
 ### What it looks like
 
-The same as your invoice, because it **is** your invoice layout. There is nothing else to design: the credit note is drawn by the same six blocks on the same **Invoice document** layout, so an afternoon spent on your letterhead does the job twice. It leads with its own number, names the invoice it credits underneath, prints no due date because nothing is due, and where an invoice says "Paid in full - thank you" this says the money has gone back. That last line is yours to word.
+The same as your invoice, because it **is** your invoice layout - page settings and all, and the same shared **Document Footer** too. There is nothing else to design: the credit note is drawn by the same six blocks on the same **Invoice document** layout, so an afternoon spent on your letterhead does the job twice. It leads with its own number, names the invoice it credits underneath, prints no due date because nothing is due, and where an invoice says "Paid in full - thank you" this says the money has gone back. That last line is yours to word.
 
 Figures are printed as positive amounts under a "Credit note" heading, which is how a credit note is written and what your customer expects to read. A column of minus signs looks like a mistake.
 
@@ -442,6 +524,16 @@ One thing the books will refuse: crediting an invoice they have never seen. If t
 ## Back-in-stock alerts
 
 When a product is out of stock, visitors can leave their email address to be notified the moment it's back. The moment you top the stock back up (or switch it to allow backorders), Cactus emails everyone waiting automatically - no extra step needed on your part.
+
+This now holds however the stock came back, not only when you typed it into the product editor. If another part of your site puts stock back on the shelf - a delivery booked in through the Purchase Orders module, say - the people waiting are told just the same. They used to be told only when the change came from the product page, which meant the one case where stock reappeared quietly was the one where somebody was actually waiting for it.
+
+---
+
+## Where a stock figure came from
+
+Every deliberate change to a stock count is now written down: how much it moved by, what it was before and after, why, and who or what asked. A count that disagrees with the shelf has something to read behind it rather than being a number that simply changed one Tuesday.
+
+This starts from empty and fills up as things happen; there is nothing behind it from before this release, because a half-filled history that looks complete is worse than an honest empty one.
 
 ---
 
@@ -813,6 +905,22 @@ Two switches go with it. One makes the box compulsory, so an order can't be plac
 The organisation shows up on the order in the admin, in the customer's details, and it's what the orders list leads with so a trade order reads as "Acme Ltd" rather than as whoever in the office typed the card number. Search finds it too. Orders placed before this moved keep what they were given - nothing was lost in the shuffle, it simply moved column.
 
 Signed-in customers can change it themselves on their account page, beside their name.
+
+### Asking for their own order reference
+
+Sell to businesses and sooner or later somebody's accounts department will ask you to put their purchase order number on the invoice. Leave it off and the invoice tends to sit in a tray rather than get paid, which is a slow and thoroughly avoidable way to be out of pocket.
+
+**Settings → Shop → Checkout → Their own order reference** adds a box for it, directly under the organisation on the contact step. Same two switches as the organisation above: one makes it compulsory, the other lets you call it what your customers call it - Purchase order number, Job reference, Cost centre, whatever it is on your trade. Left off, nobody sees an extra box.
+
+Once it's on, that number follows the order about:
+
+- It's on the order in the admin, and you can **add or change it there** - which matters, because it usually turns up the morning after the order does, when somebody rings with the number their finance team has finally raised.
+- **Search finds it.** Type their number into the orders search and you get their order, which saves explaining that you file things under a different number to they do.
+- It **prints on the invoice and the proforma**, on the row under the order number. Nothing to set up: the document blocks already carry it, and you can rename or hide that row on your invoice layout like any other.
+- It's on the **order emails** - the confirmation, the how-to-pay one, and your own new-order alerts - so everyone has it in writing.
+- It's a column in the **orders CSV export**.
+
+One thing worth knowing: an invoice you've already issued keeps the reference it was issued with. Change it on the order afterwards and the invoice doesn't quietly rewrite itself, because a document already sitting in somebody's filing is a record rather than a view. If a number went out wrong, that's a credit note and a fresh invoice, same as anything else on an invoice.
 
 ### Tickboxes at checkout
 
