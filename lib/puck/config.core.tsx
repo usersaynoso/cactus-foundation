@@ -1437,10 +1437,57 @@ function Heading(props: any) {
   )
 }
 
+// Text sizes as a menu, in PIXELS.
+//
+// `base`, `md` and `lg` are the original three and keep their stored values, so
+// every saved layout renders exactly what it always did - only their labels
+// changed, from rem to the pixel figure they have always resolved to. "1.125rem"
+// means nothing to somebody laying out the foot of an A4 invoice.
+//
+// The rest are plain pixel sizes. 16, 18 and 20 are deliberately absent: they are
+// what the three named ones already are, and two menu entries producing identical
+// type is a thing to get wrong rather than a choice.
+const TEXT_SIZE_PX = [8, 9, 10, 11, 12, 13, 14, 15, 22, 24, 28, 32, 40, 48, 56, 64]
+
+const TEXT_SIZE_OPTIONS = [
+  { value: 'base', label: 'Base (16px)' },
+  { value: 'md', label: 'Lead (18px)' },
+  { value: 'lg', label: 'Large (20px)' },
+  ...TEXT_SIZE_PX.map((n) => ({ value: `${n}px`, label: `${n}px` })),
+]
+
+/** The named scale, or a pixel value straight off the menu. Anything else - a
+ *  value from a future menu, a hand-edited prop - falls back to the base size
+ *  rather than emitting `font-size:nonsense` and inheriting whatever is around. */
+const PX_SIZE_RE = /^\d+(?:\.\d+)?px$/
+function textFontSize(size: string): string {
+  const named: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
+  return named[size] ?? (PX_SIZE_RE.test(size) ? size : '1rem')
+}
+
+/** A pixel size off the optional menu as a style object, or nothing at all. Kept
+ *  as one function because the editor render and the published RSC render must
+ *  produce the same markup, and they live in different files. */
+export function richTextFontSize(value: unknown): { fontSize: string } | undefined {
+  const size = typeof value === 'string' ? value.trim() : ''
+  return PX_SIZE_RE.test(size) ? { fontSize: size } : undefined
+}
+
+/** The same menu for a block with no named scale of its own. Blank means
+ *  "whatever the page gives it", which is how every Rich Text block behaved
+ *  before there was a size on it at all - so a saved one is untouched until
+ *  somebody picks something. This list carries 16, 18 and 20 because there are no
+ *  named entries here for them to collide with. */
+const OPTIONAL_TEXT_SIZE_OPTIONS = [
+  { value: '', label: 'Default' },
+  ...[...TEXT_SIZE_PX, 16, 18, 20]
+    .sort((a, b) => a - b)
+    .map((n) => ({ value: `${n}px`, label: `${n}px` })),
+]
+
 function TextBlock(props: any) {
   const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const body = puck?.isEditing ? content : linkifyEmails(content)
-  const sizeMap: Record<string, string> = { base: '1rem', md: '1.125rem', lg: '1.25rem' }
   const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
   // default/muted/dark are the legacy preset values; anything else is a raw
   // CSS colour from the swatch/manual picker. Blank keeps the old secondary.
@@ -1464,7 +1511,7 @@ function TextBlock(props: any) {
     const mw = maxWidthMap[m]
     const ml = mw && (a === 'center' || a === 'right') ? 'auto' : '0'
     const mr = mw && a === 'center' ? 'auto' : '0'
-    return `text-align:${a};font-size:${sizeMap[s] ?? '1rem'};max-width:${mw ?? 'none'};margin-left:${ml};margin-right:${mr};`
+    return `text-align:${a};font-size:${textFontSize(s)};max-width:${mw ?? 'none'};margin-left:${ml};margin-right:${mr};`
   }
   const base = at('desktop')
   const baseMw = maxWidthMap[base.m]
@@ -1472,7 +1519,7 @@ function TextBlock(props: any) {
   return (
     <>
       {mediaCss && <style>{mediaCss}</style>}
-      <div data-text-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: sizeMap[base.s] ?? '1rem', lineHeight: 1.65, color: resolvedColour, textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...getStickyStyle(sticky, stickyOffset) }}>
+      <div data-text-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: textFontSize(base.s), lineHeight: 1.65, color: resolvedColour, textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...getStickyStyle(sticky, stickyOffset) }}>
         {body}
       </div>
     </>
@@ -1544,14 +1591,18 @@ export function richTextColourCss(
 }
 
 function RichTextBlock(props: any) {
-  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon = 'default', bulletColor, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon = 'default', bulletColor, fontSize = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
   }
   const colourCss = richTextColourCss(id, { textColor, linkColor, linkHoverColor, bulletIcon, bulletColor })
   const aosAttrs = getAosProps(animationType, animationDuration, animationDelay)
-  const stickyStyle = getStickyStyle(sticky, stickyOffset)
+  // Inherited, not forced onto every element: `.puck-richtext p/ul/li` in
+  // globals.css set no font-size of their own, so body copy takes this and the
+  // headings keep the scale they are given. Blank leaves the block exactly as it
+  // rendered before this field existed.
+  const stickyStyle = { ...getStickyStyle(sticky, stickyOffset), ...(richTextFontSize(fontSize) ?? {}) }
   // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
   // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
   // Render it directly rather than passing to dangerouslySetInnerHTML.
@@ -3348,7 +3399,7 @@ export const puckConfig = {
       fields: {
         content: { type: 'textarea' as const, label: 'Content' },
         align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField },
-        size: { type: 'custom' as const, label: 'Text size', options: [{ value: 'base', label: 'Base (1rem)' }, { value: 'md', label: 'Lead (1.125rem)' }, { value: 'lg', label: 'Large (1.25rem)' }], render: ResponsiveSelectField },
+        size: { type: 'custom' as const, label: 'Text size', options: TEXT_SIZE_OPTIONS, render: ResponsiveSelectField },
         maxWidth: { type: 'custom' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }], render: ResponsiveSelectField },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
@@ -3367,11 +3418,12 @@ export const puckConfig = {
         linkHoverColor: { type: 'custom' as const, label: 'Link hover colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         bulletIcon: { type: 'select' as const, label: 'Bullet icon', options: RICH_TEXT_BULLET_OPTIONS },
         bulletColor: { type: 'custom' as const, label: 'Bullet colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+        fontSize: { type: 'select' as const, label: 'Text size', options: OPTIONAL_TEXT_SIZE_OPTIONS },
         padding: paddingField,
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', fontSize: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       render: RichTextBlock,
     },
     Quote: {

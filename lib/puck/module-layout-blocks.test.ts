@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getModuleLayoutPuckConfig, puckConfig } from '@/lib/puck/config'
 import { moduleComponents } from '@/lib/puck/module-components'
-import { moduleStarterLayouts } from '@/lib/setup/module-starter-layouts'
+import { moduleStarterLayouts, moduleLayoutStarterContributions } from '@/lib/setup/module-starter-layouts'
 
 // A module layout's component set is the only one in lib/puck/config.tsx built
 // from the category pickers rather than from `puckConfig.components`, so a name
@@ -51,6 +51,23 @@ describe('module layout configs register every core block their starters use', (
       const registered = new Set(Object.keys(getModuleLayoutPuckConfig(layoutType).components))
       const used = new Set(starters().flatMap((s) => collectBlockTypes(s.data)))
       const missing = [...used].filter((t) => coreBlocks.has(t) && !registered.has(t)).sort()
+      expect(missing, `unregistered in ${layoutType}: ${missing.join(', ')}`).toEqual([])
+    })
+  }
+})
+
+// Starters a module contributes to a layout type it does NOT own - `documentFooter`
+// today. Same hazard, one step further from the module that has to fix it: the
+// template is shop's, the layout type is core's, and the blocks on it only render
+// there if the module also named that type in its own `layoutTypes`. Get the
+// manifest half right and the starter half wrong and the picker offers a template
+// that stamps out blank space.
+describe('contributed starters use blocks the layout type actually registers', () => {
+  for (const [layoutType, builds] of Object.entries(moduleLayoutStarterContributions)) {
+    it(`${layoutType}`, () => {
+      const registered = new Set(Object.keys(getModuleLayoutPuckConfig(layoutType).components))
+      const used = new Set(builds.flatMap((build) => build().flatMap((s) => collectBlockTypes(s.data))))
+      const missing = [...used].filter((t) => !registered.has(t)).sort()
       expect(missing, `unregistered in ${layoutType}: ${missing.join(', ')}`).toEqual([])
     })
   }

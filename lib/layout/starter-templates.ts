@@ -13,7 +13,7 @@
 // This file must stay free of server-only imports (prisma, next/headers, …):
 // the admin's new-layout picker imports it directly in the browser.
 
-import { moduleStarterLayouts } from '@/lib/setup/module-starter-layouts'
+import { moduleStarterLayouts, moduleLayoutStarterContributions } from '@/lib/setup/module-starter-layouts'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
 
 export type StarterBlock = { type: string; props: Record<string, unknown> }
@@ -750,12 +750,26 @@ export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
 // (no imports of their own), so this stays browser-safe.
 const moduleTemplates = moduleStarterLayouts as Record<string, () => StarterTemplate[]>
 
+// Starters a module offers for a layout type it does not own. There is exactly
+// one such type today and it is `documentFooter`: the strip at the foot of a
+// printed page is core's, but a page number and a registration line are blocks
+// belonging to whichever module prints the paperwork, and so are the starters
+// made of them. Appended rather than substituted - a site with two paperwork
+// modules gets both modules' footers on the menu, not the last one loaded.
+const contributedTemplates = moduleLayoutStarterContributions as Record<string, (() => StarterTemplate[])[]>
+
+function contributedFor(type: string): StarterTemplate[] {
+  return (contributedTemplates[type] ?? []).flatMap((build) => build())
+}
+
 /** Every starter template offered for a layout type, core or module-declared. */
 export function getStarterTemplates(type: string): StarterTemplate[] {
+  const contributed = contributedFor(type)
   const core = CORE_STARTER_TEMPLATES[type]
-  if (core) return core
+  if (core) return contributed.length > 0 ? [...core, ...contributed] : core
   const build = moduleTemplates[type]
-  return build ? build() : []
+  const own = build ? build() : []
+  return contributed.length > 0 ? [...own, ...contributed] : own
 }
 
 /** Every starter template across every type, core and module, for the cleanup
@@ -780,6 +794,16 @@ function allModuleStarterTemplates(): Array<{ type: string; template: StarterTem
   const out: Array<{ type: string; template: StarterTemplate }> = []
   for (const [type, build] of Object.entries(moduleTemplates)) {
     for (const template of build()) out.push({ type, template })
+  }
+  // Contributions belong in the full walk (the cleanup planner has to recognise a
+  // layout somebody started from one) but NOT in moduleStarterTemplates() below,
+  // which is what seeds a module's own layouts on install. Nothing publishes a
+  // document footer by default: seeding one would silently redesign the footer on
+  // every document a live site prints the moment a paperwork module is added.
+  for (const [type, builds] of Object.entries(contributedTemplates)) {
+    for (const build of builds) {
+      for (const template of build()) out.push({ type, template })
+    }
   }
   return out
 }

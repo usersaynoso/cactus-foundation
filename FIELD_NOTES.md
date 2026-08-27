@@ -1,7 +1,7 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Supplier bills and the three-way match** - `purchase-orders` **0.1.4**, core **0.5.1352**.)
+Last updated: 2026-08-27 (**The shop's PDF footer layout type retires into core's Document Footer, and Text/Rich Text gain pixel font sizes** - `shop` **0.1.354**, `quote-for-shop` **0.1.29**, core **0.5.1353**. Below that: **Supplier bills and the three-way match** - `purchase-orders` **0.1.4**, core **0.5.1352**.)
 
 Stage 5 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_bills` / `po_bill_lines` were created in `001_initial.sql` in Stage 1 and needed nothing adding, so the backup round-trip gate did not apply. No core code: core carries the pin, the version and this file.
 
@@ -26,6 +26,44 @@ Stage 5 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crisp
 **VAT vocabularies** (`PO_VAT_RATE_CODES`, `PO_VAT_TREATMENTS` + labels in `lib/types.ts`) are **structurally copied** from uk-bookkeeping, never imported - that directory does not exist at build time on a site without the books. The strings must match: Stage 6 hands them straight across. Bookkeeping categories are read by guarded raw SQL (`listBookCategories`, `hasBooks` first, returns `[]` on any error), so the picker simply is not offered on a site with no books.
 
 Checks: `npm run typecheck` clean, `eslint .` clean, **3700 tests green** (39 new in `lib/billing.test.ts`). No schema change, so no round-trip gate. No `npm run build`.
+
+---
+
+**The shop's PDF footer layout type retires into core's Document Footer, and Text/Rich Text gain pixel font sizes** - `shop` **0.1.354**, `quote-for-shop` **0.1.29**, core **0.5.1353**. No new tables, columns, sequences or types anywhere, so the backup round-trip gate does not apply; `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always.
+
+**The invoice, credit note and proforma already printed `documentFooter`.** Verified before changing anything: shop 0.1.352 moved all three onto core's `renderDocumentRunningFooter`, which resolves `documentFooter` first. What was left was the second layout type sat beside it. On Deskwell both footer layouts are DRAFT (`documentFooter` "One line", `shopDocumentFooter` "Company footer"), which is why no footer prints on any PDF today - `resolveThemeLayout` only ever returns published layouts. That is an owner action, not a defect.
+
+**`shopDocumentFooter` is gone.** Removed from shop's `layoutTypes` and from the `layoutTypes` of `ShopInvoiceStyle`, `Notice`, `Footer`, `Divider` and `PageNumber`; `shopDocFooterPageSettings` and `ShopDocFooterPageStyle` dropped from `lib/doc-page-settings.tsx` (the manifest was the only thing naming them by string). `renderDocumentRunningFooter` in `invoice-document.tsx` no longer passes a fallback, and neither does quote-for-shop's `renderQuoteRunningFooter`.
+
+**`modules/shop/migrations/030_document_footer_layout.sql`** moves the data: `UPDATE "Layout" SET type='documentFooter' WHERE type='shopDocumentFooter'`. Idempotent. A published old-type footer arrives as a **draft** when a published `documentFooter` already exists - two published layouts of one type both matching "entire site" is a coin toss on priority and update time, and an owner who has already built the replacement should not find yesterday's beside it. `status` is the `PageStatus` enum, so the literals are cast. Blocks need nothing: they are registered for `documentFooter` too, so the saved `builderData` renders unchanged.
+
+**New core mechanism: `layoutStarters` in a module manifest.** A module can now offer starter templates for a layout type it does NOT own:
+
+```json
+"layoutStarters": [
+  { "layoutType": "documentFooter", "import": "./lib/starterLayouts", "export": "documentFooterStarters" }
+]
+```
+
+A **separate top-level key** from `layoutTypes.types`, deliberately: an older core ignores a key it has never heard of, where a `types` entry would be registered as a layout type of the module's own and put the retired Shop tab straight back. `scripts/generate-module-layout-types.mjs` collects them (before the `layoutTypes` check, same as `autoPlaceBlocks`, because contributing to somebody else's type does not require owning one) into a second generated map, `moduleLayoutStarterContributions: Record<string, (() => any[])[]>` - a **list** per type, so two paperwork modules both get on the menu. `getStarterTemplates()` appends them to whatever the type already offers. They appear in `allStarterTemplates()` (the cleanup planner has to recognise a layout started from one) but **never** in `moduleStarterTemplates(moduleName)`, which is what seeds a module's layouts on install: publishing a document footer for somebody would silently redesign every document their site prints.
+
+**`fallbackLayoutTypes` stays in core's `renderDocumentRunningFooter` signature** even though nothing in shop or quote-for-shop passes it now. Modules are pinned separately from core, so an install still on an older shop - or on purchase-orders, which was left alone here, see below - passes it, and a core that ignored it would drop that site's footer on the next core update.
+
+**purchase-orders was NOT touched.** Its `lib/document.tsx` and `lib/return-document.tsx` still pass `fallbackLayoutTypes: ['shopDocumentFooter']`, which is inert once migration 030 has run (no rows of that type left to resolve). Left alone because another session has that module mid-release at 0.1.4; the two lines are a follow-up, not a defect.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, **3700 tests green**, no `npm run build`. Wiki: `Shop.md`, `Quotes.md`, `Architecture-overview.md`, `Authoring-a-module.md`.
+
+**Same working tree, second pass: the footer's own blocks, and a text size in pixels.**
+
+- **Core `TextBlock.size` is a PIXEL menu.** `base` / `md` / `lg` keep their STORED values - only the labels changed, from "Base (1rem)" to "Base (16px)" - and `TEXT_SIZE_PX` adds 8-64px beneath them, 16/18/20 deliberately absent because the three named ones already are those. `textFontSize()` resolves a named size or a `\d+px` string and falls back to `1rem` for anything else; it feeds both the inline style and the responsive media CSS, so the field stays per-breakpoint.
+- **Core `RichTextBlock` gained `fontSize`** (plain select, `''` = Default, `OPTIONAL_TEXT_SIZE_OPTIONS`, which does carry 16/18/20 as there is no named scale to collide with). Applied as an inline `font-size` on the `.puck-richtext` wrapper via the exported `richTextFontSize()`, which **both** `config.core.tsx` and `config.rsc.tsx` call - the Puck parity invariant, and the reason it is a shared function rather than two spread objects. It cascades because `globals.css` sets no font-size on `.puck-richtext p/ul/li`; headings keep their own rem scale on purpose.
+- **New `lib/puck/text-size-fields.test.tsx`** pins the stored values, the absence of "rem" in any label, the three render outcomes (named / px / nonsense), and - by source grep, the same technique as `pdf-footer-scope.test.ts` - that both render paths call `richTextFontSize`.
+- **The five `invoice-chrome.tsx` blocks read `Document: …` now**, not `Invoice: …` (`Style`, `Notice panel`, `Footer`, `Divider`, `Page number`). `Invoice: Document style` would have become "Document: Document style", so it is plain `Document: Style`. The `invoice-parts.tsx` blocks keep `Invoice:` - Heading, From, To, Items, Totals, Tax summary and Payment ARE invoice-specific.
+- **`ShopInvoiceStyle` and `ShopInvoiceFooter` dropped `documentFooter`** from their manifest `layoutTypes`; both stay on `shopInvoice` / `shopProforma`. Style because the document sets its own look, Footer because the layout IS the footer. `documentFooter` now offers Notice, Divider and Page number plus core's own blocks. **Data consequence, flagged to Chris:** a footer layout already carrying a Footer block renders NOTHING for it - Puck has no component registered under that name for the type (the `module-layout-blocks.test.ts` hazard, from the other side). The replacement is the Notice panel set to `panelStyle: 'quiet'`, which fills the same `{{TOKENS}}`.
+- **The contributed "Company footer" starter was rebuilt** on `ShopInvoiceNotice` for exactly that reason. Starter ids unchanged (`starter-shop-doc-footer-company`), so the cleanup planner still recognises a layout started from it.
+
+Checks after the second pass: `npm run typecheck` clean, `eslint .` clean, **3708 tests green** (9 new), no `npm run build`. Wiki also touched: `Managing-pages.md`.
+
 
 Previous entry: Last updated: 2026-08-27 (**Sending things back to a supplier** - `purchase-orders` **0.1.3**, core **0.5.1351**.)
 

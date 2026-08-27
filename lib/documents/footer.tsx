@@ -35,12 +35,14 @@ export { DOCUMENT_FOOTER_LAYOUT_TYPE }
  * needs to know which - it clones the layout, attaches the object to the part
  * blocks and lets each one read its own slice.
  *
- * `fallbackLayoutTypes` exists for one reason: a module that shipped its own
- * footer layout type before this one existed has owners with a published layout
- * under the old key, and moving them would be a data migration on somebody's
- * live paperwork. Shop passes `['shopDocumentFooter']`, so a site with no
- * `documentFooter` layout keeps printing exactly the footer it printed
- * yesterday.
+ * `fallbackLayoutTypes` is legacy and nothing passes it any more. It exists for
+ * modules that shipped their own footer layout type before this one did: shop
+ * used to pass `['shopDocumentFooter']` here, and now migrates those layouts onto
+ * this type instead, which is the better answer - an owner's footer stays
+ * editable rather than living on under a type no editor opens. The option stays
+ * because modules are pinned separately from core: an install still on an older
+ * shop passes it, and a core that ignored it would drop that site's footer on the
+ * next core update. Leave it until nothing in any supported module names it.
  */
 export async function renderDocumentRunningFooter(
   ctx: unknown,
