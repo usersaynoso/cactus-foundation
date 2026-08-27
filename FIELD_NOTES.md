@@ -1,11 +1,13 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Audited every document block for the label fault, and found one more in core** - `shop` **0.1.349**, `quote-for-shop` **0.1.25**, core unreleased, in the working tree.)
+Last updated: 2026-08-27 (**Audited every document block for the label fault - proformas included - and found one more in core** - `shop` **0.1.350**, `quote-for-shop` **0.1.26**, core unreleased, in the working tree.)
 
-Chris: "did you check all invoice, purchase order and quote blocks?" - fair, because the previous entry fixed the SHARED HELPERS and then claimed the blocks were fixed, which is an inference rather than a check.
+Chris: "did you check all invoice, purchase order and quote blocks?" - fair, because the previous entry fixed the SHARED HELPERS and then claimed the blocks were fixed, which is an inference rather than a check. Then: "sorry i meant proformas not purchase orders lol".
 
-**There is no purchase order document.** Nothing in the platform draws one - no layout type, no blocks, no route. The only "purchase order" string in the tree is in `uk-bookkeeping/lib/document-reading.ts`, a list of document kinds for classifying paperwork a supplier sends IN. Building one would be new work, not a gap in this.
+**There is no purchase order document** (answered before the correction, and still worth recording): nothing in the platform draws one - no layout type, no blocks, no route. The only "purchase order" string in the tree is in `uk-bookkeeping/lib/document-reading.ts`, a list of document kinds for classifying paperwork a supplier sends IN.
+
+**Proformas were covered, because they ARE the invoice's blocks.** `shopProforma` registers the same twelve block types as `shopInvoice`, exactly - so auditing "the invoice blocks" audited the proforma too. That was true but was being asserted rather than checked, so the audits now read `cactus.module.json` and fail if any block a document layout offers is missing from the audited set, plus an explicit `forType('shopProforma') === forType('shopInvoice')` so a future divergence surfaces here rather than in a release note. Verified by dropping `ShopInvoiceTaxSummary` from the audited set: shopInvoice AND shopProforma both went red. Quote gets the same coverage check, plus one asserting it registers no footer blocks of its own (the footer is shop's, shared).
 
 **Audited rather than reasoned about.** Two new tests walk every document block, render every `type: 'custom'` field, and assert it declares a label AND draws it: `modules/shop/components/puck/invoice-field-labels.test.tsx` (13 blocks) and `modules/quote-for-shop/components/puck/doc-field-labels.test.tsx` (12 blocks). 137 checks each, all green. The widget itself renders nothing in a test - the field registry is only populated inside the admin editor and its proxies return null everywhere else - which is exactly what makes this a fair test of the WRAPPER: the label has to come from the module's own markup. Verified by stripping `radiusField`'s label and watching 5 go red.
 
@@ -13,7 +15,9 @@ Chris: "did you check all invoice, purchase order and quote blocks?" - fair, bec
 
 **Every `*Pt` size field is converted** - no `ptField` call sites remain in either module (the export stays, with its note about the legacy point values a saved layout may still carry).
 
-3535 tests green, up from 3261: the two audits.
+Page-settings root fields are checked too - they are plain selects, which Puck labels itself, so the assertion is that they stay that way.
+
+3544 tests green, up from 3261: the two audits and their coverage checks.
 
 Previous entry: Last updated: 2026-08-27 (**The running footer printed nothing, and every custom field in the document editor was unlabelled** - `shop` **0.1.348**, `quote-for-shop` **0.1.24**, core unreleased, in the working tree.)
 
