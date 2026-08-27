@@ -12,6 +12,7 @@ import { paletteFromTokens } from '@/lib/email/palette'
 import { registerEditorFields } from '@/lib/puck/fields/editor'
 import { buildPuckViewports } from '@/lib/puck/viewportSizes'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { isCoreModuleStyleLayoutType } from '@/lib/puck/core-layout-roots'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import type { DisplayConditions } from '@/lib/layout/displayConditions'
 import { withImagePickerFields } from '@/lib/puck/MediaPickerField'
@@ -86,7 +87,10 @@ function getConfig(type: string | undefined) {
     // so none of them are offered. See lib/puck/email-config.tsx.
     case 'emailWrapper': return emailPuckConfig
     default:
-      if (type && moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckConfig(type)
+      // Module layout types, and the core ones built the same way (the shared
+      // document footer): a picker of just the blocks declared for the type,
+      // plus the shared core ones.
+      if (type && (moduleLayoutTypeToGroup[type] || isCoreModuleStyleLayoutType(type))) return getModuleLayoutPuckConfig(type)
       return layoutPuckConfig
   }
 }

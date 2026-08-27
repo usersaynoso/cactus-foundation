@@ -1,7 +1,35 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The customer's own order reference - inbound purchase order numbers, end to end** - `shop` **0.1.351**, `quote-for-shop` **0.1.27**, core **0.5.1346**.)
+Last updated: 2026-08-27 (**The document engine moves to core** - core **0.5.1347**, `shop` **0.1.352**, `quote-for-shop` **0.1.28**.)
+
+Stage 0 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). No schema anywhere, so no backup gate. Nothing about any published layout, any saved data or any printed PDF changes.
+
+**New in core: `lib/documents/`.** The PDF machinery existed twice - written in `shop` for the invoice, copied line for line into `quote-for-shop` for the quote - and the copy was already a release behind the original on the cache-busting print nonce. A third copy was the next thing to happen.
+
+- `page-settings.tsx` (**client-safe**) - `documentPageSettings`, `documentFooterPageSettings`, `docPageSetup`/`docPageSetupFromLayout`, `DOC_PAGE_DEFAULTS`, `DocumentPageStyle` (the `@page` emitter), `DocumentFooterPageStyle`, `DocumentFooterRegion`, `PDF_FOOTER_REGION_ID`, `DOCUMENT_FOOTER_LAYOUT_TYPE`. Lifted verbatim from `modules/shop/lib/doc-page-settings.tsx`, names generalised.
+- `pdf.ts` - `renderDocumentPdf({ path, pageSetup, footerCss, label })`, `printPath()`, `documentPdfFilename(prefix, number, fallbackPrefix)`, `DocumentPdfUnavailableError`, and the running-footer capture. **The capture lives here, beside the printer, not beside the footer renderer**: it only ever runs against a puppeteer `Page`, and pairing it with the renderer would drag `resolveThemeLayout` and `module-rsc-components` into every PDF route.
+- `footer.tsx` - `renderDocumentRunningFooter(ctx, { fallbackLayoutTypes, moduleName })`. Server-only and heavy.
+- `context.ts` - `injectDocumentContext(data, ctx, partTypes)` and `PuckLikeData`.
+- `document-css.ts` from the plan was NOT written. It has no consumer until Stage 2's PO blocks exist, and generic infrastructure with no live consumer is dead code wearing a justification.
+
+**New core layout type: `documentFooter`** ("Document Footer"), the first core type built the way a MODULE's is - picker = blocks declared for the type + the shared core set, root fields from the new hand-written `lib/puck/core-layout-roots.ts` rather than the generated `module-layout-roots.ts`. Four places had to learn it and none of them would have gone red if missed: `CORE_LAYOUT_TYPES`, `CORE_STARTER_TEMPLATES` (two starters, neither `publishByDefault`), and the `getConfig` switches in `LayoutPuckEditor.tsx` and `app/layout-preview/[id]/page.tsx`, which now also ask `isCoreModuleStyleLayoutType()`. Pinned by `lib/documents/document-footer-layout.test.ts`.
+
+- `displayConditions.ts` deliberately untouched: with no entry in `CONDITION_TYPES_BY_LAYOUT`, `documentFooter` falls into the module-type branch and gets `entire_site` both as its only rule and as its default - which is what a type resolved by type alone needs.
+- **Nothing publishes by default, and that is load-bearing**, not tidiness. Shop's older footer is preferred for exactly as long as no `documentFooter` layout is published; seeding one would silently redesign the footer on every document a live site prints.
+
+**`renderDocumentRunningFooter` prefers `documentFooter`, then walks `fallbackLayoutTypes`.** Shop passes `['shopDocumentFooter']`, so Deskwell's published footer keeps printing with no data migration. Which blocks receive `_ctx` is now derived from `moduleRscComponentsByLayoutType[layoutType]` rather than from a hardcoded list, so a module contributes footer blocks by naming `documentFooter` in the block's own `layoutTypes` and core changes not at all. One behaviour delta: `ShopInvoiceStyle` and `ShopInvoiceDivider` now receive `_ctx` on a footer layout where they did not before. Both read named props only and ignore it.
+
+**Shop 0.1.352.** `lib/doc-page-settings.tsx` is now aliases onto core (kept because the generated `module-layout-roots.ts` imports `shopDocPageSettings`/`shopDocFooterPageSettings` from here by name, out of shop's own manifest). `lib/invoice-pdf.ts` is a wrapper: `InvoicePdfUnavailableError` is a **re-export of core's class, not a subclass**, so the routes' `instanceof` checks still answer. `injectInvoiceDocContext` keeps only the part-type list. `renderDocumentRunningFooter` gained the fallback chain. Manifest: `documentFooter` added to the `layoutTypes` of `ShopInvoiceStyle`, `Notice`, `Footer`, `Divider` and `PageNumber`; `requiresCoreVersion` 0.5.1338 -> 0.5.1347. `lib/pdf-footer-scope.test.ts` keeps the hazard half (the document pages still hide everything that is not `<main>`); the capture half moved to `lib/documents/pdf-footer-scope.test.ts`.
+
+**Quote-for-shop 0.1.28.** `lib/pdf.ts` was a 250-line copy of shop's renderer and is now 50 lines over core's. `lib/doc-page-settings.tsx` points at core instead of at shop. `lib/document.tsx` no longer imports `@/modules/shop/lib/invoice-document` at all - it calls core's footer renderer with `fallbackLayoutTypes: ['shopDocumentFooter']`, a string in a list rather than an import. The view page uses core's `DocumentFooterRegion`. `requiresCoreVersion` 0.5.1336 -> 0.5.1347, `requiresModules.shop.minVersion` 0.1.351 -> 0.1.352.
+
+The footer template string is assembled `RESET + footerCss + region CSS + FORCE`, where `footerCss` is the module's own `.shp-inv-*` / `.qfs-doc-*` line that used to sit inside the reset. Same rules, same order, byte-identical output.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, 3550 tests green. **Not verified by printing a PDF** - that needs the live Deskwell database and a dev server, which is Chris's call, not mine.
+
+Previous entry: Last updated: 2026-08-27 (**The customer's own order reference - inbound purchase order numbers, end to end** - `shop` **0.1.351**, `quote-for-shop` **0.1.27**, core **0.5.1346**.)
+
 
 Stage A of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`): the INBOUND half - the customer's own reference on an order. Nothing to do with the `purchase-orders` module, which is Stage 1 onward.
 

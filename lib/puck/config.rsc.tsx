@@ -34,6 +34,9 @@ import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck
 // Page settings a module declares for its own layout types. Client-safe by
 // contract (see the generator), so importing it here costs nothing on either side.
 import { moduleLayoutRoots } from '@/lib/puck/module-layout-roots'
+// And the hand-written map for the layout types core itself owns - the shared
+// document footer. Client-safe by the same contract.
+import { coreLayoutRoots } from '@/lib/puck/core-layout-roots'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
 import { ThemeToggleRsc } from '@/lib/puck/components/ThemeToggleRsc'
@@ -260,7 +263,7 @@ export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standa
   // are carried anyway so a published render reads the same root config the
   // editor wrote - `defaultProps` in particular is what a layout saved before a
   // field existed falls back to.
-  const pageRoot = moduleLayoutRoots[layoutType]
+  const pageRoot = moduleLayoutRoots[layoutType] ?? coreLayoutRoots[layoutType]
   return {
     categories: {
       blocks: { title: 'Blocks', components: Object.keys(modBlocks), defaultExpanded: true },

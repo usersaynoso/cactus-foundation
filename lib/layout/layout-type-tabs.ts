@@ -18,6 +18,13 @@ export const CORE_LAYOUT_TYPES: CoreLayoutType[] = [
   { key: 'notFound',   label: '404',          description: 'What a visitor sees when they ask for a page that is not there.' },
   { key: 'statusPage', label: 'Status Page',  description: 'The standalone screen shown before launch, or while the site is down for maintenance.' },
   { key: 'emailWrapper', label: 'Email Wrapper', description: 'The design wrapped around the emails your site sends: logo, colours, footer. The message itself drops into the Message block.' },
+  // Not a page. The strip that repeats at the foot of EVERY page of a printed
+  // document - an invoice, a proforma, a quote, a purchase order - drawn into
+  // the bottom margin by the browser making the PDF. One design for all of it,
+  // rather than one per document type built four times and drifting three ways.
+  // Blocks come from whichever module prints the paperwork, so on a site with
+  // none of them the picker offers the core blocks and nothing else.
+  { key: 'documentFooter', label: 'Document Footer', description: 'The strip repeated at the foot of every page of a printed document: your registration details, a page number, a rule. Shared by every document your site prints.' },
 ]
 
 export const TYPE_LABELS: Record<string, string> = Object.fromEntries(

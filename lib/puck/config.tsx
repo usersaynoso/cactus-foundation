@@ -20,6 +20,9 @@ import { moduleComponents, moduleComponentsByLayoutType } from '@/lib/puck/modul
 // editor shows with nothing selected. Same generated file the RSC config reads,
 // so the editor and the published document agree on the root by construction.
 import { moduleLayoutRoots } from '@/lib/puck/module-layout-roots'
+// The same thing for the layout types core owns but builds the module way - the
+// shared document footer. Hand-written, because nothing generates core.
+import { coreLayoutRoots } from '@/lib/puck/core-layout-roots'
 import {
   puckConfig as corePuckConfig,
   footerPuckConfig as coreFooterPuckConfig,
@@ -93,7 +96,7 @@ export function getModuleLayoutPuckConfig(layoutType: string) {
   // A layout type that declares none keeps root.fields undefined, which is what
   // LayoutPuckEditor reads to decide whether to hide the root panel entirely -
   // so a product card gains nothing it has no use for.
-  const pageRoot = moduleLayoutRoots[layoutType]
+  const pageRoot = moduleLayoutRoots[layoutType] ?? coreLayoutRoots[layoutType]
   return {
     categories: {
       blocks: { title: 'Blocks', components: Object.keys(modBlocks), defaultExpanded: true },

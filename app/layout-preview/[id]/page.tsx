@@ -12,6 +12,7 @@ import {
 } from '@/lib/puck/config.rsc'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import { moduleLayoutTypeToGroup } from '@/lib/layout/module-layout-types'
+import { isCoreModuleStyleLayoutType } from '@/lib/puck/core-layout-roots'
 import { getLayoutTypeLabel } from '@/lib/layout/layout-type-labels'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
 import { resolveTemplateData } from '@/lib/puck/resolveTemplateData'
@@ -32,7 +33,7 @@ function getConfig(type: string): any {
     default:
       // standalone: nothing here is stamping this layout into a surface of its
       // own, so the preview has to draw the container the type declares itself.
-      if (moduleLayoutTypeToGroup[type]) return getModuleLayoutPuckRscConfig(type, { standalone: true })
+      if (moduleLayoutTypeToGroup[type] || isCoreModuleStyleLayoutType(type)) return getModuleLayoutPuckRscConfig(type, { standalone: true })
       return fullPagePuckRscConfig
   }
 }

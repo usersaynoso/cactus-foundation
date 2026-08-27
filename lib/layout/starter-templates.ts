@@ -696,6 +696,45 @@ const emailWrapperTemplates: StarterTemplate[] = [
   blank('starter-email-wrapper-blank', 'Blank', 'An empty canvas. Do not forget the Message block.'),
 ]
 
+// ---------------------------------------------------------------------------
+// Document footer templates - documentFooter
+// ---------------------------------------------------------------------------
+//
+// What repeats at the FOOT OF EVERY PAGE of a printed document's PDF, drawn into
+// the bottom margin by the browser rather than onto the document itself. A
+// footer block on the document is printed once, after the last line - right on a
+// one-page invoice, wrong on a four-page one where page two ends mid-table with
+// nothing to say whose invoice it is.
+//
+// Nothing publishes by default, and that is load-bearing rather than tidiness: a
+// site whose paperwork module already has its own footer design keeps using it
+// for exactly as long as nobody has published one of these. Seeding one would
+// silently redesign the footer on every document a live site prints.
+//
+// Two things to know when laying one out:
+//
+//  - it is drawn into the page's BOTTOM MARGIN, so the margin has to be deep
+//    enough to hold it. That is a page setting on whichever document is printed.
+//  - the blocks that can say anything about the document itself - the page
+//    number, the registration small print - come from the module that prints it.
+//    A site with no such module gets the core blocks below and nothing more,
+//    which is a perfectly good line of text at the foot of every page.
+const documentFooterTemplates: StarterTemplate[] = [
+  {
+    id: 'starter-document-footer-line',
+    name: 'One line',
+    description: 'A single line of small print at the foot of every page. Type your own; the blocks your paperwork module adds can go beside it.',
+    data: {
+      content: [
+        textBlock('doc-footer-line', 'Your business name · company number · VAT number', { align: 'center' }),
+      ],
+      root: { props: { align: 'stretch', inset: '0' } },
+      zones: {},
+    },
+  },
+  blank('starter-document-footer-blank', 'Blank', 'An empty strip. Build it from the blocks your paperwork module offers.'),
+]
+
 export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
   header:     headerTemplates,
   footer:     footerTemplates,
@@ -703,6 +742,7 @@ export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
   notFound:   notFoundTemplates,
   statusPage: statusTemplates,
   emailWrapper: emailWrapperTemplates,
+  documentFooter: documentFooterTemplates,
 }
 
 // Module starter templates come from each module's own lib/starterLayouts.ts,
