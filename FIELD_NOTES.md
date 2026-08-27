@@ -1,7 +1,39 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The shop's PDF footer layout type retires into core's Document Footer, and Text/Rich Text gain pixel font sizes** - `shop` **0.1.354**, `quote-for-shop` **0.1.29**, core **0.5.1353**. Below that: **Supplier bills and the three-way match** - `purchase-orders` **0.1.4**, core **0.5.1352**.)
+Last updated: 2026-08-27 (**Approved supplier bills go into the books by themselves** - `purchase-orders` **0.1.5**, `uk-bookkeeping` **0.2.24**, core **0.5.1354**.)
+
+Stage 6 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_bills.books_outcome` / `posted_at` and `po_returns.books_outcome` / `fx_rate` were all created in `001_initial.sql` in Stage 1 and were simply never written to, so the backup round-trip gate did not apply. `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always. No core code at all: core carries the two pins, the version and this file.
+
+**The seam: three new extension points, published by purchase-orders.** `purchase-orders.bill-approved`, `purchase-orders.bill-voided`, `purchase-orders.bill-credited`. `modules/purchase-orders/lib/book-sinks.ts` gathers and fires them - a written-in-PO copy of shop's `gatherSinks` (`modules/shop/lib/invoice-sinks.ts:204`), because PO does not depend on shop and cannot import it. Two halves as always: the generated registry says whose code is in the build, the installed manifests say who is actually installed.
+
+**purchase-orders 0.1.5**
+
+- **`lib/ledger.ts` (pure, 17 tests)** - `billLedgerLines`, `returnLedgerLines`, `ledgerTotals`, `rateCodeFor`. Integer pence throughout, converted into the site's own currency once at the end at the bill's own `fx_rate` (base per 1 unit of the supplier's currency).
+- **`lib/book-sinks.ts`** - the payload contract and the dispatcher. **`lib/books-outcome.ts`** is a second, **client-safe** file holding `PoBooksOutcome` and `readBooksOutcome`: `BillScreen.tsx` and `ReturnScreen.tsx` are client components and `book-sinks.ts` imports the database, which is exactly the leak `lib/bill-file-kinds.ts` was split out for in Stage 5. `npm test` caught it on the first run.
+- **`lib/book-handoff.ts`** - assembles the payloads from the rows, dispatches, stores the answer. Nothing in it throws at its caller.
+- **New routes**: `admin/bills/[id]/books` POST and `admin/returns/[id]/books` POST - the "try again" buttons. Both need `purchase-orders.bills`.
+- **`POSTED` is written by the handoff and by nothing else.** It is not a transition and `availableBillTransitions` will never offer it: it is what a set of books accepting the entry looks like from here. `setBillBooksOutcome` guards the status write on `status = 'APPROVED'`, so a bill somebody unapproved during a slow handoff stays where it is.
+- **`void` now runs from `POSTED` too, and is the only way out of it.** Taking an approval back while the books go on believing the invoice stands is the failure worth designing out; voiding sends `bill-voided`, which withdraws the entry.
+- **New setting `postApprovedBillsToBooks`** (default **true**), on the Money card of the Purchase Orders settings tab, disabled where there are no books. Off is for the owner whose accountant keys purchases in from the bank. The same switch governs supplier credits.
+- `PoReturn` gained **`fxRate`** (read from the column that was always there; `'1'` when null) and `lib/returns.ts` gained `setReturnBooksOutcome`.
+
+**uk-bookkeeping 0.2.24 - `lib/external-purchases.ts`, plus three manifest lines. No schema, no screen, no setting.** A straight sibling of `lib/external-sales.ts`: `recordExternalPurchase` / `reverseExternalPurchase` / `recordExternalPurchaseCredit`, exposed as `ukBookkeepingPurchaseRecorder` / `Voider` / `Creditor`. It imports nothing from purchase-orders - the payload types are a structural copy - and imports `planSaleRemoval` and `reversalLines` from `external-sales.ts`, because whether an entry may simply be deleted is a fact about the entry and not about the kind of document that made it. Never throws; always `{ok, message}`.
+
+**Six decisions worth knowing:**
+
+1. **The dedupe key is the PUBLISHER'S BILL ID, not the supplier's invoice number** - `source_ref = 'bill:<id>'`, `'bill:<id>:void'`, `'credit:<returns-note number>'`. The plan said to use the bill number; that is wrong here. `po_bills` is unique on `(supplier_id, lower(number))`, not on the number alone, and two suppliers both numbering their first invoice "INV-001" would have had the second silently filed as a duplicate of the first. Returns-note numbers ARE site-unique, so the credit keeps its own.
+2. **The VAT that reaches the books is the VAT PRINTED ON THE INVOICE.** Stage 5 let somebody overtype `tax_amount`; `applyStatedTax` now makes the lines add up to it, the difference landing on whichever line carries the most VAT. A stated VAT of nothing takes every line to nil - that is a reverse-charge or zero-rated invoice, not a rounding difference. Clamped to `[0, net]` per line either way: an entry the books refuse to save loses the purchase entirely.
+3. **Reverse-charge lines keep their rate and carry no VAT.** `vat-boxes.ts:107-113` computes the notional figure from `net x vat_rate_percent` for `reverse_charge_services` and `domestic_reverse_charge`, so a line "corrected" to 0% would drop straight out of boxes 1 and 4.
+4. **Evidence is filed by REFERENCE, never re-uploaded.** `po_bills.attachment_media_id` is already a core `Media` row; the books' `createAttachment` takes its url, provider, key, mime and size straight off it. `sha256` is null, because the bytes never pass through - a hash of something never read would be worse than none. (The sales side still uploads, because a shop invoice is printed on demand and has no media row.)
+5. **A supplier credit does NOT insist the purchase is in the books.** Unlike a sales credit note, which refuses. Goods routinely go back before the invoice arrives, and a credit note reduces expenditure and input VAT either way. Where PO can name **exactly one** POSTED bill on the order it points `corrects_transaction_id` at it; two bills on an order is ordinary and picking one would be a guess.
+6. **A part credit is pro-rated across the return's lines**, each keeping its own VAT rate, pennies swept onto the biggest line so the entry comes to exactly what arrived. Where a supplier credited particular lines instead, the honest fix is to correct the return before marking it credited.
+
+**Checks**: `npm run typecheck` clean, `eslint .` clean, **3734 tests green** (up from 3708; 26 new - 17 in `modules/purchase-orders/lib/ledger.test.ts`, 9 in `modules/uk-bookkeeping/lib/external-purchases.test.ts`). No `npm run build`.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**The shop's PDF footer layout type retires into core's Document Footer, and Text/Rich Text gain pixel font sizes** - `shop` **0.1.354**, `quote-for-shop` **0.1.29**, core **0.5.1353**. Below that: **Supplier bills and the three-way match** - `purchase-orders` **0.1.4**, core **0.5.1352**.)
 
 Stage 5 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_bills` / `po_bill_lines` were created in `001_initial.sql` in Stage 1 and needed nothing adding, so the backup round-trip gate did not apply. No core code: core carries the pin, the version and this file.
 
