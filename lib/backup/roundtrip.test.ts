@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { readdirSync, readFileSync, existsSync } from 'fs'
 import path from 'path'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
@@ -82,6 +82,119 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
   for (const statement of splitSqlStatements(SCHEMA_SQL)) {
     await db.$executeRawUnsafe(statement)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Module schemas
+// ---------------------------------------------------------------------------
+//
+// This test used to build core's schema and nothing else, which meant the one
+// gate that proves a backup restores never had a single module table or module
+// SEQUENCE in front of it. Modules are where most of a site's rows live, and a
+// standalone sequence is the exact thing TRUNCATE ... RESTART IDENTITY does not
+// put back - miss it and a restored shop hands out order number 1 again.
+//
+// So: build the module schemas too, discovered from the modules folder rather
+// than named here. Naming one would be a module leak into core, and a list would
+// go stale the day somebody adds a module.
+//
+// Two things keep a module OUT of the set, and both are honesty rather than
+// convenience:
+//
+//  - a migration that uses dollar-quoting, because `splitSqlStatements` is not
+//    dollar-quote aware. It is the backup format's own splitter and the format
+//    does not use `$$`, so teaching it would be scope creep on the one file
+//    nobody should be casual with. A half-applied module schema proves less than
+//    no module schema at all.
+//  - a module that declares `requiresModules`, because its migrations expect
+//    tables belonging to a module that may itself have been left out above.
+//
+// Whatever is left is applied per module in its own transaction, so a module
+// that will not build simply is not covered rather than taking the run with it,
+// and every exclusion is printed. A silently narrowed gate is how a gate ends up
+// proving nothing.
+
+type ModuleSchema = { name: string; statements: string[] }
+
+function readModuleSchemas(): ModuleSchema[] {
+  const root = path.join(process.cwd(), 'modules')
+  if (!existsSync(root)) return []
+  const out: ModuleSchema[] = []
+
+  for (const name of readdirSync(root).sort()) {
+    const manifestPath = path.join(root, name, 'cactus.module.json')
+    const migrationsDir = path.join(root, name, 'migrations')
+    if (!existsSync(manifestPath) || !existsSync(migrationsDir)) continue
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { requiresModules?: string[] }
+    if ((manifest.requiresModules ?? []).length > 0) continue
+
+    const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
+    if (files.length === 0) continue
+
+    const sql = files.map((f) => readFileSync(path.join(migrationsDir, f), 'utf8'))
+    if (sql.some((s) => s.includes('$$'))) continue
+
+    out.push({ name, statements: sql.flatMap((s) => splitSqlStatements(s)) })
+  }
+
+  return out
+}
+
+const MODULE_SCHEMAS = readModuleSchemas()
+
+async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
+  const applied: string[] = []
+  const refused: string[] = []
+
+  for (const mod of MODULE_SCHEMAS) {
+    try {
+      await db.$transaction(
+        async (tx) => {
+          for (const statement of mod.statements) await tx.$executeRawUnsafe(statement)
+        },
+        { maxWait: 15_000, timeout: 55_000 },
+      )
+      applied.push(mod.name)
+    } catch (error) {
+      refused.push(`${mod.name} (${(error as Error).message.split('\n')[0]})`)
+    }
+  }
+
+  console.log(`[roundtrip] module schemas built: ${applied.join(', ') || 'none'}`)
+  if (refused.length > 0) console.log(`[roundtrip] module schemas left out: ${refused.join('; ')}`)
+  return applied
+}
+
+// Every sequence, moved off its starting value.
+//
+// A sequence sitting at its start restores correctly by doing nothing at all,
+// which is exactly the false pass this is here to prevent. Distinct values so a
+// setval landing on the wrong sequence cannot look like a match either.
+async function bumpSequences(db: ExtendedPrismaClient): Promise<string[]> {
+  const names = await listSequences(db)
+  for (let i = 0; i < names.length; i++) {
+    await db.$executeRawUnsafe(`SELECT setval('${names[i]}', ${1000 + i * 7}, true)`)
+  }
+  return names
+}
+
+async function listSequences(db: ExtendedPrismaClient): Promise<string[]> {
+  const rows = await db.$queryRawUnsafe<{ sequencename: string }[]>(
+    `SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' ORDER BY sequencename`,
+  )
+  return rows.map((r) => r.sequencename)
+}
+
+async function sequenceValues(db: ExtendedPrismaClient, names: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  for (const name of names) {
+    const rows = await db.$queryRawUnsafe<{ last_value: bigint | null; is_called: boolean }[]>(
+      `SELECT last_value, is_called FROM ${quoteIdent(name)}`,
+    )
+    out.set(name, `${rows[0]?.last_value ?? 'null'}/${rows[0]?.is_called ?? 'null'}`)
+  }
+  return out
 }
 
 async function listTables(db: ExtendedPrismaClient): Promise<string[]> {
@@ -185,6 +298,8 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
   let srcDb: ExtendedPrismaClient
   let dstDb: ExtendedPrismaClient
   let tables: string[]
+  let sequences: string[]
+  let modulesCovered: string[]
   let backupSql: string
 
   beforeAll(async () => {
@@ -202,8 +317,10 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
     srcDatabase = await createTestDatabase(vps, `cactus_rt_src_${stamp}`, role)
     srcDb = await connect(srcDatabase.connectionUri)
     await applySchema(srcDb)
+    modulesCovered = await applyModuleSchemas(srcDb)
     await seedAwkwardValues(srcDb)
     tables = await listTables(srcDb)
+    sequences = await bumpSequences(srcDb)
 
     // Target = a clone of the seeded source, so the two start identical and the
     // restore has something faithful to be checked against. Postgres will not copy
@@ -241,11 +358,15 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
     expect(backupSql).toMatch(/ARRAY\['usb', 'nfc'\]::text\[\]/)
 
     const expectedTables = await tableHashes(srcDb, tables)
+    const expectedSequences = await sequenceValues(srcDb, sequences)
 
     // Knock the target out of shape so a restore that quietly does nothing can't
-    // pass: empty the seeded tables.
+    // pass: empty the seeded tables and rewind every counter.
     for (const table of ['InfoPage', 'Layout', 'Passkey', 'User', 'SiteConfig']) {
       await dstDb.$executeRawUnsafe(`TRUNCATE TABLE ${quoteIdent(table)} CASCADE`)
+    }
+    for (const sequence of sequences) {
+      await dstDb.$executeRawUnsafe(`SELECT setval('${sequence}', 1, false)`)
     }
 
     const result = await restoreDatabaseFromSql(backupSql, dstDb)
@@ -261,7 +382,27 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
     const actualTables = await tableHashes(dstDb, tables)
     const mismatched = tables.filter((t) => actualTables.get(t) !== expectedTables.get(t))
     expect(mismatched, 'these tables did not survive the round-trip').toEqual([])
+
+    // The counters. A module's standalone sequence is not table-owned, so the
+    // TRUNCATE ... RESTART IDENTITY inside the restore does not touch it: only
+    // the setval section puts it back, and a dump that forgets one hands out an
+    // order number that has already been used.
+    const actualSequences = await sequenceValues(dstDb, sequences)
+    const rewound = sequences.filter((s) => actualSequences.get(s) !== expectedSequences.get(s))
+    expect(rewound, 'these counters did not survive the round-trip').toEqual([])
+    expect([...result.sequencesRestored].sort()).toEqual([...sequences].sort())
   }, 600_000)
+
+  // The gate is only worth what it covers. Core alone was what it covered until
+  // Stage 10 of the purchase orders work, and every module table and module
+  // counter went through it untested for a year.
+  it('had module tables and module counters in front of it, not just core', () => {
+    expect(modulesCovered.length).toBeGreaterThan(0)
+    const moduleTables = tables.filter((t) => /^[a-z]+_/.test(t))
+    expect(moduleTables.length).toBeGreaterThan(0)
+    const moduleSequences = sequences.filter((s) => /^[a-z]+_/.test(s))
+    expect(moduleSequences.length).toBeGreaterThan(0)
+  })
 
   // The bug this was written for: restore dwoffice.furniture onto a fresh install and
   // the site announced GitHub was connected, then failed every call to it with

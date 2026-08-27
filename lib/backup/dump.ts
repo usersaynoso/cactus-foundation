@@ -113,6 +113,34 @@ async function getColumns(db: BackupTx, tables: string[], enums: Set<string>): P
   return map
 }
 
+// Dates and times are read as TEXT, not as values.
+//
+// Prisma hands back a JS `Date` for every temporal column, and a JS Date holds
+// MILLISECONDS. Postgres stores MICROSECONDS. Core's own tables are declared
+// `TIMESTAMP(3)` by Prisma and so lose nothing, which is why this went unnoticed
+// for a year - but a module writing plain `TIMESTAMPTZ` (purchase orders, the
+// books, live chat, search and others) had the last three digits of every
+// timestamp quietly rounded off on the way into a backup. Restore it and every
+// row is a fraction of a millisecond adrift from the one it replaced. Nothing
+// visible breaks, which is exactly what makes it the sort of thing that is only
+// noticed years later by somebody reconciling two copies of the same data.
+//
+// `timetz` was worse than lossy: a Date carries no zone, so the offset the value
+// was stored with could not be recovered at all and the dump wrote `+00`.
+//
+// Asking Postgres for its own text rendering sidesteps the whole business - the
+// exact stored value, microseconds, offset and all. `serializeValue` already
+// accepts a string for every one of these types and quotes it, and the target
+// column coerces the literal back on INSERT. Arrays are left alone: their text
+// form is a brace literal, which the array branch is not written for, and no
+// module has a temporal array column.
+const READ_AS_TEXT = new Set(['timestamp', 'timestamptz', 'date', 'time', 'timetz'])
+
+function selectExpression(column: ColumnType): string {
+  const name = quoteIdent(column.column)
+  return READ_AS_TEXT.has(column.udtName) ? `${name}::text AS ${name}` : name
+}
+
 async function getPrimaryKeys(db: BackupTx, tables: string[]): Promise<Map<string, string[]>> {
   const rows = await db.$queryRawUnsafe<{ table_name: string; column_name: string }[]>(
     `SELECT tc.table_name, kcu.column_name
@@ -273,6 +301,13 @@ export async function buildBackupSql(db: BackupDb, schemaSql: string, generatedA
       // the first statement in the transaction, before any query touches a snapshot.
       await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY')
 
+      // Dates and times are read as TEXT (see selectExpression), so the rendering
+      // is pinned rather than left to whatever the server happens to be set to.
+      // ISO and UTC: the same shape the dump has always written, and the only one
+      // a restore onto a server in another timezone reads back identically.
+      await tx.$executeRawUnsafe("SET LOCAL DateStyle = 'ISO, MDY'")
+      await tx.$executeRawUnsafe("SET LOCAL TimeZone = 'UTC'")
+
       const tables = await getTables(tx)
       const enums = await getEnumTypes(tx)
       const [columnsByTable, pkColsByTable, foreignKeys, sequences] = await Promise.all([
@@ -302,8 +337,9 @@ export async function buildBackupSql(db: BackupDb, schemaSql: string, generatedA
         const columns = columnsByTable.get(table) ?? []
         if (columns.length === 0) continue
         const columnList = columns.map((c) => quoteIdent(c.column)).join(', ')
+        const selectList = columns.map(selectExpression).join(', ')
 
-        const rows = await tx.$queryRawUnsafe<Row[]>(`SELECT ${columnList} FROM ${quoteIdent(table)}`)
+        const rows = await tx.$queryRawUnsafe<Row[]>(`SELECT ${selectList} FROM ${quoteIdent(table)}`)
         if (rows.length === 0) continue
 
         const selfRef = selfRefByTable.get(table)

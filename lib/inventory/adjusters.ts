@@ -85,7 +85,8 @@ export function getInventoryAdjuster(): { id: string; adjuster: InventoryAdjuste
   return first ? { id: first[0], adjuster: first[1] } : null
 }
 
-/** Whether anything on this site can move stock at all. */
-export function hasInventoryAdjuster(): boolean {
-  return Object.keys(getInventoryAdjusters()).length > 0
-}
+// There was a `hasInventoryAdjuster()` here too, and nothing ever called it: a
+// caller asking whether anything keeps stock always wants the adjuster itself a
+// line later, and one asking whether the site as a whole can move stock has to
+// check the installed manifests as well as this registry - which is a question
+// about the site, not about the registry, and belongs where it is asked.
