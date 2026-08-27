@@ -1,7 +1,39 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The purchase order document, the PDF, the email and revisions** - `purchase-orders` **0.1.1**, core **0.5.1349**.)
+Last updated: 2026-08-27 (**Booking goods in, and the stock seam** - core **0.5.1350**, `shop` **0.1.353**, `purchase-orders` **0.1.2**.)
+
+Stage 3 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **Schema change in shop**, so the backup round-trip gate applied and genuinely PASSED (3 tests, real database on the OVH VPS, no skip).
+
+**New core extension point `core.inventory-adjuster`** (`lib/inventory/adjusters.ts`). Core knows nothing about stock; a module that keeps counts registers one adjuster, and anything that needs a count changed asks core for whatever is registered. Named after the capability rather than after purchase orders on purpose - the shop wanted this anyway.
+
+- Contract is `{ label, adjust(adjustments) => Promise<outcomes> }`, a **batch**: a delivery is a dozen lines, and a dozen round trips is a dozen chances for half of them to land. `InventoryAdjustment` is `{ productId, delta, reason, ref?, userId?, note? }`; `InventoryAdjustmentOutcome` is `{ productId, ok, before, after, message? }`.
+- An adjuster **must not throw for an ordinary refusal** (unknown product, untracked product) - the caller has already filed the paperwork that prompted the move and cannot unfile it. Return `ok: false` with a message.
+- `getInventoryAdjuster()` returns **one**, not all. Two modules both counting the same product would each apply the delta and a delivery of six would put twelve on the shelf.
+- Read off `extension-points.public.ts`, same as `lib/capabilities.ts` in Purchase Orders - the two must agree about what is registered or `hasInventory` says yes to something the resolver cannot find.
+
+**shop 0.1.353 registers as the adjuster** (`lib/stock.ts`, `shopInventoryAdjuster`) and gains `shp_stock_movements` (`migrations/029_stock_movements.sql`: product, signed delta, before/after, reason, reference, source, user, note, created_at; FK to `shp_products` ON DELETE CASCADE; added to the manifest `teardown` list).
+
+- `adjustStock` / `adjustStockBatch` do three things per move, all in one statement inside a transaction: shift the count with `GREATEST(COALESCE(...) + delta, 0)`, clear `low_stock_alerted_at` so a restock is eligible for its own alert, and write the movement row. `qty_before` comes off a `FOR UPDATE` CTE so the history records the count the arithmetic actually used.
+- **This closes an existing hole**: `maybeTriggerBackInStock` fired from exactly ONE place, the admin product PUT route (`app/api/admin/products/[id]/route.ts:130`). Undoing a shipment put units back and told nobody. Every move through `adjustStock` now runs it, plus `notifyProductSaved(id, ['stockCount'])`.
+- Email and cross-module notification happen **after the commit**, and their failure is logged, never thrown: the goods are on the shelf whether or not the email went.
+- **The five existing stock write sites were deliberately NOT rewritten** (`decrementStockOnShip`, the two in `lib/db/shipments.ts`, `updateProduct`, the admin route). A half-populated history that looks complete is worse than an empty one that is honestly new. Moving them onto `adjustStock` is its own change.
+
+**purchase-orders 0.1.2 - receiving.** No new PO migration: `po_receipts` / `po_receipt_lines` were created in `001_initial.sql`.
+
+- **New lib**: `lib/receiving.ts` (pure - `outstanding`, `overReceiptFlags`, `isReceivable`, `statusAfterReceipts`), `lib/receipts.ts` (SQL), `lib/receipt-body.ts` (zod), `lib/inventory.ts` (the stock seam, and the ONLY file in the module that knows stock exists).
+- **New routes**: `admin/receipts` GET (the whole Receiving tab in one request), `admin/receipts/[id]` GET + DELETE, `admin/receipts/[id]/stock` POST, `admin/orders/[id]/receipts` GET + POST, `admin/orders/[id]/lines/[lineId]` POST.
+- **New screens**: `components/admin/ReceivingScreen.tsx` (still to come / what turned up) and `BookInScreen.tsx` (`receiving/[orderId]`), plus a Deliveries card on the order screen.
+- **Over-delivery is allowed and flagged, never blocked.** Suppliers send full cases. `overReceiptFlags` compares `alreadyReceived + accepting` against `(qty - qtyCancelled) * (1 + tolerance/100)`, rounded to three places so a tolerance that floats does not flag a delivery of ten. The same function runs on the screen and in the route.
+- **`stock_applied` is claimed in a conditional UPDATE before anything moves**, not read then written: two people pressing the button at once would both pass a JavaScript check and the shelf would gain the delivery twice. A failed move hands the claim back.
+- **Deleting a delivery reverses its stock** through the same adjuster, and the delete goes ahead whether or not the reversal did - refusing it would leave paperwork and shelf disagreeing in both directions at once.
+- **Fractional quantities are refused, in words, not rounded.** A stock count holds whole things; 2.5 metres of cable is a fine delivery and not something a count can hold. The line says so on screen.
+- **`syncOrderReceiptStatus` (in `lib/db.ts`, beside `setOrderStatus`) is the one status change no human asks for.** `statusAfterReceipts` never trades a deliberate decision for arithmetic: `ON_HOLD`, `CLOSED` and `CANCELLED` are left alone, and an order whose last delivery is deleted walks back to sent or acknowledged rather than sitting at "part received" with nothing received.
+- **Cancelling the balance of a line is its own operation** (`cancelOrderLineBalance`), because the moment it is wanted is the moment an edit is refused: `updateOrder` replaces lines wholesale and `po_receipt_lines.order_line_id` is ON DELETE RESTRICT. It raises `qty_cancelled` to `qty - qtyReceived` and touches nothing else, which is what lets a short order finish.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, **3621 tests green** (18 new in `lib/receiving.test.ts`), `npm run test:backup-roundtrip` **PASS**. No `npm run build`.
+
+Previous entry: Last updated: 2026-08-27 (**The purchase order document, the PDF, the email and revisions** - `purchase-orders` **0.1.1**, core **0.5.1349**.)
 
 Stage 2 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). No schema change: every column and table this stage writes to was created in `001_initial.sql`, so the backup round-trip gate does not apply.
 
