@@ -1,7 +1,36 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Reorder levels, and the nightly job that drafts the orders** - `purchase-orders` **0.1.6**, core **0.5.1356**.)
+Last updated: 2026-08-27 (**The supplier's own link to their order** - `purchase-orders` **0.1.7**, core **0.5.1357**.)
+
+Stage 8 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_portal_tokens` and `po_portal_events` came out of `001_initial.sql` in Stage 1 exactly as the plan specified, so the backup round-trip gate did not apply. No core code at all: core carries the pin, the version and this file.
+
+**purchase-orders 0.1.7 - the supplier portal.**
+
+- **`lib/portal-token.ts`** mints the credential: 32 random bytes, base64url, handed back ONCE and stored only as its sha256. Deliberately not `lib/print-token.ts`'s HMAC - a supplier link lives for weeks and has to be revocable and countable, and an HMAC with no row behind it is neither. `hashPortalIp` is a keyed digest of the caller's address for the event log, and returns **null** with no `ENCRYPTION_KEY` rather than a bare sha256 an attacker could rebuild by counting to four billion.
+- **`lib/portal-view.ts` is pure and client-safe** - the allow-list projection (`portalView`), the event sentences, `isPortalOpen`, and the two admin-facing row types. Built field by field so a column added to `po_orders` next year cannot arrive on the supplier's page on its own; `portal-view.test.ts` asserts the internal notes, the approval trail and every figure stay out of it.
+- **`lib/portal.ts`** is the table work: create / list / revoke / revoke-all, `resolvePortalToken` (live rows only), `touchPortalToken`, the event writes and reads, `mintPortalLink` for the order email, and `portalNoticeRecipient`. Two writes to `po_orders` and no more - `acknowledgeFromPortal` (guarded in SQL, `SENT` is the only status that moves, `updated_by_user_id` deliberately untouched) and `applyProposedExpectedDate`, which only an admin can trigger.
+- **`lib/portal-rate-limit.ts`** is this module's own in-memory limiter, per token and per address, reads and writes in separate buckets. Core's is a closed union of actions and adding one for a module would be module-shaped code in core; shop's is shop's and this module imports nothing from it.
+- **New routes**: `public/portal` POST (the supplier's four actions, no session, everything a proposal); `admin/orders/[id]/portal` GET/POST/DELETE; `admin/orders/[id]/portal/[tokenId]` DELETE; `admin/orders/[id]/portal/apply` POST. Admin reads need `purchase-orders.access`, everything else `purchase-orders.create`. Literal-before-dynamic sorting is what makes `portal/apply` reachable beside `portal/[tokenId]`.
+- **The public document page has a THIRD key.** `app/public/purchase-order/[number]/page.tsx` now opens for a print token, a signed-in user with `purchase-orders.access`, or a live portal token whose `order_id` matches the number in the address bar - checked in that order, and the portal branch only while `portalEnabled`. Everything else is still a 404, never a 403. The reply panel renders for the portal key alone, and never when printing.
+- **New component** `components/public/SupplierPortalPanel.tsx`, the only part of this platform a supplier ever touches. Site colour tokens with a literal fallback on each, because it renders inside whatever theme the site is wearing.
+- **Emails**: `portalLink` is a new **rawTag** on `purchase-orders.sent` and `purchase-orders.amended` - a whole paragraph built in `lib/email.ts`, or an empty string where the link is off, so a template carrying it never prints a dangling invitation. A site that has customised either template will not see the link until it adds `{{portalLink}}`. New template **`purchase-orders.portal-reply`**, the one email in this module that comes to you rather than going to a supplier.
+- **Audit**: portal actions are filed against the `order` entity (`order.portal-acknowledged`, `order.portal-date_proposed`, `order.portal-shortage`, `order.portal-message`, `order.portal-link-made`, `order.portal-link-revoked`, `order.portal-links-revoked`, `order.portal-date-applied`), with the sentence in `detail.note` so the order's own history reads properly. `AuditEntityType` gained no portal member - the order is where anybody would look.
+- **Checks**: `npm run typecheck` clean, `eslint .` clean, **3803 tests green** (up from 3775; 28 new). No `npm run build`.
+
+**Five decisions worth knowing:**
+
+1. **A link can only be made for an order that has actually been sent.** A link to a draft is a link to prices nobody has agreed, mailed to somebody who was never told about the order.
+2. **The raw link is shown once and cannot be shown again.** Only the hash is stored, so losing the email means making a new link - the same promise every password field on this platform makes, and the reason a stolen backup carries nothing that opens anything.
+3. **A supplier's reply never touches the order.** Accepting it stamps `acknowledged_at` and moves `SENT` to `ACKNOWLEDGED`; a date or a shortage is a row in `po_portal_events` for somebody here to act on. The only button that applies one is the admin's "Use this date", and it reads the date off the stored event rather than off the request.
+4. **A shortage deliberately has no apply button.** Cutting a line down is an amendment - the supplier holds a copy of the old one and is owed the new one - so it goes through the amendment flow or "give up on the rest", not through a one-click rewrite of the document they are holding.
+5. **The buyer is emailed when a supplier says something.** Not in the plan, and load-bearing: nobody sits watching an order screen, and a proposal nobody reads is a proposal nobody applies. Best-effort and never throws - the reply is in the order's history whether the email sends or not.
+
+**Wiki**: `Purchase-Orders.md` gains "The supplier's own link" and rewrites "Who can open the document page" for the third key.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**Reorder levels, and the nightly job that drafts the orders** - `purchase-orders` **0.1.6**, core **0.5.1356**.)
 
 Stage 7 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_reorder_rules` came out of `001_initial.sql` in Stage 1 exactly as the plan specified and needed nothing adding, so the backup round-trip gate did not apply. `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always. No core code at all: core carries the pin, the version and this file.
 
