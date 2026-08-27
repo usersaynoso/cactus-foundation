@@ -1,7 +1,38 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Booking goods in, and the stock seam** - core **0.5.1350**, `shop` **0.1.353**, `purchase-orders` **0.1.2**.)
+Last updated: 2026-08-27 (**Sending things back to a supplier** - `purchase-orders` **0.1.3**, core **0.5.1351**.)
+
+Stage 4 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **Schema change in purchase-orders**, so the backup round-trip gate applied and genuinely PASSED (3 tests, real throwaway database on the OVH VPS, no skip). No core code at all: core carries the pin, the version and this file.
+
+**purchase-orders 0.1.3 - returns and debit notes.**
+
+**Schema**: `migrations/002_return_stock.sql` adds `stock_applied`, `stock_applied_at` and `stock_result` to `po_returns`. 001 gained the same three columns for a fresh install; both are idempotent (`ADD COLUMN IF NOT EXISTS`), which makes the overlap harmless. `po_returns` / `po_return_lines` themselves were created in 001.
+
+- **New lib**: `lib/returning.ts` (pure - `returnableQty`, `overReturnProblems`, `returnTotals`, `creditOutstanding`, `RETURN_TRANSITIONS` + `checkReturnTransition`, `validateReturnDrafts`), `lib/returns.ts` (SQL), `lib/return-body.ts` (zod), `lib/return-doc-context.ts` (client-safe context + sample + injector), `lib/return-document.tsx` (server render), `lib/return-pdf.ts`.
+- **New routes**: `admin/returns` GET + POST, `admin/returns/[id]` GET/PUT/DELETE, `admin/returns/[id]/transition` POST, `admin/returns/[id]/send` POST, `admin/returns/[id]/pdf` GET, `admin/returns/[id]/document` GET, `admin/returns/[id]/stock` POST, `admin/orders/[id]/returnable` GET.
+- **New screens**: `components/admin/ReturnsScreen.tsx` (the tab: what has gone back and how much money has come back) and `ReturnScreen.tsx` (`returns/[id]`, which also serves `returns/new?orderId=` - `[id]` sorts before any literal sibling, same as `orders/new`). Plus a Returns card on the order screen, shown only once something has actually been delivered.
+- **Over-return is REFUSED, not flagged** - the one place this differs from receiving. A supplier really can send eleven of ten; nobody can send back twelve of ten, and a credit claim that says so is an argument rather than a document. `overReturnProblems` compares against `qtyReceived - qtyReturned`, rounded to three places.
+- **Costs come off the order line, never off the browser.** `validateReturnDrafts` reads `unitCost` and `taxRatePercent` from the order line and ignores anything the form sends; what a return is worth is not something the person filling it in gets to type.
+- **`returnTotals` goes through `lib/totals.ts`**, the same file the order uses, so a credit claim can never round differently from the order it claims against. No order-level discount and no carriage - a return has neither.
+- **Returns take goods OFF a count only if they were ever put ON one.** A return line carries `receipt_line_id`; `stockedIn` is `po_receipts.stock_applied` for that delivery. A line with no delivery behind it, or one whose delivery was never stocked, is refused with a message rather than deducted - deducting anyway invents a shortage out of paperwork. `stockOnReceipt` is now the switch for BOTH directions (one that added on receipt but never subtracted on return would drift upward for ever).
+- **`stock_applied` on `po_returns` is claimed in a conditional UPDATE before anything moves**, and deleting a return reverses it - the same shape and the same reasoning as `po_receipts`. Taking stock off is its own button, not something the send does on the way past: a note can be raised on Monday and collected on Thursday.
+- **Status machine** (`DRAFT, SENT, CREDIT_EXPECTED, CREDITED, CLOSED, CANCELLED`): raising, sending and cancelling need `purchase-orders.receive`; recording that the money arrived needs `purchase-orders.bills`. `credited` is reachable straight from `SENT` - plenty of suppliers simply send the credit note. Only a draft is editable; anything the supplier holds is cancelled and raised again.
+
+**New layout type `purchaseReturnDocument`**, label "Returns note", group "Purchase Orders", two starters in `lib/starterLayouts.ts` (standard is `publishByDefault` and is exported as `PO_RETURN_FALLBACK_DATA`, which the renderer falls back to). **Eight new blocks** in `components/puck/po-return-parts.tsx`: `PoRetHeader`, `PoRetParties`, `PoRetTo`, `PoRetLines`, `PoRetTotals`, `PoRetReason`, `PoRetNotes`, `PoRetNotice`.
+
+- **`PoDocStyle` and `PoDocDivider` are declared on BOTH layout types** rather than written twice, and the returns blocks render the same `po-doc-*` classes - so no CSS changed, `PO_DOC_SCOPE_CLASSES` needed nothing added, and a business that has designed its purchasing paperwork once has designed both documents.
+- **`PartyColumn`, `hasParty`, `partySizes` and the party field groups are now exported from `po-parts.tsx`** and reused by the returns blocks. `PartyDisplayProps` was split out of `PartyProps` so the address column does not drag the order's own context type in with it.
+- The order number on the returns header has **no hide switch**: a return a supplier cannot file against an order is a box on a dock and a mystery.
+- The credit prints as a **positive** figure with a label saying what it is. "-£396.00" under a heading that says "Returns note" invites the question of which way round it is meant.
+
+**Public page `/purchase-order/returns/<number>`** (`app/public/purchase-order/returns/[number]/page.tsx`). Nested under this module's one `publicBasePath` rather than claiming a second - a module gets exactly one - and two segments deep, so it can never collide with `/purchase-order/<number>`. Same two keys and no third: a short-lived signed token, or a signed-in user with `purchase-orders.access`; anything else is a 404. The token is HMAC'd over `purchase-return:<number>:<expiry-minute>`, its own subject string, so a token minted for an order cannot open a return.
+
+**New email template** `purchase-orders.return-sent`, sent by `sendReturnToSupplier` with the PDF attached (attachment best-effort and logged; the send itself throws, because somebody pressed a button). **New settings**: `returnWording` (heading, intro, terms) and `returnPdfFilenamePrefix`, with their own card on the settings tab.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, **3661 tests green** (40 new across `lib/returning.test.ts` and `components/puck/po-return-doc.test.tsx`), `npm run test:backup-roundtrip` **PASS**. No `npm run build`.
+
+Previous entry: Last updated: 2026-08-27 (**Booking goods in, and the stock seam** - core **0.5.1350**, `shop` **0.1.353**, `purchase-orders` **0.1.2**.)
 
 Stage 3 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **Schema change in shop**, so the backup round-trip gate applied and genuinely PASSED (3 tests, real database on the OVH VPS, no skip).
 
