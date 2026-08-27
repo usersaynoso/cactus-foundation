@@ -1,7 +1,38 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Purchase Orders module, first release** - `purchase-orders` **0.1.0**, core **0.5.1348**.)
+Last updated: 2026-08-27 (**The purchase order document, the PDF, the email and revisions** - `purchase-orders` **0.1.1**, core **0.5.1349**.)
+
+Stage 2 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). No schema change: every column and table this stage writes to was created in `001_initial.sql`, so the backup round-trip gate does not apply.
+
+**New layout type `purchaseOrderDocument`**, group "Purchase Orders", no `host` - the module is standalone and owns its own tab. `pageSettingsExport` points at core's `documentPageSettings` (`lib/doc-page-settings.tsx` is aliases only). Three starters in `lib/starterLayouts.ts`; the standard one is `publishByDefault` AND is exported as `PO_DOCUMENT_FALLBACK_DATA`, which `renderPoDocument` falls back to when nothing is published. Unlike the quote document, this one never refuses to print.
+
+**Thirteen blocks**, one render path each shared by the editor and the RSC pass: `PoDocHeader`, `PoDocParties`, `PoDocFrom`, `PoDocTo`, `PoDocShipTo`, `PoDocLines`, `PoDocTotals`, `PoDocTerms`, `PoDocNotes`, `PoDocApproval` in `components/puck/po-parts.tsx`; `PoDocStyle`, `PoDocNotice`, `PoDocDivider` in `po-chrome.tsx`; shared fields, tokens and the sample in `po-shared.tsx`; the stylesheet in `po-doc-css.ts`. **No footer block** - the running footer is core's `documentFooter`.
+
+- Owner colours are CSS custom properties (`--po-doc-*`) set on the part classes, never `:root` and never an inline `border-color`: the print rules say `!important` to force ink on paper and `!important` beats an inline property. `PO_DOC_SCOPE_CLASSES` in `po-chrome.tsx` is the list, and `po-doc-style.test.tsx` fails when a new part's root class is not on it.
+- **`notes_internal` is not in the document context at all.** No block can print it and no future block can start.
+
+**`lib/doc-context.ts` is client-safe** (types, `PO_DOC_PART_TYPES`, `SAMPLE_PO_CONTEXT`, the injector); **`lib/document.tsx` is the server half** (`loadPoDocContext`, `renderPoDocument`, `poDocumentPageSetup`, `renderPoRunningFooter`, `wordingSnapshot`, `orderRevisionSnapshot`).
+
+**The shared footer needs a compatibility shape, and it is deliberate.** Shop's five footer-capable blocks read `_ctx.invoice.*` and would throw on a purchase order, taking the whole PDF with them. `poAsDocFooterContext` in `lib/document.tsx` adds an `invoice` key carrying THIS order's number, totals and trading identity as plain data - no import from the shop module and no type against it. Only the fields a footer can print are filled. If shop's footer blocks change shape this is the thing that goes stale; a guard in shop's own `useCtx` would be the better long-term fix.
+
+**Public page `/purchase-order/<number>`** (`publicBasePath: "purchase-order"`, `app/public/purchase-order/[number]/page.tsx`). Opens for a valid short-lived signed token **or** a signed-in user with `purchase-orders.access`; anything else is a 404, never a 403. `lib/print-token.ts` is an HMAC over `purchase-order:<number>:<expiry-minute>` with the expiry inside the signature, default 30 minutes - deliberately unlike the shop's never-expiring invoice token, because PO numbers are sequential and nobody outside the building should be able to count through them.
+
+**New routes**: `orders/[id]/pdf` GET (attachment), `orders/[id]/document` GET (302 to a freshly-minted signed URL - the token has to be made at click time, not at page load), `orders/[id]/send` POST. `lib/order-pdf.ts` is the one place that builds the print URL, so the download button and the email attachment cannot drift.
+
+**Send order matters: the email goes FIRST, the status moves after.** An order reading "Sent" that nobody received is how a business waits six weeks for goods it never ordered. The send is not best-effort - a failure returns 502 with the mailer's own words and the order is untouched. The PDF attachment IS best-effort (`orderAttachment` never throws): an order that arrives without its attachment beats one that never arrives.
+
+**Snapshots frozen at FIRST send only** (`recordOrderSent` writes `supplier_snapshot` and `wording` with `CASE WHEN … = '{}'::jsonb`, and appends to `sent_to`). A supplier renamed or deleted afterwards, or settings re-worded next March, cannot rewrite paperwork somebody is already holding.
+
+**Revisions.** `editMode(status)` in `lib/lifecycle.ts` answers `free` / `amend` / `refused`; an amendment requires a reason, files the version they hold via `bumpOrderRevision` (inside a transaction, `SELECT … FOR UPDATE`, the unique `(order_id, revision)` index being what stops two people both writing revision 2), then saves. `canSend(status, approvalRequired)` is stricter than the transition table on purpose - an order over the threshold may not be emailed out of `DRAFT`, and the `send` transition now checks it too.
+
+**Cancelling an order that actually went out emails the supplier**, best-effort and after the status change: undoing a cancellation because an email bounced is the worst possible direction to be out of step in.
+
+**New settings**: `organisation` (name, address, contactName, email, phone, vatNumber, companyNumber). Blank fields fall back to the shop's invoice identity, read out of `shp_settings.config` by raw SQL through `shopTradingIdentity()` and guarded by `hasCatalogue` - never an import.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, 3603 tests green (27 new: print tokens, `canSend`/`editMode`, and the block/style/scope suite). No `npm run build`.
+
+Previous entry: Last updated: 2026-08-27 (**Purchase Orders module, first release** - `purchase-orders` **0.1.0**, core **0.5.1348**.)
 
 Stage 1 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). New standalone module, `requiresModules: []`, table prefix `po_`, repo `cactus-foundation-modules/purchase-orders`, pinned in `modules.json` at `v0.1.0`.
 
