@@ -1,7 +1,23 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Approved supplier bills go into the books by themselves** - `purchase-orders` **0.1.5**, `uk-bookkeeping` **0.2.24**, core **0.5.1354**.)
+Last updated: 2026-08-27 (**The running PDF footer printed over the document and lost its rule** - core **unreleased, in the working tree**. No module change.)
+
+**Two faults, one cause and one that is Chrome's, both only ever visible on paper.** `lib/documents/pdf.ts` only.
+
+1. **The footer template had the region's stylesheets but not the theme's tokens.** The capture takes the `<style>` tags inside `#cactus-pdf-footer` (correctly - see `pdf-footer-scope.test.ts` for why a page-wide sweep is fatal), but `--color-border`, `--color-text` and the rest are set on `:root` by the theme, several levels above the region, and never came across. A declaration whose `var()` cannot be resolved is discarded WHOLE, so `.shp-inv-rule { border-top: var(--w) solid var(--shp-inv-rule-ink, var(--color-border)) }` lost its border-**style** as well as its colour and the Divider block printed nothing at all, and `<a>` in the footer fell back to UA hyperlink blue. Fixed by reading the computed custom properties off the region (after `emulateMediaType('print')`, so a theme that redefines tokens for paper hands over the paper ones) and writing them into the template as `:root { ... }`. `FALLBACK_TOKENS` is a named list for a browser that will not enumerate custom properties; `MAX_TOKEN_CSS` caps the block at 24KB; values carrying `{}<>` are dropped. Plus one line in `RUNNING_FOOTER_RESET`: `.cactus-pdf-footer a { color: inherit }`.
+
+2. **Chrome pins the footer a fixed ~5mm above the sheet's edge and grows it UPWARDS, ignoring the bottom margin.** Measured, not assumed: a coloured strip of a known height printed at bottom margins of 20mm, 40mm and 60mm lands its lower edge in exactly the same place all three times, and a taller strip grows away from it. So a 16mm footer in a 16mm margin overprints the last 5mm of the document, which is what the invoice, credit note, proforma, quote and purchase order were all doing. `renderDocumentPdf` now builds the template ONCE (`runningFooterTemplate`), lays it out in an off-screen iframe of exactly the sheet's width (`measureFooterHeight`, `footerTemplateWidthPx`) and raises the bottom margin to `height + FOOTER_BOTTOM_INSET_MM (5) + FOOTER_CLEARANCE_MM (3)`. The owner's setting is a floor, never a ceiling; a footer may not take more than 40% of the sheet; any failure to measure returns 0 and the margin is left exactly as set.
+
+**Verified by printing, not by reading the CSS**: a fake document page through the pre-change printer and the fixed one, side by side at 110dpi. Before: small print over the last line, no rule, blue underlined links. After: rule present, links in ink, clear air above the footer, and the same on page 2.
+
+**New**: `lib/documents/pdf-footer-fit.test.ts` (8 tests, the margin arithmetic). **Extended**: `lib/documents/pdf-footer-scope.test.ts` (+3, pinning the token capture, the fitted margin and that the template measured is the template printed). **Checks**: `tsc --noEmit` clean, `eslint .` clean, **3776 tests green**. No `npm run build`. No schema anywhere, so the backup round-trip gate does not apply.
+
+**Wiki**: `Shop.md`, `Quotes.md` and `Appearance-and-design.md` no longer tell owners to give the page a deeper bottom margin when the footer looks cramped - it now makes its own room.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**Approved supplier bills go into the books by themselves** - `purchase-orders` **0.1.5**, `uk-bookkeeping` **0.2.24**, core **0.5.1354**.)
 
 Stage 6 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_bills.books_outcome` / `posted_at` and `po_returns.books_outcome` / `fx_rate` were all created in `001_initial.sql` in Stage 1 and were simply never written to, so the backup round-trip gate did not apply. `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always. No core code at all: core carries the two pins, the version and this file.
 

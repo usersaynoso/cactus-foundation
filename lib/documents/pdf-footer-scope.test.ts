@@ -44,6 +44,42 @@ describe('the running footer takes only the stylesheets its own region carries',
     expect(capture).toContain('.cactus-pdf-footer { display: block !important; }')
   })
 
+  it('carries the theme tokens across with the markup', () => {
+    // The other half of the same story, and the same silent failure. The
+    // region's stylesheet READS tokens (`var(--color-border)`) that the theme
+    // sets on :root, several levels above the region - so the template got the
+    // rules without the values, and a declaration whose var() cannot be resolved
+    // is thrown away WHOLE. `border-top: 1px solid var(--color-border)` lost its
+    // border-STYLE along with its colour, and the rule above the small print
+    // printed as no rule at all, on every document, for months.
+    const capture = read('lib/documents/pdf.ts')
+    expect(capture).toContain('getComputedStyle(region!)')
+    expect(capture).toContain(':root { ')
+    // Read at the region, not at :root - custom properties inherit, so this is
+    // the theme's values plus anything the document narrowed on the way down.
+    expect(capture).toContain('footer.tokens')
+  })
+
+  it('makes the bottom margin deep enough to hold the footer', () => {
+    // Chrome draws the footer flush with the bottom of the sheet and does not
+    // shorten the page for it, so a footer taller than the margin is painted
+    // over the last lines of the document. The arithmetic is pinned separately
+    // in pdf-footer-fit.test.ts; what matters here is that it is actually used.
+    const capture = read('lib/documents/pdf.ts')
+    expect(capture).toContain('bottomMarginForFooter(')
+    expect(capture).toContain('measureFooterHeight(page, footerTemplate')
+    expect(capture).toContain('margin,')
+  })
+
+  it('measures the same template it prints', () => {
+    // Measuring anything else - the region on the document page, say, where the
+    // page's own stylesheet applies and the template's does not - measures a
+    // different document from the one being printed.
+    const capture = read('lib/documents/pdf.ts')
+    expect(capture).toContain('const footerTemplate = footer ? runningFooterTemplate(')
+    expect(capture).toContain('footerTemplate,')
+  })
+
   it('draws an empty header alongside it', () => {
     // Chrome will not draw a footer without also drawing a header, and its
     // default header is today's date and the page URL across the top of

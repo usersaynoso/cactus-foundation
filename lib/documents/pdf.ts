@@ -94,6 +94,7 @@ const RUNNING_FOOTER_RESET = `
 html, body { margin: 0; padding: 0; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cactus-pdf-footer { width: 100%; box-sizing: border-box; font-size: 9px; line-height: 1.4; color: #444; }
 .cactus-pdf-footer * { box-sizing: border-box; }
+.cactus-pdf-footer a { color: inherit; }
 `
 
 /**
@@ -109,13 +110,48 @@ const RUNNING_FOOTER_FORCE = `
 .cactus-pdf-footer { display: block !important; }
 `
 
-type RunningFooter = { html: string; css: string }
+/**
+ * The theme's own custom properties, read off the document page and written into
+ * the footer template - and the fix for a fault that made the footer look like
+ * somebody else's document.
+ *
+ * The template is a document of its own with no stylesheet but the region's, and
+ * a site's colour tokens are not in the region: they are set on `:root` by the
+ * theme, several levels above it. So every rule in the footer that reads one got
+ * nothing, and in CSS "nothing" is not "the fallback" - a declaration whose
+ * var() cannot be resolved is thrown away WHOLE, taking the rest of the shorthand
+ * with it.
+ *
+ * What that looked like on paper: `border-top: 1px solid var(--color-border)`
+ * lost its border-STYLE along with its colour, so the rule above the small print
+ * printed as no rule at all; and `color: var(--color-text)` on the contact line
+ * fell back to the browser's own idea of a link, which is Word-Art blue with an
+ * underline. Both on every PDF, both invisible to every check in this repo.
+ *
+ * Carrying the computed values across fixes the lot in one go, and does it for
+ * whatever a module puts in the footer next rather than for the two blocks that
+ * happened to break. Read AFTER print emulation, so a theme that redefines its
+ * tokens for paper hands over the paper ones.
+ */
+const FALLBACK_TOKENS = [
+  '--color-text', '--color-text-muted', '--color-border', '--color-bg', '--color-bg-subtle',
+  '--color-primary', '--color-accent',
+  '--font-body', '--font-sans', '--font-heading',
+]
+
+/** A ceiling on the token block, so a theme with a thousand properties on it
+ *  cannot turn a footer template into a stylesheet. Generous: a full palette and
+ *  a type scale is a few hundred bytes. */
+const MAX_TOKEN_CSS = 24_000
+
+type RunningFooter = { html: string; css: string; tokens: string }
 
 /**
- * Lifts the footer region out of the printed page, with the stylesheets it
- * carries, so the running footer is drawn from the same blocks and the same
- * rules as the document itself. Null when nobody has published a PDF footer
- * layout, which is the ordinary case and costs one query selector.
+ * Lifts the footer region out of the printed page, with the stylesheets and the
+ * theme tokens it sits inside, so the running footer is drawn from the same
+ * blocks, the same rules and the same colours as the document itself. Null when
+ * nobody has published a PDF footer layout, which is the ordinary case and costs
+ * one query selector.
  *
  * Only the stylesheets INSIDE THE REGION, which is the whole trick and was
  * learned the hard way. Every document part emits the shared document stylesheet
@@ -135,19 +171,205 @@ type RunningFooter = { html: string; css: string }
  */
 async function captureRunningFooter(page: Page): Promise<RunningFooter | null> {
   try {
-    return await page.evaluate((id: string) => {
-      const region = document.getElementById(id)
-      const html = region?.innerHTML?.trim() ?? ''
-      if (!html) return null
-      const css = Array.from(region!.querySelectorAll('style'))
-        .map((node) => node.textContent ?? '')
-        .join('\n')
-      return { html, css }
-    }, PDF_FOOTER_REGION_ID)
+    return await page.evaluate(
+      (id: string, fallbackNames: string[], maxCss: number) => {
+        const region = document.getElementById(id)
+        const html = region?.innerHTML?.trim() ?? ''
+        if (!html) return null
+        const css = Array.from(region!.querySelectorAll('style'))
+          .map((node) => node.textContent ?? '')
+          .join('\n')
+
+        // The custom properties in force AT THE REGION - which is where the
+        // footer's blocks are standing, so it is their values that the template
+        // has to be given. Custom properties inherit, so this is the theme's
+        // `:root` plus anything the document narrowed on the way down.
+        const computed = getComputedStyle(region!)
+        const declare = (names: Iterable<string>) => {
+          const out: string[] = []
+          let size = 0
+          for (const name of names) {
+            if (!name.startsWith('--')) continue
+            const value = computed.getPropertyValue(name).trim()
+            // A value carrying a brace or an angle bracket is either nonsense or
+            // an attempt to close the <style> tag it is being written into.
+            if (!value || /[{}<>]/.test(value)) continue
+            const declaration = `${name}: ${value};`
+            size += declaration.length
+            if (size > maxCss) break
+            out.push(declaration)
+          }
+          return out
+        }
+
+        // Chrome lists custom properties when a computed style is iterated, and
+        // has done since well before any browser this runs on. The named list is
+        // there for the day it does not: the tokens the document stylesheets
+        // actually read, which is better than a footer full of blue underlines.
+        const enumerated = declare(Array.from(computed as unknown as ArrayLike<string>))
+        const declarations = enumerated.length ? enumerated : declare(fallbackNames)
+        const tokens = declarations.length ? `:root { ${declarations.join(' ')} }` : ''
+        return { html, css, tokens }
+      },
+      PDF_FOOTER_REGION_ID,
+      FALLBACK_TOKENS,
+      MAX_TOKEN_CSS,
+    )
   } catch {
     // A page that would not run script is still a page worth printing. The
     // footer is a nicety; the document is the point.
     return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Making the bottom margin deep enough to hold the footer
+// ---------------------------------------------------------------------------
+//
+// Chrome draws the running footer flush with the bottom EDGE of the sheet, and
+// does not shorten the page to make room for it. A footer taller than the bottom
+// margin therefore grows upwards, over the last lines of the document, and is
+// painted on top of them: the terms of sale disappearing behind a registered
+// office address, which is exactly how this was reported.
+//
+// The margin is a page setting an owner can see, so the honest fix is not to
+// override it but to raise the floor: never less than they asked for, only
+// deeper when what they have designed genuinely will not fit in it. Which means
+// measuring the thing, because a footer's height is whatever its blocks, its
+// wrapping and its typeface make it, and none of that is knowable from here.
+
+/** Paper in millimetres, for the six sizes page settings offers. Keyed by the
+ *  name `docPageSetup` hands to puppeteer. */
+const PAPER_MM: Record<string, { width: number; height: number }> = {
+  a4: { width: 210, height: 297 },
+  a5: { width: 148, height: 210 },
+  a3: { width: 297, height: 420 },
+  letter: { width: 215.9, height: 279.4 },
+  legal: { width: 215.9, height: 355.6 },
+  tabloid: { width: 279.4, height: 431.8 },
+}
+
+/** CSS pixels are 1/96 inch, whatever the screen is. The footer template is
+ *  drawn at that scale: the document's own `scale` setting shrinks the document
+ *  and leaves the margins, and the footer, exactly where they were. */
+const MM_PER_PX = 25.4 / 96
+
+/**
+ * Chrome does not sit the footer at the top of the bottom margin, nor flush with
+ * the edge of the sheet: it pins the BOTTOM of the footer a fixed distance above
+ * the paper's edge and lets it grow upwards from there. Measured rather than
+ * assumed - printing a coloured strip of a known height at bottom margins of
+ * 20mm, 40mm and 60mm puts its lower edge in exactly the same place all three
+ * times, about 5mm up, and a strip of a different height grows away from that
+ * edge rather than towards it.
+ *
+ * Which is why a footer that fits the margin on paper still overprinted the
+ * document: 16mm of margin against a 16mm footer starting 5mm up is 5mm of
+ * overlap, and the first thing to disappear is the last line of the terms.
+ */
+const FOOTER_BOTTOM_INSET_MM = 5
+
+/** Clear air between the last line of the document and the top of the footer.
+ *  Small, because the margin is the owner's to spend, but not nothing - text
+ *  touching a rule reads as a mistake. */
+const FOOTER_CLEARANCE_MM = 3
+
+/** However tall the footer, the document keeps most of the sheet. A footer that
+ *  wants half the page is a design fault, and printing it over four hundred
+ *  pages of nothing is not the fix. */
+const MAX_FOOTER_SHARE = 0.4
+
+/** Millimetres out of a `"16mm"` margin. */
+function marginMm(value: string): number {
+  const n = Number.parseFloat(value)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+function sheetMm(paper: DocPageSetup): { width: number; height: number } {
+  const sheet = PAPER_MM[paper.format] ?? { width: 210, height: 297 }
+  return paper.landscape ? { width: sheet.height, height: sheet.width } : sheet
+}
+
+/** The width the footer template is laid out at: the full sheet, because the
+ *  template spans it and pads itself in by the side margins. */
+export function footerTemplateWidthPx(paper: DocPageSetup): number {
+  return Math.round(sheetMm(paper).width / MM_PER_PX)
+}
+
+/**
+ * The bottom margin to print with, given a measured footer.
+ *
+ * Never smaller than the page settings asked for, never more than a share of the
+ * sheet, and otherwise deep enough for the footer plus a little clear air.
+ * Exported for lib/documents/pdf-footer-fit.test.ts, which is the only thing
+ * that can check the arithmetic without printing a PDF and holding a ruler to it.
+ */
+export function bottomMarginForFooter(paper: DocPageSetup, footerHeightPx: number): string {
+  const asked = marginMm(paper.margin.bottom)
+  if (!Number.isFinite(footerHeightPx) || footerHeightPx <= 0) return paper.margin.bottom
+  const needed = footerHeightPx * MM_PER_PX + FOOTER_BOTTOM_INSET_MM + FOOTER_CLEARANCE_MM
+  const ceiling = sheetMm(paper).height * MAX_FOOTER_SHARE
+  const fitted = Math.max(asked, Math.min(needed, ceiling))
+  return `${Math.round(fitted * 10) / 10}mm`
+}
+
+/** The template Chrome is handed, and the template the height is measured from -
+ *  one function, because measuring anything else would be measuring the wrong
+ *  document. */
+function runningFooterTemplate(footer: RunningFooter, footerCss: string, paper: DocPageSetup): string {
+  return `<style>${RUNNING_FOOTER_RESET}${footer.tokens}${footerCss}${footer.css}${RUNNING_FOOTER_FORCE}</style><div class="cactus-pdf-footer" style="padding: 0 ${paper.margin.right} 0 ${paper.margin.left};">${footer.html}</div>`
+}
+
+/**
+ * How tall the footer comes out, in CSS pixels, by laying the finished template
+ * out in an iframe of exactly the sheet's width.
+ *
+ * An iframe rather than the region itself: the region is on the document page,
+ * where the page's own stylesheet applies and the template's does not, so
+ * measuring it there measures a different thing from the one being printed.
+ *
+ * Zero on any difficulty at all - a content policy that will not have an inline
+ * style, a page that will not run script. The margin then stays exactly what the
+ * owner set, which is the behaviour this had before and is no worse than it was.
+ */
+async function measureFooterHeight(page: Page, template: string, widthPx: number): Promise<number> {
+  try {
+    return await page.evaluate(
+      async (html: string, width: number) => {
+        const frame = document.createElement('iframe')
+        frame.setAttribute('aria-hidden', 'true')
+        frame.style.cssText = `position: fixed; top: 0; left: -20000px; width: ${width}px; height: 1200px; border: 0; opacity: 0; pointer-events: none;`
+        document.body.appendChild(frame)
+        try {
+          const doc = frame.contentDocument
+          if (!doc) return 0
+          doc.open()
+          doc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`)
+          doc.close()
+          // A webfont that has not arrived yet measures at the fallback's line
+          // height, which is not the height that gets printed. Raced, because a
+          // font that never arrives must not hold up the document.
+          if (doc.fonts?.ready) {
+            await Promise.race([
+              doc.fonts.ready,
+              new Promise((resolve) => setTimeout(resolve, 2_000)),
+            ])
+          }
+          const element = doc.querySelector('.cactus-pdf-footer')
+          if (!element) return 0
+          // The element's own bottom edge, not just its height: a block with a
+          // top margin sits lower than it is tall, and Chrome measures from the
+          // bottom of the sheet upwards.
+          return Math.ceil(Math.max(element.getBoundingClientRect().bottom, doc.body.scrollHeight))
+        } finally {
+          frame.remove()
+        }
+      },
+      template,
+      widthPx,
+    )
+  } catch {
+    return 0
   }
 }
 
@@ -245,12 +467,25 @@ export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Prom
     await page.emulateMediaType('print')
     const paper = pageSetup ?? docPageSetup(undefined)
     const footer = await captureRunningFooter(page)
+    const footerTemplate = footer ? runningFooterTemplate(footer, footerCss, paper) : ''
+    // The margin the document is actually printed with: the owner's, unless the
+    // footer they designed is taller than it, in which case theirs would have
+    // the footer printed over the last lines of the document.
+    const margin = footer
+      ? {
+          ...paper.margin,
+          bottom: bottomMarginForFooter(
+            paper,
+            await measureFooterHeight(page, footerTemplate, footerTemplateWidthPx(paper)),
+          ),
+        }
+      : paper.margin
     const pdf = await page.pdf({
       format: paper.format as PaperFormat,
       // Backgrounds on by default, or every rule and border in the document
       // prints white. An owner who would rather save the ink can say so.
       printBackground: paper.printBackground,
-      margin: paper.margin,
+      margin,
       scale: paper.scale,
       preferCSSPageSize: false,
       // The running footer, when one has been designed. Chrome will not draw a
@@ -261,7 +496,7 @@ export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Prom
         ? {
             displayHeaderFooter: true,
             headerTemplate: '<span></span>',
-            footerTemplate: `<style>${RUNNING_FOOTER_RESET}${footerCss}${footer.css}${RUNNING_FOOTER_FORCE}</style><div class="cactus-pdf-footer" style="padding: 0 ${paper.margin.right} 0 ${paper.margin.left};">${footer.html}</div>`,
+            footerTemplate,
           }
         : {}),
     })
