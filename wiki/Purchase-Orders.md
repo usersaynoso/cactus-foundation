@@ -332,6 +332,54 @@ Anything that cannot be ordered is listed under **Waiting on something**, each w
 
 ---
 
+## Buying for a customer order
+
+Somebody has bought three chairs and a desk from you and you buy every one of
+them in. Open the order under **Shop → Orders** and there is a **Purchasing**
+panel on it.
+
+The panel works out, before you touch anything, what would be raised: one draft
+purchase order per supplier, what each one comes to, and which lines nobody can
+buy and why. Press **Order this from the suppliers** and exactly that is what you
+get. Nothing is emailed to anybody - they are drafts, sitting on the Orders tab
+for somebody to read and send.
+
+**Everything goes straight to the customer.** Each draft is addressed to the
+delivery address off the customer's order rather than to you, copied across
+exactly as they typed it. The supplier is buying the parcel a journey, not two.
+
+**Each line names the service that line has to be sent on**, in the words the
+customer bought - flat-packed, pre-assembled, and the date they were promised.
+What that service costs sits on the order as carriage, which is where this
+module has always kept delivery money.
+
+**The price is what the product costs you, never what the customer paid.**
+Delivery is bundled into the price on the customer's order, so buying at that
+figure would pay the supplier your customer's carriage twice over. A supplier's
+own price list is used ahead of your cost price where you keep one - see
+[Pricing orders off them](#pricing-orders-off-them).
+
+**Their code, not yours.** Each line goes out under the supplier's own code where
+your product records one (**Shop → the product → Product codes → Supplier SKU**),
+and under your SKU where it does not, which is what a supplier who has never
+given you a code of theirs reads it as anyway.
+
+**Pressing it twice does not order twice.** The panel lists what has already been
+raised for that order and says so instead. Cancel those first if you genuinely
+want to start again - a cancelled purchase order is a decision to buy it
+differently, so it never blocks a second attempt. A customer order that has been
+cancelled or refunded is not bought for at all.
+
+Lines that cannot be bought are listed underneath with a sentence each: nothing
+says who supplies it, nobody on your supplier list is called that, the supplier
+is on hold or switched off, or the product has left the catalogue. Nothing is
+dropped in silence, and nothing stops the rest of the order being raised.
+
+Raising them needs `purchase-orders.create`, and the panel is only there at all
+for somebody who can see purchasing.
+
+---
+
 ## Suppliers' price lists
 
 **Purchasing → Catalogues** is where a supplier's own catalogue lives, so an order can be drafted at what they are charging today rather than at whatever was typed into a product when it was created.
@@ -605,6 +653,7 @@ Purchasing works out for itself what else is on the site, and every screen behav
 - Goods can be taken into stock as they arrive, if you switch it on - and whoever is waiting for that product to come back is emailed at the same time. Goods sent back come off the count the same way.
 - Reordering works at all, since it needs something keeping count to work out what to buy.
 - A supplier's price list can be picked from the catalogues your shop already records for them, and your products can be checked against the codes and prices they currently publish.
+- A customer's order can be bought in at the press of a button, one draft per supplier, delivered straight to them - see [Buying for a customer order](#buying-for-a-customer-order).
 
 **With the UK Bookkeeping module:**
 - Bill lines can be filed under your own expense categories as you type them, and the spend report names those categories rather than only their references.

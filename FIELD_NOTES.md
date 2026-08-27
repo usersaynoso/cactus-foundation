@@ -1,7 +1,7 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-28 (**Suppliers' own price lists** - `purchase-orders` **0.1.12**, core **0.5.1365**.)
+Last updated: 2026-08-28 (**A cancelled customer order is not bought for** - `purchase-orders` **0.1.13**, core **0.5.1366**. `CLOSED_SHOP_ORDER_STATUSES` in `modules/purchase-orders/lib/from-order.ts` is now the one set of shop-order statuses closed to buying, read by both `OrderPurchasePanel` and `raisePurchaseOrdersFromShopOrder`; the run refuses instead of relying on the panel hiding its button. No schema change.)
 
 Stage 4 of the purchase-orders-from-customer-orders plan (`~/.claude/plans/supplier-cats.md`) - the optional one, deliberately independent of stages 1 to 3. **No core code at all**: core carries the pin, the version and this entry.
 
