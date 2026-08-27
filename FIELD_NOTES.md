@@ -1,7 +1,31 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The footer margin fix measured zero on every real document page** - core **unreleased, in the working tree**.)
+Last updated: 2026-08-27 (**Vertical space between blocks, and one grid column at a time** - core **unreleased, in the working tree**.)
+
+**2026-08-27, v0.5.1362 - Account Login layout type.** New core `Layout.type` value `memberLogin` ("Account Login" on `/hq/layouts`), so the member sign-in page (`/account/login` by default, wherever `MEMBER_AREA_PATH` puts it) can be redesigned instead of staying the one hardcoded screen in the member area. Built the same way `infoPage` is: `layoutPuckConfig`/`layoutPuckRscConfig` (the config with a `ContentSlot` in it), resolved by `resolveThemeLayout('memberLogin', ...)` and rendered via `renderLayoutWithContent()` from `app/(public)/cactus-account/login/page.tsx`. The slot takes the real sign-in form and nothing else - it is never a placeable block, because it carries the visitor's `?redirect=`, a magic-link token from email, and the "continue as admin" shortcut, none of which a hand-placed block would know about. Three starters (`lib/layout/starter-templates.ts`): Centred, Welcome Back, With a Way Out - none `publishByDefault`, so a site with none published renders the login page exactly as it always has. `layout-type-tabs.ts` gives it the tab; `LayoutPuckEditor.tsx` and `app/layout-preview/[id]/page.tsx` route it to the `infoPage` config rather than the bare full-page one, since it needs the slot the full-page config lacks. No display-condition or `defaultConditionsForLayout` change needed - an unmapped type already falls back to `entire_site`, which is the only rule this type could ever carry (one page, no URL to match against). Unrelated small tidy on the same page: the account overview's "Hi, Name" header row now has a Sign out button, right-aligned. **Checks**: `tsc --noEmit` clean, `eslint .` clean on the changed files, existing starter/display-condition test suites green. No `npm run build`.
+
+Reported off the live Deskwell document footer, whose published layout (read from the install's own database) is a core `Divider` followed by a `Grid3`: col2 holds a `RichTextBlock` (contact line) and a `TextBlock` (registration small print), col3 holds `ShopInvoicePageNumber`. Two things were impossible from the editor.
+
+**1. There was no vertical spacing control anywhere in core.** `paddingField` (`lib/puck/config.core.tsx:155`) is **left and right only** - `getPaddingClasses` emits `padding-left/right` and nothing else (`lib/design/tokens.ts:847`). Every block that wanted air around it hard-coded it: `Divider` `margin: 1.5rem 0`, `TextBlock` `marginBottom: '1.5rem'`, `.puck-richtext p` `margin: 0 0 1em` in `app/globals.css`. Reads as generous on a page; in a PDF footer a few millimetres tall, a 1.5rem hole under a rule is most of the footer.
+
+- New shared `BLOCK_SPACE_MAP` / `BLOCK_SPACE_OPTIONS` / `blockSpace()` in `config.core.tsx`. Scale: none / xs 0.25 / sm 0.75 / **md 1.5rem** / lg 2.5 / xl 4rem. **`md` IS the old hard-coded 1.5rem**, and it is the default wherever a block already had one - so published layouts render identical markup. Exact-length box wins over the menu when non-blank (the `spaceAbovePx` pattern shop's Divider already used).
+- `Divider`: `spaceAbove` / `spaceBelow` (+ px), defaults `md`/`md`.
+- `TextBlock`: same, defaults `none`/`md`.
+- `RichTextBlock`: same, defaults `none`/`none` (its wrapper never had a margin), **plus `paraSpace`** - the gap between paragraphs INSIDE it, which cannot be a wrapper style because the paragraphs are `dangerouslySetInnerHTML`. Published as `--puck-richtext-p-space`; `app/globals.css:3198` now reads `var(--puck-richtext-p-space, 1em)`, so blank is exactly 1em.
+- RichText has **two render paths** (`config.core.tsx` editor, `config.rsc.tsx` sanitised RSC). Both take the same new `richTextSpacingStyle()` helper, next to `richTextFontSize` and there for the same reason: spacing applied in one and not the other is a footer that looks right in the builder and wrong in the PDF.
+
+**2. Grid vertical alignment was all-columns-or-nothing.** `verticalAlign` sets `align-items` on the grid; there was no per-column equivalent, so a page number could not sit on the bottom line while the address beside it stayed at the top. New `col{n}VAlign` on Grid2/3/4 (`makeGridColumnComponent`) and on the retired dynamic `Grid`, emitted as `align-self` on that column's track div. **Blank ("Follow the grid") is the default**, so nothing already saved moves. It goes in BEFORE `stickyStyle` in the style object: a pinned column must keep its own `align-self: start` or it is stretched to the row height and has nowhere to travel.
+
+**Verified by printing.** A harness page carrying the real `BARE_CSS`, with the footer built out of the actual core blocks, printed twice - defaults and turned-down - through `renderDocumentPdf`. Defaults: wide gap under the rule, page number level with the first line. Turned down: gap closed, page number on the bottom line beside the last line of the address.
+
+**New**: `lib/puck/block-spacing.test.tsx` (11 tests - every default pinned to the figure the block used to hard-code, plus the sticky-column interaction). **Checks**: `tsc --noEmit` clean, `eslint .` clean, **3876 tests green**. No `npm run build`. No schema, so the backup round-trip gate does not apply.
+
+**Wiki**: `Managing-pages.md` (Divider, Grid, Text, Rich Text rows), `Architecture-overview.md` (Grid row).
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**The footer margin fix measured zero on every real document page** - core **unreleased, in the working tree**.)
 
 **The fix released in 0.5.1355 fixed half of what it claimed.** The token half landed (the divider rule prints, the small print takes the site's colours). The margin half did nothing at all on a live install, and the reason is the rule that has now caused three separate faults:
 
