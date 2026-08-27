@@ -1,7 +1,39 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**The supplier's own link to their order** - `purchase-orders` **0.1.7**, core **0.5.1357**.)
+Last updated: 2026-08-27 (**Purchasing reports, chasing and the spreadsheets** - `purchase-orders` **0.1.8**, core **0.5.1358**.)
+
+Stage 9 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - the "when did we last chase this" fact is read out of `po_audit_log` rather than out of a new column, so the backup round-trip gate did not apply. `lib/backup/schema-coverage.test.ts` ran in plain `npm test` as always. No core code at all: core carries the pin, the version, the README line and this file.
+
+**purchase-orders 0.1.8 - reporting, chasing, export and a dashboard tile.**
+
+- **`lib/reporting.ts` is pure** - no database, no clock, no config reader - and holds the whole of the arithmetic: `commitmentBySupplier`, `receivedNotInvoiced`, `invoicedNotReceived`, `overdueOrders`, the month helpers and `toBasePence`. Money is added up in pence through `lib/totals.ts` in the row's own currency and converted ONCE at the end; converting first and adding after is how a report ends up a penny out from the order screen it was read off.
+- **`lib/reports.ts`** is every read. `gatherLineFacts()` is one query with `CROSS JOIN LATERAL (SELECT ${LINE_PROGRESS_SQL})`, filtered in SQL to lines that still have something unresolved about them - so a line ordered, delivered and invoiced in full never leaves the database, and the row count is bounded by open business rather than by history. Spend is the one thing aggregated in SQL, because a year of supplier invoices is a lot of rows to fetch in order to add up and a bill's figures are settled rather than derived.
+- **`lib/chasing.ts` is pure** and decides who is chased; **`lib/chase.ts`** reads the facts; **`lib/chase-run.ts`** is the impure runner the cron and the button share - the same three-file shape Stage 7 used for reordering, and for the same reason.
+- **`lib/csv.ts`** is this module's own writer, twelve lines including the formula-injection guard. Shop has one; a site with no shop has no `@/modules/shop/lib/csv` at build time, exactly as with `lib/money.ts`.
+- **`lib/export.ts`** builds the four files. The order lines file takes its quantities from `LINE_PROGRESS_SQL` too, so a download and the order screen cannot disagree. Capped at 20,000 rows, and the route says so in an `X-Cactus-Export-Truncated` header while the screen says so beside the buttons.
+- **New routes**: `admin/reports` GET, `admin/reports/export` GET (CSV), `admin/chase` POST, `cron/chase` GET/POST. Reports and exports need `purchase-orders.access`; chasing needs `purchase-orders.create`.
+- **Screen**: `ReportsScreen.tsx` replaces the Reports tab's placeholder. `components/admin/DashboardWidget.tsx` is the module's second `extensionPoints` entry, at `core.admin-dashboard-widgets`, permission-filtered on `purchase-orders.access`.
+- **Manifest**: version 0.1.8, a second `cronJobs` entry (`/api/m/purchase-orders/cron/chase`, `0 7 * * *`), and the dashboard widget. `requiresCoreVersion` left at 0.5.1350 - nothing new was needed from core.
+- **Emails**: new template `purchase-orders.chase`, the fifth that goes to a supplier. It carries the `portalLink` rawTag and **no attachment** - the supplier already has the order, and sending the PDF again reads as a fresh one.
+- **Checks**: `npm run typecheck` clean, `eslint .` clean, **3864 tests green** (up from 3803; 61 new across `reporting.test.ts`, `chasing.test.ts` and `csv.test.ts`). No `npm run build`.
+
+**The SQL was run against a real Postgres before it shipped**, which no stage before this one managed. A throwaway `cactus_rt_*` database on the OVH VPS (the round-trip test's own provisioning, `lib/backup/vps-database.ts`), core init plus both module migrations applied, a seeded order/receipt/bill/return/audit scenario, every new query and both export builders exercised, database and role dropped afterwards and the server swept clean. The check itself was temporary and is not in the tree: `tsc` cannot see a syntax error inside a tagged template, and a broken `gatherLineFacts` would have taken out the Reports tab and the dashboard tile on every admin page load.
+
+**Six decisions worth knowing:**
+
+1. **Nothing records when an order was last chased, and nothing needs to.** `order.chased` in `po_audit_log` is the fact, read by `MAX(created_at)`. Every other "when did we last" question in this module is answered the same way, the log is where anybody would look, and a column would have meant a migration.
+2. **A commitment starts when an order is SENT**, not when it is approved. An approved order in the tray is a decision nobody outside the building knows about; nothing would turn up if everybody went home.
+3. **The accruals keep CLOSED orders and drop CANCELLED ones.** Closing an order is somebody saying the goods business is finished, which says nothing about whether the invoice ever arrived - and an accrual that vanishes when somebody tidies up is not an accrual.
+4. **Spend is net of VAT and counts only approved and posted bills.** Net is the figure worth comparing suppliers on and the only one the category cut can produce; credits come off it as the return's own line total, not `credit_received`, because taking a gross credit off net spend makes the VAT look like a discount. Credits fall in the month the return was RAISED - there is no `credited_at` column and adding one would have been a migration for a figure nobody reconciles to the day.
+5. **A chase repeat of zero means "ask once".** A zero that meant "every day" turns a forgotten order into a daily nuisance, and nobody sets a repeat interval expecting that. An order that is ON_HOLD is never chased at all: putting it on hold is the instruction.
+6. **A chase is only recorded once the email has gone.** `sendOrderChase` throws where the rest of this module's supplier emails are best-effort, because a chase written down for one that bounced is exactly what stops the next one being sent.
+
+**Wiki**: `Purchase-Orders.md` gains a "Reports" section covering all five cuts, chasing, the exports and the tile; the settings, emails and other-modules sections were brought up to date.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**The supplier's own link to their order** - `purchase-orders` **0.1.7**, core **0.5.1357**.)
 
 Stage 8 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_portal_tokens` and `po_portal_events` came out of `001_initial.sql` in Stage 1 exactly as the plan specified, so the backup round-trip gate did not apply. No core code at all: core carries the pin, the version and this file.
 
