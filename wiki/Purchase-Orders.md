@@ -22,6 +22,7 @@ The module is finished: everything below is in it, and the buying side of a busi
 - **A history** on every order, every return and every bill, saying who did what and when.
 - **Bills and credits going through to the books** by themselves, where you run UK Bookkeeping.
 - **Reordering** - a level per product, and the draft orders that follow when you drop below it, grouped by supplier and mindful of their minimum.
+- **Suppliers' price lists** - their own catalogue kept on file, so an order is drafted at what they charge today, and you are told the week a code is renamed or stopped.
 - **A link for the supplier** - their own view of their own order, which they can accept, offer a different date on, or tell you something is short - and change nothing at all.
 - **Reports** - what you have committed to and not yet had, what is late, goods in without an invoice, invoices in without the goods, and what you spend with whom.
 - **Chasing** - a note to a supplier whose order is late, on the schedule you set, or one you send yourself.
@@ -38,11 +39,12 @@ Purchasing is a set of permissions on your core roles, set from **Users → Role
 - `purchase-orders.approve` - approve an order that is over your threshold, or send it back.
 - `purchase-orders.receive` - book deliveries in, and send goods back.
 - `purchase-orders.bills` - enter, query and approve supplier invoices, and record a credit when it arrives.
+- `purchase-orders.catalogues` - keep suppliers' price lists, and import them.
 - `purchase-orders.settings` - change the settings.
 
-Anybody holding any one of the first five can see the section, so somebody whose only job is approving orders is not left staring at a page telling them off.
+Anybody holding any one of the first six can see the section, so somebody whose only job is approving orders is not left staring at a page telling them off.
 
-Administrators hold all six without being given them, as they do everywhere else.
+Administrators hold all seven without being given them, as they do everywhere else.
 
 ---
 
@@ -318,7 +320,7 @@ Everything that should be bought is grouped into one draft order per supplier, w
 - **Their minimum order value holds the order back** rather than padding it out. An order that is short is shown, with how far short it is, and left to grow. Nothing quietly adds four hundred pounds of something nobody asked for to clear a minimum.
 - **Carriage follows their threshold.** Over it, carriage is left off; under it, their carriage charge goes on the draft, because they are going to charge it whether or not the paperwork mentions it.
 
-The price on each line is whatever **that** supplier last charged you for that product, falling back to the cost price in your catalogue. Two suppliers stocking the same chair at different prices do not borrow each other's.
+The price on each line is the supplier's own current price list where you keep one and have switched them on, then whatever **that** supplier last charged you for that product, then the cost price in your catalogue. Two suppliers stocking the same chair at different prices never borrow each other's, at any of the three.
 
 Anything that cannot be ordered is listed under **Waiting on something**, each with its own reason: nobody is set to supply it, the supplier is on hold, nothing is counting it, nobody said how many to buy, or the product has left the catalogue.
 
@@ -327,6 +329,57 @@ Anything that cannot be ordered is listed under **Waiting on something**, each w
 **Nothing is ever sent to a supplier.** Every order this raises is a draft, sitting on the Orders tab exactly as if you had typed it, waiting for somebody to read it, change it and send it. Drafts over your approval threshold still need approving, the same as any other.
 
 **Raising them overnight is off until you switch it on** - Settings → Purchase Orders → Reordering. Off, the tab still works everything out and you press **Raise a draft order** against a supplier yourself; that button ignores the minimum, because you have looked at it and decided. On, the drafts are waiting for you in the morning.
+
+---
+
+## Suppliers' price lists
+
+**Purchasing → Catalogues** is where a supplier's own catalogue lives, so an order can be drafted at what they are charging today rather than at whatever was typed into a product when it was created.
+
+It needs nothing else installed. A supplier publishes a price list whether or not you sell anything online, and the shop only comes into it for two conveniences, both of which say so on the screen when it is not there.
+
+### Putting a list on file
+
+A list belongs to one supplier and has a name - whatever they call it. "Seating 2026", "Trade price list", "Spring". You can also record where it lives, and when it starts applying.
+
+If you have the Shop module, your shop already keeps a list of each supplier's catalogues, and you can simply **pick one of those** rather than typing the address again. Doing that brings the address across and remembers which one it was, so the same link is not kept in two places drifting apart.
+
+Nothing is ever fetched from that address. It is there so whoever goes looking next time knows where to look.
+
+### Importing the prices
+
+Upload the supplier's spreadsheet as a CSV. A column of codes and a column of prices is enough, and the headers can say whatever they already say - "Supplier SKU", "Product code", "Code", "Trade price", "Net price" and a good many others are all understood. Where a list carries both a trade price and a retail one, the trade price is the one taken.
+
+Pack size, minimum order quantity, lead time, discount group and a discontinued column are all read as well, when they are there.
+
+**You are shown what the file would do before anything happens.** How many prices are in it, which column was read as what, and - comparing it against the list already on file - what is new, what has gone, what has moved price, what they have stopped selling, and what has come back under a **new code**. That last one is why the comparison exists: a supplier who reissues the same chair under a new number leaves everything you sell under the old one quietly unbuyable, and nothing else on your site would ever tell you.
+
+Then you press the button, or you do not.
+
+Two things are worth knowing:
+
+- **An import replaces the list.** A price list is a statement about a whole range on the day it was published, so anything on file that is not in the file goes. Merging would keep last year's codes alive for ever, which is the exact thing this is here to prevent.
+- **A file that reads as nothing is refused.** Every price a supplier has disappearing because somebody uploaded the wrong sheet is not the sort of thing a confirmation box makes acceptable.
+
+Rows that cannot be read - no code, a price that says "POA", a code in there twice at two different prices - are listed one by one with the row number the spreadsheet shows, and the rest of the file still imports. Nothing is dropped in silence.
+
+### Pricing orders off them
+
+**This is off until you switch it on** - Settings → Purchase Orders → Suppliers' price lists. You can get lists on file and ready either way; nothing is priced off them until you say so.
+
+With it on, an order line for a code one of that supplier's lists names is drafted at **their** price, and the line says which list it came from. Everything else carries on exactly as before: a code no list names is priced at what the product says it costs. That goes for lines you pick yourself, lines the reorder job suggests, and the purchase orders raised straight off a customer order.
+
+Where a supplier has two lists carrying the same code, the one imported most recently wins. That is the list somebody has just been handed.
+
+### Checking your shop against their list
+
+**Check the shop against a supplier's list** takes every product your shop files under that supplier and matches its code against everything on their current lists. It changes nothing at all; it tells you three things, each with a sentence you can act on:
+
+- Codes their list **does not name** - renumbered, or the list needs importing again.
+- Codes they have **stopped selling** and you are still selling.
+- Prices that have **drifted apart** by more than the difference you have said you can live with on an invoice.
+
+Codes on their lists that you do not sell are counted, not listed. A supplier's range is always bigger than yours, and four thousand lines saying so helps nobody.
 
 ---
 
@@ -536,6 +589,7 @@ Two small things worth knowing:
 - **Wording on the order** - the heading, the opening line, your terms, and a footer note. **These are frozen onto an order the first time it is sent**, so re-wording your terms next March does not quietly re-word an order somebody accepted last year.
 - **Wording on a returns note** - its own heading, opening line and terms, plus the start of the filename a saved note gets. It has its own wording because "please supply the following" on a note about goods going back is quite the mixed message.
 - **Reordering** - whether draft orders are raised overnight from your reorder levels. Off by default, and greyed out on a site with no catalogue. See [Reordering](#reordering).
+- **Suppliers' price lists** - whether an order line is priced off a supplier's own list where one names the code. Off by default. You can keep lists on file either way; this is the switch that lets them price anything. See [Suppliers' price lists](#suppliers-price-lists).
 - **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; and whether every order you send carries a link of its own, and how long those links last. See [Chasing a late supplier](#chasing-a-late-supplier) and [The supplier's own link](#the-suppliers-own-link).
 
 ---
@@ -550,13 +604,14 @@ Purchasing works out for itself what else is on the site, and every screen behav
 - Your trading identity is borrowed from your invoice settings for any box you leave blank in **Who is buying**.
 - Goods can be taken into stock as they arrive, if you switch it on - and whoever is waiting for that product to come back is emailed at the same time. Goods sent back come off the count the same way.
 - Reordering works at all, since it needs something keeping count to work out what to buy.
+- A supplier's price list can be picked from the catalogues your shop already records for them, and your products can be checked against the codes and prices they currently publish.
 
 **With the UK Bookkeeping module:**
 - Bill lines can be filed under your own expense categories as you type them, and the spend report names those categories rather than only their references.
 - Approving a supplier bill files it in the books as an expense, with their own invoice attached as evidence. Voiding it takes it back out. A supplier credit reduces what you spent and the VAT you reclaimed. See [Straight into the books](#straight-into-the-books).
 
 **With neither:**
-- Everything above is either typed in by hand (lines, suppliers) or honestly switched off (stock, reordering, the books). Suppliers, orders, approvals, deliveries, returns, bills, chasing, the exports and every report on the Reports tab work exactly as they do anywhere else. Approved bills simply stop at approved - a purchasing record with the supplier's own invoice attached, rather than a ledger entry.
+- Everything above is either typed in by hand (lines, suppliers) or honestly switched off (stock, reordering, the books). Suppliers, orders, approvals, deliveries, returns, bills, chasing, price lists, the exports and every report on the Reports tab work exactly as they do anywhere else. A price list is a purchasing thing: you can keep one, import it and price orders off it with no shop on the site at all. Approved bills simply stop at approved - a purchasing record with the supplier's own invoice attached, rather than a ledger entry.
 
 ---
 
@@ -572,7 +627,7 @@ The order, the amended order and the chase all offer a `{{portalLink}}` tag, whi
 
 ## Installation
 
-Install the module from **Modules** in your admin, then grant whichever of the six permissions each of your roles should have. There is nothing to configure before it will work: the settings all have sensible defaults, and the only one most sites will want to change straight away is the address goods should be delivered to.
+Install the module from **Modules** in your admin, then grant whichever of the seven permissions each of your roles should have. There is nothing to configure before it will work: the settings all have sensible defaults, and the only one most sites will want to change straight away is the address goods should be delivered to.
 
 ---
 
