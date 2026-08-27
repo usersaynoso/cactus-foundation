@@ -1,7 +1,21 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Purchase Orders signed off, and a backup that had been rounding off every module's timestamps** - `purchase-orders` **0.1.9**, `shop` **0.1.355**, core **0.5.1359**.)
+Last updated: 2026-08-27 (**The footer margin fix measured zero on every real document page** - core **unreleased, in the working tree**.)
+
+**The fix released in 0.5.1355 fixed half of what it claimed.** The token half landed (the divider rule prints, the small print takes the site's colours). The margin half did nothing at all on a live install, and the reason is the rule that has now caused three separate faults:
+
+    body > *:not(main) { display: none !important; }
+
+Every document page carries it to strip the site chrome (`modules/shop/app/public/shop/invoice/[number]/page.tsx:32` and five siblings). `measureFooterHeight` appended its measuring iframe to `document.body`, so the rule matched it, an element with no display has no layout, **a document inside a frame with no layout measures zero**, and `bottomMarginForFooter` therefore returned the margin unchanged - silently, on every invoice, credit note, proforma, quote and purchase order. The first render harness used a made-up document page WITHOUT that rule, which is exactly why it passed.
+
+**Fixed** by hanging the iframe off `document.documentElement` (which the selector cannot match) with an inline `display: block !important; visibility: visible !important` behind it. **Re-verified by printing**, this time against a harness page carrying the real `BARE_CSS`: before, the small print sits across the last two lines; after, a rule, clear air and no overlap. Pinned by a fourth case in `lib/documents/pdf-footer-scope.test.ts`.
+
+**Checks**: `tsc --noEmit` clean, `eslint .` clean, **3865 tests green**. No `npm run build`. No schema, so the backup round-trip gate does not apply. No wiki change - what the wiki now says is finally true.
+
+---
+
+Previous entry: Last updated: 2026-08-27 (**Purchase Orders signed off, and a backup that had been rounding off every module's timestamps** - `purchase-orders` **0.1.9**, `shop` **0.1.355**, core **0.5.1359**.)
 
 Stage 10 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`), the review-and-fix pass. **No schema change anywhere.** The plan is complete with this release.
 

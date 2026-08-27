@@ -71,6 +71,21 @@ describe('the running footer takes only the stylesheets its own region carries',
     expect(capture).toContain('margin,')
   })
 
+  it('hangs the measuring iframe off the root, not off the body', () => {
+    // Third time the same rule has bitten. Every document page strips the site
+    // chrome with `body > *:not(main) { display: none !important; }` - it once
+    // ate the footer, and it then ate the iframe the footer is MEASURED in: an
+    // element with no display has no layout, a document inside a frame with no
+    // layout measures zero, and a zero measurement leaves the margin exactly as
+    // it was. Which is how a fix that worked on a test page shipped without
+    // fixing a single live document.
+    const capture = read('lib/documents/pdf.ts')
+    expect(capture).toContain('document.documentElement.appendChild(frame)')
+    expect(capture).not.toContain('document.body.appendChild(frame)')
+    // And an inline !important on top, for whatever the next page hides.
+    expect(capture).toContain('display: block !important; visibility: visible !important;')
+  })
+
   it('measures the same template it prints', () => {
     // Measuring anything else - the region on the document page, say, where the
     // page's own stylesheet applies and the template's does not - measures a

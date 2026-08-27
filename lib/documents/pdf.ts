@@ -328,6 +328,20 @@ function runningFooterTemplate(footer: RunningFooter, footerCss: string, paper: 
  * where the page's own stylesheet applies and the template's does not, so
  * measuring it there measures a different thing from the one being printed.
  *
+ * It hangs off `documentElement` rather than `body`, and says `display: block`
+ * in an inline `!important`, and BOTH of those are load-bearing. Every document
+ * page strips the site chrome with
+ *
+ *     body > *:not(main) { display: none !important; }
+ *
+ * which is the same rule that once ate the footer itself (see
+ * pdf-footer-scope.test.ts). An iframe appended to `body` matches it, an element
+ * with no display has no layout, and a document inside a frame with no layout
+ * measures ZERO - so the margin never grew, on every live document page, while a
+ * test page without that one rule measured perfectly. Hung off the root element
+ * the rule cannot match it; the inline `!important` covers whatever the next
+ * page decides to hide.
+ *
  * Zero on any difficulty at all - a content policy that will not have an inline
  * style, a page that will not run script. The margin then stays exactly what the
  * owner set, which is the behaviour this had before and is no worse than it was.
@@ -338,8 +352,8 @@ async function measureFooterHeight(page: Page, template: string, widthPx: number
       async (html: string, width: number) => {
         const frame = document.createElement('iframe')
         frame.setAttribute('aria-hidden', 'true')
-        frame.style.cssText = `position: fixed; top: 0; left: -20000px; width: ${width}px; height: 1200px; border: 0; opacity: 0; pointer-events: none;`
-        document.body.appendChild(frame)
+        frame.style.cssText = `position: fixed; top: 0; left: -20000px; width: ${width}px; height: 1200px; border: 0; opacity: 0; pointer-events: none; display: block !important; visibility: visible !important;`
+        document.documentElement.appendChild(frame)
         try {
           const doc = frame.contentDocument
           if (!doc) return 0
