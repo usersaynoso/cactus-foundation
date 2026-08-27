@@ -194,7 +194,7 @@ export default async function AccountIndexPage() {
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
         <MemberAvatar
           memberId={member.id}
           username={member.username}
@@ -221,6 +221,12 @@ export default async function AccountIndexPage() {
             )}
           </p>
         </div>
+        {/* A plain POST form, not a fetch: signing out is the one thing on this
+            page that has to work whatever the browser is doing, and the route
+            already redirects to /logged-out on its own. */}
+        <form action="/api/members/auth/logout" method="POST" style={{ margin: 0, marginLeft: 'auto' }}>
+          <button type="submit" className="btn btn-secondary btn-sm">Sign out</button>
+        </form>
       </div>
 
       {!member.emailVerified && <VerifyEmailNudge email={member.email} />}

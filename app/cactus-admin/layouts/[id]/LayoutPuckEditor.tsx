@@ -82,7 +82,11 @@ function getConfig(type: string | undefined) {
     case 'footer': return footerPuckConfig
     case 'notFound':
     case 'statusPage': return fullPagePuckConfig
-    case 'infoPage': return layoutPuckConfig
+    // Both wrap something the page itself supplies, so both need the config
+    // that has a Content Slot in it - a page's body in one case, the sign-in
+    // form in the other.
+    case 'infoPage':
+    case 'memberLogin': return layoutPuckConfig
     // Its own config entirely: none of the site blocks survive an email client,
     // so none of them are offered. See lib/puck/email-config.tsx.
     case 'emailWrapper': return emailPuckConfig

@@ -2,6 +2,10 @@ import LoginForm from '@/components/members/LoginForm'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { sanitizeRedirect } from '@/lib/auth/redirect'
 import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
+import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
+import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import type { Data } from '@puckeditor/core'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,8 +39,22 @@ export default async function MemberLoginPage({ searchParams }: Props) {
   const notice = adminLink ? ADMIN_LINK_NOTICES[adminLink] : undefined
   const admin = adminLink === 'failed' || magicToken ? null : await getSessionFromCookie()
 
-  return (
-    <div style={{ maxWidth: 440, margin: '4rem auto', padding: '0 1.5rem' }}>
+  // An "Account Login" layout, if the owner has published one. Resolved by type
+  // alone (site-wide is the only rule the type offers - there is one sign-in
+  // page), and entirely optional: with none published the page renders below
+  // exactly as it always has.
+  const layout = await resolveThemeLayout('memberLogin', { pathname: `${basePath}/login` }).catch(() => null)
+
+  // The form and everything it needs to work: the ?redirect= the visitor
+  // arrived with, the magic-link token from their email, the staff shortcut.
+  // This is what drops into the layout's Content Slot, which is why none of it
+  // is a block the owner places - a placed block would know none of it.
+  //
+  // The 440px cap travels with the form rather than with the page wrapper, so a
+  // design that gives the slot a whole column still gets a form of a sensible
+  // width instead of one stretched across it.
+  const body = (
+    <div style={{ maxWidth: 440, margin: '0 auto' }}>
       {notice && (
         <div className="alert alert-warning" style={{ marginBottom: 'var(--space-4)' }}>
           {notice}
@@ -68,4 +86,10 @@ export default async function MemberLoginPage({ searchParams }: Props) {
       <LoginForm redirectTo={safeTarget} magicToken={magicToken} />
     </div>
   )
+
+  if (layout?.builderData) {
+    return renderLayoutWithContent(layout.builderData as Data, body, await getPuckRenderMetadata())
+  }
+
+  return <div style={{ margin: '4rem auto', padding: '0 1.5rem' }}>{body}</div>
 }

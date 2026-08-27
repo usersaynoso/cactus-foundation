@@ -18,6 +18,13 @@ export const CORE_LAYOUT_TYPES: CoreLayoutType[] = [
   { key: 'notFound',   label: '404',          description: 'What a visitor sees when they ask for a page that is not there.' },
   { key: 'statusPage', label: 'Status Page',  description: 'The standalone screen shown before launch, or while the site is down for maintenance.' },
   { key: 'emailWrapper', label: 'Email Wrapper', description: 'The design wrapped around the emails your site sends: logo, colours, footer. The message itself drops into the Message block.' },
+  // The one member-area page a signed-out visitor ever sees, and so the only
+  // one worth designing. The sign-in form itself is not a block to be placed:
+  // it carries the ?redirect= the visitor arrived with, the magic-link token
+  // from their email and the staff shortcut, none of which a block dropped in
+  // by hand would know about. It arrives through the Content Slot, same as a
+  // page does inside a Page Layout, and everything around it is the design.
+  { key: 'memberLogin', label: 'Account Login', description: 'The page members sign in on. Your design goes around the sign-in form, which drops into the Content Slot.' },
   // Not a page. The strip that repeats at the foot of EVERY page of a printed
   // document - an invoice, a proforma, a quote, a purchase order - drawn into
   // the bottom margin by the browser making the PDF. One design for all of it,

@@ -27,7 +27,12 @@ function getConfig(type: string): any {
   switch (type) {
     case 'header':     return headerPuckRscConfig
     case 'footer':     return footerPuckRscConfig
-    case 'infoPage':   return layoutPuckRscConfig
+    case 'infoPage':
+    // Same reason as infoPage: the login layout has a Content Slot, and the
+    // full-page config has never heard of one - previewed through that, the
+    // slot would render nothing and the design would look like it had lost its
+    // sign-in form.
+    case 'memberLogin': return layoutPuckRscConfig
     case 'notFound':
     case 'statusPage': return fullPagePuckRscConfig
     default:

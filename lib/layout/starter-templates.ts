@@ -622,6 +622,63 @@ const statusTemplates: StarterTemplate[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// Account login templates
+//
+// Every one of these carries a Content Slot, and none of them is offered as a
+// blank: the slot is where the real sign-in form lands, so a layout without one
+// is a sign-in page with nothing to sign in on. Nothing here is published by
+// default either - with no layout the login page renders exactly as it always
+// has, and a site only changes when its owner builds one and publishes it.
+// ---------------------------------------------------------------------------
+
+const memberLoginTemplates: StarterTemplate[] = [
+  {
+    id: 'starter-account-login-centred',
+    name: 'Centred',
+    description: 'The sign-in form on its own, centred with room around it. What the page looks like today.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', { paddingY: 'xl', maxWidth: 'narrow', content: [contentSlot()] })],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-account-login-welcome',
+    name: 'Welcome Back',
+    description: 'A heading and a line of greeting above the sign-in form.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', {
+        paddingY: 'xl', maxWidth: 'narrow',
+        content: [
+          heading('h-login', 'Welcome back', { level: 'h1', align: 'center' }),
+          textBlock('t-login', 'Sign in to see your orders, addresses and account details.', { align: 'center' }),
+          contentSlot(),
+        ],
+      })],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-account-login-with-help',
+    name: 'With a Way Out',
+    description: 'The sign-in form, and underneath it a line for anyone who cannot get in.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', {
+        paddingY: 'xl', maxWidth: 'narrow',
+        content: [
+          contentSlot(),
+          textBlock('t-help', 'Trouble signing in? Get in touch and we will sort it out.', { align: 'center' }),
+          buttonLink('btn-help', 'Contact us', '/contact', 'outline'),
+        ],
+      })],
+      zones: {},
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Catalogue
 // ---------------------------------------------------------------------------
 
@@ -741,6 +798,7 @@ export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
   infoPage:   pageTemplates,
   notFound:   notFoundTemplates,
   statusPage: statusTemplates,
+  memberLogin: memberLoginTemplates,
   emailWrapper: emailWrapperTemplates,
   documentFooter: documentFooterTemplates,
 }
