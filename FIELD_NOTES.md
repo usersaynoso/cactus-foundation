@@ -1,7 +1,33 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-27 (**Sending things back to a supplier** - `purchase-orders` **0.1.3**, core **0.5.1351**.)
+Last updated: 2026-08-27 (**Supplier bills and the three-way match** - `purchase-orders` **0.1.4**, core **0.5.1352**.)
+
+Stage 5 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **No schema change anywhere** - `po_bills` / `po_bill_lines` were created in `001_initial.sql` in Stage 1 and needed nothing adding, so the backup round-trip gate did not apply. No core code: core carries the pin, the version and this file.
+
+**purchase-orders 0.1.4 - supplier bills, the three-way match, and the invoice PDF.**
+
+- **New lib**: `lib/billing.ts` (pure - `billTotals`, `dueDateFor`, `matchBill`, `varianceTotal`, `BILL_TRANSITIONS` + `checkBillTransition`, `isBillEditable`, `isMatchLive`, `validateBillDrafts`, `fullyInvoiced`, `shouldAutoClose`), `lib/bills.ts` (SQL + `refreshBillMatch`), `lib/bill-body.ts` (zod), `lib/bill-file-kinds.ts` (**client-safe** sniff/preflight), `lib/bill-attachment.ts` (server upload half), `lib/media-usage-provider.ts`.
+- **New routes**: `admin/bills` GET + POST, `admin/bills/[id]` GET/PUT/DELETE, `admin/bills/[id]/transition` POST, `admin/bills/[id]/attachment` POST/DELETE, `admin/orders/[id]/billable` GET.
+- **New screens**: `components/admin/BillsScreen.tsx` (the tab, leading with the money nobody has agreed to pay) and `BillScreen.tsx` (`bills/[id]`, which also serves `bills/new` and `bills/new?orderId=` - `[id]` sorts before any literal sibling, same as `orders/new` and `returns/new`). Plus a Bills card on the order screen and `BillStatusBadge` / `MatchBadge` in `ui.tsx`.
+- **Over-invoicing is FLAGGED, never refused** - the opposite instinct to a return note, and deliberately so. A supplier billing for twelve when ten turned up has made a claim somebody has to look at; refusing to record it only moves the argument into an inbox. Approving in spite of a variance is allowed, and the flags stay on the bill so the decision is on the record.
+- **The match is DERIVED and recomputed, not typed and not stored-and-forgotten.** `GET /admin/bills/[id]` re-runs it, but only while the bill is still `DRAFT` or `QUERIED` (`isMatchLive`). Once approved, the recorded `variance` is the record of what somebody agreed to pay in spite of, and a later delivery does not get to tidy it away.
+- **Quantities and unit costs DO come off the form here** - unlike a return note, whose money comes off the order line. A bill is somebody else's assertion about what we owe and the whole point is that it may differ. What is never typed is the arithmetic: every line total and subtotal goes through `lib/totals.ts`, the same file the order and the return use.
+- **The VAT figure may be overtyped** and the total follows it, because a supplier who rounds line by line lands a penny or two off ours and the figure the books must carry is the one on their document. `billTotals` still reports `computedTax` alongside, and the form shows it.
+- **`po_bills.status`**: `DRAFT, QUERIED, APPROVED, POSTED, VOID`; every move needs `purchase-orders.bills`. `POSTED` is deliberately unreachable from this release - it belongs to the bookkeeping handoff in Stage 6, and a status saying an entry is in the books when no books were written to would be the worst kind of lie.
+- **An order closes itself** once it is `RECEIVED`, every live line is invoiced in full, and no return is still owed a credit (`shouldAutoClose`, fired after a bill is approved, audited as `order.auto-closed`). Refused while a return is open, because closing the order would file away the one screen showing a supplier owes money.
+- **Duplicate invoice numbers are caught by the unique index**, not by a SELECT beforehand: `po_bills_supplier_invoice_unique` on `(supplier_id, lower(supplier_invoice_number))` raises, and `DuplicateInvoiceError` turns it into a sentence. Two people typing the same invoice at the same moment would both pass a check done in JavaScript.
+- **`listBillableLines(orderId, exceptBillId)`** is what keeps a saved draft editable: without excluding the bill's own lines, a second save would flag the invoice for claiming the same goods twice.
+
+**Attachments.** The supplier's own PDF goes through core media (`uploadMedia` + `saveMediaRecord`), filed under **`Purchasing / Supplier invoices / <year of the invoice date>`**, and `po_bills.attachment_media_id` holds the library id. New manifest `extensionPoints` entry for **`core.media-usage-providers`** (`purchaseOrdersMediaUsageProvider`), so the library never counts a purchase invoice as unused clutter - it is the evidence behind an expense and HMRC expect it kept six years. Bytes go through the server, not the Worker's direct path, which types a file from its object key and refuses PDFs. Replacing an attachment leaves the old file in the library rather than deleting somebody's file out from under them.
+
+**The client/server split matters here.** `lib/bill-file-kinds.ts` holds the magic-byte sniff and the preflight and imports nothing server-side; `lib/bill-attachment.ts` imports it and adds the media half. `BillScreen.tsx` imports only the first. Importing the second from a client component would drag `@/lib/media/upload` into the browser bundle.
+
+**VAT vocabularies** (`PO_VAT_RATE_CODES`, `PO_VAT_TREATMENTS` + labels in `lib/types.ts`) are **structurally copied** from uk-bookkeeping, never imported - that directory does not exist at build time on a site without the books. The strings must match: Stage 6 hands them straight across. Bookkeeping categories are read by guarded raw SQL (`listBookCategories`, `hasBooks` first, returns `[]` on any error), so the picker simply is not offered on a site with no books.
+
+Checks: `npm run typecheck` clean, `eslint .` clean, **3700 tests green** (39 new in `lib/billing.test.ts`). No schema change, so no round-trip gate. No `npm run build`.
+
+Previous entry: Last updated: 2026-08-27 (**Sending things back to a supplier** - `purchase-orders` **0.1.3**, core **0.5.1351**.)
 
 Stage 4 of the Purchase Orders plan (`~/.claude/plans/1-shop-owners-should-crispy-aho.md`). **Schema change in purchase-orders**, so the backup round-trip gate applied and genuinely PASSED (3 tests, real throwaway database on the OVH VPS, no skip). No core code at all: core carries the pin, the version and this file.
 
