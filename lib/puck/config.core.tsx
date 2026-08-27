@@ -4802,21 +4802,26 @@ export function getModuleLayoutEditorPreview(layoutType: string) {
 //
 // Both end up with `.shop-card` as the parts' parent, which is exactly what the
 // storefront's `<a class="shop-card">` gives them.
-function BareLayoutRoot({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
-export function moduleLayoutEditorRoot(layoutType: string) {
+// `before` is the module's own page-settings chrome (see
+// lib/puck/module-layout-roots.ts): a component handed the root's props and
+// rendered AHEAD of the layout's blocks, which is where a document's @page rules
+// come from. It is given the root props rather than wrapping the children, so a
+// layout type that declares page settings and one that does not produce exactly
+// the same tree around the blocks themselves.
+export function moduleLayoutEditorRoot(layoutType: string, before?: (props: any) => any) {
   const preview = getModuleLayoutEditorPreview(layoutType)
-  if (!preview) return BareLayoutRoot
-  return function ModuleLayoutEditorRoot({ children }: { children: React.ReactNode }) {
-    return (
+  return function ModuleLayoutEditorRoot({ children, ...rest }: { children: React.ReactNode } & Record<string, any>) {
+    const chrome = before ? React.createElement(before, rest) : null
+    const body = preview ? (
       <div style={preview.maxWidth ? { maxWidth: preview.maxWidth } : undefined}>
         {React.isValidElement(children)
           ? React.cloneElement(children as React.ReactElement<{ className?: string }>, { className: preview.className })
           : children}
       </div>
+    ) : (
+      children
     )
+    return <>{chrome}{body}</>
   }
 }
 

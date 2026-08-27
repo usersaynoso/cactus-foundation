@@ -31,6 +31,9 @@ import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
 import { getSiteConfig } from '@/lib/config/site'
 import { prisma } from '@/lib/db/prisma'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
+// Page settings a module declares for its own layout types. Client-safe by
+// contract (see the generator), so importing it here costs nothing on either side.
+import { moduleLayoutRoots } from '@/lib/puck/module-layout-roots'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
 import { ThemeToggleRsc } from '@/lib/puck/components/ThemeToggleRsc'
@@ -189,14 +192,18 @@ function BareLayoutRoot({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function moduleLayoutStandaloneRoot(layoutType: string) {
-  const preview = getModuleLayoutEditorPreview(layoutType)
-  if (!preview) return BareLayoutRoot
-  return function ModuleLayoutStandaloneRoot({ children }: { children: React.ReactNode }) {
+function moduleLayoutStandaloneRoot(layoutType: string, before?: (props: any) => any, standalone?: boolean) {
+  const preview = standalone ? getModuleLayoutEditorPreview(layoutType) : undefined
+  return function ModuleLayoutStandaloneRoot({ children, ...rest }: { children: React.ReactNode } & Record<string, any>) {
+    const chrome = before ? React.createElement(before, rest) : null
+    if (!preview) return <>{chrome}{children}</>
     return (
+      <>
+      {chrome}
       <div className={preview.className} style={preview.maxWidth ? { maxWidth: preview.maxWidth } : undefined}>
         {children}
       </div>
+      </>
     )
   }
 }
@@ -248,13 +255,23 @@ function SiteLogoModuleLayoutRsc(props: any) {
 export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standalone?: boolean }) {
   const modBlocks = moduleRscByLayoutTypeWrapped[layoutType] ?? {}
   const { sharedCategories, sharedComponents } = getModuleLayoutSharedParts()
+  // The page settings the layout type's own module declared, if any. `fields`
+  // and `defaultProps` matter to the editor rather than to this path, but they
+  // are carried anyway so a published render reads the same root config the
+  // editor wrote - `defaultProps` in particular is what a layout saved before a
+  // field existed falls back to.
+  const pageRoot = moduleLayoutRoots[layoutType]
   return {
     categories: {
       blocks: { title: 'Blocks', components: Object.keys(modBlocks), defaultExpanded: true },
       ...sharedCategories,
     },
     root: {
-      render: opts?.standalone ? moduleLayoutStandaloneRoot(layoutType) : BareLayoutRoot,
+      ...(pageRoot?.fields ? { fields: pageRoot.fields } : {}),
+      ...(pageRoot?.defaultProps ? { defaultProps: pageRoot.defaultProps } : {}),
+      render: opts?.standalone || pageRoot?.before
+        ? moduleLayoutStandaloneRoot(layoutType, pageRoot?.before, opts?.standalone)
+        : BareLayoutRoot,
     },
     components: withSafeRichText({
       ...sharedComponents,
