@@ -1,7 +1,24 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-28 (**An email can now say who it is from and which account carries it** - core **0.5.1387**, released. No schema change. Additive and optional, so no existing caller moved.)
+Last updated: 2026-08-28 (**Installing a module can now bring the Cactus update and the other modules' updates out with it** - core **0.5.1389**, released. No schema change.)
+
+`POST /api/admin/modules` takes two new optional booleans, `updateCore` and `updateModules`, and the install dialog on `app/cactus-admin/modules/page.tsx` is what sets them. The dialog only appears when there is something to bundle (a pending core update, or modules carrying `update_available`); with nothing waiting, **Install** behaves exactly as before and goes straight in.
+
+**The part worth remembering is the ordering, not the checkbox.** Both bundles change what the route's own compatibility gates are judged against:
+
+- `updateCore` resolves `getCoreUpdateStatus()` FIRST and every later check uses `effectiveCoreVersion = coreTarget?.latestVersion ?? pkg.version`. Core files and `modules.json` land in one commit, so a module needing the incoming core is satisfied by the build that carries it. A module that used to be refused with `core_version_required` now installs in one deploy, and the prerequisite modal grew an **Update Cactus and install** button that appears only when the waiting version actually satisfies `requiredVersion` (compared client-side with `compareVersions`).
+- `updateModules` resolves the sibling batch BEFORE the new module's `requiresModules` gate, through the same `resolveUpdateBatch()` used by "Update all", then judges the new module against `installedForDeps` - the installed set with accepted tags applied. So "install X, which needs shop 0.1.336" works when shop's update is ticked, instead of answering "update it first".
+
+`updateCore` re-checks `hasPermission(user, 'config.manage')`: `modules.manage` alone must never be enough to push a core update through the install button. The page reads `GET /api/admin/updates` on mount only for the core line, sharing the settings panel's `cactus-core-update-check` sessionStorage cache and its 10-minute throttle; a 403 there is a normal answer and simply hides the core checkbox.
+
+When core is bundled, `syncCoreFromUpstream(...)` does the committing (carrying the whole `modules.json`, new module and queued updates included) and `startDeferredRedeploy({ committedSince })` adopts that push's build - the same double-deploy avoidance the core-update route uses. Without it, the plain `startDeferredRedeploy()` path is unchanged. The route now carries `routeStartedAt` + `deadlineFromNow(ROUTE_WORK_BUDGET_MS - elapsed)` because bundling spends extra GitHub round trips before anything is pushed, and it answers 503 with `gitHubOutageNote()` rather than being hard-killed at 60s. Rollback mirrors the core-update route: queued rows back to `update_available`, new module `failed`, lock released. Response gained `coreUpdatedTo`, `moduleUpdatesQueued`, `moduleUpdatesSkipped`.
+
+**Checks**: `npm run typecheck` 0 errors, `eslint` clean on both changed files, `vitest run lib/modules lib/updates` 100 passed / 1 skipped. No schema change, so no core-reconcile file and no backup round-trip. Not verified in a browser - there is no local database and the only live site is a customer's.
+
+---
+
+Previous entry: Last updated: 2026-08-28 (**An email can now say who it is from and which account carries it** - core **0.5.1387**, released. No schema change. Additive and optional, so no existing caller moved.)
 
 `EmailPayload` gained `from?: EmailSender` (`{name?, address}`) and `transport?: EmailTransport` (`{provider:'brevo', apiKey}` or `{provider:'smtp', host, port?, user?, pass?}`), both optional. `resolveSender()` prefers the payload's sender over `getEmailConfig()` in BOTH transports, and an address given with no display name keeps the site's - a bare address in a From line reads as spam to a person and to a filter. A new `dispatch()` picks the payload's transport when there is one and the env branch otherwise, which is the branch every existing caller already took.
 

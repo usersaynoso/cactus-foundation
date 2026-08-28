@@ -29,7 +29,19 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret, cronSecretSatisfied } from '@/lib/vercel/cron-secret'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE, DEFAULT_LOCK_HOLD_MS } from '@/lib/deploy/lock'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
-import { compareVersions } from '@/lib/updates/core'
+import {
+  compareVersions,
+  getCoreUpdateStatus,
+  syncCoreFromUpstream,
+  invalidateCoreUpdateCache,
+} from '@/lib/updates/core'
+import {
+  assertWithinDeadline,
+  deadlineFromNow,
+  isDeadlineError,
+  ROUTE_WORK_BUDGET_MS,
+} from '@/lib/updates/deadline'
+import { gitHubOutageNote } from '@/lib/github/health'
 import pkg from '@/package.json'
 
 export const maxDuration = 60
@@ -46,9 +58,29 @@ export async function GET() {
 const InstallBody = z.object({
   repoUrl: z.string().url(),
   channel: z.enum(['public', 'beta']).default('public'),
+  // The "bring everything else along" checkboxes on the install dialog. Both ride in
+  // the SAME commit (and therefore the same build) as the install, which is the whole
+  // point: one deploy instead of three, and a module whose new version needs a newer
+  // core or sibling becomes installable in one go rather than after two waits.
+  updateCore: z.boolean().optional(),
+  updateModules: z.boolean().optional(),
 })
 
+// The Module row shape carried through the bundled-update batch below.
+type PendingModuleRow = {
+  id: string
+  name: string
+  repoUrl: string
+  updateAvailable: string | null
+  updateNotes: string | null
+}
+
 export async function POST(request: NextRequest) {
+  // The 60s ceiling starts here: bundling updates in spends extra GitHub round trips
+  // before anything is pushed, so the work budget has to be measured from the top of
+  // the handler rather than from where the core sync begins.
+  const routeStartedAt = Date.now()
+
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
@@ -71,6 +103,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
   const { repoUrl, channel } = parsed.data
+  const updateCore = parsed.data.updateCore ?? false
+  const updateModules = parsed.data.updateModules ?? false
 
   // Validate the URL shape before any lock or network call. `repoUrl` is only
   // z.string().url() above, and a well-formed URL that is not a GitHub repo
@@ -134,6 +168,40 @@ export async function POST(request: NextRequest) {
     return errorResponse(deployInFlightMessage(inFlight), 409)
   }
 
+  // What this install gets judged against. Ticking "update Cactus too" moves the bar
+  // to the version this deploy is MOVING TO, not the one running: core files and
+  // modules.json land in one commit, so a module that needs the incoming core is
+  // satisfied by the very build that carries it. Same reasoning as the core-update
+  // route's module bundling, in the other direction.
+  let coreTarget: { currentVersion: string; latestVersion: string } | null = null
+  if (updateCore) {
+    // Updating Cactus itself is a config.manage job. Without this check, modules.manage
+    // alone would be enough to push a core update through the install button.
+    if (!await hasPermission(user, 'config.manage')) {
+      return errorResponse(
+        'Updating Cactus needs the settings permission. Install the module on its own, or ask an administrator to update Cactus first.',
+        403
+      )
+    }
+    const cfg = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { coreUpdateChannel: true },
+    })
+    const coreChannel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'
+    const coreStatus = await getCoreUpdateStatus({ channel: coreChannel })
+    if (
+      !('localMode' in coreStatus) &&
+      coreStatus.configured &&
+      'updateAvailable' in coreStatus &&
+      coreStatus.updateAvailable
+    ) {
+      coreTarget = { currentVersion: coreStatus.currentVersion, latestVersion: coreStatus.latestVersion }
+    }
+    // Nothing to bundle (local mode, no GitHub, or already current): carry on and
+    // install on its own rather than failing over a checkbox.
+  }
+  const effectiveCoreVersion = coreTarget?.latestVersion ?? pkg.version
+
   // Resolve the release first: the manifest is read AT this tag (not HEAD), so
   // every check below judges the exact version about to be installed.
   // Channel chosen at install time; can be switched per-module afterwards.
@@ -163,11 +231,15 @@ export async function POST(request: NextRequest) {
   // first answered "update Cactus" with a page of validator internals about a
   // field the owner has never seen.
   const declaredCoreVersion = readDeclaredCoreVersion(raw)
-  if (declaredCoreVersion && compareVersions(pkg.version, declaredCoreVersion) < 0) {
+  if (declaredCoreVersion && compareVersions(effectiveCoreVersion, declaredCoreVersion) < 0) {
     const displayName = formatModuleDisplayName(repoUrl)
     return NextResponse.json(
       {
-        error: `"${displayName}" needs Cactus v${declaredCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
+        error: coreTarget
+          // They ticked the box and it still isn't enough - say so, or the message
+          // sends them off to do the very update this install already offered.
+          ? `"${displayName}" needs Cactus v${declaredCoreVersion} or newer. The newest Cactus available is v${coreTarget.latestVersion}, so updating first would still not be enough - try again once a newer Cactus is out.`
+          : `"${displayName}" needs Cactus v${declaredCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then install the module.`,
         code: 'core_version_required',
         moduleName: displayName,
         requiredVersion: declaredCoreVersion,
@@ -219,8 +291,73 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Check declared module dependencies are installed, active, and at minVersion+
-  const [unmet] = findUnmetModuleDependencies(manifest.requiresModules, existing)
+  // Give the bundled work a budget that ends a little before this function's 60s
+  // ceiling, net of what the checks above already spent. A GitHub slow spell then
+  // produces a real message and a released lock rather than a hard kill.
+  const deadlineAt = deadlineFromNow(ROUTE_WORK_BUDGET_MS - (Date.now() - routeStartedAt))
+
+  // Which of the OTHER modules' pending updates can ride along in this install's build.
+  // Resolved before the new module's own requiresModules gate on purpose: a sibling that
+  // merely needs updating to satisfy it is then judged at the version this deploy will
+  // carry, so "install X and update everything else" works in one deploy instead of
+  // refusing with "update it first".
+  let acceptedUpdates: UpdateCandidate<PendingModuleRow>[] = []
+  const skippedUpdates: string[] = []
+  if (updateModules) {
+    // Nothing has been written yet, so a GitHub failure (or the deadline running out)
+    // here is a clean "try again", not a half-done install.
+    try {
+      const pendingRows = await prisma.module.findMany({
+        where: { status: 'update_available' },
+        select: { id: true, name: true, repoUrl: true, updateAvailable: true, updateNotes: true, updateChannel: true },
+      })
+      const candidates: UpdateCandidate<PendingModuleRow>[] = []
+      for (const mod of pendingRows) {
+        assertWithinDeadline(deadlineAt, 'checking the other modules for updates')
+        const modRelease = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
+        if (!modRelease) {
+          skippedUpdates.push(`${formatModuleDisplayName(mod.repoUrl)}: no release found`)
+          continue
+        }
+        candidates.push({
+          module: mod,
+          name: mod.name,
+          tag: modRelease.tag,
+          // Read AT the tag being installed, not HEAD, so the requirements judged are
+          // the ones that version actually ships with.
+          requirements: await fetchModuleRequirements(mod.repoUrl, modRelease.tag),
+        })
+      }
+      // Same compat gate as "Update all": an incoming version needing a newer core or
+      // sibling must never reach modules.json, or it takes this install's build down
+      // with it. Judged against the core this deploy will carry.
+      const { accepted, blocked } = resolveUpdateBatch({
+        candidates,
+        coreVersion: effectiveCoreVersion,
+        installed: existing,
+      })
+      acceptedUpdates = accepted
+      for (const b of blocked) {
+        skippedUpdates.push(`${formatModuleDisplayName(b.candidate.module.repoUrl)}: ${b.reason}`)
+      }
+    } catch (err: unknown) {
+      return errorResponse(
+        isDeadlineError(err)
+          ? (err as Error).message
+          : `Couldn't check the other modules for updates: ${err instanceof Error ? err.message : 'Unknown error'}. Nothing was changed - try again, or install without updating the others.`,
+        503
+      )
+    }
+  }
+
+  // Check declared module dependencies are installed, active, and at minVersion+.
+  // Anything the batch above accepted counts at its NEW version - it lands in the
+  // same commit as this install.
+  const installedForDeps = existing.map((m) => {
+    const bumped = acceptedUpdates.find((c) => c.name === m.name)
+    return bumped ? { ...m, version: bumped.tag } : m
+  })
+  const [unmet] = findUnmetModuleDependencies(manifest.requiresModules, installedForDeps)
   if (unmet) {
     return errorResponse(
       unmet.reason === 'missing'
@@ -287,34 +424,129 @@ export async function POST(request: NextRequest) {
       )
     )
 
+    // Queue the accepted sibling updates into the SAME build this install triggers.
+    // Reconciled to 'active' by the redeploying-screen poll / webhook once the deploy
+    // lands (lib/deploy/reconcile.ts), exactly as a solo module update is.
+    for (const c of acceptedUpdates) {
+      await prisma.module.update({
+        where: { id: c.module.id },
+        data: { status: 'deploying', pendingVersion: c.tag, updateAvailable: null, updateNotes: null, deployId: 'pending' },
+      })
+    }
+
     // Commit modules.json and redeploy immediately: the git push auto-deploys, and the
     // admin sees live deploy status in the shell. The module ships as 'deploying'.
     await prisma.module.update({
       where: { name: manifest.name },
       data: { status: 'deploying', version: release.tag, deployId: 'pending' },
     })
+
+    // With a core update bundled in, the core sync is what does the committing: it
+    // pushes the core files AND modules.json in one commit, so it has to carry every
+    // module's pin - the one being installed and any update queued above included.
+    // startDeferredRedeploy is then told to adopt that push's build rather than
+    // committing a second time and deploying twice.
+    let committedSince: number | undefined
+    if (coreTarget) {
+      const deployStartedAt = Date.now()
+      const allModules = await prisma.module.findMany({
+        where: { status: { notIn: ['failed', 'inactive'] } },
+      })
+      await syncCoreFromUpstream(
+        coreTarget.currentVersion,
+        coreTarget.latestVersion,
+        allModules.map((m) => ({
+          name: m.name,
+          repoUrl: m.repoUrl,
+          version: m.pendingVersion ?? m.version,
+          lastFailedVersion: m.lastFailedVersion,
+        })),
+        { deadlineAt }
+      )
+      // So the update panel reflects the version being deployed rather than a cached
+      // "update available" for the one already going up.
+      invalidateCoreUpdateCache()
+      committedSince = deployStartedAt
+    }
+
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    const { triggered } = await startDeferredRedeploy()
+    const { triggered } = await startDeferredRedeploy(
+      committedSince !== undefined ? { committedSince } : {}
+    )
     if (!triggered) {
-      // No Vercel creds: fall back to the deferred-notification flow.
+      // No Vercel creds: fall back to the deferred-notification flow, promoting the
+      // queued updates optimistically (same as the "Update all" path) so they aren't
+      // stranded in 'deploying' with no deploy left to reconcile them.
       await prisma.module.update({
         where: { name: manifest.name },
         data: { status: 'pending_deploy', deployId: null },
       })
+      for (const c of acceptedUpdates) {
+        await prisma.module.update({
+          where: { id: c.module.id },
+          data: { status: 'pending_deploy', version: c.tag, pendingVersion: null, updateAvailable: null, updateNotes: null, deployId: null },
+        })
+        try {
+          await clearAlert(`module-update:${c.module.id}`)
+        } catch (err) {
+          console.error('[modules] Failed to clear module-update notification:', err)
+        }
+      }
       await recordDeploymentNeeded({ label: `Module '${manifest.name}' installed` })
-      return NextResponse.json({ ok: true, name: manifest.name, status: 'pending_deploy' })
+      return NextResponse.json({
+        ok: true,
+        name: manifest.name,
+        status: 'pending_deploy',
+        coreUpdatedTo: coreTarget?.latestVersion ?? null,
+        moduleUpdatesQueued: acceptedUpdates.length,
+        moduleUpdatesSkipped: skippedUpdates,
+      })
     }
   } catch (err: unknown) {
+    // Nothing was pushed (or the push itself failed), so put the queued rows back
+    // where they were - otherwise they sit in 'deploying' with no deploy coming.
+    for (const c of acceptedUpdates) {
+      await prisma.module.update({
+        where: { id: c.module.id },
+        data: {
+          status: 'update_available',
+          pendingVersion: null,
+          updateAvailable: c.module.updateAvailable ?? c.tag,
+          updateNotes: c.module.updateNotes,
+          deployId: null,
+        },
+      })
+    }
     await prisma.module.update({
       where: { name: manifest.name },
       data: { status: 'failed', lastError: err instanceof Error ? err.message : 'Unknown error' },
     })
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
-    return errorResponse(`Install failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 500)
+
+    // Ask GitHub whether GitHub is the problem, same as the core-update route: a live
+    // outage turns "Install failed: 502" into something the owner can act on.
+    const base = err instanceof Error ? err.message : 'Unknown error'
+    let note = ''
+    try {
+      note = await gitHubOutageNote()
+    } catch { /* status page unreachable: report the raw failure alone */ }
+
+    return errorResponse(
+      note ? `Install failed: ${base} ${note}` : `Install failed: ${base}`,
+      isDeadlineError(err) || note ? 503 : 500
+    )
   }
 
-  return NextResponse.json({ ok: true, name: manifest.name, status: 'deploying', redeployTriggered: true })
+  return NextResponse.json({
+    ok: true,
+    name: manifest.name,
+    status: 'deploying',
+    redeployTriggered: true,
+    coreUpdatedTo: coreTarget?.latestVersion ?? null,
+    moduleUpdatesQueued: acceptedUpdates.length,
+    moduleUpdatesSkipped: skippedUpdates,
+  })
 }
 
 const BulkPatch = z.object({

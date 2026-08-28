@@ -7,6 +7,7 @@ import { markdownToHtml } from '@/lib/markdown-client'
 import { announceRedeployStarted, useDeployInFlight } from '@/lib/deploy-status-client'
 import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@/lib/updates/github-outage'
 import { readJsonResponse } from '@/lib/updates/read-json-response'
+import { compareVersions } from '@/lib/updates/version'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { setUrlParams } from '@/lib/admin/tab-url'
 import { ModuleArt } from './ModuleArt'
@@ -25,6 +26,35 @@ type ModuleActionResponse = {
   status?: ModuleStatus
   failed?: string[]
   updated?: number
+  /** Set when an install carried the pending Cactus update out with it. */
+  coreUpdatedTo?: string | null
+  moduleUpdatesQueued?: number
+  moduleUpdatesSkipped?: string[]
+}
+
+// Just enough of GET /api/admin/updates for the install dialog: whether a Cactus
+// update is sitting there, and which version it is. Shares the settings panel's
+// sessionStorage cache, so opening the store straight after Settings costs nothing.
+type CoreUpdateInfo = { currentVersion: string; latestVersion: string }
+
+type UpdatesApiResponse = {
+  status?: {
+    localMode?: true
+    configured?: boolean
+    updateAvailable?: boolean
+    currentVersion?: string
+    latestVersion?: string
+  }
+}
+
+const CORE_UPDATE_CACHE_KEY = 'cactus-core-update-check'
+const CORE_UPDATE_THROTTLE_MS = 10 * 60 * 1000
+
+function coreUpdateFrom(d: UpdatesApiResponse): CoreUpdateInfo | null {
+  const s = d.status
+  if (!s || s.localMode || !s.configured || !s.updateAvailable) return null
+  if (!s.currentVersion || !s.latestVersion) return null
+  return { currentVersion: s.currentVersion, latestVersion: s.latestVersion }
 }
 
 type GitHubAppStatus = {
@@ -68,6 +98,12 @@ type PrerequisiteModal = {
   message: string
   /** Only Cactus itself has somewhere else to send them. */
   updatePanel: boolean
+  /**
+   * The install that hit the blocker, so "Cactus is too old" can be answered on the
+   * spot - the pending core update rides out in the install's own deployment - rather
+   * than by sending them to another page to wait through a build first.
+   */
+  retry?: { repoUrl: string; channel: 'public' | 'beta'; requiredVersion: string }
 }
 
 const PREREQUISITE_TITLES: Record<string, string> = {
@@ -75,7 +111,11 @@ const PREREQUISITE_TITLES: Record<string, string> = {
   module_version_required: 'Another module needs sorting first',
 }
 
-function prerequisiteFrom(d: ModuleActionResponse, fallback: string): PrerequisiteModal | null {
+function prerequisiteFrom(
+  d: ModuleActionResponse,
+  fallback: string,
+  install?: { repoUrl: string; channel: 'public' | 'beta' }
+): PrerequisiteModal | null {
   if (typeof d.code !== 'string' || !d.code.endsWith('_required')) return null
   return {
     title: PREREQUISITE_TITLES[d.code] ?? 'Something needs doing first',
@@ -83,6 +123,9 @@ function prerequisiteFrom(d: ModuleActionResponse, fallback: string): Prerequisi
     // is already written for a site owner rather than a developer.
     message: d.error ?? fallback,
     updatePanel: d.code === 'core_version_required',
+    retry: d.code === 'core_version_required' && install && d.requiredVersion
+      ? { ...install, requiredVersion: d.requiredVersion }
+      : undefined,
   }
 }
 
@@ -175,6 +218,10 @@ export default function ModulesPage() {
   const [installChannel, setInstallChannel] = useState<Record<string, 'public' | 'beta'>>({})
   const [customUrl, setCustomUrl] = useState('')
   const [customChannel, setCustomChannel] = useState<'public' | 'beta'>('public')
+  const [coreUpdate, setCoreUpdate] = useState<CoreUpdateInfo | null>(null)
+  const [installModal, setInstallModal] = useState<{ repoUrl: string; name: string; channel: 'public' | 'beta' } | null>(null)
+  const [bundleCore, setBundleCore] = useState(true)
+  const [bundleModules, setBundleModules] = useState(true)
   // null until the owner picks a tab, so the landing shelf can follow the data
   // (their own modules if they have any, the store if they haven't) without an effect.
   const [tab, setTab] = useState<StoreTab | null>(null)
@@ -289,8 +336,33 @@ export default function ModulesPage() {
     }
   }, [checkModuleUpdate])
 
+  // Is there a Cactus update waiting? Only used to decide whether the install dialog
+  // offers to bring it along. A 403 here is a perfectly normal answer - someone who
+  // may install modules but not change settings simply isn't offered the core box.
+  const loadCoreUpdate = useCallback(async () => {
+    const cached = sessionStorage.getItem(CORE_UPDATE_CACHE_KEY)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { at: number; data: UpdatesApiResponse }
+        if (Date.now() - parsed.at < CORE_UPDATE_THROTTLE_MS) {
+          setCoreUpdate(coreUpdateFrom(parsed.data))
+          return
+        }
+      } catch { /* malformed cache: fall through to a fresh check */ }
+    }
+    try {
+      const res = await fetch('/api/admin/updates')
+      if (!res.ok) return
+      const d = (await res.json()) as UpdatesApiResponse
+      sessionStorage.setItem(CORE_UPDATE_CACHE_KEY, JSON.stringify({ at: Date.now(), data: d }))
+      setCoreUpdate(coreUpdateFrom(d))
+    } catch { /* the dialog just doesn't offer the core box */ }
+  }, [])
+
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async directory load on mount; all state updates are after awaits
   useEffect(() => { loadDirectory() }, [loadDirectory])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async update check on mount; all state updates are after awaits
+  useEffect(() => { loadCoreUpdate() }, [loadCoreUpdate])
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -325,40 +397,83 @@ export default function ModulesPage() {
     setActionLoading((prev) => ({ ...prev, [key]: val }))
   }
 
-  async function handleInstall(repoUrl: string, channelOverride?: 'public' | 'beta'): Promise<boolean> {
+  // Clicking Install asks first, but only when there is something worth asking about:
+  // a Cactus update or other modules' updates can ride out in the very deployment this
+  // install triggers, which saves the owner sitting through two more builds. Nothing
+  // waiting, nothing to tick - go straight in, as it always did.
+  function requestInstall(repoUrl: string, channelOverride?: 'public' | 'beta') {
+    const entry = entries.find((e) => e.repoUrl === repoUrl)
+    const channel = channelOverride ?? (entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public'))
+    if (!coreUpdate && updatableCount === 0) {
+      void performInstall(repoUrl, channel)
+      return
+    }
+    setBundleCore(coreUpdate !== null)
+    setBundleModules(updatableCount > 0)
+    setInstallModal({
+      repoUrl,
+      channel,
+      name: entry ? formatModuleName(entry.repoName) : formatModuleName(repoUrl.split('/').pop() ?? 'module'),
+    })
+  }
+
+  async function performInstall(
+    repoUrl: string,
+    channel: 'public' | 'beta',
+    bundle: { updateCore?: boolean; updateModules?: boolean } = {}
+  ): Promise<boolean> {
     setError('')
     setNotice('')
     setLoaderFor(repoUrl, true)
-    const entry = entries.find((e) => e.repoUrl === repoUrl)
-    const channel = channelOverride ?? (entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public'))
     try {
       const res = await fetch('/api/admin/modules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl, channel }),
+        body: JSON.stringify({ repoUrl, channel, ...bundle }),
       })
       // Not res.json(): a run killed at the platform's time limit answers with HTML, and
       // parsing that throws a browser message no site owner can act on.
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Install failed')
       const d = parsed.data ?? {}
       if (!parsed.ok) {
-        const blocker = prerequisiteFrom(d, parsed.error ?? 'Install failed')
+        const blocker = prerequisiteFrom(d, parsed.error ?? 'Install failed', { repoUrl, channel })
         if (blocker) {
+          setInstallModal(null)
           setPrerequisiteModal(blocker)
           return false
         }
         throw new Error(parsed.error ?? 'Install failed')
       }
+      setInstallModal(null)
+      // What else went out in the same deployment, if anything.
+      const queued = d.moduleUpdatesQueued ?? 0
+      const alsoWent = [
+        d.coreUpdatedTo ? `Cactus v${d.coreUpdatedTo.replace(/^v/i, '')}` : null,
+        queued > 0 ? `${queued} module update${queued === 1 ? '' : 's'}` : null,
+      ].filter(Boolean).join(' and ')
+
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
         announceRedeployStarted()
+        if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
       } else {
         setNotice(
-          channel === 'beta'
-            ? 'Beta module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
-            : 'Module installed. Your changes are waiting to go live - review and redeploy from Notifications.'
+          (channel === 'beta'
+            ? 'Beta module installed.'
+            : 'Module installed.') +
+          (alsoWent ? ` ${alsoWent} came along with it.` : '') +
+          ' Your changes are waiting to go live - review and redeploy from Notifications.'
         )
       }
+      // Anything the compatibility check held back, said plainly - otherwise it just
+      // sits on the Updates tab afterwards looking like the tick box missed it.
+      const skipped = d.moduleUpdatesSkipped ?? []
+      if (skipped.length > 0) {
+        setError(
+          `Not included in this deployment: ${skipped.join(', ')}. ${skipped.length === 1 ? 'It stays' : 'They stay'} on the Updates tab - try again once this deployment is live.`
+        )
+      }
+      if (customUrl.trim() === repoUrl) setCustomUrl('')
       await loadDirectory()
       router.refresh()
       return true
@@ -373,11 +488,10 @@ export default function ModulesPage() {
   // The custom-URL panel funnels into the same install call the directory
   // cards use - the server-side error messages coming back are the entire
   // diagnostic story, so they are surfaced verbatim via setError above.
-  async function handleCustomInstall() {
+  function handleCustomInstall() {
     const url = customUrl.trim()
     if (!url) return
-    const ok = await handleInstall(url, customChannel)
-    if (ok) setCustomUrl('')
+    requestInstall(url, customChannel)
   }
 
   async function handleAction(id: string, action: 'update' | 'enable' | 'disable') {
@@ -665,7 +779,7 @@ export default function ModulesPage() {
           <button
             className="btn btn-primary btn-sm"
             disabled={busy}
-            onClick={() => handleInstall(m.repoUrl)}
+            onClick={() => requestInstall(m.repoUrl)}
           >
             {busy ? 'Installing…' : chosen === 'beta' ? 'Install beta' : 'Install'}
           </button>
@@ -879,6 +993,83 @@ export default function ModulesPage() {
         </div>
       )}
 
+      {/* Install modal - only ever shown when there is something else to bring along */}
+      {installModal && (() => {
+        const busy = actionLoading[installModal.repoUrl] ?? false
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Install ${installModal.name}`}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget && !busy) setInstallModal(null) }}
+          >
+            <div className="card" style={{ maxWidth: '480px', width: '100%', margin: '1rem' }}>
+              <h2 className="card-title">Install {installModal.name}</h2>
+              <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+                Installing takes one deployment. Anything you tick here goes out in the same one, so you
+                wait once instead of three times.
+              </p>
+
+              {coreUpdate && (
+                <label style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={bundleCore}
+                    disabled={busy}
+                    onChange={(e) => setBundleCore(e.target.checked)}
+                    style={{ marginTop: '0.2rem' }}
+                  />
+                  <span style={{ fontSize: 'var(--text-sm)' }}>
+                    Also update Cactus to v{coreUpdate.latestVersion.replace(/^v/i, '')}
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                      This site is on v{coreUpdate.currentVersion.replace(/^v/i, '')}
+                    </div>
+                  </span>
+                </label>
+              )}
+
+              {updatableCount > 0 && (
+                <label style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={bundleModules}
+                    disabled={busy}
+                    onChange={(e) => setBundleModules(e.target.checked)}
+                    style={{ marginTop: '0.2rem' }}
+                  />
+                  <span style={{ fontSize: 'var(--text-sm)' }}>
+                    Also update {updatableCount === 1 ? 'the module' : `all ${updatableCount} modules`} with updates waiting
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                      {updatable.map((m) => `${formatModuleName(m.repoName)} → ${showVersion(m.updateAvailable)}`).join(', ')}
+                    </div>
+                  </span>
+                </label>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button className="btn btn-secondary" disabled={busy} onClick={() => setInstallModal(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={busy}
+                  onClick={() => performInstall(installModal.repoUrl, installModal.channel, {
+                    updateCore: coreUpdate !== null && bundleCore,
+                    updateModules: updatableCount > 0 && bundleModules,
+                  })}
+                >
+                  {busy ? 'Installing…' : installModal.channel === 'beta' ? 'Install beta' : 'Install'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Uninstall modal */}
       {uninstallModal && (
         <div
@@ -1026,16 +1217,40 @@ export default function ModulesPage() {
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
               {prerequisiteModal.message}
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setPrerequisiteModal(null)}>
-                {prerequisiteModal.updatePanel ? 'Cancel' : 'Close'}
-              </button>
-              {prerequisiteModal.updatePanel && (
-                <a className="btn btn-primary" href="config?tab=general">
-                  Go to update panel
-                </a>
-              )}
-            </div>
+            {(() => {
+              // The waiting Cactus update is new enough to satisfy the module, so the
+              // answer to "update Cactus first" is a button, not an errand: it goes out
+              // with the install in one deployment.
+              const retry = prerequisiteModal.retry
+              const canFixHere = retry && coreUpdate && compareVersions(coreUpdate.latestVersion, retry.requiredVersion) >= 0
+              const busy = retry ? (actionLoading[retry.repoUrl] ?? false) : false
+              return (
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button className="btn btn-secondary" disabled={busy} onClick={() => setPrerequisiteModal(null)}>
+                    {prerequisiteModal.updatePanel ? 'Cancel' : 'Close'}
+                  </button>
+                  {prerequisiteModal.updatePanel && !canFixHere && (
+                    <a className="btn btn-primary" href="config?tab=general">
+                      Go to update panel
+                    </a>
+                  )}
+                  {canFixHere && retry && (
+                    <button
+                      className="btn btn-primary"
+                      disabled={busy}
+                      onClick={() => {
+                        setPrerequisiteModal(null)
+                        // Core only: the button promises Cactus and the install, and
+                        // sweeping the other modules in unasked is not what it says.
+                        void performInstall(retry.repoUrl, retry.channel, { updateCore: true })
+                      }}
+                    >
+                      {busy ? 'Installing…' : `Update Cactus and install`}
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
