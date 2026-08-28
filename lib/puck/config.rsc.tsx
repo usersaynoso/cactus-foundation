@@ -18,6 +18,7 @@ import {
   richTextContentToHtml,
   richTextColourCss,
   richTextFontSize,
+  richTextSpacingStyle,
   getPaddingClasses,
   getAosProps,
   getStickyStyle,
@@ -71,7 +72,7 @@ function wrapModuleRsc(components: Record<string, any>): Record<string, any> {
 // and nothing upstream escapes them. config.tsx is imported by the client Puck
 // editors, so it cannot import the sanitiser (jsdom would follow it into the
 // browser bundle) - but every published render path goes through this file.
-function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string; fontSize?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
+function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string; fontSize?: string; spaceAbove?: string; spaceBelow?: string; spaceAbovePx?: string; spaceBelowPx?: string; paraSpace?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
   const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon, bulletColor, fontSize, sticky, stickyOffset, animationType, animationDuration, animationDelay, puck } = props
   if (!content) {
     return (
@@ -95,7 +96,7 @@ function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any
   // Same helper as the editor render, for the same reason the colour CSS is:
   // editor DOM and published DOM must agree, and a size applied here but not
   // there is a footer that looks right in the builder and wrong in the PDF.
-  const style = { ...getStickyStyle(sticky, stickyOffset), ...(richTextFontSize(fontSize) ?? {}) }
+  const style = { ...getStickyStyle(sticky, stickyOffset), ...(richTextFontSize(fontSize) ?? {}), ...richTextSpacingStyle(props) }
   return (
     <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id} {...getAosProps(animationType ?? 'none', animationDuration ?? 'normal', animationDelay ?? 'none')} style={style}>
       {colourCss && <style>{colourCss}</style>}

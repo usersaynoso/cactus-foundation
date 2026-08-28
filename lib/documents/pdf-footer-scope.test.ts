@@ -86,6 +86,24 @@ describe('the running footer takes only the stylesheets its own region carries',
     expect(capture).toContain('display: block !important; visibility: visible !important;')
   })
 
+  it('says the fitted margin again in CSS, or Chrome ignores it', () => {
+    // The third and worst of the three. A document page emits its own
+    // `@page { margin: … }` (DocumentPageStyle) so Ctrl+P matches the Download
+    // button - and a CSS @page margin BEATS the margin handed to page.pdf().
+    // `preferCSSPageSize` governs the page SIZE and does nothing about this. So
+    // the fitted bottom margin was computed, passed, accepted and thrown away,
+    // and the footer went on printing across the last two lines of every
+    // invoice through two releases that each claimed to have fixed it.
+    const capture = read('lib/documents/pdf.ts')
+    expect(capture).toContain('@page { margin-bottom: ${margin.bottom}; }')
+    // Last element of the body, so it is last in document order and wins the
+    // cascade against the layout's own rule.
+    expect(capture).toContain('document.body.appendChild(style)')
+    // Only the bottom, and only when the footer actually needed more room: the
+    // other three sides are the owner's and must not be rewritten.
+    expect(capture).toContain('if (margin.bottom !== paper.margin.bottom)')
+  })
+
   it('measures the same template it prints', () => {
     // Measuring anything else - the region on the document page, say, where the
     // page's own stylesheet applies and the template's does not - measures a

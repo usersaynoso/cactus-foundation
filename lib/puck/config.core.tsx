@@ -504,10 +504,17 @@ function getGridTemplateColumns(columnSizes: string | undefined, colCount: numbe
 }
 
 function GridBlock(props: any) {
-  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackColumns, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset, animationType, animationDuration, animationDelay } = props
+  const { id, columns, gap, gapShrunk, padding, col1, col2, col3, col4, verticalAlign, columnSizes, col1Align, col2Align, col3Align, col4Align, col1VAlign, col2VAlign, col3VAlign, col4VAlign, col1Width, col2Width, col3Width, col4Width, col1WidthShrunk, col2WidthShrunk, col3WidthShrunk, col4WidthShrunk, spaceBelow, stackColumns, stackAtTablet, col1Sticky, col2Sticky, col3Sticky, col4Sticky, col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset, animationType, animationDuration, animationDelay } = props
   const colCount = parseInt(columns ?? '2', 10)
   const slots = [col1, col2, col3, col4].slice(0, colCount)
   const colAligns = [col1Align, col2Align, col3Align, col4Align]
+  // Per-column vertical alignment, sitting on top of the grid-wide one. Blank -
+  // the default, and what every grid saved before this existed carries - means
+  // "whatever the grid says", so nothing already published moves. Set, it is
+  // that column's `align-self` and only that column's: a page number that wants
+  // to sit on the bottom line of a footer no longer drags the address block
+  // down with it.
+  const colVAligns = [col1VAlign, col2VAlign, col3VAlign, col4VAlign]
   const colStickies = [col1Sticky, col2Sticky, col3Sticky, col4Sticky].map((s) => s === 'on')
   const colStickyOffsets = [col1StickyOffset, col2StickyOffset, col3StickyOffset, col4StickyOffset]
   const anyColSticky = colStickies.slice(0, colCount).some(Boolean)
@@ -693,8 +700,12 @@ function GridBlock(props: any) {
               overflowY: 'auto' as const,
             }
           : {}
+        // The column's own vertical alignment goes in BEFORE stickyStyle, not
+        // after: a pinned column has to keep its `align-self: start` or it is
+        // stretched to the row's full height and has nowhere left to travel. So
+        // sticky wins the argument, exactly as it did before this field existed.
         return (
-          <div key={i} {...(colSticky ? { 'data-col-sticky': '' } : {})} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...stickyStyle, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
+          <div key={i} {...(colSticky ? { 'data-col-sticky': '' } : {})} style={{ minWidth: 0, overflowWrap: 'break-word', gridColumn: explicitCol, ...(colVAligns[i] ? { alignSelf: vAlignMap[colVAligns[i]] ?? 'stretch' } : {}), ...stickyStyle, ...(!scaled && jc ? { display: 'flex', justifyContent: jc } : {}) }}>
             {/* Explicit gridColumn matters once any column is centred: an
                 absolutely-positioned grid item is skipped by CSS Grid's
                 auto-placement, so without an explicit track, later columns
@@ -748,6 +759,17 @@ function readColumnSizesMode(columnSizes: unknown): string | undefined {
 // picker and barred from every slot, which is the only place it can't work.
 const SLOT_DISALLOW = ['Split']
 
+/** One column's vertical alignment. Blank means "whatever the grid's own
+ *  Vertical align says", which is what every grid saved before this field
+ *  existed carries and therefore what it keeps doing. */
+const COLUMN_VALIGN_OPTIONS = [
+  { value: '', label: 'Follow the grid' },
+  { value: 'start', label: 'Top' },
+  { value: 'center', label: 'Middle' },
+  { value: 'end', label: 'Bottom' },
+  { value: 'stretch', label: 'Stretch' },
+]
+
 function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   const cols = Array.from({ length: colCount }, (_, i) => i + 1)
   const alignOptions = [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }]
@@ -771,6 +793,10 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
     stackColumns: { type: 'select' as const, label: 'Stack columns', options: [{ value: 'mobile', label: 'On mobile' }, { value: 'tablet', label: 'On tablet and mobile' }, { value: 'never', label: 'Never (keep side by side)' }] },
   }
   for (const n of cols) fields[`col${n}Align`] = { type: 'select' as const, label: `Col ${n} align`, options: alignOptions }
+  // Vertical alignment for ONE column, where "Vertical align" above does the
+  // whole grid at once. "Follow the grid" is the default and is blank in the
+  // data, so a grid saved before this existed behaves exactly as it did.
+  for (const n of cols) fields[`col${n}VAlign`] = { type: 'select' as const, label: `Col ${n} vertical align`, options: COLUMN_VALIGN_OPTIONS }
   for (const n of cols) fields[`col${n}Width`] = { type: 'custom' as const, label: `Col ${n} width`, units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField }
   // Pin a column in place while the taller column scrolls past (e.g. an image
   // that stays beside a long text column). Auto-releases once the grid stacks
@@ -790,7 +816,7 @@ function makeGridColumnComponent(colCount: 2 | 3 | 4) {
   for (const n of cols) fields[`col${n}`] = { type: 'slot' as const, disallow: SLOT_DISALLOW }
 
   const defaultProps: Record<string, unknown> = { columns: String(colCount), gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', gapShrunk: '', ...aosDefaults }
-  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
+  for (const n of cols) { defaultProps[`col${n}Align`] = 'start'; defaultProps[`col${n}VAlign`] = ''; defaultProps[`col${n}Width`] = ''; defaultProps[`col${n}WidthShrunk`] = ''; defaultProps[`col${n}Sticky`] = 'off'; defaultProps[`col${n}StickyOffset`] = '' }
 
   return {
     label: `Grid (${colCount} columns)`,
@@ -1044,8 +1070,44 @@ function Spacer(props: any) {
   return <>{css && <style>{css}</style>}<div data-spacer-id={id} style={{ height: heightAt('desktop') }} /></>
 }
 
+/** The vertical gaps a block can leave above and below itself.
+ *
+ *  `md` is the 1.5rem that Divider, TextBlock and most of the rest hard-coded
+ *  before any of this was adjustable, so a block nobody has touched sits exactly
+ *  where it always did. The core `padding` field is left/right ONLY - there was
+ *  no way at all to close up the space between two blocks, which reads as
+ *  generous on a page and as a hole in the strip at the foot of a PDF. */
+const BLOCK_SPACE_MAP: Record<string, string> = {
+  none: '0',
+  xs: '0.25rem',
+  sm: '0.75rem',
+  md: '1.5rem',
+  lg: '2.5rem',
+  xl: '4rem',
+}
+
+const BLOCK_SPACE_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'xs', label: 'Tiny' },
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
+  { value: 'xl', label: 'Extra large' },
+]
+
+/** One of the presets above, or an exact length where somebody has a number in
+ *  mind - which they do more often than you would think on a document footer,
+ *  where a rule is being lined up against small print measured in single
+ *  pixels. Blank in the exact box leaves the menu standing. */
+function blockSpace(exact: unknown, preset: unknown): string {
+  const typed = typeof exact === 'string' ? exact.trim() : ''
+  if (typed) return typed
+  const key = typeof preset === 'string' ? preset : ''
+  return BLOCK_SPACE_MAP[key] ?? BLOCK_SPACE_MAP.md!
+}
+
 function Divider(props: any) {
-  const { id, style, color, thickness, animationType, animationDuration, animationDelay } = props
+  const { id, style, color, thickness, spaceAbove, spaceBelow, spaceAbovePx, spaceBelowPx, animationType, animationDuration, animationDelay } = props
   // gray/dark/brand are the legacy preset values; anything else is a raw CSS
   // colour straight from the swatch/manual picker. Blank keeps the old gray.
   const colors: Record<string, string> = { gray: 'var(--color-border)', dark: 'var(--color-fg)', brand: 'var(--color-primary)' }
@@ -1062,7 +1124,10 @@ function Divider(props: any) {
       <hr data-divider-id={id} {...getAosProps(animationType, animationDuration, animationDelay)} style={{
         border: 'none',
         borderTop: `${heights[base] ?? '1px'} ${style ?? 'solid'} ${lineColour}`,
-        margin: '1.5rem 0',
+        marginTop: blockSpace(spaceAbovePx, spaceAbove),
+        marginBottom: blockSpace(spaceBelowPx, spaceBelow),
+        marginLeft: 0,
+        marginRight: 0,
       }} />
     </>
   )
@@ -1473,6 +1538,29 @@ export function richTextFontSize(value: unknown): { fontSize: string } | undefin
   return PX_SIZE_RE.test(size) ? { fontSize: size } : undefined
 }
 
+/**
+ * A Rich Text block's vertical spacing, as a style object - the space above and
+ * below the block itself, and the gap between the paragraphs inside it.
+ *
+ * The inner gap is published as a custom property rather than a rule, because
+ * the paragraphs are `dangerouslySetInnerHTML` and there is nothing to put a
+ * style on. `.puck-richtext p` in globals.css reads it with the old fixed `1em`
+ * as its fallback, so a block nobody has touched is unchanged.
+ *
+ * One function for the same reason `richTextFontSize` is one: the editor render
+ * and the published RSC render live in different files and must agree, and
+ * spacing applied in one but not the other is a footer that looks right in the
+ * builder and wrong in the PDF.
+ */
+export function richTextSpacingStyle(props: { spaceAbove?: unknown; spaceBelow?: unknown; spaceAbovePx?: unknown; spaceBelowPx?: unknown; paraSpace?: unknown }): React.CSSProperties {
+  const para = typeof props.paraSpace === 'string' ? props.paraSpace.trim() : ''
+  return {
+    marginTop: blockSpace(props.spaceAbovePx, props.spaceAbove ?? 'none'),
+    marginBottom: blockSpace(props.spaceBelowPx, props.spaceBelow ?? 'none'),
+    ...(para ? ({ '--puck-richtext-p-space': para } as React.CSSProperties) : {}),
+  }
+}
+
 /** The same menu for a block with no named scale of its own. Blank means
  *  "whatever the page gives it", which is how every Rich Text block behaved
  *  before there was a size on it at all - so a saved one is untouched until
@@ -1486,7 +1574,7 @@ const OPTIONAL_TEXT_SIZE_OPTIONS = [
 ]
 
 function TextBlock(props: any) {
-  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, content, align, padding, size = 'base', maxWidth = 'none', color = 'default', spaceAbove = 'none', spaceBelow = 'md', spaceAbovePx = '', spaceBelowPx = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const body = puck?.isEditing ? content : linkifyEmails(content)
   const maxWidthMap: Record<string, string | undefined> = { none: undefined, prose: '46ch', wide: '60ch' }
   // default/muted/dark are the legacy preset values; anything else is a raw
@@ -1519,7 +1607,7 @@ function TextBlock(props: any) {
   return (
     <>
       {mediaCss && <style>{mediaCss}</style>}
-      <div data-text-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: textFontSize(base.s), lineHeight: 1.65, color: resolvedColour, textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...getStickyStyle(sticky, stickyOffset) }}>
+      <div data-text-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginTop: blockSpace(spaceAbovePx, spaceAbove), marginBottom: blockSpace(spaceBelowPx, spaceBelow), marginLeft: baseMw && (base.a === 'center' || base.a === 'right') ? 'auto' : undefined, marginRight: baseMw && base.a === 'center' ? 'auto' : undefined, fontSize: textFontSize(base.s), lineHeight: 1.65, color: resolvedColour, textAlign: base.a as React.CSSProperties['textAlign'], maxWidth: baseMw, whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...getStickyStyle(sticky, stickyOffset) }}>
         {body}
       </div>
     </>
@@ -1602,7 +1690,7 @@ function RichTextBlock(props: any) {
   // globals.css set no font-size of their own, so body copy takes this and the
   // headings keep the scale they are given. Blank leaves the block exactly as it
   // rendered before this field existed.
-  const stickyStyle = { ...getStickyStyle(sticky, stickyOffset), ...(richTextFontSize(fontSize) ?? {}) }
+  const stickyStyle = { ...getStickyStyle(sticky, stickyOffset), ...(richTextFontSize(fontSize) ?? {}), ...richTextSpacingStyle(props) }
   // In the Puck editor canvas, the richtext field type (via useRichtextProps) transforms
   // the stored value into a React element (<Suspense><RichTextRender /></Suspense>).
   // Render it directly rather than passing to dangerouslySetInnerHTML.
@@ -3178,6 +3266,13 @@ export const puckConfig = {
         col2Align: { type: 'select' as const, label: 'Col 2 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col3Align: { type: 'select' as const, label: 'Col 3 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
         col4Align: { type: 'select' as const, label: 'Col 4 align', options: [{ value: 'start', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'end', label: 'Right' }] },
+        // Same per-column vertical alignment the Grid2/3/4 types offer, so a
+        // layout still on the retired dynamic Grid can be adjusted rather than
+        // having to be rebuilt to get at one field.
+        col1VAlign: { type: 'select' as const, label: 'Col 1 vertical align', options: COLUMN_VALIGN_OPTIONS },
+        col2VAlign: { type: 'select' as const, label: 'Col 2 vertical align', options: COLUMN_VALIGN_OPTIONS },
+        col3VAlign: { type: 'select' as const, label: 'Col 3 vertical align', options: COLUMN_VALIGN_OPTIONS },
+        col4VAlign: { type: 'select' as const, label: 'Col 4 vertical align', options: COLUMN_VALIGN_OPTIONS },
         col1Width: { type: 'custom' as const, label: 'Col 1 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
         col2Width: { type: 'custom' as const, label: 'Col 2 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
         col3Width: { type: 'custom' as const, label: 'Col 3 width', units: ['px', '%', 'fr', 'rem', 'vw'], render: ResponsiveUnitValueField },
@@ -3194,7 +3289,7 @@ export const puckConfig = {
         ...aosFields,
         col1: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col2: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col3: { type: 'slot' as const, disallow: SLOT_DISALLOW }, col4: { type: 'slot' as const, disallow: SLOT_DISALLOW },
       },
-      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
+      defaultProps: { columns: '2', gap: 'md', padding: 'none', columnSizes: 'equal', verticalAlign: 'stretch', spaceBelow: 'md', stackColumns: 'mobile', col1Align: 'start', col2Align: 'start', col3Align: 'start', col4Align: 'start', col1VAlign: '', col2VAlign: '', col3VAlign: '', col4VAlign: '', col1Width: '', col2Width: '', col3Width: '', col4Width: '', gapShrunk: '', col1WidthShrunk: '', col2WidthShrunk: '', col3WidthShrunk: '', col4WidthShrunk: '', ...aosDefaults },
       resolveFields: (data: any, { fields, appState }: any) => {
         let result = fields
         if (!isHeaderShrinkEnabled(appState)) {
@@ -3316,9 +3411,18 @@ export const puckConfig = {
         style: { type: 'select' as const, label: 'Line style', options: [{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }] },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         thickness: { type: 'custom' as const, label: 'Thickness', options: [{ value: 'thin', label: 'Thin' }, { value: 'medium', label: 'Medium' }, { value: 'thick', label: 'Thick' }], render: ResponsiveSelectField },
+        // The rule used to sit in a fixed 1.5rem of air top and bottom, with
+        // nothing an owner could do about it. On a page that reads as generous;
+        // in the strip at the foot of a PDF, where the whole footer is a few
+        // millimetres tall, it reads as a hole. `md` IS that old 1.5rem, so a
+        // divider already on a published layout does not move.
+        spaceAbove: { type: 'select' as const, label: 'Space above', options: BLOCK_SPACE_OPTIONS },
+        spaceAbovePx: { type: 'custom' as const, label: '…or exactly this much above', units: ['px', 'rem', 'em'], render: UnitValueField },
+        spaceBelow: { type: 'select' as const, label: 'Space below', options: BLOCK_SPACE_OPTIONS },
+        spaceBelowPx: { type: 'custom' as const, label: '…or exactly this much below', units: ['px', 'rem', 'em'], render: UnitValueField },
         ...aosFields,
       },
-      defaultProps: { style: 'solid' as const, color: '' as const, thickness: 'thin' as const, ...aosDefaults },
+      defaultProps: { style: 'solid' as const, color: '' as const, thickness: 'thin' as const, spaceAbove: 'md' as const, spaceBelow: 'md' as const, spaceAbovePx: '', spaceBelowPx: '', ...aosDefaults },
       render: Divider,
     },
     // ── Embed ───────────────────────────────────────────────────────────────
@@ -3403,10 +3507,16 @@ export const puckConfig = {
         maxWidth: { type: 'custom' as const, label: 'Max width', options: [{ value: 'none', label: 'Full width' }, { value: 'prose', label: 'Prose (46ch)' }, { value: 'wide', label: 'Wide (60ch)' }], render: ResponsiveSelectField },
         color: { type: 'custom' as const, label: 'Colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         padding: paddingField,
+        // Vertical space, which the `padding` field above has never covered -
+        // it is left/right only. `md` below is the 1.5rem this block hard-coded.
+        spaceAbove: { type: 'select' as const, label: 'Space above', options: BLOCK_SPACE_OPTIONS },
+        spaceAbovePx: { type: 'custom' as const, label: '…or exactly this much above', units: ['px', 'rem', 'em'], render: UnitValueField },
+        spaceBelow: { type: 'select' as const, label: 'Space below', options: BLOCK_SPACE_OPTIONS },
+        spaceBelowPx: { type: 'custom' as const, label: '…or exactly this much below', units: ['px', 'rem', 'em'], render: UnitValueField },
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { content: 'Enter your text here…', align: 'left' as const, size: 'base' as const, maxWidth: 'none' as const, color: '' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { content: 'Enter your text here…', align: 'left' as const, size: 'base' as const, maxWidth: 'none' as const, color: '' as const, padding: 'default', spaceAbove: 'none' as const, spaceBelow: 'md' as const, spaceAbovePx: '', spaceBelowPx: '', ...STICKY_DEFAULTS, ...aosDefaults },
       render: TextBlock,
     },
     RichTextBlock: {
@@ -3420,10 +3530,19 @@ export const puckConfig = {
         bulletColor: { type: 'custom' as const, label: 'Bullet colour', render: ({ value, onChange, field }: any) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
         fontSize: { type: 'select' as const, label: 'Text size', options: OPTIONAL_TEXT_SIZE_OPTIONS },
         padding: paddingField,
+        // Vertical space, which `padding` has never covered - it is left/right
+        // only. `none` keeps the wrapper exactly as it was; `paraSpace` is the
+        // gap BETWEEN the paragraphs inside, which used to be a fixed 1em and is
+        // what makes a two-line footer address look loose.
+        spaceAbove: { type: 'select' as const, label: 'Space above', options: BLOCK_SPACE_OPTIONS },
+        spaceAbovePx: { type: 'custom' as const, label: '…or exactly this much above', units: ['px', 'rem', 'em'], render: UnitValueField },
+        spaceBelow: { type: 'select' as const, label: 'Space below', options: BLOCK_SPACE_OPTIONS },
+        spaceBelowPx: { type: 'custom' as const, label: '…or exactly this much below', units: ['px', 'rem', 'em'], render: UnitValueField },
+        paraSpace: { type: 'custom' as const, label: 'Space between paragraphs', units: ['em', 'px', 'rem'], render: UnitValueField },
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', fontSize: '', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', fontSize: '', padding: 'default', spaceAbove: 'none' as const, spaceBelow: 'none' as const, spaceAbovePx: '', spaceBelowPx: '', paraSpace: '', ...STICKY_DEFAULTS, ...aosDefaults },
       render: RichTextBlock,
     },
     Quote: {

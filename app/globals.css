@@ -3195,7 +3195,10 @@ tbody tr:hover {
 .puck-richtext h4 { font-family: var(--h4-family, var(--font-heading)); }
 .puck-richtext h5 { font-family: var(--h5-family, var(--font-heading)); }
 .puck-richtext h6 { font-family: var(--h6-family, var(--font-heading)); }
-.puck-richtext p  { margin: 0 0 1em; line-height: 1.75; color: var(--color-fg-secondary); }
+/* The gap between paragraphs is the block's own "Space between paragraphs"
+   field, published as a custom property because the paragraphs are set from raw
+   HTML and there is nothing to hang a style on. 1em is what it always was. */
+.puck-richtext p  { margin: 0 0 var(--puck-richtext-p-space, 1em); line-height: 1.75; color: var(--color-fg-secondary); }
 .puck-richtext ul,
 .puck-richtext ol { margin: 0 0 1em 1.5em; padding: 0; color: var(--color-fg-secondary); line-height: 1.75; }
 .puck-richtext li { margin-bottom: 0.25em; }

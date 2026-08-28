@@ -494,6 +494,35 @@ export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Prom
           ),
         }
       : paper.margin
+    // And then the margin has to be said again, in CSS, or Chrome ignores it.
+    //
+    // A document page emits its own `@page { size: …; margin: … }` rule from its
+    // page settings (DocumentPageStyle), so that a human pressing Ctrl+P gets
+    // the same sheet the Download button does. That rule BEATS the `margin`
+    // handed to page.pdf() - `preferCSSPageSize` is about the page SIZE and does
+    // nothing here - so a bottom margin computed above was accepted by the API,
+    // silently overruled by the stylesheet, and the footer went back to printing
+    // over the last two lines of the document.
+    //
+    // That is what made this bug survive two fixes: the harness page they were
+    // proved against had no @page rule of its own, so the API margin stood and
+    // both looked right. Printed side by side, with the rule and without, the
+    // difference is the whole fault.
+    //
+    // Injected as the last element of the body, so it is last in document order
+    // and wins the cascade against the layout's own rule, and only the BOTTOM,
+    // and only when the footer actually needed more room - the other three sides
+    // stay exactly as the owner set them.
+    if (margin.bottom !== paper.margin.bottom) {
+      await page
+        .evaluate((css: string) => {
+          const style = document.createElement('style')
+          style.setAttribute('data-cactus-pdf-margin', '')
+          style.textContent = css
+          document.body.appendChild(style)
+        }, `@page { margin-bottom: ${margin.bottom}; }`)
+        .catch(() => {})
+    }
     const pdf = await page.pdf({
       format: paper.format as PaperFormat,
       // Backgrounds on by default, or every rule and border in the document
