@@ -319,6 +319,8 @@ Then fill in your own details: business name, trading address, VAT registration 
 
 The wording boxes underneath - the heading, an opening line, how to pay, your terms, a footer line - are copied onto each invoice as it is raised. Editing them later changes what future invoices say and never rewrites paperwork you have already sent out.
 
+The same goes for the customer's side of it. The name, the organisation, both addresses, their purchase order number, every figure and every line are copied onto the invoice at the moment it is raised, and are never looked up again. A customer who renames their company, moves office or corrects their own account details afterwards finds the invoice still saying exactly what it said the day it was sent - which is what makes it a record rather than a report. Their newer details go on the next one. If an invoice really is wrong, you void it and raise a fresh one; you never edit one that has gone out.
+
 ### Designing what it looks like
 
 The invoice is a layout, like the shop's other pages. **Appearance → Layouts → New**, pick **Invoice document**, and you get the same builder you use everywhere else with ten blocks made for the job:

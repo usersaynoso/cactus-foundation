@@ -38,6 +38,7 @@ type Config = {
   profileVisibility: 'PUBLIC' | 'MEMBERS_ONLY' | 'HIDDEN'
   accountSinglePage: boolean
   accountCollectOrganisation: boolean
+  accountRequireOrganisation: boolean
   accountSectionsEnabled: {
     profile: boolean
     security: boolean
@@ -311,6 +312,24 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>
               A box beside their name on the account page, for the company, school or practice they buy on behalf of.
               Off, the box goes and nothing new is saved into it - anything already there is left alone.
+            </p>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+              marginTop: 'var(--space-2)', marginLeft: '1.6rem',
+              cursor: config.accountCollectOrganisation ? 'pointer' : 'not-allowed',
+              opacity: config.accountCollectOrganisation ? 1 : 0.55,
+            }}>
+              <input
+                type="checkbox"
+                disabled={!config.accountCollectOrganisation}
+                checked={config.accountRequireOrganisation}
+                onChange={(e) => update('accountRequireOrganisation', e.target.checked)}
+              />
+              Make it required
+            </label>
+            <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 3.2rem' }}>
+              Members cannot save their details without one, and the box stops calling itself optional. Nobody
+              already signed up is chased for it - they are asked the next time they open the page.
             </p>
           </div>
           <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area sections</p>

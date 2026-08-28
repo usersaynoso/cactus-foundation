@@ -91,6 +91,17 @@ export const MembersConfigSchema = z.object({
   // mostly the ones selling to businesses. A site with no use for it turns it
   // off here and the box goes, rather than sitting there collecting nothing.
   accountCollectOrganisation: z.boolean().default(true),
+  // Whether that box has to be filled in. Off by default, and only ever read
+  // where the box is switched on above: a site selling to the public would be
+  // stopping a member saving their own name until they invented a company.
+  // On, the account page stops calling it optional, refuses a blank one, and
+  // the contact route refuses one too - a required field that only argues in
+  // the browser is a suggestion.
+  //
+  // Note what this does NOT do: it does not go back over members who have been
+  // signed up for a year without one. They are asked the next time they open
+  // the page, which is the only moment anybody is there to answer.
+  accountRequireOrganisation: z.boolean().default(false),
   accountSectionsEnabled: z.object({
     profile: z.boolean().default(true),
     security: z.boolean().default(true),

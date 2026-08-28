@@ -56,6 +56,8 @@ It asks for the email address first, and nothing else. Once they press **Continu
 
 The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath - on the choice of methods and on the "check your inbox" message alike - for the inevitable typo.
 
+An address that isn't registered at all gets the same "check your inbox" message as a real one - the form never lets on whether an account exists. What lands in that inbox differs: a registered address gets its sign-in link, an unregistered one gets a short email saying no account was found there, with a link to register. So a mistyped address doesn't just go quiet - the person who typed it finds out, without the sign-in form itself giving anything away.
+
 Clicking the link out of the inbox signs them in and drops them on their account. If they were part-way through something when they were asked to sign in - checking out, say, or opening a page only members can see - they carry on from there instead.
 
 If the site can't reach its own settings for a moment - a wobbly connection at their end - the form quietly offers every method you've switched on rather than hiding one, so a passkey holder is never stuck looking at a form that won't take their passkey.
@@ -165,6 +167,10 @@ The greeting at the top uses their first name once they've given one - just the 
 Sitting near the top of that page is **Your details**, holding the member's full name and, beside it, an optional **Organisation name** - the company, school or practice they buy on behalf of. They can change either whenever they like. On a narrow screen the two sit one under the other rather than shoulder to shoulder. With the Shop installed both are filled in for them at the checkout, so a returning customer types them once and never again. It's deliberately not part of the Profile tab and doesn't disappear with it: a display name is a public handle you may not even ask for, whereas this is simply who an order is made out to, and a shop whose accounts exist purely to sign in and pay still needs one.
 
 The organisation box can be switched off under **Users → Settings → Sections** if your site has no use for it, and then it's properly gone - not merely hidden, since nothing new can be saved into it either. Anything already there is left alone, so switching it back on brings everything back. It's on to begin with, being one optional box and rather useful to anyone selling to businesses.
+
+Underneath that switch sits **Make it required**, which does what it says: the box stops calling itself optional, the Save button won't go until there's something in it, and the same rule is applied when the details are saved rather than only in the browser. Off to begin with, since a shop selling to the public would otherwise be stopping people saving their own name until they'd invented a company. Nobody who signed up years ago is chased for it - they're simply asked the next time they open the page.
+
+Members who arrived through the checkout don't start empty either. When a guest order is matched to a newly created account - which happens once the email address has been verified - the name and organisation from that order are copied onto the account, and the same happens when somebody already signed in places an order. Only ever into blanks: anything the member has typed on their own account page wins, so a correction is never quietly undone by an older order.
 
 There's no phone number beside any of this, on purpose - a number is how a courier reaches whoever's at a particular door, so the Shop keeps one against each saved address instead.
 

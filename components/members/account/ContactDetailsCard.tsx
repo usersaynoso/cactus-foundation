@@ -15,13 +15,17 @@ type Contact = { fullName: string | null; organisation: string | null }
 // The organisation sits beside the name rather than on a delivery address: it is
 // who the member is, not where a parcel goes, so it stays the same however many
 // addresses they save. `collectOrganisation` is the site's own switch - off, the
-// box is gone and the route refuses to save one either.
+// box is gone and the route refuses to save one either. `requireOrganisation` is
+// the second half of that switch: a trade shop that invoices businesses has no
+// use for a member with no company on them, so the card refuses to save without
+// one. The route refuses it as well - this is the polite half, not the gate.
 //
 // No phone number here on purpose: a number belongs to the address a parcel is
 // going to, so the shop keeps one per saved address instead.
-export default function ContactDetailsCard({ initial, collectOrganisation = true }: {
+export default function ContactDetailsCard({ initial, collectOrganisation = true, requireOrganisation = false }: {
   initial: Contact
   collectOrganisation?: boolean
+  requireOrganisation?: boolean
 }) {
   const [fullName, setFullName] = useState(initial.fullName ?? '')
   const [organisation, setOrganisation] = useState(initial.organisation ?? '')
@@ -41,7 +45,18 @@ export default function ContactDetailsCard({ initial, collectOrganisation = true
   const dirty = fullName !== (saved.fullName ?? '')
     || (collectOrganisation && organisation !== (saved.organisation ?? ''))
 
+  // Only where the site asks for one AND insists on it. Checked on the value
+  // rather than on whether it changed: a member who has never had one on file
+  // has a blank box the moment they open the page, and letting them save their
+  // name past it would leave the record exactly as short as before.
+  const organisationMissing = collectOrganisation && requireOrganisation && organisation.trim().length === 0
+
   async function handleSave() {
+    if (organisationMissing) {
+      setMessage('')
+      setError('Please give an organisation name.')
+      return
+    }
     setSaving(true)
     setError('')
     setMessage('')
@@ -101,21 +116,31 @@ export default function ContactDetailsCard({ initial, collectOrganisation = true
 
         {collectOrganisation && (
           <div className="field" style={{ margin: 0 }}>
-            <label htmlFor="member-organisation">Organisation name (optional)</label>
+            <label htmlFor="member-organisation">
+              {requireOrganisation ? 'Organisation name' : 'Organisation name (optional)'}
+            </label>
             <input
               id="member-organisation"
               type="text"
               autoComplete="organization"
               maxLength={120}
+              required={requireOrganisation}
+              aria-invalid={organisationMissing || undefined}
+              aria-describedby={organisationMissing ? 'member-organisation-hint' : undefined}
               value={organisation}
               onChange={(e) => setOrganisation(e.target.value)}
             />
+            {organisationMissing && (
+              <p id="member-organisation-hint" className="field-hint" style={{ color: 'var(--color-error)' }}>
+                Needed on your orders and invoices.
+              </p>
+            )}
           </div>
         )}
       </div>
 
       <div>
-        <button className="btn btn-primary btn-sm" disabled={saving || !dirty} onClick={handleSave}>
+        <button className="btn btn-primary btn-sm" disabled={saving || !dirty || organisationMissing} onClick={handleSave}>
           {saving ? 'Saving…' : 'Save details'}
         </button>
       </div>

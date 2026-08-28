@@ -60,6 +60,18 @@ export async function PATCH(request: NextRequest) {
   const config = await getMembersConfig()
   const acceptOrganisation = config.accountCollectOrganisation && organisation !== undefined
 
+  // Required means required here too, not only in the box. The card disables its
+  // own button, but a required field enforced in the browser alone is a field
+  // that is required of everybody who uses the browser.
+  //
+  // Only where the field was actually sent: a caller saving nothing but the full
+  // name is not the moment to argue about an organisation, and a site that has
+  // just switched the requirement on would otherwise have every other save on
+  // the page start failing.
+  if (acceptOrganisation && config.accountRequireOrganisation && !organisation?.trim()) {
+    return NextResponse.json({ error: 'Please give an organisation name.' }, { status: 400 })
+  }
+
   const updated = await prisma.member.update({
     where: { id: member.id },
     // Emptied rather than left alone when the box is cleared: taking a name back

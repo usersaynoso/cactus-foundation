@@ -236,6 +236,7 @@ export default async function AccountIndexPage() {
       <ContactDetailsCard
         initial={{ fullName: member.fullName, organisation: member.organisation }}
         collectOrganisation={config.accountCollectOrganisation}
+        requireOrganisation={config.accountRequireOrganisation}
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
