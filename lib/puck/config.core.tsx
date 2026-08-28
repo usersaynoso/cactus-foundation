@@ -53,6 +53,9 @@ import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tablet
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternUrl, type PatternProps } from '@/lib/puck/patternBackground'
 import { splitLightDark, composeLightDark } from '@/lib/puck/lightDark'
+// The one layout type that is a strip in a page margin rather than a page. Only
+// the name is taken from here, and page-settings is client-safe by contract.
+import { DOCUMENT_FOOTER_LAYOUT_TYPE } from '@/lib/documents/page-settings'
 // Sidebar field widgets come from the registry, never from their own modules. Each one
 // is a 'use client' component and ResponsiveValueField imports the Puck editor itself,
 // so a direct import here opens a client boundary on the RSC path and drags the whole
@@ -4944,6 +4947,64 @@ export function getModuleLayoutSharedParts() {
       .map((name) => [name, (puckConfig.components as any)[name]])
   )
   return { sharedCategories, sharedComponents }
+}
+
+// ---------------------------------------------------------------------------
+// Vertical space inside a running document footer
+// ---------------------------------------------------------------------------
+//
+// The document footer is drawn into the BOTTOM MARGIN of a printed page - a
+// strip a few millimetres tall. Every block's idea of breathing room was picked
+// for a web page: a Divider brings 1.5rem above AND below, a Text block 1.5rem
+// under it, a Grid another 1.5rem, and each paragraph of rich text 1em under
+// itself. On a page that reads as generous. In a footer strip it is most of the
+// strip, and what it does not waste it pushes out of the margin box altogether.
+//
+// So inside that one layout type every vertical spacing starts at nothing. Only
+// the BLANK is filled in - a figure an owner has actually chosen is left exactly
+// as they set it, including a deliberate 4px under a rule, and so is a Space
+// block, which is nothing but vertical space asked for on purpose.
+const NO_VERTICAL_SPACE: Record<string, string> = {
+  spaceAbove: 'none',
+  spaceBelow: 'none',
+  paddingY: 'none',
+  // Rich text's paragraph gap is a length rather than a preset, and blank there
+  // means "whatever the stylesheet gives it", which is 1em.
+  paraSpace: '0',
+}
+
+/** One block with its vertical spacing defaulting to none. Fields it does not
+ *  have are not invented, and props already saved on it are not overwritten. */
+function withoutVerticalSpace(def: any) {
+  const keys = Object.keys(NO_VERTICAL_SPACE).filter((key) => def?.fields?.[key])
+  if (keys.length === 0 || typeof def?.render !== 'function') return def
+  const Inner = def.render
+  return {
+    ...def,
+    // The editor's side of it: a block dropped into a footer starts closed up
+    // rather than needing four fields set every time.
+    defaultProps: { ...def.defaultProps, ...Object.fromEntries(keys.map((k) => [k, NO_VERTICAL_SPACE[k]])) },
+    // The render's side, which is the one that matters to a layout somebody
+    // published before these fields existed: Puck hands a block exactly the
+    // props that were saved, defaultProps included only at the moment it was
+    // dropped in. A Divider saved in 2026 carries no `spaceAbove` at all, so
+    // without this it falls to the block's own 1.5rem regardless of the config.
+    render: function BlockWithoutVerticalSpace(props: any) {
+      const filled: Record<string, any> = { ...props }
+      for (const key of keys) if (filled[key] === undefined) filled[key] = NO_VERTICAL_SPACE[key]
+      return <Inner {...filled} />
+    },
+  }
+}
+
+/** Every block in a layout type's config, with vertical spacing closed up where
+ *  the layout type is one that has no room for any. Applied by BOTH the editor
+ *  config and the RSC one, so the builder and the printed page agree. */
+export function withoutVerticalSpaceComponents<T extends Record<string, any>>(components: T, layoutType: string): T {
+  if (layoutType !== DOCUMENT_FOOTER_LAYOUT_TYPE) return components
+  return Object.fromEntries(
+    Object.entries(components).map(([name, def]) => [name, withoutVerticalSpace(def)])
+  ) as T
 }
 
 // A "block-internal" layout type - one whose blocks are a flat list of parts

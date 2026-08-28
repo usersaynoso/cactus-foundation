@@ -23,6 +23,7 @@ import {
   getAosProps,
   getStickyStyle,
   SiteLogoRsc,
+  withoutVerticalSpaceComponents,
 } from '@/lib/puck/config.core'
 // config.core, NOT config: the wrapper in config.tsx imports the module block
 // CLIENT map, and importing it from here would put all 118 of those components
@@ -282,7 +283,11 @@ export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standa
         ? moduleLayoutStandaloneRoot(layoutType, pageRoot?.before, opts?.standalone)
         : BareLayoutRoot,
     },
-    components: withSafeRichText({
+    // The footer strip closes its blocks up (see withoutVerticalSpaceComponents):
+    // applied OUTSIDE withSafeRichText so it wraps the RSC render that is
+    // actually used, and applied here as well as in the editor config so the
+    // builder and the printed page agree on the same footer.
+    components: withoutVerticalSpaceComponents(withSafeRichText({
       ...sharedComponents,
       // The shared 'actions' set includes IconLink; its audience gate has to
       // hold here too, not just on the page/header/footer configs.
@@ -296,6 +301,6 @@ export function getModuleLayoutPuckRscConfig(layoutType: string, opts?: { standa
         ? { SiteLogo: { ...sharedComponents.SiteLogo, render: wrapResponsiveRender(SiteLogoModuleLayoutRsc) } }
         : {}),
       ...modBlocks,
-    }),
+    }), layoutType),
   }
 }

@@ -31,6 +31,7 @@ import {
   getModuleLayoutSharedParts,
   moduleLayoutEditorRoot,
   withResponsiveVisibility,
+  withoutVerticalSpaceComponents,
 } from '@/lib/puck/config.core'
 
 export * from '@/lib/puck/config.core'
@@ -107,7 +108,7 @@ export function getModuleLayoutPuckConfig(layoutType: string) {
       ...(pageRoot?.defaultProps ? { defaultProps: pageRoot.defaultProps } : {}),
       render: moduleLayoutEditorRoot(layoutType, pageRoot?.before),
     },
-    components: { ...sharedComponents, ...modBlocks },
+    components: withoutVerticalSpaceComponents({ ...sharedComponents, ...modBlocks }, layoutType),
   }
 }
 
