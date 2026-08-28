@@ -239,7 +239,10 @@ export default async function AccountIndexPage() {
         requireOrganisation={config.accountRequireOrganisation}
       />
 
-      <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+      {/* min(100%, 240px) so a phone gets one column rather than two it cannot
+          fit - a bare 240px minimum widens the grid past the screen instead of
+          giving up on the second column. */}
+      <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
         {sections.security && (
           <SummaryCard title="Account & Security" href={sectionHref('security', '/security')} linkLabel="Manage account">
             <span>{passkeyCount === 0 ? 'No passkeys yet' : `${passkeyCount} passkey${passkeyCount === 1 ? '' : 's'}`}</span>

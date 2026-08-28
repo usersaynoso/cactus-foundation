@@ -27,12 +27,54 @@ export default function ContactDetailsCard({ initial, collectOrganisation = true
   collectOrganisation?: boolean
   requireOrganisation?: boolean
 }) {
-  const [fullName, setFullName] = useState(initial.fullName ?? '')
-  const [organisation, setOrganisation] = useState(initial.organisation ?? '')
+  const initialFullName = initial.fullName ?? ''
+  const initialOrganisation = initial.organisation ?? ''
+  const [fullName, setFullName] = useState(initialFullName)
+  const [organisation, setOrganisation] = useState(initialOrganisation)
   const [saved, setSaved] = useState<Contact>(initial)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  // The details can arrive on the account a moment AFTER this card was drawn.
+  //
+  // Somebody who checked out as a guest and then took up the offer of an account
+  // has their name and their company sitting on that order, and core copies them
+  // across the first time the shop claims it (lib/members/contact.ts). That claim
+  // happens inside a section further down this very page, which is later in the
+  // render than the read that filled these boxes in - so the record gains a name
+  // a fraction of a second after the card decided it had none, and the member is
+  // shown two empty boxes and told off for the missing organisation. It comes
+  // right on the next reload, which is no comfort to somebody who signed up
+  // precisely so as not to type it all again.
+  //
+  // So: ask once more from the browser, after the page has finished with itself.
+  // Only where a box actually came up empty, so a member who already has their
+  // details on file never spends the request; and only into a box still holding
+  // exactly what the server sent, so it can never land on top of typing.
+  const blankOnLoad = !initialFullName.trim() || (collectOrganisation && !initialOrganisation.trim())
+  useEffect(() => {
+    if (!blankOnLoad) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/members/contact')
+        // 204 is the signed-out answer, and there is nothing to read from it.
+        if (!res.ok || res.status === 204) return
+        const d = await res.json()
+        if (cancelled) return
+        const fresh: Contact = { fullName: d.fullName ?? null, organisation: d.organisation ?? null }
+        setFullName((cur) => (cur === initialFullName && fresh.fullName ? fresh.fullName : cur))
+        setOrganisation((cur) => (cur === initialOrganisation && fresh.organisation ? fresh.organisation : cur))
+        // Whatever the member has typed, this is what is on file - so it is what
+        // "unsaved changes" has to be measured against.
+        setSaved(fresh)
+      } catch {
+        // A card that cannot re-check is still a card the member can type into.
+      }
+    })()
+    return () => { cancelled = true }
+  }, [blankOnLoad, initialFullName, initialOrganisation])
 
   // The confirmation is a note that a save happened, not a permanent state of
   // the page - it goes on its own rather than sitting there until the next one.
@@ -95,11 +137,18 @@ export default function ContactDetailsCard({ initial, collectOrganisation = true
       {/* Side by side where there is room, one under the other where there is
           not. auto-fit rather than a media query: the card sits in a column
           whose width depends on the account layout, so the breakpoint that
-          matters is this card's own, not the viewport's. */}
+          matters is this card's own, not the viewport's.
+          `min(100%, 220px)` rather than a bare 220px: with a max-width set, the
+          column count gets worked out against that 680 rather than against the
+          space actually going, so a plain 220px asked for two columns on a
+          phone. Two columns the card could not fit widened the whole account
+          past the screen, and the member had to scroll sideways to read their
+          own name. Capped at 100%, one column is always allowed to be narrow
+          enough to fit. */}
       <div style={{
         display: 'grid',
         gap: 'var(--space-3)',
-        gridTemplateColumns: collectOrganisation ? 'repeat(auto-fit, minmax(220px, 1fr))' : '1fr',
+        gridTemplateColumns: collectOrganisation ? 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' : '1fr',
         maxWidth: collectOrganisation ? 680 : 320,
       }}>
         <div className="field" style={{ margin: 0 }}>
