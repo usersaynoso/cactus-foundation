@@ -222,6 +222,8 @@ export default function ModulesPage() {
   const [installModal, setInstallModal] = useState<{ repoUrl: string; name: string; channel: 'public' | 'beta' } | null>(null)
   const [bundleCore, setBundleCore] = useState(true)
   const [bundleModules, setBundleModules] = useState(true)
+  // repoUrl of the install whose "is anything else waiting?" check is in flight.
+  const [installChecking, setInstallChecking] = useState<string | null>(null)
   // null until the owner picks a tab, so the landing shelf can follow the data
   // (their own modules if they have any, the store if they haven't) without an effect.
   const [tab, setTab] = useState<StoreTab | null>(null)
@@ -242,16 +244,19 @@ export default function ModulesPage() {
     setUrlParams({ tab: next })
   }, [])
 
-  const checkModuleUpdate = useCallback(async (installedId: string, force = false) => {
+  // Returns whether this module has an update waiting, so a caller that needs an
+  // answer now (the install dialog) can decide on the fresh result rather than on
+  // whatever `entries` happened to be holding.
+  const checkModuleUpdate = useCallback(async (installedId: string, force = false): Promise<boolean> => {
     const sessionKey = `cactus-module-update-check-${installedId}`
     if (!force) {
       const lastChecked = Number(sessionStorage.getItem(sessionKey))
-      if (!Number.isNaN(lastChecked) && Date.now() - lastChecked < MODULE_UPDATE_CHECK_THROTTLE_MS) return
+      if (!Number.isNaN(lastChecked) && Date.now() - lastChecked < MODULE_UPDATE_CHECK_THROTTLE_MS) return false
     }
     setCheckingModules((prev) => ({ ...prev, [installedId]: true }))
     try {
       const res = await fetch(`/api/admin/modules/${installedId}`)
-      if (!res.ok) return
+      if (!res.ok) return false
       const data = await res.json() as { updateAvailable?: string | null; notes?: string | null }
       if (data.updateAvailable) {
         setEntries((prev) =>
@@ -263,8 +268,10 @@ export default function ModulesPage() {
         )
       }
       sessionStorage.setItem(sessionKey, String(Date.now()))
+      return Boolean(data.updateAvailable)
     } catch {
       // ignore per-module check failures
+      return false
     } finally {
       setCheckingModules((prev) => ({ ...prev, [installedId]: false }))
     }
@@ -339,24 +346,28 @@ export default function ModulesPage() {
   // Is there a Cactus update waiting? Only used to decide whether the install dialog
   // offers to bring it along. A 403 here is a perfectly normal answer - someone who
   // may install modules but not change settings simply isn't offered the core box.
-  const loadCoreUpdate = useCallback(async () => {
-    const cached = sessionStorage.getItem(CORE_UPDATE_CACHE_KEY)
+  const loadCoreUpdate = useCallback(async (force = false): Promise<CoreUpdateInfo | null> => {
+    const cached = force ? null : sessionStorage.getItem(CORE_UPDATE_CACHE_KEY)
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { at: number; data: UpdatesApiResponse }
         if (Date.now() - parsed.at < CORE_UPDATE_THROTTLE_MS) {
-          setCoreUpdate(coreUpdateFrom(parsed.data))
-          return
+          const info = coreUpdateFrom(parsed.data)
+          setCoreUpdate(info)
+          return info
         }
       } catch { /* malformed cache: fall through to a fresh check */ }
     }
     try {
       const res = await fetch('/api/admin/updates')
-      if (!res.ok) return
+      if (!res.ok) return null
       const d = (await res.json()) as UpdatesApiResponse
       sessionStorage.setItem(CORE_UPDATE_CACHE_KEY, JSON.stringify({ at: Date.now(), data: d }))
-      setCoreUpdate(coreUpdateFrom(d))
+      const info = coreUpdateFrom(d)
+      setCoreUpdate(info)
+      return info
     } catch { /* the dialog just doesn't offer the core box */ }
+    return null
   }, [])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async directory load on mount; all state updates are after awaits
@@ -401,15 +412,40 @@ export default function ModulesPage() {
   // a Cactus update or other modules' updates can ride out in the very deployment this
   // install triggers, which saves the owner sitting through two more builds. Nothing
   // waiting, nothing to tick - go straight in, as it always did.
-  function requestInstall(repoUrl: string, channelOverride?: 'public' | 'beta') {
+  //
+  // Both answers are checked FRESH here rather than read off the state the page loaded
+  // with. That state is throttled for ten minutes and fetched fire-and-forget on mount,
+  // so a page opened just before a release went out - or clicked before its own checks
+  // landed - would decide there was nothing to offer and install silently. One round
+  // trip per Install click is nothing beside the build it starts.
+  async function requestInstall(repoUrl: string, channelOverride?: 'public' | 'beta') {
     const entry = entries.find((e) => e.repoUrl === repoUrl)
     const channel = channelOverride ?? (entry?.hasPublicRelease === false ? 'beta' : (installChannel[repoUrl] ?? 'public'))
-    if (!coreUpdate && updatableCount === 0) {
+
+    const installedModules = entries.filter((e) => e.installed && e.installedId)
+    setInstallChecking(repoUrl)
+    let core: CoreUpdateInfo | null = null
+    let waiting = 0
+    try {
+      const [freshCore, results] = await Promise.all([
+        loadCoreUpdate(true),
+        Promise.all(installedModules.map((m) => checkModuleUpdate(m.installedId as string, true))),
+      ])
+      core = freshCore
+      // A module the fresh check says nothing about but whose row already reads
+      // "update available" still counts: the check only ever promotes a status, it
+      // never clears one, and the server's own batch gate drops any no-ops anyway.
+      waiting = installedModules.filter((m, i) => results[i] || m.status === 'update_available').length
+    } finally {
+      setInstallChecking(null)
+    }
+
+    if (!core && waiting === 0) {
       void performInstall(repoUrl, channel)
       return
     }
-    setBundleCore(coreUpdate !== null)
-    setBundleModules(updatableCount > 0)
+    setBundleCore(core !== null)
+    setBundleModules(waiting > 0)
     setInstallModal({
       repoUrl,
       channel,
@@ -491,7 +527,7 @@ export default function ModulesPage() {
   function handleCustomInstall() {
     const url = customUrl.trim()
     if (!url) return
-    requestInstall(url, customChannel)
+    void requestInstall(url, customChannel)
   }
 
   async function handleAction(id: string, action: 'update' | 'enable' | 'disable') {
@@ -613,6 +649,7 @@ export default function ModulesPage() {
   const available = entries.filter((e) => !e.installed)
   const updatable = installed.filter((m) => m.status === 'update_available')
   const updatableCount = updatable.length
+  const customBusy = Boolean(actionLoading[customUrl.trim()]) || installChecking === customUrl.trim()
   const activeTab: StoreTab = tab ?? (installed.length > 0 ? 'installed' : 'browse')
 
   const q = query.trim().toLowerCase()
@@ -757,7 +794,8 @@ export default function ModulesPage() {
 
   function availableCard(m: DirectoryEntry) {
     const name = formatModuleName(m.repoName)
-    const busy = actionLoading[m.repoUrl]
+    const checking = installChecking === m.repoUrl
+    const busy = actionLoading[m.repoUrl] || checking
     const betaOnly = m.hasPublicRelease === false
     const chosen = betaOnly ? 'beta' : (installChannel[m.repoUrl] ?? 'public')
 
@@ -779,9 +817,9 @@ export default function ModulesPage() {
           <button
             className="btn btn-primary btn-sm"
             disabled={busy}
-            onClick={() => requestInstall(m.repoUrl)}
+            onClick={() => { void requestInstall(m.repoUrl) }}
           >
-            {busy ? 'Installing…' : chosen === 'beta' ? 'Install beta' : 'Install'}
+            {checking ? 'Checking…' : busy ? 'Installing…' : chosen === 'beta' ? 'Install beta' : 'Install'}
           </button>
 
           <CardMenu label={`More actions for ${name}`}>
@@ -951,7 +989,7 @@ export default function ModulesPage() {
               placeholder="https://github.com/your-account/your-module"
               value={customUrl}
               onChange={(e) => setCustomUrl(e.target.value)}
-              disabled={actionLoading[customUrl.trim()]}
+              disabled={customBusy}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -964,7 +1002,7 @@ export default function ModulesPage() {
                 <button
                   key={channel}
                   type="button"
-                  disabled={actionLoading[customUrl.trim()]}
+                  disabled={customBusy}
                   onClick={() => setCustomChannel(channel)}
                   style={{
                     border: 'none', borderRadius: 'var(--radius-full)', padding: '0.25rem 0.75rem',
@@ -980,10 +1018,10 @@ export default function ModulesPage() {
           </div>
           <button
             className="btn btn-primary btn-sm"
-            disabled={!customUrl.trim() || actionLoading[customUrl.trim()]}
+            disabled={!customUrl.trim() || customBusy}
             onClick={handleCustomInstall}
           >
-            {actionLoading[customUrl.trim()] ? 'Installing…' : customChannel === 'beta' ? 'Install beta' : 'Install'}
+            {installChecking === customUrl.trim() ? 'Checking…' : actionLoading[customUrl.trim()] ? 'Installing…' : customChannel === 'beta' ? 'Install beta' : 'Install'}
           </button>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: 0, marginTop: '1rem' }}>
             Worth saying plainly: a module runs as part of the site itself, database and all. Installing one from a

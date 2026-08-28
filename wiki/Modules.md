@@ -26,7 +26,8 @@ A module with no picture of its own gets a plain green tile with its initial on 
 1. Go to **Modules → Browse**.
 2. Click **Install** on the card. That fetches the finished release, which is what almost everyone wants.
 3. To take the latest pre-release instead, open the card's **…** menu, choose **Early (beta) releases**, and the button changes to **Install beta**. Useful for trying new features early, though they may have rough edges.
-4. Cactus installs it and triggers a short rebuild. A progress screen appears - this typically takes under two minutes.
+4. If a Cactus update or other module updates are waiting, a short dialog appears first - see "Bringing everything else along" below. If nothing is waiting, the install starts immediately.
+5. Cactus installs it and triggers a short rebuild. A progress screen appears - this typically takes under two minutes.
 
 Some modules have only ever put out a pre-release. Those are marked **Beta only** and there is nothing to choose.
 
@@ -40,7 +41,22 @@ A module installed as a beta starts life following early releases, marked with a
 
 Once installed, the module appears in your admin sidebar if it adds any admin pages.
 
-**If a module needs a newer Cactus than you're running**, the install is politely refused and you'll be told to update Cactus first. Do the update, then install the module - the other way round ends in a broken deployment, which is why we don't let it happen.
+### Bringing everything else along
+
+Every install means one rebuild. Doing an install, then a Cactus update, then a round of module updates means sitting through three of them, which is two too many.
+
+So when you click **Install**, Cactus has a quick look for anything else waiting - you'll see the button say *Checking…* for a moment - and if it finds something, it asks first. The dialog offers, ticked by default:
+
+- **Also update Cactus to v…** - shown when a Cactus update is waiting. Only offered if you're allowed to change settings; if module installs are all you can do, this one won't appear.
+- **Also update the modules with updates waiting** - shown when any installed module has a newer release, listing which ones and what they'd move to.
+
+Untick whatever you'd rather leave alone. Everything ticked goes out in the same deployment as the install, so you wait once.
+
+Nothing waiting means no dialog at all - the install just gets on with it, as it always did. The look is taken at the moment you click rather than when the page loaded, so a Cactus release that landed while you were reading the store still gets offered.
+
+Each update is still checked for compatibility on its own, exactly as **Update all** does. Anything that isn't happy - a module wanting a newer Cactus than the one going out, or another module you haven't got - is left where it is and reported back with the reason, while the rest go ahead.
+
+**If a module needs a newer Cactus than you're running**, the install is politely refused and you'll be told to update Cactus first - the other way round ends in a broken deployment, which is why we don't let it happen. If the waiting Cactus update is new enough to satisfy it, though, the message comes with an **Update Cactus and install** button: both go out together in one deployment, and there's nothing else for you to do.
 
 ### Setting up a module
 
