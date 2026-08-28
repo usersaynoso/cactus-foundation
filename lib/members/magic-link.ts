@@ -33,6 +33,17 @@ export async function sendMagicLink(memberId: string, email: string, siteName: s
   await sendMemberEmail({ email }, 'member.magic-link', { siteName, magicUrl })
 }
 
+// Sent instead of a magic link when the requested address has no member
+// account, so a real customer who mistyped or used the wrong address finds
+// out and can register - rather than silently getting nothing. Enumeration-
+// safe: the API response is identical either way (magic-link/request/route.ts
+// always returns {ok:true}), this only tells the mailbox owner.
+export async function sendNotRegisteredNotice(email: string, siteName: string): Promise<void> {
+  const siteUrl = process.env.SITE_URL?.replace(/\/$/, '') ?? ''
+  const registerUrl = `${siteUrl}/${getMemberAreaPath()}/register`
+  await sendMemberEmail({ email }, 'member.not-registered', { siteName, registerUrl })
+}
+
 // Status gating (loginRejectionForStatus) happens at the route level, not
 // here — this only answers "is the token itself valid and unused."
 export async function consumeMagicLink(token: string): Promise<{ memberId: string } | null> {

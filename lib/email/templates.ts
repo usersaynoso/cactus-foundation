@@ -14,6 +14,7 @@ export type MemberEmailTemplateKey =
   | 'member.email-change-notice'
   | 'member.welcome'
   | 'member.magic-link'
+  | 'member.not-registered'
   | 'member.suspended'
   | 'member.deletion-requested'
   | 'member.deletion-cancelled'
@@ -32,6 +33,7 @@ export function listMemberEmailTemplateKeys(): MemberEmailTemplateKey[] {
     'member.email-change-notice',
     'member.welcome',
     'member.magic-link',
+    'member.not-registered',
     'member.suspended',
     'member.deletion-requested',
     'member.deletion-cancelled',

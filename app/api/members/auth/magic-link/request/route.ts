@@ -1,13 +1,16 @@
 // Requests a magic sign-in link. Enumeration-safe: always {ok:true}
-// regardless of whether the email exists or magic-link is enabled — mirrors
-// app/api/auth/recovery/request/route.ts. Status gating happens at consume
+// regardless of whether the email exists or magic-link is enabled - the
+// response never says which. An unregistered address gets a "no account
+// found" notice instead of the link (lib/members/magic-link.ts), so a
+// mistyped address doesn't just vanish - but that only reaches whoever's
+// mailbox it is, never the API caller. Status gating happens at consume
 // time (loginRejectionForStatus), not here, so this sends the link whenever
 // the member exists, whatever their status.
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
-import { sendMagicLink } from '@/lib/members/magic-link'
+import { sendMagicLink, sendNotRegisteredNotice } from '@/lib/members/magic-link'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 
@@ -39,12 +42,16 @@ export async function POST(request: NextRequest) {
     select: { id: true, email: true },
   })
 
+  const siteConfig = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { siteName: true },
+  })
+  const siteName = siteConfig?.siteName ?? 'Cactus'
+
   if (member) {
-    const siteConfig = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { siteName: true },
-    })
-    await sendMagicLink(member.id, member.email, siteConfig?.siteName ?? 'Cactus')
+    await sendMagicLink(member.id, member.email, siteName)
+  } else {
+    await sendNotRegisteredNotice(parsed.data.email, siteName)
   }
 
   return NextResponse.json({ ok: true })

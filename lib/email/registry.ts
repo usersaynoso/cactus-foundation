@@ -106,6 +106,16 @@ const MEMBER_TEMPLATES: CoreTemplate[] = [
     transactional: true,
   },
   {
+    key: 'member.not-registered',
+    groupLabel: 'Members',
+    label: 'Sign-in attempt, no account',
+    subject: 'We could not find a {{siteName}} account for this address',
+    bodyHtml: '<p>Someone just tried to sign in to {{siteName}} using this email address, but there is no account registered with it.</p><p>If that was you, check you used the right address, or <a href="{{registerUrl}}">create an account</a>.</p><p>If it was not you, no action is needed - your details are not linked to any account here.</p>',
+    mergeTags: ['siteName', 'registerUrl'],
+    requiredTags: ['registerUrl'],
+    transactional: true,
+  },
+  {
     key: 'member.suspended',
     groupLabel: 'Members',
     label: 'Account suspended',
