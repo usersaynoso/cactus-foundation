@@ -18,6 +18,11 @@ import type { SessionUser } from '@/lib/auth/session'
 
 export type ExtensionTab = {
   id: string
+  /** The module that published this tab. Callers that need to reason about
+   *  which module a tab belongs to (the Inbox suppresses provider tabs when a
+   *  consumer module is presenting all of them together) would otherwise have
+   *  to re-read every manifest to find out. */
+  moduleName: string
   label: string
   order: number
   /** The module's panel. Render it yourself — props are the host's contract. */
@@ -41,7 +46,7 @@ function fallbackTabLabel(id: string): string {
 export async function resolveExtensionTabs(point: string, user: SessionUser | null): Promise<ExtensionTab[]> {
   if (!user) return []
   const components = moduleExtensionPointComponents[point] ?? {}
-  const modules = await prisma.module.findMany({ where: { ...INSTALLED_MODULE_WHERE }, select: { manifest: true } })
+  const modules = await prisma.module.findMany({ where: { ...INSTALLED_MODULE_WHERE }, select: { name: true, manifest: true } })
   const tabs: ExtensionTab[] = []
   for (const mod of modules) {
     const manifest = mod.manifest as { extensionPoints?: ExtensionPointEntry[] } | null
@@ -52,6 +57,7 @@ export async function resolveExtensionTabs(point: string, user: SessionUser | nu
       if (!Component) continue
       tabs.push({
         id: entry.id,
+        moduleName: mod.name,
         label: entry.label ?? fallbackTabLabel(entry.id),
         order: entry.order ?? 999,
         Component,

@@ -244,7 +244,26 @@ export const ModuleManifestSchema = z.object({
     permission: z.string().optional(),
     import: z.string().min(1),
     component: z.string().min(1),
+    // "This entry must never reach a browser bundle." Set it on anything that
+    // reaches a mail server, a payment API or an SDK with a Node dependency.
+    //
+    // The generator otherwise decides by directory - a component under
+    // components/admin/ is withheld from the public map, everything else is
+    // published - which is right for a React panel and wrong for a plain
+    // function living in the module's lib/. That is how a mail client's IMAP
+    // library would find its way into a public page's import graph, which is a
+    // failure this repo has had once already. Names no point and no module: it
+    // describes what the entry is, not who reads it.
+    serverOnly: z.boolean().optional(),
   })).default([]),
+  // "This module presents every channel's conversations in one place itself."
+  //
+  // Core's Inbox reads it and stands down: no core All tab, and no tab for a
+  // module publishing a `core.conversation-provider`, because those messages are
+  // already on this module's screen. A plain boolean naming no module - core
+  // never learns which module set it, and suppression is resolved per user, so
+  // somebody who cannot see the consumer's tab keeps every tab they had.
+  consumesConversationProviders: z.boolean().default(false),
   // SMS providers this module contributes. Core auth uses the first configured
   // provider from an active module to deliver login codes by text message
   // (admin password login and member SMS 2FA). `import`/`export` name a module

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readdirSync, readFileSync } from 'fs'
 import path from 'path'
 
 // lib/modules/extension-points.ts is ONE flat map, so importing it to read a
@@ -38,6 +38,42 @@ describe('the public extension-point map', () => {
     const fullImports = new Set(importPaths(full))
     const extra = importPaths(PUBLIC_MAP).filter((p) => !fullImports.has(p))
     expect(extra).toEqual([])
+  })
+})
+
+// Withholding by directory only covers React components. An extension entry
+// that is a plain function - a conversation provider, a payment provider - lives
+// in the module's lib/, so the directory rule calls it public and its whole
+// dependency graph (a mail client's IMAP library, a telephony SDK) becomes
+// reachable from a public page. Such an entry says `serverOnly: true` in its
+// manifest instead, and the generator withholds it wherever it sits.
+describe('serverOnly extension entries', () => {
+  const MODULES_DIR = path.join(ROOT, 'modules')
+
+  function serverOnlyImports(): string[] {
+    if (!existsSync(MODULES_DIR)) return []
+    const out: string[] = []
+    for (const name of readdirSync(MODULES_DIR)) {
+      const manifestPath = path.join(MODULES_DIR, name, 'cactus.module.json')
+      if (!existsSync(manifestPath)) continue
+      let manifest: { extensionPoints?: { import?: string; serverOnly?: boolean }[] }
+      try {
+        manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      } catch {
+        continue
+      }
+      for (const entry of manifest.extensionPoints ?? []) {
+        if (entry.serverOnly !== true || !entry.import) continue
+        out.push(entry.import.replace(/^\.\//, `@/modules/${name}/`))
+      }
+    }
+    return out
+  }
+
+  it('never appear in the public map', () => {
+    const published = new Set(importPaths(PUBLIC_MAP))
+    const leaked = serverOnlyImports().filter((p) => published.has(p))
+    expect(leaked).toEqual([])
   })
 })
 

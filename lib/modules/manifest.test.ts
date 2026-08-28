@@ -182,3 +182,38 @@ describe('cspOrigins', () => {
     expect(parseModuleManifest(MINIMAL).cspOrigins).toBeUndefined()
   })
 })
+
+// The two keys the conversation seam added. Both are generic by design: one says
+// "never put this entry in a browser bundle", the other says "this module shows
+// every channel in one place" - neither names a module or a point.
+describe('conversation seam manifest keys', () => {
+  const base = { name: 'example-hub', version: '0.1.0', tablePrefix: 'exh_' }
+
+  it('defaults consumesConversationProviders to false', () => {
+    expect(parseModuleManifest(base).consumesConversationProviders).toBe(false)
+  })
+
+  it('accepts the flag when a module sets it', () => {
+    expect(parseModuleManifest({ ...base, consumesConversationProviders: true }).consumesConversationProviders).toBe(true)
+  })
+
+  it('carries serverOnly through on an extension point entry', () => {
+    const parsed = parseModuleManifest({
+      ...base,
+      extensionPoints: [
+        { point: 'core.conversation-provider', id: 'example-hub', import: './lib/provider', component: 'provider', serverOnly: true },
+      ],
+    })
+    expect(parsed.extensionPoints[0]!.serverOnly).toBe(true)
+  })
+
+  it('leaves serverOnly unset when nobody asked for it', () => {
+    const parsed = parseModuleManifest({
+      ...base,
+      extensionPoints: [
+        { point: 'core.inbox-tabs', id: 'x', import: './components/admin/Panel', component: 'Panel' },
+      ],
+    })
+    expect(parsed.extensionPoints[0]!.serverOnly).toBeUndefined()
+  })
+})

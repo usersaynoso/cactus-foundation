@@ -20,6 +20,17 @@ export type EmailPayload = {
   replyTo?: string
   cc?: string[]
   attachments?: EmailAttachment[]
+  /** Extra RFC 5322 headers, passed through to whichever transport is in use.
+   *  The one that matters is `Message-ID`: a sender that sets its own can match
+   *  a reply arriving weeks later back to the message that prompted it, which is
+   *  the whole basis of threading a conversation. Header names are the caller's
+   *  business - nothing here inspects them beyond the Message-ID it logs. */
+  headers?: Record<string, string>
+  /** Registry key when this came from a template, for the email log. Set
+   *  automatically by sendTemplateEmail; ad-hoc sends leave it unset. */
+  templateKey?: string
+  /** Which module asked for this email, for the email log. Core leaves it unset. */
+  moduleName?: string
 }
 
 // Brevo's API caps a whole message at 10MB including its attachments, and an
@@ -38,19 +49,57 @@ function usableAttachments(attachments: EmailAttachment[] | undefined): EmailAtt
   })
 }
 
+// The Message-ID we put on the way out, whatever case the caller wrote the
+// header in. Stored on the log row because it is the only handle a later reply
+// gives us back.
+function outgoingMessageId(payload: EmailPayload): string | undefined {
+  const entry = Object.entries(payload.headers ?? {}).find(
+    ([name]) => name.toLowerCase() === 'message-id',
+  )
+  return entry?.[1]
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   if (!isEmailConfigured()) {
     throw new Error('Email is not configured. Add BREVO_API_KEY or SMTP credentials.')
   }
 
-  if (process.env.BREVO_API_KEY) {
-    await sendViaBrevo(payload)
-  } else {
-    await sendViaSmtp(payload)
+  const { recordEmailSend } = await import('@/lib/email/log')
+  const messageId = outgoingMessageId(payload)
+
+  try {
+    const providerId = process.env.BREVO_API_KEY
+      ? await sendViaBrevo(payload)
+      : await sendViaSmtp(payload)
+    await recordEmailSend({
+      toAddress: payload.to,
+      ccAddresses: payload.cc,
+      subject: payload.subject,
+      templateKey: payload.templateKey,
+      moduleName: payload.moduleName,
+      status: 'sent',
+      messageId,
+      providerId,
+    })
+  } catch (err) {
+    // Logged and then rethrown: the caller's own error handling is unchanged,
+    // and the ledger is the only place a failed send is visible afterwards.
+    await recordEmailSend({
+      toAddress: payload.to,
+      ccAddresses: payload.cc,
+      subject: payload.subject,
+      templateKey: payload.templateKey,
+      moduleName: payload.moduleName,
+      status: 'failed',
+      error: err instanceof Error ? err.message : String(err),
+      messageId,
+    })
+    throw err
   }
 }
 
-async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<void> {
+/** Returns the provider's own id for the message, when it gives one. */
+async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<string | undefined> {
   const config = await getEmailConfig()
   const files = usableAttachments(payload.attachments)
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -64,6 +113,7 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<voi
       to: [{ email: payload.to }],
       ...(payload.cc?.length ? { cc: payload.cc.map((e) => ({ email: e })) } : {}),
       ...(payload.replyTo ? { replyTo: { email: payload.replyTo } } : {}),
+      ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
       subject: payload.subject,
       htmlContent: payload.html,
       textContent: payload.text,
@@ -81,11 +131,19 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<voi
     const body = await res.text()
     throw new Error(`Brevo email failed: ${res.status} ${body}`)
   }
+  // Brevo answers with { messageId }. A body that will not parse is not worth an
+  // exception - the email went, and the id is only ever used for tracing.
+  try {
+    const body = (await res.json()) as { messageId?: unknown }
+    return typeof body.messageId === 'string' ? body.messageId : undefined
+  } catch {
+    return undefined
+  }
 }
 
 type SmtpOverrides = { host?: string; port?: string; user?: string; pass?: string }
 
-async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Promise<void> {
+async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Promise<string | undefined> {
   const { createTransport } = await import('nodemailer')
   const config = await getEmailConfig()
   const transporter = createTransport({
@@ -96,11 +154,12 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
       pass: overrides?.pass ?? process.env.SMTP_PASS,
     },
   })
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: `"${config.fromName}" <${config.fromAddress}>`,
     to: payload.to,
     ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
     ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
     subject: payload.subject,
     html: payload.html,
     text: payload.text,
@@ -114,6 +173,7 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
         }
       : {}),
   })
+  return typeof info?.messageId === 'string' ? info.messageId : undefined
 }
 
 async function getEmailConfig() {
@@ -155,12 +215,23 @@ export async function sendTemplateEmail(
   to: string,
   key: string,
   vars: Record<string, string> = {},
-  opts?: { replyTo?: string; cc?: string[] },
+  opts?: { replyTo?: string; cc?: string[]; headers?: Record<string, string> },
 ): Promise<boolean> {
   const { renderEmailTemplate } = await import('@/lib/email/render')
   const rendered = await renderEmailTemplate(key, vars)
   if (!rendered) return false
-  await sendEmail({ to, subject: rendered.subject, html: rendered.html, text: rendered.text, ...opts })
+  // The registry key is namespaced with the owning module's name, so the log
+  // gets both from the one field with nothing for a caller to remember.
+  const moduleName = key.includes('.') ? key.split('.')[0] : undefined
+  await sendEmail({
+    to,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    templateKey: key,
+    ...(moduleName && !['auth', 'system', 'member'].includes(moduleName) ? { moduleName } : {}),
+    ...opts,
+  })
   return true
 }
 

@@ -48,6 +48,7 @@ export const CORE_CRON_JOBS: CronJob[] = [
   { path: '/api/cron/members/exports', schedule: '0 4 * * *', module: null },
   { path: '/api/cron/members/digest?mode=daily', schedule: '0 7 * * *', module: null },
   { path: '/api/cron/members/digest?mode=weekly', schedule: '0 7 * * 1', module: null },
+  { path: '/api/cron/email-log/purge', schedule: '0 5 * * *', module: null },
 ]
 
 type ManifestCronJob = { path?: unknown; schedule?: unknown }

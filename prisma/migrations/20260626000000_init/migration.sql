@@ -164,6 +164,7 @@ CREATE TABLE "SiteConfig" (
     "backgroundColor" TEXT,
     "sessionPurgeAfterDays" INTEGER NOT NULL DEFAULT 30,
     "recoveryPurgeAfterDays" INTEGER NOT NULL DEFAULT 7,
+    "emailLogRetentionMonths" INTEGER NOT NULL DEFAULT 12,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
@@ -379,6 +380,24 @@ CREATE TABLE "CronRun" (
     CONSTRAINT "CronRun_pkey" PRIMARY KEY ("id")
 );
 
+-- Outbound email ledger: one row per recipient, subject and outcome only, never
+-- a body. See the EmailLog model in schema.prisma for why.
+CREATE TABLE "EmailLog" (
+    "id" TEXT NOT NULL,
+    "toAddress" TEXT NOT NULL,
+    "ccAddresses" TEXT[],
+    "subject" TEXT NOT NULL,
+    "templateKey" TEXT,
+    "moduleName" TEXT,
+    "status" TEXT NOT NULL,
+    "error" TEXT,
+    "messageId" TEXT,
+    "providerId" TEXT,
+    "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "meta" JSONB,
+    CONSTRAINT "EmailLog_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE "DeployLock" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "lockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -491,6 +510,10 @@ CREATE INDEX "Layout_type_status_priority_updatedAt_idx" ON "Layout"("type", "st
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");
 CREATE UNIQUE INDEX "CronRun_path_key" ON "CronRun"("path");
+
+CREATE INDEX "EmailLog_sentAt_idx" ON "EmailLog"("sentAt" DESC);
+CREATE INDEX "EmailLog_toAddress_sentAt_idx" ON "EmailLog"("toAddress", "sentAt" DESC);
+CREATE INDEX "EmailLog_messageId_idx" ON "EmailLog"("messageId");
 
 CREATE INDEX "ConsentRecord_consentId_createdAt_idx" ON "ConsentRecord"("consentId", "createdAt");
 CREATE INDEX "ConsentRecord_userId_idx" ON "ConsentRecord"("userId");

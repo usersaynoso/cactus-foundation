@@ -1,6 +1,7 @@
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { headers } from 'next/headers'
-import { resolveExtensionTabs } from '@/lib/modules/extension-tabs'
+import { ALL_TAB_ID, resolveInboxTabs } from '@/lib/conversations/inbox-tabs'
+import { InboxAllPanel } from '@/components/admin/InboxAllPanel'
 import { TabStrip } from '@/components/admin/TabStrip'
 import type { Metadata } from 'next'
 
@@ -24,9 +25,12 @@ export default async function InboxPage({ searchParams }: Props) {
   const user = await getSessionFromCookie()
   if (!user) return null
 
-  const tabs = await resolveExtensionTabs('core.inbox-tabs', user)
+  // Core adds an All tab of its own once two or more modules publish a
+  // conversation provider, and takes it (and the provider tabs) away again when
+  // an installed module is presenting all of them in one place itself.
+  const { tabs, showAllTab } = await resolveInboxTabs(user)
 
-  if (tabs.length === 0) {
+  if (tabs.length === 0 && !showAllTab) {
     return (
       <div>
         <div className="page-header">
@@ -41,26 +45,30 @@ export default async function InboxPage({ searchParams }: Props) {
   }
 
   const sp = await searchParams
+  const strip = [
+    ...(showAllTab ? [{ id: ALL_TAB_ID, label: 'All' }] : []),
+    ...tabs.map((t) => ({ id: t.id, label: t.label })),
+  ]
   // An unknown ?tab= (a stale bookmark, a module since removed) falls back to the
   // first tab rather than an empty screen.
-  const active = tabs.find((t) => t.id === sp.tab) ?? tabs[0]
-  if (!active) return null // unreachable - the empty case returned above
+  const activeId = strip.find((t) => t.id === sp.tab)?.id ?? strip[0]!.id
+  const active = tabs.find((t) => t.id === activeId)
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
 
   return (
     <div>
-      {tabs.length > 1 && (
+      {strip.length > 1 && (
         <TabStrip
           style={{ marginBottom: '1.5rem' }}
-          items={tabs.map((t) => ({
+          items={strip.map((t) => ({
             key: t.id,
             label: t.label,
             href: `/${adminPath}/inbox?tab=${encodeURIComponent(t.id)}`,
-            active: t.id === active.id,
+            active: t.id === activeId,
           }))}
         />
       )}
-      <active.Component searchParams={sp} />
+      {active ? <active.Component searchParams={sp} /> : <InboxAllPanel />}
     </div>
   )
 }

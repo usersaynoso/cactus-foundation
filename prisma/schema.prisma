@@ -251,6 +251,8 @@ model SiteConfig {
   // Stale-row cleanup periods (days)
   sessionPurgeAfterDays  Int        @default(30)
   recoveryPurgeAfterDays Int        @default(7)
+  // How long the outbound email ledger (EmailLog) is kept, in months.
+  emailLogRetentionMonths Int       @default(12)
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
@@ -1221,4 +1223,44 @@ model SmsTemplate {
   updatedById String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+// Every email the site sends, one row per recipient - subject line and outcome,
+// never a body.
+//
+// It exists because the site's outbound mail is invisible everywhere else. Brevo
+// sends it, so it never touches the owner's own Sent folder and no mail client
+// will ever show it; when a customer says "you never sent me the confirmation"
+// there is nothing to look at. This is the delivery ledger that answers that,
+// and the record a person's timeline is built from.
+//
+// Deliberately small: no html, no text, no attachments. An archive would grow
+// without limit and would have to be pruned to keep the site alive, which is a
+// worse failure than not having one. `meta` is for a handful of identifiers, not
+// for content. Rows older than SiteConfig.emailLogRetentionMonths are swept
+// nightly by /api/cron/email-log/purge.
+model EmailLog {
+  id          String   @id @default(cuid())
+  toAddress   String
+  ccAddresses String[]
+  subject     String
+  // Registry key when the email came from a template ("shop.order-confirmed"),
+  // null for an ad-hoc send.
+  templateKey String?
+  // Which module asked for it, null for core's own.
+  moduleName  String?
+  // 'sent' | 'failed'
+  status      String
+  error       String?
+  // The Message-ID header we set, when we set one. This is what lets a reply
+  // arriving later be threaded back to the message that prompted it.
+  messageId   String?
+  // The provider's own id for the message, when it returns one.
+  providerId  String?
+  sentAt      DateTime @default(now())
+  meta        Json?
+
+  @@index([sentAt(sort: Desc)])
+  @@index([toAddress, sentAt(sort: Desc)])
+  @@index([messageId])
 }
