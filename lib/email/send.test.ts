@@ -143,13 +143,13 @@ describe('the log', () => {
       ...BASE,
       transport: { provider: 'brevo', apiKey: 'inbox-key' },
       headers: { 'Message-ID': '<uin.abc@deskwell.co.uk>' },
-      moduleName: 'unified-inbox',
+      moduleName: 'example-module',
     })
 
     expect(log.recordEmailSend).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'sent',
-        moduleName: 'unified-inbox',
+        moduleName: 'example-module',
         messageId: '<uin.abc@deskwell.co.uk>',
       }),
     )

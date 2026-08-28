@@ -1,6 +1,6 @@
 # Unified Inbox - build plan
 
-**Status:** in progress - S1 and S2 done, S3 next
+**Status:** in progress - S1 to S5 done, S6 next
 **Plan written:** 2026-08-28
 **Core version at time of writing:** 0.5.1381
 **Module slug:** `unified-inbox` · **Table prefix:** `uin_` · **Repo (to be created):** `cactus-foundation-modules/unified-inbox`
@@ -538,7 +538,7 @@ Update this table. `DONE` means gates green and notes written.
 | S2 | Module skeleton, schema, connections and inboxes settings | module (+ core pin later) | DONE | § 7.2 |
 | S3 | IMAP ingest engine | module | DONE | § 7.3 |
 | S4 | Send path (Brevo, identity, threading headers, APPEND) | module | DONE | § 7.4 |
-| S5 | Inbox UI (rail, list, thread, composer, workflow) | module | NOT STARTED | § 7.5 |
+| S5 | Inbox UI (rail, list, thread, composer, workflow) | module | DONE | § 7.5 |
 | S6 | People, identity resolution, context rail adapters | module | NOT STARTED | § 7.6 |
 | S7 | Channel providers: contact-form, live-chat, twilio | 3 module repos + module | NOT STARTED | § 7.7 |
 | S8 | Retention, GDPR, backup, teardown, performance | module (+ core if log sweep) | NOT STARTED | § 7.8 |
@@ -1446,7 +1446,248 @@ do not reason about the CSS** (this is a standing rule after a previous miss).
 
 **Notes for later stages:**
 
-> _(S5 agent: fill in. Especially: component names S7 needs to render provider-backed threads.)_
+> **Done 2026-08-28. All of S5 is in `modules/unified-inbox/` (module repo, version 0.1.3 in both
+> `package.json` and `cactus.module.json`). NOTHING in core changed - the harness that made the
+> render check possible is described below and was taken back out. `requiresCoreVersion` stays
+> `0.5.1387`; nothing newer was needed. The module is still deliberately NOT in `modules.json`.**
+>
+> ## Component names S7 needs, which is what this block was asked for
+>
+> Everything lives under `components/admin/inbox/`, and all of it takes props - the panel does the
+> fetching. A provider-backed thread renders through exactly the same components as an email one.
+>
+> - **`ThreadPane`** (`ThreadPane.tsx`) - one conversation. Props:
+>   `{ base, params, thread: ThreadDetail, inboxName, messages: ThreadMessageView[], events,
+>   staff, staffById, canReply, cannotReplyReason, replyTo, replyAllTo, now }`.
+>   **`ThreadMessageView` = `ThreadMessageRow & { attachments: AttachmentRow[] }`**, and that type
+>   is the seam: a provider's messages become `uin_messages` rows in S7, so they arrive here
+>   already shaped. `thread.providerModule` being set with no messages renders "this channel is no
+>   longer installed" rather than throwing (E20) - S7 should keep that path working by leaving the
+>   rows in place when a provider goes away.
+> - **`ThreadListView`** - the list. Rows are `ThreadListRow` from `lib/db.ts`; it already draws a
+>   channel tag for anything that is not email via `channelLabel()` in `lib/list.ts`, so a chat or
+>   a call needs no new component, only rows with the right `channel`.
+> - **`InboxRail`**, **`Filters`**, **`MessageBody`**, **`Composer`**, **`ThreadActions`**,
+>   **`RetryButton`**, **`InboxStyles`** (the stylesheet), **`icons.tsx`**.
+> - **`channelLabel()` is where a new channel gets its name in English.** It falls back to
+>   "Message" for anything it does not know, so an unrecognised channel is untidy rather than
+>   broken.
+> - **The composer sends through `POST /api/m/unified-inbox/send` in every mode.** S7's provider
+>   replies need that route to learn to hand off to the provider's own `send` when the thread has a
+>   `provider_module` - the composer itself needs no change, but `Composer`'s `canReply` and
+>   `cannotReplyReason` props are how "you have never connected your Chatwoot account" (E26) should
+>   reach the screen: a sentence, computed on the server, shown above the box.
+>
+> ## The rendering gate, and exactly how it was met
+>
+> S2 and S3 both deferred their light/dark check to this stage, so three screens were owed. Here is
+> what was actually done, in full, because the whole point of the rule is that "I read the CSS" is
+> not an answer.
+>
+> **A throwaway database and a real dev server.** A `cactus_rt_uinpreview` database was provisioned
+> on the OVH VPS with the round-trip harness's own helper (`lib/backup/vps-database.ts`), core's
+> init migration and all four of this module's migrations were applied to it, and `next dev` was
+> pointed at it. Nothing went near the live Deskwell database at any point, and the throwaway
+> database and its role were dropped afterwards.
+>
+> **A harness page rendering the components against fixtures**, at `app/uin-preview/page.tsx`, plus
+> a fixture route serving one real HTML email into the sandboxed frame. **Both deleted, along with
+> a two-line `ALWAYS_PASS` entry in `proxy.ts`** - `git status` on core is clean of all three.
+> Note for anybody repeating this: a folder whose name starts with an underscore is PRIVATE in
+> Next.js and is not a route at all, so `app/__uin-preview` silently fell through to the public
+> catch-all and 500ed on a module table. Name it without the underscores.
+>
+> **What was seen.** Both themes at 1280 wide and at 375, with a scripted contrast audit over every
+> piece of text on the screen (125 elements): **light mode, zero failures; dark mode, two, both of
+> them core's own `.btn-primary`** - white on the primary green measures **3.61:1**, which is under
+> AA for 13px text, on every button of that class on every admin screen. That is a core question,
+> not a module one, and it is left alone deliberately.
+>
+> **Three real contrast failures of this module's own were found and fixed**, all in dark mode and
+> none of them visible by reading the CSS: the rail's unread badge (white on primary, 3.61:1 - now
+> a tinted chip), the list preview and timestamp on the OPEN row's tinted background (4.19:1 - now
+> `--color-text-secondary`), and the timestamp on an internal note's amber ground (4.09:1 - same
+> fix). Focus rings were confirmed by tabbing, not asserted: 2px solid `--color-border-focus` with
+> a 2px offset, which clears 3:1 in both themes. At 375px the rail and the list step aside and the
+> conversation gets the screen, with `document.scrollWidth === clientWidth` - no sideways scroll.
+>
+> **One thing could NOT be rendered in that browser and is honestly flagged.** The in-app browser
+> blocks every sandboxed iframe outright - `net::ERR_BLOCKED_BY_CLIENT` on `sandbox=""`,
+> `sandbox="allow-scripts"` and the real attribute alike, while the identical URL in an
+> unsandboxed frame returns 200. So the frame was verified in the two halves the environment
+> allowed: the message document was **loaded as a page and looked at** (sender's own styling and
+> table intact, the tracking pixel loading nothing, the quoted history folded behind a toggle that
+> works with no script), and the height-reporting script was verified **in an unsandboxed frame of
+> the same document**, which posted 374px to the parent three times. What remains unproven is only
+> that a real browser applies the sandbox attribute, which is not in doubt. **Somebody looking at
+> this on a real install should confirm an email renders at its own height in the frame.**
+>
+> ## E16 and E27, and why there is no cspOrigins entry
+>
+> The plan expected the email body to go in an iframe with `srcdoc`, and expected that to need a
+> CSP entry in the manifest. **It is served from a route instead, and needs no entry at all**,
+> which is a better answer for a reason worth writing down: **a `srcdoc` frame inherits the parent
+> page's content policy, while a document loaded from a URL carries its own.** So
+> `GET /api/m/unified-inbox/messages/[id]/body` serves the message with
+> `default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'nonce-...';
+> form-action 'none'; base-uri 'none'; frame-ancestors 'self'` - far tighter than the admin around
+> it, which a srcdoc frame could never have been. `frame-src 'self'` in core already allows a
+> same-origin frame, so the manifest declares nothing.
+>
+> The frame is also sandboxed from the outside (`allow-scripts allow-popups
+> allow-popups-to-escape-sandbox`, and deliberately **no** `allow-same-origin`, so the frame has an
+> origin of its own and nothing in a stranger's email can reach the page, its cookies or its
+> storage). The only script in the document reports the height back and carries a nonce.
+> `openLinksInNewTab()` adds `target="_blank" rel="noopener noreferrer"` to every link, because a
+> sandboxed frame cannot navigate itself and a link that does nothing reads as a broken message.
+>
+> **The message renders on a light surface in both themes, on purpose.** The sender chose their
+> colours assuming a white page; repainting their background dark while leaving their text colours
+> alone is how a message ends up black on black. The chrome follows the theme, the message does
+> not. Plain-text messages are rendered in the page itself and are fully theme-aware.
+>
+> ## Remote images: a proxy, not a restored src (this is a decision S8 should know about)
+>
+> S3 parks remote image addresses on `data-uin-remote-src`. "Show pictures" does **not** put them
+> back. It reloads the frame with `?images=1`, which rewrites each one to
+> `/api/m/unified-inbox/messages/[id]/image/[index]` - **an index into the stored message, never a
+> URL from the request**, so nothing can talk the route into fetching an arbitrary address.
+> `lib/remote-images.ts` then refuses anything that is not https, resolves the host and refuses
+> private, loopback, link-local and carrier-NAT addresses (the cloud metadata endpoint is the
+> attack this exists for), follows redirects by hand so every hop is checked, insists on a real
+> image content type and caps it at 5MB.
+>
+> Two reasons this is right rather than merely careful: the admin's own `img-src` is `'self'` plus
+> the media store and **no module may widen it to "anywhere on earth"**, so a restored `src` would
+> simply have been blocked in production; and a pixel fetched by the server tells the sender
+> nothing about the person who opened the message.
+>
+> ## Schema: a NEW file, `migrations/004_ui.sql`. 001, 002 and 003 were not touched.
+>
+> **Indexes only - no new column, no new type, nothing for the backup serialiser to learn.**
+>
+> - `uin_messages_search_idx`, a GIN index over
+>   `to_tsvector('english', subject || from_name || from_address || body_text)`. The expression
+>   index rather than a `GENERATED ... STORED` column: both are safe on the backup gate, and this
+>   one does not widen every message row for something only the search box uses. **The query in
+>   `lib/db.ts` spells that expression EXACTLY as the migration writes it** (see `SEARCH_VECTOR`
+>   there) - Postgres matches an expression index by the text of the expression, so a reordered
+>   field turns search into a sequential scan of every email the site holds. Verified with
+>   `EXPLAIN` against a real database: `Bitmap Index Scan on uin_messages_search_idx`.
+> - `uin_threads_unread_idx` (partial, unread only), `uin_threads_last_message_idx`,
+>   `uin_threads_snooze_due_idx` (partial).
+>
+> Both harness traps respected: no `$$` anywhere including comments, and the phrase for making a
+> new table appears nowhere in this ALTER-free file.
+>
+> ## E17, and the thing that would be easy to undo by accident
+>
+> **The access filter is inside the SQL, in one place.** `visibilityClause()` in `lib/db.ts` builds
+> the inbox condition and `listThreads`, `countThreads` and `unreadCounts` all take it, so the three
+> can never disagree. Nothing filters results afterwards. Search is an `EXISTS` subquery **inside**
+> the same WHERE, so a snippet from `accounts@` is never fetched, never counted and never paged for
+> somebody who cannot open it. There is a test for exactly that: the same search that finds a
+> conversation with the right inbox visible finds nothing with the wrong one.
+>
+> **An empty visible-inbox list returns `null` from `visibilityClause` and the caller returns an
+> empty page**, rather than running a query whose WHERE clause would be empty and therefore true.
+> That is the shape to keep: an "everything is visible" fallback here is the leak.
+>
+> Only `unifiedinbox.manage` sees conversations that landed in no inbox at all ("Not filed" in the
+> rail), on the same reasoning as S3's attachment route.
+>
+> ## New `lib/db.ts` exports
+>
+> `listThreads`, `countThreads`, `unreadCounts`, `getThreadDetail`, `listThreadMessages`,
+> `attachmentsForThread`, `getMessageHtml`, `recordEvent`, `listThreadEvents`, `setThreadRead`,
+> `assignThread`, `setThreadStatus`, `wakeDueThreads`, `insertNote`, plus types
+> `ThreadListFilters`, `ThreadStatusFilter`, `ThreadListRow`, `ThreadDetail`, `ThreadMessageRow`,
+> `ThreadEventRow`, `ThreadEventKind`.
+>
+> **`ThreadMessageRow` gained `replyTo`** - S4 added the column and had `lib/sync.ts` write it, but
+> nothing read it back. The composer needs it, because E13 says the sender's `Reply-To` beats their
+> `From`.
+>
+> **`listAttachmentsForMessage` was doing one query per attachment** (a `SELECT id` then
+> `getAttachment` in a loop). It and the two new attachment readers now share one
+> `ATTACHMENT_SELECT` fragment and one `mapAttachment`. Same shape out, one round trip.
+>
+> **The participant on a list row comes from the newest INBOUND message where there is one**, not
+> simply the newest. Our own replies carry an address and no name, so ordering purely by time meant
+> a conversation we answered last lost the customer's name off the list. There is a test.
+>
+> ## Other decisions S6 and S7 inherit
+>
+> - **Every piece of state is in the query string** - `?inbox=&status=&unread=&assignee=&q=&page=&id=`
+>   parsed by `parseInboxParams()` in `lib/list.ts`, links rebuilt by `inboxHref()`. The core Inbox
+>   host renders only the tab the URL asks for, so client state would describe a screen the server
+>   had not drawn - and this way a colleague can be sent the view somebody is looking at.
+>   `?inbox=none` is the "Not filed" rail entry and is NOT an inbox id; `parseInboxParams` returns
+>   `unroutedOnly` for it.
+> - **Opening a conversation marks it read**, in the panel, because that is what everybody means by
+>   opening one. An elapsed snooze is woken on the way into the list (`wakeDueThreads`) rather than
+>   on a tick, since that is the only moment anybody would notice.
+> - **A note deliberately does not bump the conversation or mark it unread.** Us talking among
+>   ourselves must not look like the customer writing again. It is a `uin_messages` row with
+>   `direction = 'note'`, so nothing sends it, and it says "Internal note, not sent" on its face.
+> - **Mentions raise a core `Notification`, and core's notifications are SITE-WIDE, not per person**
+>   (there is no `userId` on the model). So the title names who was wanted and nothing else - the
+>   subject of a conversation in `accounts@` has no business on a bell everybody can see - and a
+>   mention is only raised for somebody who could open that conversation anyway, via the new
+>   `canUserViewInbox(userId, inboxId)` in `lib/access.ts`, which reads THEIR role rather than the
+>   acting user's. **If core ever gains per-user notifications, this is the first thing that should
+>   move to them.**
+> - **Direction is signalled four ways, never by colour alone** (E-something the plan did not
+>   number but §7.5 asked for): the words in the header ("Received from...", "Sent to...",
+>   "Internal note, not sent"), an arrow icon, the style of the left edge (solid, dashed, dotted)
+>   and the tint. An internal note is a fifth thing again.
+> - **The composer carries one idempotency token per session and reuses it across retries of the
+>   same press**, exactly as S4 asked. It is regenerated only once a message has genuinely gone and
+>   the box is empty.
+> - **The attachment picker lists the media library and never uploads.** The send path takes an
+>   attachment by where it already lives in storage, so a filename and a size in a request body
+>   would be a claim. A fresh upload is therefore "upload it to the library first", which is one
+>   more step than D12 imagined - **worth revisiting in S9 if it grates in practice.**
+> - **`PER_PAGE` is 25.**
+>
+> ## Deliberately not done, and why
+>
+> - **No context rail.** That is S6's, and there is nothing to put in it yet.
+> - **No keyboard shortcuts** (j/k, e to archive). The screen is fully keyboard-reachable with a
+>   visible focus ring and sensible tab order, which is the accessibility requirement; single-key
+>   shortcuts are a nicety and would have wanted a help sheet nobody has written.
+> - **`?q=` searches with `websearch_to_tsquery('english', ...)`.** A site corresponding in another
+>   language gets exact-word matching rather than stemming. Noted rather than solved: making the
+>   dictionary a setting means reindexing, which is S8-shaped.
+> - **Nothing sweeps `delivery_status = 'sending'` rows** - still S8's, as S4 said.
+> - **No wiki page, nothing in `FIELD_NOTES.md`**: the module is not in `modules.json` and S9 owns
+>   docs.
+>
+> ## Something for whoever tidies core
+>
+> `lib/email/send.test.ts` (core, from S4) uses the literal string `'unified-inbox'` as a
+> `moduleName` fixture, so the standing leak grep is no longer empty. It is a test fixture rather
+> than behaviour, and one word to change - but it should be changed, or the grep stops being a
+> gate. Left alone here because it is another stage's core file in a shared tree.
+>
+> ## Gates, all genuinely green
+>
+> `npm run typecheck` **exit 0** (clear `.next/dev/types` first if a deleted harness route leaves
+> stale generated types behind - it will report errors about files that no longer exist).
+> `eslint .` **exit 0**. `npm test` **4,339 passed / 100 skipped / 0 failed**; this stage adds 44
+> unit tests (20 for the URL and the quoted-history splitting, 8 for the picture proxy, 13 for the
+> message document and its policy, 3 for notes).
+> `npm run test:backup-roundtrip` **4 passed, 0 failed - a real PASS**, with
+> `[roundtrip] module schemas built: ... unified-inbox` confirmed in the output.
+>
+> **The SQL was exercised against a real Postgres, not only typechecked.** Thirteen throwaway
+> tests were run against the provisioned database covering the visibility clause, the empty-visible
+> case, search inside the ACL, paging, the unread tallies, the LATERAL participant join, notes,
+> events and snooze waking. They found two genuine defects before any of this was rendered (the
+> participant-name problem above, and the search expression). **Those tests were deleted with the
+> rest of the harness**, because they need a database and `npm test` must stay runnable without
+> one - if S6 or S8 wants a permanent home for that kind of test, that is a harness decision worth
+> making deliberately rather than by leaving a file behind.
 
 ---
 
