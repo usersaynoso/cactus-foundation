@@ -26,12 +26,33 @@ export type EmailPayload = {
    *  the whole basis of threading a conversation. Header names are the caller's
    *  business - nothing here inspects them beyond the Message-ID it logs. */
   headers?: Record<string, string>
+  /** Who the message is from, when it should not be the site's own address.
+   *  Left unset - which is nearly always - the sender is whatever Settings ›
+   *  Emails says, and no existing caller has to think about it. Set, it is for
+   *  a site that answers on behalf of more than one address and needs the
+   *  reply to look like it came from the right one. Whichever service is
+   *  sending still has to be willing to send as that address. */
+  from?: EmailSender
+  /** The account to send this particular message through, when it should not
+   *  be the site's own. Left unset, the environment decides exactly as before. */
+  transport?: EmailTransport
   /** Registry key when this came from a template, for the email log. Set
    *  automatically by sendTemplateEmail; ad-hoc sends leave it unset. */
   templateKey?: string
   /** Which module asked for this email, for the email log. Core leaves it unset. */
   moduleName?: string
 }
+
+export type EmailSender = {
+  name?: string
+  address: string
+}
+
+/** One send's transport, overriding the environment for that send only.
+ *  Nothing is stored and nothing is remembered between calls. */
+export type EmailTransport =
+  | { provider: 'brevo'; apiKey: string }
+  | { provider: 'smtp'; host: string; port?: string; user?: string; pass?: string }
 
 // Brevo's API caps a whole message at 10MB including its attachments, and an
 // oversized one is refused outright - which would take the email down with it.
@@ -60,7 +81,10 @@ function outgoingMessageId(payload: EmailPayload): string | undefined {
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<void> {
-  if (!isEmailConfigured()) {
+  // A payload carrying its own account IS configured, by definition - which is
+  // the case when somebody is testing credentials they have typed in but not
+  // saved yet, on a site that has none set up at all.
+  if (!payload.transport && !isEmailConfigured()) {
     throw new Error('Email is not configured. Add BREVO_API_KEY or SMTP credentials.')
   }
 
@@ -68,9 +92,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   const messageId = outgoingMessageId(payload)
 
   try {
-    const providerId = process.env.BREVO_API_KEY
-      ? await sendViaBrevo(payload)
-      : await sendViaSmtp(payload)
+    const providerId = await dispatch(payload)
     await recordEmailSend({
       toAddress: payload.to,
       ccAddresses: payload.cc,
@@ -98,9 +120,26 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   }
 }
 
+/**
+ * Which transport carries this message.
+ *
+ * A payload that names one wins; otherwise it is whatever the environment is
+ * set up for, which is what every existing caller gets and always got.
+ */
+async function dispatch(payload: EmailPayload): Promise<string | undefined> {
+  if (payload.transport?.provider === 'brevo') {
+    return await sendViaBrevo(payload, payload.transport.apiKey)
+  }
+  if (payload.transport?.provider === 'smtp') {
+    const { host, port, user, pass } = payload.transport
+    return await sendViaSmtp(payload, { host, port, user, pass })
+  }
+  return process.env.BREVO_API_KEY ? await sendViaBrevo(payload) : await sendViaSmtp(payload)
+}
+
 /** Returns the provider's own id for the message, when it gives one. */
 async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<string | undefined> {
-  const config = await getEmailConfig()
+  const sender = await resolveSender(payload)
   const files = usableAttachments(payload.attachments)
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -109,7 +148,7 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<str
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: config.fromName, email: config.fromAddress },
+      sender: { name: sender.fromName, email: sender.fromAddress },
       to: [{ email: payload.to }],
       ...(payload.cc?.length ? { cc: payload.cc.map((e) => ({ email: e })) } : {}),
       ...(payload.replyTo ? { replyTo: { email: payload.replyTo } } : {}),
@@ -145,7 +184,7 @@ type SmtpOverrides = { host?: string; port?: string; user?: string; pass?: strin
 
 async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Promise<string | undefined> {
   const { createTransport } = await import('nodemailer')
-  const config = await getEmailConfig()
+  const sender = await resolveSender(payload)
   const transporter = createTransport({
     host: overrides?.host ?? process.env.SMTP_HOST,
     port: parseInt(overrides?.port ?? process.env.SMTP_PORT ?? '587', 10),
@@ -155,7 +194,7 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
     },
   })
   const info = await transporter.sendMail({
-    from: `"${config.fromName}" <${config.fromAddress}>`,
+    from: `"${sender.fromName}" <${sender.fromAddress}>`,
     to: payload.to,
     ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
     ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
@@ -174,6 +213,23 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
       : {}),
   })
   return typeof info?.messageId === 'string' ? info.messageId : undefined
+}
+
+/**
+ * The From line for one message: the payload's own sender when it has one,
+ * the site's otherwise.
+ *
+ * A payload that gives an address but no display name keeps the site's name,
+ * because an email with a bare address in the From line looks like spam to
+ * both a person and a filter.
+ */
+async function resolveSender(payload: EmailPayload): Promise<{ fromName: string; fromAddress: string }> {
+  const config = await getEmailConfig()
+  if (!payload.from?.address) return config
+  return {
+    fromName: payload.from.name?.trim() || config.fromName,
+    fromAddress: payload.from.address,
+  }
 }
 
 async function getEmailConfig() {
@@ -313,6 +369,12 @@ export type TestEmailCredentials = {
 // admin settings form but not yet saved/redeployed). Any field left blank
 // falls back to the value in the current server environment, so a partial
 // update (e.g. new password, same host) still tests the combined result.
+//
+// It goes through sendEmail like everything else, which it did not always do.
+// It used to call the transports directly, and so it was the one send on the
+// whole site that left no trace in the email log - the send somebody is most
+// likely to be looking for afterwards, because it is the one they make when
+// something is already wrong.
 export async function sendTestEmailWithCredentials(
   to: string,
   siteName: string,
@@ -322,15 +384,20 @@ export async function sendTestEmailWithCredentials(
   if (creds.provider === 'brevo') {
     const apiKey = creds.brevoApiKey || process.env.BREVO_API_KEY
     if (!apiKey) throw new Error('Enter a Brevo API key first.')
-    await sendViaBrevo(payload, apiKey)
+    await sendEmail({ ...payload, templateKey: 'system.test-email', transport: { provider: 'brevo', apiKey } })
   } else {
     const host = creds.smtpHost || process.env.SMTP_HOST
     if (!host) throw new Error('Enter an SMTP host first.')
-    await sendViaSmtp(payload, {
-      host,
-      port: creds.smtpPort || undefined,
-      user: creds.smtpUser || undefined,
-      pass: creds.smtpPass || undefined,
+    await sendEmail({
+      ...payload,
+      templateKey: 'system.test-email',
+      transport: {
+        provider: 'smtp',
+        host,
+        ...(creds.smtpPort ? { port: creds.smtpPort } : {}),
+        ...(creds.smtpUser ? { user: creds.smtpUser } : {}),
+        ...(creds.smtpPass ? { pass: creds.smtpPass } : {}),
+      },
     })
   }
 }
