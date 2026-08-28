@@ -101,6 +101,36 @@ Cards issued in the UK and the EEA generally need the extra bank check (Strong C
 
 **How each method reads at checkout.** At the bottom of the **Payment methods** list, every method gets a card of its own holding the two things a shopper actually sees. A switch decides whether its logo appears beside the name, with the badge itself sitting right there so you can see what you are switching off; a method that brought no logo has no switch, there being nothing to show. Below that is the sentence printed under the name, saying who handles the money - "Credit and debit card payments are securely handled by our payment partner Stripe", and so on. Every method arrives with wording of its own and you can write straight over it. Empty the box again and the original comes back, so there is no way to lose it, and a method that arrived with nothing to say shows nothing until you type something in. Switching a logo off keeps it off the page altogether rather than merely out of sight.
 
+
+### Letting people pay a bank transfer later
+
+Bank transfer and cash both end the same way: an order goes in, nobody has been
+paid, and it sits there until somebody remembers. A fair number never do - not
+out of bad faith, but because the transfer was going to be done later that
+evening and later that evening turned into next week.
+
+So an unpaid order offers a second door. On the customer's own order page, under
+the bank details, is a short list of the automated methods you already take -
+Instant Bank Pay, Card payment (Square) - and the amount still owed on a button.
+They pick one, pay it there and then, and the order carries on exactly as if it
+had been paid at the checkout: stock, receipt, invoice and refunds all behave the
+same. Nothing is taken away in the process. Your bank details stay on the page
+for as long as the money is owed, because plenty of people genuinely want to pay
+that way, and **Confirm payment** on your own order screen still does what it
+always did if the transfer turns up after all.
+
+The switch is on the **Payment methods** list, under *Paying an order after it
+has been placed*, and it is on to begin with. The methods it offers are the ones
+you have already switched on, so it asks nothing new of you - and if you take
+bank transfer precisely to keep the card fees off, one switch says so.
+
+Two smaller things worth knowing. Only methods that have said they can settle an
+order that already exists are offered, which today means Instant Bank Pay and
+Card payment (Square); Stripe and PayPal are not on that list yet. And a customer
+who starts a payment and thinks better of it loses nothing: they come back to
+their order page with the bank details where they left them, free to try the
+other method, or the transfer, or neither.
+
 ---
 
 ## Adding products
@@ -364,7 +394,7 @@ These blocks now read **Document: Style**, **Document: Notice panel**, **Documen
 
 **Two blocks are deliberately not offered on it.** **Style** is not, because the look of a document is set on the document, and a footer quietly disagreeing with the invoice above it is not a feature. **Footer** is not either, because the whole layout is the footer - one inside the other was a matryoshka doll nobody asked for. Small print that used to go in the Footer block goes in the **Notice panel** instead, set to **Small print**: the same wording, the same `{{PLACEHOLDERS}}`, no box round it. **If you already had a Footer block on a footer layout, it will no longer print - swap it for a Notice panel.**
 
-Two things worth knowing. The footer sits **in the bottom margin**, and it now makes its own room: design a taller one and the document's bottom margin is opened up to fit it rather than the small print being printed over your last few lines. Your own margin setting is the floor, never the ceiling, so a generous margin stays generous. And nothing is published for you: no Document Footer means the PDF looks exactly as it did.
+Three things worth knowing. **Blocks on the footer bring no space of their own.** A rule, a line of text or a paragraph all leave a comfortable gap around themselves on a web page, and on a strip a few millimetres tall that gap is most of the strip - so on this layout, and only this one, they all start closed up. Set **Space above** or **Space below** on any block and your figure is used instead, including the exact box where you want a particular number of pixels. Anything you had already set stays exactly as you set it. The footer sits **in the bottom margin**, and it makes its own room: design a taller one and the document's bottom margin is opened up to fit it rather than the small print being printed over your last few lines. Your own margin setting is the floor, never the ceiling, so a generous margin stays generous. And nothing is published for you: no Document Footer means the PDF looks exactly as it did.
 
 **Start with Style.** Drop it in once, anywhere, and it sets the accent colour used by the rule under the heading, the rule above the total, the bar down the side of the notice panel and the contact line in the footer - along with the shading behind the item table's column headings, how thick the accent rules are, whether corners are square or rounded, and how roomy the whole thing is. One field instead of the same field on six blocks. Leave any of them blank and that part keeps the look it had.
 
