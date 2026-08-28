@@ -32,7 +32,11 @@ function getConfig(type: string): any {
     // full-page config has never heard of one - previewed through that, the
     // slot would render nothing and the design would look like it had lost its
     // sign-in form.
-    case 'memberLogin': return layoutPuckRscConfig
+    case 'memberLogin':
+    // Same again for the panel design: previewed through the full-page config
+    // its Content Slot would render nothing and the design would look like it
+    // had mislaid its sign-in form.
+    case 'memberLoginModal': return layoutPuckRscConfig
     case 'notFound':
     case 'statusPage': return fullPagePuckRscConfig
     default:

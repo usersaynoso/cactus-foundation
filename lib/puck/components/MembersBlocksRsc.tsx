@@ -18,6 +18,11 @@ import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import { SignInWidgetClient, type SignInWidgetOptions, type SignInWidgetState } from '@/components/members/SignInWidgetClient'
+import SignInModalFormSlot from '@/components/members/SignInModalFormSlot'
+import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
+import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
+import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import type { Data } from '@puckeditor/core'
 
 const LINK_STYLE: React.CSSProperties = { padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-text-secondary, var(--color-fg-secondary))', fontSize: '0.875rem', fontWeight: 500 }
 const PRIMARY_LINK_STYLE: React.CSSProperties = { ...LINK_STYLE, background: 'var(--color-primary)', border: '1px solid var(--color-primary)', color: 'var(--color-bg)' }
@@ -163,13 +168,34 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
   delete options.puck
   delete options.editMode
 
+  // An "Account Login Modal" layout, if the owner has published one. Rendered
+  // here rather than in the island because only the server can read it, and
+  // handed down as markup: the panel is client-only and cannot fetch it for
+  // itself. Resolved by type alone - there is one sign-in panel, so site-wide is
+  // the only rule the type offers - and skipped entirely for a widget that isn't
+  // opening a panel at all, or for a visitor who is already signed in and will
+  // never see one.
+  const redirectTo = props.redirectTo ? sanitizeRedirect(props.redirectTo, '') : ''
+  let modalLayout: React.ReactNode = null
+  if (!signedIn && props.clickAction === 'modal') {
+    const layout = await resolveThemeLayout('memberLoginModal', {}).catch(() => null)
+    if (layout?.builderData) {
+      modalLayout = renderLayoutWithContent(
+        layout.builderData as Data,
+        <SignInModalFormSlot redirectTo={redirectTo} basePath={base} />,
+        await getPuckRenderMetadata(),
+      )
+    }
+  }
+
   return (
     <SignInWidgetClient
       {...(options as Partial<SignInWidgetOptions>)}
       // The "after sign-in" destination becomes a location assignment inside
       // the form, so an off-site value would be an open redirect. Blank stays
       // blank: the island reads the current path for that case.
-      redirectTo={props.redirectTo ? sanitizeRedirect(props.redirectTo, '') : ''}
+      redirectTo={redirectTo}
+      modalLayout={modalLayout}
       signedIn={signedIn}
       loginHref={`${base}/login`}
       registerHref={`${base}/register`}

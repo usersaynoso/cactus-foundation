@@ -190,8 +190,14 @@ describe('starter template catalogue', () => {
         })
       return walk(data.content) || Object.values(data.zones ?? {}).some(walk)
     }
-    for (const t of CORE_STARTER_TEMPLATES.infoPage ?? []) {
-      expect(hasSlot(t.data), `${t.id} has no ContentSlot`).toBe(true)
+    // Every type whose job is to wrap something the surface hands it: a page's
+    // body, the sign-in form on the login page, the same form in the panel the
+    // header floats over it. One of these without a slot is a design with the
+    // thing it was built around missing.
+    for (const type of ['infoPage', 'memberLogin', 'memberLoginModal']) {
+      for (const t of CORE_STARTER_TEMPLATES[type] ?? []) {
+        expect(hasSlot(t.data), `${t.id} has no ContentSlot`).toBe(true)
+      }
     }
   })
 })

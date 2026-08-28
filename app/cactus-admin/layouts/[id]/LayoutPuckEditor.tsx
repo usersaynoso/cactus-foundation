@@ -86,7 +86,11 @@ function getConfig(type: string | undefined) {
     // that has a Content Slot in it - a page's body in one case, the sign-in
     // form in the other.
     case 'infoPage':
-    case 'memberLogin': return layoutPuckConfig
+    case 'memberLogin':
+    // The sign-in modal is a third one: a panel rather than a page, but the
+    // form still arrives through the same Content Slot, so it wants the same
+    // config - the one that has a slot in it at all.
+    case 'memberLoginModal': return layoutPuckConfig
     // Its own config entirely: none of the site blocks survive an email client,
     // so none of them are offered. See lib/puck/email-config.tsx.
     case 'emailWrapper': return emailPuckConfig

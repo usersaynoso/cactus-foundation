@@ -1,7 +1,37 @@
 # 2026-08-02 note: the scroll-sequence converter has been REMOVED (block, routes, settings tab, worker pipeline). What was the sequence worker is now the media worker: video optimise only, no rembg/onnxruntime/numpy/Pillow, no baked-in ONNX models. Everything below about matting, see-through gaps, white un-blend and engines is history, kept because it explains why the Fly app is still called `cactus-seqworker`. See the top Last-updated entry.
 # FIELD_NOTES.md
 
-Last updated: 2026-08-28 (**A cancelled customer order is not bought for** - `purchase-orders` **0.1.13**, core **0.5.1366**. `CLOSED_SHOP_ORDER_STATUSES` in `modules/purchase-orders/lib/from-order.ts` is now the one set of shop-order statuses closed to buying, read by both `OrderPurchasePanel` and `raisePurchaseOrdersFromShopOrder`; the run refuses instead of relying on the panel hiding its button. No schema change.)
+Last updated: 2026-08-28 (**The real reason the footer printed over the document: a CSS @page margin beats page.pdf()** - core **unreleased, in the working tree**.)
+
+Third fix for one fault, and the first one that addresses what was actually wrong. 0.5.1355 and 0.5.1360 both computed a fitted bottom margin, passed it to `page.pdf()`, and had it thrown away.
+
+**`DocumentPageStyle` emits `@page { size: …; margin: … }` on every document page** (`lib/documents/page-settings.tsx:160`), so that a human pressing Ctrl+P lands on the same sheet the Download button does. **A CSS @page margin BEATS the `margin` handed to `page.pdf()`.** `preferCSSPageSize` governs the page SIZE and does nothing about this. So the bottom margin was raised to fit the footer, accepted by the API, and silently overruled by the page's own stylesheet - on every invoice, credit note, proforma, quote and purchase order, through two releases that each claimed to have fixed it.
+
+**Fixed** by saying it again in CSS: when (and only when) the fitted bottom differs from the one the page settings asked for, a `@page { margin-bottom: Xmm }` style is appended as the LAST element of the body - last in document order, so it wins the cascade against the layout's own rule - before `page.pdf()` runs. Bottom only: the other three sides are the owner's.
+
+**Why it survived two fixes, and what has been done about that.** Both were verified by printing, and both were printed against a made-up document page missing something a real one has: first the chrome-stripping rule (`body > *:not(main)`, which hid the measuring iframe), then the `@page` rule. Nothing else in the suite can catch either, because nothing else prints. So the fixture is now a checked-in test: **`lib/documents/pdf-print-harness.test.ts`**, gated on `RENDER_PDF_CHECKS=1`, carrying the chrome-stripping rule, the `@page` rule and a footer taller than its margin, writing the PDF to a temp path and naming it in the output. Its header lists which line guards which fault and says not to simplify it. `pdf-footer-scope.test.ts` gains a fourth case pinning the CSS injection.
+
+**Verified**: the same harness page printed with the `@page` rule and without it, before and after. With the rule and before the fix, the small print lands across the last two lines - the reported symptom, reproduced exactly. After, it sits clear on both.
+
+**Checks**: `tsc --noEmit` clean, `eslint .` clean, **3962 tests green**. No `npm run build`. No schema, so the backup round-trip gate does not apply. (One run showed `lib/puck/module-layout-site-logo.test.tsx` timing out at its 5s limit under full-suite load; it passes on its own and on a clean run, and is untouched by this change.)
+
+---
+
+Previous entry: Last updated: 2026-08-28 (**Account Login Modal layout type** - core **unreleased, in the working tree**.)
+
+**2026-08-28 - Account Login Modal layout type.** New core `Layout.type` value **`memberLoginModal`** ("Account Login Modal" on `/hq/layouts`), the sibling of `memberLogin`: one designs the sign-in *page*, this one designs the *panel* the Members: Sign In block floats over the page when its "what clicking it does" is set to Modal. Separate type rather than a reuse, because a full-page design in a 420px panel is not a design.
+
+Wiring, all of it the `memberLogin` pattern: `lib/layout/layout-type-tabs.ts` (tab + label), `LayoutPuckEditor.tsx` and `app/layout-preview/[id]/page.tsx` both route it to `layoutPuckConfig`/`layoutPuckRscConfig` (the config that has a `ContentSlot`), three starters in `lib/layout/starter-templates.ts` (Just the Form, Welcome Back, With a Way Out - `paddingY: 'none'`, `maxWidth: 'none'`, since the panel brings its own padding), none `publishByDefault`. No display-condition change: an unmapped type already falls back to `entire_site`, which is the only rule one sign-in panel could carry.
+
+**Where it is rendered is the only new idea.** The panel is client-only (`components/members/SignInModal.tsx`, portalled to `document.body`, reached through `dynamic(..., { ssr: false })`), so it cannot resolve or render a layout for itself. The block's server half **`MembersSignInRsc`** (`lib/puck/components/MembersBlocksRsc.tsx`) does it - `resolveThemeLayout('memberLoginModal', {})` then `renderLayoutWithContent()` - and hands the finished markup down as a new `modalLayout` prop on `SignInWidgetClient`, which passes it to `SignInModal` as `layoutContent`. Skipped entirely for a signed-in visitor or a widget in `clickAction: 'link'`, so a link-mode header costs no query. React only renders an element when the tree holding it mounts, so nothing in the layout runs until the panel is opened.
+
+**New `components/members/SignInModalFormSlot.tsx`** is what fills the Content Slot: a client component that `dynamic(..., { ssr: false })`-imports `LoginForm` itself. That indirection is load-bearing twice over - the form needs `usePathname()` for the blank "after sign-in" case (the slot is rendered inside a layout that knows nothing about the visitor's current page), and importing `LoginForm` directly from a server-rendered slot would put passkeys, two-factor and recovery codes in the bundle of every page whose header carries the widget.
+
+With a layout published it owns **everything inside the panel**: the built-in `<h2>` heading and the "Create an account" line are not drawn, and the close button is all that remains of core's chrome (right-aligned above the design). Panel width/radius/background stay the block's `modalWidth`/`modalRadius` fields, so an existing site with no layout is byte-identical.
+
+`lib/setup/starterLayouts.test.ts`'s "every page layout a content slot" check now walks `infoPage`, `memberLogin` and `memberLoginModal` rather than `infoPage` alone. Wiki: `Appearance-and-design.md` layout-types table gains both Account Login rows (the page one was never documented) plus a paragraph. **Checks**: `npm run typecheck` clean, `eslint` clean on changed files, `lib/layout` + `lib/puck` + starter/document-footer suites green. No `npm run build`.
+
+Previous entry: Last updated: 2026-08-28 (**A cancelled customer order is not bought for** - `purchase-orders` **0.1.13**, core **0.5.1366**. `CLOSED_SHOP_ORDER_STATUSES` in `modules/purchase-orders/lib/from-order.ts` is now the one set of shop-order statuses closed to buying, read by both `OrderPurchasePanel` and `raisePurchaseOrdersFromShopOrder`; the run refuses instead of relying on the panel hiding its button. No schema change.)
 
 Stage 4 of the purchase-orders-from-customer-orders plan (`~/.claude/plans/supplier-cats.md`) - the optional one, deliberately independent of stages 1 to 3. **No core code at all**: core carries the pin, the version and this entry.
 

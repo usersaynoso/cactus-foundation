@@ -25,6 +25,15 @@ export const CORE_LAYOUT_TYPES: CoreLayoutType[] = [
   // by hand would know about. It arrives through the Content Slot, same as a
   // page does inside a Page Layout, and everything around it is the design.
   { key: 'memberLogin', label: 'Account Login', description: 'The page members sign in on. Your design goes around the sign-in form, which drops into the Content Slot.' },
+  // The same form, in the panel the Members: Sign In block floats over the page
+  // when it is set to open a modal. A type of its own rather than a reuse of
+  // memberLogin, because the two are different surfaces: one is a whole page a
+  // visitor navigates to, the other a small panel that opens over whatever they
+  // were reading, and a design that suits one suits the other by accident only.
+  // A published layout takes over everything inside the panel - the built-in
+  // heading and "Create an account" line included - so whatever it draws is all
+  // there is, with the form arriving through the Content Slot as ever.
+  { key: 'memberLoginModal', label: 'Account Login Modal', description: 'The panel that opens over the page when a visitor clicks Sign in. Your design fills the panel, around the sign-in form in the Content Slot.' },
   // Not a page. The strip that repeats at the foot of EVERY page of a printed
   // document - an invoice, a proforma, a quote, a purchase order - drawn into
   // the bottom margin by the browser making the PDF. One design for all of it,

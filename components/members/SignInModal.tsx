@@ -11,7 +11,7 @@
 // stacking context of its own, and a panel that has to cover the whole viewport
 // cannot be born inside one.
 
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import LoginForm from '@/components/members/LoginForm'
 
@@ -53,10 +53,16 @@ export type SignInModalProps = {
   registerHref: string
   registerLabel: string
   showRegister: boolean
+  // An "Account Login Modal" layout, already rendered on the server with the
+  // sign-in form dropped into its Content Slot. When one is published it is
+  // everything inside the panel: the built-in heading and the "Create an
+  // account" line below are the layout's job now, not this component's, or the
+  // owner would find their own design sandwiched between two bits of ours.
+  layoutContent?: ReactNode
 }
 
 export function SignInModal({
-  open, onClose, heading, width, radius, redirectTo, memberBasePath, registerHref, registerLabel, showRegister,
+  open, onClose, heading, width, radius, redirectTo, memberBasePath, registerHref, registerLabel, showRegister, layoutContent,
 }: SignInModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -130,10 +136,15 @@ export function SignInModal({
         style={panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: 'var(--space-4)' }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)' }}>
-            {heading || 'Sign in'}
-          </h2>
+        {/* The close button is the one thing a layout never replaces: a panel a
+            visitor cannot shut is not a panel. With a layout published it sits
+            on its own, right-aligned, above whatever the design draws. */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: layoutContent ? 'flex-end' : 'space-between', gap: '1rem', marginBottom: 'var(--space-4)' }}>
+          {!layoutContent && (
+            <h2 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)' }}>
+              {heading || 'Sign in'}
+            </h2>
+          )}
           <button
             ref={closeRef}
             type="button"
@@ -145,15 +156,19 @@ export function SignInModal({
           </button>
         </div>
 
-        {/* The form draws its own "Sign in" heading on the sign-in page; here
-            the dialog already carries one, so it is asked to leave it out
-            rather than have the panel say it twice. */}
-        <LoginForm redirectTo={redirectTo} basePath={memberBasePath} showHeading={false} />
+        {layoutContent ?? (
+          <>
+            {/* The form draws its own "Sign in" heading on the sign-in page; here
+                the dialog already carries one, so it is asked to leave it out
+                rather than have the panel say it twice. */}
+            <LoginForm redirectTo={redirectTo} basePath={memberBasePath} showHeading={false} />
 
-        {showRegister && (
-          <p style={{ margin: 'var(--space-4) 0 0', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-            <a href={registerHref}>{registerLabel || 'Create an account'}</a>
-          </p>
+            {showRegister && (
+              <p style={{ margin: 'var(--space-4) 0 0', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+                <a href={registerHref}>{registerLabel || 'Create an account'}</a>
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>,

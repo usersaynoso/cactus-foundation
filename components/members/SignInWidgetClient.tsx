@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import MemberAvatar from '@/components/members/MemberAvatar'
@@ -147,7 +147,16 @@ const trimSlash = (path: string) => path.replace(/\/+$/, '') || '/'
 // one, so there is no real state to reflect, and a modal portalled to
 // document.body would cover the whole canvas rather than the page it belongs to.
 export function SignInWidgetClient(
-  opts: Partial<SignInWidgetOptions> & Partial<SignInWidgetState> & { preview?: boolean },
+  opts: Partial<SignInWidgetOptions> & Partial<SignInWidgetState> & {
+    preview?: boolean
+    // An "Account Login Modal" layout, rendered on the server by the block's
+    // server half and handed down as markup. Absent unless the owner has
+    // published one, in which case the panel below draws it instead of its
+    // built-in heading/form/register stack. It arrives already rendered because
+    // this island cannot reach the database, and it costs nothing when the panel
+    // is never opened - React does not render an element it is only holding.
+    modalLayout?: ReactNode
+  },
 ) {
   const o = { ...SIGN_IN_WIDGET_DEFAULTS, ...STATE_DEFAULTS, ...opts }
   const preview = opts.preview === true
@@ -280,6 +289,7 @@ export function SignInWidgetClient(
             registerHref={o.registerHref}
             registerLabel={o.registerLabel}
             showRegister={o.showRegisterLink !== 'no' && o.registerAllowed}
+            layoutContent={opts.modalLayout}
           />
         )}
       </>

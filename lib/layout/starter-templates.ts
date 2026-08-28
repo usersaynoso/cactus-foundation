@@ -679,6 +679,72 @@ const memberLoginTemplates: StarterTemplate[] = [
 ]
 
 // ---------------------------------------------------------------------------
+// Account login modal templates
+//
+// The panel the Members: Sign In block floats over the page. Same Content Slot
+// rule as the login page above - the slot is the real sign-in form, so none of
+// these is offered blank - but the space is a panel rather than a page, so the
+// sections come with barely any padding of their own: the panel already brings
+// its own, and a template built for a full page arrives here looking like it
+// has been left out in the rain.
+// ---------------------------------------------------------------------------
+
+const memberLoginModalTemplates: StarterTemplate[] = [
+  {
+    id: 'starter-account-login-modal-simple',
+    name: 'Just the Form',
+    description: 'A heading and the sign-in form. What the panel looks like today.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', {
+        paddingY: 'none', maxWidth: 'none',
+        content: [
+          heading('h-modal', 'Sign in', { level: 'h2', align: 'left' }),
+          contentSlot(),
+        ],
+      })],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-account-login-modal-welcome',
+    name: 'Welcome Back',
+    description: 'Your logo, a greeting, then the sign-in form.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', {
+        paddingY: 'none', maxWidth: 'none',
+        content: [
+          logo('site-logo', { logoHeight: 32, align: 'center' }),
+          heading('h-modal', 'Welcome back', { level: 'h2', align: 'center' }),
+          textBlock('t-modal', 'Sign in to see your orders, addresses and account details.', { align: 'center' }),
+          contentSlot(),
+        ],
+      })],
+      zones: {},
+    },
+  },
+  {
+    id: 'starter-account-login-modal-with-help',
+    name: 'With a Way Out',
+    description: 'The sign-in form, and under it a line for anyone who cannot get in.',
+    data: {
+      root: { props: {} },
+      content: [section('section-1', {
+        paddingY: 'none', maxWidth: 'none',
+        content: [
+          heading('h-modal', 'Sign in', { level: 'h2', align: 'left' }),
+          contentSlot(),
+          textBlock('t-modal-help', 'Trouble signing in? Get in touch and we will sort it out.', { align: 'center' }),
+          buttonLink('btn-modal-help', 'Contact us', '/contact', 'outline'),
+        ],
+      })],
+      zones: {},
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Catalogue
 // ---------------------------------------------------------------------------
 
@@ -799,6 +865,7 @@ export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
   notFound:   notFoundTemplates,
   statusPage: statusTemplates,
   memberLogin: memberLoginTemplates,
+  memberLoginModal: memberLoginModalTemplates,
   emailWrapper: emailWrapperTemplates,
   documentFooter: documentFooterTemplates,
 }
