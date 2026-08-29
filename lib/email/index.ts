@@ -80,11 +80,41 @@ function outgoingMessageId(payload: EmailPayload): string | undefined {
   return entry?.[1]
 }
 
+/**
+ * The payload with whatever a module has decided about its own sender folded in
+ * (see lib/email/identity.ts), or the payload untouched - which is what every
+ * site with no identity provider installed gets, without a database read.
+ *
+ * A payload that already names its own sender, reply-to or account is left
+ * alone in that respect: the caller was specific, and a provider guessing over
+ * the top of it would be worse than useless.
+ */
+async function withOutboundIdentity(payload: EmailPayload): Promise<EmailPayload> {
+  if (!payload.moduleName || payload.from) return payload
+  try {
+    const { resolveOutboundEmailIdentity } = await import('@/lib/email/identity')
+    const identity = await resolveOutboundEmailIdentity(payload.moduleName)
+    if (!identity) return payload
+    return {
+      ...payload,
+      from: identity.from,
+      ...(payload.replyTo || !identity.replyTo ? {} : { replyTo: identity.replyTo }),
+      ...(payload.transport || !identity.transport ? {} : { transport: identity.transport }),
+    }
+  } catch (error) {
+    // Never fatal. The email still has a perfectly good sender to fall back on.
+    console.error('[email] could not resolve a sender for', payload.moduleName, error)
+    return payload
+  }
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<void> {
+  const message = await withOutboundIdentity(payload)
+
   // A payload carrying its own account IS configured, by definition - which is
   // the case when somebody is testing credentials they have typed in but not
   // saved yet, on a site that has none set up at all.
-  if (!payload.transport && !isEmailConfigured()) {
+  if (!message.transport && !isEmailConfigured()) {
     throw new Error('Email is not configured. Add BREVO_API_KEY or SMTP credentials.')
   }
 
@@ -92,7 +122,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   const messageId = outgoingMessageId(payload)
 
   try {
-    const providerId = await dispatch(payload)
+    const providerId = await dispatch(message)
     await recordEmailSend({
       toAddress: payload.to,
       ccAddresses: payload.cc,
