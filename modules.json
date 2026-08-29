@@ -108,7 +108,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.37"
+      "version": "v0.1.38"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -118,7 +118,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.29"
+      "version": "v0.1.30"
     },
     {
       "name": "gemini-watermark-remover",
@@ -138,7 +138,7 @@
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.20"
+      "version": "v0.1.21"
     },
     {
       "name": "uk-bookkeeping",
@@ -154,6 +154,11 @@
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
       "version": "v0.1.27"
+    },
+    {
+      "name": "unified-inbox",
+      "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
+      "version": "v0.1.6"
     }
   ]
 }

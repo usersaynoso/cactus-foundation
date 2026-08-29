@@ -1,6 +1,6 @@
 # Unified Inbox - build plan
 
-**Status:** in progress - S1 to S5 done, S6 next
+**Status:** in progress - S1 to S9 done, S10 next
 **Plan written:** 2026-08-28
 **Core version at time of writing:** 0.5.1381
 **Module slug:** `unified-inbox` · **Table prefix:** `uin_` · **Repo (to be created):** `cactus-foundation-modules/unified-inbox`
@@ -539,10 +539,10 @@ Update this table. `DONE` means gates green and notes written.
 | S3 | IMAP ingest engine | module | DONE | § 7.3 |
 | S4 | Send path (Brevo, identity, threading headers, APPEND) | module | DONE | § 7.4 |
 | S5 | Inbox UI (rail, list, thread, composer, workflow) | module | DONE | § 7.5 |
-| S6 | People, identity resolution, context rail adapters | module | NOT STARTED | § 7.6 |
-| S7 | Channel providers: contact-form, live-chat, twilio | 3 module repos + module | NOT STARTED | § 7.7 |
-| S8 | Retention, GDPR, backup, teardown, performance | module (+ core if log sweep) | NOT STARTED | § 7.8 |
-| S9 | Docs, wiki, module art, packaging, release readiness | core + module + wiki | NOT STARTED | § 7.9 |
+| S6 | People, identity resolution, context rail adapters | module | DONE | § 7.6 |
+| S7 | Channel providers: contact-form, live-chat, twilio | 3 module repos + module | DONE | § 7.7 |
+| S8 | Retention, GDPR, backup, teardown, performance | module | DONE | § 7.8 |
+| S9 | Docs, wiki, module art, packaging, release readiness | core + wiki | DONE | § 7.9 |
 | S10 | Full review and fixes | all | NOT STARTED | § 7.10 |
 
 ---
@@ -1726,7 +1726,260 @@ round-trip real PASS.
 
 **Notes for later stages:**
 
-> _(S6 agent: fill in. Especially: adapter interface, and which installed-checks you used.)_
+> **Done 2026-08-28. All of S6 is in `modules/unified-inbox/` (module repo, version 0.1.4 in both
+> `package.json` and `cactus.module.json`). NOTHING in core changed - core's working tree is clean
+> of this stage, and the render harness described below was taken back out. `requiresCoreVersion`
+> stays `0.5.1387`; nothing newer was needed. The module is still deliberately NOT in
+> `modules.json`.**
+>
+> ## The adapter interface, which is what this block was asked for
+>
+> `lib/adapters/types.ts`. S7 adds a record source by writing one file in that folder and one line
+> in `ADAPTERS` (`lib/adapters/index.ts`). Nothing else in the module knows how many there are.
+>
+> ```ts
+> type ContextAdapter = {
+>   moduleName: string      // as it appears in the module list; 'core' for core's own
+>   permission: string      // what the VIEWER must hold before anything is fetched
+>   tables: string[]        // all must exist or the adapter does not run
+>   load(query: ContextQuery): Promise<ContextSection | null>
+>   lookup?(kind: LinkKind, reference: string): Promise<LinkTarget | null>
+> }
+> type ContextQuery = { emails: string[]; phones: string[]; domains: string[]; organisationName: string | null }
+> type ContextSection = { moduleName; label; items: ContextItem[]; total: number; moreHref: string | null }
+> type ContextItem = { id; title; detail; status; at: Date | null; href }
+> ```
+>
+> **`href` is ADMIN-ROOT RELATIVE with no leading slash** (`shop/orders/abc123`), the same rule S1
+> set for `ConversationSummary.href`, because the admin path is per site and only the rendering page
+> knows it. `ContextItem.at` is for ORDERING only - the rail deliberately does not draw it, because
+> the detail line already carries the date and printing both read as a stutter (found by looking at
+> it, not by reading the code).
+>
+> Five adapters ship: `members` (core, `members.view`), `shop` (`shop.orders`), `quote-for-shop`
+> (`quotes.access`), `purchase-orders` (`purchase-orders.access`), `uk-bookkeeping`
+> (`bookkeeping.access`).
+>
+> ## Which installed-checks were used, which is the other thing asked for
+>
+> `lib/installed.ts`, and it is deliberately BOTH halves plus a third:
+>
+> 1. **Installed** - `prisma.module.findMany({ where: INSTALLED_MODULE_WHERE })`, memoised 30s.
+>    Answers "has this site got it", which is what the rail is really asking.
+> 2. **Tables present** - one `to_regclass` query covering EVERY adapter's tables at once, memoised
+>    30s. Answers "have its migrations actually run", which a module installed five minutes ago
+>    mid-deploy has not. Reading a table that is not there is an EXCEPTION, not an empty list, and
+>    an exception in a side panel takes the conversation down with it.
+> 3. **The viewer's permission** - one `hasPermissions(user, keys)` call for all five at once.
+>
+> So the whole rail costs three round trips regardless of how many adapters exist, and an adapter
+> whose module is absent costs its share of those and nothing else. A failed read clears the memo
+> rather than caching "nothing is installed" for thirty seconds. The pattern for (2) is the house
+> one - `modules/filters-for-shop/lib/variations-probe.ts`.
+>
+> **`loadContext` catches per adapter.** One module's panel failing costs that block only.
+> `confirmReference` (the linker's path) runs with NO session and therefore checks no permissions:
+> it decides what a conversation is ABOUT, not what a given person may look at. The permission gate
+> is in the rail, where the viewer is.
+>
+> ## D15 held: the people layer is thin, and here is exactly how thin
+>
+> Identities, a display name, a note, and an organisation guessed from the mail domain. No pipeline,
+> no stage, no score, no lead anything, no "value", no next action. `lib/people.ts` is pure and says
+> so at the top. There is **no people browsing screen** either - `GET /api/m/unified-inbox/people`
+> exists solely to find the other half of a merge, and a directory of everybody who has ever emailed
+> is precisely how a conversation hub turns into a CRM by accident.
+>
+> ## Never wrote to another module's table
+>
+> Reads only, raw SQL only, no import of another module's code anywhere in `lib/adapters/`. The
+> status words those queries filter on (`SENT`, `QUERIED`, ...) are **copied rather than imported**,
+> with a comment saying why: importing drags that module's dependencies into our graph and breaks
+> the day it is removed, whereas a word that changes there and not here costs one row in a side
+> panel. `git grep "unified-inbox\|unifiedinbox\|Unified Inbox"` outside the module, wiki and plans
+> is **empty** - including core, which means whoever owned S5's note about `lib/email/send.test.ts`
+> using the module's name as a fixture has since fixed it. The grep is a real gate again.
+>
+> ## Nothing Deskwell-shaped is hardcoded
+>
+> - **Reference patterns are settings** with generic defaults (`uin_settings.order_number_pattern`,
+>   `po_number_pattern`, `quote_number_pattern`; NULL means the default). The default is
+>   `\b([A-Z]{1,6}-?\d{4,12})\b` - letters, optional hyphen, digits, which is what a prefix-plus-
+>   counter scheme looks like nearly everywhere and is what both the shop and purchasing generate.
+>   No site's prefix appears anywhere in this module.
+> - **The safety property that lets the pattern stay generous: A PATTERN ONLY PROPOSES, THE OWNING
+>   MODULE DISPOSES.** Nothing is linked until `lookup()` finds a record with exactly that number.
+>   A pattern that matches too much costs a failed lookup, never a wrong link. This is the single
+>   most important sentence in `lib/linking.ts` and S7 should keep it true.
+> - A pattern out of a settings box is user input: it is refused at the route if it will not
+>   compile, refused again at compile time in `compilePattern` (which logs and disables that kind
+>   rather than throwing mid-collection), capped at 20,000 characters of body scanned and 10 hits
+>   per kind, and guarded against a zero-width match looping for ever.
+> - **Consumer domains** are a built-in list of ~35 plus a site-settable extra list. Never a company.
+>
+> ## Every automatic link is visible, attributed and removable - and merges are reversible
+>
+> - Auto links are written `linked_by = 'auto'`, `confidence: 90`, and render with a "Found
+>   automatically" tag and a Remove button. Manual ones are `'user'`, `confidence: 100`.
+> - `uin_record_links` gained **two partial unique indexes** so re-running the linker updates nothing
+>   rather than growing a duplicate row every hour, and `recordLink` now does `ON CONFLICT DO NOTHING`.
+> - **A merge keeps the losing row**, with `merged_into_id` set: it disappears from every list and
+>   `getPerson` follows the pointer, so an old link lands on whoever now holds their mail rather than
+>   on an empty page (depth-capped at 8 - a cycle should be impossible, but this runs while a page
+>   renders and a hung request is worse than a missing person).
+> - `uin_person_merges` holds a snapshot of the losing person plus **the ids of every identity,
+>   conversation and link that moved**. Undo puts back exactly those, **by id** - so anything that
+>   arrived AFTER the merge stays where it arrived, because it was never the other person's and
+>   handing it over would be a second mistake dressed as fixing the first. There is a test for that
+>   distinction against a real database.
+> - Merging asks first, in a sentence naming the person and counting their conversations, and leaves
+>   a "Put it back" button standing for as long as the merge does.
+> - **Splitting** is the same operation from the other end: identities move to a new person and their
+>   conversations follow the address they were had with. It refuses to move EVERY address (that
+>   leaves nobody behind - the user wanted a rename).
+> - Merge, undo and split are `unifiedinbox.manage`; editing a name, a note and links is
+>   `unifiedinbox.reply`.
+>
+> ## Schema: a NEW file, `migrations/005_people.sql`. 001 to 004 were not touched.
+>
+> - `uin_settings`: `own_domains TEXT[]`, `personal_domains TEXT[]`, and the three pattern columns.
+> - `uin_people.merged_into_id` (self FK, SET NULL) + index.
+> - `uin_person_identities.match_value` + index. **`value` keeps what the sender wrote, plus tag and
+>   all; `match_value` is what matching compares on.** Replying to the stripped form throws away
+>   whatever the person was sorting their own mail by.
+> - **`uin_events.thread_id` is now NULLABLE and there is a `person_id`** - one audit table answers
+>   for a person as well as a conversation, which is what "with an audit row" wanted.
+> - `uin_person_merges` (the only new table).
+> - `uin_threads.linked_at` + partial index: the linker looks at a conversation again once something
+>   NEWER has arrived on it, so a reference in the third reply gets caught without re-reading every
+>   conversation on the site every hour.
+> - Two partial unique indexes on `uin_record_links`, and a partial index for unresolved threads.
+>
+> **Postgres has no `ADD CONSTRAINT IF NOT EXISTS`, and `DO $$` is forbidden** (the round-trip
+> harness skips any module whose migrations contain `$$`, comments included). The answer is
+> `DROP CONSTRAINT IF EXISTS` then `ADD CONSTRAINT`, which is idempotent and needs no block. Both
+> harness traps respected; `[roundtrip] module schemas built: ... unified-inbox` confirmed.
+>
+> ## Where identity resolution actually runs, and the budget it gets
+>
+> **Not inline per message.** `runPeoplePass()` in `lib/identity.ts` runs AFTER the mail is collected
+> and committed, from both `cron/sync` and `admin/check-now`, with a deadline measured from the
+> start of the whole run (`CRON_PEOPLE_DEADLINE_MS = 22_000`, `MANUAL_PEOPLE_DEADLINE_MS = 55_000`
+> in `lib/sync-plan.ts`). S3's collection budget was NOT reduced. The reasoning: collecting the mail
+> is the part that must not be squeezed, because a person can be worked out at any later tick and an
+> email that was never fetched cannot. It takes `person_id IS NULL` newest-first in batches of 40,
+> so it covers both the new arrivals and the backlog left by S3 with one code path - there are not
+> two sets of rules about who becomes a person.
+>
+> ## E18 and E8, and the trap in the obvious implementation of E18
+>
+> Nobody becomes a person if they are one of our inboxes, a staff account's own address, at one of
+> our own domains, or a machine (`mailer-daemon`, `no-reply` and friends). **`accounts@supplier.com`
+> DOES become a person** - E19 says a role address is several humans collapsed to one by design, and
+> that belongs in the wiki rather than being worked around.
+>
+> **`own_domains` NULL means "work it out from the addresses you collect mail on", and that
+> inference deliberately skips free providers.** A site whose only inbox is a Gmail address would
+> otherwise stop recognising every Gmail correspondent it has, which is the entire customer list on
+> some sites. An explicit list wins outright **including an empty one** - somebody who cleared the
+> box has said something. NULL and `[]` are genuinely different values all the way down, and there
+> is a live test asserting they survive a round trip through the settings row.
+>
+> E8: no person is minted from an automated message (`auto_kind` set), which is a bounce, an
+> out-of-office or bulk mail. S3 already never reads Junk.
+>
+> ## E17 again, in a shape S5 could not have covered
+>
+> **A person's page is a second way of asking the search box's question, so it needed the same
+> gate.** `threadsForPerson` filters inside the SQL with S5's own `visibilityClause` (extracted
+> alongside a new shared `THREAD_LIST_SELECT`, so the inbox list and a person's page cannot drift).
+> But that alone leaks: `?person=<id>` was reachable by anybody with `unifiedinbox.view`, and the
+> name, the addresses, the organisation and the outbound SUBJECT LINES are not inbox-scoped. So the
+> panel now refuses the page outright unless the viewer can see at least one of that person's
+> conversations, or holds `unifiedinbox.manage` - and it says "not here, or in an inbox not shared
+> with you" either way, because telling the two apart is itself the leak.
+>
+> ## D13 is met: the timeline carries the automated mail
+>
+> `outboundLogForAddresses` reads core's `EmailLog` by `toAddress` (indexed, case-insensitive) and
+> `PersonView` interleaves it with the conversations in one list, newest first. It shows what went
+> and when, and says plainly on the page that there is no copy of what it said - because the log is
+> a delivery ledger with no bodies and never will have any. A failed send shows "It did not send".
+>
+> ## Gates, all genuinely green
+>
+> `npm run typecheck` **exit 0** (and confirmed the module is really in the program - 90 of its
+> files are in `tsc --listFiles`, so this is not a hollow pass). `eslint .` **exit 0**, no new
+> `eslint-disable` or `@ts-ignore` anywhere in the stage. `npm test` **4,401 passed / 100 skipped /
+> 0 failed**; this stage adds 62 unit tests (people, linking, adapter formatting).
+> `npm run test:backup-roundtrip` **4 passed, 0 failed - a real PASS**, with
+> `[roundtrip] module schemas built: ... unified-inbox` confirmed in the output, so every column 005
+> adds survives a dump and restore. `cactus_rt_*` databases and roles on the VPS confirmed gone
+> afterwards; the live Deskwell database was never named, opened or touched.
+>
+> **Note for whoever runs the round-trip next: do NOT `source` the Deskwell `.env`.** Line 18 holds
+> an unquoted `&` and `set -a; . .env` dies with a parse error at exit 126 - which the shell then
+> reports through whatever ran last, so it can read as a pass when the test never ran at all. Parse
+> the three `OVH_*` values out of it instead.
+>
+> ## The SQL was exercised against a real Postgres, and so were the adapters
+>
+> Twenty throwaway tests against a provisioned `cactus_rt_*` database on the OVH VPS covering: the
+> merge, the undo (including the after-the-merge distinction), the split and its refusal case, the
+> E17 visibility gate, the linker's "needs another look" query, the outbound ledger read, the
+> settings NULL-versus-empty distinction, and a regression check that the ordinary inbox list still
+> works after the `THREAD_LIST_SELECT` extraction. **The adapters were run against the REAL
+> `CREATE TABLE` statements lifted out of shop, purchasing, bookkeeping and quotes' own migrations**,
+> so a column name I imagined would have failed rather than passing quietly. All 20 passed.
+>
+> **Those tests were deleted with the harness**, same decision S5 took: `npm test` must stay runnable
+> without a database. If S8 wants a permanent home for database-backed tests that is a harness
+> decision worth taking deliberately. One trap worth writing down for whoever repeats this:
+> `lib/backup/restore.ts` (where `splitSqlStatements` lives) imports the app's prisma singleton, and
+> that singleton reads `DATABASE_URL` **once, at module load** - import it before pointing the
+> environment at the throwaway database and every query in the file goes looking for a connection
+> that is not there. Import it dynamically, after.
+>
+> ## Rendered in both themes, not reasoned about
+>
+> A temporary `app/uin-preview/page.tsx` rendered both new surfaces against fixtures, with a
+> two-line `ALWAYS_PASS` entry in `proxy.ts`. **All three are gone and core's `git status` is clean
+> of them.** No database was needed for this half - both components take props - so nothing went
+> near a real site.
+>
+> Scripted contrast audit over every piece of text on the screen: **108 elements, light mode zero
+> failures, dark mode zero failures.** At 375px it is one column with
+> `document.scrollWidth === clientWidth` - no sideways scroll.
+>
+> **Three things were wrong and were only visible by looking:**
+> 1. Every row printed its date twice - once inside the detail line and once under it. The standalone
+>    date is gone; `ContextItem.at` is now for ordering only.
+> 2. The collapsed "Attach something" chip stretched the full width of its card (a button in a grid),
+>    reading as an empty input box. Now `justify-self: start`.
+> 3. The rail's link heading said "Attached to this conversation" on a PERSON's page, where there is
+>    no conversation. It now reads "Attached to them" when there is no thread.
+>
+> Every colour is a semantic token; no hex anywhere in the new CSS. `.uin-ctx-sub` is
+> `--color-text-secondary` rather than `--color-text-muted` on purpose: it carries real information
+> (an address, a total, a date) and muted measures under AA against the card in dark mode.
+>
+> ## Deliberately not done, and why
+>
+> - **No people browsing screen.** See D15 above. The search endpoint exists only for the merge picker.
+> - **No phone or chat identities are created yet** - nothing produces them until S7's providers
+>   arrive. `phoneKey()`, the `'phone'`/`'chat'` identity kinds and `ContextQuery.phones` are all in
+>   place and tested, so S7 attaches a caller to a person by calling `addIdentity` with `kind: 'phone'`.
+> - **The bookkeeping adapter matches on the ORGANISATION NAME only**, because a transaction there
+>   has a counterparty name and no address. A person whose organisation we have not worked out shows
+>   nothing, which is the honest answer: matching a surname against a counterparty is how a
+>   supplier's unpaid bills end up beside a customer's enquiry. Aliases (`bk_counterparty_aliases`)
+>   are resolved first, since that is the owner's own list of "this name means that one".
+> - **The purchasing supplier link points at the suppliers LIST**, not at one supplier - that module
+>   has no `suppliers/[id]` page to point at.
+> - **No wiki page and nothing in `FIELD_NOTES.md`**: the module is not in `modules.json` and S9 owns
+>   docs. S9 must cover, at minimum: E19 (a role address is one person by design), what "your own
+>   domains" does, and that erase/export are S8's rather than here.
+> - **No commit, push or release.**
 
 ---
 
@@ -1776,8 +2029,277 @@ Inbox by name.
 
 **Notes for later stages:**
 
-> _(S7 agent: fill in. Especially: version numbers you bumped, and anything the Twilio API made
-> awkward.)_
+> **Done 2026-08-29. S7 is a FOUR-REPO stage, all four left uncommitted in the working tree.**
+>
+> | Repo | Version now | Both files bumped | `requiresCoreVersion` |
+> |---|---|---|---|
+> | `modules/contact-form` | **0.1.38** (was 0.1.37) | yes | raised 0.5.1329 -> **0.5.1383** |
+> | `modules/live-chat` | **0.1.21** (was 0.1.20) | yes | raised 0.5.1098 -> **0.5.1383** |
+> | `modules/twilio` | **0.1.30** (was 0.1.29) | yes | raised 0.5.1090 -> **0.5.1383** |
+> | `modules/unified-inbox` | **0.1.5** (was 0.1.4) | yes | unchanged, 0.5.1387 |
+>
+> Their release tags track the MANIFEST version, and manifest and `package.json` now agree in all
+> four. **Nothing in core changed** - core's working tree is clean of this stage, and core sat on
+> 0.5.1393 while it was built. **`requiresCoreVersion` had to move on the three channel modules**:
+> each provider imports `@/lib/conversations/types`, which does not exist on a core older than the
+> release carrying the S1 seam, so a site on an older core would fail to build rather than merely
+> not offering the feature. S8/S9 should hold that number to whatever release actually carries S1
+> when Chris cuts it.
+>
+> ## The isolation grep is clean, including the provider registrations
+>
+> ```
+> git grep "unified-inbox" -- ':!modules/unified-inbox' ':!wiki' ':!.gitmodules' ':!plans'   # empty
+> git grep -in "unifiedinbox\|Unified Inbox" -- ':!modules/unified-inbox' ':!wiki' ':!plans' # empty
+> grep -rin "unified.inbox\|unifiedinbox" modules/{contact-form,live-chat,twilio,contact-form-reply-catcher}  # empty
+> ```
+>
+> Not "empty apart from the registrations" - genuinely empty. A provider entry names a point, an
+> id, a permission and a file, none of which mention any consumer, so there was nothing to
+> exempt. Each provider's own header says what earns its place on a site that never installs this
+> hub: core's All tab, which appears the moment two providers resolve.
+>
+> ## The three providers
+>
+> **contact-form** (`lib/conversation-provider.ts`, `contactFormConversationProvider`). Over
+> `cf_contact_submissions` + `cf_contact_submission_replies`. **The reply route was refactored, not
+> duplicated**: everything a reply involves - the signature in whichever of the three kinds it was
+> authored in, the site's email design, the send, the row, the unread count - moved into a new
+> `lib/reply.ts` (`replyToSubmission`), and both the screen's route and the provider call it. Two
+> code paths that both send an email and both write a row are two chances to disagree about which
+> signature went out. Order preserved exactly: **send first, record second**, because a failed send
+> must leave nothing behind. Two new `lib/db.ts` readers, `listSubmissionSummaries` and
+> `submissionSummariesForEmails`, order by **newest activity** (a reply counts) rather than by when
+> the enquiry arrived - right for a list of enquiries, wrong for a list of conversations. Deep link
+> is `m/contact-form/inbox/<id>`, which is a real per-enquiry page.
+>
+> **live-chat** (`liveChatConversationProvider`). Over the `lc_` mirror; Chatwoot stays the source
+> of truth and nothing else in the module was touched - widget, settings, connection, webhook all
+> untouched. **`send` goes through `chatwoot.sendMessage` with the acting person's own agent token**
+> from `lc_admin_tokens`, so a reply is a genuine agent reply attributed to the colleague who wrote
+> it. **E26 is handled as a sentence, not a forgery**: no token means the send is refused with
+> "You have not connected your live chat account yet, so this reply would go out as somebody else.
+> Connect it under Settings, Live Chat, and then send it again." A private Chatwoot note maps to
+> `direction: 'note'` and can never render as something the customer saw. `markRead` clears the
+> mirror and best-efforts Chatwoot - a chat that will not mark itself read at the far end is not a
+> reason to fail the caller. Deep link is `inbox?tab=live-chat`: that module has no per-conversation
+> URL, and inventing one would be a link to nowhere. Two new `db.ts` readers,
+> `listConversationSummaries` (both statuses, which the screen's own tabs deliberately split) and
+> `listConversationsByEmails`.
+>
+> **twilio** (`twilioConversationProvider`) - **and this is the one the API made awkward, as
+> predicted.**
+>
+> - **Nothing is stored but voicemail.** Calls and texts are read live per site number, and there is
+>   still no inbound-SMS webhook, so a text is only visible once a listing runs. **Realtime inbound
+>   SMS is noted as future work and deliberately not built**: it is a webhook in the twilio module,
+>   a `tw_` table and a signature check, which is its own piece of work.
+> - **Three requests per number, and `Calls.json` filters on only one of To/From per request** - so
+>   a listing is To + From + a Region-wide `Recordings.json`, and the texts are two more. That is
+>   five requests per SMS-capable number. Hence **`MAX_NUMBERS = 4`, `PER_NUMBER = 50`, and a five
+>   minute in-process cache** (`forgetCachedConversations()` drops it, and sending a text does). A
+>   site with more numbers than that is **logged, not silently truncated** - "the rest are not
+>   listed".
+> - **Region is load-bearing.** A number's calls exist only in its own routing Region, so each
+>   number is read with `number.region` from `getSiteNumbers()`. Get that wrong and the account
+>   looks empty rather than erroring.
+> - **A conversation is one outside NUMBER**, not one call: every call, voicemail and text with
+>   +447700900123 is one story with one human, which is the whole point of the people layer.
+>   `channel` is `'sms'` when there is nothing but texts and `'phone'` otherwise. Our own numbers
+>   ringing each other (a forwarded call) are dropped - that is the phone system talking to itself.
+> - **`unread` is always false**, because this module records nobody having looked at anything and
+>   inventing a read flag would be a lie in both directions.
+> - A withheld caller ('anonymous', or an empty From) is kept as a conversation but **refused for
+>   texting in plain English** rather than failing at Twilio.
+> - One new reader, `recentVoicemails()` in `lib/voicemail-log.ts`.
+>
+> ## The consumer half
+>
+> **`lib/provider-registry.ts`** - the manifest read, done here rather than borrowed from core.
+> `resolveConversationProviders(user)` is core's and needs a session; **the tick has none, and must
+> collect every channel the site has regardless of whose permissions are involved** - access is
+> decided on the reading screen, not at collection. So: `allConversationProviders()` (no user, for
+> the tick), `providerForModule(name)` (for replying), `visibleProviderModules(user)` and
+> `visibleProviderChannels(user)` (labels + whether the channel can be answered). Same rules as
+> core's resolver - installed modules only, generated registry decides what exists, non-providers
+> skipped silently. **This is ~30 lines that mirror core; it was the alternative to a core change,
+> and a core change is what the stage brief said to stop and ask about.**
+>
+> **`lib/provider-sync.ts`** - the mirror. Provider conversations become `uin_threads` rows with
+> `provider_module` + `external_id`, their messages `uin_messages` rows with `source = 'provider'`.
+> Bounded at every level: `PROVIDER_LIST_LIMIT = 40` asked for, `PROVIDER_THREAD_LIMIT = 25`
+> opened, `PROVIDER_BUDGET_MS = 6_000` for the whole pass, **after** the mail and inside its own
+> deadline (S3's collection budget was not reduced - a chat is safely in its own module and can be
+> copied next tick; an email nobody fetched may be somewhere else by then).
+>
+> **There is no cursor table.** The watermark is `MAX(last_message_at)` per provider off our own
+> threads, less a minute of slack, so the pass is resumable by construction: interrupt it anywhere
+> and the next tick asks the same question and gets the right answer. First pass on a site with
+> years of history takes **90 days** rather than everything.
+>
+> **A conversation is only OPENED when something has happened on it** - `providerThreadState()`
+> compares what we hold against what the summary claims - so a settled channel costs one `list`
+> call and nothing else. That is the difference between the telephony provider costing five
+> requests an hour and costing five requests per conversation per hour.
+>
+> **A provider is another module's code running inside our pass**, so everything it returns is
+> checked: an empty id, a date that will not parse or an unknown channel costs that conversation,
+> a throwing `list` costs that channel, a throwing `thread` costs that conversation. One broken
+> channel never stops another.
+>
+> **`lib/provider-send.ts`** - replying. It sends nothing itself: it asks the owning module, then
+> records. **The owning module's own error message is passed through verbatim**, because it knows
+> why its own send failed and "you have not connected your chat account" is a sentence somebody can
+> act on. A channel whose module has gone answers "no longer installed" rather than throwing (E20).
+>
+> **The double-copy problem, and how it is solved.** A reply typed here is written down immediately
+> so the person sees their own words, carrying a placeholder id `uin-out:<ms>:<userId>`. The far end
+> then hands the same message back with an id of its own, which would be a second row saying the
+> same thing. `claimLocalOutbound()` matches on same conversation + same text + within 15 minutes +
+> still carrying our placeholder, and **rewrites the id in place**, so from then on the two are one
+> message by the ordinary unique index. **The clean fix would be `ConversationProvider.send`
+> returning the provider's own message id - that is a change to a core type, so it was not made.**
+> Worth doing in S10 or v2 if core is being touched anyway; the current mechanism is deterministic
+> but it is matching on prose.
+>
+> ## Access, and the change to the visibility clause
+>
+> **A provider conversation is governed by the owning module's own permission**, not by the inbox
+> guest lists - it never had an address to be filed under. `visibilityClause()` gained a third arm,
+> and the "not filed" arm was **narrowed to `inbox_id IS NULL AND provider_module IS NULL`**: before
+> that, every chat and enquiry would have fallen into "Not filed", which means "an email nobody
+> could place" and is manage-only. That one line is the difference between chat conversations being
+> visible to the people who may read them and being visible only to an administrator, in a bucket
+> labelled as something they are not.
+>
+> `listThreads`, `countThreads`, `unreadCounts` and `threadsForPerson` all take the provider list,
+> so they cannot disagree - S5's rule, unchanged. `unreadCounts` now keys provider rows as
+> `m:<module>`.
+>
+> **The rail gained an "Other channels" group**, one entry per provider module, addressed as
+> `?inbox=m:<module>`. `parseInboxParams` returns `providerModule`; anything with the `m:` prefix
+> takes that slot even if it names nothing, or `?inbox=m:` would have been read as an inbox id.
+>
+> ## People (S6 still holds)
+>
+> `resolveProviderThreadPerson` + `catchUpProviderPeople` run in the same `runPeoplePass` as the mail
+> one, in their own batch, and `unresolvedThreads` was narrowed to email so the two passes cannot
+> both claim a conversation. **A caller is recognised by their number**: `uin_messages.from_phone` is
+> a NEW column, deliberately not folded into `from_address`, because that column is what email
+> identities are matched on and a phone number in it would mint a person whose email address is a
+> telephone number. Somebody who emailed in March and rang in April is now one person with two
+> identities, which is the entire point of the layer. Same E18 gate as email - our inboxes, our
+> staff and our own domains never become customers; a number is not put through it, because a number
+> has no domain to judge and our own numbers never appear as the other party.
+>
+> ## Reply Catcher guard (D14, §5.7)
+>
+> `lib/reply-catcher-guard.ts`. If Reply Catcher is installed, its tables are present, it is
+> configured for the plain mailbox kind, and its host+username match one of ours (case and
+> whitespace insensitive), **that account is not collected** and the settings screen carries a
+> plain-English notice naming the account and the mailbox with what to do about it. Refusing to
+> collect is the right way round: the other module was there first and is filing into a screen
+> somebody is already using, and mail left in a mailbox is not lost, whereas mail filed twice in two
+> systems is a mess somebody unpicks by hand.
+>
+> **It deliberately does NOT stamp the account's last-checked time.** That stamp is what the Check
+> now cooldown reads, and marking a blocked account "just checked" every tick would turn the button
+> away for every other account too. The settings screen asks the same question directly.
+>
+> Reads only, raw SQL only, no import of that module's code, and **fails open**: a guard that cannot
+> read must not stop the mail.
+>
+> **Deskwell runs Reply Catcher, contact form, live chat and telephony today.** So the day this hub
+> is installed there, it lands straight into the two-pollers-one-mailbox configuration this guard
+> exists for. **That makes the guard the first thing to check on that install, not a theoretical
+> safeguard**: expect the mail account to refuse to collect and the settings screen to say why, and
+> if it does not, stop before the second poller has filed a morning's mail twice.
+>
+> **E21 decided, and it is "none".** Reply Catcher's existing caught replies are NOT imported. They
+> live in `rc_caught_replies` keyed to contact form submissions and are already visible on the
+> contact form thread they belong to; importing them would mean writing another module's history
+> into ours with no way to tell an imported copy from a collected one, and the hub's own collection
+> will pick up anything still in the mailbox. **S9 must put that in the wiki** - the plan says not to
+> leave it ambiguous, and this is the answer.
+>
+> ## E25, which was S7's and is now partly done
+>
+> `ownNotification()` in `lib/sync.ts`: inbound mail whose sender is the site's own sending address
+> is marked `auto_kind = 'own-notification'`. So the contact form's "somebody filled in your form"
+> email - and every order confirmation and purchase order email to an address we also collect - no
+> longer marks a conversation unread and never mints a person. **What is NOT done is the folding**:
+> it still lands as its own conversation rather than being attached to the form submission it is
+> about. Doing that properly means matching an arriving email against a provider conversation by
+> content, which is a heuristic with a real false-positive cost (attaching a customer's mail to the
+> wrong enquiry), and the harm E25 actually names - every enquiry showing as two unread enquiries -
+> is gone. **Left for S10 to decide deliberately rather than half-built.**
+>
+> Also fixed while in there: `AUTO_LABELS` in `ThreadPane` was keyed `'out-of-office'` and the engine
+> writes `'auto-reply'`, so that label had never once appeared.
+>
+> ## Schema: a NEW file, `migrations/006_providers.sql`. 001 to 005 untouched.
+>
+> - `uin_messages.provider_module`, `uin_messages.from_phone`.
+> - UNIQUE `(thread_id, provider_message_id)` partial on `source = 'provider'` - the dedupe the
+>   whole mirror rests on.
+> - Index `(provider_module, last_message_at DESC)` for the watermark.
+>
+> Both harness traps respected: no `$$` anywhere including comments, and the phrase for making a new
+> table appears nowhere in this ALTER-only file.
+>
+> ## §7.7.5 - what was and was not confirmed
+>
+> **Confirmed by test, not by reasoning**: `modules/unified-inbox/lib/suppression.test.ts` reads the
+> four REAL manifests off disk and puts them through core's own
+> `conversationProviderModuleNames` / `conversationConsumerModuleNames`. With the hub present,
+> contact-form's and live-chat's inbox tabs are the ones suppressed and the All tab stands down;
+> without it, nothing is suppressed and two or more providers resolve, which is what earns core's
+> All tab. Twilio is untouched by suppression because it has no inbox tab to take. Core's own eight
+> tests in `lib/conversations/inbox-tabs.test.ts` already cover the RULE including E1's two users;
+> this covers the WIRING, which is the half that is strings in a JSON file.
+>
+> **NOT confirmed on a running site**, and honestly flagged: the module is still not in
+> `modules.json`, so it is not in the generated registry, and the only reachable database is the
+> live Deskwell site. Nobody has watched a tab disappear. **The two-user check (a user who can see
+> the hub, and one who cannot) exists only as core's unit tests.** First install is where somebody
+> should actually look.
+>
+> ## Deliberately not done, and why
+>
+> - **Provider attachments are not mirrored.** Chat attachments are Chatwoot-hosted URLs; storing
+>   them as `uin_attachments` rows would either mean a `media_key` that is not ours (the attachment
+>   route and the media usage provider both assume our own storage) or copying somebody else's files
+>   onto our storage bill without being asked. Contact form and telephony have none. **S8 should
+>   decide whether chat attachments are worth fetching**; the message text is complete either way.
+> - **No realtime inbound SMS.** A webhook in the twilio module, as the plan says.
+> - **`markRead` is not called on the far end when a conversation is opened here.** Opening a chat in
+>   this hub marks it read HERE. Reaching back into Chatwoot to mark it read there on every open is a
+>   network call on a page render and a surprise for anybody using the Chatwoot app as well - worth a
+>   decision, not a default.
+> - **Nothing in `FIELD_NOTES.md`, no wiki page**: the module is not in `modules.json` and S9 owns
+>   docs. S9 must now also cover E21 (no import of caught replies), the Reply Catcher refusal, what
+>   "other channels" means in the rail, and that the phone conversation is per number.
+> - **Nothing rendered in a browser this stage.** The rail gained one heading and a list of links
+>   using the existing `.uin-rail` classes and tokens, and the settings notice is an existing
+>   `alert-danger`. No new colour, no new surface. S5's render harness would have to be rebuilt for
+>   two links; flagged rather than claimed.
+> - **No commit, push or release.**
+>
+> ## Gates, in every repo touched
+>
+> `npm run typecheck` **exit 0** (not bare `tsc`). `eslint .` **exit 0**, no new `eslint-disable` or
+> `@ts-ignore`. `npm test` **4,494 passed / 100 skipped / 0 failed** - this stage adds 65: 13
+> contact-form, 9 live-chat, 14 twilio, 11 provider mirror, 10 provider replies, 8 the Reply Catcher
+> guard, 12 the suppression wiring, 5 E25, 1 the rail's new address. The three channel modules and
+> the hub are all in the same tsc program and the same vitest run, so "in each repo" is one command
+> covering all four.
+>
+> `npm run test:backup-roundtrip` **4 passed, 0 failed - a real PASS**, with
+> `[roundtrip] module schemas built: ... unified-inbox` confirmed in the output, so both columns 006
+> adds survive a dump and restore. The OVH credentials were **parsed out** of the Deskwell `.env`
+> rather than sourced - line 18's unquoted `&` kills the shell at exit 126 while reporting success,
+> which is a gate that never ran wearing a green hat. `cactus_rt_*` throwaway databases dropped;
+> the live Deskwell database was never named, opened or touched.
 
 ---
 
@@ -1807,7 +2329,287 @@ Inbox by name.
 
 **Notes for later stages:**
 
-> _(S8 agent: fill in.)_
+> **Done 2026-08-29. All of S8 is in `modules/unified-inbox/` (module repo, version 0.1.6 in both
+> `package.json` and `cactus.module.json`). NOTHING in core changed - core's working tree is clean
+> of this stage, and the render harness described below was taken back out. `requiresCoreVersion`
+> stays `0.5.1387`; nothing newer was needed. The module is still deliberately NOT in
+> `modules.json`.**
+>
+> ## Schema: a NEW file, `migrations/007_retention.sql`. 001 to 006 untouched.
+>
+> **Two columns, no index, and the missing index is a finding rather than an omission.**
+>
+> - `uin_settings.retention_keep_linked` BOOLEAN NOT NULL DEFAULT true - requirement 1's setting.
+> - `uin_settings.retention_last_run_at` TIMESTAMP(3) - so the screen can say when the last pass
+>   was, rather than leaving the owner wondering whether anything happens at all.
+>
+> The first cut of this file added three indexes. **All three already existed**: 001 ships
+> `uin_record_links_thread_idx`, `uin_threads_person_idx` and `uin_attachments_message_idx`, and a
+> partial copy of an existing index under the same name is a `CREATE INDEX IF NOT EXISTS` that does
+> nothing at all while reading like work. They were taken out and the reasoning left in the file.
+> **Check `grep INDEX migrations/*.sql` before adding one** - this module has 44 of them already.
+>
+> Both harness traps respected: no `$$` anywhere including comments, and the phrase for making a new
+> table appears nowhere in this ALTER-only file. Both are now **asserted by a test** rather than
+> remembered - see the teardown guard below.
+>
+> ## Retention (requirement 1), and why it is a job of its own
+>
+> `lib/retention.ts`. `sweepRetention({deadline})` removes conversations whose newest message is
+> older than the window, in batches of 50, committing each batch before the next. Blank window means
+> nothing is ever removed, which is where every site starts.
+>
+> **The unit swept is the CONVERSATION, not the message.** Deleting the old half of a thread and
+> keeping the recent half leaves a stub that reads as though the customer opened with a reply.
+>
+> **`retention_keep_linked` defaults ON and the screen shows both numbers.** With it on, a
+> conversation carrying a `uin_record_links` row survives whatever its age. The settings screen shows
+> "the next tidy-up would remove N conversations last written to before <date>" plus "another M are
+> old enough but are being kept because something is attached to them" - **before** anything runs,
+> from `retentionPreview()`, which shares its counting query with the sweep so the two cannot
+> disagree. A window set for old mailing lists must not quietly take the correspondence behind a
+> disputed invoice with it, and the second number is what makes that visible rather than lucky.
+>
+> **Stored attachments go BEFORE their rows.** An interrupted sweep then leaves an object in storage
+> with nothing pointing at it - which core's storage check finds and offers up - rather than a row
+> pointing at bytes that have gone. A storage failure is counted and carried, never fatal: keeping
+> rows because storage was briefly unreachable would mean the window silently stopped working.
+>
+> **The location ledger keeps its row with a NULL thread**, by the FK 001 already declared. That is
+> deliberate and load-bearing: it is what stops the next sync collecting the very mail the owner has
+> just asked us to stop holding. There is a test asserting the ledger row survives the delete.
+>
+> **Orphans are pruned, carefully.** `pruneOrphanPeople` takes a person only if they hold no
+> conversations, no links, nobody merged into them, no live merge row - **and nobody ever typed a
+> name or a note on them**. A name or a note is somebody's own work. That is E8's other half, and
+> there is a test with four fixtures covering exactly which of them survives.
+>
+> **`cron/housekeeping` is a NEW cron entry, daily at `40 3 * * *`.** Not another passenger on the
+> mail tick: that 25 second slice is already spoken for by collection (18s), the channels (6s) and
+> the people pass (to 22s), and none of those can wait, whereas removing a year-old conversation
+> eleven hours later than it might have been costs nothing. **The manifest now declares two cron
+> paths**, which is the only manifest change besides the version.
+>
+> **The stalled-send sweep DID go on the hourly tick**, because an hour is about as long as anybody
+> should look at a message stuck saying "sending". `failStalledSends` marks anything in `'sending'`
+> for more than 15 minutes as `'failed'` with a sentence - **marked, not removed**, because the row
+> is the only evidence the attempt happened and a failed message has a Retry button. This is the
+> thing S4 and S5 both left for S8; it is done. One update against the partial index 003 added, which
+> on any ordinary site holds no rows.
+>
+> ## Export and erase (requirement 2), and exactly how far erase reaches
+>
+> `lib/person-data.ts`, plus `GET /api/m/unified-inbox/people/[id]/export`,
+> `GET .../people/[id]/erase` (the preview) and `POST .../people/[id]/erase` (the deed). Both are
+> **`unifiedinbox.manage`**, not the everyday view permission - downloading a customer's whole
+> correspondence is a serious thing and is never a side effect of looking at a page.
+>
+> **Neither is filtered by the inbox guest lists, on purpose.** These answer a legal request about a
+> named human. An export that quietly left out the inboxes this particular administrator happens not
+> to be on would be a false answer to it. That is the one deliberate exception to E17 in the module,
+> and it is bought with the strongest permission there is.
+>
+> **E22 is met by saying it, twice, in the interface and in the file.** The screen asks what would go
+> before it offers the button, from `personErasePreview` - counted from the very tables the delete
+> runs against, so the dialog and the deed cannot disagree. It lists what goes (conversations,
+> messages, attached files, addresses, everything worked out about them) AND what does not: the
+> records attached to their conversations **named by module**, their orders/invoices/quotes/member
+> account, and core's record that N automated emails were sent to them. The export file carries the
+> same three sentences in a `notIncluded` field at the top, because whoever opens it next may be a
+> solicitor rather than the person who exported it.
+>
+> **Core's `EmailLog` rows are NOT deleted, and this is a decision worth reviewing.** Those rows hold
+> the person's address and the subject of automated mail and never a body. Deleting core rows from a
+> module is a bigger step than anything else in this stage, and the plan says to stop and ask before
+> touching core. So: it is left, it is counted in the preview, and it is stated in plain English in
+> both the dialog and the file. **S10 or Chris should decide whether a hub erase ought to reach it.**
+> Under-deleting loudly is the safe side of that line; over-deleting silently is not.
+>
+> **The merge ledger is cleared by hand.** `uin_person_merges` holds no foreign key (so a merge
+> survives its rows), so `deletePersonRow` deletes by `winner_id`/`loser_id` explicitly. There is a
+> test asserting zero merge rows survive an erase - that is the assertion that catches it if somebody
+> stops doing that.
+>
+> ## Teardown (requirement 3): verified against the real tables, by a test that runs for ever
+>
+> **`lib/teardown.test.ts` parses every migration and asserts three things**, with no database, so it
+> can never be skipped and it covers 008 as well as 007:
+>
+> 1. the manifest's `teardown` list is **exactly** the set of tables the migrations create - neither
+>    a table left off (which survives an uninstall) nor a name no migration ever makes (a silent
+>    no-op that makes the list look more complete than it is);
+> 2. every name carries the module's own prefix;
+> 3. **children are listed before their parents**, checked against the foreign keys parsed out of the
+>    migrations themselves, both the inline ones and the `ALTER TABLE ... ADD CONSTRAINT` ones.
+>
+> **The list as S2 wrote it is correct** - 15 tables, correct order, including `uin_person_merges`
+> which S6 added. Nothing needed changing; what changed is that it is now checked rather than
+> remembered. Core's uninstall uses `DROP TABLE IF EXISTS ... CASCADE`, so the ordering cannot
+> actually fail on a foreign key, but a list in the wrong order is a list nobody has checked.
+>
+> **One thing uninstall does NOT take, and S9 should say so in the wiki:** the attachment objects in
+> media storage. Teardown drops tables; the objects under `<media prefix>/unified-inbox/` stay. Once
+> the media usage provider goes with the module they read as orphans, so core's storage check finds
+> them and offers them up - visible and recoverable rather than a silent leak, but it is a step the
+> owner has to take.
+>
+> ## Backup (requirement 4): a real PASS, and the sequence question answered
+>
+> `npm run test:backup-roundtrip` **4 passed, 0 failed**, with
+> `[roundtrip] module schemas built: boards, contact-form, directory, google-tag, live-chat,
+> purchase-orders, search, twilio, ultimate-seo, unified-inbox` - **`unified-inbox` named**, so 007's
+> two columns survive a dump and restore. `lib/backup/schema-coverage.test.ts` green inside plain
+> `npm test`.
+>
+> **This module owns NO sequence, anywhere, and that is now asserted rather than checked once.** The
+> teardown test refuses `SERIAL`, `BIGSERIAL`, `CREATE SEQUENCE` and `GENERATED ... AS IDENTITY`
+> across every migration, with a comment saying that the day one is genuinely needed, the backup's
+> sequence handling is what to check before the line is relaxed. Every id in this module is a `TEXT`
+> primary key defaulting to `gen_random_uuid()::text`, so there was never a counter to lose. The same
+> test refuses `$$` in any migration file, comments included - the trap that has now bitten this
+> module twice.
+>
+> **The credentials were parsed out of the Deskwell `.env`, never sourced.** Line 18's unquoted `&`
+> kills the shell at exit 126 while the failure surfaces through whatever ran last, which is a gate
+> that never ran wearing a green hat.
+>
+> ## Performance (requirement 5): measured, and it found two things
+>
+> A throwaway `cactus_rt_uinperf` database was provisioned on the OVH VPS with the round-trip
+> harness's own helper, built with core's init migration and all seven of this module's, and seeded
+> with **14,000 conversations, 30,800 messages, 6 inboxes, 3,000 people, 400 record links - 85MB of
+> `uin_` tables**. Twenty-two tests: `EXPLAIN (ANALYZE, BUFFERS)` on every query the screens and the
+> tick actually run, plus the destructive paths run for real. The database and its role were dropped
+> afterwards and the server confirmed clean of `cactus_rt%`; the live Deskwell database was never
+> named, opened or touched.
+>
+> **Finding 1, fixed: the conversation list joined the participant for every matching row, not for
+> the 25 it showed.** `listThreads` sorted and paged AFTER the LATERAL join, so an All view spent
+> 68ms and read 30,000 buffers to return a page - and that cost grows with the size of the MAILBOX
+> rather than the size of the page, so the same screen on a site with ten times the mail would be ten
+> times slower, for ever, on every page load. `THREAD_LIST_SELECT` is now `threadListQuery(where,
+> limit, offset)`, which takes the page in an inner query first (an index scan, since the ordering is
+> `uin_threads_last_message_idx`'s own) and joins only those rows. **68ms and 7,234 participant
+> lookups became 9ms and 25.** Deep page 40: 72ms to 24ms. `threadsForPerson` shares it, so the two
+> still cannot drift. **There is a test asserting both shapes return identical rows in identical
+> order** across four filter and offset combinations, because a faster query that returns different
+> rows is not a fix.
+>
+> **Finding 2, NOT a defect, and the way it nearly became a wrong "fix" is the useful part.** The
+> first measurement showed search taking 4.7 seconds and never opening `uin_messages_search_idx`. It
+> looked exactly like S5's correlated `EXISTS` being the wrong shape, and an uncorrelated
+> `t.id IN (SELECT ...)` was written to replace it. **The real cause was the fixture**: every seeded
+> message carried the same body, so the search term matched 52% of the table and Postgres was quite
+> right to ignore the index. With varied bodies, the shipped shape answers in **20ms using the GIN
+> index**, and the "fix" measured the same to within noise. The change was reverted and the finding
+> written into `lib/db.ts` as a warning for whoever measures this next. **A fixture where every row
+> is the same is how a measurement tells you the opposite of the truth.**
+>
+> **Everything else, at that volume:** one inbox page 1 **0.5ms**; the count **6ms**; the rail's
+> unread tallies **1.4ms**; one conversation **0.06ms**; a person's conversations **0.1ms**; the
+> retention batch **0.7ms**; the retention preview **40ms**; the stalled-send sweep **0.06ms**; the
+> erase preview **0.3ms**. The sync engine's own lookups - `findMessageByIdentity`,
+> `threadsForMessageIds`, `candidateThreads`, `unresolvedThreads` - are all **under 0.15ms**, so a
+> big mailbox costs the tick nothing beyond the mail it is actually fetching. **No list query reads a
+> body column**, asserted in the harness against the real column list.
+>
+> Remaining sequential scans are all on `uin_threads` where the access filter matches about half the
+> table, which is the planner making the right choice rather than a missing index.
+>
+> **The destructive paths were RUN, not just planned.** The sweep keeps linked conversations and
+> takes unlinked ones; the delete cascades to messages while the location ledger survives; the orphan
+> prune spares a named person, a noted person and a linked person and takes the bare one; a stalled
+> send is failed while a live one is not; an erase removes the person, their conversations, their
+> identities and their merge rows and leaves the neighbour's conversations exactly as they were; an
+> export carries the message bodies and states its limits. All 22 green.
+>
+> ## Generators (requirement 6): run, not assumed
+>
+> The generators read `modules.json`, and this module is deliberately not in it - so a scratch root
+> was built (a copy of `scripts/`, a symlink to `modules/`, and a `modules.json` with the entry
+> added) and the real generators were run against it. **All five pick the module up correctly**:
+> `generate-module-router` emits all 26 routes including the new `cron/housekeeping`,
+> `people/[id]/export` and `people/[id]/erase`; `generate-module-settings-tabs` lists it;
+> `generate-module-extension-points` emits both entries; `generate-module-csp` and
+> `generate-module-cache-cookies` correctly emit nothing for it. The manifest was also put through
+> core's own `ModuleManifestSchema` and parses, with both cron schedules.
+>
+> - **`cookieCategories: []` is right.** `grep` for `document.cookie`, `cookies()`, `Set-Cookie`,
+>   `localStorage` and `sessionStorage` across the module returns nothing. It is an admin surface that
+>   rides on core's session and sets nothing of its own.
+> - **No `cspOrigins`, still.** S5's reasoning holds: the message body is served from a route with its
+>   own policy rather than a `srcdoc` frame, and remote images are proxied through our own route, so
+>   `img-src 'self'` covers it. Nothing to declare.
+> - **No `outputFileTracingIncludes` needed.** Those keys are for files read via `fs` at runtime that
+>   the tracer cannot see statically. This module reads no such file - the only `fs` use anywhere in
+>   it is a test reading manifests - and its dependencies (`imapflow`, `mailparser`) are ordinary
+>   static imports the tracer follows. The existing generic `'/api/m/**'` key already covers module
+>   assets, and a key naming this module would be a leak into core besides.
+>
+> ## Rendered in both themes, and it found a real failure
+>
+> A temporary `app/uin-preview/page.tsx` plus a client wrapper rendered the two new surfaces - the
+> erase panel and the retention settings block - side by side in `data-theme="light"` and
+> `data-theme="dark"` panes, with a two-line `ALWAYS_PASS` entry in `proxy.ts`. **All three are gone
+> and core's `git status` is clean of them.** No database was needed. The wrapper stubs the one
+> request `PersonActions` makes, so the panel opens through its **real** code path rather than by
+> copying its markup into the harness where it could quietly drift.
+>
+> **The failure, which was only visible by looking:** the erase panel is an `alert-danger`, and
+> `alert-danger` sets its own text colour - core's danger red, which on its own tinted ground measures
+> **4.4:1 at 15px in light mode**. Under AA, on the one block of text somebody must read carefully
+> before taking a customer's history away. The body and both headings are now `--color-text`; the
+> alert's tint, its border and the red button carry the seriousness, and the words only have to be
+> readable. **Light: 30 elements, zero failures, lowest passing 4.9:1. Dark: 30 elements, one
+> failure.**
+>
+> That one dark failure is **core's own `.btn-primary` problem wearing a different jacket**: white on
+> `.btn-danger`'s red is **3.87:1** at 13px, on every button of that class on every admin screen.
+> Left alone deliberately, exactly as S5 left `.btn-primary` at 3.61:1. **Somebody should take both
+> to core at once** - they are the same decision about the same two button colours.
+>
+> At 375px: one column, `scrollWidth === clientWidth`, nothing overflowing the viewport.
+>
+> ## Deliberately not done, and why
+>
+> - **`attachment_fetch = 'always'` still behaves as `'lazy'`.** S3 flagged it for here. Pulling every
+>   attachment on an account through a cron slice needs its own budget, its own resumable cursor and
+>   its own storage-cost conversation with the owner, which is a piece of work rather than a setting.
+>   **The honest options are to build it properly or to rename the option**, and renaming a setting is
+>   S9's territory. Still open.
+> - **Chat attachments are still not mirrored.** S7 asked S8 to decide. **Decided: no.** They are
+>   Chatwoot-hosted and Chatwoot holds them; copying somebody else's files onto the site's storage
+>   bill without being asked is not a default, and the message text is complete either way. If a site
+>   wants it, it wants to be a setting with a size cap, which is a v2 question.
+> - **`?q=` still uses `websearch_to_tsquery('english', ...)`.** S5 noted making the dictionary a
+>   setting is "S8-shaped". It is not: changing the dictionary changes the expression, and the query
+>   must spell the expression EXACTLY as the index declares it, so a per-site dictionary means a
+>   per-site index and a reindex of every message on the site. That is a migration strategy, not a
+>   setting. **Left as a v2 question with the reason written down.**
+> - **No retention "run it now" button.** The preview tells the owner what would happen and the daily
+>   job does it. A button that removes several hundred conversations while somebody watches is a
+>   button somebody presses to see what it does.
+> - **Nothing in `FIELD_NOTES.md`, no wiki page.** The module is not in `modules.json` and S9 owns
+>   docs. **S9 must now also cover:** what the retention window does and that it cannot be undone;
+>   that "keep linked conversations" is on by default and why; that export and erase are
+>   administrator-only; **that erase is hub-only and exactly what it does not touch (E22)**, including
+>   core's record of automated mail; and that uninstalling leaves the attachment objects in storage
+>   for the storage check to find.
+> - **No commit, push or release.**
+>
+> ## Gates, all genuinely green
+>
+> `npm run typecheck` **exit 0 for this module** - the only errors in the tree are six files under
+> `plans/unified-inbox-webhooks/`, another agent's untracked work in progress that appeared partway
+> through this stage. Nothing in `modules/unified-inbox` errors. `eslint .` **exit 0**, no new
+> `eslint-disable` or `@ts-ignore` anywhere in the stage. `npm test` **4,515 passed / 100 skipped /
+> 0 failed**; this stage adds 12 permanent tests (5 teardown and migration guards, 7 retention
+> arithmetic and budgets) on top of S7's 4,494, the rest of the growth being another agent's.
+> `npm run test:backup-roundtrip` **4 passed, 0 failed - a real PASS**, with `unified-inbox` named in
+> the schemas it built.
+>
+> Core leak grep is empty, both forms. `cactus_rt%` databases and roles on the VPS confirmed gone
+> afterwards - the server was queried directly for both, and answered with nothing.
 
 ---
 
@@ -1845,7 +2647,142 @@ module without Chris asking.
 
 **Notes for later stages:**
 
-> _(S9 agent: fill in.)_
+> **Done 2026-08-29. S9 is a DOCS AND PACKAGING stage and touched no code.** Everything is in
+> **core** (`modules.json`, `README.md`, `FIELD_NOTES.md`, `public/module-art/unified-inbox.webp`,
+> `plans/module-card-art-prompts.md`, this file) and in **`wiki/`, which is a separate git checkout
+> and is pushed on its own**. `modules/unified-inbox/` was not touched at all - its working tree is
+> clean and v0.1.6 is already tagged and released - so there is **no module release in this stage**.
+>
+> ## The packaging step, which is the part that makes any of this real
+>
+> **`modules.json` now carries the entry**, appended after `purchase-orders` in the shape every
+> other entry uses:
+>
+> ```json
+> { "name": "unified-inbox",
+>   "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
+>   "version": "v0.1.6" }
+> ```
+>
+> **The three channel modules were bumped with it**, caught in review: `modules.json` still pinned
+> the pre-S7 releases, so a site would have taken the new hub alongside the old versions of the very
+> three modules meant to feed it. `contact-form` v0.1.37 -> **v0.1.38**, `live-chat` v0.1.20 ->
+> **v0.1.21**, `twilio` v0.1.29 -> **v0.1.30**. All three tags and releases were confirmed on GitHub
+> and match the manifests on disk, and all three declare `requiresCoreVersion: 0.5.1383`, which any
+> core carrying this pin already satisfies. Remember these pins are for fresh installs and this
+> repo's own build: **an existing install updates its own modules**, which is exactly why S7 wrote
+> both halves to work in either order.
+>
+> Chris was asked directly whether to pin now or after the S10 review and chose **now, in stage 9**,
+> so §7.9.5's condition is met. `v0.1.6` exists as a tag and as a GitHub release (all seven releases
+> so far are pre-releases). **S10 must re-check this pin before the release is cut**: if S10 ships a
+> fix the module version moves, and a pin naming a tag that is not the newest is worse than no pin.
+>
+> **`requiresCoreVersion` stays `0.5.1387` and is correct.** 0.5.1383 carries the S1 seam; 0.5.1387
+> carries `EmailPayload.from`/`transport`, without which a per-inbox sending identity is impossible,
+> so 1387 is the real floor. Core was on 0.5.1394 when this was written and moves several times an
+> hour, so read `package.json` and `git log` at the moment of committing rather than trusting that
+> number.
+>
+> **The generators were run against the REAL registry**, not S8's scratch root, and pick the module
+> up correctly: `generate-module-router` emits its routes including both cron paths (32 modules now),
+> `generate-module-settings-tabs` lists it as the 27th tab, `generate-module-extension-points` emits
+> both entries with the inbox panel withheld from the public map and the media-usage provider
+> deliberately left in it, and `generate-module-csp` / `generate-module-cache-cookies` emit nothing
+> for it, as expected.
+>
+> ## Card art: already done, verified rather than trusted
+>
+> Nothing was generated, prompted for or re-encoded. All three homes confirmed on disk:
+> `public/module-art/unified-inbox.webp` (RIFF WebP, **1200x675, 10.3KB**, untracked in core and
+> staged by this stage), `modules/unified-inbox/module-art.webp` (identical dimensions, already
+> committed and released in the module repo), and the `<img src="module-art.webp">` block above the
+> title in the module's README. `plans/module-card-art-prompts.md` carries the prompt as entry 33
+> with the count bumped from 32 to 33.
+>
+> ## Wiki (separate checkout - commit and push on its own)
+>
+> **New: `wiki/Unified-Inbox.md`** (~3,200 words), owner-facing, British, no em dashes, no jargon
+> beyond "app password" which the Reply Catcher page already uses. It leads on the one idea the rest
+> depends on - **a mail account and an inbox are two different things** - then covers connections and
+> folders, adding inboxes and routing, sending identity and the Brevo authentication step, the
+> Sent-folder copy, attachment limits, how often it checks (**hourly on paid, once a day on Hobby**,
+> said plainly), the screen, the other channels, people, the context rail, permissions and per-inbox
+> access, retention, export and erase, Reply Catcher, uninstalling, and a "not in this version" list.
+>
+> **Changed:** `Reply-catcher.md` (superseded block above the fold: what supersedes it, never both on
+> one mailbox, what happens when they clash, and that already-caught replies are not imported),
+> `Modules.md` (footer link), `Contact-form.md` / `Live-Chat.md` / `Twilio.md` (each says where
+> answering moves when the hub is installed, that everything else about the module is untouched, and
+> the one thing peculiar to that channel - the chat agent token, the phone conversation being per
+> number, the contact tab staying for colleagues who lack the hub's permission),
+> `Architecture-overview.md` (new **Conversations, and the record of what the site sent** section
+> covering `core.conversation-provider`, the All tab, per-user suppression, `serverOnly` and the
+> `EmailLog` ledger; plus core's cron count corrected from four to five),
+> `Authoring-a-module.md` (the `core.conversation-provider` row in the extension-point table, the
+> `serverOnly` row in the contributed-entry field table, and the `consumesConversationProviders`
+> manifest key), and `Configuration-reference.md` (what the outgoing email log holds, what it never
+> holds, and its twelve-month sweep).
+>
+> **Staging warning for whoever commits.** `wiki/*.md` files show as modified in **core's** status as
+> well, because core tracks stale copies of them at the same paths. They are already committed and
+> pushed in the wiki repo. **Never stage a `wiki/` path in core.** Other agents also have
+> `Members.md` and `Product-3D-views.md` open in the wiki checkout - stage only the eight files
+> listed above.
+>
+> ## The five things the docs say out loud
+>
+> Each shipped deliberately, each now written down where an owner will find it rather than discover
+> it: `attachment_fetch = 'always'` behaves as `'lazy'`; uninstalling leaves the attachment objects
+> in media storage for the library's Unused count to offer up; the site's own notification mail is
+> recognised and kept quiet but **not yet folded onto the enquiry it describes**, so a form
+> submission can still read as two things; **erasing a person does not remove core's `EmailLog`
+> record of automated mail sent to them** (described as behaviour, with no promise of a change -
+> S10's call); and two people replying at once is not handled at v1. Sending identity per inbox
+> **does** work, and the wiki says so as the plain answer rather than as a caveat.
+>
+> ## FIELD_NOTES and README
+>
+> `FIELD_NOTES.md` gained a dated top entry (what was registered, what the generators emitted, what
+> the docs say honestly) and a full **### Unified Inbox** section in the Modules inventory: manifest,
+> the core seam it consumes and why `requiresCoreVersion` is 1387 rather than 1383, all 15 tables and
+> seven migrations, both harness traps and the tests that now assert them, all 26 routes, both cron
+> paths and their budgets, the Message-ID identity rule, the send order, the attachment and email-HTML
+> isolation, the single-place visibility clause, the measured performance numbers, the three provider
+> modules, and every deliberate v1 limit. The Modules preamble count moved to thirty **and now notes
+> that its own list has lagged `modules.json`, which registers 32** - a pre-existing drift, flagged
+> rather than silently patched. `README.md` gained the module in the available-modules list and in
+> the wiki links line.
+>
+> ## Gates
+>
+> `npm run typecheck` **exit 0** (not bare `tsc`). `eslint .` **exit 0**.
+> `npm test` **4,506 passed / 100 skipped / 0 failed**, 334 files - including
+> `lib/modules/extension-points-public.test.ts`, which is the guard that matters now the module is in
+> the real registry. No round-trip run: this stage changed no migration and no serialiser, and the
+> module's schema was gated as a real PASS at S8.
+>
+> Isolation greps clean: `git grep "modules/unified-inbox"` outside `modules/`, `wiki/` and `plans/`
+> returns only `modules.json` and the two documentation files, and a case-insensitive grep for the
+> module's name in any form across core **code** returns nothing at all.
+>
+> ## What S10 inherits
+>
+> - **Re-check the `modules.json` pin against the module's newest release before the core release is
+>   cut.** If S10 changes anything in `modules/unified-inbox/`, that is a module release and a pin
+>   bump, and the wiki may need a line changing with it.
+> - **Three open questions are documented as current behaviour, not as promises**, so a decision
+>   either way costs a paragraph: `attachment_fetch = 'always'`, whether erase should reach core's
+>   `EmailLog`, and whether the site's own notification mail should fold onto the enquiry (E25's
+>   remaining half).
+> - **Nobody has watched a tab disappear on a running site.** Suppression is covered by core's unit
+>   tests and by the module's manifest-wiring test, and the first install is still where somebody
+>   should look - along with the Reply Catcher guard, which on Deskwell will fire on day one.
+> - Two core-wide contrast failures found at S5 and S8 are still open and are **core's**, not this
+>   module's: `.btn-primary` white-on-green at **3.61:1** and `.btn-danger` white-on-red at
+>   **3.87:1**, on every admin screen. They are one decision about two button colours and should be
+>   taken to core together.
+> - **No commit, push or release** was made here.
 
 ---
 
