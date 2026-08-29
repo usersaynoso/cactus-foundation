@@ -543,7 +543,7 @@ Update this table. `DONE` means gates green and notes written.
 | S7 | Channel providers: contact-form, live-chat, twilio | 3 module repos + module | DONE | § 7.7 |
 | S8 | Retention, GDPR, backup, teardown, performance | module | DONE | § 7.8 |
 | S9 | Docs, wiki, module art, packaging, release readiness | core + wiki | DONE | § 7.9 |
-| S10 | Full review and fixes | all | NOT STARTED | § 7.10 |
+| S10 | Full review and fixes | all | DONE | § 7.10 |
 
 ---
 
@@ -2782,7 +2782,18 @@ module without Chris asking.
 >   module's: `.btn-primary` white-on-green at **3.61:1** and `.btn-danger` white-on-red at
 >   **3.87:1**, on every admin screen. They are one decision about two button colours and should be
 >   taken to core together.
-> - **No commit, push or release** was made here.
+> - **Committed, pushed and released**, on Chris's standing authorisation for every stage of this
+>   run, once the chief-of-staff session had re-verified the gates on the corrected tree.
+>   **Core `v0.5.1395`** - seven files (the six above plus `package.json`), pushed to `origin`, tag
+>   confirmed to dereference to `main` HEAD (`44b08975`) rather than trusted through the chain, notes
+>   passed with `-F` and the release flagged prerelease. The plan file's diff is +957 lines, because
+>   core's tracked copy was the version S1 started from: **this one commit carries every stage's
+>   notes, S1 to S9.** The **wiki** went as its own commit and push to its own remote,
+>   nine files (`ceb853a`); `Members.md` and `Product-3D-views.md` were left dirty there, being
+>   another agent's.
+> - **These closing lines are NOT in that release** - they describe it, so they could not be. They
+>   sit uncommitted in the working tree for S10's own plan commit to carry, rather than costing a
+>   second core release for one paragraph.
 
 ---
 
@@ -2825,7 +2836,111 @@ when to retire Reply Catcher on Deskwell).
 
 **Notes:**
 
-> _(S10 agent: fill in.)_
+> **Done 2026-08-29. The review found two real defects, both fixed, both in
+> `modules/unified-inbox/` (version 0.1.7 in both `package.json` and
+> `cactus.module.json`). Core's only change is the pin, this file and
+> `FIELD_NOTES.md`. `requiresCoreVersion` stays `0.5.1387`.**
+>
+> ## Defect 1: a channel conversation was administrator-only for everything but replying
+>
+> Six routes decided who may act on a conversation with `thread.inboxId ? canViewInbox : manage`.
+> That reads "in no inbox" as "an email nobody could place", which is an administrator's problem -
+> and a chat, an enquiry or a call is in no inbox **by nature**, because it never had an address
+> to be filed under. S7 got this right in the rail, in the list query and in the send route, and
+> the other six were left behind.
+>
+> So a colleague who could plainly see a chat on their screen, and answer it, could not mark it
+> done, snooze it, assign it, leave a note on it, attach an order to it, or open an enquiry's own
+> HTML - every one of those answered 403 unless they held `unifiedinbox.manage`. Worse and
+> quieter: **mentioning somebody on a channel conversation raised no notification at all**, because
+> the mention check was `thread.inboxId ? canUserViewInbox(...) : false`. Nothing failed; the
+> colleague was simply never told.
+>
+> This is E1's shape a second time - a permission rule that locks somebody out of the thing they
+> are looking at - and it would have shown up on Deskwell on day one, which runs all three channels.
+>
+> **Fixed in one place rather than six.** `lib/access.ts` gains the pure `threadAccessKind()`,
+> which names the three shapes a conversation has (`filed`, `channel`, `unfiled`), plus
+> `canOpenThread(user, thread)` and `canUserOpenThread(userId, thread)` built on it.
+> `lib/provider-registry.ts` gains `providerPermissionFor(moduleName)`, so a colleague's own
+> permissions can be checked against the owning module's key the way `canUserViewInbox` already
+> reads a colleague's role. A channel whose module has gone answers `known: false` and therefore
+> nobody, which keeps E20 intact. `getMessageHtml` now returns `providerModule` beside `inboxId`,
+> because two of the six routes ask about a message rather than a conversation.
+>
+> Three tests on `threadAccessKind` - the distinction is the defect, so it is the assertion.
+>
+> ## Defect 2: the hourly tick could be reaching past the dispatcher's abort
+>
+> Every pass in `cron/sync` holds its budget honestly, but each one takes it **from the clock when
+> that pass begins**. Collection running to the edge of its 18 seconds therefore handed the
+> channels a fresh 6 on top, and the people pass its own deadline after that - so the tick could
+> still be working when the dispatcher aborts it at 25 seconds. Nothing is lost when that happens,
+> because every pass commits as it goes, but the run's own summary is never written and the
+> settings screen cannot say what happened. `CRON_TICK_DEADLINE_MS = 24_000` and
+> `MANUAL_TICK_DEADLINE_MS = 52_000` (the manual route's ceiling is 60) now cap the later passes
+> against the start of the run. Two tests.
+>
+> ## What the review checked and found sound
+>
+> - **D1 to D18 all implemented as decided**, with one deviation, below.
+> - **Isolation**: `git grep` for the module's name in any form across core code is empty; the only
+>   mentions anywhere in core are `modules.json`, `README.md` and `FIELD_NOTES.md`, which is
+>   registration rather than leakage. All three provider files name no consumer, and all three set
+>   `serverOnly`; `lib/modules/extension-points.public.ts` contains no provider.
+> - **Dead weight**: the core headers passthrough has a live consumer (`outgoingHeaders` in
+>   `lib/compose.ts`), `EmailPayload.from`/`transport` have one (`lib/transport.ts`), and
+>   `recordEmailSend` is called on both paths out of `sendEmail`. Core's All tab is wired into
+>   `app/cactus-admin/inbox/page.tsx` and cannot be reached by asking for an unknown `?tab=` when it
+>   is suppressed - `activeId` is chosen from the strip, which does not contain it.
+> - **Data safety**: `recordEmailSend` genuinely never throws, so a missing `EmailLog` table cannot
+>   take an order confirmation down with it. No `Media` row is minted anywhere in the module. No
+>   secret is decrypted outside `lib/transport.ts` and `credentialsForConnection`. Every one of the
+>   26 routes checks a session and a permission; the ACL lives inside the SQL in one place.
+>   `claimLocalOutbound` claims the oldest matching placeholder and rewrites it, so two identical
+>   replies inside the window claim one row each rather than colliding.
+> - **Backup**: `npm run test:backup-roundtrip` **4 passed, 0 failed - a real PASS**, with
+>   `[roundtrip] module schemas built: ... unified-inbox` in the output. The OVH credentials were
+>   parsed out of the Deskwell `.env`, never sourced. `cactus_rt%` databases and roles on the VPS
+>   confirmed gone afterwards by querying the server directly; the live Deskwell database was never
+>   named, opened or touched.
+> - **UI and copy**: no hex anywhere in the module's components, one `eslint-disable` and it carries
+>   its justification on the same line, no em dash in any file of the module or in the wiki page, no
+>   American spelling in either.
+> - **Checks**: `npm run typecheck` exit 0, `eslint .` exit 0, `npm test` green.
+>
+> ## The one deviation from a locked decision, deliberately not fixed
+>
+> **D12 says attachments come "from the media library or a fresh upload", and there is no fresh
+> upload.** The composer picks a file by where it already lives in storage, because the send path
+> takes a media key rather than a filename and a size out of a request body, which would be a
+> claim. So a file that is not in the library yet has to be put there first - one more step than
+> D12 imagined, and the wiki says so plainly rather than hiding it. Building the upload properly
+> means an upload control, gating it on the viewer's own media permission, and a render check in
+> both themes; that is a piece of work rather than a review fix, and half of it would be worse than
+> none. **Chris's call: accept it as documented, or v2.** The same step is what stands between D12's
+> "email this supplier about PO-1234 with the PDF attached" and being one action.
+>
+> ## Still open, and still not S10's to decide
+>
+> Both were put to Chris rather than implemented, exactly as S8 and S7 asked:
+>
+> 1. **Should erasing a person remove core's `EmailLog` rows for them?** Today it does not, it is
+>    counted in the preview and stated in the dialog, the export and the wiki. Under-deleting
+>    loudly is the safe side of the line, and deleting core rows from a module is a bigger step
+>    than anything else in the module.
+> 2. **Should `ConversationProvider.send` return the provider's own message id?** It is a core type
+>    change. Until it does, `claimLocalOutbound` matches a reply on conversation, text and a
+>    fifteen minute window - deterministic, but matching on prose.
+>
+> **Two core-wide contrast failures are still open and are core's, not this module's**:
+> `.btn-primary` white-on-green at **3.61:1** and `.btn-danger` white-on-red at **3.87:1**, on every
+> admin screen. One decision about two button colours, and it wants taking to core on its own.
+>
+> **Nobody has still watched a tab disappear on a running site**, and nobody has seen the Reply
+> Catcher guard fire. Both are covered by tests and both will happen on Deskwell the day the hub is
+> installed there - which is why the guard is the first thing to look at on that install rather
+> than a safeguard to assume.
 
 ---
 
