@@ -2909,7 +2909,7 @@ when to retire Reply Catcher on Deskwell).
 >   American spelling in either.
 > - **Checks**: `npm run typecheck` exit 0, `eslint .` exit 0, `npm test` green.
 >
-> ## The one deviation from a locked decision, deliberately not fixed
+> ## The one deviation from a locked decision - PUT TO CHRIS, AND ACCEPTED
 >
 > **D12 says attachments come "from the media library or a fresh upload", and there is no fresh
 > upload.** The composer picks a file by where it already lives in storage, because the send path
@@ -2918,12 +2918,47 @@ when to retire Reply Catcher on Deskwell).
 > D12 imagined, and the wiki says so plainly rather than hiding it. Building the upload properly
 > means an upload control, gating it on the viewer's own media permission, and a render check in
 > both themes; that is a piece of work rather than a review fix, and half of it would be worse than
-> none. **Chris's call: accept it as documented, or v2.** The same step is what stands between D12's
-> "email this supplier about PO-1234 with the PDF attached" and being one action.
+> none. The same step is what stands between D12's "email this supplier about PO-1234 with the PDF
+> attached" and being one action.
+>
+> **Chris answered: "accept the attachment thing as documented, ship it."** So this is settled
+> behaviour rather than an outstanding defect - the wiki already describes it, nobody is to build
+> the upload as a fix, and it sits on the v2 list below. D12 stands as decided in every other
+> respect.
+>
+> ## The v2 list
+>
+> Deliberately not in v1, each with its reason already written down somewhere above or in the
+> stage that met it:
+>
+> - **A fresh upload from the composer** - accepted as documented, above. A file goes in the media
+>   library first.
+> - **Inbound SMS in real time.** A webhook in the twilio module, a `tw_` table and a signature
+>   check. Texts appear on the ordinary check until then.
+> - **Labels of your own.** Status, assignee and the inbox are what there is.
+> - **Filing rules by sender or subject.** Filing is by the address post was delivered to, plus a
+>   catch-all (D11).
+> - **Suggested replies.** Nothing writes anything for anybody.
+> - **Two people replying at once** (E24), and **chat attachments mirrored onto our own storage**
+>   (S7 asked, S8 decided no), and **a per-site search dictionary** (a per-site expression index and
+>   a reindex of every message, so a migration strategy rather than a setting).
+> - **`attachment_fetch = 'always'` doing something different from `'lazy'`** - it needs its own
+>   budget, its own cursor and a storage conversation with the owner. Documented as it stands.
+> - **The site's own notification mail folded onto the enquiry it describes** (E25's remaining
+>   half). The harm E25 named - every enquiry showing as two unread ones - is already gone.
+>
+> **Awaiting Chris's decision, listed here so they are not mistaken for faults:**
+>
+> - Whether **erasing a person should reach core's `EmailLog` rows**. Today it does not, and says so
+>   in the dialog, the export and the wiki.
+> - Whether **`ConversationProvider.send` should return the provider's real message id**. It is a
+>   core type change; until it does, a reply is claimed by conversation, text and a fifteen minute
+>   window.
 >
 > ## Still open, and still not S10's to decide
 >
-> Both were put to Chris rather than implemented, exactly as S8 and S7 asked:
+> Both were put to Chris rather than implemented, exactly as S8 and S7 asked, and both are on the
+> v2 list above **awaiting his answer rather than as faults**:
 >
 > 1. **Should erasing a person remove core's `EmailLog` rows for them?** Today it does not, it is
 >    counted in the preview and stated in the dialog, the export and the wiki. Under-deleting
