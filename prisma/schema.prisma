@@ -652,6 +652,25 @@ model ModuleMigration {
 // asks whether the expression would have fired since this moment, which gives the same
 // answer whether it is woken hourly or once a day. Written BEFORE the job is invoked,
 // deliberately - a job that hangs must not be retried on every tick for ever.
+// The owner's chosen frequency for one scheduled job, keyed by the job's path.
+//
+// Holds the CHOICE ('15m'), never a cron expression: the minute and hour a job prefers
+// are re-read from its manifest each time the expression is rebuilt, so a module that
+// moves its nightly run takes the owner's "once a day" with it. See lib/cron/frequencies.ts.
+//
+// Absent row means "as its author set it". Deleting a row is how the admin resets one.
+model CronSchedule {
+  id        String   @id @default(cuid())
+  // Path on this site, query string included. Unique: it is the job's identity, and the
+  // same key CronRun uses.
+  path      String   @unique
+  // One of the values in CRON_FREQUENCIES. Stored as text so a site that rolls back to
+  // an older core finds an unrecognised value and falls back to the declared schedule,
+  // rather than failing to read the row at all.
+  frequency String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 model CronRun {
   id         String   @id @default(cuid())
   // Path on this site, query string included. Unique: it is the job's identity.

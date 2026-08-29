@@ -17,6 +17,7 @@ import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/ho
 import MembersGdprClient from './MembersGdprClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
+import ScheduledJobsClient from './ScheduledJobsClient'
 import type { EditorNavSection } from '@/lib/nav/admin-menu'
 import {
   PROVIDER_KIND,
@@ -611,6 +612,9 @@ type ConfigPageInnerProps = {
   canManageEmailTemplates: boolean
   canViewMembersGdpr: boolean
   canManageNav: boolean
+  // Settings > Schedules. Same key as the navigation editor (config.manage): both are
+  // site-wide plumbing rather than anything a section owner should be reaching for.
+  canManageSchedules: boolean
   navEditorData: NavEditorData | null
   membersGdprExtensions: ReactNode
   // Modules can add their own backup cards under the core Backup section (e.g.
@@ -619,7 +623,7 @@ type ConfigPageInnerProps = {
   backupExtensions?: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageEmailTemplates, canViewMembersGdpr, canManageNav, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -629,7 +633,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const savedAdminPath = useRef<string | null>(null)
   const tabParam = searchParams.get('tab')
   const showNavTab = canManageNav && !!navEditorData
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showNavTab && tabParam === 'navigation') ? (tabParam as string) : 'general'
+  const showSchedulesTab = canManageSchedules
+  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showNavTab && tabParam === 'navigation') || (showSchedulesTab && tabParam === 'schedules') ? (tabParam as string) : 'general'
   const [tab, setTab] = useState<string>(initialTab)
   // Email tab sub-tabs. "Delivery" is the from-address and provider settings
   // that have always lived here; "Templates" is every email the site sends,
@@ -645,7 +650,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       const valid =
         TABS.includes(t as Tab) ||
         moduleTabs.some((mt) => mt.id === t) ||
-        (showNavTab && t === 'navigation')
+        (showNavTab && t === 'navigation') ||
+        (showSchedulesTab && t === 'schedules')
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
       if (valid) setTab(t)
     }
@@ -1635,6 +1641,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         items={[
           ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
           ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
+          ...(showSchedulesTab ? [{ key: 'schedules', label: 'Schedules', active: tab === 'schedules', onClick: () => selectTab('schedules') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
         ]}
       />
@@ -1642,6 +1649,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {tab === 'navigation' && showNavTab && navEditorData && (
         <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} />
       )}
+
+      {/* Saves each row on its own, like the navigation editor - hence no page-level
+          Save button (the header only shows one for the tabs listed in TABS). */}
+      {tab === 'schedules' && showSchedulesTab && <ScheduledJobsClient />}
 
       {tab === 'general' && (
         <div>

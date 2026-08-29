@@ -130,7 +130,7 @@ If the rebuild takes longer than expected, a **Dismiss and continue** button app
 
 A **Send a test email** button sends a one-off email using the current From name/address and provider credentials, to a chosen address (or your own admin address if left blank). Use it to confirm outgoing mail actually reaches an inbox - a saved config with no errors doesn't guarantee your provider accepts the From address; some providers reject unverified sender addresses at send time.
 
-When you type new credentials into the Brevo or SMTP card, a second **Send a test email** button appears next to **Save credentials**. It tests the values you've just typed (before saving, so no redeploy) by sending a test email to your own admin address. Any field you leave blank falls back to the value already saved in your environment, so you can test a changed password against an unchanged host. If the test fails, the provider's error appears in the card.
+When you type new credentials into the Brevo or SMTP card, a second **Send a test email** button appears next to **Save credentials**. It tests the values you've just typed (before saving, so no redeploy) by sending a test email to your own admin address. Any field you leave blank falls back to the value already saved in your environment, so you can test a changed password against an unchanged host. If the test fails, the provider's error appears in the card. Test sends are recorded in the site's outgoing email log alongside every other email, so a test you sent last week is still there to look at when you are working out what changed.
 
 ### Templates
 
@@ -205,6 +205,10 @@ A **Preview as visitor** link opens the status page exactly as a real visitor wo
 
 The **Third-party data processors** list is generated automatically from the email, media, and hosting providers you've actually configured, so it stays accurate without manual maintenance.
 
+**The outgoing email log.** Your site keeps a record of every email it sends: who it went to, the subject, whether it went, and what went wrong if it did not. It keeps **no copy of the message itself**, deliberately, so the record stays small enough that nobody ever has to clear it out to keep the site working. It exists because your site's email is sent by Brevo or by your own mail server and never passes through your own Sent folder, so without it there was nowhere on the site to answer "did that order confirmation actually go?".
+
+Rows are kept for **twelve months** and then swept nightly. There is no box to change that number yet, and no screen listing the log on its own: today it is read by things that show one person's history, such as [Unified Inbox](Unified-Inbox), where it is what puts automated emails on a customer's timeline.
+
 ### Privacy policy generator
 
 The **Generate a privacy policy** button opens a six-step wizard that produces a draft privacy policy page in the page builder.
@@ -250,6 +254,28 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 **Privacy page panel:** With **Show a preferences panel on the privacy policy page** on (the default), the page you have chosen as your privacy policy renders the category switches above its own content, with **Save preferences**, **Accept all** and **Reject all** buttons. It reads the visitor's current choice from their consent cookie, writes the new one straight away, and logs it exactly as the banner does. It appears only when the consent banner is enabled, only on the linked privacy policy page, and only when at least one optional category exists - a site whose categories are all required has nothing to offer, so nothing is drawn.
 
 **Cookie settings link:** To give visitors a persistent way to change their preferences anywhere else, add a **Cookie settings link** block to your footer. It reopens the banner on the manage view, pre-filled with the visitor's existing choices. See [Appearance and design](Appearance-and-design).
+
+---
+
+## Schedules tab
+
+Everything your site does on a timer, in one list, grouped by what it belongs to - your website's own housekeeping first, then each add-on you have installed.
+
+Each job has a dropdown: **every minute, 5, 10, 15, 20 or 30 minutes, every hour, every 3, 6 or 12 hours, or once a day**. The first choice is always **Normal**, which is whatever the job was set up to do - a weekly search-engine audit stays weekly, at the time it was meant to run, unless you deliberately move it. Picking a new frequency keeps the time of day the job prefers wherever that still makes sense: a job that likes 3.40am, set to every 6 hours, runs at 3.40, 9.40, 15.40 and 21.40.
+
+Beside each job is when it last ran, and what went wrong if something did.
+
+### Your site's wake-up time
+
+The banner at the top says how often your site wakes up. That is set for you from whichever job runs most often, and it is the soonest anything on this page can possibly happen - a job set to every 5 minutes on a site that wakes hourly would arrive hourly, which is why the two move together.
+
+Asking for something faster than your site currently wakes up **rebuilds the site**. That takes a minute or two, happens on its own, and needs your site connected to GitHub. If it is not connected, your choice is still saved and takes effect the next time you update.
+
+### Before you set something to every minute
+
+Frequent checking is not free. Your host charges for the time your site spends working, and a job that takes twenty seconds and runs every minute spends rather a lot of it. Something small and quick every minute is pennies; something heavy every minute is not. Hourly, or every 15 minutes, covers most of what most sites need - and anything you want *right now* usually has a "Check now" button of its own.
+
+One thing this page cannot do: if your site is on a free hosting plan, your host only wakes it once a day no matter what you choose here.
 
 ---
 

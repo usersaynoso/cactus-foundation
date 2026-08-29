@@ -28,7 +28,9 @@
 // at one run a day, so nothing is lost there that Vercel had not already taken.
 
 import { prisma } from '@/lib/db/prisma'
-import { isValidCronExpression } from './schedule'
+import { isValidCronExpression, minIntervalMinutes } from './schedule'
+import { anchorFromSchedule, isCronFrequency, scheduleForFrequency, type CronFrequency } from './frequencies'
+import { dispatchScheduleForInterval, DISPATCH_SCHEDULE } from './vercel-file'
 export { DISPATCH_PATH, DISPATCH_SCHEDULE, buildVercelJson, VERCEL_JSON_PATH } from './vercel-file'
 
 export interface CronJob {
@@ -84,12 +86,23 @@ export function cronJobsFromManifest(moduleName: string, manifest: unknown): Cro
   return jobs
 }
 
-// Every job this install should be running: core's, plus each installed module's.
+// A job with the owner's choice applied, alongside what its author declared. The
+// dispatcher only ever looks at `schedule`; the settings page needs the rest to show
+// what "Default" would mean and whether the owner has moved it.
+export interface ResolvedCronJob extends CronJob {
+  /** What the module manifest, or CORE_CRON_JOBS, declares. */
+  defaultSchedule: string
+  /** The owner's pick, or null where they have left it as the author set it. */
+  frequency: CronFrequency | null
+}
+
+// Every job this install should be running, before anyone's preferences: core's, plus
+// each installed module's.
 //
 // 'failed' and 'inactive' are excluded for the same reason they are excluded from
 // modules.json - a module the owner switched off, or one whose install failed, has
 // routes that either do not exist or sit on tables that were never created.
-export async function listCronJobs(): Promise<CronJob[]> {
+export async function listDeclaredCronJobs(): Promise<CronJob[]> {
   const modules = await prisma.module.findMany({
     where: { status: { notIn: ['failed', 'inactive'] } },
     select: { name: true, manifest: true },
@@ -99,4 +112,58 @@ export async function listCronJobs(): Promise<CronJob[]> {
   const jobs = [...CORE_CRON_JOBS]
   for (const mod of modules) jobs.push(...cronJobsFromManifest(mod.name, mod.manifest))
   return jobs
+}
+
+// The same list with the owner's chosen frequencies applied.
+//
+// The override stores the CHOICE, not an expression, so the minute and hour a job
+// prefers are re-read from the manifest every time. A module that moves its nightly
+// job an hour later takes the owner's "once a day" with it, instead of pinning them
+// for ever to a time its author has since thought better of.
+//
+// An override naming a frequency this version does not know (a downgrade, a hand-edited
+// row) is ignored rather than guessed at: the job runs on its declared schedule, which
+// is always a safe answer.
+export async function listCronJobs(): Promise<ResolvedCronJob[]> {
+  const [jobs, overrides] = await Promise.all([
+    listDeclaredCronJobs(),
+    prisma.cronSchedule.findMany({ select: { path: true, frequency: true } }),
+  ])
+  const chosen = new Map(overrides.map((row) => [row.path, row.frequency]))
+
+  return jobs.map((job) => {
+    const raw = chosen.get(job.path)
+    const frequency = isCronFrequency(raw) ? raw : null
+    return {
+      ...job,
+      defaultSchedule: job.schedule,
+      frequency,
+      schedule: frequency ? scheduleForFrequency(frequency, anchorFromSchedule(job.schedule)) : job.schedule,
+    }
+  })
+}
+
+// The vercel.json tick a set of schedules needs. Pure, so the settings route can ask
+// what the tick WOULD be before and after a change without two database round-trips.
+export function tickForSchedules(schedules: string[]): string {
+  let fastest = Number.POSITIVE_INFINITY
+  for (const schedule of schedules) {
+    try {
+      fastest = Math.min(fastest, minIntervalMinutes(schedule))
+    } catch {
+      // Already warned about at parse time. A schedule this file cannot read is one the
+      // dispatcher will not run either, so it has no claim on the tick.
+    }
+  }
+  if (!Number.isFinite(fastest)) return DISPATCH_SCHEDULE
+  return dispatchScheduleForInterval(fastest)
+}
+
+// The tick this install needs to honour the schedules it is actually running. Written
+// into the install's repository by the module registry sync and the core update, and
+// re-checked whenever somebody changes a frequency - a job set to every five minutes is
+// only every five minutes if Vercel wakes us that often.
+export async function resolveDispatchSchedule(): Promise<string> {
+  const jobs = await listCronJobs()
+  return tickForSchedules(jobs.map((job) => job.schedule))
 }

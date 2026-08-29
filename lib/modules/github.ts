@@ -7,6 +7,7 @@ import { getGithubClient } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { applyPinFloor, formatHeldPins } from './pin-floor'
 import { buildVercelJson, VERCEL_JSON_PATH } from '@/lib/cron/vercel-file'
+import { resolveDispatchSchedule } from '@/lib/cron/jobs'
 
 function getMainRepo(): { owner: string; repo: string } {
   const raw = process.env.GITHUB_REPO ?? ''
@@ -222,11 +223,14 @@ export async function syncModulesJson(
   if (held.length > 0) console.warn(`[modules] ${formatHeldPins(held)}`)
 
   // vercel.json has to BE in the commit Vercel builds, because that is when Vercel reads
-  // it - a file the build generates is a file nothing registers. It holds one entry that
-  // never changes (lib/cron/vercel-file.ts), so this is a one-off repair on the first
-  // sync after the update and a no-op on every sync after that. Checked here rather than
+  // it - a file the build generates is a file nothing registers. Checked here rather than
   // in a migration because it is the repository, not the database, that is missing it.
-  const desiredVercelJson = buildVercelJson()
+  //
+  // Its one entry is the dispatcher tick, which is derived from the schedules this site
+  // is actually running (lib/cron/jobs.ts). Installing a module with a five-minute job,
+  // or removing the last one, therefore moves the tick in the same commit that moves the
+  // module registry - which is the only commit either of them gets.
+  const desiredVercelJson = buildVercelJson(await resolveDispatchSchedule())
   const currentVercelJson = await readRepoTextFile(octokit, owner, repo, VERCEL_JSON_PATH)
   const vercelJsonStale = currentVercelJson !== desiredVercelJson
 
@@ -315,4 +319,33 @@ export async function getLatestDeploymentStatus(
   } catch {
     return 'UNKNOWN'
   }
+}
+
+// Write vercel.json on its own, when the tick the site needs has changed but nothing
+// else has - which is what happens when an admin picks a new frequency for a job.
+//
+// Vercel reads vercel.json when it CREATES a deployment, so a tick change is not a
+// setting that takes effect on save: it takes effect on the next deploy, and this is
+// what causes one. modules.json is written back exactly as found, so the commit carries
+// the cron file and nothing else.
+export async function syncVercelJson(): Promise<{ committed: boolean; commitSha?: string }> {
+  const desiredVercelJson = buildVercelJson(await resolveDispatchSchedule())
+
+  const octokit = await getGithubClient()
+  const { owner, repo } = getMainRepo()
+
+  const currentVercelJson = await readRepoTextFile(octokit, owner, repo, VERCEL_JSON_PATH)
+  if (currentVercelJson === desiredVercelJson) return { committed: false }
+
+  const { content } = await readModulesJson(octokit, owner, repo)
+  const { commitSha } = await commitModulesJson(
+    octokit,
+    owner,
+    repo,
+    content,
+    'chore: update the scheduled job tick\n\n[cactus-deploy]',
+    false,
+    [{ path: VERCEL_JSON_PATH, content: desiredVercelJson }]
+  )
+  return { committed: true, commitSha }
 }

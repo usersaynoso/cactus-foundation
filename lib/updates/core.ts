@@ -12,6 +12,7 @@ import { markdownToHtml } from '@/lib/sanitize'
 import { compareVersions } from './version'
 import { applyPinFloor, formatHeldPins, type RegistryPin } from '@/lib/modules/pin-floor'
 import { buildVercelJson, VERCEL_JSON_PATH } from '@/lib/cron/vercel-file'
+import { resolveDispatchSchedule } from '@/lib/cron/jobs'
 import { gitBlobSha } from '@/lib/github/blob-sha'
 import {
   assertWithinDeadline,
@@ -382,7 +383,7 @@ export async function syncCoreFromUpstream(
   // only moment anything would have looked at it, and no install has ever had a cron job
   // registered. Blob shas are content-addressed, so this compares the desired content
   // against the repo without fetching anything.
-  const desiredVercelJson = buildVercelJson()
+  const desiredVercelJson = buildVercelJson(await resolveDispatchSchedule())
   const vercelJsonStale =
     initialBase.shaByPath.get(VERCEL_JSON_PATH) !== gitBlobSha(desiredVercelJson)
 

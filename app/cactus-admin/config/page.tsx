@@ -95,6 +95,9 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   const canManageEmailTemplates = granted['emails.templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
   const canManageNav = granted['config.manage'] === true
+  // Same key as the navigation editor: Schedules is site-wide plumbing, not a per-section
+  // setting, and the permission batch above already resolved it.
+  const canManageSchedules = granted['config.manage'] === true
 
   // Modules can add their own backup cards under Settings > Backup (e.g. a
   // module running an external service with its own database) via the
@@ -181,6 +184,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         canManageEmailTemplates={canManageEmailTemplates}
         canViewMembersGdpr={canViewMembersGdpr}
         canManageNav={canManageNav}
+        canManageSchedules={canManageSchedules}
         navEditorData={navEditorData}
         membersGdprExtensions={membersGdprExtensions}
         backupExtensions={backupExtensions}

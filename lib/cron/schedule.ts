@@ -146,3 +146,40 @@ export function isValidCronExpression(expression: string): boolean {
     return false
   }
 }
+
+// The shortest gap between two consecutive fires, in whole minutes.
+//
+// This is what decides how often Vercel has to wake the dispatcher: a site whose
+// fastest job runs every five minutes needs a five-minute tick, and one whose fastest
+// is nightly is well served by the hourly tick it has always had. See
+// dispatchScheduleForInterval in vercel-file.ts for the other half.
+//
+// Walked rather than reasoned about, because the fields interact (`*/20` in an hour
+// field restricted to `0-6` is not a 20-minute job) and a wrong answer here means a
+// job the owner asked for every minute quietly runs once an hour. Eight days is the
+// window: enough to see two of anything weekly, and 11,520 cheap iterations of a set
+// lookup, run only when the schedule set changes.
+export const NO_REPEAT_MINUTES = 8 * 24 * 60
+
+export function minIntervalMinutes(expression: string): number {
+  const parsed = parseCronExpression(expression)
+  // A fixed UTC Monday, so the answer never depends on the day this is asked. Leap
+  // years and month lengths do not change the shortest gap of any expression this
+  // parser accepts.
+  const start = Date.UTC(2001, 0, 1)
+  let previous: number | null = null
+  let shortest = NO_REPEAT_MINUTES
+
+  for (let minute = 0; minute < NO_REPEAT_MINUTES; minute += 1) {
+    if (!matchesMinute(parsed, new Date(start + minute * 60_000))) continue
+    if (previous !== null) {
+      const gap = minute - previous
+      if (gap < shortest) shortest = gap
+      // Nothing can beat one minute, and most of the walk is spent proving that it
+      // cannot. Stop as soon as the answer cannot improve.
+      if (shortest === 1) return 1
+    }
+    previous = minute
+  }
+  return shortest
+}

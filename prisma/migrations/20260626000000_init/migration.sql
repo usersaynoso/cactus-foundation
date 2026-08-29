@@ -370,6 +370,16 @@ CREATE TABLE "ModuleMigration" (
     CONSTRAINT "ModuleMigration_pkey" PRIMARY KEY ("id")
 );
 
+-- The owner's chosen frequency for one scheduled job. Holds the choice ('15m'), not a
+-- cron expression - see the CronSchedule model in schema.prisma.
+CREATE TABLE "CronSchedule" (
+    "id" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CronSchedule_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE "CronRun" (
     "id" TEXT NOT NULL,
     "path" TEXT NOT NULL,
@@ -509,6 +519,7 @@ CREATE INDEX "Layout_type_status_priority_updatedAt_idx" ON "Layout"("type", "st
 
 CREATE INDEX "ModuleMigration_moduleName_idx" ON "ModuleMigration"("moduleName");
 CREATE UNIQUE INDEX "ModuleMigration_moduleName_migrationName_key" ON "ModuleMigration"("moduleName", "migrationName");
+CREATE UNIQUE INDEX "CronSchedule_path_key" ON "CronSchedule"("path");
 CREATE UNIQUE INDEX "CronRun_path_key" ON "CronRun"("path");
 
 CREATE INDEX "EmailLog_sentAt_idx" ON "EmailLog"("sentAt" DESC);
