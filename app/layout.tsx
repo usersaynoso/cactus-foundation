@@ -4,6 +4,7 @@ import { mediaPublicOrigin } from '@/lib/media/public-origin'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
 import { isSpeedInsightsEnabled } from '@/lib/config/site'
+import { resolveSiteUrl } from '@/lib/seo/site-url'
 import './globals.css'
 
 type IconEntry = { url: string; type?: string; sizes?: string; media?: string }
@@ -74,7 +75,14 @@ export async function generateMetadata(): Promise<Metadata> {
     icon.push({ url: BRANDING_DEFAULTS.faviconPng, sizes: '96x96', type: 'image/png' })
   }
 
+  // Every relative URL in page metadata - og:image, the canonical link - is
+  // resolved against this. Without it Next resolves them against localhost and
+  // warns at build, so a shared link advertised a social image nobody outside
+  // the build machine could fetch.
+  const siteUrl = resolveSiteUrl()
+
   return {
+    ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
     title: { template: `%s | ${b.name}`, default: b.name },
     description: 'A minimal, extensible CMS',
     icons: {

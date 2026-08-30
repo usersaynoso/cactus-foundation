@@ -6,6 +6,8 @@ import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
 import { resolveModulePublicPage, resolveModuleRootSlugPage } from '@/lib/modules/router.public'
 import type { Metadata } from 'next'
+import { canonicalPath, withPublicSeo } from '@/lib/seo/public-metadata'
+import { resolveBranding } from '@/lib/config/branding'
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -30,14 +32,26 @@ const getPageBySlug = cache((slug: string) =>
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params
+  // The address this render is answering, whatever ends up serving it - a core
+  // page, a module index or a module's claim on the bare slug. A draft returns
+  // it too: a draft page is only visible to a signed-in admin, and the tag
+  // costs nothing there while saving a branch that is easy to get wrong.
+  const path = canonicalPath(slug)
   try {
+    const branding = await resolveBranding().catch(() => null)
+    const siteName = branding?.name
+
     const page = await getPageBySlug(slug)
     if (page) {
-      if (page.status === 'draft') return {}
+      if (page.status === 'draft') return withPublicSeo({}, path, siteName)
       const ogImageUrl = page.ogImageId
         ? await prisma.media.findUnique({ where: { id: page.ogImageId }, select: { url: true } }).then((m) => m?.url)
         : undefined
-      return { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined }
+      return withPublicSeo(
+        { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined },
+        path,
+        siteName,
+      )
     }
 
     // No InfoPage at this slug - fall through to a module's public index, if any.
@@ -46,10 +60,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     // a rejection escape the catch and kill the whole page render.
     const resolved = (await resolveModulePublicPage(slug, [])) ?? (await resolveModuleRootSlugPage(slug))
     if (resolved?.generateMetadata) {
-      return await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
+      // withPublicSeo only fills blanks, so a module that publishes a canonical
+      // of its own - a paginated listing pointing back at page one, say - keeps it.
+      const moduleMeta = await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
+      return withPublicSeo(moduleMeta ?? {}, path, siteName)
     }
-    return {}
-  } catch { return {} }
+    return withPublicSeo({}, path, siteName)
+  } catch { return withPublicSeo({}, path) }
 }
 
 export async function generateStaticParams() {

@@ -5,6 +5,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
 import type { Metadata } from 'next'
+import { canonicalPath, withPublicSeo } from '@/lib/seo/public-metadata'
+import { resolveBranding } from '@/lib/config/branding'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,16 +42,24 @@ const getHomepage = cache((id: string) =>
 // starts from - served the layout's install defaults while the same content
 // on /<slug> carried the page's real title, description and OG image.
 export async function generateMetadata(): Promise<Metadata> {
+  // The canonical belongs on the homepage whether or not a page is assigned to
+  // it: the root URL is the one address every crawler starts from, and it is
+  // reachable with any query string anybody cares to append.
+  const home = canonicalPath()
   try {
-    const config = await getRootConfig()
-    if (!config?.setupCompleted || !config.homepageId) return {}
+    const [config, branding] = await Promise.all([getRootConfig(), resolveBranding()])
+    if (!config?.setupCompleted || !config.homepageId) return withPublicSeo({}, home, branding.name)
     const page = await getHomepage(config.homepageId)
-    if (!page || page.status === 'draft') return {}
+    if (!page || page.status === 'draft') return withPublicSeo({}, home, branding.name)
     const ogImageUrl = page.ogImageId
       ? await prisma.media.findUnique({ where: { id: page.ogImageId }, select: { url: true } }).then((m) => m?.url)
       : undefined
-    return { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined }
-  } catch { return {} }
+    return withPublicSeo(
+      { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined },
+      home,
+      branding.name,
+    )
+  } catch { return withPublicSeo({}, home) }
 }
 
 export default async function RootPage() {

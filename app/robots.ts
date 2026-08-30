@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/prisma'
 import { collectModuleRobotsDisallow } from '@/lib/modules/router.public'
+import { resolveSiteUrl } from '@/lib/seo/site-url'
 
 // Metadata routes are statically cached at build time by default. This one
 // reads the live SiteConfig, so it must render per request — otherwise
@@ -10,8 +11,7 @@ import { collectModuleRobotsDisallow } from '@/lib/modules/router.public'
 export const dynamic = 'force-dynamic'
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  const siteUrl = process.env.SITE_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  const siteUrl = resolveSiteUrl()
 
   // No URL yet (pre-setup) — disallow all crawling
   if (!siteUrl) {

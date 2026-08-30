@@ -15,6 +15,9 @@ import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
 import type { DesignTokens } from '@/lib/design/tokens'
 import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
+import { collectModulePublicHead } from '@/lib/modules/router.public'
+import { resolveSiteUrl } from '@/lib/seo/site-url'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 // Favicon / app-icon metadata is resolved once at the root layout
 // (app/layout.tsx + app/manifest.ts) so it applies on every route, not just
@@ -36,7 +39,15 @@ export default async function PublicLayout({ children }: { children: React.React
   // resolveThemeLayout reads, so it has to finish before the layouts below -
   // but it needs nothing from the config or session reads, so the three run
   // together.
-  const [, config, user, member] = await Promise.all([
+  //
+  // The module head contributions ride along in the same batch: the structured
+  // data describing the business behind the site, and any meta tag that belongs
+  // on every page rather than on one. They need nothing any of the others
+  // return, so awaiting them separately would have added a serial round trip to
+  // every public page render for a tag nobody can see. Best-effort by design -
+  // a module having a bad day must not cost the visitor the page.
+  const siteUrl = resolveSiteUrl()
+  const [, config, user, member, modulePublicHead] = await Promise.all([
     ensureLayoutsCurrent(),
     getSiteConfig(),
     getSessionFromCookie().catch(() => null),
@@ -45,6 +56,7 @@ export default async function PublicLayout({ children }: { children: React.React
     // member cookie costs a session lookup. Needed so menu items restricted to
     // signed-in / signed-out audiences resolve correctly for members too.
     getMemberFromCookie().catch(() => null),
+    siteUrl ? collectModulePublicHead(siteUrl).catch(() => null) : Promise.resolve(null),
   ])
 
   // The media/privacy lookups need `config`; the layout reads need the prune
@@ -98,6 +110,15 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
+      {modulePublicHead?.meta.map((tag, i) => (
+        <meta key={`module-meta-${tag.name ?? tag.property ?? i}`} {...(tag.name ? { name: tag.name } : {})} {...(tag.property ? { property: tag.property } : {})} content={tag.content} />
+      ))}
+      {/* JSON-LD is read just as happily from the body as from the head, which
+          is what lets a layout contribute it at all - same as the SEO module's
+          own page-builder block. */}
+      {modulePublicHead?.jsonLd.map((data, i) => (
+        <script key={`module-jsonld-${i}`} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(data) }} />
+      ))}
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />

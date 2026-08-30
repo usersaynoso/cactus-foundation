@@ -90,6 +90,7 @@ const publicRoutes = {}       // base → [{ pattern, importPath }]
 const rootSlugClaims = []     // [{ moduleName, pageImport, claimImport, claimExport }]
 const sitemapModules = []     // [{ moduleName, importPath }]
 const robotsModules = []      // [{ moduleName, importPath }]
+const headModules = []        // [{ moduleName, importPath }]
 
 for (const moduleName of moduleNames) {
   // PAGE_LOADERS — scan modules/[name]/app/cactus-admin/[name]/**/page.tsx
@@ -156,6 +157,16 @@ for (const moduleName of moduleNames) {
   const robotsPath = join(rootDir, 'modules', moduleName, 'lib', 'robots.ts')
   if (existsSync(robotsPath)) {
     robotsModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/robots` })
+  }
+
+  // Site-wide document-head contributions: JSON-LD blocks and meta tags a
+  // module wants on EVERY public page rather than on a page it serves itself.
+  // Scanned from the same place and for the same reason as the two above - what
+  // a module publishes about the whole site has nothing to do with whether it
+  // owns a URL prefix.
+  const headPath = join(rootDir, 'modules', moduleName, 'lib', 'head.ts')
+  if (existsSync(headPath)) {
+    headModules.push({ moduleName, importPath: `@/modules/${moduleName}/lib/head` })
   }
 
   // Public routes — only for modules that declare a publicBasePath.
@@ -476,6 +487,30 @@ for (const { moduleName, importPath } of robotsModules) {
   pub.push(`  }`)
 }
 pub.push(`  return paths`)
+pub.push(`}`)
+pub.push(``)
+pub.push(`export type ModulePublicHead = {`)
+pub.push(`  jsonLd: object[]`)
+pub.push(`  meta: Array<{ name?: string; property?: string; content: string }>`)
+pub.push(`}`)
+pub.push(``)
+pub.push(`export async function collectModulePublicHead(siteUrl: string): Promise<ModulePublicHead> {`)
+pub.push(`  const jsonLd: object[] = []`)
+pub.push(`  const meta: ModulePublicHead['meta'] = []`)
+if (headModules.length === 0) {
+  pub.push(`  void siteUrl`)
+}
+for (const { moduleName, importPath } of headModules) {
+  pub.push(`  try {`)
+  pub.push(`    const mod = await import('${importPath}')`)
+  pub.push(`    const part = await mod.getPublicHead(siteUrl)`)
+  pub.push(`    if (Array.isArray(part?.jsonLd)) jsonLd.push(...part.jsonLd)`)
+  pub.push(`    if (Array.isArray(part?.meta)) meta.push(...part.meta)`)
+  pub.push(`  } catch (err) {`)
+  pub.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
+}
+pub.push(`  return { jsonLd, meta }`)
 pub.push(`}`)
 
 writeFileSync(routerPath, admin.join('\n') + '\n')
